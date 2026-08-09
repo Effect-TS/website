@@ -1,5 +1,6 @@
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections"
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
+import { pluginCopyFinalDiff } from "./src/plugins/expressive-code/copy-final-diff.ts"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground.ts"
 
 export default {
@@ -7,6 +8,7 @@ export default {
     pluginCollapsibleSections(),
     pluginLineNumbers(),
     pluginOpenInPlayground(),
+    pluginCopyFinalDiff(),
   ],
   styleOverrides: {
     borderColor: ["oklch(27.4% 0.006 286.033)", "oklch(92% 0.004 286.32)"],

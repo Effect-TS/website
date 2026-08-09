@@ -37,9 +37,11 @@ path using tools familiar to a TypeScript backend developer. We will introduce
 each Effect API only after encountering the limitation it addresses.
 
 <Aside type="tip" title="Using a coding agent?">
-  Every checkpoint includes a button that copies an agent-ready prompt. Read the
-  step first, then either follow its instructions yourself or let your coding
-  agent perform exactly the same changes and checks.
+  Each step ends with a checkpoint: a short verification that the code behaves
+  as expected before you continue. Every checkpoint includes a button that
+  copies an agent-ready prompt. Read the step first, then either follow its
+  instructions yourself or let your coding agent perform exactly the same
+  changes and checks.
 </Aside>
 
 ## 1. Start from familiar TypeScript
@@ -184,7 +186,7 @@ We have a working HTTP endpoint before introducing any Effect code.
   The project is running and an approved payment returns `201`. Continue only
   after you can reproduce the response shown above.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: set up the project">
 
 ````text
 Set up the starter project for the Effect tutorial.
@@ -357,7 +359,7 @@ preserve enough information to decide.
   A final decline and a temporary outage both collapse to the same `500`
   response. Confirm both outcomes before continuing.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: reproduce the failures">
 
 ```text
 Reproduce the baseline behavior of the tutorial project.
@@ -394,30 +396,105 @@ Keep the server running. In the second pane, add the dependency:
 npm install effect
 ```
 
-Add this import at the top of `server.ts`:
+Make the following changes to `server.ts`. Green lines are additions; the red
+line is replaced by the green line immediately below it.
 
-```ts title="server.ts"
-import { Effect } from "effect"
-```
+```ts title="server.ts" collapse={47-90} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
++import { Effect } from "effect"
 
-Add this adapter above `server`:
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
 
-```ts title="server.ts"
-const authorizePaymentEffect = (token: string) =>
-  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
++const authorizePaymentEffect = (token: string) =>
++  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
++
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+-    const authorization = await authorizePayment(input.paymentToken)
++    const authorization = await Effect.runPromise(
++      authorizePaymentEffect(input.paymentToken),
++    )
+
+    sendJson(201, {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      paymentProvider: authorization.provider,
+    })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 `Effect.tryPromise` receives a function instead of an already-running Promise.
 The function also receives an `AbortSignal`, which is passed directly to the
 provider SDK.
-
-Replace the direct call to `authorizePayment` inside the server callback:
-
-```ts title="server.ts"
-const authorization = await Effect.runPromise(
-  authorizePaymentEffect(input.paymentToken),
-)
-```
 
 An `Effect<Success, Error>` describes an operation that may produce `Success`
 or fail with `Error`. It does not start until it is executed. Here,
@@ -437,7 +514,7 @@ establishes the boundary between Promise code and Effect code.
   enters Effect through `Effect.tryPromise` and runs at the existing async
   boundary.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: bring the Promise into Effect">
 
 ````text
 Bring the provider Promise into Effect without changing the endpoint behavior.
@@ -491,51 +568,135 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 </TutorialCheckpoint>
 
 After every change below, wait for `node --watch` to reload the server before
-trying the next request. Each reload also resets the controlled fixture.
+trying the next request. Each reload also resets the controlled fixture. Every
+modification is shown in a complete `server.ts`: green lines are added, red lines
+are removed, and the copy button copies the complete final file without the red
+lines.
 
 ## 4. Compose the successful result
 
 We now move the successful HTTP result into the Effect program without changing
-its behavior. Add this type and helper above `server`:
+its behavior. Make the following changes:
 
-```ts title="server.ts"
-interface HttpResult {
-  readonly status: number
-  readonly body: unknown
+```ts title="server.ts" collapse={70-113} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
 }
 
-const httpResult = (status: number, body: unknown): HttpResult => ({
-  status,
-  body,
++interface HttpResult {
++  readonly status: number
++  readonly body: unknown
++}
++
++const httpResult = (status: number, body: unknown): HttpResult => ({
++  status,
++  body,
++})
++
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
+
++const placeOrder = (input: PlaceOrderRequest) => {
++  return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.map((authorization) =>
++      httpResult(201, {
++        orderId: `order-${input.customerId}`,
++        status: "accepted",
++        paymentProvider: authorization.provider,
++      }),
++    ),
++  )
++}
++
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+-    const authorization = await Effect.runPromise(
+-      authorizePaymentEffect(input.paymentToken),
+-    )
+-
+-    sendJson(201, {
+-      orderId: `order-${input.customerId}`,
+-      status: "accepted",
+-      paymentProvider: authorization.provider,
+-    })
++    const result = await Effect.runPromise(placeOrder(input))
++    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
 })
-```
 
-Add `placeOrder` below `authorizePaymentEffect`:
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 
-```ts title="server.ts"
-const placeOrder = (input: PlaceOrderRequest) => {
-  return authorizePaymentEffect(input.paymentToken).pipe(
-    Effect.map((authorization) =>
-      httpResult(201, {
-        orderId: `order-${input.customerId}`,
-        status: "accepted",
-        paymentProvider: authorization.provider,
-      }),
-    ),
-  )
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
 }
 ```
 
 `pipe` passes the operation through transformations from top to bottom.
 `Effect.map` changes only its success value. It does not catch or alter a
 failure.
-
-Replace the authorization and response code in the server callback with:
-
-```ts title="server.ts"
-const result = await Effect.runPromise(placeOrder(input))
-sendJson(result.status, result.body)
-```
 
 Wait for the server to reload and send the approved request. The response
 remains `201`, confirming that composing the successful result did not change
@@ -549,7 +710,7 @@ the endpoint.
   The successful authorization now becomes an `HttpResult` inside the Effect
   program. The approved request still returns `201`.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: move success into Effect">
 
 ````text
 Move the successful HTTP result into the Effect program without changing its behavior.
@@ -629,63 +790,141 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 
 The Promise may reject with any value. Our safest starting point is to give an
 unrecognized provider rejection its own name, not pretend that it is a decline
-or an outage.
+or an outage. Make the following changes:
 
-Change the Effect import:
+```ts title="server.ts" collapse={58-127} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+-import { Effect } from "effect"
++import { Data, Effect } from "effect"
 
-```ts title="server.ts"
-import { Data, Effect } from "effect"
-```
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
 
-Add this application error above `authorizePaymentEffect`:
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
 
-```ts title="server.ts"
-class UnexpectedPaymentProviderError extends Data.TaggedError(
-  "UnexpectedPaymentProviderError",
-)<{
-  readonly cause: unknown
-}> {}
-```
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
 
-Replace `authorizePaymentEffect` with:
-
-```ts title="server.ts"
-const toPaymentError = (cause: unknown) =>
-  new UnexpectedPaymentProviderError({ cause })
-
++class UnexpectedPaymentProviderError extends Data.TaggedError(
++  "UnexpectedPaymentProviderError",
++)<{
++  readonly cause: unknown
++}> {}
++
++const toPaymentError = (cause: unknown) =>
++  new UnexpectedPaymentProviderError({ cause })
++
 const authorizePaymentEffect = (token: string) =>
-  Effect.tryPromise({
-    try: (signal) => authorizePayment(token, { signal }),
-    catch: toPaymentError,
+-  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
++  Effect.tryPromise({
++    try: (signal) => authorizePayment(token, { signal }),
++    catch: toPaymentError,
++  })
+
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
++    Effect.catchTags({
++      UnexpectedPaymentProviderError: (error) =>
++        Effect.sync(() => {
++          console.error("Unexpected payment provider failure", error.cause)
++          return httpResult(502, {
++            error: error._tag,
++          })
++        }),
++    }),
+  )
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const result = await Effect.runPromise(placeOrder(input))
+    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
   })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 The Promise rejection enters `catch` as `unknown`. The adapter turns it into a
 value whose `_tag` and fields are known to TypeScript. The error channel is now
 `UnexpectedPaymentProviderError` instead of a generic unknown error.
-
-Add `Effect.catchTags` after `Effect.map` in `placeOrder`:
-
-```ts title="server.ts"
-return authorizePaymentEffect(input.paymentToken).pipe(
-  Effect.map((authorization) =>
-    httpResult(201, {
-      orderId: `order-${input.customerId}`,
-      status: "accepted",
-      paymentProvider: authorization.provider,
-    }),
-  ),
-  Effect.catchTags({
-    UnexpectedPaymentProviderError: (error) =>
-      Effect.sync(() => {
-        console.error("Unexpected payment provider failure", error.cause)
-        return httpResult(502, {
-          error: error._tag,
-        })
-      }),
-  }),
-)
-```
 
 Wait for the server to reload, then send the undocumented provider failure:
 
@@ -714,7 +953,7 @@ We will recognize them individually next.
   An undocumented provider rejection returns `502`. Its original cause remains
   in the server log instead of leaking to the client.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: handle unknown failures">
 
 ````text
 Give every unrecognized provider rejection a safe application-level name.
@@ -784,44 +1023,152 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 
 ## 6. Preserve a business decision
 
-Add the application error that represents a declined payment:
+A declined payment is a business decision that must remain distinct from an
+unexpected provider failure. Make the following changes:
 
-```ts title="server.ts"
-class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
-  readonly reason: string
-}> {}
-```
+```ts title="server.ts" collapse={73-142} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
 
-Replace `toPaymentError` with:
-
-```ts title="server.ts"
-const toPaymentError = (cause: unknown) => {
-  if (cause instanceof PaymentDeclinedSdkError) {
-    return new PaymentDeclined({ reason: cause.reason })
-  }
-  return new UnexpectedPaymentProviderError({ cause })
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
 }
-```
 
-Add its handler to `Effect.catchTags`:
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
 
-```ts title="server.ts"
-Effect.catchTags({
-  PaymentDeclined: (error) =>
-    Effect.succeed(
-      httpResult(422, {
-        error: error._tag,
-        reason: error.reason,
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
+
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
+}> {}
+
+-const toPaymentError = (cause: unknown) =>
+-  new UnexpectedPaymentProviderError({ cause })
++class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
++  readonly reason: string
++}> {}
+
++const toPaymentError = (cause: unknown) => {
++  if (cause instanceof PaymentDeclinedSdkError) {
++    return new PaymentDeclined({ reason: cause.reason })
++  }
++  return new UnexpectedPaymentProviderError({ cause })
++}
++
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(token, { signal }),
+    catch: toPaymentError,
+  })
+
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
       }),
     ),
-  UnexpectedPaymentProviderError: (error) =>
-    Effect.sync(() => {
-      console.error("Unexpected payment provider failure", error.cause)
-      return httpResult(502, {
-        error: error._tag,
-      })
+    Effect.catchTags({
++      PaymentDeclined: (error) =>
++        Effect.succeed(
++          httpResult(422, {
++            error: error._tag,
++            reason: error.reason,
++          }),
++        ),
+      UnexpectedPaymentProviderError: (error) =>
+        Effect.sync(() => {
+          console.error("Unexpected payment provider failure", error.cause)
+          return httpResult(502, {
+            error: error._tag,
+          })
+        }),
     }),
+  )
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const result = await Effect.runPromise(placeOrder(input))
+    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
 })
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 Wait for the server to reload, then send `tok_declined` again:
@@ -845,7 +1192,7 @@ back into the outer `catch`.
   A declined payment returns `422` after one attempt. It no longer shares the
   response used for an unknown provider failure.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: handle payment declines">
 
 ````text
 Preserve a declined payment as an explicit business decision.
@@ -907,38 +1254,164 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 
 ## 7. Preserve a temporary outage
 
-Add the second documented provider error:
+A temporary outage is the second documented provider failure. Make the
+following changes:
 
-```ts title="server.ts"
-class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
-  readonly provider: string
+```ts title="server.ts" collapse={85-154} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
+
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
 }> {}
-```
 
-Extend `toPaymentError` with one more recognized case:
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+  readonly reason: string
+}> {}
 
-```ts title="server.ts"
++class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
++  readonly provider: string
++}> {}
++
 const toPaymentError = (cause: unknown) => {
   if (cause instanceof PaymentDeclinedSdkError) {
     return new PaymentDeclined({ reason: cause.reason })
   }
-  if (cause instanceof ProviderUnavailableSdkError) {
-    return new ProviderUnavailable({ provider: cause.provider })
-  }
++  if (cause instanceof ProviderUnavailableSdkError) {
++    return new ProviderUnavailable({ provider: cause.provider })
++  }
   return new UnexpectedPaymentProviderError({ cause })
 }
-```
 
-Add the new handler to `Effect.catchTags`:
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(token, { signal }),
+    catch: toPaymentError,
+  })
 
-```ts title="server.ts"
-ProviderUnavailable: (error) =>
-  Effect.succeed(
-    httpResult(503, {
-      error: error._tag,
-      provider: error.provider
-    })
-  ),
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
+    Effect.catchTags({
+      PaymentDeclined: (error) =>
+        Effect.succeed(
+          httpResult(422, {
+            error: error._tag,
+            reason: error.reason,
+          }),
+        ),
++      ProviderUnavailable: (error) =>
++        Effect.succeed(
++          httpResult(503, {
++            error: error._tag,
++            provider: error.provider,
++          }),
++        ),
+      UnexpectedPaymentProviderError: (error) =>
+        Effect.sync(() => {
+          console.error("Unexpected payment provider failure", error.cause)
+          return httpResult(502, {
+            error: error._tag,
+          })
+        }),
+    }),
+  )
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const result = await Effect.runPromise(placeOrder(input))
+    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 Wait for the server to reload, then send `tok_flaky`. The provider is now
@@ -963,7 +1436,7 @@ a retry without guessing.
   A temporary provider outage returns `503` after one attempt. The error channel
   now distinguishes all three failure decisions.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: handle temporary outages">
 
 ````text
 Preserve a temporary provider outage as an explicit availability failure.
@@ -1024,26 +1497,168 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 
 ## 8. Retry only the failure that may recover
 
-Add `Effect.retry` immediately after `authorizePaymentEffect` and before
-`Effect.map`:
+Add a bounded retry immediately after `authorizePaymentEffect`. Its predicate
+allows only the temporary provider outage to retry:
 
-```ts title="server.ts"
-return authorizePaymentEffect(input.paymentToken).pipe(
-  Effect.retry({
-    times: 2,
-    while: (error) => error._tag === "ProviderUnavailable",
-  }),
-  Effect.map((authorization) =>
-    httpResult(201, {
-      orderId: `order-${input.customerId}`,
-      status: "accepted",
-      paymentProvider: authorization.provider,
+```ts title="server.ts" collapse={5-48,89-158} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
+
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
+}> {}
+
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+  readonly reason: string
+}> {}
+
+class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
+  readonly provider: string
+}> {}
+
+const toPaymentError = (cause: unknown) => {
+  if (cause instanceof PaymentDeclinedSdkError) {
+    return new PaymentDeclined({ reason: cause.reason })
+  }
+  if (cause instanceof ProviderUnavailableSdkError) {
+    return new ProviderUnavailable({ provider: cause.provider })
+  }
+  return new UnexpectedPaymentProviderError({ cause })
+}
+
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(token, { signal }),
+    catch: toPaymentError,
+  })
+
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.retry({
++      times: 2,
++      while: (error) => error._tag === "ProviderUnavailable",
++    }),
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
+    Effect.catchTags({
+      PaymentDeclined: (error) =>
+        Effect.succeed(
+          httpResult(422, {
+            error: error._tag,
+            reason: error.reason,
+          }),
+        ),
+      ProviderUnavailable: (error) =>
+        Effect.succeed(
+          httpResult(503, {
+            error: error._tag,
+            provider: error.provider,
+          }),
+        ),
+      UnexpectedPaymentProviderError: (error) =>
+        Effect.sync(() => {
+          console.error("Unexpected payment provider failure", error.cause)
+          return httpResult(502, {
+            error: error._tag,
+          })
+        }),
     }),
-  ),
-  Effect.catchTags({
-    // Keep the existing handlers here.
-  }),
-)
+  )
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const result = await Effect.runPromise(placeOrder(input))
+    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 Wait for the server to reload, then send `tok_flaky` again:
@@ -1081,7 +1696,7 @@ classification we built here.
   still returns `422` after one attempt, so retry does not override a business
   decision.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: retry recoverable failures">
 
 ````text
 Add a bounded retry that applies only to temporary provider outages.
@@ -1135,40 +1750,183 @@ curl -i -sS http://localhost:3000/orders \
 The request waits for about two seconds and then returns `201`. The provider is
 allowed to control how long our endpoint waits.
 
-Add a typed timeout error:
+Add a typed timeout around each provider attempt and handle it as an HTTP
+result:
 
-```ts title="server.ts"
-class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
+```ts title="server.ts" collapse={104-173} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
+
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
+}> {}
+
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+  readonly reason: string
+}> {}
+
+class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
   readonly provider: string
 }> {}
-```
 
-Add `Effect.timeoutOrElse` before `Effect.retry`:
++class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
++  readonly provider: string
++}> {}
++
+const toPaymentError = (cause: unknown) => {
+  if (cause instanceof PaymentDeclinedSdkError) {
+    return new PaymentDeclined({ reason: cause.reason })
+  }
+  if (cause instanceof ProviderUnavailableSdkError) {
+    return new ProviderUnavailable({ provider: cause.provider })
+  }
+  return new UnexpectedPaymentProviderError({ cause })
+}
 
-```ts title="server.ts"
-return authorizePaymentEffect(input.paymentToken).pipe(
-  Effect.timeoutOrElse({
-    duration: "250 millis",
-    orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
-  }),
-  Effect.retry({
-    times: 2,
-    while: (error) => error._tag === "ProviderUnavailable",
-  }),
-  // Keep Effect.map and Effect.catchTags below.
-)
-```
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(token, { signal }),
+    catch: toPaymentError,
+  })
 
-Add its HTTP handler to `Effect.catchTags`:
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.timeoutOrElse({
++      duration: "250 millis",
++      orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
++    }),
+    Effect.retry({
+      times: 2,
+      while: (error) => error._tag === "ProviderUnavailable",
+    }),
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
+    Effect.catchTags({
+      PaymentDeclined: (error) =>
+        Effect.succeed(
+          httpResult(422, {
+            error: error._tag,
+            reason: error.reason,
+          }),
+        ),
+      ProviderUnavailable: (error) =>
+        Effect.succeed(
+          httpResult(503, {
+            error: error._tag,
+            provider: error.provider,
+          }),
+        ),
++      RequestTimedOut: (error) =>
++        Effect.succeed(
++          httpResult(504, {
++            error: error._tag,
++            provider: error.provider,
++          }),
++        ),
+      UnexpectedPaymentProviderError: (error) =>
+        Effect.sync(() => {
+          console.error("Unexpected payment provider failure", error.cause)
+          return httpResult(502, {
+            error: error._tag,
+          })
+        }),
+    }),
+  )
+}
 
-```ts title="server.ts"
-RequestTimedOut: (error) =>
-  Effect.succeed(
-    httpResult(504, {
-      error: error._tag,
-      provider: error.provider
-    })
-  ),
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const result = await Effect.runPromise(placeOrder(input))
+    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 Wait for the server to reload, then send `tok_slow` again:
@@ -1200,7 +1958,7 @@ ordinary Promise API without any timeout-specific code in `placeOrder`.
   timeout in place, one interrupted attempt returns a typed `504` after about
   250 ms.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: add an attempt timeout">
 
 ````text
 Add a timeout that interrupts one slow provider attempt.
@@ -1270,15 +2028,185 @@ Reply with the before and after results in a concise pass or fail summary. On fa
 
 ## 10. Retry the timeout within the same limit
 
-The timeout is typed, so the retry decision can include it explicitly. Change
-only the predicate:
+The timeout is typed, so the retry decision can include it explicitly. Make
+the following change:
 
-```ts title="server.ts"
-Effect.retry({
-  times: 2,
-  while: (error) =>
-    error._tag === "ProviderUnavailable" || error._tag === "RequestTimedOut",
+```ts title="server.ts" collapse={5-52,106-175} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
 })
+
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
+}> {}
+
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+  readonly reason: string
+}> {}
+
+class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
+  readonly provider: string
+}> {}
+
+class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
+  readonly provider: string
+}> {}
+
+const toPaymentError = (cause: unknown) => {
+  if (cause instanceof PaymentDeclinedSdkError) {
+    return new PaymentDeclined({ reason: cause.reason })
+  }
+  if (cause instanceof ProviderUnavailableSdkError) {
+    return new ProviderUnavailable({ provider: cause.provider })
+  }
+  return new UnexpectedPaymentProviderError({ cause })
+}
+
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(token, { signal }),
+    catch: toPaymentError,
+  })
+
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
+    Effect.timeoutOrElse({
+      duration: "250 millis",
+      orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
+    }),
+    Effect.retry({
+      times: 2,
+-      while: (error) => error._tag === "ProviderUnavailable",
++      while: (error) =>
++        error._tag === "ProviderUnavailable" || error._tag === "RequestTimedOut",
+    }),
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
+    Effect.catchTags({
+      PaymentDeclined: (error) =>
+        Effect.succeed(
+          httpResult(422, {
+            error: error._tag,
+            reason: error.reason,
+          }),
+        ),
+      ProviderUnavailable: (error) =>
+        Effect.succeed(
+          httpResult(503, {
+            error: error._tag,
+            provider: error.provider,
+          }),
+        ),
+      RequestTimedOut: (error) =>
+        Effect.succeed(
+          httpResult(504, {
+            error: error._tag,
+            provider: error.provider,
+          }),
+        ),
+      UnexpectedPaymentProviderError: (error) =>
+        Effect.sync(() => {
+          console.error("Unexpected payment provider failure", error.cause)
+          return httpResult(502, {
+            error: error._tag,
+          })
+        }),
+    }),
+  )
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const result = await Effect.runPromise(placeOrder(input))
+    sendJson(result.status, result.body)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
 ```
 
 Wait for the server to reload, then send `tok_slow` again. The HTTP response
@@ -1304,7 +2232,7 @@ last `RequestTimedOut` continues to the existing HTTP handler.
   The endpoint makes three interrupted attempts and then returns the existing
   typed `504`. Every attempt has the same 250 ms bound.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: retry timeouts">
 
 ````text
 Include the typed timeout in the existing retry limit.
@@ -1349,37 +2277,199 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 So far cancellation has travelled from Effect to the Promise. We can also
 connect cancellation in the other direction.
 
-Inside the server callback, immediately after the route check, create an
-`AbortController` tied to the HTTP response:
+Connect the HTTP response to the Effect operation so a client disconnect stops
+the provider call. Make the following changes:
 
-```ts title="server.ts"
-const controller = new AbortController()
+```ts title="server.ts" collapse={5-103,147-190} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
 
-response.once("close", () => {
-  if (!response.writableEnded) {
-    controller.abort()
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
+
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
+}> {}
+
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+  readonly reason: string
+}> {}
+
+class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
+  readonly provider: string
+}> {}
+
+class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
+  readonly provider: string
+}> {}
+
+const toPaymentError = (cause: unknown) => {
+  if (cause instanceof PaymentDeclinedSdkError) {
+    return new PaymentDeclined({ reason: cause.reason })
   }
-})
-```
+  if (cause instanceof ProviderUnavailableSdkError) {
+    return new ProviderUnavailable({ provider: cause.provider })
+  }
+  return new UnexpectedPaymentProviderError({ cause })
+}
 
-Pass its signal when running the program:
+const authorizePaymentEffect = (token: string) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(token, { signal }),
+    catch: toPaymentError,
+  })
 
-```ts title="server.ts"
-const result = await Effect.runPromise(placeOrder(input), {
-  signal: controller.signal,
-})
-```
+const placeOrder = (input: PlaceOrderRequest) => {
+  return authorizePaymentEffect(input.paymentToken).pipe(
+    Effect.timeoutOrElse({
+      duration: "250 millis",
+      orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
+    }),
+    Effect.retry({
+      times: 2,
+      while: (error) =>
+        error._tag === "ProviderUnavailable" || error._tag === "RequestTimedOut",
+    }),
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
+    Effect.catchTags({
+      PaymentDeclined: (error) =>
+        Effect.succeed(
+          httpResult(422, {
+            error: error._tag,
+            reason: error.reason,
+          }),
+        ),
+      ProviderUnavailable: (error) =>
+        Effect.succeed(
+          httpResult(503, {
+            error: error._tag,
+            provider: error.provider,
+          }),
+        ),
+      RequestTimedOut: (error) =>
+        Effect.succeed(
+          httpResult(504, {
+            error: error._tag,
+            provider: error.provider,
+          }),
+        ),
+      UnexpectedPaymentProviderError: (error) =>
+        Effect.sync(() => {
+          console.error("Unexpected payment provider failure", error.cause)
+          return httpResult(502, {
+            error: error._tag,
+          })
+        }),
+    }),
+  )
+}
 
-Finally, change the outer `catch` so it does not write to a connection that has
-already closed:
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
 
-```ts title="server.ts"
-} catch (cause) {
-  if (controller.signal.aborted) {
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
     return
   }
-  console.error(cause)
-  sendJson(500, { error: "InternalServerError" })
+
++  const controller = new AbortController()
++
++  response.once("close", () => {
++    if (!response.writableEnded) {
++      controller.abort()
++    }
++  })
++
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+-    const result = await Effect.runPromise(placeOrder(input))
++    const result = await Effect.runPromise(placeOrder(input), {
++      signal: controller.signal,
++    })
+    sendJson(result.status, result.body)
+-  } catch (error) {
+-    console.error(error)
++  } catch (cause) {
++    if (controller.signal.aborted) {
++      return
++    }
++    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
 }
 ```
 
@@ -1411,7 +2501,7 @@ the interruption to the signal already used by the Promise adapter.
   When the client disconnects, the complete Effect operation stops, the provider
   receives an `AbortSignal`, and no retry begins after interruption.
 
-  <AgentPrompt label="Copy agent prompt">
+  <AgentPrompt label="AI prompt: propagate cancellation">
 
 ````text
 Connect an HTTP client disconnect to cancellation of the complete Effect operation.
