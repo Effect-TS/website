@@ -1,303 +1,2223 @@
 ---
 title: Run independent work concurrently without losing control
-description: Run backend lookups concurrently with a limit, keep result order, and stop all unfinished work at one deadline.
+description: Bound concurrent backend work, preserve result order, and stop one request at one deadline or client disconnect.
 sidebar:
   order: 2
 ---
 
-A quote may need prices and stock for many lines plus one shipping price. `Promise.all`, a limiter, a timer, and `AbortController` can do that job, but their lifetimes have to be connected by hand.
-
-In this tutorial, we will build `POST /quotes`. Three line lookups and one shipping quote will overlap, line results will stay in request order, and one deadline will cover the complete request.
-
-```text
-POST /quotes
-  |- line lookups, at most 2 active
-  `- shipping quote
-          |
-          v
-     one ordered response
-```
-
-## Setup
-
-```sh
-pnpm add effect @effect/platform-node
-```
-
-[Download `providers.ts`](/tutorials/order-processing/providers.ts) and save it next to the `server.ts` you will create below:
-
-```ts
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import { Effect, Layer, Schema } from "effect"
 import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "effect/unstable/http"
+  AgentPrompt,
+  Aside,
+  EffectApi,
+  TutorialCheckpoint,
+} from "@astrojs/starlight/components"
+
+A quote endpoint often needs several independent provider calls. `Promise.all`
+makes them easy to start together, but the surrounding application must still
+decide how many may run at once, how their results line up with the request,
+and what stops the whole group.
+
+In this tutorial, we will start with a familiar `node:http` endpoint backed by
+Promise-based provider fixtures. We will first reproduce two concrete problems,
+then move only the orchestration into Effect. The finished `POST /quotes`
+endpoint will behave like this:
+
+| Situation                                 | Observable behavior                                                               |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| Three normal line items                   | At most two line lookups run at once, while shipping overlaps with the line group |
+| Lookups finish in a different order       | The response keeps the request's item order                                       |
+| Line and shipping providers are both slow | One 500 ms deadline interrupts all unfinished work and returns `504`              |
+| The client disconnects first              | All unfinished work is interrupted and no response is written                     |
+
+The HTTP server will remain ordinary TypeScript throughout. Effect will manage
+only the concurrent provider operation and its lifetime.
+
+<Aside type="tip" title="Using a coding agent?">
+  Each step ends with a checkpoint: a short verification performed before you
+  continue. Every checkpoint contains an optional agent-ready prompt. Read the
+  step first, then either make the change yourself or let your coding agent
+  produce exactly the same file and verification result.
+</Aside>
+
+## 1. Start with familiar Promise concurrency
+
+This tutorial requires Node.js 22.18.0 or newer because it runs `server.ts`
+directly with Node's built-in TypeScript support.
+
+To set up the project manually, create an empty directory and initialize it.
+Otherwise, skip to the first checkpoint. Its prompt creates the starter,
+starts the watched server, and verifies the first request.
+
+```sh title="Create the project"
+mkdir run-independent-work-concurrently
+cd run-independent-work-concurrently
+npm init -y
+npm pkg set type=module
+npm install --save-dev @types/node@22
+```
+
+Create `server.ts` with the complete file below. The bottom of the file is a
+deterministic provider fixture. It uses local timers so the tutorial needs no
+credentials, public network, Docker container, or second server. You will not
+modify that fixture.
+
+```ts title="server.ts" collapse={85-152} useDiffSyntax copyFinal
 import { createServer } from "node:http"
-import { ShippingProvider, ShippingProviderFixture } from "./providers.ts"
+import { setTimeout as sleep } from "node:timers/promises"
 
-const OrderLine = Schema.Struct({
-  sku: Schema.String,
-  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+const quoteOrder = async (input: QuoteRequest): Promise<QuoteResponse> => {
+  const [lines, shippingCents] = await Promise.all([
+    Promise.all(input.items.map((line) => quoteLine(line))),
+    quoteShipping({
+      postalCode: input.postalCode,
+      itemCount: input.items.reduce((total, line) => total + line.quantity, 0),
+    }),
+  ])
+
+  return buildQuote(lines, shippingCents)
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as QuoteRequest
+
+    const quote = await quoteOrder(input)
+    sendJson(200, quote)
+  } catch (cause) {
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
 })
 
-const QuoteRequest = Schema.Struct({
-  items: Schema.NonEmptyArray(OrderLine),
-  postalCode: Schema.String,
-})
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 
-type OrderLine = typeof OrderLine.Type
-type QuoteRequest = typeof QuoteRequest.Type
-
-class ProductNotFound extends Schema.TaggedError<ProductNotFound>()(
-  "ProductNotFound",
-  {
-    sku: Schema.String,
-  },
-) {}
-
-class QuoteTimedOut extends Schema.TaggedError<QuoteTimedOut>()(
-  "QuoteTimedOut",
-  {},
-) {}
+// Tutorial fixture
+// You will not modify the code below.
 
 const catalog: Readonly<Record<string, number>> = {
   coffee: 1250,
   tea: 700,
   cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
 }
 
 const delayBySku: Readonly<Record<string, number>> = {
-  coffee: 160,
-  tea: 80,
-  cocoa: 50,
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
 }
 
-const quoteLine = Effect.fn("quote.line")(function* (line: OrderLine) {
-  yield* Effect.log(`start ${line.sku}`)
-  yield* Effect.sleep(delayBySku[line.sku] ?? 30)
+let activeLineLookups = 0
 
-  const unitPriceCents = catalog[line.sku]
-  if (unitPriceCents === undefined) {
-    return yield* new ProductNotFound({ sku: line.sku })
-  }
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
 
-  yield* Effect.log(`finish ${line.sku}`)
-  return {
-    ...line,
-    unitPriceCents,
-    lineTotalCents: unitPriceCents * line.quantity,
-  }
-})
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
 
-const quoteOrder = Effect.fn("order.quote")(function* (request: QuoteRequest) {
-  return yield* Effect.gen(function* () {
-    const shipping = yield* ShippingProvider
-    const [lines, shippingCents] = yield* Effect.all(
-      [
-        Effect.forEach(request.items, quoteLine, { concurrency: 2 }),
-        shipping.quote({
-          postalCode: request.postalCode,
-          itemCount: request.items.reduce(
-            (total, line) => total + line.quantity,
-            0,
-          ),
-        }),
-      ],
-      { concurrency: "unbounded" },
-    )
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
 
-    const subtotalCents = lines.reduce(
-      (total, line) => total + line.lineTotalCents,
-      0,
-    )
     return {
-      currency: "EUR",
-      lines,
-      subtotalCents,
-      shippingCents,
-      totalCents: subtotalCents + shippingCents,
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
     }
-  }).pipe(
-    Effect.timeoutOrElse({
-      duration: "350 millis",
-      orElse: () => Effect.fail(new QuoteTimedOut()),
-    }),
-  )
-})
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
 
-const handler = HttpServerRequest.schemaBodyJson(QuoteRequest).pipe(
-  Effect.flatMap(quoteOrder),
-  Effect.map(HttpServerResponse.jsonUnsafe),
-  Effect.catchTags({
-    ProductNotFound: (error) =>
-      Effect.succeed(
-        HttpServerResponse.jsonUnsafe(
-          { error: error._tag, sku: error.sku },
-          { status: 404 },
-        ),
-      ),
-    QuoteTimedOut: () =>
-      Effect.succeed(
-        HttpServerResponse.jsonUnsafe(
-          { error: "QuoteTimedOut" },
-          { status: 504 },
-        ),
-      ),
-    InvalidDestination: (error) =>
-      Effect.succeed(
-        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 422 }),
-      ),
-    ProviderUnavailable: (error) =>
-      Effect.succeed(
-        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 503 }),
-      ),
-  }),
-  Effect.catch(() =>
-    Effect.succeed(
-      HttpServerResponse.jsonUnsafe(
-        { error: "InvalidRequest" },
-        { status: 400 },
-      ),
-    ),
-  ),
-)
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
 
-const Routes = HttpRouter.add("POST", "/quotes", handler)
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
 
-const ServerLive = HttpRouter.serve(Routes).pipe(
-  Layer.provide(ShippingProviderFixture),
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
-)
-
-Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
 ```
 
-Start the backend:
+The application uses the Promise concurrency you already know. The inner
+`Promise.all` starts every line lookup, while the outer `Promise.all` overlaps
+the complete line group with shipping. `Promise.all` also returns line results
+in input order, even when the individual Promises resolve in another order.
 
-```sh
-node server.ts
+Start the server with `--watch`, which tells Node.js to reload it after each
+saved edit. Keep this terminal running throughout the tutorial:
+
+```sh title="Keep running throughout the tutorial"
+node --watch server.ts
 ```
 
-Keep it running and use a second terminal for the requests below.
+Open a second terminal pane and send a three-line quote:
 
-## 1. See the concurrency limit
-
-Send a three-line quote:
-
-```sh
-curl -sS http://localhost:3000/quotes \
+```sh title="Request a quote"
+curl -i -sS http://localhost:3000/quotes \
   -H 'content-type: application/json' \
   -d '{"items":[{"sku":"coffee","quantity":2},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1}],"postalCode":"00100"}'
 ```
 
-The response keeps the input order and totals EUR 46.00:
+The endpoint returns:
 
-```json
-{
-  "currency": "EUR",
-  "lines": [
-    {
-      "sku": "coffee",
-      "quantity": 2,
-      "unitPriceCents": 1250,
-      "lineTotalCents": 2500
-    },
-    {
-      "sku": "tea",
-      "quantity": 1,
-      "unitPriceCents": 700,
-      "lineTotalCents": 700
-    },
-    {
-      "sku": "cocoa",
-      "quantity": 1,
-      "unitPriceCents": 700,
-      "lineTotalCents": 700
+```text title="Expected response"
+HTTP/1.1 200 OK
+...
+
+{"currency":"EUR","lines":[{"sku":"coffee","quantity":2,"unitPriceCents":1250,"lineTotalCents":2500},{"sku":"tea","quantity":1,"unitPriceCents":700,"lineTotalCents":700},{"sku":"cocoa","quantity":1,"unitPriceCents":700,"lineTotalCents":700}],"subtotalCents":3900,"shippingCents":700,"totalCents":4600}
+```
+
+The response order is `coffee`, `tea`, `cocoa`, although the shorter cocoa and
+tea lookups finish before coffee. We have a working endpoint before adding
+Effect.
+
+<TutorialCheckpoint
+  number={1}
+  total={7}
+  title="The Promise-based quote succeeds"
+>
+  The starter project is running. Three line lookups overlap with shipping, and
+  the `200` response keeps the request's item order.
+
+  <AgentPrompt label="AI prompt: set up the project">
+
+````text
+Set up the starter project for the Effect concurrency tutorial.
+
+Rules:
+- Treat the current workspace root as the parent directory.
+- Work only in `./run-independent-work-concurrently`.
+- If that directory already exists, stop without changing anything and explain that setup requires a new directory.
+- Do not add files, dependencies, or configuration not requested below.
+
+Create `./run-independent-work-concurrently`, then run these commands inside it:
+
+```sh
+npm init -y
+npm pkg set type=module
+npm install --save-dev @types/node@22
+```
+
+Create `server.ts` with exactly this content:
+
+```ts
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+const quoteOrder = async (input: QuoteRequest): Promise<QuoteResponse> => {
+  const [lines, shippingCents] = await Promise.all([
+    Promise.all(input.items.map((line) => quoteLine(line))),
+    quoteShipping({
+      postalCode: input.postalCode,
+      itemCount: input.items.reduce((total, line) => total + line.quantity, 0),
+    }),
+  ])
+
+  return buildQuote(lines, shippingCents)
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
     }
-  ],
-  "subtotalCents": 3900,
-  "shippingCents": 700,
-  "totalCents": 4600
+    const input = JSON.parse(body) as QuoteRequest
+
+    const quote = await quoteOrder(input)
+    sendJson(200, quote)
+  } catch (cause) {
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
+}
+
+let activeLineLookups = 0
+
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
+
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
+
+    return {
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
+    }
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
+
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
 }
 ```
 
-The relevant log order is:
-
-```text
-start coffee
-start tea
-finish tea
-start cocoa
-finish cocoa
-finish coffee
-```
-
-`Effect.forEach(..., { concurrency: 2 })` starts two lines. The third begins only when one slot is free. Completion order changes; response order does not.
-
-Now change the limit to `1`, restart the server, and send the same request:
-
-```ts
-Effect.forEach(request.items, quoteLine, { concurrency: 1 })
-```
-
-Every `start` now follows the previous `finish`. Restore the limit to `2` before continuing.
-
-## 2. Run independent branches together
-
-The line group and shipping call sit inside one `Effect.all` with explicit concurrency:
-
-```ts
-const [lines, shippingCents] =
-  yield *
-  Effect.all(
-    [
-      Effect.forEach(request.items, quoteLine, { concurrency: 2 }),
-      shipping.quote({
-        postalCode: request.postalCode,
-        itemCount: request.items.reduce(
-          (total, line) => total + line.quantity,
-          0,
-        ),
-      }),
-    ],
-    { concurrency: "unbounded" },
-  )
-```
-
-The unbounded setting applies to these two known branches, not to the variable-size line collection. The line collection keeps its own limit of two.
-
-## 3. Put one deadline around the request
-
-Ask the fixture for a deliberately slow shipping quote:
+Start `node --watch server.ts` in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active. From a second terminal pane, run this exact verification command:
 
 ```sh
 curl -i -sS http://localhost:3000/quotes \
   -H 'content-type: application/json' \
-  -d '{"items":[{"sku":"coffee","quantity":2}],"postalCode":"SLOW"}'
+  -d '{"items":[{"sku":"coffee","quantity":2},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1}],"postalCode":"00100"}'
 ```
 
-```text
-HTTP/1.1 504 Gateway Timeout
-...
+Verify status `200` and this exact body:
 
+```json
+{"currency":"EUR","lines":[{"sku":"coffee","quantity":2,"unitPriceCents":1250,"lineTotalCents":2500},{"sku":"tea","quantity":1,"unitPriceCents":700,"lineTotalCents":700},{"sku":"cocoa","quantity":1,"unitPriceCents":700,"lineTotalCents":700}],"subtotalCents":3900,"shippingCents":700,"totalCents":4600}
+```
+
+Reply only that the starter project is running and the quote request succeeded. If a requested action fails, report the failure without attempting an alternative setup or correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 2. Reproduce the missing controls
+
+The three-item request does not reveal how many provider calls the endpoint is
+willing to open. Send a quote with five lines:
+
+```sh title="Open five line lookups"
+curl -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":1},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1},{"sku":"cookies","quantity":1},{"sku":"jam","quantity":1}],"postalCode":"00100"}' > /dev/null
+```
+
+Before any line finishes, the server logs all five starts:
+
+```text title="Relevant server log"
+line start coffee active=1
+line start tea active=2
+line start cocoa active=3
+line start cookies active=4
+line start jam active=5
+```
+
+The item count in one request currently determines the number of concurrent
+line lookups. A large quote can therefore send a sudden burst to the catalog
+provider. `Promise.all` preserves order, but it has no option that bounds the
+concurrency of the mapped Promises.
+
+Now ask `curl` to disconnect after 100 ms while both providers are slow:
+
+```sh title="Disconnect during a slow quote"
+curl --max-time 0.1 -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"slow","quantity":1}],"postalCode":"99999"}'
+```
+
+`curl` reports that its deadline was reached and receives no response. About
+one second later, the server still logs both finishes:
+
+```text title="Relevant server log"
+line start slow active=1
+shipping start 99999
+line finish slow
+shipping finish 99999
+```
+
+The provider functions already accept an optional `AbortSignal`, a standard
+Promise cancellation mechanism. The application never creates or connects one,
+so the provider work outlives the HTTP client.
+
+We could add a limiter, an `AbortController`, a timer, and cleanup code by hand.
+Instead, we will let one Effect value describe the complete operation and add
+those policies one at a time.
+
+<TutorialCheckpoint
+  number={2}
+  total={7}
+  title="The missing concurrency and lifetime controls are visible"
+>
+  One request opens five line lookups at once. Disconnecting from a slow quote
+  does not stop either provider call.
+
+  <AgentPrompt label="AI prompt: reproduce the missing controls">
+
+````text
+Reproduce the two baseline problems in the tutorial project.
+
+Rules:
+- Work only in `./run-independent-work-concurrently` relative to the current workspace root.
+- Verify that `package.json` and `server.ts` exist there. Otherwise stop without changing anything.
+- Do not edit any file.
+- If `http://localhost:3000/quotes` refuses the connection, start `node --watch server.ts` from the tutorial directory in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active.
+- If the server returns any HTTP response, do not restart it merely because a result differs from the expectations below.
+- Do not fix a failed verification.
+
+First, run:
+
+```sh
+curl -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":1},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1},{"sku":"cookies","quantity":1},{"sku":"jam","quantity":1}],"postalCode":"00100"}' > /dev/null
+```
+
+Verify that all five `line start` entries occur before the first `line finish` entry and that the active counts reach 5.
+
+Second, run:
+
+```sh
+curl --max-time 0.1 -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"slow","quantity":1}],"postalCode":"99999"}'
+```
+
+Verify that the client receives no HTTP response, then wait long enough to observe that both `line finish slow` and `shipping finish 99999` still appear.
+
+Reply with a concise pass or fail result for the unbounded-work observation and the disconnect observation. On failure, report only the observed difference. Do not propose or apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 3. Give the complete Promise operation an Effect boundary
+
+Keep the watched server running. In the second terminal pane, install Effect:
+
+```sh title="Install Effect"
+npm install effect
+```
+
+First, let Effect manage the existing Promise operation without changing its
+concurrency. Make these changes to `server.ts`:
+
+```ts title="server.ts" collapse={5-45,67-83,88-163} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
++import { Effect } from "effect"
+
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+-const quoteOrder = async (input: QuoteRequest): Promise<QuoteResponse> => {
++const quoteOrderPromise = async (
++  input: QuoteRequest,
++  signal: AbortSignal,
++): Promise<QuoteResponse> => {
+  const [lines, shippingCents] = await Promise.all([
+-    Promise.all(input.items.map((line) => quoteLine(line))),
++    Promise.all(input.items.map((line) => quoteLine(line, { signal }))),
+    quoteShipping({
+      postalCode: input.postalCode,
+      itemCount: input.items.reduce((total, line) => total + line.quantity, 0),
+-    }),
++    }, { signal }),
+  ])
+
+  return buildQuote(lines, shippingCents)
+}
+
++const quoteOrderEffect = (input: QuoteRequest) =>
++  Effect.tryPromise((signal) => quoteOrderPromise(input, signal))
++
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as QuoteRequest
+
+-    const quote = await quoteOrder(input)
++    const quote = await Effect.runPromise(quoteOrderEffect(input))
+    sendJson(200, quote)
+  } catch (cause) {
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
+}
+
+let activeLineLookups = 0
+
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
+
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
+
+    return {
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
+    }
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
+
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+```
+
+<EffectApi
+  name="Effect.tryPromise"
+  href="/docs/v4/api/effect/Effect#tryPromise"
+>
+  Adapts a function that creates a Promise. Calling `quoteOrderEffect` creates a
+  lazy description: `quoteOrderPromise` is not called until the Effect runs. A
+  resolved Promise becomes a success, while a rejection enters the error
+  channel. Effect also supplies the `AbortSignal` that this code forwards to
+  every provider Promise.
+</EffectApi>
+
+TypeScript infers this type for the value returned by `quoteOrderEffect`:
+
+```ts title="Inferred type, not code to paste"
+Effect.Effect<QuoteResponse, Cause.UnknownError>
+```
+
+<EffectApi name="Effect.Effect" href="/docs/v4/api/effect/Effect#Effect">
+  The type of an Effect value. Here, `QuoteResponse` is the success value. The
+  second type argument says that the described computation may fail with
+  `Cause.UnknownError`.
+</EffectApi>
+
+An Effect is a value that describes a computation. Creating or transforming it
+does not run the computation or perform its side effects. Effect calls the
+second type parameter its error channel: it records expected failures that
+callers may handle separately from successful values.
+
+<EffectApi
+  name="Cause.UnknownError"
+  href="/docs/v4/api/effect/Cause#UnknownError-interface"
+>
+  Effect's built-in wrapper for a Promise rejection that has not been
+  classified. Its `cause` property preserves the original rejected value. This
+  tutorial focuses on concurrency, so the outer HTTP `catch` will continue to
+  turn such an unclassified provider failure into `500`.
+</EffectApi>
+
+<EffectApi
+  name="Effect.runPromise"
+  href="/docs/v4/api/effect/Effect#runPromise"
+>
+  Runs the described computation at the HTTP boundary and returns a Promise.
+  That Promise resolves with `QuoteResponse` on success and rejects if the
+  Effect does not succeed, so the existing TypeScript `try`/`catch` remains the
+  final server boundary.
+</EffectApi>
+
+Wait for the watched server to reload, then send the original three-item
+request. It still returns the same `200` response. Send the five-item request
+as well. The active count still reaches 5 because we have changed ownership of
+the operation, not its concurrency policy.
+
+<TutorialCheckpoint
+  number={3}
+  total={7}
+  title="Effect owns the existing Promise operation"
+>
+  The successful quote is unchanged and five line calls still run together.
+  The complete provider operation is now a lazy Effect that runs at the HTTP
+  boundary.
+
+  <AgentPrompt label="AI prompt: add the Effect boundary">
+
+````text
+Give the existing Promise-based quote operation an Effect boundary without changing its concurrency or HTTP behavior.
+
+Rules:
+- Work only in `./run-independent-work-concurrently` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+From the tutorial directory, run `npm install effect`, then apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
+ import { setTimeout as sleep } from "node:timers/promises"
++import { Effect } from "effect"
+@@
+-const quoteOrder = async (input: QuoteRequest): Promise<QuoteResponse> => {
++const quoteOrderPromise = async (
++  input: QuoteRequest,
++  signal: AbortSignal,
++): Promise<QuoteResponse> => {
+   const [lines, shippingCents] = await Promise.all([
+-    Promise.all(input.items.map((line) => quoteLine(line))),
++    Promise.all(input.items.map((line) => quoteLine(line, { signal }))),
+     quoteShipping({
+       postalCode: input.postalCode,
+       itemCount: input.items.reduce((total, line) => total + line.quantity, 0),
+-    }),
++    }, { signal }),
+   ])
+
+   return buildQuote(lines, shippingCents)
+ }
+
++const quoteOrderEffect = (input: QuoteRequest) =>
++  Effect.tryPromise((signal) => quoteOrderPromise(input, signal))
++
+@@
+-    const quote = await quoteOrder(input)
++    const quote = await Effect.runPromise(quoteOrderEffect(input))
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
+
+Run these exact verification commands:
+
+```sh
+curl -i -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":2},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1}],"postalCode":"00100"}'
+
+curl -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":1},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1},{"sku":"cookies","quantity":1},{"sku":"jam","quantity":1}],"postalCode":"00100"}' > /dev/null
+```
+
+Verify both behaviors:
+
+1. The original `coffee`, `tea`, `cocoa` request returns status `200` with the same ordered quote body from checkpoint 1.
+2. A request containing `coffee`, `tea`, `cocoa`, `cookies`, and `jam` still starts all five line lookups before the first finishes, and the active count reaches 5.
+
+Reply with a concise pass or fail result for each behavior. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 4. Describe each concurrent branch with Effect
+
+The Effect boundary still hides the inner `Promise.all` calls as one opaque
+Promise. Give each provider call its own Effect, then combine those descriptions
+with Effect's concurrency operators. Keep the line group unbounded for this
+step so behavior remains unchanged:
+
+```ts title="server.ts" collapse={1-45,95-111,116-191} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+-const quoteOrderPromise = async (
+-  input: QuoteRequest,
+-  signal: AbortSignal,
+-): Promise<QuoteResponse> => {
+-  const [lines, shippingCents] = await Promise.all([
+-    Promise.all(input.items.map((line) => quoteLine(line, { signal }))),
+-    quoteShipping({
+-      postalCode: input.postalCode,
+-      itemCount: input.items.reduce((total, line) => total + line.quantity, 0),
+-    }, { signal }),
+-  ])
+-
+-  return buildQuote(lines, shippingCents)
+-}
+-
+-const quoteOrderEffect = (input: QuoteRequest) =>
+-  Effect.tryPromise((signal) => quoteOrderPromise(input, signal))
++const quoteLineEffect = (line: OrderLine) =>
++  Effect.tryPromise((signal) => quoteLine(line, { signal }))
++
++const quoteShippingEffect = (input: QuoteRequest) =>
++  Effect.tryPromise((signal) =>
++    quoteShipping(
++      {
++        postalCode: input.postalCode,
++        itemCount: input.items.reduce(
++          (total, line) => total + line.quantity,
++          0,
++        ),
++      },
++      { signal },
++    ),
++  )
++
++const quoteOrder = (input: QuoteRequest) =>
++  Effect.all(
++    [
++      Effect.forEach(input.items, quoteLineEffect, {
++        concurrency: "unbounded",
++      }),
++      quoteShippingEffect(input),
++    ],
++    { concurrency: "unbounded" },
++  ).pipe(
++    Effect.map(([lines, shippingCents]) =>
++      buildQuote(lines, shippingCents),
++    ),
++  )
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as QuoteRequest
+
+-    const quote = await Effect.runPromise(quoteOrderEffect(input))
++    const quote = await Effect.runPromise(quoteOrder(input))
+    sendJson(200, quote)
+  } catch (cause) {
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
+}
+
+let activeLineLookups = 0
+
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
+
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
+
+    return {
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
+    }
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
+
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+```
+
+<EffectApi
+  name="Effect.tryPromise"
+  href="/docs/v4/api/effect/Effect#tryPromise"
+>
+  Each provider call now has its own lazy Effect and its own supplied
+  `AbortSignal`. A resolved provider Promise becomes that Effect's success, and
+  a rejected Promise becomes `Cause.UnknownError` in its error channel. This
+  smaller scope will let the surrounding concurrency operation interrupt every
+  unfinished provider call.
+</EffectApi>
+
+<EffectApi name="Effect.forEach" href="/docs/v4/api/effect/Effect#forEach">
+  Applies `quoteLineEffect` to every request item and returns one Effect whose
+  success is the collected array. `concurrency: "unbounded"` lets every line
+  lookup run at once for now. The collected results preserve the input order,
+  even when the calls complete in another order.
+</EffectApi>
+
+<EffectApi name="Effect.all" href="/docs/v4/api/effect/Effect#all">
+  Combines the line-group Effect and shipping Effect into one Effect.
+  `concurrency: "unbounded"` lets both independent branches run together. Its
+  success tuple keeps the same positions as the input tuple: lines first and
+  shipping cents second.
+</EffectApi>
+
+The `.pipe(...)` method passes the Effect description through transformations
+from top to bottom. It composes a new description and does not run it.
+
+<EffectApi name="Effect.map" href="/docs/v4/api/effect/Effect#map">
+  Transforms the success channel with a function and leaves the error channel
+  unchanged. Here, it turns the `[lines, shippingCents]` success tuple into the
+  `QuoteResponse` expected by the HTTP handler.
+</EffectApi>
+
+Wait for the watched server to reload. Send the three-item request and inspect
+only its line-related log entries:
+
+```text title="Relevant server log"
+line start coffee active=1
+line start tea active=2
+line start cocoa active=3
+line finish cocoa
+line finish tea
+line finish coffee
+```
+
+Shipping also starts before the line group finishes. The response remains
+ordered as `coffee`, `tea`, `cocoa`. The Promise and Effect implementations now
+have the same observable behavior, but Effect can see each concurrent branch.
+
+<TutorialCheckpoint
+  number={4}
+  total={7}
+  title="Effect describes every concurrent provider call"
+>
+  The line group and shipping branch still overlap, all three lines still start
+  together, and the response remains in request order. Each provider call is
+  now an individually interruptible Effect.
+
+  <AgentPrompt label="AI prompt: describe every concurrent branch">
+
+````text
+Replace the opaque Promise concurrency with the exact Effect concurrency structure from this tutorial, without changing observable behavior yet.
+
+Rules:
+- Work only in `./run-independent-work-concurrently` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+-const quoteOrderPromise = async (
+-  input: QuoteRequest,
+-  signal: AbortSignal,
+-): Promise<QuoteResponse> => {
+-  const [lines, shippingCents] = await Promise.all([
+-    Promise.all(input.items.map((line) => quoteLine(line, { signal }))),
+-    quoteShipping({
+-      postalCode: input.postalCode,
+-      itemCount: input.items.reduce((total, line) => total + line.quantity, 0),
+-    }, { signal }),
+-  ])
+-
+-  return buildQuote(lines, shippingCents)
+-}
+-
+-const quoteOrderEffect = (input: QuoteRequest) =>
+-  Effect.tryPromise((signal) => quoteOrderPromise(input, signal))
++const quoteLineEffect = (line: OrderLine) =>
++  Effect.tryPromise((signal) => quoteLine(line, { signal }))
++
++const quoteShippingEffect = (input: QuoteRequest) =>
++  Effect.tryPromise((signal) =>
++    quoteShipping(
++      {
++        postalCode: input.postalCode,
++        itemCount: input.items.reduce(
++          (total, line) => total + line.quantity,
++          0,
++        ),
++      },
++      { signal },
++    ),
++  )
++
++const quoteOrder = (input: QuoteRequest) =>
++  Effect.all(
++    [
++      Effect.forEach(input.items, quoteLineEffect, {
++        concurrency: "unbounded",
++      }),
++      quoteShippingEffect(input),
++    ],
++    { concurrency: "unbounded" },
++  ).pipe(
++    Effect.map(([lines, shippingCents]) =>
++      buildQuote(lines, shippingCents),
++    ),
++  )
+@@
+-    const quote = await Effect.runPromise(quoteOrderEffect(input))
++    const quote = await Effect.runPromise(quoteOrder(input))
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
+
+Run this exact verification command:
+
+```sh
+curl -i -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":2},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1}],"postalCode":"00100"}'
+```
+
+Verify:
+
+1. Status `200` and the exact ordered response body from checkpoint 1.
+2. All three line starts occur before the first line finish, and the active count reaches 3.
+3. Shipping starts before the line group has finished.
+
+Reply with a concise pass or fail result for each behavior. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 5. Bound line concurrency without losing result order
+
+The line group now has a clear place for its provider limit. Change its
+`concurrency` option from `"unbounded"` to `2`:
+
+```ts title="server.ts" collapse={1-65,70-174} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+const quoteLineEffect = (line: OrderLine) =>
+  Effect.tryPromise((signal) => quoteLine(line, { signal }))
+
+const quoteShippingEffect = (input: QuoteRequest) =>
+  Effect.tryPromise((signal) =>
+    quoteShipping(
+      {
+        postalCode: input.postalCode,
+        itemCount: input.items.reduce(
+          (total, line) => total + line.quantity,
+          0,
+        ),
+      },
+      { signal },
+    ),
+  )
+
+const quoteOrder = (input: QuoteRequest) =>
+  Effect.all(
+    [
+      Effect.forEach(input.items, quoteLineEffect, {
+-        concurrency: "unbounded",
++        concurrency: 2,
+      }),
+      quoteShippingEffect(input),
+    ],
+    { concurrency: "unbounded" },
+  ).pipe(
+    Effect.map(([lines, shippingCents]) =>
+      buildQuote(lines, shippingCents),
+    ),
+  )
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as QuoteRequest
+
+    const quote = await Effect.runPromise(quoteOrder(input))
+    sendJson(200, quote)
+  } catch (cause) {
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
+}
+
+let activeLineLookups = 0
+
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
+
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
+
+    return {
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
+    }
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
+
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+```
+
+<EffectApi name="Effect.forEach" href="/docs/v4/api/effect/Effect#forEach">
+  The numeric `concurrency` option is the maximum number of line effects that
+  may run at once. With `2`, the third lookup waits until either of the first
+  two completes. The option changes execution timing, not collection order, so
+  the returned lines still correspond to the input positions.
+</EffectApi>
+
+Wait for the watched server to reload, then send the original three-item
+request. The line-related log entries are now:
+
+```text title="Relevant server log"
+line start coffee active=1
+line start tea active=2
+line finish tea
+line start cocoa active=2
+line finish cocoa
+line finish coffee
+```
+
+Coffee finishes last but remains the first line in the response. Tea releases
+one of the two slots, so cocoa can start. Shipping remains a separate branch of
+the outer `Effect.all`, so it overlaps with the bounded line group rather than
+using one of those two line slots.
+
+<TutorialCheckpoint
+  number={5}
+  total={7}
+  title="Two line lookups run at once and results stay ordered"
+>
+  The provider's line limit is explicit. The active count never exceeds 2,
+  shipping still overlaps, and the response remains `coffee`, `tea`, `cocoa`.
+
+  <AgentPrompt label="AI prompt: bound the line lookups">
+
+````text
+Bound line lookup concurrency at two without changing response ordering or the independent shipping branch.
+
+Rules:
+- Work only in `./run-independent-work-concurrently` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+       Effect.forEach(input.items, quoteLineEffect, {
+-        concurrency: "unbounded",
++        concurrency: 2,
+       }),
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
+
+Run this exact verification command:
+
+```sh
+curl -i -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":2},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1}],"postalCode":"00100"}'
+```
+
+Verify:
+
+1. The active line count never exceeds 2. Coffee and tea start first; cocoa starts only after tea finishes.
+2. Shipping starts before the line group has finished.
+3. Status `200` and the response lines remain ordered as `coffee`, `tea`, `cocoa`, even though coffee finishes last.
+
+Reply with a concise pass or fail result for each behavior. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 6. Put one deadline around the complete quote
+
+The slow fixture still controls how long the endpoint waits. Before editing,
+send a slow line and slow shipping destination without `--max-time`:
+
+```sh title="Measure the provider-controlled wait"
+curl -sS -w '\nstatus=%{http_code} time=%{time_total}s\n' \
+  http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"slow","quantity":1}],"postalCode":"99999"}'
+```
+
+Both providers take about one second, so the response is `200` after about one
+second. Add a single 500 ms deadline around `quoteOrder`, then turn its timeout
+into an HTTP result:
+
+```ts title="server.ts" collapse={5-28,36-85,106-122,129-203} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+-import { Effect } from "effect"
++import { Data, Effect } from "effect"
+
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
++interface HttpResult {
++  readonly status: number
++  readonly body: unknown
++}
++
++class QuoteTimedOut extends Data.TaggedError("QuoteTimedOut")<{}> {}
++
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+const quoteLineEffect = (line: OrderLine) =>
+  Effect.tryPromise((signal) => quoteLine(line, { signal }))
+
+const quoteShippingEffect = (input: QuoteRequest) =>
+  Effect.tryPromise((signal) =>
+    quoteShipping(
+      {
+        postalCode: input.postalCode,
+        itemCount: input.items.reduce(
+          (total, line) => total + line.quantity,
+          0,
+        ),
+      },
+      { signal },
+    ),
+  )
+
+const quoteOrder = (input: QuoteRequest) =>
+  Effect.all(
+    [
+      Effect.forEach(input.items, quoteLineEffect, {
+        concurrency: 2,
+      }),
+      quoteShippingEffect(input),
+    ],
+    { concurrency: "unbounded" },
+  ).pipe(
+    Effect.map(([lines, shippingCents]) =>
+      buildQuote(lines, shippingCents),
+    ),
+  )
+
++const quoteRequest = (input: QuoteRequest) =>
++  quoteOrder(input).pipe(
++    Effect.timeoutOrElse({
++      duration: "500 millis",
++      orElse: () => Effect.fail(new QuoteTimedOut()),
++    }),
++    Effect.map(
++      (quote): HttpResult => ({
++        status: 200,
++        body: quote,
++      }),
++    ),
++    Effect.catchTag("QuoteTimedOut", () =>
++      Effect.succeed({
++        status: 504,
++        body: { error: "QuoteTimedOut" },
++      }),
++    ),
++  )
++
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as QuoteRequest
+
+-    const quote = await Effect.runPromise(quoteOrder(input))
+-    sendJson(200, quote)
++    const result = await Effect.runPromise(quoteRequest(input))
++    sendJson(result.status, result.body)
+  } catch (cause) {
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
+}
+
+let activeLineLookups = 0
+
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
+
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
+
+    return {
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
+    }
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
+
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+```
+
+<EffectApi name="Data.TaggedError" href="/docs/v4/api/effect/Data#TaggedError">
+  Creates the typed `QuoteTimedOut` error class. The string passed to
+  `Data.TaggedError` becomes the instance's `_tag`. The empty type argument
+  means its constructor has no additional fields, so `new QuoteTimedOut()` is
+  the complete error value.
+</EffectApi>
+
+Effect uses `_tag` as its standard discriminator for variants. Code can inspect
+that stable string without relying on an error message.
+
+<EffectApi
+  name="Effect.timeoutOrElse"
+  href="/docs/v4/api/effect/Effect#timeoutOrElse"
+>
+  Gives the preceding `quoteOrder` computation 500 ms. If the deadline wins, it
+  interrupts that complete computation before running `orElse`. Because the
+  timeout surrounds `Effect.all`, the same deadline covers the bounded line
+  group and shipping branch together.
+</EffectApi>
+
+Interruption is Effect's term for cancellation of a running computation. The
+interruption reaches each provider's `AbortSignal`, which stops the underlying
+timer Promise instead of leaving it active in the background.
+
+<EffectApi name="Effect.fail" href="/docs/v4/api/effect/Effect#fail">
+  Describes a computation that fails through the error channel. Creating it does
+  not throw. Here, the timeout fallback adds `QuoteTimedOut` to the error
+  channel of `quoteRequest`.
+</EffectApi>
+
+<EffectApi name="Effect.catchTag" href="/docs/v4/api/effect/Effect#catchTag">
+  Matches one error-channel value by its `_tag`. The handler must return an
+  Effect. When this handler succeeds, `QuoteTimedOut` is handled and removed
+  from the remaining error channel; unclassified provider failures are not
+  matched.
+</EffectApi>
+
+<EffectApi name="Effect.succeed" href="/docs/v4/api/effect/Effect#succeed">
+  Describes a successful computation with an already available value. The
+  timeout handler uses it to produce the `504` `HttpResult`; creating that
+  Effect does not write the HTTP response.
+</EffectApi>
+
+Wait for the watched server to reload, then repeat the measured slow request.
+It now responds after about 500 ms:
+
+```text title="Expected response"
 {"error":"QuoteTimedOut"}
+status=504 time=0.5...s
 ```
 
-The timeout surrounds the complete quote, so it interrupts the slow shipping operation instead of leaving it running after the response. If the caller disconnects, `NodeHttpServer` also interrupts the running request; that interruption reaches the same unfinished Effect work.
+The relevant server log contains both aborts and no finishes:
 
-## What you built
+```text title="Relevant server log"
+line start slow active=1
+shipping start 99999
+line abort slow
+shipping abort 99999
+```
 
-`POST /quotes` now states its concurrency and lifetime in the operation itself:
+The order of the two abort lines is not significant. Both unfinished branches
+belong to the same timed operation, so both stop when its one deadline expires.
 
-- variable-size line work has a fixed limit;
-- independent branches overlap;
-- results remain ordered;
-- one deadline stops unfinished work;
-- caller cancellation follows the request into its children.
+<TutorialCheckpoint
+  number={6}
+  total={7}
+  title="One deadline stops the complete quote"
+>
+  The slow line and slow shipping call no longer finish after one second. One
+  500 ms deadline interrupts both and the endpoint returns `504`.
+
+  <AgentPrompt label="AI prompt: add one quote deadline">
+
+````text
+Put one 500 ms deadline around the complete quote operation and return a typed timeout result.
+
+Rules:
+- Work only in `./run-independent-work-concurrently` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- Do not fix a failed observation or verification.
+
+Before editing, make sure the server is available. If the connection is refused, start `node --watch server.ts` in a persistent terminal and wait for the listening message. Run this exact command:
+
+```sh
+curl -sS -w '\nstatus=%{http_code} time=%{time_total}s\n' \
+  http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"slow","quantity":1}],"postalCode":"99999"}'
+```
+
+Verify status `200` after about one second. If it does not match, stop without applying the patch and report the observed difference.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
+ import { setTimeout as sleep } from "node:timers/promises"
+-import { Effect } from "effect"
++import { Data, Effect } from "effect"
+@@
+ interface QuoteResponse {
+   readonly currency: "EUR"
+   readonly lines: ReadonlyArray<QuotedLine>
+   readonly subtotalCents: number
+   readonly shippingCents: number
+   readonly totalCents: number
+ }
+
++interface HttpResult {
++  readonly status: number
++  readonly body: unknown
++}
++
++class QuoteTimedOut extends Data.TaggedError("QuoteTimedOut")<{}> {}
++
+@@
+ const quoteOrder = (input: QuoteRequest) =>
+@@
+   )
+
++const quoteRequest = (input: QuoteRequest) =>
++  quoteOrder(input).pipe(
++    Effect.timeoutOrElse({
++      duration: "500 millis",
++      orElse: () => Effect.fail(new QuoteTimedOut()),
++    }),
++    Effect.map(
++      (quote): HttpResult => ({
++        status: 200,
++        body: quote,
++      }),
++    ),
++    Effect.catchTag("QuoteTimedOut", () =>
++      Effect.succeed({
++        status: 504,
++        body: { error: "QuoteTimedOut" },
++      }),
++    ),
++  )
++
+ const server = createServer(async (request, response) => {
+@@
+-    const quote = await Effect.runPromise(quoteOrder(input))
+-    sendJson(200, quote)
++    const result = await Effect.runPromise(quoteRequest(input))
++    sendJson(result.status, result.body)
+*** End Patch
+```
+
+Wait for the watched server to reload. Repeat the exact measured command above and verify:
+
+1. Status `504` with body `{"error":"QuoteTimedOut"}` after about 500 ms.
+2. The server logs `line abort slow` and `shipping abort 99999`.
+3. The server does not log `line finish slow` or `shipping finish 99999` for that request.
+
+Reply with the before and after results in a concise pass or fail summary. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 7. Stop the quote when the client disconnects
+
+The deadline now sends cancellation from the Effect operation to its Promise
+providers. The last step connects cancellation in the other direction: an HTTP
+client disconnect will stop the complete Effect operation.
+
+Create an `AbortController` for the request, abort it if the response closes
+before it was written, and pass its signal to `Effect.runPromise`:
+
+```ts title="server.ts" collapse={1-104,141-214} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Data, Effect } from "effect"
+
+interface OrderLine {
+  readonly sku: string
+  readonly quantity: number
+}
+
+interface QuoteRequest {
+  readonly items: ReadonlyArray<OrderLine>
+  readonly postalCode: string
+}
+
+interface QuotedLine extends OrderLine {
+  readonly unitPriceCents: number
+  readonly lineTotalCents: number
+}
+
+interface QuoteResponse {
+  readonly currency: "EUR"
+  readonly lines: ReadonlyArray<QuotedLine>
+  readonly subtotalCents: number
+  readonly shippingCents: number
+  readonly totalCents: number
+}
+
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+class QuoteTimedOut extends Data.TaggedError("QuoteTimedOut")<{}> {}
+
+const buildQuote = (
+  lines: ReadonlyArray<QuotedLine>,
+  shippingCents: number,
+): QuoteResponse => {
+  const subtotalCents = lines.reduce(
+    (total, line) => total + line.lineTotalCents,
+    0,
+  )
+
+  return {
+    currency: "EUR",
+    lines,
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents + shippingCents,
+  }
+}
+
+const quoteLineEffect = (line: OrderLine) =>
+  Effect.tryPromise((signal) => quoteLine(line, { signal }))
+
+const quoteShippingEffect = (input: QuoteRequest) =>
+  Effect.tryPromise((signal) =>
+    quoteShipping(
+      {
+        postalCode: input.postalCode,
+        itemCount: input.items.reduce(
+          (total, line) => total + line.quantity,
+          0,
+        ),
+      },
+      { signal },
+    ),
+  )
+
+const quoteOrder = (input: QuoteRequest) =>
+  Effect.all(
+    [
+      Effect.forEach(input.items, quoteLineEffect, {
+        concurrency: 2,
+      }),
+      quoteShippingEffect(input),
+    ],
+    { concurrency: "unbounded" },
+  ).pipe(
+    Effect.map(([lines, shippingCents]) =>
+      buildQuote(lines, shippingCents),
+    ),
+  )
+
+const quoteRequest = (input: QuoteRequest) =>
+  quoteOrder(input).pipe(
+    Effect.timeoutOrElse({
+      duration: "500 millis",
+      orElse: () => Effect.fail(new QuoteTimedOut()),
+    }),
+    Effect.map(
+      (quote): HttpResult => ({
+        status: 200,
+        body: quote,
+      }),
+    ),
+    Effect.catchTag("QuoteTimedOut", () =>
+      Effect.succeed({
+        status: 504,
+        body: { error: "QuoteTimedOut" },
+      }),
+    ),
+  )
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/quotes") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
++  const controller = new AbortController()
++
++  response.once("close", () => {
++    if (!response.writableEnded) {
++      controller.abort()
++    }
++  })
++
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as QuoteRequest
+
+-    const result = await Effect.runPromise(quoteRequest(input))
++    const result = await Effect.runPromise(quoteRequest(input), {
++      signal: controller.signal,
++    })
+    sendJson(result.status, result.body)
+  } catch (cause) {
++    if (controller.signal.aborted) {
++      return
++    }
+    console.error(cause)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+  cookies: 450,
+  jam: 600,
+  slow: 500,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 300,
+  tea: 120,
+  cocoa: 80,
+  cookies: 180,
+  jam: 240,
+  slow: 1_000,
+}
+
+let activeLineLookups = 0
+
+const quoteLine = async (
+  line: OrderLine,
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<QuotedLine> => {
+  activeLineLookups += 1
+  console.log(`line start ${line.sku} active=${activeLineLookups}`)
+
+  const onAbort = () => console.log(`line abort ${line.sku}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(delayBySku[line.sku] ?? 100, undefined, { signal })
+    const unitPriceCents = catalog[line.sku] ?? 500
+    console.log(`line finish ${line.sku}`)
+
+    return {
+      ...line,
+      unitPriceCents,
+      lineTotalCents: unitPriceCents * line.quantity,
+    }
+  } finally {
+    activeLineLookups -= 1
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+
+const quoteShipping = async (
+  input: { readonly postalCode: string; readonly itemCount: number },
+  { signal }: { readonly signal?: AbortSignal } = {},
+): Promise<number> => {
+  console.log(`shipping start ${input.postalCode}`)
+
+  const onAbort = () => console.log(`shipping abort ${input.postalCode}`)
+  signal?.addEventListener("abort", onAbort, { once: true })
+
+  try {
+    await sleep(input.postalCode === "99999" ? 1_000 : 180, undefined, {
+      signal,
+    })
+    console.log(`shipping finish ${input.postalCode}`)
+    return 700
+  } finally {
+    signal?.removeEventListener("abort", onAbort)
+  }
+}
+```
+
+<EffectApi
+  name="Effect.runPromise"
+  href="/docs/v4/api/effect/Effect#runPromise"
+>
+  The optional `signal` connects an external `AbortSignal` to the running
+  Effect. If the response closes first, `controller.abort()` interrupts the
+  complete `quoteRequest`. That interruption then reaches the signals supplied
+  by both `Effect.tryPromise` calls.
+</EffectApi>
+
+Wait for the watched server to reload. Ask `curl` to disconnect after 100 ms,
+which is earlier than the Effect's 500 ms deadline:
+
+```sh title="Disconnect before the quote deadline"
+curl --max-time 0.1 -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"slow","quantity":1}],"postalCode":"99999"}'
+```
+
+`curl` reports its own timeout and receives no HTTP response. The server logs
+both aborts soon after 100 ms:
+
+```text title="Relevant server log"
+line start slow active=1
+shipping start 99999
+line abort slow
+shipping abort 99999
+```
+
+No `QuoteTimedOut` response is created. The external signal interrupts the
+whole Effect directly before the internal deadline. Interruption does not
+become a `QuoteTimedOut` value in the error channel, and the outer `catch`
+notices the aborted controller and avoids writing to the closed response.
+
+<TutorialCheckpoint
+  number={7}
+  total={7}
+  title="Client cancellation reaches every unfinished provider call"
+>
+  A disconnect before the deadline interrupts the line lookup and shipping
+  call. Neither provider finishes, and the server does not try to write an HTTP
+  response after the client has gone.
+
+  <AgentPrompt label="AI prompt: propagate client cancellation">
+
+````text
+Connect an HTTP client disconnect to cancellation of the complete Effect quote operation.
+
+Rules:
+- Work only in `./run-independent-work-concurrently` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+   if (request.method !== "POST" || request.url !== "/quotes") {
+     sendJson(404, { error: "NotFound" })
+     return
+   }
+
++  const controller = new AbortController()
++
++  response.once("close", () => {
++    if (!response.writableEnded) {
++      controller.abort()
++    }
++  })
++
+   try {
+@@
+-    const result = await Effect.runPromise(quoteRequest(input))
++    const result = await Effect.runPromise(quoteRequest(input), {
++      signal: controller.signal,
++    })
+     sendJson(result.status, result.body)
+   } catch (cause) {
++    if (controller.signal.aborted) {
++      return
++    }
+     console.error(cause)
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
+
+Run this exact verification command:
+
+```sh
+curl --max-time 0.1 -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"slow","quantity":1}],"postalCode":"99999"}'
+```
+
+Verify:
+
+1. The client receives no HTTP response.
+2. The server logs `line abort slow` and `shipping abort 99999` soon after the disconnect.
+3. Neither provider logs a finish, and the server does not start or send a `QuoteTimedOut` response.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## Keep the application boundary ordinary
+
+The final HTTP handler still has a TypeScript `try`/`catch`. Expected timeout
+behavior has already become an `HttpResult` inside `quoteRequest`, while client
+interruption is recognized by the request's `AbortController`.
+
+If an unclassified provider rejection remains, `Effect.runPromise` rejects and
+the outer `catch` returns `500`. An unexpected bug is called a defect in Effect;
+it also reaches this outer boundary rather than being mislabeled as
+`QuoteTimedOut`. The Effect program controls concurrency and lifetime, while
+`node:http` keeps responsibility for reading and writing HTTP.
 
 ## Related tutorials
 
 - [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
-- [See where a request spends its time](/docs/v4/tutorials/see-where-a-request-spends-its-time)
+- [Clean up resources after failure or cancellation](/docs/v4/tutorials/clean-up-resources-after-failure-or-cancellation)

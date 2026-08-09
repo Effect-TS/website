@@ -1,38 +1,61 @@
 ---
 title: Preserve domain types across a JSON boundary
-description: Use Schema.toCodecJson to carry rich and custom domain values through one JSON HTTP boundary.
+description: Decode request JSON into useful runtime values, then encode those values back into a stable response shape.
 sidebar:
   order: 4
 ---
 
-JSON has no dates, durations, URLs, byte arrays, sets, or application-specific classes. A typical backend adds DTOs, replacers, assertions, and reconstruction code around those values.
+import {
+  AgentPrompt,
+  Aside,
+  EffectApi,
+  TutorialCheckpoint,
+} from "@astrojs/starlight/components"
 
-In this tutorial, `POST /orders` will decode rich JSON into a domain model and encode the accepted order back to JSON. One shared Schema controls both directions.
+`JSON.parse` returns ordinary JavaScript values. A timestamp is still a string,
+a URL is still a string, an array is still an array, and an application class
+is not constructed for you. A TypeScript assertion can claim otherwise, but it
+does not inspect or transform the value at runtime.
 
-## Setup
+In this tutorial, we will start with a conventional `node:http` endpoint and
+replace that assertion with one Schema-driven boundary. The finished
+`POST /orders` endpoint will have these observable behaviors:
 
-```sh
-pnpm add effect @effect/platform-node
+| Request                                     | Boundary behavior                              | HTTP result |
+| ------------------------------------------- | ---------------------------------------------- | ----------- |
+| Valid order JSON                            | Builds rich values, then encodes response JSON | `201`       |
+| Wrong field type                            | Stops before order logic                       | `400`       |
+| Order id without the required `ord_` prefix | Stops before constructing the domain `OrderId` | `400`       |
+
+The HTTP server will remain ordinary TypeScript. Schema will own the two jobs
+at the boundary: decoding unknown request data into domain values and encoding
+domain values into JSON-safe response data.
+
+<Aside type="tip" title="Using a coding agent?">
+  Each step ends with a checkpoint, which is a short verification to complete
+  before continuing. Every checkpoint includes an optional prompt that tells a
+  coding agent how to produce and verify exactly the same project state as the
+  manual path.
+</Aside>
+
+## 1. Start with a familiar JSON endpoint
+
+This tutorial requires Node.js 22.18.0 or newer because it runs `server.ts`
+directly with Node's built-in TypeScript support.
+
+To create the project manually, run:
+
+```sh title="Create the project"
+mkdir preserve-domain-types
+cd preserve-domain-types
+npm init -y
+npm pkg set type=module
+npm install --save-dev @types/node@22
 ```
 
-Create `server.ts`:
+Create `server.ts` with this conventional implementation:
 
-```ts
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import {
-  DateTime,
-  Duration,
-  Effect,
-  Layer,
-  Schema,
-  SchemaIssue,
-  SchemaTransformation,
-} from "effect"
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "effect/unstable/http"
+```ts title="server.ts" collapse={19-34,46-50}
 import { createServer } from "node:http"
 
 class OrderId {
@@ -43,173 +66,1185 @@ class OrderId {
   }
 }
 
-const OrderIdSchema = Schema.instanceOf(OrderId, {
-  expected: "OrderId",
-  toCodecJson: () =>
-    Schema.link<OrderId>()(
-      Schema.String,
-      SchemaTransformation.transformOrFail<OrderId, string>({
-        decode: (input, options) =>
-          input.startsWith("ord_")
-            ? Effect.succeed(new OrderId(input))
-            : Effect.fail(
-                new SchemaIssue.InvalidValue(
-                  { message: "Expected an order id starting with ord_" },
-                  input,
-                  options,
-                ),
-              ),
-        encode: (orderId) => Effect.succeed(orderId.value),
-      }),
-    ),
+interface OrderSubmission {
+  readonly orderId: OrderId
+  readonly quantity: number
+  readonly requestedAt: Date
+  readonly callbackUrl: URL
+  readonly labels: ReadonlySet<string>
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+    const submission = JSON.parse(body) as OrderSubmission
+
+    console.log({
+      orderIdIsOrderId: submission.orderId instanceof OrderId,
+      requestedAtIsDate: submission.requestedAt instanceof Date,
+      callbackIsUrl: submission.callbackUrl instanceof URL,
+      labelsAreSet: submission.labels instanceof Set,
+    })
+
+    sendJson(201, { ...submission, status: "accepted" })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
 })
 
-const OrderLine = Schema.Struct({
-  sku: Schema.String,
-  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
-})
-
-const OrderSubmission = Schema.Struct({
-  orderId: OrderIdSchema,
-  customerId: Schema.String,
-  items: Schema.NonEmptyArray(OrderLine),
-  requestedAt: Schema.DateTimeUtc,
-  promisedWithin: Schema.Duration,
-  callbackUrl: Schema.URL,
-  purchaseOrderHash: Schema.Uint8Array,
-  labels: Schema.ReadonlySet(Schema.String),
-})
-
-const AcceptedOrder = Schema.Struct({
-  orderId: OrderIdSchema,
-  customerId: Schema.String,
-  items: Schema.NonEmptyArray(OrderLine),
-  requestedAt: Schema.DateTimeUtc,
-  acceptedAt: Schema.DateTimeUtc,
-  promisedWithin: Schema.Duration,
-  callbackUrl: Schema.URL,
-  purchaseOrderHash: Schema.Uint8Array,
-  labels: Schema.ReadonlySet(Schema.String),
-  status: Schema.Literal("accepted"),
-})
-
-const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
-const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
-const respondWithOrder = HttpServerResponse.schemaJson(AcceptedOrderJson)
-
-const handler = HttpServerRequest.schemaBodyJson(OrderSubmissionJson).pipe(
-  Effect.matchEffect({
-    onFailure: () =>
-      Effect.succeed(
-        HttpServerResponse.jsonUnsafe(
-          { error: "InvalidOrder" },
-          { status: 400 },
-        ),
-      ),
-    onSuccess: (submission) =>
-      Effect.gen(function* () {
-        yield* Effect.log({
-          orderIdIsOrderId: submission.orderId instanceof OrderId,
-          requestedAt: DateTime.formatIso(submission.requestedAt),
-          promisedWithinMillis: Duration.toMillis(submission.promisedWithin),
-          callbackIsUrl: submission.callbackUrl instanceof URL,
-          hashIsUint8Array: submission.purchaseOrderHash instanceof Uint8Array,
-          labelsAreSet: submission.labels instanceof Set,
-        })
-
-        const acceptedAt = yield* DateTime.now
-        return yield* respondWithOrder(
-          { ...submission, acceptedAt, status: "accepted" },
-          { status: 201 },
-        )
-      }),
-  }),
-)
-
-const Routes = HttpRouter.add("POST", "/orders", handler)
-
-const ServerLive = HttpRouter.serve(Routes).pipe(
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
-)
-
-Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 ```
 
-Start the backend:
+Start the server with `--watch`. Node.js will reload the file after every edit,
+so keep this terminal running throughout the tutorial:
 
-```sh
-node server.ts
+```sh title="Keep running throughout the tutorial"
+node --watch server.ts
 ```
 
-## 1. Send only JSON
+Open a second terminal pane and send an order:
 
-In a second terminal, send an order submission:
-
-```sh
+```sh title="Send a valid-looking order"
 curl -i -sS http://localhost:3000/orders \
   -H 'content-type: application/json' \
-  -d '{"orderId":"ord_2026_0001","customerId":"customer-123","items":[{"sku":"coffee","quantity":2}],"requestedAt":"2026-08-09T10:00:00.000Z","promisedWithin":{"_tag":"Millis","value":7200000},"callbackUrl":"https://example.com/order-events","purchaseOrderHash":"AQIDBA==","labels":["priority","b2b"]}'
+  -d '{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"]}'
 ```
 
-The response is ordinary JSON. `acceptedAt` is the only value that changes between runs:
+The endpoint returns the expected-looking JSON:
 
-```text
+```text title="Expected response"
 HTTP/1.1 201 Created
 ...
 
-{"orderId":"ord_2026_0001","customerId":"customer-123","items":[{"sku":"coffee","quantity":2}],"requestedAt":"2026-08-09T10:00:00.000Z","acceptedAt":"...","promisedWithin":{"_tag":"Millis","value":7200000},"callbackUrl":"https://example.com/order-events","purchaseOrderHash":"AQIDBA==","labels":["priority","b2b"],"status":"accepted"}
+{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}
 ```
 
-## 2. Inspect what reached the handler
+The server log tells a different story:
 
-The server log confirms that decoding reconstructed runtime values before order logic ran:
-
-```text
-orderIdIsOrderId: true
-requestedAt: 2026-08-09T10:00:00.000Z
-promisedWithinMillis: 7200000
-callbackIsUrl: true
-hashIsUint8Array: true
-labelsAreSet: true
+```text title="Expected server log"
+{
+  orderIdIsOrderId: false,
+  requestedAtIsDate: false,
+  callbackIsUrl: false,
+  labelsAreSet: false
+}
 ```
 
-`HttpServerRequest.schemaBodyJson(OrderSubmissionJson)` parses JSON and decodes the complete model. There is no assertion or model-wide reviver.
+`as OrderSubmission` affects only TypeScript's view of the code. At runtime,
+`orderId`, `requestedAt`, and `callbackUrl` are strings, while `labels` is an
+array. Calling an `OrderId` method, a date method, or `Set.prototype.has` would
+fail even though the editor says those operations are allowed.
 
-## 3. See what `toCodecJson` added
+<TutorialCheckpoint
+  number={1}
+  total={6}
+  title="The type assertion is visibly untrue"
+>
+  The valid-looking request returns `201`, while all four runtime checks log
+  `false`. Continue only after you can reproduce both observations.
 
-These two lines derive recursive JSON codecs from the domain Schemas:
+  <AgentPrompt label="AI prompt: set up the project">
+
+````text
+Set up the starter project for the Effect Schema tutorial.
+
+Rules:
+- Treat the current workspace root as the parent directory.
+- Work only in `./preserve-domain-types`.
+- If that directory already exists, stop without changing anything and report that the setup requires a new directory.
+- Do not add files, dependencies, or configuration not requested below.
+
+Create `./preserve-domain-types`, then run these commands inside it:
+
+```sh
+npm init -y
+npm pkg set type=module
+npm install --save-dev @types/node@22
+```
+
+Create `server.ts` with exactly this content:
 
 ```ts
-const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
-const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
+import { createServer } from "node:http"
+
+class OrderId {
+  readonly value: string
+
+  constructor(value: string) {
+    this.value = value
+  }
+}
+
+interface OrderSubmission {
+  readonly orderId: OrderId
+  readonly quantity: number
+  readonly requestedAt: Date
+  readonly callbackUrl: URL
+  readonly labels: ReadonlySet<string>
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+    const submission = JSON.parse(body) as OrderSubmission
+
+    console.log({
+      orderIdIsOrderId: submission.orderId instanceof OrderId,
+      requestedAtIsDate: submission.requestedAt instanceof Date,
+      callbackIsUrl: submission.callbackUrl instanceof URL,
+      labelsAreSet: submission.labels instanceof Set,
+    })
+
+    sendJson(201, { ...submission, status: "accepted" })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 ```
 
-Built-in rich types already know their JSON representation. `OrderId` supplies its own representation locally through `toCodecJson`. The same hook could encode it as an object or another JSON value without changing the surrounding order Schema.
-
-If your server and client are both under your control, they can share these Schemas and stop treating the wire format as a second domain model. When an external contract fixes a different shape, override the relevant type's JSON representation instead.
-
-Now send an invalid custom id:
+Start `node --watch server.ts` in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active. From a second terminal pane, run:
 
 ```sh
 curl -i -sS http://localhost:3000/orders \
   -H 'content-type: application/json' \
-  -d '{"orderId":"wrong","customerId":"customer-123","items":[{"sku":"coffee","quantity":2}],"requestedAt":"2026-08-09T10:00:00.000Z","promisedWithin":{"_tag":"Millis","value":7200000},"callbackUrl":"https://example.com/order-events","purchaseOrderHash":"AQIDBA==","labels":[]}'
+  -d '{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"]}'
 ```
 
+Verify status `201`, the response body shown below, and four `false` values in the server log:
+
+```json
+{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}
+```
+
+If any requested action fails, report the failure without attempting an alternative setup or correction. Otherwise reply only that the starter project is running and the runtime checks are all false.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 2. Watch invalid data pass the assertion
+
+The same assertion also accepts values that do not resemble the declared
+types. Send this request without changing the server:
+
+```sh title="Send wrong field types"
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":42,"quantity":"two","requestedAt":"soon","callbackUrl":"not a url","labels":"priority"}'
+```
+
+It still returns `201`:
+
+```text title="Expected response"
+HTTP/1.1 201 Created
+...
+
+{"orderId":42,"quantity":"two","requestedAt":"soon","callbackUrl":"not a url","labels":"priority","status":"accepted"}
+```
+
+`JSON.parse` checks JSON syntax, not the application shape. The assertion does
+neither runtime validation nor conversion. We need to treat parsed request data
+as `unknown` until the boundary proves what it contains.
+
+<TutorialCheckpoint
+  number={2}
+  total={6}
+  title="Invalid fields reach order logic"
+>
+  A request with five wrong field types still returns `201`. That is the
+  boundary bug the next step will fix.
+
+  <AgentPrompt label="AI prompt: expose the unsafe boundary">
+
+````text
+Verify the unsafe JSON boundary in the tutorial project.
+
+Rules:
+- Work only in `./preserve-domain-types` relative to the current workspace root.
+- Verify that `package.json` and `server.ts` exist there. Otherwise stop without changing anything.
+- Verify that `server.ts` still contains `JSON.parse(body) as OrderSubmission`, the four runtime checks from checkpoint 1, and no import from `effect`. If any check fails, stop and report that the project is not at the expected checkpoint.
+- Do not edit any file.
+- If `http://localhost:3000/orders` refuses the connection, start `node --watch server.ts` from the tutorial directory in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave that server active.
+- If the server returns any HTTP response, do not restart it merely because the result differs from the expectation.
+- Do not fix a failed verification.
+
+From the tutorial directory, run:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":42,"quantity":"two","requestedAt":"soon","callbackUrl":"not a url","labels":"priority"}'
+```
+
+Verify status `201` and this exact response body:
+
 ```text
+{"orderId":42,"quantity":"two","requestedAt":"soon","callbackUrl":"not a url","labels":"priority","status":"accepted"}
+```
+
+Reply with a concise pass or fail result. On failure, report only the observed difference. Do not propose or apply a correction.
+
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 3. Validate the JSON shape
+
+Keep the server running. In the second terminal pane, install Effect:
+
+```sh title="Install Effect"
+npm install effect
+```
+
+Replace the assertion with a Schema decoder:
+
+```ts title="server.ts" collapse={29-44,61-68} useDiffSyntax copyFinal
+import { createServer } from "node:http"
++import { Result, Schema } from "effect"
+
+-class OrderId {
+-  readonly value: string
+-
+-  constructor(value: string) {
+-    this.value = value
+-  }
+-}
+-
+-interface OrderSubmission {
+-  readonly orderId: OrderId
+-  readonly quantity: number
+-  readonly requestedAt: Date
+-  readonly callbackUrl: URL
+-  readonly labels: ReadonlySet<string>
+-}
++const OrderSubmissionJson = Schema.Struct({
++  orderId: Schema.String,
++  quantity: Schema.Finite,
++  requestedAt: Schema.String,
++  callbackUrl: Schema.String,
++  labels: Schema.Array(Schema.String),
++})
++
++const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+-    const submission = JSON.parse(body) as OrderSubmission
+-
+-    console.log({
+-      orderIdIsOrderId: submission.orderId instanceof OrderId,
+-      requestedAtIsDate: submission.requestedAt instanceof Date,
+-      callbackIsUrl: submission.callbackUrl instanceof URL,
+-      labelsAreSet: submission.labels instanceof Set,
+-    })
++    const decoded = decodeOrderSubmission(JSON.parse(body))
++    if (Result.isFailure(decoded)) {
++      sendJson(400, { error: "InvalidOrder" })
++      return
++    }
++    const submission = decoded.success
+
+    sendJson(201, { ...submission, status: "accepted" })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+```
+
+A Schema is an immutable value that describes which inputs are accepted and
+what value decoding produces. Defining or composing one does not inspect any
+request. The decoder created from it performs that work when the handler calls
+`decodeOrderSubmission`.
+
+<EffectApi
+  name="Schema.Struct"
+  href="/docs/v4/api/effect/Schema#Struct-function"
+>
+  Combines property schemas into an object schema. Here every request must have
+  `orderId`, `quantity`, `requestedAt`, `callbackUrl`, and `labels` with the
+  shapes declared inside the object.
+</EffectApi>
+
+<EffectApi
+  name="Schema.String"
+  href="/docs/v4/api/effect/Schema#String-variable"
+>
+  Describes a JavaScript string. It validates the three string fields in this
+  first boundary schema and also supplies the element schema inside `labels`.
+</EffectApi>
+
+<EffectApi
+  name="Schema.Finite"
+  href="/docs/v4/api/effect/Schema#Finite-variable"
+>
+  Describes a finite JavaScript number. The decoded `quantity` is a `number`,
+  while `NaN`, positive infinity, negative infinity, strings, and other values
+  are rejected.
+</EffectApi>
+
+<EffectApi name="Schema.Array" href="/docs/v4/api/effect/Schema#Array-variable">
+  Builds an array schema from an element schema. `Schema.Array(Schema.String)`
+  therefore requires an array in which every label is a string.
+</EffectApi>
+
+<EffectApi
+  name="Schema.decodeUnknownResult"
+  href="/docs/v4/api/effect/Schema#decodeUnknownResult"
+>
+  Creates a decoder for untrusted input. Calling it returns a `Result`: success
+  contains the decoded object, while failure contains a `SchemaError` that
+  describes why the value did not match. Nothing is thrown for a shape error.
+</EffectApi>
+
+<EffectApi name="Result.isFailure" href="/docs/v4/api/effect/Result#isFailure">
+  Checks whether a `Result` is its failure case. Inside the `if`, TypeScript
+  knows decoding failed; after the early return, it knows `decoded.success` is
+  available.
+</EffectApi>
+
+Decoding and encoding are directional terms. Decoding moves from data at the
+boundary into data used by the application. Encoding, which we will add later,
+moves an application value back toward its boundary representation.
+
+Wait for the watched server to reload, then repeat the invalid request from the
+previous step. It now returns:
+
+```text title="Expected response"
 HTTP/1.1 400 Bad Request
 ...
 
 {"error":"InvalidOrder"}
 ```
 
-Invalid wire data never reaches order logic.
+The valid request still returns `201`. Its date, URL, labels, and order id are
+still plain JSON values, though. This step validates only their outer shape.
 
-## What you built
+<TutorialCheckpoint number={3} total={6} title="Wrong field types stop at the boundary">
+  The invalid request now returns `400`, while the valid request still returns
+  `201`. No TypeScript assertion decides either result.
 
-One domain definition now controls validation, JSON decoding, runtime reconstruction, JSON encoding, and one custom representation. The backend did not add DTOs, replacers, revivers, or field-by-field conversion functions.
+  <AgentPrompt label="AI prompt: validate the JSON shape">
+
+````text
+Replace the unsafe request assertion with the exact Schema decoder from this checkpoint.
+
+Rules:
+- Work only in `./preserve-domain-types` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+From the tutorial directory, run `npm install effect`, then apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
++import { Result, Schema } from "effect"
+
+-class OrderId {
+-  readonly value: string
+-
+-  constructor(value: string) {
+-    this.value = value
+-  }
+-}
+-
+-interface OrderSubmission {
+-  readonly orderId: OrderId
+-  readonly quantity: number
+-  readonly requestedAt: Date
+-  readonly callbackUrl: URL
+-  readonly labels: ReadonlySet<string>
+-}
++const OrderSubmissionJson = Schema.Struct({
++  orderId: Schema.String,
++  quantity: Schema.Finite,
++  requestedAt: Schema.String,
++  callbackUrl: Schema.String,
++  labels: Schema.Array(Schema.String),
++})
++
++const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+@@
+-    const submission = JSON.parse(body) as OrderSubmission
+-
+-    console.log({
+-      orderIdIsOrderId: submission.orderId instanceof OrderId,
+-      requestedAtIsDate: submission.requestedAt instanceof Date,
+-      callbackIsUrl: submission.callbackUrl instanceof URL,
+-      labelsAreSet: submission.labels instanceof Set,
+-    })
++    const decoded = decodeOrderSubmission(JSON.parse(body))
++    if (Result.isFailure(decoded)) {
++      sendJson(400, { error: "InvalidOrder" })
++      return
++    }
++    const submission = decoded.success
+
+     sendJson(201, { ...submission, status: "accepted" })
+*** End Patch
+```
+
+If the watched server is active, wait for it to reload and print `Listening on http://localhost:3000` before verification. If the first request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for that message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Run both commands from the tutorial directory:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":42,"quantity":"two","requestedAt":"soon","callbackUrl":"not a url","labels":"priority"}'
+
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"]}'
+```
+
+Verify these exact results:
+
+1. The first request returns status `400` and `{"error":"InvalidOrder"}`.
+2. The second returns status `201` and `{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}`.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 4. Decode JSON into useful runtime values
+
+The shape is safe, but order logic still receives strings and an array. Change
+the field schemas to describe the values the application actually wants:
+
+```ts title="server.ts" collapse={20-42,51-57} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+-import { Result, Schema } from "effect"
++import { DateTime, Result, Schema } from "effect"
+
+-const OrderSubmissionJson = Schema.Struct({
++const OrderSubmission = Schema.Struct({
+  orderId: Schema.String,
+  quantity: Schema.Finite,
+-  requestedAt: Schema.String,
+-  callbackUrl: Schema.String,
+-  labels: Schema.Array(Schema.String),
++  requestedAt: Schema.DateTimeUtc,
++  callbackUrl: Schema.URL,
++  labels: Schema.ReadonlySet(Schema.String),
+})
+
++const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+    const decoded = decodeOrderSubmission(JSON.parse(body))
+    if (Result.isFailure(decoded)) {
+      sendJson(400, { error: "InvalidOrder" })
+      return
+    }
+    const submission = decoded.success
+
++    console.log({
++      requestedAt: DateTime.formatIso(submission.requestedAt),
++      callbackHost: submission.callbackUrl.host,
++      labels: [...submission.labels],
++    })
++
+    sendJson(201, { ...submission, status: "accepted" })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+```
+
+The `OrderSubmission` schema describes domain values. The derived
+`OrderSubmissionJson` codec describes how those values cross JSON. A codec is a
+schema that keeps both directions. In this codec, its decoded `Type` contains a
+`DateTime.Utc`, a `URL`, and a `ReadonlySet<string>`. Its `Encoded` side contains
+the JSON-compatible ISO string, URL string, and string array.
+
+<EffectApi
+  name="Schema.DateTimeUtc"
+  href="/docs/v4/api/effect/Schema#DateTimeUtc-variable"
+>
+  Describes an immutable Effect `DateTime.Utc` value that represents an instant
+  in UTC. It is a different runtime type from JavaScript `Date`. Its canonical
+  JSON codec decodes a UTC ISO string such as `2026-08-09T10:00:00.000Z` into
+  that value and encodes the value back to a UTC ISO string.
+</EffectApi>
+
+<EffectApi name="Schema.URL" href="/docs/v4/api/effect/Schema#URL-variable">
+  Describes a JavaScript `URL` instance. Its canonical JSON codec accepts a
+  valid URL string, constructs `URL`, and turns the instance back into a string
+  during encoding.
+</EffectApi>
+
+<EffectApi
+  name="Schema.ReadonlySet"
+  href="/docs/v4/api/effect/Schema#ReadonlySet-function"
+>
+  Builds a schema for a JavaScript `ReadonlySet`. The inner schema validates its
+  elements. Its canonical JSON codec decodes a JSON array into `Set` and encodes
+  the set back into an array.
+</EffectApi>
+
+<EffectApi
+  name="Schema.toCodecJson"
+  href="/docs/v4/api/effect/Schema#toCodecJson-function"
+>
+  Derives a JSON-compatible codec recursively. In this object it selects the ISO
+  string representation for `DateTime.Utc`, a string for `URL`, and an array for
+  `ReadonlySet`, while ordinary strings and numbers stay unchanged.
+</EffectApi>
+
+<EffectApi
+  name="DateTime.formatIso"
+  href="/docs/v4/api/effect/DateTime#formatIso"
+>
+  Formats a `DateTime` value as an ISO string. Calling it here demonstrates that
+  `requestedAt` is no longer the request's original JavaScript string.
+</EffectApi>
+
+Wait for the watched server to reload, then send the valid request again. The
+server log now contains useful domain data:
+
+```text title="Expected server log"
+{
+  requestedAt: '2026-08-09T10:00:00.000Z',
+  callbackHost: 'example.com',
+  labels: [ 'priority', 'b2b' ]
+}
+```
+
+The response reveals the next boundary problem:
+
+```text title="Expected response"
+HTTP/1.1 201 Created
+...
+
+{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":{},"status":"accepted"}
+```
+
+`JSON.stringify` does not know how to serialize a `Set`, so `labels` becomes an
+empty object. Decoding solved the incoming direction. We still need to use the
+codec in the outgoing direction.
+
+<TutorialCheckpoint number={4} total={6} title="The handler receives domain values">
+  The valid request reaches the handler as `DateTime.Utc`, `URL`, and `Set`
+  values. The deliberately unencoded response shows `"labels":{}`.
+
+  <AgentPrompt label="AI prompt: decode rich values">
+
+````text
+Change the request decoder to produce the exact runtime values in this checkpoint.
+
+Rules:
+- Work only in `./preserve-domain-types` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
+-import { Result, Schema } from "effect"
++import { DateTime, Result, Schema } from "effect"
+
+-const OrderSubmissionJson = Schema.Struct({
++const OrderSubmission = Schema.Struct({
+   orderId: Schema.String,
+   quantity: Schema.Finite,
+-  requestedAt: Schema.String,
+-  callbackUrl: Schema.String,
+-  labels: Schema.Array(Schema.String),
++  requestedAt: Schema.DateTimeUtc,
++  callbackUrl: Schema.URL,
++  labels: Schema.ReadonlySet(Schema.String),
+ })
+
++const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+ const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+@@
+     }
+     const submission = decoded.success
+
++    console.log({
++      requestedAt: DateTime.formatIso(submission.requestedAt),
++      callbackHost: submission.callbackUrl.host,
++      labels: [...submission.labels],
++    })
++
+     sendJson(201, { ...submission, status: "accepted" })
+*** End Patch
+```
+
+If the watched server is active, wait for it to reload and print `Listening on http://localhost:3000` before verification. If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for that message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Run this command from the tutorial directory:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"]}'
+```
+
+Verify these exact results:
+
+1. The log contains `requestedAt: '2026-08-09T10:00:00.000Z'`, `callbackHost: 'example.com'`, and `labels: [ 'priority', 'b2b' ]`.
+2. The response returns status `201` and `{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":{},"status":"accepted"}`.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 5. Encode the response through Schema
+
+Define the accepted response as domain data, derive its JSON codec, and encode
+before calling `JSON.stringify`:
+
+```ts title="server.ts" collapse={1-13,27-55,67-73} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+import { DateTime, Result, Schema } from "effect"
+
+const OrderSubmission = Schema.Struct({
+  orderId: Schema.String,
+  quantity: Schema.Finite,
+  requestedAt: Schema.DateTimeUtc,
+  callbackUrl: Schema.URL,
+  labels: Schema.ReadonlySet(Schema.String),
+})
+
+const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+
++const AcceptedOrder = Schema.Struct({
++  orderId: Schema.String,
++  quantity: Schema.Finite,
++  requestedAt: Schema.DateTimeUtc,
++  callbackUrl: Schema.URL,
++  labels: Schema.ReadonlySet(Schema.String),
++  status: Schema.Literal("accepted"),
++})
++
++const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
++const encodeAcceptedOrder = Schema.encodeResult(AcceptedOrderJson)
++
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+    const decoded = decodeOrderSubmission(JSON.parse(body))
+    if (Result.isFailure(decoded)) {
+      sendJson(400, { error: "InvalidOrder" })
+      return
+    }
+    const submission = decoded.success
+
+    console.log({
+      requestedAt: DateTime.formatIso(submission.requestedAt),
+      callbackHost: submission.callbackUrl.host,
+      labels: [...submission.labels],
+    })
+
+-    sendJson(201, { ...submission, status: "accepted" })
++    const encoded = encodeAcceptedOrder({
++      ...submission,
++      status: "accepted",
++    })
++    if (Result.isFailure(encoded)) {
++      throw encoded.failure
++    }
++
++    sendJson(201, encoded.success)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+```
+
+<EffectApi
+  name="Schema.Literal"
+  href="/docs/v4/api/effect/Schema#Literal-function"
+>
+  Describes one exact value rather than every string. The accepted response can
+  therefore contain only `status: "accepted"`.
+</EffectApi>
+
+<EffectApi
+  name="Schema.encodeResult"
+  href="/docs/v4/api/effect/Schema#encodeResult"
+>
+  Creates an encoder for values already typed as the schema's decoded side. A
+  successful `Result` contains JSON-safe data. A failure means application code
+  tried to encode a value that did not satisfy the response schema.
+</EffectApi>
+
+Request decoding failures are client errors, so the handler returns `400`.
+Response encoding failures indicate a server-side mistake, so this code throws
+the `SchemaError` into the existing `catch` and returns `500`. The two boundary
+directions now have different policies.
+
+Wait for the watched server to reload, then send the valid request again. The
+complete response shape is restored:
+
+```text title="Expected response"
+HTTP/1.1 201 Created
+...
+
+{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}
+```
+
+The handler uses a `Set`; the wire uses an array. That difference is now an
+explicit part of the codec instead of an accident of `JSON.stringify`.
+
+<TutorialCheckpoint number={5} total={6} title="The response preserves its JSON contract">
+  A valid request is decoded into domain values and encoded back to the original
+  JSON representations. `labels` is an array again.
+
+  <AgentPrompt label="AI prompt: encode the response">
+
+````text
+Encode accepted orders with the exact response schema from this checkpoint.
+
+Rules:
+- Work only in `./preserve-domain-types` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+ const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+
++const AcceptedOrder = Schema.Struct({
++  orderId: Schema.String,
++  quantity: Schema.Finite,
++  requestedAt: Schema.DateTimeUtc,
++  callbackUrl: Schema.URL,
++  labels: Schema.ReadonlySet(Schema.String),
++  status: Schema.Literal("accepted"),
++})
++
++const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
++const encodeAcceptedOrder = Schema.encodeResult(AcceptedOrderJson)
++
+ const server = createServer(async (request, response) => {
+@@
+-    sendJson(201, { ...submission, status: "accepted" })
++    const encoded = encodeAcceptedOrder({
++      ...submission,
++      status: "accepted",
++    })
++    if (Result.isFailure(encoded)) {
++      throw encoded.failure
++    }
++
++    sendJson(201, encoded.success)
+*** End Patch
+```
+
+If the watched server is active, wait for it to reload and print `Listening on http://localhost:3000` before verification. If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for that message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Run this command from the tutorial directory:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"]}'
+```
+
+Verify status `201` and `{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}`.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## 6. Give the order id a domain class
+
+The remaining `orderId` is still a string inside the handler. Make it a class
+without changing the JSON contract:
+
+```ts title="server.ts" collapse={28-37,40-73,77-97} useDiffSyntax copyFinal
+import { createServer } from "node:http"
+-import { DateTime, Result, Schema } from "effect"
++import { DateTime, Result, Schema, SchemaTransformation } from "effect"
+
++const OrderIdText = Schema.TemplateLiteral(["ord_", Schema.String])
++
++class OrderId extends Schema.Class<OrderId>("OrderId")({
++  value: OrderIdText,
++}) {
++  toString(): string {
++    return this.value
++  }
++}
++
++const OrderIdFromString = OrderIdText.pipe(
++  Schema.decodeTo(
++    OrderId,
++    SchemaTransformation.transform({
++      decode: (value) => ({ value }),
++      encode: ({ value }) => value,
++    }),
++  ),
++)
++
+const OrderSubmission = Schema.Struct({
+-  orderId: Schema.String,
++  orderId: OrderIdFromString,
+  quantity: Schema.Finite,
+  requestedAt: Schema.DateTimeUtc,
+  callbackUrl: Schema.URL,
+  labels: Schema.ReadonlySet(Schema.String),
+})
+
+const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
+
+const AcceptedOrder = Schema.Struct({
+-  orderId: Schema.String,
++  orderId: OrderIdFromString,
+  quantity: Schema.Finite,
+  requestedAt: Schema.DateTimeUtc,
+  callbackUrl: Schema.URL,
+  labels: Schema.ReadonlySet(Schema.String),
+  status: Schema.Literal("accepted"),
+})
+
+const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
+const encodeAcceptedOrder = Schema.encodeResult(AcceptedOrderJson)
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+    const decoded = decodeOrderSubmission(JSON.parse(body))
+    if (Result.isFailure(decoded)) {
+      sendJson(400, { error: "InvalidOrder" })
+      return
+    }
+    const submission = decoded.success
+
+    console.log({
++      orderIdIsOrderId: submission.orderId instanceof OrderId,
++      orderId: submission.orderId.toString(),
+      requestedAt: DateTime.formatIso(submission.requestedAt),
+      callbackHost: submission.callbackUrl.host,
+      labels: [...submission.labels],
+    })
+
+    const encoded = encodeAcceptedOrder({
+      ...submission,
+      status: "accepted",
+    })
+    if (Result.isFailure(encoded)) {
+      throw encoded.failure
+    }
+
+    sendJson(201, encoded.success)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+```
+
+<EffectApi
+  name="Schema.TemplateLiteral"
+  href="/docs/v4/api/effect/Schema#TemplateLiteral-function"
+>
+  Builds a string schema from fixed and variable parts. `OrderIdText` accepts
+  strings that start with `ord_`, so an id such as `wrong` fails before any
+  `OrderId` is constructed.
+</EffectApi>
+
+<EffectApi name="Schema.Class" href="/docs/v4/api/effect/Schema#Class-variable">
+  Creates a class that is also a schema. Decoding its field object constructs an
+  `OrderId` instance, and encoding an instance produces that field object. The
+  `<OrderId>` type argument tells TypeScript which class is being defined, while
+  `"OrderId"` is a stable identifier used in Schema diagnostics. The class body
+  can add ordinary methods such as `toString`.
+</EffectApi>
+
+`OrderIdText.pipe(...)` passes `OrderIdText` into the function returned by
+`Schema.decodeTo(...)`. Reading from top to bottom, the code starts with the
+wire string schema and connects it to the `OrderId` class schema. Composing the
+schemas does not decode a value; the request decoder does that later.
+
+<EffectApi
+  name="Schema.decodeTo"
+  href="/docs/v4/api/effect/Schema#decodeTo-function"
+>
+  Connects a source schema to a target schema. This codec starts from validated
+  `OrderIdText` and ends at an `OrderId` instance when decoding; encoding
+  travels from the instance back to its string representation.
+</EffectApi>
+
+<EffectApi
+  name="SchemaTransformation.transform"
+  href="/docs/v4/api/effect/SchemaTransformation#transform"
+>
+  Supplies two conversions that cannot fail on their own. `decode` wraps the
+  validated string in the field object consumed by `OrderId`; `encode` extracts
+  the validated string from that object on the return trip.
+</EffectApi>
+
+Wait for the watched server to reload, then send the valid request once more.
+The server log now begins with:
+
+```text title="Expected server log"
+orderIdIsOrderId: true
+orderId: 'ord_2026_0001'
+```
+
+The response still contains `"orderId":"ord_2026_0001"`. The class is a domain
+choice, not a wire-format change.
+
+Now verify the class invariant:
+
+```sh title="Send an invalid order id"
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"wrong","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority"]}'
+```
+
+It returns:
+
+```text title="Expected response"
+HTTP/1.1 400 Bad Request
+...
+
+{"error":"InvalidOrder"}
+```
+
+The boundary now performs a round trip with one source of truth:
+
+```text title="Boundary flow"
+request JSON
+  -> decode with OrderSubmissionJson
+  -> OrderId, DateTime.Utc, URL, and Set in order logic
+  -> encode with AcceptedOrderJson
+  -> response JSON
+```
+
+<TutorialCheckpoint number={6} total={6} title="JSON and domain values round-trip safely">
+  Valid JSON becomes an `OrderId`, `DateTime.Utc`, `URL`, and `Set`, then returns
+  as stable JSON. An invalid order id returns `400` before order logic runs.
+
+  <AgentPrompt label="AI prompt: add the OrderId class">
+
+````text
+Add the exact schema-backed OrderId class and string codec from the final checkpoint.
+
+Rules:
+- Work only in `./preserve-domain-types` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
+-import { DateTime, Result, Schema } from "effect"
++import { DateTime, Result, Schema, SchemaTransformation } from "effect"
+
++const OrderIdText = Schema.TemplateLiteral(["ord_", Schema.String])
++
++class OrderId extends Schema.Class<OrderId>("OrderId")({
++  value: OrderIdText,
++}) {
++  toString(): string {
++    return this.value
++  }
++}
++
++const OrderIdFromString = OrderIdText.pipe(
++  Schema.decodeTo(
++    OrderId,
++    SchemaTransformation.transform({
++      decode: (value) => ({ value }),
++      encode: ({ value }) => value,
++    }),
++  ),
++)
++
+ const OrderSubmission = Schema.Struct({
+-  orderId: Schema.String,
++  orderId: OrderIdFromString,
+@@
+ const AcceptedOrder = Schema.Struct({
+-  orderId: Schema.String,
++  orderId: OrderIdFromString,
+@@
+     const submission = decoded.success
+
+     console.log({
++      orderIdIsOrderId: submission.orderId instanceof OrderId,
++      orderId: submission.orderId.toString(),
+       requestedAt: DateTime.formatIso(submission.requestedAt),
+*** End Patch
+```
+
+If the watched server is active, wait for it to reload and print `Listening on http://localhost:3000` before verification. If the first request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for that message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Run both commands from the tutorial directory:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"]}'
+
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"wrong","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority"]}'
+```
+
+Verify these exact results:
+
+1. The first request returns status `201` and `{"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}`. The log contains `orderIdIsOrderId: true` and `orderId: 'ord_2026_0001'`.
+2. The second returns status `400` and `{"error":"InvalidOrder"}`.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
+</TutorialCheckpoint>
+
+## Read the final boundary
+
+`OrderSubmission` and `AcceptedOrder` describe the runtime values used by the
+application. `Schema.toCodecJson` derives the boundary representations of those
+same definitions. `Schema.decodeUnknownResult` protects incoming data, while
+`Schema.encodeResult` protects outgoing data.
+
+There is no assertion, replacer, reviver, or field-by-field reconstruction in
+the HTTP handler. When a domain field changes, its schema keeps validation,
+decoding, and encoding together.
 
 ## Related tutorials
 
-- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
 - [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
