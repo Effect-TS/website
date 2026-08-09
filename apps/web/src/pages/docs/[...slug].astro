@@ -5,6 +5,7 @@ import { getCollection, getEntry, render } from "astro:content"
 import { ChevronDown, Menu } from "@lucide/astro"
 
 import Footer from "@/components/Footer.astro"
+import CopyMarkdownButton from "@/components/docs/CopyMarkdownButton.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
@@ -111,6 +112,7 @@ function entryHref(e: CollectionEntry<"docs">): string {
 }
 
 const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
+const markdownUrl = `/docs/${entry.id.replace(/\/index$/, "")}.md`
 ---
 
 <BaseLayout title={entry.data.title} description={entry.data.description}>
@@ -285,7 +287,10 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
                    prose-code:bg-black/10 prose-code:text-zinc-700 dark:prose-code:bg-white/10 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
                    prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700"
           >
-            <h1 class="!mt-0">{entry.data.title}</h1>
+            <div class="mb-8 flex items-start justify-between gap-4">
+              <h1 class="!m-0">{entry.data.title}</h1>
+              <CopyMarkdownButton markdownUrl={markdownUrl} />
+            </div>
             <Content />
           </article>
         </main>
