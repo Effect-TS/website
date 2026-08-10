@@ -5,7 +5,7 @@ import { getCollection, getEntry, render } from "astro:content"
 import { ChevronDown, Menu } from "@lucide/astro"
 
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
-import Eyebrow from "@/components/ui/Eyebrow.astro"
+import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import DocShell from "@/layouts/DocShell.astro"
 
 export async function getStaticPaths() {
@@ -105,6 +105,12 @@ const sidebarItems = sortByOrderLabel<SidebarItem>(
 )
 
 const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
+const tocItems = tocHeadings.map((heading) => ({
+  id: heading.slug,
+  label: heading.text,
+  indent: heading.depth === 3,
+  class: "text-sm leading-snug",
+}))
 ---
 
 <DocShell title={entry.data.title} description={entry.data.description} activeSlug="docs">
@@ -151,59 +157,12 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
 
   <!-- Right TOC -->
   {
-    tocHeadings.length > 0 && (
-      <nav
+    tocItems.length > 0 && (
+      <TableOfContents
         slot="toc"
-        aria-label="On this page"
+        items={tocItems}
         class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-10"
-      >
-        <Eyebrow class="mb-4">On this page</Eyebrow>
-        <div class="mb-5 h-px bg-border" />
-        <ul class="flex flex-col gap-3">
-          {tocHeadings.map((heading) => (
-            <li class={heading.depth === 3 ? "pl-3" : ""}>
-              <a
-                href={`#${heading.slug}`}
-                data-toc-link={heading.slug}
-                class="block text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=location]:font-semibold aria-[current=location]:text-foreground"
-              >
-                {heading.text}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      />
     )
   }
 </DocShell>
-
-<script>
-  const links = document.querySelectorAll<HTMLAnchorElement>("[data-toc-link]")
-  if (links.length > 0) {
-    function setActive(id: string | undefined) {
-      for (const link of links) {
-        link.setAttribute("aria-current", link.dataset.tocLink === id ? "location" : "false")
-      }
-    }
-
-    const headings = Array.from(links)
-      .map((l) => document.getElementById(l.dataset.tocLink!))
-      .filter((el): el is HTMLElement => el !== null)
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-        if (visible.length > 0) {
-          setActive(visible[0]?.target.id)
-        }
-      },
-      { rootMargin: "-80px 0px -70% 0px", threshold: 0 },
-    )
-
-    for (const el of headings) {
-      observer.observe(el)
-    }
-  }
-</script>

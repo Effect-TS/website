@@ -129,6 +129,13 @@ Radius: `rounded-sm` 4px · `md` 6px · `lg` 8px · `xl` 12px · `2xl` 16px · `
   both build their trees from these. Section-specific chrome (version switch,
   package header, active-item autoscroll) composes _around_ the tree, never into
   it — keep the primitives presentational.
+- **"On this page" TOC** works the same way: `components/ui/toc/` has `TocLink`
+  (the resting/hover/active-via-`aria-current="location"` link treatment) and
+  `TableOfContents` (presentational container — label, divider, flat-or-nested
+  list from an `items` prop — that also hosts the **one** scroll-spy `<script>`
+  for the whole page). Docs, API Reference, and Blog all render it; the blog box
+  is passed via the container `class`. It is a plain Astro component (no React
+  island). Don't reintroduce a per-page IntersectionObserver.
 - **Documentation shell**: Docs + API Reference use one layout,
   `src/layouts/DocShell.astro` (fills `sidebar` / default / `toc` / `mobile-nav`
   slots). Marketing/blog use `PageLayout`; both wrap `BaseLayout`.
