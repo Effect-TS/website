@@ -194,7 +194,7 @@ surrounding project setup still need work for Diátaxis-level repeatability.
 have the learner add the error filter, bound and timeout in three executable
 edits. Reset the fixture counter per request or log a request-local attempt.
 
-### `run-independent-work-concurrently-without-losing-control.mdx`
+### `structured-concurrency-built-in.mdx`
 
 **What works**
 
@@ -220,7 +220,7 @@ edits. Reset the fixture counter per request or log a request-local attempt.
 then add a logged shipping branch and finally the deadline. Each change can
 produce one distinct log pattern without increasing provider complexity.
 
-### `clean-up-resources-after-failure-or-cancellation.mdx`
+### `tie-resources-to-operation-lifetimes.mdx`
 
 **What works**
 
@@ -248,7 +248,7 @@ learner add each acquisition and finalizer, and expose a fixture reset or restar
 before every prescribed output. Demonstrate a defect only if it remains part of
 the promised outcome.
 
-### `preserve-domain-types-across-a-json-boundary.mdx`
+### `derive-json-codecs-for-domain-models.mdx`
 
 **What works**
 
@@ -277,7 +277,7 @@ derive and run its JSON codec. Add the custom `OrderId` representation as the
 next concrete change, then place both in the HTTP boundary. Move alternative
 wire-shape discussion to Schema explanation.
 
-### `replace-infrastructure-without-changing-business-logic.mdx`
+### `keep-dependencies-explicit-without-manual-wiring.mdx`
 
 **What works**
 
@@ -302,7 +302,7 @@ wire-shape discussion to Schema explanation.
 then make the visible exercise add one missing service, run an exact type-check
 command, complete the graph and replace the Layer.
 
-### `see-where-a-request-spends-its-time.mdx`
+### `instrument-applications-for-opentelemetry-without-the-plumbing.mdx`
 
 **What works**
 
@@ -333,7 +333,7 @@ root span, then child and retry-attempt spans one at a time. Include a pinned UI
 image plus start/health/stop checks for the dashboard. Leave exporter replacement
 as linked explanation or a separate how-to.
 
-### `catch-incorrect-ai-generated-changes.mdx`
+### `keep-ai-generated-code-under-control.mdx`
 
 **What works**
 
@@ -380,7 +380,7 @@ provided before the exercise begins. They can become strong tutorials by
 turning the topic-specific code into cumulative actions and relegating generic
 backend infrastructure to a starter.
 
-`catch-incorrect-ai-generated-changes.mdx` remains the exception. Its primary
+`keep-ai-generated-code-under-control.mdx` remains the exception. Its primary
 path is inherently branched and dependent on uncontrolled agent behavior. The
 captured patch contains the seed of a reliable tutorial, but the current
 real-agent workflow is closer to a how-to or facilitated lab.

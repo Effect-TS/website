@@ -73,48 +73,66 @@ As operations are combined, TypeScript keeps updating that information. At the a
 
 ## What changes in day-to-day work
 
-### Failures become decisions
+### Failures become explicit
 
-Expected failures remain visible instead of disappearing into `Promise` rejection. You can retry a temporary provider outage without retrying a payment decline or treating an unexpected bug the same way.
+Thrown values and Promise rejections normally reach `catch` as `unknown`. Effect
+keeps expected failures visible in the operation's type, so each failure can
+have an explicit retry, timeout, or HTTP response decision.
 
-### Concurrency has one lifetime
+### Structured concurrency is built in
 
-Parallel work, concurrency limits, timeouts, and cancellation are part of the same operation. If the complete operation stops, its unfinished work stops too. Effect can pass an `AbortSignal` to Promise-based APIs.
+Concurrency limits, ordered results, timeouts, cancellation, and failure
+propagation belong to the same runtime. If the complete operation stops, its
+unfinished work stops too.
 
-### Resources follow the work
+### Resources follow operation lifetimes
 
-A `Scope` ties cleanup to the lifetime of a resource. When that lifetime ends, cleanup runs after success, failure, cancellation, or an unexpected bug.
+A `Scope` owns resources and their finalizers. When the operation's lifetime
+ends, cleanup runs after success, failure, cancellation, or an unexpected bug.
 
-### Dependencies stay visible
+### Rich domain models get JSON codecs
 
-Application code asks for services through `Context`. `Layer` constructs the real implementations, shares their dependencies, and lets you replace one implementation without changing the business operation.
+Schema describes both rich domain values and their representation over the
+wire. Validation and JSON codecs can then be derived from the same description
+instead of maintained as separate serialization code.
 
-### Data is checked at the boundary
+### Dependencies stay explicit without manual wiring
 
-Schema decodes external values rather than trusting them. `Schema.toCodecJson` can also derive a JSON-compatible representation for rich domain values such as dates, durations, URLs, byte arrays, sets, and your own types.
+An operation's type records the services it requires. `Layer` selects and
+builds their implementations at the application boundary, so dependencies stay
+visible without passing them through every intermediate function.
 
-### Operations explain themselves
+### AI-generated code faces precise constraints
 
-Named Effect functions record how operations are related, how long they took, and where they failed. You can send that timing data to a graphical trace viewer.
+Effect's precise types make plausible but incorrect code harder to express.
+Effect-aware developer tools identify suspicious code that still gets through.
+
+### OpenTelemetry instrumentation follows the code
+
+Named Effect functions create spans whose lifetimes and parent-child
+relationships follow the operations they describe. Concurrency, failures, and
+cancellation remain connected without manual tracing context propagation.
 
 ## Start with the pain you have now
 
-Each tutorial explores one of these backend problems through the same order-processing service.
+Each tutorial uses a small order-processing backend as a concrete example. The
+scenario provides context, while the focus remains on one common problem and
+the solution Effect offers.
 
 ### When production gets messy
 
-- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
-- [Run independent work concurrently without losing control](/docs/v4/tutorials/run-independent-work-concurrently-without-losing-control)
-- [Clean up resources after failure or cancellation](/docs/v4/tutorials/clean-up-resources-after-failure-or-cancellation)
+- [Make failures explicit](/docs/v4/tutorials/make-failures-explicit)
+- [Structured concurrency, built in](/docs/v4/tutorials/structured-concurrency-built-in)
+- [Tie resources to operation lifetimes](/docs/v4/tutorials/tie-resources-to-operation-lifetimes)
 
 ### When the pieces need to fit together
 
-- [Preserve domain types across a JSON boundary](/docs/v4/tutorials/preserve-domain-types-across-a-json-boundary)
-- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
+- [Derive JSON codecs for domain models](/docs/v4/tutorials/derive-json-codecs-for-domain-models)
+- [Keep dependencies explicit without manual wiring](/docs/v4/tutorials/keep-dependencies-explicit-without-manual-wiring)
 
 ### When the team ships and operates
 
-- [Catch incorrect AI-generated changes](/docs/v4/tutorials/catch-incorrect-ai-generated-changes)
-- [See where a request spends its time](/docs/v4/tutorials/see-where-a-request-spends-its-time)
+- [Keep AI-generated code under control](/docs/v4/tutorials/keep-ai-generated-code-under-control)
+- [Instrument applications for OpenTelemetry without the plumbing](/docs/v4/tutorials/instrument-applications-for-opentelemetry-without-the-plumbing)
 
 You do not need to read these in order. Each tutorial starts with a working, independent program and ends with a result you can inspect.

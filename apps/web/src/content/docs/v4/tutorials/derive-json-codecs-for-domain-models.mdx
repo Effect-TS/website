@@ -1,51 +1,64 @@
 ---
-title: Preserve domain types across a JSON boundary
-description: Decode request JSON into useful runtime values, then encode those values back into a stable response shape.
+title: Derive JSON codecs for domain models
+description: Derive validation and JSON codecs for domain models that JSON cannot represent directly.
 sidebar:
   order: 4
 ---
 
-import { TutorialCheckpoint } from "@astrojs/starlight/components"
+import {
+  TutorialCheckpoint,
+  TutorialPainPoint,
+} from "@astrojs/starlight/components"
 
-`JSON.parse` returns ordinary JavaScript values. A timestamp is still a string,
-a URL is still a string, an array is still an array, and an application class
-is not constructed for you. A TypeScript assertion can claim otherwise, but it
-does not inspect or transform the value at runtime.
+<TutorialPainPoint title="Rich domain models require serialization boilerplate">
+  Domain models often contain dates, URLs, sets, and application classes that
+  JSON cannot represent directly. Sending them over the wire usually requires
+  separate validation, decoding, and encoding code for every model.
 
-In this tutorial, we will start with a conventional `node:http` endpoint and
-replace that assertion with one Schema-driven boundary. The finished
-`POST /orders` endpoint will have these observable behaviors:
+With Effect Schema, one schema describes both the domain values and their wire
+representation. From that description, the endpoint gets runtime validation
+and codecs that decode JSON into rich values and encode them back.
 
-| Request                                     | Boundary behavior                              | HTTP result |
-| ------------------------------------------- | ---------------------------------------------- | ----------- |
-| Valid order JSON                            | Builds rich values, then encodes response JSON | `201`       |
-| Wrong field type                            | Stops before order logic                       | `400`       |
-| Order id without the required `ord_` prefix | Stops before constructing the domain `OrderId` | `400`       |
+</TutorialPainPoint>
+
+The example is a `POST /orders` endpoint written with `node:http`. It starts by
+asserting that `JSON.parse` returned an `OrderSubmission`, even though no
+runtime check or conversion took place. Each step replaces part of that
+assumption until the finished endpoint behaves as follows:
+
+| Request                                     | Boundary behavior                                | HTTP result |
+| ------------------------------------------- | ------------------------------------------------ | ----------- |
+| Valid order JSON                            | Builds domain values, then encodes response JSON | `201`       |
+| Wrong field type                            | Stops before order logic                         | `400`       |
+| Order id without the required `ord_` prefix | Stops before constructing the domain `OrderId`   | `400`       |
 
 The HTTP server will remain ordinary TypeScript. Schema will own the two jobs
 at the boundary: decoding unknown request data into domain values and encoding
 domain values into JSON-safe response data.
 
-Each step ends with a checkpoint: a short summary of the behavior reached so far.
+## Project setup
+
+The project uses one file:
+
+- `server.ts` contains the HTTP endpoint and the boundary definitions. It is the
+  file we will change throughout the tutorial.
+
+The examples run TypeScript directly and therefore require Node.js 22.18.0 or
+newer. Whenever `server.ts` changes, its complete current version is shown. Each
+checkpoint is a short summary of the behavior reached so far.
+
+The server can run with `--watch`, which reloads `server.ts` after every edit.
+This command stays active in one terminal pane throughout the tutorial:
+
+```sh title="Keep running throughout the tutorial"
+node --watch server.ts
+```
 
 ## 1. Start with a familiar JSON endpoint
 
-This tutorial requires Node.js 22.18.0 or newer because it runs `server.ts`
-directly with Node's built-in TypeScript support.
+The initial `server.ts` is a conventional implementation:
 
-To create the project manually, run:
-
-```sh title="Create the project"
-mkdir preserve-domain-types
-cd preserve-domain-types
-npm init -y
-npm pkg set type=module
-npm install --save-dev @types/node@22
-```
-
-Create `server.ts` with this conventional implementation:
-
-```ts title="server.ts" collapse={19-34,46-50}
+```ts title="server.ts"
 import { createServer } from "node:http"
 
 class OrderId {
@@ -81,8 +94,10 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
+    // This assertion changes TypeScript's view, not the runtime values.
     const submission = JSON.parse(body) as OrderSubmission
 
+    // Check whether the values have the runtime types claimed above.
     console.log({
       orderIdIsOrderId: submission.orderId instanceof OrderId,
       requestedAtIsDate: submission.requestedAt instanceof Date,
@@ -100,14 +115,7 @@ const server = createServer(async (request, response) => {
 server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 ```
 
-Start the server with `--watch`. Node.js will reload the file after every edit,
-so keep this terminal running throughout the tutorial:
-
-```sh title="Keep running throughout the tutorial"
-node --watch server.ts
-```
-
-Open a second terminal pane and send an order:
+In a second terminal pane, this request sends an order:
 
 ```sh title="Send a valid-looking order"
 curl -i -sS http://localhost:3000/orders \
@@ -153,7 +161,7 @@ fail even though the editor says those operations are allowed.
 ## 2. Watch invalid data pass the assertion
 
 The same assertion also accepts values that do not resemble the declared
-types. Send this request without changing the server:
+types. This request uses the unchanged server:
 
 ```sh title="Send wrong field types"
 curl -i -sS http://localhost:3000/orders \
@@ -185,15 +193,15 @@ as `unknown` until the boundary proves what it contains.
 
 ## 3. Validate the JSON shape
 
-Keep the server running. In the second terminal pane, install Effect:
+This step uses Effect Schema from the `effect` package:
 
 ```sh title="Install Effect"
 npm install effect@4.0.0-beta.104
 ```
 
-Replace the assertion with a Schema decoder:
+The next version replaces the assertion with a Schema decoder:
 
-```ts title="server.ts" ins={2,4-12,31-36} collapse={14-29,38-45}
+```ts title="server.ts" ins={2,4-10,12,31-37} collapse={14-29,38-46}
 import { createServer } from "node:http"
 import { Result, Schema } from "effect"
 
@@ -224,6 +232,7 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
+    // Decode untrusted JSON before order logic uses it.
     const decoded = decodeOrderSubmission(JSON.parse(body))
     if (Result.isFailure(decoded)) {
       sendJson(400, { error: "InvalidOrder" })
@@ -242,9 +251,9 @@ server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 ```
 
 A Schema is an immutable value that describes which inputs are accepted and
-what value decoding produces. Defining or composing one does not inspect any
-request. The decoder created from it performs that work when the handler calls
-`decodeOrderSubmission`.
+what value decoding produces. Defining or combining schemas does not inspect
+any request. The decoder created from the schema performs that work when the
+handler calls `decodeOrderSubmission`.
 
 [`Schema.Struct`](/docs/v4/api/effect/Schema#Struct-function) combines property
 schemas into an object schema. Here every request must have `orderId`,
@@ -274,8 +283,8 @@ Decoding and encoding are directional terms. Decoding moves from data at the
 boundary into data used by the application. Encoding, which we will add later,
 moves an application value back toward its boundary representation.
 
-Wait for the watched server to reload, then repeat the invalid request from the
-previous step. It now returns:
+After the watched server reloads, the invalid request from the previous step
+returns:
 
 ```text title="Expected response"
 HTTP/1.1 400 Bad Request
@@ -284,8 +293,9 @@ HTTP/1.1 400 Bad Request
 {"error":"InvalidOrder"}
 ```
 
-The valid request still returns `201`. Its date, URL, labels, and order id are
-still plain JSON values, though. This step validates only their outer shape.
+The valid request still returns `201`, but its date, URL, labels, and order id
+are still plain JSON values. This step checks their JSON types without
+constructing the runtime values used by the application.
 
 <TutorialCheckpoint
   number={3}
@@ -298,10 +308,11 @@ still plain JSON values, though. This step validates only their outer shape.
 
 ## 4. Decode JSON into useful runtime values
 
-The shape is safe, but order logic still receives strings and an array. Change
-the field schemas to describe the values the application actually wants:
+The shape is safe, but order logic still receives strings and an array. The next
+version changes the field schemas to describe the values the application
+actually wants:
 
-```ts title="server.ts" ins={2,4,7-9,12,39-43} collapse={15-36,45-52}
+```ts title="server.ts" ins={2,4,7-9,12-13,41-45} collapse={16-40,46-54}
 import { createServer } from "node:http"
 import { DateTime, Result, Schema } from "effect"
 
@@ -313,6 +324,7 @@ const OrderSubmission = Schema.Struct({
   labels: Schema.ReadonlySet(Schema.String),
 })
 
+// Derive the JSON representation from the domain schema.
 const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
 const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
 
@@ -333,6 +345,7 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
+    // Decode untrusted JSON before order logic uses it.
     const decoded = decodeOrderSubmission(JSON.parse(body))
     if (Result.isFailure(decoded)) {
       sendJson(400, { error: "InvalidOrder" })
@@ -357,10 +370,11 @@ server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 ```
 
 The `OrderSubmission` schema describes domain values. The derived
-`OrderSubmissionJson` codec describes how those values cross JSON. A codec is a
-schema that keeps both directions. In this codec, its decoded `Type` contains a
-`DateTime.Utc`, a `URL`, and a `ReadonlySet<string>`. Its `Encoded` side contains
-the JSON-compatible ISO string, URL string, and string array.
+`OrderSubmissionJson` codec describes both directions across JSON: decoding
+request data and encoding response data. Its decoded `Type` contains a
+[`DateTime.Utc`](/docs/v4/api/effect/DateTime#Utc-interface), a `URL`, and a
+`ReadonlySet<string>`. Its `Encoded` side contains the JSON-compatible ISO
+string, URL string, and string array.
 
 [`Schema.DateTimeUtc`](/docs/v4/api/effect/Schema#DateTimeUtc-variable)
 describes an immutable Effect `DateTime.Utc` value that represents an instant
@@ -385,8 +399,8 @@ representation for `DateTime.Utc`, a string for `URL`, and an array for
 `DateTime` value as an ISO string. Calling it here demonstrates that
 `requestedAt` is no longer the request's original JavaScript string.
 
-Wait for the watched server to reload, then send the valid request again. The
-server log now contains useful domain data:
+After the watched server reloads, the valid request produces useful domain data
+in the server log:
 
 ```text title="Expected server log"
 {
@@ -420,10 +434,10 @@ codec in the outgoing direction.
 
 ## 5. Encode the response through Schema
 
-Define the accepted response as domain data, derive its JSON codec, and encode
-before calling `JSON.stringify`:
+The next version defines the accepted response as domain data, derives its JSON
+codec, and encodes the result before calling `JSON.stringify`:
 
-```ts title="server.ts" ins={15-25,57-65} collapse={1-13,27-55,66-72}
+```ts title="server.ts" ins={16-26,59-68} collapse={1-14,28-58,69-75}
 import { createServer } from "node:http"
 import { DateTime, Result, Schema } from "effect"
 
@@ -435,6 +449,7 @@ const OrderSubmission = Schema.Struct({
   labels: Schema.ReadonlySet(Schema.String),
 })
 
+// Derive the JSON representation from the domain schema.
 const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
 const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
 
@@ -467,6 +482,7 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
+    // Decode untrusted JSON before order logic uses it.
     const decoded = decodeOrderSubmission(JSON.parse(body))
     if (Result.isFailure(decoded)) {
       sendJson(400, { error: "InvalidOrder" })
@@ -480,6 +496,7 @@ const server = createServer(async (request, response) => {
       labels: [...submission.labels],
     })
 
+    // Encode domain values before JSON.stringify sees them.
     const encoded = encodeAcceptedOrder({
       ...submission,
       status: "accepted",
@@ -512,8 +529,8 @@ Response encoding failures indicate a server-side mistake, so this code throws
 the `SchemaError` into the existing `catch` and returns `500`. The two boundary
 directions now have different policies.
 
-Wait for the watched server to reload, then send the valid request again. The
-complete response shape is restored:
+After the watched server reloads, the valid request returns the complete
+response shape:
 
 ```text title="Expected response"
 HTTP/1.1 201 Created
@@ -522,8 +539,9 @@ HTTP/1.1 201 Created
 {"orderId":"ord_2026_0001","quantity":2,"requestedAt":"2026-08-09T10:00:00.000Z","callbackUrl":"https://example.com/order-events","labels":["priority","b2b"],"status":"accepted"}
 ```
 
-The handler uses a `Set`; the wire uses an array. That difference is now an
-explicit part of the codec instead of an accident of `JSON.stringify`.
+The handler uses a `Set`, while the JSON response uses an array. That difference
+is now an explicit part of the codec instead of an accident of
+`JSON.stringify`.
 
 <TutorialCheckpoint
   number={5}
@@ -536,13 +554,14 @@ explicit part of the codec instead of an accident of `JSON.stringify`.
 
 ## 6. Give the order id a domain class
 
-The remaining `orderId` is still a string inside the handler. Make it a class
-without changing the JSON contract:
+The remaining `orderId` is still a string inside the handler. The final version
+makes it a class without changing the JSON contract:
 
-```ts title="server.ts" ins={2,4-22,25,36,72-73} collapse={26-34,37-70,74-94}
+```ts title="server.ts" ins={2,4-23,26,38,75-76} collapse={27-35,39-73,77-98}
 import { createServer } from "node:http"
 import { DateTime, Result, Schema, SchemaTransformation } from "effect"
 
+// Enforce the order id format before constructing the domain class.
 const OrderIdText = Schema.TemplateLiteral(["ord_", Schema.String])
 
 class OrderId extends Schema.Class<OrderId>("OrderId")({
@@ -571,6 +590,7 @@ const OrderSubmission = Schema.Struct({
   labels: Schema.ReadonlySet(Schema.String),
 })
 
+// Derive the JSON representation from the domain schema.
 const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
 const decodeOrderSubmission = Schema.decodeUnknownResult(OrderSubmissionJson)
 
@@ -603,6 +623,7 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
+    // Decode untrusted JSON before order logic uses it.
     const decoded = decodeOrderSubmission(JSON.parse(body))
     if (Result.isFailure(decoded)) {
       sendJson(400, { error: "InvalidOrder" })
@@ -618,6 +639,7 @@ const server = createServer(async (request, response) => {
       labels: [...submission.labels],
     })
 
+    // Encode domain values before JSON.stringify sees them.
     const encoded = encodeAcceptedOrder({
       ...submission,
       status: "accepted",
@@ -650,8 +672,8 @@ methods such as `toString`.
 
 `OrderIdText.pipe(...)` passes `OrderIdText` into the function returned by
 `Schema.decodeTo(...)`. Reading from top to bottom, the code starts with the
-wire string schema and connects it to the `OrderId` class schema. Composing the
-schemas does not decode a value; the request decoder does that later.
+JSON string schema and connects it to the `OrderId` class schema. Connecting
+the schemas does not decode a value; the request decoder does that later.
 
 [`Schema.decodeTo`](/docs/v4/api/effect/Schema#decodeTo-function) connects a
 source schema to a target schema. This codec starts from validated `OrderIdText`
@@ -663,18 +685,18 @@ supplies two conversions that cannot fail on their own. `decode` wraps the
 validated string in the field object consumed by `OrderId`; `encode` extracts
 the validated string from that object on the return trip.
 
-Wait for the watched server to reload, then send the valid request once more.
-The server log now begins with:
+With the final version, the valid request produces a server log that begins
+with:
 
 ```text title="Expected server log"
 orderIdIsOrderId: true
 orderId: 'ord_2026_0001'
 ```
 
-The response still contains `"orderId":"ord_2026_0001"`. The class is a domain
-choice, not a wire-format change.
+The response still contains `"orderId":"ord_2026_0001"`. The class changes the
+value used by the application, not its JSON format.
 
-Now verify the class invariant:
+This request demonstrates the class invariant:
 
 ```sh title="Send an invalid order id"
 curl -i -sS http://localhost:3000/orders \
@@ -724,5 +746,5 @@ decoding, and encoding together.
 
 ## Related tutorials
 
-- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
-- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
+- [Make failures explicit](/docs/v4/tutorials/make-failures-explicit)
+- [Keep dependencies explicit without manual wiring](/docs/v4/tutorials/keep-dependencies-explicit-without-manual-wiring)

@@ -1,54 +1,81 @@
 ---
-title: Catch incorrect AI-generated changes
-description: Let a coding agent add an endpoint, then use Effect-aware diagnostics as evidence for one bounded correction.
+title: Keep AI-generated code under control
+description: Use Effect's precise types and developer tools to expose plausible but incorrect AI-generated code.
 sidebar:
   order: 6
 ---
 
-import { TutorialCheckpoint } from "@astrojs/starlight/components"
+import {
+  TutorialCheckpoint,
+  TutorialPainPoint,
+} from "@astrojs/starlight/components"
 
-An AI-generated endpoint can return the expected JSON and still be wrong in
-ways that ordinary review misses. It can create work without running it, hide a
-real failure from a type signature, or trust external JSON because a type cast
-looks convincing.
+<TutorialPainPoint title="LLMs produce plausible-looking slop">
+  LLMs can produce code that looks correct and passes the happy path while
+  hiding failures, trusting unvalidated data, or describing Effect operations
+  without running them.
 
-In this tutorial, a coding agent will add `POST /orders/import` to a familiar
+With Effect, precise types make many of these mistakes harder to express.
+Effect-aware developer tools then detect suspicious code that still gets
+through.
+
+</TutorialPainPoint>
+
+The example is a coding agent adding `POST /orders/import` to a familiar
 `node:http` server. The first implementation works for the supplied file, but
-Effect-aware diagnostics expose three concrete mistakes. You will give that
-evidence back to the agent, apply one bounded correction, and verify the same
-endpoint again.
+the diagnostics expose three concrete mistakes. The same evidence then defines
+one focused correction before the endpoint is verified again.
 
 The finished backend has these observable results:
 
-| Evidence                        | Generated change                  | Corrected change                          |
-| ------------------------------- | --------------------------------- | ----------------------------------------- |
-| `POST /orders/import`           | `200` with two imported order ids | The same `200` response                   |
-| Import log                      | Missing                           | `Importing orders` appears                |
-| Effect-aware static diagnostics | Three known findings              | No findings                               |
-| File and decoding failure types | Public signature claims `never`   | Both failures remain in the error channel |
+| Evidence                        | Generated change                  | Corrected change                         |
+| ------------------------------- | --------------------------------- | ---------------------------------------- |
+| `POST /orders/import`           | `200` with two imported order ids | The same `200` response                  |
+| Import log                      | Missing                           | `Importing orders` appears               |
+| Effect-aware static diagnostics | Three known findings              | No findings                              |
+| File and decoding failure types | Declared error type is `never`    | Both failures remain visible in the type |
 
-We will keep the HTTP server in ordinary TypeScript. Effect enters only in the
-file-import change, which keeps the diagnostic and correction loop easy to
-inspect.
+The HTTP server remains ordinary TypeScript. Only the order import uses Effect,
+so the diagnostic and correction loop remains easy to inspect.
 
 Each step ends with a checkpoint: a short summary of the behavior reached at
 that point.
 
-## 1. Start from a familiar TypeScript server
+## Project setup
 
-This tutorial requires Node.js 22.18.0 or newer because it runs `server.ts`
-directly with Node's built-in TypeScript support. Create an empty project:
+The project uses four files:
 
-```sh title="Create the project"
-mkdir catch-incorrect-ai-generated-changes
-cd catch-incorrect-ai-generated-changes
-npm init -y
-npm pkg set type=module
-npm install --save-dev @types/node@22
+- `server.ts` is the application entry point. It is the file changed by the
+  coding agent and then corrected during the tutorial.
+- `orders.json` supplies predictable external data for the import endpoint. It
+  stays unchanged.
+- `package.json` configures ES modules and records the dependencies and commands
+  added during setup.
+- `.oxlintrc.json` configures the Effect-aware diagnostics. It is added once and
+  then stays unchanged.
+
+Every version of `server.ts` is shown as a complete file. The example uses an ES
+module project. Node.js 22.18.0 or newer is required because the tutorial runs
+`server.ts` directly with Node's built-in TypeScript support.
+
+The controlled order-import data lives in `orders.json`:
+
+```json title="orders.json" ins={1}
+[{ "externalOrderId": "external-1001" }, { "externalOrderId": "external-1002" }]
 ```
 
-Create the initial server. It has only a health endpoint, so there is no Effect
-code to understand yet.
+The server runs in one terminal pane with the following command. `--watch`
+makes Node.js reload `server.ts` after each edit, so the same process can remain
+running throughout the tutorial.
+
+```sh title="Watched server"
+node --watch server.ts
+```
+
+## 1. Start from a familiar TypeScript server
+
+The initial `server.ts` has only a health endpoint, so there is no Effect code
+to understand yet.
 
 ```ts title="server.ts" ins={1-23}
 import { createServer } from "node:http"
@@ -76,23 +103,9 @@ server.listen(3000, () => {
 })
 ```
 
-Add the controlled order-import fixture. This is tutorial fixture data, and the
-file stays unchanged throughout the tutorial.
+In a second terminal pane, this request checks the starter:
 
-```json title="orders.json" ins={1}
-[{ "externalOrderId": "external-1001" }, { "externalOrderId": "external-1002" }]
-```
-
-Start the server with `--watch` so Node.js reloads it automatically after every
-edit. Keep this terminal running:
-
-```sh title="Keep running throughout the tutorial"
-node --watch server.ts
-```
-
-Open a second terminal pane and verify the starter:
-
-```sh title="Check the health endpoint"
+```sh title="Health endpoint request"
 curl -i -sS http://localhost:3000/health
 ```
 
@@ -113,12 +126,12 @@ HTTP/1.1 200 OK
 ## 2. Add only the diagnostics this review needs
 
 The backend change will use Effect, and the review needs Effect's type-aware
-rules from the command line. Install the runtime plus the compatible Oxlint
-tooling:
+rules from the command line. These commands install the runtime and compatible
+Oxlint tooling:
 
-```sh title="Install Effect and the static diagnostics"
+```sh title="Effect and static diagnostics"
 npm install effect@4.0.0-beta.104
-npm install --save-dev @effect/tsgo oxlint oxlint-tsgolint
+npm install --save-dev @types/node@22 @effect/tsgo oxlint oxlint-tsgolint
 npx effect-tsgo patch --oxlint
 npm pkg set scripts.prepare="effect-tsgo patch --oxlint"
 npm pkg set scripts.lint="oxlint ."
@@ -130,7 +143,7 @@ patch after later installs. This tutorial needs command-line evidence only, so
 there is no editor-specific setup. The complete development-tool options are in
 [Installation and Dev Tools](/docs/v4/get-started/installation).
 
-Create the recommended Oxlint configuration:
+The recommended Oxlint configuration is:
 
 ```json title=".oxlintrc.json" ins={1-4}
 {
@@ -139,9 +152,9 @@ Create the recommended Oxlint configuration:
 }
 ```
 
-Check the unchanged starter:
+This command checks the unchanged starter:
 
-```sh title="Check the clean baseline"
+```sh title="Clean diagnostic baseline"
 npm run lint
 ```
 
@@ -160,16 +173,15 @@ setup.
 
 ## 3. Let the coding agent add the endpoint
 
-The next change is deliberately captured and bounded. Your coding agent applies
-the same plausible implementation shown to manual readers, which makes the
-diagnostic evidence reproducible instead of depending on a particular model.
-The HTTP callback becomes `async` so it can await the Promise returned by
-`Effect.runPromise` before writing the response.
+The next change is kept deliberately narrow. The coding agent applies the same
+plausible implementation shown below, which makes the diagnostic evidence
+reproducible instead of depending on a particular model.
 
-Replace `server.ts` with the complete file below. The highlighted lines are the
-ones added or changed by the generated implementation.
+The complete generated `server.ts` is shown below. The highlighted lines are
+the ones added or changed. Its HTTP callback becomes `async` so it can await the
+Promise returned by `Effect.runPromise` before writing the response:
 
-```ts title="server.ts" collapse={24-32,50-60} ins={1,3-22,33-49}
+```ts title="server.ts" collapse={24-33,51-62} ins={1,3-23,34-50}
 import { readFile } from "node:fs/promises"
 import { createServer } from "node:http"
 import { Effect } from "effect"
@@ -180,6 +192,7 @@ interface ImportedOrder {
 
 const ordersFile = new URL("./orders.json", import.meta.url)
 
+// Describe the file read and parse without running either operation yet.
 const readOrdersImplementation = Effect.flatMap(
   Effect.tryPromise((signal) =>
     readFile(ordersFile, { encoding: "utf8", signal }),
@@ -206,6 +219,7 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && request.url === "/orders/import") {
     try {
       Effect.log("Importing orders")
+      // Run the file-import operation inside the HTTP handler.
       const orders = await Effect.runPromise(readOrders)
 
       sendJson(response, 200, {
@@ -283,22 +297,22 @@ succeeds with `void` when that operation runs. The generated handler creates
 this Effect and immediately ignores it, so no log is emitted.
 
 [`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the computation
-at the HTTP handler boundary and returns a Promise. Success resolves with the
+inside the HTTP handler and returns a Promise. Success resolves with the
 imported orders. If the Effect does not succeed, the Promise rejects and the
-surrounding TypeScript `catch` returns `500`. It can also observe an external
-`AbortSignal` supplied by an application boundary, although this handler does
-not pass one.
+surrounding TypeScript `catch` returns `500`. Its second argument can contain an
+`AbortSignal`; when that signal aborts, Effect interrupts the running
+computation and the Promise rejects. This handler does not supply a signal.
 
 An expected failure belongs in the error channel. A defect is different: it is
 an unexpected bug in the program. The generated code's false `never` annotation
 does not turn a file failure into a defect. It attempts to hide that expected
-failure from the public contract, which is why the diagnostic rejects the
+failure from the declared type, which is why the diagnostic rejects the
 assignment.
 
-Wait for `node --watch` to reload, then call the generated endpoint from the
-second terminal pane:
+After `node --watch` reloads the server, this request exercises the generated
+endpoint from the second terminal pane:
 
-```sh title="Run the generated endpoint"
+```sh title="Generated endpoint request"
 curl -i -sS -X POST http://localhost:3000/orders/import
 ```
 
@@ -311,10 +325,10 @@ HTTP/1.1 200 OK
 {"imported":2,"orderIds":["external-1001","external-1002"]}
 ```
 
-The server terminal does not print `Importing orders`. Now collect the static
-evidence:
+The server terminal does not print `Importing orders`. The static evidence comes
+from:
 
-```sh title="Inspect the generated change"
+```sh title="Generated change diagnostics"
 npm run lint
 ```
 
@@ -336,20 +350,20 @@ configuration. The response alone could not reveal any of them.
 >
   `POST /orders/import` returns the expected `200` response, but the import log
   is absent and `npm run lint` reports the three expected Effect-aware rules.
-  Keep that output as the evidence for the correction.
+  That output provides the evidence for the correction.
 </TutorialCheckpoint>
 
 ## 4. Correct only what the evidence exposed
 
-The evidence gives the correction a precise boundary:
+The evidence identifies three exact changes:
 
 1. include the log in the operation that is actually run;
 2. preserve the file and decode failures in `readOrders`;
 3. replace the cast with a Schema that checks the external value.
 
-Apply the complete corrected `server.ts`:
+The complete corrected `server.ts` is:
 
-```ts title="server.ts" collapse={4-8,31-39,46-68} ins={3,9-16,23,28,43-45}
+```ts title="server.ts" collapse={4-8,31-40,48-70} ins={3,9-16,19,24,29,44-47}
 import { readFile } from "node:fs/promises"
 import { createServer } from "node:http"
 import { Cause, Effect, Schema } from "effect"
@@ -368,6 +382,7 @@ const ImportedOrdersFromJson = Schema.fromJsonString(
 
 const ordersFile = new URL("./orders.json", import.meta.url)
 
+// Describe the file read and decode without running either operation yet.
 const readOrdersImplementation = Effect.flatMap(
   Effect.tryPromise((signal) =>
     readFile(ordersFile, { encoding: "utf8", signal }),
@@ -392,6 +407,7 @@ const sendJson = (
 const server = createServer(async (request, response) => {
   if (request.method === "POST" && request.url === "/orders/import") {
     try {
+      // Run the log and file-import operations inside the HTTP handler.
       const orders = await Effect.runPromise(
         Effect.flatMap(Effect.log("Importing orders"), () => readOrders),
       )
@@ -465,15 +481,15 @@ The corrected handler also sequences `Effect.log` before `readOrders` with
 `Effect.flatMap`. Both descriptions are now part of the one value passed to
 `Effect.runPromise`, so the log runs instead of floating.
 
-Wait for the watched server to reload, then run the static check again:
+After the watched server reloads, the static check runs again with:
 
-```sh title="Verify the correction"
+```sh title="Corrected diagnostics"
 npm run lint
 ```
 
-It exits successfully with no findings. Call the endpoint one final time:
+It exits successfully with no findings. The endpoint then responds to:
 
-```sh title="Verify the backend result"
+```sh title="Corrected endpoint request"
 curl -i -sS -X POST http://localhost:3000/orders/import
 ```
 
@@ -487,8 +503,8 @@ HTTP/1.1 200 OK
 ```
 
 The watched server terminal now includes `Importing orders`. The correction
-changed the hidden contracts and sequenced the work without changing the
-successful HTTP behavior.
+made the hidden failures explicit and included the log in the operation without
+changing the successful HTTP behavior.
 
 <TutorialCheckpoint
   number={4}
@@ -505,17 +521,17 @@ successful HTTP behavior.
 The reliable workflow is small:
 
 ```text
-bounded prompt → generated change → static evidence → bounded correction → real request
+specific request → generated change → static evidence → focused correction → real request
 ```
 
 The diagnostics did not decide the endpoint's product behavior. They exposed
 three decisions that the generated change had failed to state. You still chose
-the public error contract, the external-data Schema, and which Effect operation
+the declared error type, the external-data Schema, and which Effect operation
 must run. The agent then made a correction that could be checked rather than
 trusted.
 
 ## Related tutorials
 
 - [Writing Effect with AI](/docs/v4/get-started/writing-effect-with-ai)
-- [Preserve domain types across a JSON boundary](/docs/v4/tutorials/preserve-domain-types-across-a-json-boundary)
-- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Derive JSON codecs for domain models](/docs/v4/tutorials/derive-json-codecs-for-domain-models)
+- [Make failures explicit](/docs/v4/tutorials/make-failures-explicit)

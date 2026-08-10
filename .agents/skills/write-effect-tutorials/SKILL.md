@@ -7,14 +7,16 @@ description: Create and review beginner-friendly Effect tutorials for this websi
 
 Create Diataxis-style tutorials that lead a TypeScript backend developer from familiar code to one robust, observable result through small verified steps.
 
-Use `apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx` as the canonical implementation reference. Inspect only the relevant portions when a concrete MDX or prompt pattern is needed.
+Use `apps/web/src/content/docs/v4/tutorials/make-failures-explicit.mdx` as the canonical implementation reference. Inspect only the relevant portions when a concrete MDX or prompt pattern is needed.
 
 ## Establish the reader and outcome
 
+- Treat the pain point as the organizing principle of the entire tutorial. The scenario, code, Effect APIs, and observable results are means for exploring how Effect addresses that pain, not subjects to emphasize for their own sake. Reject feature tours and API-first progressions.
 - Assume the reader knows TypeScript, Promises, `async`/`await`, HTTP, and ordinary backend development.
 - Assume no knowledge of Effect, generators, functional pipelines, fibers, error channels, interruption, defects, schedules, layers, or services.
-- Name the tutorial after a general pain recognizable to backend developers. Do not make the title depend on knowing the tutorial's scenario.
-- Explain the concrete scenario before asking the reader to act.
+- Name the tutorial after the positive outcome Effect provides for a general pain recognizable to backend developers. Do not name it after an API, feature, or scenario-specific task.
+- Begin every tutorial with exactly one `TutorialPainPoint`. Give the card a short title that names the pain directly. In two short paragraphs, first describe how the problem appears in ordinary TypeScript and then explain how Effect addresses it. Use only language a TypeScript developer who has never used Effect already understands; introduce Effect-specific APIs and concepts later. Replace equivalent introductory prose instead of repeating it outside the card.
+- Introduce the concrete scenario immediately after `TutorialPainPoint`. Keep scenario-specific actors and details outside the card, then explain the scenario before asking the reader to act.
 - State what the reader will learn and the observable behavior of the finished backend. Use a compact table when several cases must be distinguished.
 - Keep the tutorial learning-oriented and guided. Do not turn it into explanation, reference, or a menu of alternatives.
 
@@ -25,8 +27,14 @@ Use `apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx
 3. Immediately demonstrate what can go wrong with the starter.
 4. Introduce one limitation at a time. Follow each limitation with the smallest Effect change that addresses it.
 5. Explain the new API or concept in terms of the exact code just added.
-6. Describe the expected observable result and end with a checkpoint. Local execution may be offered as an optional way to verify it.
+6. Describe the expected observable result and end with a checkpoint. Local execution may be available without being required to understand the result.
 7. Preserve a single linear state progression. Every code block and checkpoint must correspond to the same current project state.
+
+At every step, keep the connection to the original pain visible: identify the
+specific limitation being removed, show the Effect capability that removes it,
+and demonstrate the resulting behavior. If a section mainly showcases an API
+without advancing that journey, remove it or move it to explanatory or
+reference documentation.
 
 Allow the tutorial to be long when the journey requires it, but keep each step small. Do not introduce an API merely for completeness. Avoid `Effect.gen`, `Schedule`, layers, and other new abstractions unless the current problem cannot be taught clearly with fewer concepts.
 
@@ -36,7 +44,9 @@ When a valuable capability would require enough setup to obscure the lesson, men
 
 - Build a real local backend rather than isolated toy expressions.
 - Represent external providers with deterministic Promise-based fixtures. Model useful latency, rejection, outage, recovery, and cancellation behavior without public internet access, credentials, Docker, or a second process.
-- Keep fixture setup out of the lesson. Supply it ready-made, label it as tutorial fixture code, and collapse it whenever the reader does not need to inspect it.
+- Keep fixture setup out of the lesson. Supply it ready-made and label it as tutorial fixture code.
+- Keep the external SDK contract, documented errors, inputs, outputs, and deterministic behavior visible before the tutorial first uses them. Do not hide that required context inside a `details` element.
+- After a file has been presented once in full, collapse only fixture plumbing that the reader does not need to understand, such as an HTTP adapter's internal implementation.
 - Put a fixture shared by several tutorials in a `.ts` asset rather than publishing an internal MDX documentation page.
 - Give fixture inputs stable meanings throughout the tutorial suite.
 - Make state reset behavior explicit when it affects verification.
@@ -71,6 +81,7 @@ Explain every Effect-specific API and term at its first use. When these APIs app
 - `Effect.fail`: describe a failed computation; creating it does not throw.
 - `Effect.retry`: rerun the preceding computation after selected failures; explain the predicate and the total attempt bound concretely.
 - `Effect.timeoutOrElse`: bound the preceding computation, interrupt it, and run the fallback on timeout.
+- `Effect.fn`: use its named form for functions whose execution should be traced. Explain that calling the function returns an Effect, the generator body sequences Effect operations, and the named form creates and closes a span when that Effect runs. Reserve `Effect.withSpan` for an existing Effect or an anonymous block that does not merit a named function.
 
 Present each concrete API explanation in the surrounding prose at its first meaningful use. Keep the explanation close to the code and focused on behavior the reader can connect to that step. Do not require a separate API card when prose communicates the concept more naturally.
 
@@ -94,12 +105,17 @@ Verify API names and semantics against the installed v4 package under `apps/web/
 - Use site routes for internal links and never include a `.mdx` extension.
 - Preserve the tutorial collection's existing sidebar placement and ordering conventions when adding or renaming a page.
 - Use `npm` inside standalone tutorial projects unless the tutorial has a concrete reason to require another package manager. Continue using `pnpm` and `vp run` for work on this repository.
+- Do not teach generic project initialization. Assume the reader can create and configure a normal TypeScript project; include setup only when it is specific to the tutorial's subject.
+- Put tutorial-specific starter files and the reusable command that establishes the local run loop in a `## Project setup` section. Name every file, state its role, and make clear which file or files change during the tutorial and which remain fixed. Keep requests and checks that demonstrate a particular step beside that step.
 - State a minimum runtime version only when a command or language feature requires it. Do not repeat environment trivia such as “checked on macOS” or pin an arbitrary current version.
-- Make the tutorial understandable as a reading path. Creating files, starting the server, and sending requests must be optional rather than prerequisites for following the lesson.
+- Make the tutorial understandable as a reading path. Creating files, starting the server, and sending requests must not be prerequisites for following the lesson.
+- Treat that flexibility as an editorial rule. Do not tell the reader that setup, commands, sections, or verification are “optional,” and do not put “optional” in their titles.
 - When offering local execution, start the server with `node --watch server.ts`, explicitly explain `--watch`, and tell the reader to keep it running.
-- Say “open a second terminal pane” for optional verification commands.
+- Say “open a second terminal pane” for verification commands.
 - Do not tell the reader to stop and restart a watched server between edits.
 - Add descriptive subsection headings when they help the reader orient themselves. Avoid generic headings that add no information.
+- Prefer lists when presenting multiple parallel roles, cases, steps, or outcomes. Do not bury an enumeration in a long sentence.
+- Use direct, literal language. Avoid colloquialisms, idioms, and unexplained jargon, even when they are common among fluent English speakers.
 - Avoid adjacent code fences that render as one block. Separate them with a short transition and give each fence a meaningful `title`.
 - Never use the em dash character `—` in documentation copy.
 
@@ -119,9 +135,11 @@ Use Expressive Code's native inserted-line highlighting:
 - Highlight new or changed lines with native `ins={...}` metadata.
 - Explain removed code in the prose immediately before the block instead of retaining it in the copied file.
 - Keep changed code visible.
+- Never collapse code the first time it is introduced. Present the complete file or block once before collapsing any of its ranges in later snapshots.
 - Prefer extracting stable plumbing or fixtures before collapsing the learning code. Collapse unchanged ranges only when the complete current file would otherwise obscure the change.
-- Collapse long fixtures by default.
+- After their first complete presentation, collapse unchanged ranges in long fixtures when that keeps later snapshots focused.
 - Use the short filename, such as `server.ts`, as the title rather than a long path.
+- Add code comments sparingly. Use them only to explain a non-obvious decision, boundary, or behavior; do not narrate ordinary syntax or repeat the surrounding prose.
 - Do not use `useDiffSyntax`, `copyFinal`, formatter-ignore comments, or a custom copy plugin for tutorial code.
 - Verify that the ordinary copy button produces the complete current file.
 - Recalculate collapse ranges after every code edit and inspect the rendered result.

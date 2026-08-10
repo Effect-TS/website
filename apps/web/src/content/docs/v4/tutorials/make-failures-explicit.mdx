@@ -1,20 +1,33 @@
 ---
-title: Handle failures without guessing
-description: Turn untyped Promise rejections into explicit error decisions, then add bounded retries, timeouts, and cancellation.
+title: Make failures explicit
+description: Make thrown exceptions and Promise rejections explicit, then handle retries, timeouts, and cancellation.
 sidebar:
   order: 1
 ---
 
-import { TutorialCheckpoint } from "@astrojs/starlight/components"
+import {
+  TutorialCheckpoint,
+  TutorialPainPoint,
+} from "@astrojs/starlight/components"
 
-A payment provider can decline a card, become temporarily unavailable, fail in
-an undocumented way, or simply take too long. A `Promise` exposes only its
-successful value, so an ordinary `catch` receives every one of those outcomes
-as `unknown`.
+<TutorialPainPoint>
+  <span slot="title">
+    <code>catch</code> only gives you <code>unknown</code>
+  </span>
 
-This tutorial follows one `POST /orders` endpoint as its error handling becomes
-more precise. The finished backend makes a different decision for each
-provider outcome:
+Backend operations can fail for different reasons, take too long, or continue
+after the client disconnects. With ordinary Promise code, these behaviors
+require separate conventions, while rejections reach `catch` as `unknown`.
+
+With Effect, the type system tracks expected failures, while retry limits,
+timeouts, and cancellation are defined directly on the operation.
+
+</TutorialPainPoint>
+
+The example is a `POST /orders` endpoint that calls a payment provider. It
+starts by turning every rejected Promise into the same `500` response. Each
+step makes one failure decision explicit until the finished backend behaves as
+follows:
 
 | Provider behavior                   | Decision                          | HTTP result |
 | ----------------------------------- | --------------------------------- | ----------- |
@@ -25,37 +38,48 @@ provider outcome:
 | Provider takes too long             | Interrupt and retry at most twice | `504`       |
 | Client disconnects                  | Interrupt the complete operation  | No response |
 
-The page works as a reading path. Every code block contains the complete
-current `server.ts`, while each checkpoint summarizes the behavior of that
-version. Running the backend locally is optional.
+Throughout the tutorial, we will work on `server.ts`. Each step shows the
+complete current file, and each checkpoint summarizes the behavior reached at
+that point.
 
-The stable HTTP plumbing and deterministic payment provider live in
-`support.ts`. Keeping them outside `server.ts` leaves the tutorial focused on
-the decisions made around one provider call.
+## Project setup
 
-<details>
-  <summary>Try the tutorial locally (optional)</summary>
+The project uses two files:
 
-Node.js 22.18.0 or newer can run these TypeScript files directly. A local
-project can be initialized with:
+- `fixture.ts` provides a ready-made HTTP server and a deterministic simulation
+  of a Promise-based payment SDK.
+- `server.ts` is the application entry point and contains the order-processing
+  code that we will improve throughout the tutorial.
 
-```sh title="Optional project setup"
-mkdir handle-failures-without-guessing
-cd handle-failures-without-guessing
-npm init -y
-npm pkg set type=module
+Running these TypeScript files directly requires Node.js 22.18.0 or newer. The
+project also needs the Effect version used by these docs:
+
+```sh title="Install Effect"
 npm install effect@4.0.0-beta.104
-npm install --save-dev @types/node@22
 ```
 
-The support file below remains unchanged throughout the tutorial. It accepts
-JSON requests, turns client disconnection into an `AbortSignal`, and provides
-predictable payment outcomes without network access or credentials.
+`fixture.ts` does not change. It exports:
 
-```ts title="support.ts"
+- `startServer`, which reads the incoming JSON, sends the HTTP response, and
+  provides an `AbortSignal` when the client disconnects.
+- `authorizePayment`, which imitates a Promise-based payment SDK. It receives
+  `paymentToken`, a string that identifies the customer's payment method without
+  exposing card details. In this fixture, special `paymentToken` values select
+  predictable outcomes. The simulated provider can:
+  - approve the payment (`tok_approved`);
+  - decline the payment (`tok_declined`);
+  - report two temporary failures, then succeed (`tok_flaky`);
+  - report an undocumented failure (`tok_unexpected`);
+  - take two seconds to respond (`tok_slow`).
+
+The simulated provider also stops its current request when it receives the
+`AbortSignal` from `startServer`.
+
+```ts title="fixture.ts"
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
+// Values exchanged between the HTTP fixture and server.ts.
 export interface PlaceOrderInput {
   readonly customerId: string
   readonly paymentToken: string
@@ -71,6 +95,7 @@ export const json = (status: number, body: unknown): HttpResult => ({
   body,
 })
 
+// Expose the order handler as POST /orders.
 export const startServer = (
   placeOrder: (
     input: PlaceOrderInput,
@@ -88,6 +113,7 @@ export const startServer = (
       return
     }
 
+    // Cancel the order when the client disconnects before receiving a response.
     const controller = new AbortController()
     response.once("close", () => {
       if (!response.writableEnded) controller.abort()
@@ -116,6 +142,7 @@ export class ProviderUnavailableSdkError extends Error {}
 
 let flakyAttempts = 0
 
+// A deterministic simulation of a Promise-based payment SDK.
 export const authorizePayment = async (
   token: string,
   { signal }: { readonly signal?: AbortSignal } = {},
@@ -126,6 +153,7 @@ export const authorizePayment = async (
   if (token === "tok_declined") throw new PaymentDeclinedSdkError()
   if (token === "tok_unexpected")
     throw new Error("undocumented provider failure")
+  // The flaky case recovers on its third call so retries are repeatable.
   if (token === "tok_flaky" && attempt < 3)
     throw new ProviderUnavailableSdkError()
 
@@ -134,6 +162,7 @@ export const authorizePayment = async (
     () => console.log("primary-pay authorization aborted"),
     { once: true },
   )
+  // Passing the signal makes the simulated provider latency cancellable.
   await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
 
   if (token === "tok_flaky") flakyAttempts = 0
@@ -144,29 +173,30 @@ export const authorizePayment = async (
 After copying any current `server.ts` block, the watched server can run in
 one terminal pane:
 
-```sh title="Optional watched server"
+```sh title="Watched server"
 node --watch server.ts
 ```
 
-A request in a second terminal pane can select any behavior by changing
-`paymentToken` to `tok_approved`, `tok_declined`, `tok_flaky`,
-`tok_unexpected`, or `tok_slow`:
+In a second terminal pane, change `paymentToken` to select a provider behavior:
 
-```sh title="Optional request"
+- `tok_approved` approves the payment.
+- `tok_declined` declines the payment.
+- `tok_flaky` reports two temporary failures, then succeeds.
+- `tok_unexpected` reports an undocumented failure.
+- `tok_slow` takes two seconds to respond.
+
+For example, this request selects the successful behavior:
+
+```sh title="Successful order request"
 curl -i -sS http://localhost:3000/orders \
   -H 'content-type: application/json' \
   -d '{"customerId":"customer-123","paymentToken":"tok_approved"}'
 ```
 
-The `--watch` option reloads the server automatically whenever `server.ts`
-changes.
-
-</details>
-
 ## 1. A familiar Promise baseline
 
-The first version uses only `async`/`await`. `support.ts` owns HTTP and the
-provider fixture; `server.ts` contains the complete order decision:
+The initial `server.ts` uses conventional `async`/`await` to handle an order. It
+calls the payment provider and decides which HTTP response to return:
 
 ```ts title="server.ts"
 import {
@@ -174,7 +204,7 @@ import {
   json,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
 const placeOrder = async (input: PlaceOrderInput) => {
   try {
@@ -185,6 +215,7 @@ const placeOrder = async (input: PlaceOrderInput) => {
       paymentProvider: payment.provider,
     })
   } catch {
+    // Every provider rejection produces the same response.
     return json(500, { error: "InternalServerError" })
   }
 }
@@ -220,15 +251,16 @@ or treated as unexpected.
 Promise-producing provider without changing its observable behavior. The
 complete current file is:
 
-```ts title="server.ts" ins={1,9-10,14}
+```ts title="server.ts" ins={1,9-11,15}
 import { Effect } from "effect"
 import {
   authorizePayment,
   json,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
+// Describe the provider call without starting it.
 const authorize = (token: string) =>
   Effect.tryPromise((signal) => authorizePayment(token, { signal }))
 
@@ -241,6 +273,7 @@ const placeOrder = async (input: PlaceOrderInput) => {
       paymentProvider: payment.provider,
     })
   } catch {
+    // Every provider rejection produces the same response.
     return json(500, { error: "InternalServerError" })
   }
 }
@@ -292,7 +325,7 @@ and Effect has a channel in which more precise failures can be recorded.
 The provider SDK exposes two error classes. `toPaymentError` translates those
 classes at the boundary and gives every other rejection a safe, explicit name:
 
-```ts title="server.ts" ins={1,5-6,11-15,17-22,25-28}
+```ts title="server.ts" ins={1,5-6,11-15,17-23,27-30}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -301,7 +334,7 @@ import {
   ProviderUnavailableSdkError,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
 class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
@@ -309,6 +342,7 @@ class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
 )<{ readonly cause: unknown }> {}
 
+// Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
   if (cause instanceof PaymentDeclinedSdkError) return new PaymentDeclined()
   if (cause instanceof ProviderUnavailableSdkError)
@@ -316,6 +350,7 @@ const toPaymentError = (cause: unknown) => {
   return new UnexpectedPaymentProviderError({ cause })
 }
 
+// Describe the provider call without starting it.
 const authorize = (token: string) =>
   Effect.tryPromise({
     try: (signal) => authorizePayment(token, { signal }),
@@ -331,6 +366,7 @@ const placeOrder = async (input: PlaceOrderInput) => {
       paymentProvider: payment.provider,
     })
   } catch {
+    // Every provider rejection produces the same response.
     return json(500, { error: "InternalServerError" })
   }
 }
@@ -375,7 +411,7 @@ reason it failed.
 The next version moves the successful result and all three expected failures
 into the Effect description:
 
-```ts title="server.ts" ins={30-47,49}
+```ts title="server.ts" ins={32-50,52}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -384,7 +420,7 @@ import {
   ProviderUnavailableSdkError,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
 class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
@@ -392,6 +428,7 @@ class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
 )<{ readonly cause: unknown }> {}
 
+// Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
   if (cause instanceof PaymentDeclinedSdkError) return new PaymentDeclined()
   if (cause instanceof ProviderUnavailableSdkError)
@@ -399,12 +436,14 @@ const toPaymentError = (cause: unknown) => {
   return new UnexpectedPaymentProviderError({ cause })
 }
 
+// Describe the provider call without starting it.
 const authorize = (token: string) =>
   Effect.tryPromise({
     try: (signal) => authorizePayment(token, { signal }),
     catch: toPaymentError,
   })
 
+// Convert every expected outcome into an HTTP response.
 const placeOrder = (input: PlaceOrderInput) =>
   authorize(input.paymentToken).pipe(
     Effect.map((payment) =>
@@ -469,7 +508,7 @@ provider decision.
 A temporary outage may recover, while a declined payment or unexpected failure
 must remain final. `Effect.retry` expresses that policy without a loop:
 
-```ts title="server.ts" ins={32-35}
+```ts title="server.ts" ins={35-39}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -478,7 +517,7 @@ import {
   ProviderUnavailableSdkError,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
 class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
@@ -486,6 +525,7 @@ class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
 )<{ readonly cause: unknown }> {}
 
+// Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
   if (cause instanceof PaymentDeclinedSdkError) return new PaymentDeclined()
   if (cause instanceof ProviderUnavailableSdkError)
@@ -493,14 +533,17 @@ const toPaymentError = (cause: unknown) => {
   return new UnexpectedPaymentProviderError({ cause })
 }
 
+// Describe the provider call without starting it.
 const authorize = (token: string) =>
   Effect.tryPromise({
     try: (signal) => authorizePayment(token, { signal }),
     catch: toPaymentError,
   })
 
+// Convert every expected outcome into an HTTP response.
 const placeOrder = (input: PlaceOrderInput) =>
   authorize(input.paymentToken).pipe(
+    // Retry only failures that may recover on another attempt.
     Effect.retry({
       times: 2,
       while: (error) => error._tag === "ProviderUnavailable",
@@ -549,7 +592,7 @@ predicate.
 request open indefinitely. The timeout belongs before `Effect.retry`, so each
 attempt receives the same 250 millisecond bound:
 
-```ts title="server.ts" ins={13,33-36,39-41,55-56}
+```ts title="server.ts" ins={13,36-40,44-46,60-61}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -558,7 +601,7 @@ import {
   ProviderUnavailableSdkError,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
 class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
@@ -567,6 +610,7 @@ class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
 )<{ readonly cause: unknown }> {}
 
+// Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
   if (cause instanceof PaymentDeclinedSdkError) return new PaymentDeclined()
   if (cause instanceof ProviderUnavailableSdkError)
@@ -574,18 +618,22 @@ const toPaymentError = (cause: unknown) => {
   return new UnexpectedPaymentProviderError({ cause })
 }
 
+// Describe the provider call without starting it.
 const authorize = (token: string) =>
   Effect.tryPromise({
     try: (signal) => authorizePayment(token, { signal }),
     catch: toPaymentError,
   })
 
+// Convert every expected outcome into an HTTP response.
 const placeOrder = (input: PlaceOrderInput) =>
   authorize(input.paymentToken).pipe(
+    // Limit each authorization attempt, not the complete request.
     Effect.timeoutOrElse({
       duration: "250 millis",
       orElse: () => Effect.fail(new PaymentTimedOut()),
     }),
+    // Retry only failures that may recover on another attempt.
     Effect.retry({
       times: 2,
       while: (error) =>
@@ -646,10 +694,10 @@ primary-pay authorization aborted
 
 ## 7. A disconnected client stops the work
 
-The support file already turns a closed HTTP response into an `AbortSignal`.
+`fixture.ts` already turns a closed HTTP response into an `AbortSignal`.
 The final change supplies that signal to `Effect.runPromise`:
 
-```ts title="server.ts" ins={62}
+```ts title="server.ts" ins={67-68}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -658,7 +706,7 @@ import {
   ProviderUnavailableSdkError,
   startServer,
   type PlaceOrderInput,
-} from "./support.ts"
+} from "./fixture.ts"
 
 class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
@@ -667,6 +715,7 @@ class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
 )<{ readonly cause: unknown }> {}
 
+// Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
   if (cause instanceof PaymentDeclinedSdkError) return new PaymentDeclined()
   if (cause instanceof ProviderUnavailableSdkError)
@@ -674,18 +723,22 @@ const toPaymentError = (cause: unknown) => {
   return new UnexpectedPaymentProviderError({ cause })
 }
 
+// Describe the provider call without starting it.
 const authorize = (token: string) =>
   Effect.tryPromise({
     try: (signal) => authorizePayment(token, { signal }),
     catch: toPaymentError,
   })
 
+// Convert every expected outcome into an HTTP response.
 const placeOrder = (input: PlaceOrderInput) =>
   authorize(input.paymentToken).pipe(
+    // Limit each authorization attempt, not the complete request.
     Effect.timeoutOrElse({
       duration: "250 millis",
       orElse: () => Effect.fail(new PaymentTimedOut()),
     }),
+    // Retry only failures that may recover on another attempt.
     Effect.retry({
       times: 2,
       while: (error) =>
@@ -711,6 +764,7 @@ const placeOrder = (input: PlaceOrderInput) =>
     }),
   )
 
+// Forward client disconnection to the running Effect.
 startServer((input, signal) => Effect.runPromise(placeOrder(input), { signal }))
 ```
 
@@ -725,7 +779,7 @@ the retry predicate.
 
 For a local run, a client can disconnect before `tok_slow` completes:
 
-```sh title="Optional cancellation request"
+```sh title="Cancellation request"
 curl --max-time 0.1 -sS http://localhost:3000/orders \
   -H 'content-type: application/json' \
   -d '{"customerId":"customer-123","paymentToken":"tok_slow"}'
@@ -761,5 +815,5 @@ unexpected bugs. It does not reinterpret either as a payment decision.
 
 ## Related tutorials
 
-- [Run independent work concurrently without losing control](/docs/v4/tutorials/run-independent-work-concurrently-without-losing-control)
-- [Clean up resources after failure or cancellation](/docs/v4/tutorials/clean-up-resources-after-failure-or-cancellation)
+- [Structured concurrency, built in](/docs/v4/tutorials/structured-concurrency-built-in)
+- [Tie resources to operation lifetimes](/docs/v4/tutorials/tie-resources-to-operation-lifetimes)
