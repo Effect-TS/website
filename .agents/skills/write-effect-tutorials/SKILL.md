@@ -143,8 +143,18 @@ Verify API names and semantics against the installed v4 package under `apps/web/
 - Preserve the tutorial collection's existing sidebar placement and ordering conventions when adding or renaming a page.
 - Use `npm` inside standalone tutorial projects unless the tutorial has a concrete reason to require another package manager. Continue using `pnpm` and `vp run` for work on this repository.
 - Do not teach generic project initialization. Assume the reader can create and configure a normal TypeScript project; include setup only when it is specific to the tutorial's subject.
+- Assume Effect is already installed through the dedicated installation page.
+  Do not repeat `npm install effect` or its equivalents inside tutorials.
 - Put tutorial-specific starter files and the reusable command that establishes the local run loop in a `## Project setup` section. Name every file, state its role, and make clear which file or files change during the tutorial and which remain fixed. Keep requests and checks that demonstrate a particular step beside that step.
-- State a minimum runtime version only when a command or language feature requires it. Do not repeat environment trivia such as “checked on macOS” or pin an arbitrary current version.
+- Start every `Project setup` with the same compact structure: a `File` / `Role`
+  table. Make changing and fixed roles clear in that table instead of repeating
+  them in a paragraph. Describe fixed fixtures next, then present the
+  watched-server command after any fixture code the reader must copy.
+- Mark a fixed TypeScript fixture both in its `Role` cell and with one brief
+  comment at the top of its first complete code block. Do not add invalid
+  comments to data formats such as JSON.
+- Keep Node.js requirements in the dedicated installation page. Do not repeat
+  runtime versions or type-stripping requirements inside tutorials.
 - Make the tutorial understandable as a reading path. Creating files, starting the server, and sending requests must not be prerequisites for following the lesson.
 - Treat that flexibility as an editorial rule. Do not tell the reader that setup, commands, sections, or verification are “optional,” and do not put “optional” in their titles.
 - When offering local execution, start the server with `node --watch server.ts`, explicitly explain `--watch`, and tell the reader to keep it running.
@@ -171,6 +181,9 @@ palette classes where a documentation token already expresses the meaning.
   indigo used by API reference content.
 - Keep pain points amber and errors red. These state meanings override the
   surrounding document-family color.
+- Keep the current-page treatment in shared documentation navigation neutral.
+  It communicates location, not document family; use family colors inside the
+  content and purpose-built visualizations instead.
 
 Define and inspect both light and dark values for every new semantic token.
 Keep labels, icons, borders, or other non-color cues so color is never the only

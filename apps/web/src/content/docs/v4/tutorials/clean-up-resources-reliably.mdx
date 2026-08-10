@@ -25,6 +25,8 @@ failure, or interruption runs every registered finalizer.
 
 </TutorialPainPoint>
 
+## What you will build
+
 The example isolates the resource-owning part of a `POST /orders` operation. It
 checks out a database connection, acquires an inventory lock, and stores the
 order. A small HTTP harness supplies an Order ID that the application has
@@ -40,23 +42,20 @@ makes that cleanup more reliable until the endpoint behaves as follows:
 The HTTP server will remain ordinary TypeScript. Effect will manage only the
 part of the request that acquires, uses, and releases resources.
 
-<TutorialArchitectureMap active="clean-up-resources-reliably" compact />
+## Where this tutorial fits
 
-Throughout the tutorial, we will work on `server.ts`. Each step shows the
-complete current file, and each checkpoint gives a short summary of the
-behavior reached at that point.
+The highlighted components show where this tutorial changes the shared order-processing system.
+
+<TutorialArchitectureMap active="clean-up-resources-reliably" compact />
 
 ## Project setup
 
 The project uses two files:
 
-- `fixture.ts` provides a ready-made HTTP server and deterministic simulations
-  of a database pool and an inventory service.
-- `server.ts` contains the resource-management code that we will improve
-  throughout the tutorial.
-
-This tutorial requires Node.js 24 or newer because it runs TypeScript directly
-and uses `using` declarations.
+| File         | Role                                                                        |
+| ------------ | --------------------------------------------------------------------------- |
+| `fixture.ts` | Fixed fixture that provides the HTTP server, database, and inventory.       |
+| `server.ts`  | Contains the resource-management code that the tutorial gradually improves. |
 
 `fixture.ts` does not change. It exports:
 
@@ -74,6 +73,7 @@ Two `orderId` values select predictable behavior:
 - `order-slow` makes storage take 1.5 seconds.
 
 ```ts title="fixture.ts"
+// This fixed fixture does not change during the tutorial.
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -206,17 +206,16 @@ protocol. A `using` declaration can therefore register their cleanup as soon
 as each acquisition succeeds. The explicit release functions expose the same
 cleanup operations to Effect later in the tutorial.
 
-After copying any current `server.ts` block, the watched server can run in one
-terminal pane:
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
 ```sh title="Watched server"
 node --watch server.ts
 ```
 
-The `--watch` option reloads the server after each change. Keep this terminal
-running throughout the tutorial.
+## The solution, step by step
 
-## 1. Find the gap around `finally`
+### 1. Find the gap around `finally`
 
 The initial `server.ts` uses conventional `async`/`await`. It acquires both
 resources before entering the `try` block that releases them:
@@ -314,7 +313,7 @@ release the connection acquired one line earlier.
   failure returns `500` without releasing the database connection.
 </TutorialCheckpoint>
 
-## 2. Let `using` track successful acquisitions
+### 2. Let `using` track successful acquisitions
 
 The fixture resources implement `Symbol.dispose`, so JavaScript can register
 their cleanup with `using` as soon as each acquisition succeeds:
@@ -365,7 +364,7 @@ cleanup branches, or a manually maintained release order.
   releases the connection that was acquired before it.
 </TutorialCheckpoint>
 
-## 3. Disconnect while both resources are in use
+### 3. Disconnect while both resources are in use
 
 `using` cleans up when the async function exits, but closing an HTTP connection
 does not make that happen. Ask `curl` to disconnect while the controlled
@@ -409,17 +408,11 @@ not give the work the same lifetime as the HTTP request.
   Both resources remain in use until that Promise finishes.
 </TutorialCheckpoint>
 
-## 4. Describe the `using` workflow with Effect
+### 4. Describe the `using` workflow with Effect
 
 Before changing cleanup again, move the same Promise workflow into Effect while
 keeping its `using` declarations. This introduces the Effect mental model
 without changing the endpoint's behavior.
-
-Keep the watched server running. In the second terminal pane, install Effect:
-
-```sh title="Install Effect"
-npm install effect@4.0.0-beta.104
-```
 
 The complete current `server.ts` is:
 
@@ -499,7 +492,7 @@ described, not its cleanup policy.
   exits.
 </TutorialCheckpoint>
 
-## 5. Give the resources one lifetime
+### 5. Give the resources one lifetime
 
 The workflow is now an Effect, but cleanup still belongs to the lexical
 `using` block inside its Promise callback. Replace that block so every
@@ -619,7 +612,7 @@ the Scope required in the Effect type instead of a lexical block.
   closes only the connection that was acquired first.
 </TutorialCheckpoint>
 
-## 6. Interrupt the Scope when the client disconnects
+### 6. Interrupt the Scope when the client disconnects
 
 The resource lifetime is now explicit, but `server.ts` ignores the
 `AbortSignal` supplied by `startServer`. Pass that signal to the running

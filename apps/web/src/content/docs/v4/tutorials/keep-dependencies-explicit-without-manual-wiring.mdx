@@ -24,6 +24,8 @@ intermediate function.
 
 </TutorialPainPoint>
 
+## What you will build
+
 The example is a `POST /orders` endpoint that authorizes a payment and saves an
 order. It starts with an HTTP handler that selects both infrastructure
 implementations and passes them to the order logic. Each step moves that
@@ -37,23 +39,23 @@ The same request makes the final change visible:
 | Primary payment   | `201`       | `primary-pay`     |
 | Backup payment    | `201`       | `backup-pay`      |
 
+## Where this tutorial fits
+
+The highlighted components show where this tutorial changes the shared order-processing system.
+
 <TutorialArchitectureMap
   active="keep-dependencies-explicit-without-manual-wiring"
   compact
 />
 
-Throughout the tutorial, we will work on `server.ts`. Each step shows the
-complete current file, and each checkpoint summarizes the behavior reached at
-that point.
-
 ## Project setup
 
 The project uses two files:
 
-- `fixture.ts` provides a ready-made HTTP server and deterministic
-  Promise-based implementations of a payment provider and an order repository.
-- `server.ts` is the application entry point. It contains the order logic and
-  the infrastructure setup that we will improve throughout the tutorial.
+| File         | Role                                                                     |
+| ------------ | ------------------------------------------------------------------------ |
+| `fixture.ts` | Fixed fixture that provides the HTTP server, payment, and repository.    |
+| `server.ts`  | Contains the order logic and infrastructure setup the tutorial improves. |
 
 `fixture.ts` does not change. It exports:
 
@@ -69,6 +71,7 @@ accept any token because this tutorial focuses on selecting infrastructure,
 not on handling payment outcomes.
 
 ```ts title="fixture.ts"
+// This fixed fixture does not change during the tutorial.
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -156,23 +159,16 @@ export const consoleOrderRepository: OrderRepository = {
 }
 ```
 
-The files run directly with Node.js, so they require Node.js 22.18.0 or newer
-for built-in TypeScript support. The project also needs the Effect version used
-by these docs:
-
-```sh title="Install Effect"
-npm install effect@4.0.0-beta.104
-```
-
-After copying any current `server.ts` block, the server can run in one terminal
-pane. The `--watch` option reloads it after each saved edit, so the same process
-can remain running throughout the tutorial:
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
 ```sh title="Watched server"
 node --watch server.ts
 ```
 
-## 1. Start with direct dependencies
+## The solution, step by step
+
+### 1. Start with direct dependencies
 
 The initial `server.ts` uses conventional `async`/`await`. `placeOrder`
 receives its payment provider and repository as ordinary function arguments:
@@ -268,7 +264,7 @@ As more operations and infrastructure appear, the same dependencies must pass
 through more callers. We want `placeOrder` to retain explicit requirements
 without making every caller carry those requirements as ordinary arguments.
 
-## 2. Describe the order operation with Effect
+### 2. Describe the order operation with Effect
 
 Moving the dependencies and introducing Effect in the same step would obscure
 what changed. First, keep both direct arguments and change only how
@@ -381,7 +377,7 @@ are selected.
   implementations.
 </TutorialCheckpoint>
 
-## 3. Make payment a service requirement
+### 3. Make payment a service requirement
 
 The dependency object still crosses the HTTP boundary. Replace only its
 payment entry with a `Context` service. The repository remains an ordinary
@@ -478,7 +474,7 @@ business-function argument.
   the payment requirement, while the repository remains an ordinary argument.
 </TutorialCheckpoint>
 
-## 4. Move the repository requirement too
+### 4. Move the repository requirement too
 
 The remaining `orders` parameter still makes the HTTP entry point select and
 forward repository infrastructure. Give the repository its own service key and
@@ -581,7 +577,7 @@ the saved order.
   payment and repository requirements, and the request still returns `201`.
 </TutorialCheckpoint>
 
-## 5. Combine implementations with Layer
+### 5. Combine implementations with Layer
 
 A `Context` key describes what a computation needs. We still need one place to
 describe how all implementations are selected. Replace the individual
@@ -696,7 +692,7 @@ implementations are selected, not the observable behavior.
   point.
 </TutorialCheckpoint>
 
-## 6. Replace the payment implementation
+### 6. Replace the payment implementation
 
 The backup fixture satisfies the same `PaymentProvider` contract. Select it by
 changing only the value associated with that service key:

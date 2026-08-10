@@ -22,6 +22,8 @@ interruption remain connected without manual context propagation.
 
 </TutorialPainPoint>
 
+## What you will build
+
 The example is a local `POST /orders` endpoint that calls pricing, inventory,
 shipping, payment, and storage providers. It starts with three log messages
 that show only when groups of operations finish. Each step adds more timing
@@ -54,22 +56,23 @@ simulations, and the tracer and waterfall renderer work locally. The tutorial
 therefore needs no public network, credentials, external tracing service, or
 dashboard.
 
+## Where this tutorial fits
+
+The highlighted components show where this tutorial changes the shared order-processing system.
+
 <TutorialArchitectureMap
   active="instrument-applications-for-opentelemetry-without-the-plumbing"
   compact
 />
 
-Each step ends with a checkpoint: a short summary of the behavior reached at
-that point.
-
 ## Project setup
 
 The project uses two files:
 
-- `fixture.ts` provides the ready-made HTTP server, predictable provider
-  simulations, local tracer, and waterfall renderer. It stays unchanged.
-- `server.ts` contains the order-processing code and is the file we will change
-  throughout the tutorial.
+| File         | Role                                                                          |
+| ------------ | ----------------------------------------------------------------------------- |
+| `fixture.ts` | Fixed fixture that provides the HTTP server, providers, tracer, and renderer. |
+| `server.ts`  | Contains the order-processing code that the tutorial gradually improves.      |
 
 The fixture exports:
 
@@ -83,16 +86,10 @@ The fixture exports:
 - `localTracer`, which records spans in memory;
 - `renderLatestTrace`, which turns those spans into the timing waterfall.
 
-The examples run TypeScript directly and therefore require Node.js 22.18.0 or
-newer. The fixture uses Effect's local tracer, so the project also needs Effect:
-
-```sh title="Install Effect"
-npm install effect@4.0.0-beta.104
-```
-
 `fixture.ts` contains this complete code:
 
 ```ts title="fixture.ts"
+// This fixed fixture does not change during the tutorial.
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Option, Tracer } from "effect"
@@ -259,18 +256,16 @@ so [`Option.isNone`](/docs/v4/api/effect/Option#isNone) and
 value without exposing its internal representation. The tutorial interacts
 with this plumbing only through `localTracer` and `renderLatestTrace`.
 
-After copying any current `server.ts` block, the watched server can run in one
-terminal pane. The `--watch` option reloads it after every saved edit:
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
 ```sh title="Watched server"
 node --watch server.ts
 ```
 
-Keep this terminal running throughout the tutorial. Each step shows the complete
-current `server.ts`, and each checkpoint summarizes the behavior reached at
-that point.
+## The solution, step by step
 
-## 1. See what logs leave out
+### 1. See what logs leave out
 
 The initial `server.ts` uses conventional `async`/`await`. Its fixed provider
 delays make the timing relationships repeatable, but the application logs do
@@ -352,7 +347,7 @@ each operation.
   neither overlap nor the slowest planning operation.
 </TutorialCheckpoint>
 
-## 2. Describe the same order processing with Effect
+### 2. Describe the same order processing with Effect
 
 The complete current `server.ts` keeps the same response, delays, and log lines.
 Only the way it describes and runs the provider calls changes:
@@ -487,7 +482,7 @@ the same three application log lines. The observable result has not changed.
   storage, and the approved order still returns `201`.
 </TutorialCheckpoint>
 
-## 3. Record the whole request as one span
+### 3. Record the whole request as one span
 
 A span is a timed record of one operation. It has a name, start and end times,
 an optional parent, and attributes. A trace is the tree formed by a root span
@@ -608,7 +603,7 @@ dominates. That missing detail gives the next change its purpose.
   `http.post.orders` root bar. No trace leaves the Node.js process.
 </TutorialCheckpoint>
 
-## 4. Give each operation its own traced function
+### 4. Give each operation its own traced function
 
 The root tells us total request time. The next version defines one named
 `Effect.fn` for each provider operation. Every execution of those functions
@@ -770,7 +765,7 @@ visible without requiring timestamps to be compared by hand.
   sequence.
 </TutorialCheckpoint>
 
-## 5. Attach the request context you will search for
+### 5. Attach the request context you will search for
 
 Names and bars explain structure, but an operator also needs to know which
 request produced a trace. The final version adds the customer id and quantity

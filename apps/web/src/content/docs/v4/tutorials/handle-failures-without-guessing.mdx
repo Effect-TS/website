@@ -11,19 +11,18 @@ import {
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
 
-<TutorialPainPoint>
-  <span slot="title">
-    <code>catch</code> only gives you <code>unknown</code>
-  </span>
+<TutorialPainPoint title="Failures become unknown">
 
 Backend operations can fail for different reasons, take too long, or continue
 after the client disconnects. With ordinary Promise code, these behaviors
 require separate conventions, while rejections reach `catch` as `unknown`.
 
-With Effect, the type system tracks expected failures, while retry limits,
+With Effect, the **type system** tracks expected failures, while retry limits,
 timeouts, and cancellation are defined directly on the operation.
 
 </TutorialPainPoint>
+
+## What you will build
 
 The example is a `POST /orders` endpoint that calls a payment provider. It
 starts by turning every rejected Promise into the same `500` response. Each
@@ -39,46 +38,23 @@ follows:
 | Provider takes too long             | Interrupt and retry at most twice | `504`       |
 | Client disconnects                  | Interrupt the complete operation  | No response |
 
-<TutorialArchitectureMap active="handle-failures-without-guessing" compact />
+## Where this tutorial fits
 
-Throughout the tutorial, we will work on `server.ts`. Each step shows the
-complete current file, and each checkpoint summarizes the behavior reached at
-that point.
+The highlighted components show where this tutorial changes the shared order-processing system.
+
+<TutorialArchitectureMap active="handle-failures-without-guessing" compact />
 
 ## Project setup
 
 The project uses two files:
 
-- `fixture.ts` provides a ready-made HTTP server and a deterministic simulation
-  of a Promise-based payment SDK.
-- `server.ts` is the application entry point and contains the order-processing
-  code that we will improve throughout the tutorial.
-
-Running these TypeScript files directly requires Node.js 22.18.0 or newer. The
-project also needs the Effect version used by these docs:
-
-```sh title="Install Effect"
-npm install effect@4.0.0-beta.104
-```
-
-`fixture.ts` does not change. It exports:
-
-- `startServer`, which reads the incoming JSON, sends the HTTP response, and
-  provides an `AbortSignal` when the client disconnects.
-- `authorizePayment`, which imitates a Promise-based payment SDK. It receives
-  `paymentToken`, a string that identifies the customer's payment method without
-  exposing card details. In this fixture, special `paymentToken` values select
-  predictable outcomes. The simulated provider can:
-  - approve the payment (`tok_approved`);
-  - decline the payment (`tok_declined`);
-  - report two temporary failures, then succeed (`tok_flaky`);
-  - report an undocumented failure (`tok_unexpected`);
-  - take two seconds to respond (`tok_slow`).
-
-The simulated provider also stops its current request when it receives the
-`AbortSignal` from `startServer`.
+| File         | Role                                                                     |
+| ------------ | ------------------------------------------------------------------------ |
+| `fixture.ts` | Fixed fixture that provides the HTTP server and payment SDK simulation.  |
+| `server.ts`  | Contains the order-processing code that the tutorial gradually improves. |
 
 ```ts title="fixture.ts"
+// This fixed fixture does not change during the tutorial.
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -175,8 +151,8 @@ export const authorizePayment = async (
 }
 ```
 
-After copying any current `server.ts` block, the watched server can run in
-one terminal pane:
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
 ```sh title="Watched server"
 node --watch server.ts
@@ -184,11 +160,13 @@ node --watch server.ts
 
 In a second terminal pane, change `paymentToken` to select a provider behavior:
 
-- `tok_approved` approves the payment.
-- `tok_declined` declines the payment.
-- `tok_flaky` reports two temporary failures, then succeeds.
-- `tok_unexpected` reports an undocumented failure.
-- `tok_slow` takes two seconds to respond.
+| Value            | Provider behavior                              |
+| ---------------- | ---------------------------------------------- |
+| `tok_approved`   | Approves the payment.                          |
+| `tok_declined`   | Declines the payment.                          |
+| `tok_flaky`      | Reports two temporary failures, then succeeds. |
+| `tok_unexpected` | Reports an undocumented failure.               |
+| `tok_slow`       | Takes two seconds to respond.                  |
 
 For example, this request selects the successful behavior:
 
@@ -198,7 +176,9 @@ curl -i -sS http://localhost:3000/orders \
   -d '{"customerId":"customer-123","paymentToken":"tok_approved"}'
 ```
 
-## 1. A familiar Promise baseline
+## The solution, step by step
+
+### 1. A familiar Promise baseline
 
 The initial `server.ts` uses conventional `async`/`await` to handle an order. It
 calls the payment provider and decides which HTTP response to return:
@@ -250,7 +230,7 @@ or treated as unexpected.
   the same `500` response.
 </TutorialCheckpoint>
 
-## 2. The provider call becomes an Effect description
+### 2. The provider call becomes an Effect description
 
 [`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the
 Promise-producing provider without changing its observable behavior. The
@@ -325,7 +305,7 @@ and Effect has a channel in which more precise failures can be recorded.
   represented. The HTTP behavior is deliberately unchanged.
 </TutorialCheckpoint>
 
-## 3. Provider failures become explicit
+### 3. Provider failures become explicit
 
 The provider SDK exposes two error classes. `toPaymentError` translates those
 classes at the boundary and gives every other rejection a safe, explicit name:
@@ -413,7 +393,7 @@ reason it failed.
   unexpected provider failure before any HTTP decision is made.
 </TutorialCheckpoint>
 
-## 4. Every expected outcome becomes an HTTP result
+### 4. Every expected outcome becomes an HTTP result
 
 The next version moves the successful result and all three expected failures
 into the Effect description:
@@ -512,7 +492,7 @@ provider decision.
   generic `500` remains reserved for unexpected bugs.
 </TutorialCheckpoint>
 
-## 5. Only recoverable failures are retried
+### 5. Only recoverable failures are retried
 
 A temporary outage may recover, while a declined payment or unexpected failure
 must remain final. `Effect.retry` expresses that policy without a loop:
@@ -597,7 +577,7 @@ predicate.
   unexpected provider failure are never retried.
 </TutorialCheckpoint>
 
-## 6. Every attempt has a timeout
+### 6. Every attempt has a timeout
 
 `tok_slow` takes two seconds. Without a timeout, one slow attempt can hold the
 request open indefinitely. The timeout belongs before `Effect.retry`, so each
@@ -705,7 +685,7 @@ primary-pay authorization aborted
   attempts produce one `504` response.
 </TutorialCheckpoint>
 
-## 7. A disconnected client stops the work
+### 7. A disconnected client stops the work
 
 `fixture.ts` already turns a closed HTTP response into an `AbortSignal`.
 The final change supplies that signal to `Effect.runPromise`:

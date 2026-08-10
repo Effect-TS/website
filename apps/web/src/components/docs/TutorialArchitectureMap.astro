@@ -216,24 +216,31 @@ const isHighlighted = (related: readonly string[]) =>
 >
   <section
     class="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-950/40"
-    aria-label={compact
-      ? "Architecture focus for this tutorial"
-      : "Order-processing tutorial architecture"}
+    aria-label={compact ? "Tutorial architecture focus" : "Order-processing tutorial architecture"}
   >
     <header class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p class="tutorial-eyebrow m-0 text-xs font-semibold tracking-wider uppercase">
-            {compact ? "Architecture focus" : "Shared tutorial scenario"}
-          </p>
-          <p class="mt-1 mb-0 text-base font-semibold text-zinc-950 dark:text-white">
+          {
+            !compact && (
+              <p class="architecture-eyebrow m-0 text-xs font-semibold tracking-wider uppercase">
+                Shared tutorial scenario
+              </p>
+            )
+          }
+          <p
+            class:list={[
+              "mb-0 text-base font-semibold text-zinc-950 dark:text-white",
+              compact ? "mt-0" : "mt-1",
+            ]}
+          >
             The order-processing system
           </p>
         </div>
         {
           compact && (
             <a
-              class="tutorial-link text-sm font-medium hover:underline"
+              class="architecture-link text-sm font-medium hover:underline"
               href="/docs/v4/tutorials/introduction"
             >
               View the complete architecture
@@ -490,7 +497,18 @@ const isHighlighted = (related: readonly string[]) =>
     color: var(--color-zinc-400);
   }
 
-  .tutorial-eyebrow,
+  .architecture-eyebrow {
+    color: var(--docs-architecture-text);
+  }
+
+  .architecture-link {
+    color: var(--docs-architecture-text);
+  }
+
+  .architecture-link:hover {
+    color: var(--docs-architecture-text);
+  }
+
   .tutorial-link {
     color: var(--docs-tutorial-text);
   }

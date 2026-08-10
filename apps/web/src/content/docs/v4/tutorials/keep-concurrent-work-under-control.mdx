@@ -24,6 +24,8 @@ fails together without extra coordination code.
 
 </TutorialPainPoint>
 
+## What you will build
+
 The example is a `POST /quotes` endpoint. It gets a price for every order line
 from a catalog provider and gets shipping from another provider. The finished
 endpoint behaves as follows:
@@ -35,27 +37,20 @@ endpoint behaves as follows:
 | Line and shipping providers are both slow | One 500 ms deadline interrupts all unfinished work and returns `504`              |
 | The client disconnects first              | All unfinished work is interrupted and no response is written                     |
 
-<TutorialArchitectureMap active="keep-concurrent-work-under-control" compact />
+## Where this tutorial fits
 
-Throughout the tutorial, we will work on `server.ts`. Each step shows the
-complete current file, and each checkpoint summarizes the behavior reached at
-that point.
+The highlighted components show where this tutorial changes the shared order-processing system.
+
+<TutorialArchitectureMap active="keep-concurrent-work-under-control" compact />
 
 ## Project setup
 
 The project uses two files:
 
-- `fixture.ts` provides a ready-made HTTP server and deterministic simulations
-  of the catalog and shipping providers.
-- `server.ts` contains the quote logic that we will improve throughout the
-  tutorial.
-
-This tutorial requires Node.js 22.18.0 or newer because it runs TypeScript
-files directly. Install Effect in the project:
-
-```sh title="Install Effect"
-npm install effect@4.0.0-beta.104
-```
+| File         | Role                                                                |
+| ------------ | ------------------------------------------------------------------- |
+| `fixture.ts` | Fixed fixture that provides the HTTP server, catalog, and shipping. |
+| `server.ts`  | Contains the quote logic that the tutorial gradually improves.      |
 
 `fixture.ts` does not change. It exports:
 
@@ -76,6 +71,7 @@ The provider simulations use predictable timing:
   aborted.
 
 ```ts title="fixture.ts"
+// This fixed fixture does not change during the tutorial.
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -219,15 +215,16 @@ export const quoteShipping = async (
 }
 ```
 
-After copying any current `server.ts` block, run it with `--watch`. This option
-tells Node.js to reload the server after each saved edit. Keep this terminal
-running throughout the tutorial:
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
 ```sh title="Watched server"
 node --watch server.ts
 ```
 
-## 1. Start with familiar Promise concurrency
+## The solution, step by step
+
+### 1. Start with familiar Promise concurrency
 
 The initial `server.ts` uses the Promise concurrency available in ordinary
 TypeScript. It starts every line lookup and shipping call, then builds one
@@ -316,7 +313,7 @@ before coffee. We have a working endpoint before adding Effect.
   request's item order.
 </TutorialCheckpoint>
 
-## 2. Reproduce the missing controls
+### 2. Reproduce the missing controls
 
 The three-item request does not reveal how many provider calls the endpoint is
 willing to start. Send a quote with five lines:
@@ -378,7 +375,7 @@ will add one control to it.
   does not stop either provider call.
 </TutorialCheckpoint>
 
-## 3. Describe the complete Promise operation as an Effect
+### 3. Describe the complete Promise operation as an Effect
 
 First, describe and run the existing Promise operation as an Effect without
 changing how many provider calls run together:
@@ -498,7 +495,7 @@ who controls the operation, not its concurrency policy.
   `Effect.runPromise` at the HTTP boundary.
 </TutorialCheckpoint>
 
-## 4. Describe each concurrent provider call with Effect
+### 4. Describe each concurrent provider call with Effect
 
 The previous Effect treats both `Promise.all` calls as one operation. Give each
 provider call its own Effect, then combine them with Effect's concurrency APIs.
@@ -630,7 +627,7 @@ call.
   an individually interruptible Effect.
 </TutorialCheckpoint>
 
-## 5. Bound line concurrency without losing result order
+### 5. Bound line concurrency without losing result order
 
 The line group now has a clear place for its provider limit. Change its
 `concurrency` option from `"unbounded"` to `2`:
@@ -735,7 +732,7 @@ using one of the two line slots.
   remains `coffee`, `tea`, `cocoa`.
 </TutorialCheckpoint>
 
-## 6. Put one deadline around the complete quote
+### 6. Put one deadline around the complete quote
 
 The provider simulations still control how long the endpoint waits. A request
 with a slow line and slow shipping destination returns `200` after about one
@@ -905,7 +902,7 @@ belong to the same timed operation, so both stop when its deadline expires.
   500 ms deadline interrupts both and the endpoint returns `504`.
 </TutorialCheckpoint>
 
-## 7. Stop the quote when the client disconnects
+### 7. Stop the quote when the client disconnects
 
 The deadline sends cancellation from the Effect operation to its Promise
 providers. The last step connects cancellation in the other direction:

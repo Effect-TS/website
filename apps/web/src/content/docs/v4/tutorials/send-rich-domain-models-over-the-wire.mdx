@@ -23,6 +23,8 @@ changing the model used by the application.
 
 </TutorialPainPoint>
 
+## What you will build
+
 The example is a `POST /orders` endpoint that returns an accepted order. The
 application works with three values that are more useful than their JSON
 counterparts:
@@ -50,6 +52,10 @@ Preserving that round trip is highly desirable. It means the receiving client
 recovers the same kind of value that the server encoded, rather than a similar
 object assembled by unrelated conversion code.
 
+## Where this tutorial fits
+
+The highlighted components show where this tutorial changes the shared order-processing system.
+
 <TutorialArchitectureMap
   active="send-rich-domain-models-over-the-wire"
   compact
@@ -57,30 +63,24 @@ object assembled by unrelated conversion code.
 
 ## Project setup
 
-The example uses three small files:
+The project uses three files:
 
-- `order.ts` defines the accepted-order model and a fixture that returns one;
-- `server.ts` is the HTTP boundary and changes as each JSON strategy is added;
-- `client.ts` represents a client owned by the same team and appears when the
-  shared Schema is ready.
+| File        | Role                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| `order.ts`  | Defines the accepted-order model and returns one predictable order. |
+| `server.ts` | Sends the domain model through the HTTP boundary.                   |
+| `client.ts` | Represents a client owned by the same team.                         |
 
-Install the Effect version used by these examples:
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
-```sh title="Install Effect"
-npm install effect@4.0.0-beta.104
-```
-
-The examples run TypeScript directly and therefore require Node.js 22.18.0 or
-newer. Each checkpoint is a short summary of the behavior reached so far.
-
-The server can run with `--watch`, which reloads `server.ts` and its imports
-after every edit. Keep this command active in one terminal pane:
-
-```sh title="Keep running throughout the tutorial"
+```sh title="Watched server"
 node --watch server.ts
 ```
 
-## 1. Start with ordinary TypeScript
+## The solution, step by step
+
+### 1. Start with ordinary TypeScript
 
 The initial model uses familiar TypeScript and JavaScript types:
 
@@ -157,7 +157,7 @@ with it.
   information that tells a client how to reconstruct the rich domain values.
 </TutorialCheckpoint>
 
-## 2. Derive the shared JSON representation
+### 2. Derive the shared JSON representation
 
 The next version describes the domain model with Effect Schema. The same
 definitions still produce an `OrderId`, a `Date`, and a `ReadonlySet` for
@@ -279,7 +279,7 @@ HTTP/1.1 201 Created
   response type or field-by-field serialization function.
 </TutorialCheckpoint>
 
-## 3. Share the Schema with the client
+### 3. Share the Schema with the client
 
 Because the client is owned by the same team, it can import `AcceptedOrderJson`
 from the shared `order.ts` module. Its complete implementation is small:
@@ -342,7 +342,7 @@ sides of the JSON round trip from it.
   by using the same Schema as the server.
 </TutorialCheckpoint>
 
-## 4. Respect an external JSON contract
+### 4. Respect an external JSON contract
 
 Sharing a Schema is not always possible. Suppose an external client requires
 the same accepted order in this fixed representation:

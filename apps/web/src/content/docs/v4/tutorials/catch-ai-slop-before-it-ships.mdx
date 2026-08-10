@@ -22,6 +22,8 @@ through.
 
 </TutorialPainPoint>
 
+## What you will build
+
 The example is a coding agent adding `POST /orders/import` to a familiar
 `node:http` server. The first implementation works for the supplied file, but
 the diagnostics expose three concrete mistakes. The same evidence then defines
@@ -39,27 +41,22 @@ The finished backend has these observable results:
 The HTTP server remains ordinary TypeScript. Only the order import uses Effect,
 so the diagnostic and correction loop remains easy to inspect.
 
-<TutorialArchitectureMap active="catch-ai-slop-before-it-ships" compact />
+## Where this tutorial fits
 
-Each step ends with a checkpoint: a short summary of the behavior reached at
-that point.
+The highlighted components show where this tutorial changes the shared order-processing system.
+
+<TutorialArchitectureMap active="catch-ai-slop-before-it-ships" compact />
 
 ## Project setup
 
 The project uses four files:
 
-- `server.ts` is the application entry point. It is the file changed by the
-  coding agent and then corrected during the tutorial.
-- `orders.json` supplies predictable external data for the import endpoint. It
-  stays unchanged.
-- `package.json` configures ES modules and records the dependencies and commands
-  added during setup.
-- `.oxlintrc.json` configures the Effect-aware diagnostics. It is added once and
-  then stays unchanged.
-
-Every version of `server.ts` is shown as a complete file. The example uses an ES
-module project. Node.js 22.18.0 or newer is required because the tutorial runs
-`server.ts` directly with Node's built-in TypeScript support.
+| File             | Role                                                                |
+| ---------------- | ------------------------------------------------------------------- |
+| `server.ts`      | Contains the endpoint generated and then corrected in the tutorial. |
+| `orders.json`    | Fixed input that supplies predictable external order data.          |
+| `package.json`   | Records the diagnostic tools and commands.                          |
+| `.oxlintrc.json` | Configures the Effect-aware diagnostics.                            |
 
 The controlled order-import data lives in `orders.json`:
 
@@ -67,15 +64,16 @@ The controlled order-import data lives in `orders.json`:
 [{ "externalOrderId": "external-1001" }, { "externalOrderId": "external-1002" }]
 ```
 
-The server runs in one terminal pane with the following command. `--watch`
-makes Node.js reload `server.ts` after each edit, so the same process can remain
-running throughout the tutorial.
+Run the server with `--watch`. This option reloads `server.ts` after each saved
+edit, so the same process can remain running throughout the tutorial:
 
 ```sh title="Watched server"
 node --watch server.ts
 ```
 
-## 1. Start from a familiar TypeScript server
+## The solution, step by step
+
+### 1. Start from a familiar TypeScript server
 
 The initial `server.ts` has only a health endpoint, so there is no Effect code
 to understand yet.
@@ -126,14 +124,13 @@ HTTP/1.1 200 OK
   `{"status":"ready"}`.
 </TutorialCheckpoint>
 
-## 2. Add only the diagnostics this review needs
+### 2. Add only the diagnostics this review needs
 
 The backend change will use Effect, and the review needs Effect's type-aware
-rules from the command line. These commands install the runtime and compatible
-Oxlint tooling:
+rules from the command line. These commands install the compatible Oxlint
+tooling:
 
-```sh title="Effect and static diagnostics"
-npm install effect@4.0.0-beta.104
+```sh title="Static diagnostics"
 npm install --save-dev @types/node@22 @effect/tsgo oxlint oxlint-tsgolint
 npx effect-tsgo patch --oxlint
 npm pkg set scripts.prepare="effect-tsgo patch --oxlint"
@@ -174,7 +171,7 @@ setup.
   before the agent changes `server.ts`.
 </TutorialCheckpoint>
 
-## 3. Let the coding agent add the endpoint
+### 3. Let the coding agent add the endpoint
 
 The next change is kept deliberately narrow. The coding agent applies the same
 plausible implementation shown below, which makes the diagnostic evidence
@@ -356,7 +353,7 @@ configuration. The response alone could not reveal any of them.
   That output provides the evidence for the correction.
 </TutorialCheckpoint>
 
-## 4. Correct only what the evidence exposed
+### 4. Correct only what the evidence exposed
 
 The evidence identifies three exact changes:
 
@@ -535,6 +532,6 @@ trusted.
 
 ## Related tutorials
 
-- [Why Effect keeps AI-generated code under control](/docs/v4/get-started/writing-effect-with-ai)
+- [Keep AI slop under control](/docs/v4/get-started/writing-effect-with-ai)
 - [Send rich domain models over the wire](/docs/v4/tutorials/send-rich-domain-models-over-the-wire)
 - [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
