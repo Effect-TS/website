@@ -11,6 +11,8 @@ import type { NavigationActiveSlug } from "@/lib/navigation"
  *   - `sidebar` present  → left rail from `lg`
  *   - `toc` present      → right rail from `xl`
  *   - `mobile-nav`       → rendered above the grid (page supplies its own)
+ * The shell owns the desktop rail positioning, scrolling, padding, and the main
+ * content spacing so Docs and API Reference cannot drift apart.
  * See apps/web/DESIGN.md.
  */
 interface Props {
@@ -28,6 +30,7 @@ const hasToc = Astro.slots.has("toc")
 const gridCols = hasToc
   ? "lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_240px]"
   : "lg:grid-cols-[240px_1fr]"
+const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
 ---
 
 <BaseLayout
@@ -44,7 +47,9 @@ const gridCols = hasToc
       {
         hasSidebar && (
           <aside class="hidden border-r border-border lg:block">
-            <slot name="sidebar" />
+            <div data-doc-rail class={railClass}>
+              <slot name="sidebar" />
+            </div>
           </aside>
         )
       }
@@ -56,7 +61,9 @@ const gridCols = hasToc
       {
         hasToc && (
           <aside class="hidden border-l border-border xl:block">
-            <slot name="toc" />
+            <div data-doc-rail class={railClass}>
+              <slot name="toc" />
+            </div>
           </aside>
         )
       }

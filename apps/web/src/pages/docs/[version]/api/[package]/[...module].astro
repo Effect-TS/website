@@ -173,13 +173,7 @@ const tocItems = apiModule.groups.map((group) => ({
     modules={mobileModules}
   />
 
-  <nav
-    slot="sidebar"
-    aria-label="API reference navigation"
-    data-api-sidebar
-    data-module-sidebar
-    class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
-  >
+  <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar data-module-sidebar>
     <header class="mb-4">
       <a
         href={`/docs/${entry.data.version}/api`}
@@ -277,15 +271,7 @@ const tocItems = apiModule.groups.map((group) => ({
     </div>
   </article>
 
-  {
-    tocItems.length > 0 && (
-      <TableOfContents
-        slot="toc"
-        items={tocItems}
-        class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
-      />
-    )
-  }
+  {tocItems.length > 0 && <TableOfContents slot="toc" items={tocItems} />}
 </DocShell>
 
 <script>
@@ -296,15 +282,19 @@ const tocItems = apiModule.groups.map((group) => ({
     const details = currentModuleLink.closest("details")
     if (details instanceof HTMLDetailsElement) details.open = true
 
+    // DocShell owns the scrolling rail; use it rather than the navigation
+    // element so the active module is centered after the shared layout change.
+    const sidebarScroller = moduleSidebar.closest<HTMLElement>("[data-doc-rail]") ?? moduleSidebar
+
     requestAnimationFrame(() => {
-      const sidebarBounds = moduleSidebar.getBoundingClientRect()
+      const sidebarBounds = sidebarScroller.getBoundingClientRect()
       const linkBounds = currentModuleLink.getBoundingClientRect()
       const isVisible =
         linkBounds.top >= sidebarBounds.top && linkBounds.bottom <= sidebarBounds.bottom
       if (isVisible) return
 
-      moduleSidebar.scrollTop +=
-        linkBounds.top - sidebarBounds.top - (moduleSidebar.clientHeight - linkBounds.height) / 2
+      sidebarScroller.scrollTop +=
+        linkBounds.top - sidebarBounds.top - (sidebarScroller.clientHeight - linkBounds.height) / 2
     })
   }
 </script>
