@@ -1,0 +1,81 @@
+---
+title: Introduction
+description: Orient yourself in the shared backend scenario and see where each tutorial applies its Effect solution.
+sidebar:
+  order: 0
+---
+
+import { TutorialArchitectureMap } from "@astrojs/starlight/components"
+
+The tutorials in this section are independent. Each title names the positive
+outcome the tutorial builds. You can begin with whichever underlying problem
+is most familiar without reading the others first.
+
+They all use the same general scenario: a TypeScript backend that quotes and
+processes customer orders. Keeping that scenario stable makes it easier to see
+how different Effect capabilities solve different production problems.
+
+## The scenario
+
+A customer sends an order containing:
+
+- the customer identifier;
+- one or more catalog items and their quantities;
+- a delivery destination;
+- an opaque payment token.
+
+The backend can perform three operations:
+
+- `POST /quotes` prices the order lines and shipping;
+- `POST /orders` reserves inventory, authorizes payment, and stores the order;
+- `POST /orders/import` validates order records received from another system.
+
+An order is accepted only after every required stage succeeds. The application
+generates its Order ID. The payment token is confidential and never belongs in
+logs, traces, or responses.
+
+The responsibilities stay separated across four parts of the application:
+
+- the HTTP boundary reads requests and sends responses;
+- application operations coordinate quoting, placing, and importing orders;
+- Catalog, Shipping, Inventory, Payment, and Order Repository services isolate
+  backend integrations;
+- service setup, tracing, and development tools support the complete
+  application.
+
+## See where each tutorial applies
+
+The diagram keeps the complete system visible while highlighting the
+components affected by one tutorial. Select a tutorial to explore its focus.
+The dimmed components still exist in the scenario, but the selected tutorial
+keeps them behind simple fixtures so they do not distract from its lesson.
+
+<TutorialArchitectureMap />
+
+## Choose the outcome you need
+
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing) shows how
+  to distinguish payment failures, retry only recoverable outages, apply a
+  timeout, and stop work after a client disconnects.
+- [Keep concurrent work under control](/docs/v4/tutorials/keep-concurrent-work-under-control)
+  coordinates catalog and shipping work with a concurrency limit, stable result
+  order, one deadline, and automatic cancellation.
+- [Clean up resources reliably](/docs/v4/tutorials/clean-up-resources-reliably)
+  ensures that database and inventory resources close after success, failure,
+  or cancellation.
+- [Send rich domain models over the wire](/docs/v4/tutorials/send-rich-domain-models-over-the-wire)
+  derives the JSON representation for clients that share the Schema and
+  preserves an explicit representation when an external contract requires it.
+- [Keep dependencies explicit without manual wiring](/docs/v4/tutorials/keep-dependencies-explicit-without-manual-wiring)
+  keeps service requirements visible while selecting their implementations in
+  one place.
+- [Catch AI slop before it ships](/docs/v4/tutorials/catch-ai-slop-before-it-ships)
+  uses precise types and Effect-aware developer tools to expose plausible but
+  incorrect generated code.
+- [Instrument applications for OpenTelemetry without the plumbing](/docs/v4/tutorials/instrument-applications-for-opentelemetry-without-the-plumbing)
+  records operation timing and relationships without manually passing tracing
+  context through the application.
+
+Each tutorial presents only the part of the backend required to reach its
+outcome. The names and responsibilities in the diagram remain stable, even
+when a fixture hides the rest of the application.

@@ -1,11 +1,12 @@
 ---
-title: Tie resources to operation lifetimes
+title: Clean up resources reliably
 description: Tie acquired resources to one lifetime so cleanup runs after success, failure, or cancellation.
 sidebar:
   order: 3
 ---
 
 import {
+  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -24,9 +25,11 @@ failure, or interruption runs every registered finalizer.
 
 </TutorialPainPoint>
 
-The example is a `POST /orders` endpoint that checks out a database connection,
-acquires an inventory lock, and stores an order. Each step makes its resource
-cleanup more reliable until the endpoint behaves as follows:
+The example isolates the resource-owning part of a `POST /orders` operation. It
+checks out a database connection, acquires an inventory lock, and stores the
+order. A small HTTP harness supplies an Order ID that the application has
+already generated, so the tutorial can focus on resource cleanup. Each step
+makes that cleanup more reliable until the endpoint behaves as follows:
 
 | Request outcome        | HTTP result | Resource behavior                                 |
 | ---------------------- | ----------- | ------------------------------------------------- |
@@ -36,6 +39,8 @@ cleanup more reliable until the endpoint behaves as follows:
 
 The HTTP server will remain ordinary TypeScript. Effect will manage only the
 part of the request that acquires, uses, and releases resources.
+
+<TutorialArchitectureMap active="clean-up-resources-reliably" compact />
 
 Throughout the tutorial, we will work on `server.ts`. Each step shows the
 complete current file, and each checkpoint gives a short summary of the
@@ -72,7 +77,7 @@ Two `orderId` values select predictable behavior:
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
-export interface PlaceOrderRequest {
+export interface StoreOrderInput {
   readonly orderId: string
 }
 
@@ -93,7 +98,7 @@ export interface InventoryLock {
 
 export const startServer = (
   placeOrder: (
-    input: PlaceOrderRequest,
+    input: StoreOrderInput,
     signal: AbortSignal,
   ) => Promise<StoredOrder>,
 ): void => {
@@ -118,7 +123,7 @@ export const startServer = (
       let body = ""
       for await (const chunk of request) body += chunk
       const order = await placeOrder(
-        JSON.parse(body) as PlaceOrderRequest,
+        JSON.parse(body) as StoreOrderInput,
         controller.signal,
       )
       sendJson(201, order)
@@ -224,10 +229,10 @@ import {
   releaseInventoryLock,
   startServer,
   storeOrder,
-  type PlaceOrderRequest,
+  type StoreOrderInput,
 } from "./fixture.ts"
 
-const placeOrder = async (input: PlaceOrderRequest) => {
+const placeOrder = async (input: StoreOrderInput) => {
   const connection = await checkoutDatabase(input.orderId)
   const lock = await acquireInventoryLock(connection, input.orderId)
 
@@ -320,10 +325,10 @@ import {
   checkoutDatabase,
   startServer,
   storeOrder,
-  type PlaceOrderRequest,
+  type StoreOrderInput,
 } from "./fixture.ts"
 
-const placeOrder = async (input: PlaceOrderRequest) => {
+const placeOrder = async (input: StoreOrderInput) => {
   // Each successful declaration registers its disposer immediately.
   using connection = await checkoutDatabase(input.orderId)
   using lock = await acquireInventoryLock(connection, input.orderId)
@@ -425,11 +430,11 @@ import {
   checkoutDatabase,
   startServer,
   storeOrder,
-  type PlaceOrderRequest,
+  type StoreOrderInput,
 } from "./fixture.ts"
 
 // Calling placeOrder describes the work without running it.
-const placeOrder = (input: PlaceOrderRequest) =>
+const placeOrder = (input: StoreOrderInput) =>
   Effect.tryPromise(async (signal) => {
     // Cleanup still follows the lifetime of this Promise callback.
     using connection = await checkoutDatabase(input.orderId)
@@ -515,7 +520,7 @@ import {
   startServer,
   storeOrder,
   type DatabaseConnection,
-  type PlaceOrderRequest,
+  type StoreOrderInput,
 } from "./fixture.ts"
 
 // Register cleanup as soon as each acquisition succeeds.
@@ -532,7 +537,7 @@ const inventoryLock = (connection: DatabaseConnection, orderId: string) =>
   )
 
 // Calling placeOrder describes the work without running it.
-const placeOrder = (input: PlaceOrderRequest) =>
+const placeOrder = (input: StoreOrderInput) =>
   databaseConnection(input.orderId).pipe(
     Effect.flatMap((connection) =>
       inventoryLock(connection, input.orderId).pipe(
@@ -630,7 +635,7 @@ import {
   startServer,
   storeOrder,
   type DatabaseConnection,
-  type PlaceOrderRequest,
+  type StoreOrderInput,
 } from "./fixture.ts"
 
 // Register cleanup as soon as each acquisition succeeds.
@@ -647,7 +652,7 @@ const inventoryLock = (connection: DatabaseConnection, orderId: string) =>
   )
 
 // Calling placeOrder describes the work without running it.
-const placeOrder = (input: PlaceOrderRequest) =>
+const placeOrder = (input: StoreOrderInput) =>
   databaseConnection(input.orderId).pipe(
     Effect.flatMap((connection) =>
       inventoryLock(connection, input.orderId).pipe(
@@ -740,5 +745,5 @@ finalizers, and interruption of the work that is still using those resources.
 
 ## Related tutorials
 
-- [Make failures explicit](/docs/v4/tutorials/make-failures-explicit)
-- [Structured concurrency, built in](/docs/v4/tutorials/structured-concurrency-built-in)
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Keep concurrent work under control](/docs/v4/tutorials/keep-concurrent-work-under-control)

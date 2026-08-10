@@ -7,7 +7,7 @@ description: Create and review beginner-friendly Effect tutorials for this websi
 
 Create Diataxis-style tutorials that lead a TypeScript backend developer from familiar code to one robust, observable result through small verified steps.
 
-Use `apps/web/src/content/docs/v4/tutorials/make-failures-explicit.mdx` as the canonical implementation reference. Inspect only the relevant portions when a concrete MDX or prompt pattern is needed.
+Use `apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx` as the canonical implementation reference. Inspect only the relevant portions when a concrete MDX or prompt pattern is needed.
 
 ## Establish the reader and outcome
 
@@ -16,6 +16,9 @@ Use `apps/web/src/content/docs/v4/tutorials/make-failures-explicit.mdx` as the c
 - Assume no knowledge of Effect, generators, functional pipelines, fibers, error channels, interruption, defects, schedules, layers, or services.
 - Name the tutorial after the positive outcome Effect provides for a general pain recognizable to backend developers. Do not name it after an API, feature, or scenario-specific task.
 - Begin every tutorial with exactly one `TutorialPainPoint`. Give the card a short title that names the pain directly. In two short paragraphs, first describe how the problem appears in ordinary TypeScript and then explain how Effect addresses it. Use only language a TypeScript developer who has never used Effect already understands; introduce Effect-specific APIs and concepts later. Replace equivalent introductory prose instead of repeating it outside the card.
+- Keep this terminology strict: a pain point is the problem, while a tutorial
+  title is the positive outcome Effect provides. When navigation presents
+  tutorial titles, call them tutorials or outcomes, never pain points.
 - Introduce the concrete scenario immediately after `TutorialPainPoint`. Keep scenario-specific actors and details outside the card, then explain the scenario before asking the reader to act.
 - State what the reader will learn and the observable behavior of the finished backend. Use a compact table when several cases must be distinguished.
 - Keep the tutorial learning-oriented and guided. Do not turn it into explanation, reference, or a menu of alternatives.
@@ -50,6 +53,40 @@ When a valuable capability would require enough setup to obscure the lesson, men
 - Put a fixture shared by several tutorials in a `.ts` asset rather than publishing an internal MDX documentation page.
 - Give fixture inputs stable meanings throughout the tutorial suite.
 - Make state reset behavior explicit when it affects verification.
+
+## Keep the tutorial suite coherent
+
+Before changing the order-processing scenario, domain terms, routes, or
+architectural responsibilities, read
+`specs/tutorial-order-processing/CONTEXT.md` and
+`specs/tutorial-order-processing/SUITE-CONTRACT.md`.
+
+Treat every tutorial as a small, standalone projection of the same backend
+system, not as an independent reinvention of it. The purpose is to prevent
+architectural and domain-model drift without making a tutorial carry concepts
+that do not serve its pain point.
+
+Keep these invariants aligned across the suite:
+
+- ubiquitous domain terms and their meanings;
+- identifiers, shared value objects, and the ownership of generated values;
+- the meaning of HTTP routes and response statuses;
+- the boundary between HTTP concerns, application operations, service
+  contracts, and infrastructure implementations;
+- service names, error names, and the behavior represented by deterministic
+  fixture inputs;
+- cancellation and resource-lifetime boundaries.
+
+A tutorial may use only the fields, services, and files required for its
+lesson. That reduced model must be a compatible projection of the shared model,
+not a conflicting alternative. Keep unrelated capabilities behind small
+fixtures instead of introducing extra Effect APIs merely for consistency.
+
+Maintain a separate reference application as the integration target for the
+suite. Tutorial solutions should fit its contracts conceptually, but they do
+not need to reproduce its full architecture or be mechanically concatenated.
+When coherence and pedagogical simplicity conflict, preserve the tutorial's
+focus and simplify through a compatible fixture.
 
 ## Explain Effect from zero
 
@@ -118,6 +155,26 @@ Verify API names and semantics against the installed v4 package under `apps/web/
 - Use direct, literal language. Avoid colloquialisms, idioms, and unexplained jargon, even when they are common among fluent English speakers.
 - Avoid adjacent code fences that render as one block. Separate them with a short transition and give each fence a meaningful `title`.
 - Never use the em dash character `—` in documentation copy.
+
+## Preserve the documentation color language
+
+Use the semantic documentation tokens defined in `apps/web/src/styles/global.css`
+when changing documentation UI, navigation, or callouts. Do not introduce raw
+palette classes where a documentation token already expresses the meaning.
+
+- Use emerald `--docs-tutorial-*` tokens for tutorials and checkpoints.
+- Use sky `--docs-guide-*` tokens for guides.
+- Use indigo `--docs-reference-*` tokens for API reference content.
+- Use neutral slate `--docs-architecture-*` tokens for architectural
+  components and relationships inside tutorial visualizations. Architecture is
+  supporting structure, not a document family, so it must not compete with the
+  indigo used by API reference content.
+- Keep pain points amber and errors red. These state meanings override the
+  surrounding document-family color.
+
+Define and inspect both light and dark values for every new semantic token.
+Keep labels, icons, borders, or other non-color cues so color is never the only
+way to identify a document family or state.
 
 ## Present code for copying
 

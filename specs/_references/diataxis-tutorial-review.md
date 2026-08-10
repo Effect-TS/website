@@ -194,7 +194,7 @@ surrounding project setup still need work for Diátaxis-level repeatability.
 have the learner add the error filter, bound and timeout in three executable
 edits. Reset the fixture counter per request or log a request-local attempt.
 
-### `structured-concurrency-built-in.mdx`
+### `keep-concurrent-work-under-control.mdx`
 
 **What works**
 
@@ -220,7 +220,7 @@ edits. Reset the fixture counter per request or log a request-local attempt.
 then add a logged shipping branch and finally the deadline. Each change can
 produce one distinct log pattern without increasing provider complexity.
 
-### `tie-resources-to-operation-lifetimes.mdx`
+### `clean-up-resources-reliably.mdx`
 
 **What works**
 
@@ -248,7 +248,7 @@ learner add each acquisition and finalizer, and expose a fixture reset or restar
 before every prescribed output. Demonstrate a defect only if it remains part of
 the promised outcome.
 
-### `derive-json-codecs-for-domain-models.mdx`
+### `send-rich-domain-models-over-the-wire.mdx`
 
 **What works**
 
@@ -333,7 +333,7 @@ root span, then child and retry-attempt spans one at a time. Include a pinned UI
 image plus start/health/stop checks for the dashboard. Leave exporter replacement
 as linked explanation or a separate how-to.
 
-### `keep-ai-generated-code-under-control.mdx`
+### `catch-ai-slop-before-it-ships.mdx`
 
 **What works**
 
@@ -380,7 +380,7 @@ provided before the exercise begins. They can become strong tutorials by
 turning the topic-specific code into cumulative actions and relegating generic
 backend infrastructure to a starter.
 
-`keep-ai-generated-code-under-control.mdx` remains the exception. Its primary
+`catch-ai-slop-before-it-ships.mdx` remains the exception. Its primary
 path is inherently branched and dependent on uncontrolled agent behavior. The
 captured patch contains the seed of a reliable tutorial, but the current
 real-agent workflow is closer to a how-to or facilitated lab.

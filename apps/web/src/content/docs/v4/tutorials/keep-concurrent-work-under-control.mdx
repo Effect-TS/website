@@ -1,11 +1,12 @@
 ---
-title: Structured concurrency, built in
+title: Keep concurrent work under control
 description: Run independent work concurrently with one timeout, ordered results, and automatic cancellation.
 sidebar:
   order: 2
 ---
 
 import {
+  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -33,6 +34,8 @@ endpoint behaves as follows:
 | Lookups finish in a different order       | The response keeps the request's item order                                       |
 | Line and shipping providers are both slow | One 500 ms deadline interrupts all unfinished work and returns `504`              |
 | The client disconnects first              | All unfinished work is interrupted and no response is written                     |
+
+<TutorialArchitectureMap active="keep-concurrent-work-under-control" compact />
 
 Throughout the tutorial, we will work on `server.ts`. Each step shows the
 complete current file, and each checkpoint summarizes the behavior reached at
@@ -1055,5 +1058,5 @@ the fixture remains responsible for reading and writing HTTP.
 
 ## Related tutorials
 
-- [Make failures explicit](/docs/v4/tutorials/make-failures-explicit)
-- [Tie resources to operation lifetimes](/docs/v4/tutorials/tie-resources-to-operation-lifetimes)
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Clean up resources reliably](/docs/v4/tutorials/clean-up-resources-reliably)

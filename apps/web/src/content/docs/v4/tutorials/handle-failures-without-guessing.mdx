@@ -1,11 +1,12 @@
 ---
-title: Make failures explicit
+title: Handle failures without guessing
 description: Make thrown exceptions and Promise rejections explicit, then handle retries, timeouts, and cancellation.
 sidebar:
   order: 1
 ---
 
 import {
+  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -37,6 +38,8 @@ follows:
 | Provider fails unexpectedly         | Do not guess                      | `502`       |
 | Provider takes too long             | Interrupt and retry at most twice | `504`       |
 | Client disconnects                  | Interrupt the complete operation  | No response |
+
+<TutorialArchitectureMap active="handle-failures-without-guessing" compact />
 
 Throughout the tutorial, we will work on `server.ts`. Each step shows the
 complete current file, and each checkpoint summarizes the behavior reached at
@@ -160,7 +163,9 @@ export const authorizePayment = async (
   signal?.addEventListener(
     "abort",
     () => console.log("primary-pay authorization aborted"),
-    { once: true },
+    {
+      once: true,
+    },
   )
   // Passing the signal makes the simulated provider latency cancellable.
   await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
@@ -340,7 +345,9 @@ class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
 class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
-)<{ readonly cause: unknown }> {}
+)<{
+  readonly cause: unknown
+}> {}
 
 // Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
@@ -426,7 +433,9 @@ class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
 class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
-)<{ readonly cause: unknown }> {}
+)<{
+  readonly cause: unknown
+}> {}
 
 // Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
@@ -523,7 +532,9 @@ class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
 class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
 class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
-)<{ readonly cause: unknown }> {}
+)<{
+  readonly cause: unknown
+}> {}
 
 // Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
@@ -608,7 +619,9 @@ class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
 class PaymentTimedOut extends Data.TaggedError("PaymentTimedOut") {}
 class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
-)<{ readonly cause: unknown }> {}
+)<{
+  readonly cause: unknown
+}> {}
 
 // Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
@@ -713,7 +726,9 @@ class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable") {}
 class PaymentTimedOut extends Data.TaggedError("PaymentTimedOut") {}
 class UnexpectedPaymentProviderError extends Data.TaggedError(
   "UnexpectedPaymentProviderError",
-)<{ readonly cause: unknown }> {}
+)<{
+  readonly cause: unknown
+}> {}
 
 // Convert SDK errors into the errors handled by server.ts.
 const toPaymentError = (cause: unknown) => {
@@ -815,5 +830,5 @@ unexpected bugs. It does not reinterpret either as a payment decision.
 
 ## Related tutorials
 
-- [Structured concurrency, built in](/docs/v4/tutorials/structured-concurrency-built-in)
-- [Tie resources to operation lifetimes](/docs/v4/tutorials/tie-resources-to-operation-lifetimes)
+- [Keep concurrent work under control](/docs/v4/tutorials/keep-concurrent-work-under-control)
+- [Clean up resources reliably](/docs/v4/tutorials/clean-up-resources-reliably)

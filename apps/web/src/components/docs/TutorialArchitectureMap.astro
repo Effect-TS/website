@@ -1,0 +1,565 @@
+---
+import { ArrowDown } from "@lucide/astro"
+
+type TutorialId =
+  | "handle-failures-without-guessing"
+  | "keep-concurrent-work-under-control"
+  | "clean-up-resources-reliably"
+  | "send-rich-domain-models-over-the-wire"
+  | "keep-dependencies-explicit-without-manual-wiring"
+  | "catch-ai-slop-before-it-ships"
+  | "instrument-applications-for-opentelemetry-without-the-plumbing"
+
+interface Props {
+  active?: TutorialId
+  compact?: boolean
+}
+
+const { active, compact = false } = Astro.props
+
+const tutorials: ReadonlyArray<{
+  readonly id: TutorialId
+  readonly title: string
+  readonly pain: string
+  readonly href: string
+}> = [
+  {
+    id: "handle-failures-without-guessing",
+    title: "Handle failures without guessing",
+    pain: "Thrown values and Promise rejections hide which failures callers should handle.",
+    href: "/docs/v4/tutorials/handle-failures-without-guessing",
+  },
+  {
+    id: "keep-concurrent-work-under-control",
+    title: "Keep concurrent work under control",
+    pain: "Safe concurrent work normally requires limits, deadlines, cancellation, and glue code.",
+    href: "/docs/v4/tutorials/keep-concurrent-work-under-control",
+  },
+  {
+    id: "clean-up-resources-reliably",
+    title: "Clean up resources reliably",
+    pain: "Resources can outlive work that fails or is cancelled.",
+    href: "/docs/v4/tutorials/clean-up-resources-reliably",
+  },
+  {
+    id: "send-rich-domain-models-over-the-wire",
+    title: "Send rich domain models over the wire",
+    pain: "Rich domain models require duplicate response types and conversion code to cross JSON boundaries.",
+    href: "/docs/v4/tutorials/send-rich-domain-models-over-the-wire",
+  },
+  {
+    id: "keep-dependencies-explicit-without-manual-wiring",
+    title: "Keep dependencies explicit without manual wiring",
+    pain: "Dependency injection often trades visible plumbing for runtime magic.",
+    href: "/docs/v4/tutorials/keep-dependencies-explicit-without-manual-wiring",
+  },
+  {
+    id: "catch-ai-slop-before-it-ships",
+    title: "Catch AI slop before it ships",
+    pain: "LLMs produce plausible-looking code that can hide structural mistakes.",
+    href: "/docs/v4/tutorials/catch-ai-slop-before-it-ships",
+  },
+  {
+    id: "instrument-applications-for-opentelemetry-without-the-plumbing",
+    title: "Instrument applications for OpenTelemetry without the plumbing",
+    pain: "Correct tracing normally requires manual span and context management.",
+    href: "/docs/v4/tutorials/instrument-applications-for-opentelemetry-without-the-plumbing",
+  },
+]
+
+const layers = [
+  {
+    label: "API clients",
+    columns: 2,
+    nodes: [
+      {
+        label: "Owned client",
+        detail: "Shares the domain Schema",
+        tutorials: ["send-rich-domain-models-over-the-wire"],
+      },
+      {
+        label: "External client",
+        detail: "Requires a fixed JSON contract",
+        tutorials: ["send-rich-domain-models-over-the-wire"],
+      },
+    ],
+  },
+  {
+    label: "HTTP boundary",
+    columns: 2,
+    nodes: [
+      {
+        label: "HTTP routes",
+        detail: "Read requests and send responses",
+        tutorials: [
+          "handle-failures-without-guessing",
+          "keep-concurrent-work-under-control",
+          "send-rich-domain-models-over-the-wire",
+          "keep-dependencies-explicit-without-manual-wiring",
+          "catch-ai-slop-before-it-ships",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+      {
+        label: "Domain model",
+        detail: "Connect rich values to JSON representations",
+        tutorials: ["send-rich-domain-models-over-the-wire", "catch-ai-slop-before-it-ships"],
+      },
+    ],
+  },
+  {
+    label: "Application operations",
+    columns: 3,
+    nodes: [
+      {
+        label: "Quote order",
+        detail: "Price lines and shipping",
+        tutorials: ["keep-concurrent-work-under-control"],
+      },
+      {
+        label: "Place order",
+        detail: "Reserve, pay, and store",
+        tutorials: [
+          "handle-failures-without-guessing",
+          "clean-up-resources-reliably",
+          "keep-dependencies-explicit-without-manual-wiring",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+      {
+        label: "Import orders",
+        detail: "Validate external records",
+        tutorials: ["catch-ai-slop-before-it-ships"],
+      },
+    ],
+  },
+  {
+    label: "Backend services",
+    columns: 5,
+    nodes: [
+      {
+        label: "Catalog",
+        detail: "Price a line",
+        tutorials: [
+          "keep-concurrent-work-under-control",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+      {
+        label: "Shipping",
+        detail: "Quote delivery",
+        tutorials: [
+          "keep-concurrent-work-under-control",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+      {
+        label: "Inventory",
+        detail: "Reserve stock",
+        tutorials: [
+          "clean-up-resources-reliably",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+      {
+        label: "Payment",
+        detail: "Authorize payment",
+        tutorials: [
+          "handle-failures-without-guessing",
+          "keep-dependencies-explicit-without-manual-wiring",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+      {
+        label: "Order repository",
+        detail: "Store accepted orders",
+        tutorials: [
+          "clean-up-resources-reliably",
+          "keep-dependencies-explicit-without-manual-wiring",
+          "instrument-applications-for-opentelemetry-without-the-plumbing",
+        ],
+      },
+    ],
+  },
+  {
+    label: "Application-wide support",
+    columns: 3,
+    nodes: [
+      {
+        label: "Service setup",
+        detail: "Select and share implementations",
+        tutorials: ["keep-dependencies-explicit-without-manual-wiring"],
+      },
+      {
+        label: "Tracing",
+        detail: "Connect operations in one trace",
+        tutorials: ["instrument-applications-for-opentelemetry-without-the-plumbing"],
+      },
+      {
+        label: "Development tools",
+        detail: "Check code before it ships",
+        tutorials: ["catch-ai-slop-before-it-ships"],
+      },
+    ],
+  },
+] as const
+
+const isHighlighted = (related: readonly string[]) =>
+  active === undefined || related.includes(active)
+---
+
+<tutorial-architecture-map
+  class="not-prose my-8 block"
+  data-active={active ?? "all"}
+  data-compact={compact ? "true" : "false"}
+  data-filtered={active === undefined ? "false" : "true"}
+>
+  <section
+    class="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-950/40"
+    aria-label={compact
+      ? "Architecture focus for this tutorial"
+      : "Order-processing tutorial architecture"}
+  >
+    <header class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p class="tutorial-eyebrow m-0 text-xs font-semibold tracking-wider uppercase">
+            {compact ? "Architecture focus" : "Shared tutorial scenario"}
+          </p>
+          <p class="mt-1 mb-0 text-base font-semibold text-zinc-950 dark:text-white">
+            The order-processing system
+          </p>
+        </div>
+        {
+          compact && (
+            <a
+              class="tutorial-link text-sm font-medium hover:underline"
+              href="/docs/v4/tutorials/introduction"
+            >
+              View the complete architecture
+            </a>
+          )
+        }
+      </div>
+    </header>
+
+    <div class:list={["architecture-layout", { "is-compact": compact }]}>
+      {
+        !compact && (
+          <div class="architecture-controls" aria-label="Select a tutorial">
+            <p class="mt-0 mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+              Select a tutorial to see which parts of the system it affects.
+            </p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              {tutorials.map((tutorial) => (
+                <button
+                  type="button"
+                  class="architecture-control"
+                  data-tutorial-control={tutorial.id}
+                  data-tutorial-title={tutorial.title}
+                  data-tutorial-pain={tutorial.pain}
+                  data-tutorial-href={tutorial.href}
+                  aria-pressed="false"
+                >
+                  {tutorial.title}
+                </button>
+              ))}
+            </div>
+
+            <div class="architecture-selection" data-selection hidden>
+              <p
+                class="mt-0 mb-1 font-semibold text-zinc-950 dark:text-white"
+                data-selection-title
+              />
+              <p class="mt-0 mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">Problem addressed:</span>{" "}
+                <span data-selection-pain />
+              </p>
+              <a class="tutorial-link text-sm font-medium hover:underline" data-selection-link>
+                Open tutorial
+              </a>
+            </div>
+          </div>
+        )
+      }
+
+      <div class="architecture-diagram" aria-label="System layers">
+        {
+          layers.map((layer, layerIndex) => (
+            <div>
+              {layerIndex > 0 && (
+                <div class="architecture-arrow" aria-hidden="true">
+                  <ArrowDown size={17} />
+                </div>
+              )}
+              <section class="architecture-layer">
+                <p class="architecture-layer-label">{layer.label}</p>
+                <div class="architecture-nodes" style={`--architecture-columns: ${layer.columns}`}>
+                  {layer.nodes.map((node) => (
+                    <div
+                      class="architecture-node"
+                      data-architecture-node
+                      data-related={node.tutorials.join(" ")}
+                      data-highlighted={isHighlighted(node.tutorials) ? "true" : "false"}
+                    >
+                      <p class="architecture-node-title">{node.label}</p>
+                      <p class="architecture-node-detail">{node.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</tutorial-architecture-map>
+
+<script>
+  class TutorialArchitectureMap extends HTMLElement {
+    connectedCallback() {
+      this.addEventListener("click", this.onClick)
+      this.applySelection(this.dataset.active ?? "all")
+    }
+
+    disconnectedCallback() {
+      this.removeEventListener("click", this.onClick)
+    }
+
+    onClick = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const control = target.closest<HTMLButtonElement>("[data-tutorial-control]")
+      if (control === null || !this.contains(control)) return
+      const tutorial = control.dataset.tutorialControl ?? "all"
+      this.applySelection(this.dataset.active === tutorial ? "all" : tutorial)
+    }
+
+    applySelection(tutorial: string) {
+      this.dataset.active = tutorial
+      this.dataset.filtered = tutorial === "all" ? "false" : "true"
+
+      this.querySelectorAll<HTMLElement>("[data-architecture-node]").forEach((node) => {
+        const related = node.dataset.related?.split(" ") ?? []
+        node.dataset.highlighted = String(tutorial === "all" || related.includes(tutorial))
+      })
+
+      const controls = this.querySelectorAll<HTMLButtonElement>("[data-tutorial-control]")
+      controls.forEach((control) => {
+        control.setAttribute("aria-pressed", String(control.dataset.tutorialControl === tutorial))
+      })
+
+      const selected = [...controls].find((control) => control.dataset.tutorialControl === tutorial)
+      const selection = this.querySelector<HTMLElement>("[data-selection]")
+      if (selection === null) return
+      selection.hidden = selected === undefined
+      if (selected === undefined) return
+
+      const title = selection.querySelector<HTMLElement>("[data-selection-title]")
+      const pain = selection.querySelector<HTMLElement>("[data-selection-pain]")
+      const link = selection.querySelector<HTMLAnchorElement>("[data-selection-link]")
+      if (title !== null) title.textContent = selected.dataset.tutorialTitle ?? ""
+      if (pain !== null) pain.textContent = selected.dataset.tutorialPain ?? ""
+      if (link !== null) link.href = selected.dataset.tutorialHref ?? ""
+    }
+  }
+
+  if (!customElements.get("tutorial-architecture-map")) {
+    customElements.define("tutorial-architecture-map", TutorialArchitectureMap)
+  }
+</script>
+
+<style>
+  .architecture-layout {
+    display: grid;
+    gap: 1.25rem;
+    padding: 1.25rem;
+  }
+
+  .architecture-layout:not(.is-compact) {
+    grid-template-columns: minmax(13rem, 0.8fr) minmax(0, 1.5fr);
+  }
+
+  .architecture-controls {
+    align-self: start;
+  }
+
+  .architecture-control {
+    border: 1px solid var(--color-zinc-200);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--color-white) 75%, transparent);
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    color: var(--color-zinc-700);
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .architecture-control:hover,
+  .architecture-control[aria-pressed="true"] {
+    border-color: var(--docs-tutorial-border-strong);
+    background: var(--docs-tutorial-surface-strong);
+    color: var(--docs-tutorial-text-strong);
+  }
+
+  .architecture-control:focus-visible {
+    outline: 2px solid var(--docs-tutorial-focus);
+    outline-offset: 2px;
+  }
+
+  .architecture-selection {
+    margin-top: 1rem;
+    border-top: 1px solid var(--color-zinc-200);
+    padding-top: 1rem;
+  }
+
+  .architecture-layer {
+    border-radius: 0.625rem;
+    background: color-mix(in srgb, var(--color-white) 58%, transparent);
+    padding: 0.75rem;
+  }
+
+  .architecture-layer-label {
+    margin: 0 0 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-zinc-500);
+  }
+
+  .architecture-nodes {
+    display: grid;
+    grid-template-columns: repeat(var(--architecture-columns), minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .architecture-node {
+    min-width: 0;
+    border: 1px solid var(--color-zinc-200);
+    border-radius: 0.5rem;
+    background: var(--color-white);
+    padding: 0.625rem;
+    transition:
+      opacity 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  [data-filtered="true"] .architecture-node[data-highlighted="true"] {
+    border-color: var(--docs-architecture-border-strong);
+    background: var(--docs-architecture-surface);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--docs-architecture-border-strong) 24%, transparent);
+  }
+
+  [data-filtered="true"] .architecture-node[data-highlighted="true"] .architecture-node-title {
+    color: var(--docs-architecture-text);
+  }
+
+  [data-filtered="true"] .architecture-node[data-highlighted="false"] {
+    opacity: 0.28;
+  }
+
+  .architecture-node-title {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 650;
+    line-height: 1.2rem;
+    color: var(--color-zinc-950);
+  }
+
+  .architecture-node-detail {
+    margin: 0.1875rem 0 0;
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    color: var(--color-zinc-500);
+  }
+
+  .architecture-arrow {
+    display: flex;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-zinc-400);
+  }
+
+  .tutorial-eyebrow,
+  .tutorial-link {
+    color: var(--docs-tutorial-text);
+  }
+
+  .tutorial-link:hover {
+    color: var(--docs-tutorial-text-strong);
+  }
+
+  .is-compact .architecture-node-detail {
+    display: none;
+  }
+
+  .is-compact .architecture-layer {
+    padding: 0.625rem;
+  }
+
+  .is-compact .architecture-arrow {
+    height: 1rem;
+  }
+
+  :global(.dark) .architecture-control {
+    border-color: var(--color-zinc-800);
+    background: color-mix(in srgb, var(--color-zinc-900) 72%, transparent);
+    color: var(--color-zinc-300);
+  }
+
+  :global(.dark) .architecture-control:hover,
+  :global(.dark) .architecture-control[aria-pressed="true"] {
+    border-color: var(--docs-tutorial-border-strong);
+    background: var(--docs-tutorial-surface-strong);
+    color: var(--docs-tutorial-text-strong);
+  }
+
+  :global(.dark) .architecture-selection {
+    border-color: var(--color-zinc-800);
+  }
+
+  :global(.dark) .architecture-layer {
+    background: color-mix(in srgb, var(--color-zinc-900) 50%, transparent);
+  }
+
+  :global(.dark) .architecture-node {
+    border-color: var(--color-zinc-800);
+    background: var(--color-zinc-950);
+  }
+
+  :global(.dark) [data-filtered="true"] .architecture-node[data-highlighted="true"] {
+    border-color: var(--docs-architecture-border-strong);
+    background: var(--docs-architecture-surface);
+  }
+
+  :global(.dark) .architecture-node-title {
+    color: var(--color-zinc-100);
+  }
+
+  :global(.dark) .architecture-node-detail,
+  :global(.dark) .architecture-layer-label {
+    color: var(--color-zinc-400);
+  }
+
+  @media (max-width: 52rem) {
+    .architecture-layout:not(.is-compact) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .architecture-nodes {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
