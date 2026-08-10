@@ -1,13 +1,17 @@
 ---
-title: Writing Effect with AI
-description: Understand how Effect gives AI-generated TypeScript faster feedback and gives you concrete ways to verify the result.
+title: Why Effect keeps AI-generated code under control
+description: See how Effect's precise types and developer tools constrain and expose plausible AI-generated slop.
 sidebar:
   order: 3
 ---
 
-AI is good at producing plausible code. Production failures usually hide in what the prompt did not say: which errors matter, which services are available, what must be cleaned up, what can be retried, and what should happen when work is cancelled.
+LLMs produce plausible-looking slop: code that may compile or pass the happy
+path while hiding failures, trusting external data, or ignoring cleanup and
+cancellation.
 
-Effect makes those decisions visible to the compiler, the runtime, and your development tools. Your AI receives faster, more precise feedback, and you get code that can be checked instead of merely trusted.
+Effect keeps that slop under control in two ways. Its precise types make many
+mistakes harder to express, while its developer tools detect suspicious code
+that still gets through. The result can be checked instead of merely trusted.
 
 ## Give the tools something concrete to check
 
@@ -31,7 +35,8 @@ That structure does not make an AI infallible. It makes more of its mistakes obs
 
 Effect's Language Service supplies type-aware diagnostics to the editor and TypeScript-Go workflow. Effect's Oxlint integration exposes the same rules under `effecttsgo/*`, so the feedback can also run from the command line and in CI.
 
-For example, an AI may create an operation and forget to compose it:
+For example, an AI may create an Effect operation but never include it in the
+computation that runs:
 
 ```ts
 import { Effect } from "effect"
@@ -84,8 +89,9 @@ A diagnostic can identify an incomplete error contract. It cannot decide whether
 
 Use the tools to expose the decision, then make the decision deliberately.
 
-## Try the complete workflow
+## See the feedback loop in practice
 
-[Keep AI-generated code under control](/docs/v4/tutorials/keep-ai-generated-code-under-control) asks your own AI to add `POST /orders/import`, inspect the generated change, and use Effect-specific diagnostics to correct it.
+[Keep AI-generated code under control](/docs/v4/tutorials/keep-ai-generated-code-under-control) starts from a captured AI-generated implementation of `POST /orders/import`, inspects its mistakes, and uses Effect-specific diagnostics to correct them.
 
-If you do not have access to an AI tool, or if your AI produces clean code immediately, the tutorial includes a captured fallback patch that reproduces the same feedback locally.
+Because the generated change is fixed, the same findings can be reproduced
+without depending on a particular model or AI tool.

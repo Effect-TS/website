@@ -32,7 +32,12 @@ Each tool can be reasonable by itself. The risk lives in the connections: does a
 
 Effect keeps those concerns attached to the operation as it is built.
 
-```ts
+The following declaration shows the type of one order operation, not its
+implementation. `placeOrder` describes work that can produce an accepted
+order, fail in two expected ways, and still need two external services before
+it can run. TypeScript can see all three facts in one `Effect.Effect` type:
+
+```ts title="The type of an order operation"
 import { Effect } from "effect"
 
 declare const placeOrder: Effect.Effect<
@@ -87,8 +92,9 @@ unfinished work stops too.
 
 ### Resources follow operation lifetimes
 
-A `Scope` owns resources and their finalizers. When the operation's lifetime
-ends, cleanup runs after success, failure, cancellation, or an unexpected bug.
+Effect ties cleanup to the work that uses a resource. Cleanup runs when that
+work succeeds, fails, or is cancelled, without manually coordinating
+`try`/`finally` blocks and cancellation signals.
 
 ### Rich domain models get JSON codecs
 
@@ -98,8 +104,8 @@ instead of maintained as separate serialization code.
 
 ### Dependencies stay explicit without manual wiring
 
-An operation's type records the services it requires. `Layer` selects and
-builds their implementations at the application boundary, so dependencies stay
+An operation's type records the services it requires. Their implementations
+are selected in one place at the application boundary, so dependencies stay
 visible without passing them through every intermediate function.
 
 ### AI-generated code faces precise constraints
