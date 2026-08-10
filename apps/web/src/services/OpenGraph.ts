@@ -28,14 +28,19 @@ export interface OgAssets {
 
 // ---------------------------------------------------------------------------
 // Asset loading — read once, cached for the lifetime of the function.
-// Paths are relative to process.cwd() (project root in dev; function root on
-// Vercel, where these files are bundled via adapter `includeFiles`).
+//
+// The Vercel adapter copies files relative to the workspace root. In this
+// monorepo that means deployed files live under `apps/web/src`, while local
+// Astro commands run with `apps/web` as their working directory and see them
+// under `src`.
 // ---------------------------------------------------------------------------
 
 let _assets: OgAssets | null = null
 
+export const webSourceRoot = process.env.VERCEL === "1" ? "apps/web/src" : "src"
+
 export async function loadAssets(
-  root: string | URL = "src",
+  root: string | URL = webSourceRoot,
 ): Promise<OgAssets> {
   if (_assets !== null) {
     return _assets

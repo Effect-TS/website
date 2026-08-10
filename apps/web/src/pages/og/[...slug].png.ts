@@ -5,6 +5,7 @@ import { pipe } from "effect/Function"
 import * as Function from "effect/Function"
 import * as Option from "effect/Option"
 import { readFile } from "node:fs/promises"
+import { join } from "node:path"
 import type { OgTemplateProps } from "@/services/OpenGraph"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import {
@@ -12,6 +13,7 @@ import {
   renderApiReferenceOg,
   renderBlogOg,
   renderDocsOg,
+  webSourceRoot,
 } from "@/services/OpenGraph"
 
 // On-demand server endpoint: slugs derive from arbitrary page pathnames
@@ -95,7 +97,7 @@ async function readStaticPng(
     return Option.none()
   }
 
-  const base = "src/pages/og/_assets"
+  const base = join(webSourceRoot, "pages/og/_assets")
   const firstAttempt = await tryReadFile(`${base}/${imagePath}.png`)
 
   if (Option.isSome(firstAttempt)) {
