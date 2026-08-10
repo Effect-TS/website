@@ -1,0 +1,23 @@
+---
+/**
+ * Eyebrow / kicker label — the mono, uppercase, tracked label used across Blog,
+ * Docs and API Reference. The utility string lives here once; call sites pass
+ * extra classes (spacing, size) via `class` and pick the tag via `as`.
+ */
+interface Props {
+  readonly as?: string
+  readonly class?: string
+}
+
+const { as = "p", class: className } = Astro.props
+const Tag = as as keyof HTMLElementTagNameMap
+---
+
+<Tag
+  class:list={[
+    "font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase",
+    className,
+  ]}
+>
+  <slot />
+</Tag>

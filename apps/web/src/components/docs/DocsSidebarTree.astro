@@ -1,0 +1,81 @@
+---
+import type { CollectionEntry } from "astro:content"
+import { ChevronDown } from "@lucide/astro"
+
+/**
+ * Documentation sidebar navigation tree. Rendered identically in the mobile
+ * disclosure and the desktop rail — one source, no duplication. Active state is
+ * expressed with `aria-current` + Tailwind `aria-[current=page]:` variants, so
+ * styling stays in the markup (no custom CSS class, no JS class toggling).
+ */
+interface SidebarGroup {
+  readonly dir: string
+  readonly label: string
+  readonly entries: ReadonlyArray<CollectionEntry<"docs">>
+  readonly isOpen: boolean
+}
+
+type SidebarItem =
+  | { readonly kind: "entry"; readonly entry: CollectionEntry<"docs"> }
+  | { readonly kind: "group"; readonly group: SidebarGroup }
+
+interface Props {
+  readonly items: ReadonlyArray<SidebarItem>
+  readonly currentId: string
+}
+
+const { items, currentId } = Astro.props
+
+const entryLabel = (e: CollectionEntry<"docs">): string => e.data.sidebar?.label ?? e.data.title
+const entryHref = (e: CollectionEntry<"docs">): string => `/docs/${e.id.replace(/\/index$/, "")}`
+
+// Shared link treatment: resting muted, hover/active strong.
+const linkClass =
+  "block rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-semibold aria-[current=page]:text-foreground"
+---
+
+<ul class="flex flex-col gap-0.5">
+  {
+    items.map((item) =>
+      item.kind === "entry" ? (
+        <li>
+          <a
+            href={entryHref(item.entry)}
+            aria-current={item.entry.id === currentId ? "page" : undefined}
+            class:list={[
+              linkClass,
+              "-mx-2 flex items-center justify-between px-2 py-2.5 font-mono text-sm font-medium tracking-wider uppercase",
+            ]}
+          >
+            {entryLabel(item.entry)}
+          </a>
+        </li>
+      ) : (
+        <li class="mb-1 last:mb-0">
+          <details open={item.group.isOpen || undefined} class="group">
+            <summary class="flex cursor-pointer list-none items-center justify-between rounded py-2.5 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase transition-colors select-none hover:text-foreground">
+              <span>{item.group.label}</span>
+              <ChevronDown
+                class="size-4 shrink-0 transition-transform group-open:rotate-180"
+                aria-hidden="true"
+              />
+            </summary>
+            <ul class="flex flex-col gap-0.5 pb-4">
+              {item.group.entries.map((e) => (
+                <li>
+                  <a
+                    href={entryHref(e)}
+                    aria-current={e.id === currentId ? "page" : undefined}
+                    class:list={[linkClass, "py-1.5 pl-3 text-sm"]}
+                  >
+                    {entryLabel(e)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </li>
+      ),
+    )
+  }
+</ul>

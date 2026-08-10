@@ -133,23 +133,70 @@ html {
     font-size: 0.85em;
   }
 
-  /* Blog prose headings use literal reading sizes (not the project's oversized text-2xl/xl/lg
-     tokens above, which are tuned for marketing/hero copy) so body copy matches the blog
-     typography reference. */
+  /* Shared heading weight + tracking for every prose-effect context (docs, API,
+     blog). Layered here so `.blog-article` below can override tracking. */
+  .prose-effect
+    :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  /* Blog uses an editorial reading treatment on top of `.prose-effect`: literal
+     reading sizes (not the project's oversized text-2xl/xl/lg tokens above, which
+     are tuned for marketing/hero copy) and wider vertical rhythm. Defined once
+     here — blog pages just add the `blog-article` class. */
+  .blog-article :where(p):not(:where([class~="not-prose"] *)),
+  .blog-article :where(li):not(:where([class~="not-prose"] *)) {
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  .blog-article :where(p):not(:where([class~="not-prose"] *)) {
+    margin-block: 1.25rem;
+  }
+
   .blog-article :where(h2):not(:where([class~="not-prose"] *)) {
+    margin-block: 3.5rem 0.75rem;
     font-size: 1.5rem;
     line-height: 1.33;
     letter-spacing: -0.012em;
   }
 
   .blog-article :where(h3):not(:where([class~="not-prose"] *)) {
+    margin-block: 2rem 1rem;
     font-size: 1.25rem;
     line-height: 1.4;
+    letter-spacing: normal;
   }
 
   .blog-article :where(h4):not(:where([class~="not-prose"] *)) {
+    margin-block: 1.75rem 0.625rem;
     font-size: 1.0625rem;
     line-height: 1.4;
+    letter-spacing: normal;
+  }
+
+  .blog-article :where(blockquote):not(:where([class~="not-prose"] *)) {
+    margin-block: 2.5rem;
+    border: none;
+    padding: 0;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.33;
+    letter-spacing: -0.012em;
+  }
+
+  .blog-article :where(figure):not(:where([class~="not-prose"] *)) {
+    margin-block: 3rem;
+  }
+
+  .blog-article :where(table):not(:where([class~="not-prose"] *)) {
+    margin-block: 2rem;
+  }
+
+  .blog-article :where(hr):not(:where([class~="not-prose"] *)) {
+    margin-block: 3rem;
   }
 
   .blog-article ul,
@@ -168,24 +215,110 @@ html {
     float: left;
     width: 1.25em;
     margin-left: -1.25em;
-    color: oklch(0.446 0.03 256.8);
+    color: var(--muted-foreground);
   }
 
   .blog-article ul > li:has(> p:first-child)::before {
     margin-top: 1.25rem;
   }
-
-  .dark .blog-article ul > li::before {
-    color: oklch(0.552 0.016 285.938);
-  }
 }
 
+/* ---------------------------------------------------------------------------
+   Typography — one prose configuration for Blog, Docs and API Reference.
+   Sets the typography plugin's `--tw-prose-*` vars from the theme-aware design
+   tokens, so a single `prose prose-effect` renders correctly in light AND dark
+   (no `dark:prose-invert`). Unlayered so these vars win over the plugin's
+   defaults. See apps/web/DESIGN.md.
+   --------------------------------------------------------------------------- */
+.prose-effect {
+  --tw-prose-body: var(--muted-foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--muted-foreground);
+  --tw-prose-links: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted-foreground);
+  --tw-prose-bullets: var(--subtle-foreground);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted-foreground);
+  --tw-prose-kbd: var(--foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--card);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+}
+
+/* Links: same neutral family as the body copy but higher contrast — `foreground`
+   is darker than the muted body in light mode and lighter in dark mode.
+   Underlined by default; underline removed on hover. One treatment across
+   Blog, Docs and API Reference. */
+.prose-effect :where(a):not(:where([class~="not-prose"] *)) {
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.prose-effect :where(a):not(:where([class~="not-prose"] *)):hover {
+  text-decoration: none;
+}
+
+/* Inline code chip (block code is handled by Expressive Code) */
+.prose-effect :where(code):not(:where([class~="not-prose"] *, pre *)) {
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.85em;
+  font-weight: 400;
+}
+.prose-effect :where(code):not(:where([class~="not-prose"] *, pre *))::before,
+.prose-effect :where(code):not(:where([class~="not-prose"] *, pre *))::after {
+  content: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Semantic color tokens — SINGLE SOURCE OF TRUTH.
+   `@theme inline` exposes each theme-aware var (defined in :root / .dark below)
+   as a `--color-*`, which generates the matching bg-/text-/border-/ring-
+   utilities. Consume these tokens instead of hardcoded zinc/dark:zinc pairs.
+   See apps/web/DESIGN.md.
+   --------------------------------------------------------------------------- */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--card-foreground);
+
+  --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-ring: var(--ring);
+  --color-subtle-foreground: var(--subtle-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+
+  /* Featured blog card — a hand-tuned recessed surface (zinc-50 light /
+     near-black dark). Bespoke values, but named here so call sites stay
+     semantic and the raw values live in exactly one place. */
+  --color-featured: var(--featured);
+  --color-featured-hover: var(--featured-hover);
 }
 
 @theme {
@@ -246,21 +379,75 @@ html {
   --zinc-800: #27272a;
   --zinc-950: #09090b;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.004 285.766);
-  --muted-foreground: oklch(0.552 0.014 285.866);
-  --ring: oklch(0.696 0.149 162.505);
-  --border: oklch(0.92 0.004 285.888);
+  /* Light theme token values (Tailwind zinc/red/emerald oklch) */
+  --background: oklch(1 0 0); /* white */
+  --foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
+
+  --card: oklch(
+    0.985 0 0
+  ); /* zinc-50 — subtle surface tint; use bg-card/NN for translucency */
+  --card-foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
+
+  --muted: oklch(0.967 0.001 286.375); /* zinc-100 */
+  --muted-foreground: oklch(0.552 0.016 285.938); /* zinc-500 */
+  --subtle-foreground: oklch(0.705 0.015 286.067); /* zinc-400 */
+
+  --accent: oklch(0.92 0.004 286.32); /* zinc-200 (selected/active fill) */
+  --accent-foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
+
+  --secondary: oklch(0.967 0.001 286.375); /* zinc-100 */
+  --secondary-foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
+
+  --primary: oklch(0.21 0.006 285.885); /* zinc-900 */
+  --primary-foreground: oklch(0.985 0 0); /* zinc-50 */
+
+  --destructive: oklch(0.577 0.245 27.325); /* red-600 */
+  --destructive-foreground: oklch(1 0 0); /* white */
+
+  --border: oklch(0.92 0.004 286.32); /* zinc-200 */
+  --border-strong: oklch(0.871 0.006 286.286); /* zinc-300 */
+  --input: oklch(0.871 0.006 286.286); /* zinc-300 */
+  --ring: oklch(0.696 0.17 162.48); /* emerald-500 */
+  --brand: oklch(0.696 0.17 162.48); /* emerald-500 */
+
+  --featured: #f7f7f8;
+  --featured-hover: #f4f4f5;
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: oklch(0.141 0.004 285.766);
-  --foreground: oklch(0.985 0 0);
-  --muted-foreground: oklch(0.712 0.013 285.965);
-  --ring: oklch(0.773 0.153 163.251);
-  --border: oklch(0.274 0.005 285.941);
+  /* Dark theme token values */
+  --background: oklch(0.141 0.005 285.823); /* zinc-950 */
+  --foreground: oklch(0.985 0 0); /* zinc-50 */
+
+  --card: oklch(0.21 0.006 285.885); /* zinc-900 */
+  --card-foreground: oklch(0.985 0 0); /* zinc-50 */
+
+  --muted: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --muted-foreground: oklch(0.705 0.015 286.067); /* zinc-400 */
+  --subtle-foreground: oklch(0.552 0.016 285.938); /* zinc-500 */
+
+  --accent: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --accent-foreground: oklch(0.985 0 0); /* zinc-50 */
+
+  --secondary: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --secondary-foreground: oklch(0.985 0 0); /* zinc-50 */
+
+  --primary: oklch(0.985 0 0); /* zinc-50 */
+  --primary-foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
+
+  --destructive: oklch(0.637 0.237 25.331); /* red-500 */
+  --destructive-foreground: oklch(1 0 0); /* white */
+
+  --border: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --border-strong: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --input: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --ring: oklch(0.765 0.177 163.223); /* emerald-400 */
+  --brand: oklch(0.765 0.177 163.223); /* emerald-400 */
+
+  --featured: #141315;
+  --featured-hover: #0f0f11;
 }
 
 /* Theme-aware values for inline-style backgrounds (glows) */

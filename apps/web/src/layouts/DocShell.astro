@@ -1,0 +1,67 @@
+---
+import Footer from "@/components/Footer.astro"
+import Navigation from "@/components/navigation/Navigation.astro"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import type { NavigationActiveSlug } from "@/lib/navigation"
+
+/**
+ * Three-column documentation shell (sidebar / main / table-of-contents) shared
+ * by Docs and API Reference. Columns adapt to the slots that are filled:
+ *   - `sidebar` present  → left rail from `lg`
+ *   - `toc` present      → right rail from `xl`
+ *   - `mobile-nav`       → rendered above the grid (page supplies its own)
+ * See apps/web/DESIGN.md.
+ */
+interface Props {
+  readonly title?: string | undefined
+  readonly description?: string | undefined
+  readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly ogImageVersion?: string | undefined
+}
+
+const { title, description, activeSlug = "docs", ogImageVersion } = Astro.props
+
+const hasSidebar = Astro.slots.has("sidebar")
+const hasToc = Astro.slots.has("toc")
+
+const gridCols = hasToc
+  ? "lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_240px]"
+  : "lg:grid-cols-[240px_1fr]"
+---
+
+<BaseLayout
+  {...title ? { title } : undefined}
+  {...description ? { description } : undefined}
+  {...ogImageVersion ? { ogImageVersion } : undefined}
+>
+  <Navigation activeSlug={activeSlug} />
+
+  <div class="relative w-full">
+    <slot name="mobile-nav" />
+
+    <div class:list={["mx-auto grid w-full max-w-352 grid-cols-1", gridCols]}>
+      {
+        hasSidebar && (
+          <aside class="hidden border-r border-border lg:block">
+            <slot name="sidebar" />
+          </aside>
+        )
+      }
+
+      <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
+        <slot />
+      </main>
+
+      {
+        hasToc && (
+          <aside class="hidden border-l border-border xl:block">
+            <slot name="toc" />
+          </aside>
+        )
+      }
+    </div>
+
+    <Footer />
+  </div>
+</BaseLayout>

@@ -3,12 +3,10 @@ import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { ChevronDown, Search } from "@lucide/astro"
 
-import Footer from "@/components/Footer.astro"
-import Navigation from "@/components/navigation/Navigation.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
-import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
-import BaseLayout from "@/layouts/BaseLayout.astro"
+import DocShell from "@/layouts/DocShell.astro"
 
 interface StaticPathEntry {
   readonly params: {
@@ -144,253 +142,231 @@ function moduleName(modulePath: string, group: string): string {
 }
 ---
 
-<BaseLayout
+<DocShell
   title={`${pkg.name} API Reference | Effect`}
   description={pkg.description}
   ogImageVersion={openGraph?.revision}
+  activeSlug="api"
 >
-  <Navigation activeSlug="api" />
+  <ApiMobileNavigation
+    slot="mobile-nav"
+    version={version}
+    versions={mobileVersions}
+    packages={mobilePackages}
+    modules={mobileModules}
+  />
 
-  <div class="relative w-full">
-    <ApiMobileNavigation
-      version={version}
-      versions={mobileVersions}
-      packages={mobilePackages}
-      modules={mobileModules}
-    />
-    <div class="w-full max-w-352 mx-auto grid grid-cols-1 lg:grid-cols-[240px_1fr]">
-      <aside class="hidden lg:block border-r border-zinc-200 dark:border-zinc-800">
-        <nav
-          aria-label="API reference navigation"
-          data-api-sidebar
-          class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
+  <nav
+    slot="sidebar"
+    aria-label="API reference navigation"
+    data-api-sidebar
+    class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
+  >
+    <header class="mb-4">
+      <a
+        href={`/docs/${version}/api`}
+        aria-current="page"
+        class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
+      >
+        API Reference
+      </a>
+
+      <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">
+        {displayName}
+      </h2>
+
+      <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
+    </header>
+
+    {
+      showVersionSwitch && (
+        <div
+          role="group"
+          aria-label="API reference version"
+          class="mb-4 grid grid-cols-2 gap-1 rounded-md border border-border p-1"
         >
-          <header class="mb-4">
+          {["v3", "v4"].map((candidate) => (
             <a
-              href={`/docs/${version}/api`}
-              aria-current="page"
-              class="mb-4 block font-mono text-sm font-semibold tracking-widest text-zinc-900 uppercase hover:underline dark:text-white"
+              href={`/docs/${candidate}/api/${pkg.slug}`}
+              aria-current={candidate === version ? "page" : undefined}
+              class:list={[
+                "rounded px-2 py-1 text-center font-mono text-xs transition-colors",
+                candidate === version
+                  ? "bg-accent font-semibold text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              ]}
             >
-              API Reference
+              {candidate}
             </a>
+          ))}
+        </div>
+      )
+    }
 
-            <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">
-              {displayName}
-            </h2>
-
-            <p class="font-mono text-xs text-zinc-600 dark:text-zinc-400">{pkg.version}</p>
-          </header>
-
-          {
-            showVersionSwitch && (
-              <div
-                role="group"
-                aria-label="API reference version"
-                class="mb-4 grid grid-cols-2 gap-1 rounded-md border border-zinc-200 p-1 dark:border-zinc-800"
-              >
-                {["v3", "v4"].map((candidate) => (
-                  <a
-                    href={`/docs/${candidate}/api/${pkg.slug}`}
-                    aria-current={candidate === version ? "page" : undefined}
-                    class:list={[
-                      "rounded px-2 py-1 text-center font-mono text-xs transition-colors",
-                      candidate === version
-                        ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
-                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
-                    ]}
-                  >
-                    {candidate}
-                  </a>
-                ))}
-              </div>
-            )
-          }
-
-          <div aria-label={`${pkg.name} modules`}>
-            <ul class="flex flex-col">
-              {
-                sections.map((section) => (
+    <div aria-label={`${pkg.name} modules`}>
+      <ul class="flex flex-col">
+        {
+          sections.map((section) => (
+            <Fragment>
+              {section.label !== undefined && (
+                <li class="mt-2 border-t border-border pt-4">
+                  <p class="font-mono text-xs font-semibold tracking-wider text-amber-600 uppercase dark:text-amber-400">
+                    {section.label}
+                  </p>
+                </li>
+              )}
+              {section.groups.map(([group, modules]) => {
+                const sortedModules = modules.toSorted((left, right) => {
+                  return left.data.modulePath.localeCompare(right.data.modulePath)
+                })
+                return (
                   <Fragment>
-                    {section.label !== undefined && (
-                      <li class="mt-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                        <p class="font-mono font-semibold text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                          {section.label}
-                        </p>
-                      </li>
-                    )}
-                    {section.groups.map(([group, modules]) => {
-                      const sortedModules = modules.toSorted((left, right) => {
-                        return left.data.modulePath.localeCompare(right.data.modulePath)
-                      })
-                      return (
-                        <Fragment>
-                          <li>
-                            <details open={sortedModules.length === 1 || sidebarGroupCount === 1}>
-                              <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2 font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white">
-                                <span>{groupName(group)}</span>
-                                <ChevronDown
-                                  aria-hidden="true"
-                                  class="size-4 transition-transform details-chevron"
-                                />
-                              </summary>
-                              <ul class="flex flex-col">
-                                {sortedModules.map((entry) => {
-                                  const modulePath = entry.data.modulePath
-                                  return (
-                                    <Fragment>
-                                      <li>
-                                        <a
-                                          href={`/docs/${version}/api/${pkg.slug}/${modulePath}`}
-                                          class="block truncate rounded-md py-1 pl-3 font-mono text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white"
-                                        >
-                                          {moduleName(modulePath, group)}
-                                        </a>
-                                      </li>
-                                    </Fragment>
-                                  )
-                                })}
-                              </ul>
-                            </details>
-                          </li>
-                        </Fragment>
-                      )
-                    })}
-                  </Fragment>
-                ))
-              }
-            </ul>
-          </div>
-        </nav>
-      </aside>
-
-      <main id={PAGE_TITLE_ID} class="min-w-0 px-6 pt-6 pb-12 lg:px-12 lg:py-16">
-        <nav
-          aria-label="Breadcrumb"
-          class="mb-5 flex items-center gap-3 font-mono text-xs tracking-wider text-zinc-600 uppercase lg:mb-8 dark:text-zinc-400"
-        >
-          <a
-            href={`/docs/${version}/api`}
-            class="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-          >
-            API Reference
-          </a>
-          <span aria-hidden="true">/</span>
-          <a
-            href={`/docs/${version}/api`}
-            class="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-          >
-            {version}
-          </a>
-          <span aria-hidden="true">/</span>
-          <span>{displayName}</span>
-        </nav>
-
-        <article
-          class="max-w-4xl prose prose-zinc dark:prose-invert prose-sm md:prose-base
-                   prose-headings:font-semibold prose-headings:tracking-tight
-                   prose-code:bg-zinc-200 prose-code:text-zinc-700 dark:prose-code:bg-zinc-800 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
-                   prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700"
-        >
-          <h1 class="mb-4! md:mb-6! font-mono">
-            {pkg.name}
-          </h1>
-
-          <p>
-            {pkg.description}
-          </p>
-
-          <div
-            class="not-prose flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-zinc-600 dark:text-zinc-400"
-          >
-            <span>{modules.length} modules</span>
-            <a
-              href={pkg.npmUrl}
-              target="_blank"
-              class="transition-colors hover:text-zinc-900 dark:hover:text-white"
-            >
-              <i class="ri-npmjs-line mr-1" aria-hidden="true"></i> npm
-            </a>
-            <a
-              href={pkg.sourceUrl}
-              target="_blank"
-              class="transition-colors hover:text-zinc-900 dark:hover:text-white"
-            >
-              <i class="ri-github-fill mr-1" aria-hidden="true"></i> Source
-            </a>
-          </div>
-
-          <!-- Search -->
-          <label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
-            <span class="sr-only">Search {displayName} modules</span>
-            <Search
-              class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-zinc-500"
-              aria-hidden="true"
-            />
-            <input
-              id="search"
-              type="search"
-              aria-label={`Search ${displayName} modules`}
-              placeholder={`Search ${displayName} modules…`}
-              autocomplete="off"
-              data-module-search
-              class="w-full rounded-lg border border-zinc-300 bg-transparent py-2 pr-4 pl-11 font-mono text-sm outline-none transition-colors text-zinc-900 placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:focus:border-zinc-500"
-            />
-          </label>
-
-          <div class="not-prose space-y-12" data-module-list>
-            {
-              sections.map((section) => (
-                <div data-module-section>
-                  {section.label !== undefined && (
-                    <h2 class="mb-6 border-b border-zinc-200 pb-3 font-mono text-sm font-semibold tracking-wider text-amber-600 uppercase dark:border-zinc-800 dark:text-amber-400">
-                      {section.label}
-                    </h2>
-                  )}
-                  <div class="space-y-8">
-                    {section.groups.map(([group, groupedModules]) => (
-                      <section data-module-group>
-                        <h2 class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
-                          {groupName(group)}
-                        </h2>
-                        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                          {groupedModules
-                            .toSorted((left, right) =>
-                              left.data.modulePath.localeCompare(right.data.modulePath),
+                    <li>
+                      <details
+                        open={sortedModules.length === 1 || sidebarGroupCount === 1}
+                        class="group"
+                      >
+                        <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground">
+                          <span>{groupName(group)}</span>
+                          <ChevronDown
+                            aria-hidden="true"
+                            class="size-4 transition-transform group-open:rotate-180"
+                          />
+                        </summary>
+                        <ul class="flex flex-col">
+                          {sortedModules.map((entry) => {
+                            const modulePath = entry.data.modulePath
+                            return (
+                              <Fragment>
+                                <li>
+                                  <a
+                                    href={`/docs/${version}/api/${pkg.slug}/${modulePath}`}
+                                    class="block truncate rounded-md py-1 pl-3 font-mono text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                  >
+                                    {moduleName(modulePath, group)}
+                                  </a>
+                                </li>
+                              </Fragment>
                             )
-                            .map((module) => (
-                              <a
-                                href={`/docs/${version}/api/${pkg.slug}/${module.data.modulePath}`}
-                                data-module-name={module.data.modulePath.toLowerCase()}
-                                class="truncate rounded-lg border border-zinc-200 bg-zinc-50/40 px-4 py-3 font-mono text-sm text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900 dark:hover:text-white"
-                              >
-                                {moduleName(module.data.modulePath, group)}
-                              </a>
-                            ))}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-                </div>
-              ))
-            }
-          </div>
+                          })}
+                        </ul>
+                      </details>
+                    </li>
+                  </Fragment>
+                )
+              })}
+            </Fragment>
+          ))
+        }
+      </ul>
+    </div>
+  </nav>
 
-          <p class="not-prose mt-8 hidden text-sm text-zinc-500" data-empty-state>
-            No matching modules.
-          </p>
-        </article>
-      </main>
+  <article class="prose prose-effect max-w-4xl">
+    <nav
+      aria-label="Breadcrumb"
+      class="mb-5 flex items-center gap-3 font-mono text-xs tracking-wider text-muted-foreground uppercase not-prose lg:mb-8"
+    >
+      <a
+        href={`/docs/${version}/api`}
+        class="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        API Reference
+      </a>
+      <span aria-hidden="true">/</span>
+      <a
+        href={`/docs/${version}/api`}
+        class="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {version}
+      </a>
+      <span aria-hidden="true">/</span>
+      <span>{displayName}</span>
+    </nav>
+
+    <h1 class="mb-4! md:mb-6! font-mono">
+      {pkg.name}
+    </h1>
+
+    <p>
+      {pkg.description}
+    </p>
+
+    <div
+      class="not-prose flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-muted-foreground"
+    >
+      <span>{modules.length} modules</span>
+      <a href={pkg.npmUrl} target="_blank" class="transition-colors hover:text-foreground">
+        <i class="ri-npmjs-line mr-1" aria-hidden="true"></i> npm
+      </a>
+      <a href={pkg.sourceUrl} target="_blank" class="transition-colors hover:text-foreground">
+        <i class="ri-github-fill mr-1" aria-hidden="true"></i> Source
+      </a>
     </div>
 
-    <Footer />
-  </div>
-</BaseLayout>
+    <!-- Search -->
+    <label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
+      <span class="sr-only">Search {displayName} modules</span>
+      <Search
+        class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+      <input
+        id="search"
+        type="search"
+        aria-label={`Search ${displayName} modules`}
+        placeholder={`Search ${displayName} modules…`}
+        autocomplete="off"
+        data-module-search
+        class="w-full rounded-lg border border-input bg-transparent py-2 pr-4 pl-11 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
+      />
+    </label>
+
+    <div class="not-prose space-y-12" data-module-list>
+      {
+        sections.map((section) => (
+          <div data-module-section>
+            {section.label !== undefined && (
+              <h2 class="mb-6 border-b border-border pb-3 font-mono text-sm font-semibold tracking-wider text-amber-600 uppercase dark:text-amber-400">
+                {section.label}
+              </h2>
+            )}
+            <div class="space-y-8">
+              {section.groups.map(([group, groupedModules]) => (
+                <section data-module-group>
+                  <Eyebrow as="h2" class="mb-4">
+                    {groupName(group)}
+                  </Eyebrow>
+                  <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {groupedModules
+                      .toSorted((left, right) =>
+                        left.data.modulePath.localeCompare(right.data.modulePath),
+                      )
+                      .map((module) => (
+                        <a
+                          href={`/docs/${version}/api/${pkg.slug}/${module.data.modulePath}`}
+                          data-module-name={module.data.modulePath.toLowerCase()}
+                          class="truncate rounded-lg border border-border bg-card/40 px-4 py-3 font-mono text-sm text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground dark:bg-card/30 dark:hover:bg-card"
+                        >
+                          {moduleName(module.data.modulePath, group)}
+                        </a>
+                      ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <p class="not-prose mt-8 hidden text-sm text-muted-foreground" data-empty-state>
+      No matching modules.
+    </p>
+  </article>
+</DocShell>
 
 <style>
-  details[open] > summary .details-chevron {
-    transform: rotate(180deg);
-  }
-
   [data-module-search]::-webkit-search-cancel-button {
     width: 1rem;
     height: 1rem;
