@@ -1,10 +1,12 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { ChevronDown, Search } from "@lucide/astro"
+import { Search } from "@lucide/astro"
 
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
+import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 
@@ -164,6 +166,24 @@ const sidebarGroups = Array.from(groupedPackages)
     const nameOrder = left.name.localeCompare(right.name)
     return leftOrder - rightOrder || nameOrder
   })
+const sidebarVersions = ["v3", "v4"].map((candidate) => ({
+  href: `/docs/${candidate}/api`,
+  label: candidate,
+  active: candidate === version,
+}))
+const sidebarSections = [
+  {
+    groups: sidebarGroups.map((group) => ({
+      name: group.name,
+      open: true,
+      links: group.packages.map((info) => ({
+        href: `/docs/${version}/api/${info.displayName}`,
+        label: info.displayName,
+        data: { "data-package-link": info.packageSlug },
+      })),
+    })),
+  },
+]
 const mobileVersions = ["v3", "v4"].map((candidate) => ({
   href: `/docs/${candidate}/api`,
   label: candidate,
@@ -207,59 +227,9 @@ const mobilePackages = [
       API Reference
     </a>
 
-    <div
-      role="group"
-      aria-label="API reference version"
-      class="mb-4 grid grid-cols-2 gap-1 rounded-md border border-border p-1"
-    >
-      {
-        ["v3", "v4"].map((candidate) => (
-          <a
-            href={`/docs/${candidate}/api`}
-            aria-current={candidate === version ? "page" : undefined}
-            class:list={[
-              "rounded px-2 py-1 text-center font-mono text-xs transition-colors",
-              candidate === version
-                ? "bg-accent font-semibold text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            ]}
-          >
-            {candidate}
-          </a>
-        ))
-      }
-    </div>
+    <ApiVersionSwitch versions={sidebarVersions} />
 
-    <ul class="flex flex-col gap-0.5">
-      {
-        sidebarGroups.map((group) => (
-          <li class="mb-1 last:mb-0">
-            <details open class="group">
-              <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2.5 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground">
-                <span>{group.name}</span>
-                <ChevronDown
-                  class="h-4 w-4 transition-transform group-open:rotate-180"
-                  aria-hidden="true"
-                />
-              </summary>
-              <ul class="flex flex-col gap-0.5">
-                {group.packages.map((info) => (
-                  <li>
-                    <a
-                      href={`/docs/${version}/api/${info.displayName}`}
-                      data-package-link={info.packageSlug}
-                      class="block truncate rounded-md py-1.5 pl-3 font-mono text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      {info.displayName}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          </li>
-        ))
-      }
-    </ul>
+    <ApiSidebarNav sections={sidebarSections} />
   </nav>
 
   <article class="prose prose-effect max-w-4xl">

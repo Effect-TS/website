@@ -1,0 +1,67 @@
+---
+import SidebarGroup from "@/components/ui/sidebar/SidebarGroup.astro"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+import SidebarSectionLabel from "@/components/ui/sidebar/SidebarSectionLabel.astro"
+
+/**
+ * Presentational API Reference sidebar tree. It renders already-shaped data
+ * from the page by composing the shared sidebar primitives — it knows nothing
+ * about versions, headers, or search. The Docs sidebar (`DocsSidebarTree`)
+ * composes the same primitives, so the two trees stay in visual lockstep.
+ */
+export interface ApiSidebarNavLink {
+  readonly href: string
+  readonly label: string
+  readonly active?: boolean
+  readonly data?: Record<string, string | undefined>
+}
+
+export interface ApiSidebarNavGroup {
+  readonly name: string
+  readonly open: boolean
+  readonly links: ReadonlyArray<ApiSidebarNavLink>
+}
+
+export interface ApiSidebarNavSection {
+  readonly label?: string
+  readonly groups: ReadonlyArray<ApiSidebarNavGroup>
+}
+
+interface Props {
+  readonly sections: ReadonlyArray<ApiSidebarNavSection>
+}
+
+const { sections } = Astro.props
+---
+
+<ul class="flex flex-col gap-0.5">
+  {
+    sections.map((section) => (
+      <Fragment>
+        {section.label !== undefined && (
+          <li class="mt-2 border-t border-border pt-4">
+            <SidebarSectionLabel>{section.label}</SidebarSectionLabel>
+          </li>
+        )}
+        {section.groups.map((group) => (
+          <li class="mb-1 last:mb-0">
+            <SidebarGroup label={group.name} open={group.open}>
+              {group.links.map((link) => (
+                <li>
+                  <SidebarLink
+                    href={link.href}
+                    active={link.active}
+                    class="truncate py-1.5 pl-3 font-mono text-sm"
+                    {...(link.data ?? {})}
+                  >
+                    {link.label}
+                  </SidebarLink>
+                </li>
+              ))}
+            </SidebarGroup>
+          </li>
+        ))}
+      </Fragment>
+    ))
+  }
+</ul>

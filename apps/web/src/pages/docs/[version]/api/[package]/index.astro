@@ -1,10 +1,12 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { ChevronDown, Search } from "@lucide/astro"
+import { Search } from "@lucide/astro"
 
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
+import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 
@@ -94,6 +96,27 @@ const sections = [
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
 const sidebarGroupCount = sections.reduce((count, section) => count + section.groups.length, 0)
+const sidebarVersions = ["v3", "v4"].map((candidate) => ({
+  href: `/docs/${candidate}/api/${pkg.slug}`,
+  label: candidate,
+  active: candidate === version,
+}))
+const sidebarSections = sections.map((section) => ({
+  label: section.label,
+  groups: section.groups.map(([group, groupModules]) => {
+    const sortedModules = groupModules.toSorted((left, right) =>
+      left.data.modulePath.localeCompare(right.data.modulePath),
+    )
+    return {
+      name: groupName(group),
+      open: sortedModules.length === 1 || sidebarGroupCount === 1,
+      links: sortedModules.map((entry) => ({
+        href: `/docs/${version}/api/${pkg.slug}/${entry.data.modulePath}`,
+        label: moduleName(entry.data.modulePath, group),
+      })),
+    }
+  }),
+}))
 const mobileVersions = [...availableVersions].toSorted().map((candidate) => ({
   href: `/docs/${candidate}/api/${pkg.slug}`,
   label: candidate,
@@ -178,87 +201,10 @@ function moduleName(modulePath: string, group: string): string {
       <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
     </header>
 
-    {
-      showVersionSwitch && (
-        <div
-          role="group"
-          aria-label="API reference version"
-          class="mb-4 grid grid-cols-2 gap-1 rounded-md border border-border p-1"
-        >
-          {["v3", "v4"].map((candidate) => (
-            <a
-              href={`/docs/${candidate}/api/${pkg.slug}`}
-              aria-current={candidate === version ? "page" : undefined}
-              class:list={[
-                "rounded px-2 py-1 text-center font-mono text-xs transition-colors",
-                candidate === version
-                  ? "bg-accent font-semibold text-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              ]}
-            >
-              {candidate}
-            </a>
-          ))}
-        </div>
-      )
-    }
+    {showVersionSwitch && <ApiVersionSwitch versions={sidebarVersions} />}
 
     <div aria-label={`${pkg.name} modules`}>
-      <ul class="flex flex-col">
-        {
-          sections.map((section) => (
-            <Fragment>
-              {section.label !== undefined && (
-                <li class="mt-2 border-t border-border pt-4">
-                  <p class="font-mono text-xs font-semibold tracking-wider text-amber-600 uppercase dark:text-amber-400">
-                    {section.label}
-                  </p>
-                </li>
-              )}
-              {section.groups.map(([group, modules]) => {
-                const sortedModules = modules.toSorted((left, right) => {
-                  return left.data.modulePath.localeCompare(right.data.modulePath)
-                })
-                return (
-                  <Fragment>
-                    <li>
-                      <details
-                        open={sortedModules.length === 1 || sidebarGroupCount === 1}
-                        class="group"
-                      >
-                        <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground">
-                          <span>{groupName(group)}</span>
-                          <ChevronDown
-                            aria-hidden="true"
-                            class="size-4 transition-transform group-open:rotate-180"
-                          />
-                        </summary>
-                        <ul class="flex flex-col">
-                          {sortedModules.map((entry) => {
-                            const modulePath = entry.data.modulePath
-                            return (
-                              <Fragment>
-                                <li>
-                                  <a
-                                    href={`/docs/${version}/api/${pkg.slug}/${modulePath}`}
-                                    class="block truncate rounded-md py-1 pl-3 font-mono text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                  >
-                                    {moduleName(modulePath, group)}
-                                  </a>
-                                </li>
-                              </Fragment>
-                            )
-                          })}
-                        </ul>
-                      </details>
-                    </li>
-                  </Fragment>
-                )
-              })}
-            </Fragment>
-          ))
-        }
-      </ul>
+      <ApiSidebarNav sections={sidebarSections} />
     </div>
   </nav>
 

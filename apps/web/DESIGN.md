@@ -121,6 +121,14 @@ Radius: `rounded-sm` 4px · `md` 6px · `lg` 8px · `xl` 12px · `2xl` 16px · `
   (`Button`, `SegmentedControl`, `Link`, …). Extend these rather than restyling.
 - **Shared structure** goes in a component holding the utility string once — e.g.
   `Eyebrow.astro`, `docs/DocsSidebarTree.astro`.
+- **Sidebars** compose small primitives in `components/ui/sidebar/`:
+  `SidebarLink` (owns the resting/hover/active link treatment; caller passes
+  padding/font via `class` and `data-*` via spread), `SidebarGroup` (the
+  `<details>` disclosure + chevron), `SidebarSectionLabel`. Docs
+  (`DocsSidebarTree`) and API Reference (`features/api-reference/ApiSidebarNav`)
+  both build their trees from these. Section-specific chrome (version switch,
+  package header, active-item autoscroll) composes _around_ the tree, never into
+  it — keep the primitives presentational.
 - **Documentation shell**: Docs + API Reference use one layout,
   `src/layouts/DocShell.astro` (fills `sidebar` / default / `toc` / `mobile-nav`
   slots). Marketing/blog use `PageLayout`; both wrap `BaseLayout`.
