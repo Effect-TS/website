@@ -5,12 +5,7 @@ sidebar:
   order: 7
 ---
 
-import {
-  AgentPrompt,
-  Aside,
-  EffectApi,
-  TutorialCheckpoint,
-} from "@astrojs/starlight/components"
+import { TutorialCheckpoint } from "@astrojs/starlight/components"
 
 A request can feel slow even when every provider succeeds. Ordinary logs show
 which phase finished, but they rarely show which operations overlapped or which
@@ -42,11 +37,7 @@ Everything runs in one Node.js process. The providers, tracer, and waterfall
 renderer are deterministic local fixtures, so the tutorial needs no public
 network, credentials, collector, or dashboard.
 
-<Aside type="tip" title="Using a coding agent?">
-  Each step ends with a checkpoint: a short verification to perform before you
-  continue. Every checkpoint also contains an optional prompt that asks a coding
-  agent to make and verify exactly the same change.
-</Aside>
+Each step ends with a checkpoint: a short verification to complete before continuing.
 
 ## 1. See what logs leave out
 
@@ -67,7 +58,7 @@ Create `server.ts` with the complete code below. The bottom half is controlled
 tutorial fixture code. It simulates five local providers with stable delays;
 collapse it mentally as setup rather than application logic.
 
-```ts title="server.ts" collapse={63-111} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={63-111}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -218,174 +209,9 @@ inventory, and shipping ran at the same time. Adding timestamps by hand would
 still leave us to reconstruct their relationships. We need a timed record for
 each operation.
 
-<TutorialCheckpoint
-  number={1}
-  total={5}
-  title="The timing gap is reproducible"
->
+<TutorialCheckpoint number={1} total={5} title="The timing gap is reproducible">
   `POST /orders` returns `201`, while the three application log lines reveal
   neither overlap nor the slowest planning operation.
-
-  <AgentPrompt label="AI prompt: create the baseline server">
-
-````text
-Create the starter project for the tracing tutorial.
-
-Rules:
-- Treat the current workspace root as the parent directory.
-- Work only in `./see-where-a-request-spends-its-time`.
-- If that directory already exists, stop without changing anything and report that a new directory is required.
-- Require Node.js 22.18.0 or newer. If the installed version is older, stop without changing anything.
-- Do not add files, dependencies, or configuration not requested below.
-
-Create `./see-where-a-request-spends-its-time`, then run these commands inside it:
-
-```sh
-npm init -y
-npm pkg set type=module
-npm install --save-dev @types/node@22
-```
-
-Create `server.ts` with exactly this content:
-
-```ts
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
-
-interface PlaceOrderRequest {
-  readonly customerId: string
-  readonly quantity: number
-  readonly paymentToken: string
-  readonly postalCode: string
-}
-
-const placeOrder = async (input: PlaceOrderRequest) => {
-  const [subtotalCents, reservationId, shippingCents] = await Promise.all([
-    calculatePrice(input.quantity),
-    reserveInventory(input.quantity),
-    quoteShipping(input.postalCode, input.quantity),
-  ])
-  console.log("planning finished")
-
-  const paymentProvider = await authorizePayment(
-    input.paymentToken,
-    subtotalCents + shippingCents,
-  )
-  console.log("payment finished")
-
-  const orderId = await insertOrder(input.customerId, reservationId)
-  console.log("storage finished")
-
-  return {
-    orderId,
-    status: "accepted",
-    totalCents: subtotalCents + shippingCents,
-    paymentProvider,
-  }
-}
-
-const server = createServer(async (request, response) => {
-  const sendJson = (status: number, body: unknown): void => {
-    response.writeHead(status, { "content-type": "application/json" })
-    response.end(JSON.stringify(body))
-  }
-
-  if (request.method !== "POST" || request.url !== "/orders") {
-    sendJson(404, { error: "NotFound" })
-    return
-  }
-
-  try {
-    let body = ""
-    for await (const chunk of request) {
-      body += chunk
-    }
-
-    const order = await placeOrder(JSON.parse(body) as PlaceOrderRequest)
-    sendJson(201, order)
-  } catch (error) {
-    console.error(error)
-    sendJson(500, { error: "InternalServerError" })
-  }
-})
-
-server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-
-// Tutorial fixtures
-// You will not modify the code below.
-
-interface ProviderOptions {
-  readonly signal?: AbortSignal
-}
-
-const calculatePrice = async (
-  quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(80, undefined, { signal })
-  return quantity * 1_250
-}
-
-const reserveInventory = async (
-  quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(140, undefined, { signal })
-  return `reservation-${quantity}`
-}
-
-const quoteShipping = async (
-  postalCode: string,
-  _quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(100, undefined, { signal })
-  return postalCode === "00100" ? 600 : 750
-}
-
-const authorizePayment = async (
-  _token: string,
-  _amountCents: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(60, undefined, { signal })
-  return "primary-pay"
-}
-
-const insertOrder = async (
-  customerId: string,
-  _reservationId: string,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(40, undefined, { signal })
-  return `order-${customerId}`
-}
-```
-
-Start `node --watch server.ts` from the tutorial directory in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active.
-
-Send a POST request to `http://localhost:3000/orders` with `content-type: application/json` and this body:
-
-```json
-{"customerId":"customer-123","quantity":2,"paymentToken":"tok_approved","postalCode":"00100"}
-```
-
-Verify status `201`, this exact response body, and these application log lines in order:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":3100,"paymentProvider":"primary-pay"}
-```
-
-```text
-planning finished
-payment finished
-storage finished
-```
-
-Reply only that the baseline checkpoint succeeded. If any requested action fails, report the observed failure without attempting a different setup or correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 2. Describe the same pipeline with Effect
@@ -393,17 +219,17 @@ Reply only that the baseline checkpoint succeeded. If any requested action fails
 Keep the watched server running. In the second terminal pane, install Effect:
 
 ```sh title="Install Effect"
-npm install effect
+npm install effect@4.0.0-beta.104
 ```
 
 Replace `server.ts` with this complete version. The response, delays, and log
 lines stay the same. Only the way we describe and run the provider pipeline
 changes.
 
-```ts title="server.ts" collapse={110-158} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={81-129} ins={3,12-50,69-71}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
-+import { Effect } from "effect"
+import { Effect } from "effect"
 
 interface PlaceOrderRequest {
   readonly customerId: string
@@ -412,73 +238,45 @@ interface PlaceOrderRequest {
   readonly postalCode: string
 }
 
--const placeOrder = async (input: PlaceOrderRequest) => {
--  const [subtotalCents, reservationId, shippingCents] = await Promise.all([
--    calculatePrice(input.quantity),
--    reserveInventory(input.quantity),
--    quoteShipping(input.postalCode, input.quantity),
--  ])
--  console.log("planning finished")
--
--  const paymentProvider = await authorizePayment(
--    input.paymentToken,
--    subtotalCents + shippingCents,
--  )
--  console.log("payment finished")
--
--  const orderId = await insertOrder(input.customerId, reservationId)
--  console.log("storage finished")
--
--  return {
--    orderId,
--    status: "accepted",
--    totalCents: subtotalCents + shippingCents,
--    paymentProvider,
--  }
--}
-+const placeOrder = (input: PlaceOrderRequest) =>
-+  Effect.all(
-+    [
-+      Effect.tryPromise((signal) =>
-+        calculatePrice(input.quantity, { signal }),
-+      ),
-+      Effect.tryPromise((signal) =>
-+        reserveInventory(input.quantity, { signal }),
-+      ),
-+      Effect.tryPromise((signal) =>
-+        quoteShipping(input.postalCode, input.quantity, { signal }),
-+      ),
-+    ],
-+    { concurrency: "unbounded" },
-+  ).pipe(
-+    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-+      console.log("planning finished")
-+      return Effect.tryPromise((signal) =>
-+        authorizePayment(
-+          input.paymentToken,
-+          subtotalCents + shippingCents,
-+          { signal },
-+        ),
-+      ).pipe(
-+        Effect.flatMap((paymentProvider) => {
-+          console.log("payment finished")
-+          return Effect.tryPromise((signal) =>
-+            insertOrder(input.customerId, reservationId, { signal }),
-+          ).pipe(
-+            Effect.map((orderId) => {
-+              console.log("storage finished")
-+              return {
-+                orderId,
-+                status: "accepted",
-+                totalCents: subtotalCents + shippingCents,
-+                paymentProvider,
-+              }
-+            }),
-+          )
-+        }),
-+      )
-+    }),
-+  )
+const placeOrder = (input: PlaceOrderRequest) =>
+  Effect.all(
+    [
+      Effect.tryPromise((signal) => calculatePrice(input.quantity, { signal })),
+      Effect.tryPromise((signal) =>
+        reserveInventory(input.quantity, { signal }),
+      ),
+      Effect.tryPromise((signal) =>
+        quoteShipping(input.postalCode, input.quantity, { signal }),
+      ),
+    ],
+    { concurrency: "unbounded" },
+  ).pipe(
+    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
+      console.log("planning finished")
+      return Effect.tryPromise((signal) =>
+        authorizePayment(input.paymentToken, subtotalCents + shippingCents, {
+          signal,
+        }),
+      ).pipe(
+        Effect.flatMap((paymentProvider) => {
+          console.log("payment finished")
+          return Effect.tryPromise((signal) =>
+            insertOrder(input.customerId, reservationId, { signal }),
+          ).pipe(
+            Effect.map((orderId) => {
+              console.log("storage finished")
+              return {
+                orderId,
+                status: "accepted",
+                totalCents: subtotalCents + shippingCents,
+                paymentProvider,
+              }
+            }),
+          )
+        }),
+      )
+    }),
+  )
 
 const server = createServer(async (request, response) => {
   const sendJson = (status: number, body: unknown): void => {
@@ -497,10 +295,9 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
--    const order = await placeOrder(JSON.parse(body) as PlaceOrderRequest)
-+    const order = await Effect.runPromise(
-+      placeOrder(JSON.parse(body) as PlaceOrderRequest),
-+    )
+    const order = await Effect.runPromise(
+      placeOrder(JSON.parse(body) as PlaceOrderRequest),
+    )
     sendJson(201, order)
   } catch (error) {
     console.error(error)
@@ -587,58 +384,39 @@ cancellation of a running computation and is separate from that error channel.
 An unexpected bug is called a defect and is also separate from an expected
 failure.
 
-<EffectApi name="Effect.Effect" href="/docs/v4/api/effect/Effect#Effect">
-  The type of an Effect description. In this pipeline, the success type is the
-  order object and the error type is `Cause.UnknownError`.
-</EffectApi>
+[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of an Effect
+description. In this pipeline, its success type is the order object and its
+error type is
+[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface).
+`Cause.UnknownError` is Effect's built-in wrapper for an unclassified Promise
+rejection, and its `cause` property preserves the original rejected value.
 
-<EffectApi
-  name="Cause.UnknownError"
-  href="/docs/v4/api/effect/Cause#UnknownError-interface"
->
-  Effect's built-in wrapper for an unclassified rejection. It preserves the
-  original rejected value in its `cause` property.
-</EffectApi>
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts a function
+that creates a Promise. The function stays lazy until the Effect runs, a
+resolved Promise becomes a success, and a rejection enters the error channel.
+Effect supplies an `AbortSignal`, which this code forwards to every local
+provider so interruption can cancel its timer.
 
-<EffectApi
-  name="Effect.tryPromise"
-  href="/docs/v4/api/effect/Effect#tryPromise"
->
-  Adapts a function that creates a Promise. The function stays lazy until the
-  Effect runs, a resolved Promise becomes a success, and a rejection enters the
-  error channel. Effect supplies an `AbortSignal`, which this code forwards to
-  every local provider so interruption can cancel its timer.
-</EffectApi>
-
-<EffectApi name="Effect.all" href="/docs/v4/api/effect/Effect#all">
-  Combines several Effects and returns their success values in the same order.
-  With `concurrency: "unbounded"`, the three planning Effects can run at the
-  same time instead of waiting for one another.
-</EffectApi>
+[`Effect.all`](/docs/v4/api/effect/Effect#all) combines several Effects and
+returns their success values in the same order. With
+`concurrency: "unbounded"`, the three planning Effects can run at the same time
+instead of waiting for one another.
 
 `pipe` passes the combined description through transformations from top to
 bottom. It does not run the computation.
 
-<EffectApi name="Effect.flatMap" href="/docs/v4/api/effect/Effect#flatMap">
-  Uses a successful value to choose the next Effect. Payment is described only
-  after all three planning values exist, and storage is described only after
-  payment succeeds.
-</EffectApi>
+[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) uses a successful value
+to choose the next Effect. Payment is described only after all three planning
+values exist, and storage is described only after payment succeeds.
+[`Effect.map`](/docs/v4/api/effect/Effect#map) transforms only the success value
+and leaves the error channel unchanged. Here, it turns the stored order id into
+the HTTP response object.
 
-<EffectApi name="Effect.map" href="/docs/v4/api/effect/Effect#map">
-  Transforms the success value while leaving the error channel unchanged. The
-  final call turns the stored order id into the HTTP response object.
-</EffectApi>
-
-<EffectApi
-  name="Effect.runPromise"
-  href="/docs/v4/api/effect/Effect#runPromise"
->
-  Runs the complete description at the HTTP boundary and returns a Promise. The
-  Promise resolves with the order when the Effect succeeds and rejects if the
-  Effect does not succeed. It can also accept an external `AbortSignal` to
-  observe cancellation, although this server does not need one yet.
-</EffectApi>
+Finally, [`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the
+complete description at the HTTP boundary and returns a Promise. That Promise
+resolves with the order when the Effect succeeds and rejects if the Effect does
+not succeed. The runner can also accept an external `AbortSignal` to observe
+cancellation, although this server does not need one yet.
 
 Wait for `node --watch` to reload, then send the same request. It still returns
 `201` and prints the same three application log lines. We changed the execution
@@ -651,122 +429,6 @@ description without changing its observable result.
 >
   The three planning providers still run concurrently, followed by payment and
   storage, and the approved order still returns `201`.
-
-  <AgentPrompt label="AI prompt: adapt the provider pipeline">
-
-````text
-Adapt the existing provider pipeline to Effect without changing its response or log behavior.
-
-Rules:
-- Work only in `./see-where-a-request-spends-its-time` relative to the current workspace root.
-- Verify that `package.json` exists and that the patch below applies cleanly to `server.ts` before changing anything. If either check fails, stop and report that the project is not at checkpoint 1.
-- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
-- Apply exactly the requested patch. Do not refactor or add other behavior.
-- After the edit, verify the result but do not repair a failed verification.
-
-From the tutorial directory, run `npm install effect`, then apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
- import { createServer } from "node:http"
- import { setTimeout as sleep } from "node:timers/promises"
-+import { Effect } from "effect"
-@@
--const placeOrder = async (input: PlaceOrderRequest) => {
--  const [subtotalCents, reservationId, shippingCents] = await Promise.all([
--    calculatePrice(input.quantity),
--    reserveInventory(input.quantity),
--    quoteShipping(input.postalCode, input.quantity),
--  ])
--  console.log("planning finished")
--
--  const paymentProvider = await authorizePayment(
--    input.paymentToken,
--    subtotalCents + shippingCents,
--  )
--  console.log("payment finished")
--
--  const orderId = await insertOrder(input.customerId, reservationId)
--  console.log("storage finished")
--
--  return {
--    orderId,
--    status: "accepted",
--    totalCents: subtotalCents + shippingCents,
--    paymentProvider,
--  }
--}
-+const placeOrder = (input: PlaceOrderRequest) =>
-+  Effect.all(
-+    [
-+      Effect.tryPromise((signal) =>
-+        calculatePrice(input.quantity, { signal }),
-+      ),
-+      Effect.tryPromise((signal) =>
-+        reserveInventory(input.quantity, { signal }),
-+      ),
-+      Effect.tryPromise((signal) =>
-+        quoteShipping(input.postalCode, input.quantity, { signal }),
-+      ),
-+    ],
-+    { concurrency: "unbounded" },
-+  ).pipe(
-+    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-+      console.log("planning finished")
-+      return Effect.tryPromise((signal) =>
-+        authorizePayment(
-+          input.paymentToken,
-+          subtotalCents + shippingCents,
-+          { signal },
-+        ),
-+      ).pipe(
-+        Effect.flatMap((paymentProvider) => {
-+          console.log("payment finished")
-+          return Effect.tryPromise((signal) =>
-+            insertOrder(input.customerId, reservationId, { signal }),
-+          ).pipe(
-+            Effect.map((orderId) => {
-+              console.log("storage finished")
-+              return {
-+                orderId,
-+                status: "accepted",
-+                totalCents: subtotalCents + shippingCents,
-+                paymentProvider,
-+              }
-+            }),
-+          )
-+        }),
-+      )
-+    }),
-+  )
-@@
--    const order = await placeOrder(JSON.parse(body) as PlaceOrderRequest)
-+    const order = await Effect.runPromise(
-+      placeOrder(JSON.parse(body) as PlaceOrderRequest),
-+    )
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
-
-Send the checkpoint 1 POST body again. Verify status `201`, this exact body, and these application log lines in order:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":3100,"paymentProvider":"primary-pay"}
-```
-
-```text
-planning finished
-payment finished
-storage finished
-```
-
-Reply only that checkpoint 2 succeeded, or report the preflight mismatch or observed verification difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 ## 3. Record the whole request as one span
 
@@ -782,11 +444,10 @@ fixture during this tutorial.
 
 Add that fixture and wrap the order pipeline in a root span:
 
-```ts title="server.ts" collapse={93-211} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={84-132} ins={3,69-71,73-74,134-199}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
--import { Effect } from "effect"
-+import { Effect, Tracer } from "effect"
+import { Effect, Tracer } from "effect"
 
 interface PlaceOrderRequest {
   readonly customerId: string
@@ -798,9 +459,7 @@ interface PlaceOrderRequest {
 const placeOrder = (input: PlaceOrderRequest) =>
   Effect.all(
     [
-      Effect.tryPromise((signal) =>
-        calculatePrice(input.quantity, { signal }),
-      ),
+      Effect.tryPromise((signal) => calculatePrice(input.quantity, { signal })),
       Effect.tryPromise((signal) =>
         reserveInventory(input.quantity, { signal }),
       ),
@@ -813,11 +472,9 @@ const placeOrder = (input: PlaceOrderRequest) =>
     Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
       console.log("planning finished")
       return Effect.tryPromise((signal) =>
-        authorizePayment(
-          input.paymentToken,
-          subtotalCents + shippingCents,
-          { signal },
-        ),
+        authorizePayment(input.paymentToken, subtotalCents + shippingCents, {
+          signal,
+        }),
       ).pipe(
         Effect.flatMap((paymentProvider) => {
           console.log("payment finished")
@@ -856,16 +513,12 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
--    const order = await Effect.runPromise(
--      placeOrder(JSON.parse(body) as PlaceOrderRequest),
-+    const orderEffect = placeOrder(
-+      JSON.parse(body) as PlaceOrderRequest,
-+    ).pipe(
-+      Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
-+      Effect.withTracer(localTracer),
+    const orderEffect = placeOrder(JSON.parse(body) as PlaceOrderRequest).pipe(
+      Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
+      Effect.withTracer(localTracer),
     )
-+    const order = await Effect.runPromise(orderEffect)
-+    console.log(renderLatestTrace())
+    const order = await Effect.runPromise(orderEffect)
+    console.log(renderLatestTrace())
     sendJson(201, order)
   } catch (error) {
     console.error(error)
@@ -924,105 +577,89 @@ const insertOrder = async (
   await sleep(40, undefined, { signal })
   return `order-${customerId}`
 }
-+
-+const recordedSpans: Array<Tracer.NativeSpan> = []
-+
-+const localTracer = Tracer.make({
-+  span(options) {
-+    const span = new Tracer.NativeSpan(options)
-+    recordedSpans.push(span)
-+    return span
-+  },
-+})
-+
-+const renderLatestTrace = (): string => {
-+  const spans = recordedSpans.splice(0)
-+  const root = spans.find((span) => span.parent._tag === "None")
-+
-+  if (root === undefined || root.status._tag !== "Ended") {
-+    return "Trace waterfall unavailable"
-+  }
-+
-+  const quantum = 20_000_000n
-+  const toColumn = (nanoseconds: bigint): number =>
-+    Number((nanoseconds + quantum / 2n) / quantum)
-+  const columns = Math.max(
-+    1,
-+    toColumn(root.status.endTime - root.status.startTime),
-+  )
-+
-+  const depthOf = (span: Tracer.NativeSpan): number => {
-+    let depth = 0
-+    let parent = span.parent._tag === "Some" ? span.parent.value : undefined
-+
-+    while (parent?._tag === "Span") {
-+      depth += 1
-+      parent =
-+        parent.parent._tag === "Some" ? parent.parent.value : undefined
-+    }
-+
-+    return depth
-+  }
-+
-+  const completed = spans.flatMap((span) =>
-+    span.status._tag === "Ended" ? [{ span, status: span.status }] : [],
-+  )
-+  const labels = completed.map(
-+    ({ span }) => `${"  ".repeat(depthOf(span))}${span.name}`,
-+  )
-+  const labelWidth = Math.max(...labels.map((label) => label.length))
-+  const lines = completed.map(({ span, status }, index) => {
-+    const offset = toColumn(status.startTime - root.status.startTime)
-+    const available = Math.max(1, columns - offset)
-+    const length = Math.min(
-+      available,
-+      Math.max(1, toColumn(status.endTime - status.startTime)),
-+    )
-+    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(
-+      columns,
-+    )
-+    return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
-+  })
-+
-+  const attributes = [...root.attributes.entries()]
-+    .sort(([left], [right]) => left.localeCompare(right))
-+    .map(([key, value]) => `  ${key} = ${JSON.stringify(value)}`)
-+
-+  return [
-+    "Trace waterfall (one block is about 20 ms)",
-+    ...lines,
-+    ...(attributes.length > 0 ? ["attributes", ...attributes] : []),
-+  ].join("\n")
-+}
+
+const recordedSpans: Array<Tracer.NativeSpan> = []
+
+const localTracer = Tracer.make({
+  span(options) {
+    const span = new Tracer.NativeSpan(options)
+    recordedSpans.push(span)
+    return span
+  },
+})
+
+const renderLatestTrace = (): string => {
+  const spans = recordedSpans.splice(0)
+  const root = spans.find((span) => span.parent._tag === "None")
+
+  if (root === undefined || root.status._tag !== "Ended") {
+    return "Trace waterfall unavailable"
+  }
+
+  const quantum = 20_000_000n
+  const toColumn = (nanoseconds: bigint): number =>
+    Number((nanoseconds + quantum / 2n) / quantum)
+  const columns = Math.max(
+    1,
+    toColumn(root.status.endTime - root.status.startTime),
+  )
+
+  const depthOf = (span: Tracer.NativeSpan): number => {
+    let depth = 0
+    let parent = span.parent._tag === "Some" ? span.parent.value : undefined
+
+    while (parent?._tag === "Span") {
+      depth += 1
+      parent = parent.parent._tag === "Some" ? parent.parent.value : undefined
+    }
+
+    return depth
+  }
+
+  const completed = spans.flatMap((span) =>
+    span.status._tag === "Ended" ? [{ span, status: span.status }] : [],
+  )
+  const labels = completed.map(
+    ({ span }) => `${"  ".repeat(depthOf(span))}${span.name}`,
+  )
+  const labelWidth = Math.max(...labels.map((label) => label.length))
+  const lines = completed.map(({ span, status }, index) => {
+    const offset = toColumn(status.startTime - root.status.startTime)
+    const available = Math.max(1, columns - offset)
+    const length = Math.min(
+      available,
+      Math.max(1, toColumn(status.endTime - status.startTime)),
+    )
+    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(columns)
+    return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
+  })
+
+  const attributes = [...root.attributes.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `  ${key} = ${JSON.stringify(value)}`)
+
+  return [
+    "Trace waterfall (one block is about 20 ms)",
+    ...lines,
+    ...(attributes.length > 0 ? ["attributes", ...attributes] : []),
+  ].join("\n")
+}
 ```
 
-<EffectApi name="Tracer.make" href="/docs/v4/api/effect/Tracer#make">
-  Creates a tracer value from the supplied implementation. This fixture's
-  implementation stores every span created during one request in memory.
-</EffectApi>
+[`Tracer.make`](/docs/v4/api/effect/Tracer#make) creates a tracer value from the
+supplied implementation. This fixture stores every span created during one
+request in memory. Each one is a
+[`Tracer.NativeSpan`](/docs/v4/api/effect/Tracer#NativeSpan), Effect's stable
+in-memory span implementation. It records the parent, attributes, start time,
+end time, and completion status that the renderer reads.
 
-<EffectApi
-  name="Tracer.NativeSpan"
-  href="/docs/v4/api/effect/Tracer#NativeSpan"
->
-  Effect's stable in-memory span implementation. It records the parent,
-  attributes, start time, end time, and completion status that the renderer
-  reads.
-</EffectApi>
-
-<EffectApi name="Effect.withSpan" href="/docs/v4/api/effect/Effect#withSpan">
-  Wraps the order Effect in a named span and closes that span when the Effect
-  ends, including after failure, interruption, or a defect. `root: true` starts
-  a new trace, and `kind: "server"` identifies request-handling work.
-</EffectApi>
-
-<EffectApi
-  name="Effect.withTracer"
-  href="/docs/v4/api/effect/Effect#withTracer"
->
-  Runs this Effect using the supplied tracer. It changes where spans are
-  recorded without adding a tracer requirement to `placeOrder`.
-</EffectApi>
+[`Effect.withSpan`](/docs/v4/api/effect/Effect#withSpan) wraps the order Effect
+in a named span and closes that span when the Effect ends, including after
+failure, interruption, or a defect. `root: true` starts a new trace, and
+`kind: "server"` identifies request-handling work.
+[`Effect.withTracer`](/docs/v4/api/effect/Effect#withTracer) runs this Effect
+using the supplied tracer. It changes where spans are recorded without adding a
+tracer requirement to `placeOrder`.
 
 Wait for the watched server to reload and send the same order. After the three
 old log lines, the server now prints one timing bar:
@@ -1043,129 +680,6 @@ That missing detail gives the next change its purpose.
 >
   Every successful order now ends with a local waterfall containing one
   `http.post.orders` root bar. No trace leaves the Node.js process.
-
-  <AgentPrompt label="AI prompt: add the local root trace">
-
-````text
-Add the supplied in-memory tracer, deterministic waterfall renderer, and one root request span.
-
-Rules:
-- Work only in `./see-where-a-request-spends-its-time` relative to the current workspace root.
-- Verify that `package.json` contains the `effect` dependency and that the patch below applies cleanly to `server.ts` before changing anything. If either check fails, stop and report that the project is not at checkpoint 2.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or change the fixture.
-- After the edit, verify the result but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
--import { Effect } from "effect"
-+import { Effect, Tracer } from "effect"
-@@
--    const order = await Effect.runPromise(
--      placeOrder(JSON.parse(body) as PlaceOrderRequest),
-+    const orderEffect = placeOrder(
-+      JSON.parse(body) as PlaceOrderRequest,
-+    ).pipe(
-+      Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
-+      Effect.withTracer(localTracer),
-     )
-+    const order = await Effect.runPromise(orderEffect)
-+    console.log(renderLatestTrace())
-     sendJson(201, order)
-@@
- const insertOrder = async (
-   customerId: string,
-   _reservationId: string,
-   { signal }: ProviderOptions = {},
- ) => {
-   await sleep(40, undefined, { signal })
-   return `order-${customerId}`
- }
-+
-+const recordedSpans: Array<Tracer.NativeSpan> = []
-+
-+const localTracer = Tracer.make({
-+  span(options) {
-+    const span = new Tracer.NativeSpan(options)
-+    recordedSpans.push(span)
-+    return span
-+  },
-+})
-+
-+const renderLatestTrace = (): string => {
-+  const spans = recordedSpans.splice(0)
-+  const root = spans.find((span) => span.parent._tag === "None")
-+
-+  if (root === undefined || root.status._tag !== "Ended") {
-+    return "Trace waterfall unavailable"
-+  }
-+
-+  const quantum = 20_000_000n
-+  const toColumn = (nanoseconds: bigint): number =>
-+    Number((nanoseconds + quantum / 2n) / quantum)
-+  const columns = Math.max(
-+    1,
-+    toColumn(root.status.endTime - root.status.startTime),
-+  )
-+
-+  const depthOf = (span: Tracer.NativeSpan): number => {
-+    let depth = 0
-+    let parent = span.parent._tag === "Some" ? span.parent.value : undefined
-+
-+    while (parent?._tag === "Span") {
-+      depth += 1
-+      parent =
-+        parent.parent._tag === "Some" ? parent.parent.value : undefined
-+    }
-+
-+    return depth
-+  }
-+
-+  const completed = spans.flatMap((span) =>
-+    span.status._tag === "Ended" ? [{ span, status: span.status }] : [],
-+  )
-+  const labels = completed.map(
-+    ({ span }) => `${"  ".repeat(depthOf(span))}${span.name}`,
-+  )
-+  const labelWidth = Math.max(...labels.map((label) => label.length))
-+  const lines = completed.map(({ span, status }, index) => {
-+    const offset = toColumn(status.startTime - root.status.startTime)
-+    const available = Math.max(1, columns - offset)
-+    const length = Math.min(
-+      available,
-+      Math.max(1, toColumn(status.endTime - status.startTime)),
-+    )
-+    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(
-+      columns,
-+    )
-+    return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
-+  })
-+
-+  const attributes = [...root.attributes.entries()]
-+    .sort(([left], [right]) => left.localeCompare(right))
-+    .map(([key, value]) => `  ${key} = ${JSON.stringify(value)}`)
-+
-+  return [
-+    "Trace waterfall (one block is about 20 ms)",
-+    ...lines,
-+    ...(attributes.length > 0 ? ["attributes", ...attributes] : []),
-+  ].join("\n")
-+}
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
-
-Send the checkpoint 1 POST body again. Verify status `201` with the same response body. Verify that the server prints a `Trace waterfall` heading followed by exactly one bar named `http.post.orders`. The bar length may vary by one block. Verify that `Trace waterfall unavailable` is not printed.
-
-Reply only that checkpoint 3 succeeded, or report the preflight mismatch or observed verification difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 4. Give each operation its own bar
@@ -1175,7 +689,7 @@ around each provider Effect. The three Effects inside `Effect.all` remain
 concurrent. Payment and storage remain sequential because their `flatMap`
 callbacks cannot produce the next Effect until the previous success exists.
 
-```ts title="server.ts" collapse={92-210} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={88-203} ins={15-17,20,23,34,40}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect, Tracer } from "effect"
@@ -1192,35 +706,30 @@ const placeOrder = (input: PlaceOrderRequest) =>
     [
       Effect.tryPromise((signal) =>
         calculatePrice(input.quantity, { signal }),
--      ),
-+      ).pipe(Effect.withSpan("pricing.calculate")),
+      ).pipe(Effect.withSpan("pricing.calculate")),
       Effect.tryPromise((signal) =>
         reserveInventory(input.quantity, { signal }),
--      ),
-+      ).pipe(Effect.withSpan("inventory.reserve")),
+      ).pipe(Effect.withSpan("inventory.reserve")),
       Effect.tryPromise((signal) =>
         quoteShipping(input.postalCode, input.quantity, { signal }),
--      ),
-+      ).pipe(Effect.withSpan("shipping.quote")),
+      ).pipe(Effect.withSpan("shipping.quote")),
     ],
     { concurrency: "unbounded" },
   ).pipe(
     Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
       console.log("planning finished")
       return Effect.tryPromise((signal) =>
-        authorizePayment(
-          input.paymentToken,
-          subtotalCents + shippingCents,
-          { signal },
-        ),
+        authorizePayment(input.paymentToken, subtotalCents + shippingCents, {
+          signal,
+        }),
       ).pipe(
-+        Effect.withSpan("payment.authorize"),
+        Effect.withSpan("payment.authorize"),
         Effect.flatMap((paymentProvider) => {
           console.log("payment finished")
           return Effect.tryPromise((signal) =>
             insertOrder(input.customerId, reservationId, { signal }),
           ).pipe(
-+            Effect.withSpan("orders.insert"),
+            Effect.withSpan("orders.insert"),
             Effect.map((orderId) => {
               console.log("storage finished")
               return {
@@ -1253,8 +762,265 @@ const server = createServer(async (request, response) => {
       body += chunk
     }
 
-    const orderEffect = placeOrder(
-      JSON.parse(body) as PlaceOrderRequest,
+    const orderEffect = placeOrder(JSON.parse(body) as PlaceOrderRequest).pipe(
+      Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
+      Effect.withTracer(localTracer),
+    )
+    const order = await Effect.runPromise(orderEffect)
+    console.log(renderLatestTrace())
+    sendJson(201, order)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixtures
+// You will not modify the code below.
+
+interface ProviderOptions {
+  readonly signal?: AbortSignal
+}
+
+const calculatePrice = async (
+  quantity: number,
+  { signal }: ProviderOptions = {},
+) => {
+  await sleep(80, undefined, { signal })
+  return quantity * 1_250
+}
+
+const reserveInventory = async (
+  quantity: number,
+  { signal }: ProviderOptions = {},
+) => {
+  await sleep(140, undefined, { signal })
+  return `reservation-${quantity}`
+}
+
+const quoteShipping = async (
+  postalCode: string,
+  _quantity: number,
+  { signal }: ProviderOptions = {},
+) => {
+  await sleep(100, undefined, { signal })
+  return postalCode === "00100" ? 600 : 750
+}
+
+const authorizePayment = async (
+  _token: string,
+  _amountCents: number,
+  { signal }: ProviderOptions = {},
+) => {
+  await sleep(60, undefined, { signal })
+  return "primary-pay"
+}
+
+const insertOrder = async (
+  customerId: string,
+  _reservationId: string,
+  { signal }: ProviderOptions = {},
+) => {
+  await sleep(40, undefined, { signal })
+  return `order-${customerId}`
+}
+
+const recordedSpans: Array<Tracer.NativeSpan> = []
+
+const localTracer = Tracer.make({
+  span(options) {
+    const span = new Tracer.NativeSpan(options)
+    recordedSpans.push(span)
+    return span
+  },
+})
+
+const renderLatestTrace = (): string => {
+  const spans = recordedSpans.splice(0)
+  const root = spans.find((span) => span.parent._tag === "None")
+
+  if (root === undefined || root.status._tag !== "Ended") {
+    return "Trace waterfall unavailable"
+  }
+
+  const quantum = 20_000_000n
+  const toColumn = (nanoseconds: bigint): number =>
+    Number((nanoseconds + quantum / 2n) / quantum)
+  const columns = Math.max(
+    1,
+    toColumn(root.status.endTime - root.status.startTime),
+  )
+
+  const depthOf = (span: Tracer.NativeSpan): number => {
+    let depth = 0
+    let parent = span.parent._tag === "Some" ? span.parent.value : undefined
+
+    while (parent?._tag === "Span") {
+      depth += 1
+      parent = parent.parent._tag === "Some" ? parent.parent.value : undefined
+    }
+
+    return depth
+  }
+
+  const completed = spans.flatMap((span) =>
+    span.status._tag === "Ended" ? [{ span, status: span.status }] : [],
+  )
+  const labels = completed.map(
+    ({ span }) => `${"  ".repeat(depthOf(span))}${span.name}`,
+  )
+  const labelWidth = Math.max(...labels.map((label) => label.length))
+  const lines = completed.map(({ span, status }, index) => {
+    const offset = toColumn(status.startTime - root.status.startTime)
+    const available = Math.max(1, columns - offset)
+    const length = Math.min(
+      available,
+      Math.max(1, toColumn(status.endTime - status.startTime)),
+    )
+    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(columns)
+    return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
+  })
+
+  const attributes = [...root.attributes.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `  ${key} = ${JSON.stringify(value)}`)
+
+  return [
+    "Trace waterfall (one block is about 20 ms)",
+    ...lines,
+    ...(attributes.length > 0 ? ["attributes", ...attributes] : []),
+  ].join("\n")
+}
+```
+
+Each new `Effect.withSpan` call wraps only one provider Effect. Because the root
+span is active while `placeOrder` runs, Effect automatically records these five
+spans as its children. Concurrent children keep that same parent.
+
+Wait for the reload and place the order again. The response remains `201`. The
+trace now has this shape:
+
+```text title="Expected waterfall shape"
+Trace waterfall (one block is about 20 ms)
+http.post.orders     |████████████|
+  pricing.calculate  |████        |
+  inventory.reserve  |███████     |
+  shipping.quote     |█████       |
+  payment.authorize  |       ███  |
+  orders.insert      |          ██|
+```
+
+Read the bars from left to right:
+
+- pricing, inventory, and shipping begin together because `Effect.all` runs
+  them concurrently;
+- inventory is the planning bottleneck because its bar extends farthest;
+- payment begins near inventory's end, after every planning result is ready;
+- storage begins after payment finishes.
+
+The planning stage takes roughly the duration of inventory, not the sum of all
+three children. The waterfall turns that concurrency and bottleneck into a
+shape you can inspect without correlating timestamps by hand.
+
+<TutorialCheckpoint
+  number={4}
+  total={5}
+  title="The overlap and bottleneck are visible"
+>
+  The waterfall contains five child bars. Three overlap at the start;
+  `inventory.reserve` is the longest of them; payment and storage follow in
+  sequence.
+</TutorialCheckpoint>
+
+## 5. Attach the request context you will search for
+
+Names and bars explain structure, but an operator also needs to know which
+request produced a trace. Add the customer id and quantity to the active root
+span before `placeOrder` runs. Keep the payment token out of telemetry because
+credentials and secrets do not belong in span attributes.
+
+```ts title="server.ts" collapse={95-210} ins={73-80}
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect, Tracer } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly quantity: number
+  readonly paymentToken: string
+  readonly postalCode: string
+}
+
+const placeOrder = (input: PlaceOrderRequest) =>
+  Effect.all(
+    [
+      Effect.tryPromise((signal) =>
+        calculatePrice(input.quantity, { signal }),
+      ).pipe(Effect.withSpan("pricing.calculate")),
+      Effect.tryPromise((signal) =>
+        reserveInventory(input.quantity, { signal }),
+      ).pipe(Effect.withSpan("inventory.reserve")),
+      Effect.tryPromise((signal) =>
+        quoteShipping(input.postalCode, input.quantity, { signal }),
+      ).pipe(Effect.withSpan("shipping.quote")),
+    ],
+    { concurrency: "unbounded" },
+  ).pipe(
+    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
+      console.log("planning finished")
+      return Effect.tryPromise((signal) =>
+        authorizePayment(input.paymentToken, subtotalCents + shippingCents, {
+          signal,
+        }),
+      ).pipe(
+        Effect.withSpan("payment.authorize"),
+        Effect.flatMap((paymentProvider) => {
+          console.log("payment finished")
+          return Effect.tryPromise((signal) =>
+            insertOrder(input.customerId, reservationId, { signal }),
+          ).pipe(
+            Effect.withSpan("orders.insert"),
+            Effect.map((orderId) => {
+              console.log("storage finished")
+              return {
+                orderId,
+                status: "accepted",
+                totalCents: subtotalCents + shippingCents,
+                paymentProvider,
+              }
+            }),
+          )
+        }),
+      )
+    }),
+  )
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+
+    const input = JSON.parse(body) as PlaceOrderRequest
+    const orderEffect = Effect.flatMap(
+      Effect.annotateCurrentSpan({
+        "order.customer_id": input.customerId,
+        "order.quantity": input.quantity,
+      }),
+      () => placeOrder(input),
     ).pipe(
       Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
       Effect.withTracer(localTracer),
@@ -1352,8 +1118,7 @@ const renderLatestTrace = (): string => {
 
     while (parent?._tag === "Span") {
       depth += 1
-      parent =
-        parent.parent._tag === "Some" ? parent.parent.value : undefined
+      parent = parent.parent._tag === "Some" ? parent.parent.value : undefined
     }
 
     return depth
@@ -1373,9 +1138,7 @@ const renderLatestTrace = (): string => {
       available,
       Math.max(1, toColumn(status.endTime - status.startTime)),
     )
-    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(
-      columns,
-    )
+    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(columns)
     return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
   })
 
@@ -1391,345 +1154,10 @@ const renderLatestTrace = (): string => {
 }
 ```
 
-<EffectApi name="Effect.withSpan" href="/docs/v4/api/effect/Effect#withSpan">
-  Each use now wraps only one provider Effect. Because the root span is active
-  while `placeOrder` runs, Effect automatically records these five spans as its
-  children. Concurrent children keep that same parent.
-</EffectApi>
-
-Wait for the reload and place the order again. The response remains `201`. The
-trace now has this shape:
-
-```text title="Expected waterfall shape"
-Trace waterfall (one block is about 20 ms)
-http.post.orders     |████████████|
-  pricing.calculate  |████        |
-  inventory.reserve  |███████     |
-  shipping.quote     |█████       |
-  payment.authorize  |       ███  |
-  orders.insert      |          ██|
-```
-
-Read the bars from left to right:
-
-- pricing, inventory, and shipping begin together because `Effect.all` runs
-  them concurrently;
-- inventory is the planning bottleneck because its bar extends farthest;
-- payment begins near inventory's end, after every planning result is ready;
-- storage begins after payment finishes.
-
-The planning stage takes roughly the duration of inventory, not the sum of all
-three children. The waterfall turns that concurrency and bottleneck into a
-shape you can inspect without correlating timestamps by hand.
-
-<TutorialCheckpoint
-  number={4}
-  total={5}
-  title="The overlap and bottleneck are visible"
->
-  The waterfall contains five child bars. Three overlap at the start;
-  `inventory.reserve` is the longest of them; payment and storage follow in
-  sequence.
-
-  <AgentPrompt label="AI prompt: trace each provider operation">
-
-````text
-Add child spans around the three concurrent planning providers and the sequential payment and storage providers.
-
-Rules:
-- Work only in `./see-where-a-request-spends-its-time` relative to the current workspace root.
-- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the project is not at checkpoint 3.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or change any fixture delay.
-- After the edit, verify the result but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
-       Effect.tryPromise((signal) =>
-         calculatePrice(input.quantity, { signal }),
--      ),
-+      ).pipe(Effect.withSpan("pricing.calculate")),
-       Effect.tryPromise((signal) =>
-         reserveInventory(input.quantity, { signal }),
--      ),
-+      ).pipe(Effect.withSpan("inventory.reserve")),
-       Effect.tryPromise((signal) =>
-         quoteShipping(input.postalCode, input.quantity, { signal }),
--      ),
-+      ).pipe(Effect.withSpan("shipping.quote")),
-@@
-         ),
-       ).pipe(
-+        Effect.withSpan("payment.authorize"),
-         Effect.flatMap((paymentProvider) => {
-@@
-             insertOrder(input.customerId, reservationId, { signal }),
-           ).pipe(
-+            Effect.withSpan("orders.insert"),
-             Effect.map((orderId) => {
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
-
-Send the checkpoint 1 POST body again. Verify status `201` with the same response body. Verify the waterfall contains one root named `http.post.orders` and these five indented child names in order:
-
-```text
-pricing.calculate
-inventory.reserve
-shipping.quote
-payment.authorize
-orders.insert
-```
-
-Verify that the first three bars overlap from the left edge, `inventory.reserve` extends farther than the other two, `payment.authorize` starts after those bars, and `orders.insert` starts after payment. A bar length may vary by one block.
-
-Reply only that checkpoint 4 succeeded, or report the preflight mismatch or observed verification difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
-</TutorialCheckpoint>
-
-## 5. Attach the request context you will search for
-
-Names and bars explain structure, but an operator also needs to know which
-request produced a trace. Add the customer id and quantity to the active root
-span before `placeOrder` runs. Keep the payment token out of telemetry because
-credentials and secrets do not belong in span attributes.
-
-```ts title="server.ts" collapse={97-215} useDiffSyntax copyFinal
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
-import { Effect, Tracer } from "effect"
-
-interface PlaceOrderRequest {
-  readonly customerId: string
-  readonly quantity: number
-  readonly paymentToken: string
-  readonly postalCode: string
-}
-
-const placeOrder = (input: PlaceOrderRequest) =>
-  Effect.all(
-    [
-      Effect.tryPromise((signal) =>
-        calculatePrice(input.quantity, { signal }),
-      ).pipe(Effect.withSpan("pricing.calculate")),
-      Effect.tryPromise((signal) =>
-        reserveInventory(input.quantity, { signal }),
-      ).pipe(Effect.withSpan("inventory.reserve")),
-      Effect.tryPromise((signal) =>
-        quoteShipping(input.postalCode, input.quantity, { signal }),
-      ).pipe(Effect.withSpan("shipping.quote")),
-    ],
-    { concurrency: "unbounded" },
-  ).pipe(
-    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-      console.log("planning finished")
-      return Effect.tryPromise((signal) =>
-        authorizePayment(
-          input.paymentToken,
-          subtotalCents + shippingCents,
-          { signal },
-        ),
-      ).pipe(
-        Effect.withSpan("payment.authorize"),
-        Effect.flatMap((paymentProvider) => {
-          console.log("payment finished")
-          return Effect.tryPromise((signal) =>
-            insertOrder(input.customerId, reservationId, { signal }),
-          ).pipe(
-            Effect.withSpan("orders.insert"),
-            Effect.map((orderId) => {
-              console.log("storage finished")
-              return {
-                orderId,
-                status: "accepted",
-                totalCents: subtotalCents + shippingCents,
-                paymentProvider,
-              }
-            }),
-          )
-        }),
-      )
-    }),
-  )
-
-const server = createServer(async (request, response) => {
-  const sendJson = (status: number, body: unknown): void => {
-    response.writeHead(status, { "content-type": "application/json" })
-    response.end(JSON.stringify(body))
-  }
-
-  if (request.method !== "POST" || request.url !== "/orders") {
-    sendJson(404, { error: "NotFound" })
-    return
-  }
-
-  try {
-    let body = ""
-    for await (const chunk of request) {
-      body += chunk
-    }
-
--    const orderEffect = placeOrder(
--      JSON.parse(body) as PlaceOrderRequest,
--    ).pipe(
-+    const input = JSON.parse(body) as PlaceOrderRequest
-+    const orderEffect = Effect.flatMap(
-+      Effect.annotateCurrentSpan({
-+        "order.customer_id": input.customerId,
-+        "order.quantity": input.quantity,
-+      }),
-+      () => placeOrder(input),
-+    ).pipe(
-      Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
-      Effect.withTracer(localTracer),
-    )
-    const order = await Effect.runPromise(orderEffect)
-    console.log(renderLatestTrace())
-    sendJson(201, order)
-  } catch (error) {
-    console.error(error)
-    sendJson(500, { error: "InternalServerError" })
-  }
-})
-
-server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-
-// Tutorial fixtures
-// You will not modify the code below.
-
-interface ProviderOptions {
-  readonly signal?: AbortSignal
-}
-
-const calculatePrice = async (
-  quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(80, undefined, { signal })
-  return quantity * 1_250
-}
-
-const reserveInventory = async (
-  quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(140, undefined, { signal })
-  return `reservation-${quantity}`
-}
-
-const quoteShipping = async (
-  postalCode: string,
-  _quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(100, undefined, { signal })
-  return postalCode === "00100" ? 600 : 750
-}
-
-const authorizePayment = async (
-  _token: string,
-  _amountCents: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(60, undefined, { signal })
-  return "primary-pay"
-}
-
-const insertOrder = async (
-  customerId: string,
-  _reservationId: string,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(40, undefined, { signal })
-  return `order-${customerId}`
-}
-
-const recordedSpans: Array<Tracer.NativeSpan> = []
-
-const localTracer = Tracer.make({
-  span(options) {
-    const span = new Tracer.NativeSpan(options)
-    recordedSpans.push(span)
-    return span
-  },
-})
-
-const renderLatestTrace = (): string => {
-  const spans = recordedSpans.splice(0)
-  const root = spans.find((span) => span.parent._tag === "None")
-
-  if (root === undefined || root.status._tag !== "Ended") {
-    return "Trace waterfall unavailable"
-  }
-
-  const quantum = 20_000_000n
-  const toColumn = (nanoseconds: bigint): number =>
-    Number((nanoseconds + quantum / 2n) / quantum)
-  const columns = Math.max(
-    1,
-    toColumn(root.status.endTime - root.status.startTime),
-  )
-
-  const depthOf = (span: Tracer.NativeSpan): number => {
-    let depth = 0
-    let parent = span.parent._tag === "Some" ? span.parent.value : undefined
-
-    while (parent?._tag === "Span") {
-      depth += 1
-      parent =
-        parent.parent._tag === "Some" ? parent.parent.value : undefined
-    }
-
-    return depth
-  }
-
-  const completed = spans.flatMap((span) =>
-    span.status._tag === "Ended" ? [{ span, status: span.status }] : [],
-  )
-  const labels = completed.map(
-    ({ span }) => `${"  ".repeat(depthOf(span))}${span.name}`,
-  )
-  const labelWidth = Math.max(...labels.map((label) => label.length))
-  const lines = completed.map(({ span, status }, index) => {
-    const offset = toColumn(status.startTime - root.status.startTime)
-    const available = Math.max(1, columns - offset)
-    const length = Math.min(
-      available,
-      Math.max(1, toColumn(status.endTime - status.startTime)),
-    )
-    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(
-      columns,
-    )
-    return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
-  })
-
-  const attributes = [...root.attributes.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `  ${key} = ${JSON.stringify(value)}`)
-
-  return [
-    "Trace waterfall (one block is about 20 ms)",
-    ...lines,
-    ...(attributes.length > 0 ? ["attributes", ...attributes] : []),
-  ].join("\n")
-}
-```
-
-<EffectApi
-  name="Effect.annotateCurrentSpan"
-  href="/docs/v4/api/effect/Effect#annotateCurrentSpan"
->
-  Describes adding one or more attributes to the span active when this Effect
-  runs. Here, the root is already active, so the customer id and quantity are
-  attached to `http.post.orders` before the provider pipeline begins.
-</EffectApi>
+[`Effect.annotateCurrentSpan`](/docs/v4/api/effect/Effect#annotateCurrentSpan)
+describes adding one or more attributes to the span active when this Effect
+runs. Here, the root is already active, so the customer id and quantity are
+attached to `http.post.orders` before the provider pipeline begins.
 
 Send the same request once more. The bars keep the same shape, and the renderer
 adds the two sorted attributes below them:
@@ -1752,56 +1180,6 @@ backend, while the order pipeline remains independent of that destination.
 >
   The final trace shows the concurrent and sequential timing bars, then records
   `order.customer_id` and `order.quantity` on the root span.
-
-  <AgentPrompt label="AI prompt: annotate the root request span">
-
-````text
-Add the customer id and quantity as attributes on the root request span.
-
-Rules:
-- Work only in `./see-where-a-request-spends-its-time` relative to the current workspace root.
-- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the project is not at checkpoint 4.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not add the payment token or other attributes.
-- After the edit, verify the result but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
--    const orderEffect = placeOrder(
--      JSON.parse(body) as PlaceOrderRequest,
--    ).pipe(
-+    const input = JSON.parse(body) as PlaceOrderRequest
-+    const orderEffect = Effect.flatMap(
-+      Effect.annotateCurrentSpan({
-+        "order.customer_id": input.customerId,
-+        "order.quantity": input.quantity,
-+      }),
-+      () => placeOrder(input),
-+    ).pipe(
-       Effect.withSpan("http.post.orders", { root: true, kind: "server" }),
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
-
-Send the checkpoint 1 POST body again. Verify status `201` with the same response body and the same six waterfall bars from checkpoint 4. Then verify these exact lines appear after the bars:
-
-```text
-attributes
-  order.customer_id = "customer-123"
-  order.quantity = 2
-```
-
-Verify that the payment token does not appear in the waterfall output.
-
-Reply only that checkpoint 5 succeeded, or report the preflight mismatch or observed verification difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## Read the finished trace

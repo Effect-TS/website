@@ -5,12 +5,7 @@ sidebar:
   order: 3
 ---
 
-import {
-  AgentPrompt,
-  Aside,
-  EffectApi,
-  TutorialCheckpoint,
-} from "@astrojs/starlight/components"
+import { TutorialCheckpoint } from "@astrojs/starlight/components"
 
 An order request can borrow a database connection, acquire an inventory lock,
 and then fail before the request reaches its `finally` block. Even after that
@@ -30,21 +25,14 @@ endpoint will have these observable behaviors:
 The HTTP server will remain ordinary TypeScript. Effect will manage only the
 part of the request that acquires, uses, and releases resources.
 
-<Aside type="tip" title="Using a coding agent?">
-  Each step ends with a checkpoint: a short verification performed before you
-  continue. Every checkpoint includes an optional prompt that asks a coding
-  agent to make and verify exactly the same change. Read the step first, then
-  either follow it yourself or use the prompt.
-</Aside>
+Each step ends with a checkpoint: a short verification to complete before continuing.
 
 ## 1. Find the gap around `finally`
 
 This tutorial requires Node.js 22.18.0 or newer because it runs `server.ts`
 directly with Node's built-in TypeScript support.
 
-To perform the setup manually, create an empty project. Otherwise, skip to the
-first checkpoint. Its prompt creates the complete starter project, starts the
-watched server, and verifies both the working request and the cleanup bug.
+Create an empty project:
 
 ```sh title="Create the project"
 mkdir clean-up-order-resources
@@ -242,157 +230,6 @@ release the connection acquired one line earlier.
 >
   A stored order returns `201` and releases both resources. A lock acquisition
   failure returns `500` without releasing the database connection.
-
-  <AgentPrompt label="AI prompt: create and inspect the starter">
-
-````text
-Set up the starter project for the Effect resource-cleanup tutorial.
-
-Rules:
-- Treat the current workspace root as the parent directory.
-- Work only in `./clean-up-order-resources`.
-- If that directory already exists, stop without changing anything and explain that setup requires a new directory.
-- Do not add files, dependencies, or configuration not requested below.
-
-Create `./clean-up-order-resources`, then run these commands inside it:
-
-```sh
-npm init -y
-npm pkg set type=module
-npm install --save-dev @types/node@22
-```
-
-Create `server.ts` with exactly this content:
-
-```ts
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
-
-interface PlaceOrderRequest {
-  readonly orderId: string
-}
-
-interface StoredOrder {
-  readonly orderId: string
-  readonly status: "stored"
-}
-
-const server = createServer(async (request, response) => {
-  const sendJson = (status: number, body: unknown): void => {
-    response.writeHead(status, { "content-type": "application/json" })
-    response.end(JSON.stringify(body))
-  }
-
-  if (request.method !== "POST" || request.url !== "/orders") {
-    sendJson(404, { error: "NotFound" })
-    return
-  }
-
-  try {
-    let body = ""
-    for await (const chunk of request) {
-      body += chunk
-    }
-    const input = JSON.parse(body) as PlaceOrderRequest
-
-    const connection = await checkoutDatabase(input.orderId)
-    const lock = await acquireInventoryLock(connection, input.orderId)
-
-    try {
-      const order = await storeOrder(connection, lock, input.orderId)
-      sendJson(201, order)
-    } finally {
-      releaseInventoryLock(connection, lock)
-      releaseDatabase(connection)
-    }
-  } catch {
-    console.error("request failed")
-    sendJson(500, { error: "OrderFailed" })
-  }
-})
-
-server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-
-// Tutorial fixture
-// You will not modify the code below.
-
-interface DatabaseConnection {
-  readonly id: string
-}
-
-interface InventoryLock {
-  readonly id: string
-}
-
-const checkoutDatabase = async (
-  orderId: string,
-): Promise<DatabaseConnection> => {
-  const connection = { id: `db-${orderId}` }
-  console.log(`checked out ${connection.id}`)
-  return connection
-}
-
-const acquireInventoryLock = async (
-  connection: DatabaseConnection,
-  orderId: string,
-): Promise<InventoryLock> => {
-  if (orderId === "order-lock-fails") {
-    console.log(`inventory lock unavailable for ${orderId}`)
-    throw new Error("controlled lock failure")
-  }
-  const lock = { id: `lock-${orderId}` }
-  console.log(`acquired ${lock.id} using ${connection.id}`)
-  return lock
-}
-
-const releaseInventoryLock = (
-  connection: DatabaseConnection,
-  lock: InventoryLock,
-): void => {
-  console.log(`released ${lock.id} using ${connection.id}`)
-}
-
-const releaseDatabase = (connection: DatabaseConnection): void => {
-  console.log(`released ${connection.id}`)
-}
-
-const storeOrder = async (
-  connection: DatabaseConnection,
-  lock: InventoryLock,
-  orderId: string,
-  { signal }: { readonly signal?: AbortSignal } = {},
-): Promise<StoredOrder> => {
-  console.log(
-    `store started for ${orderId} using ${connection.id} and ${lock.id}`,
-  )
-
-  signal?.addEventListener("abort", () => console.log("store aborted"), {
-    once: true,
-  })
-
-  await sleep(orderId === "order-slow" ? 1_500 : 80, undefined, { signal })
-
-  console.log(`stored ${orderId}`)
-  return { orderId, status: "stored" }
-}
-```
-
-Start `node --watch server.ts` from the tutorial directory in a persistent terminal. Wait for `Listening on http://localhost:3000` and leave the server active.
-
-Send these two POST requests to `http://localhost:3000/orders` with `content-type: application/json`:
-
-1. `{"orderId":"order-ok"}`
-2. `{"orderId":"order-lock-fails"}`
-
-Verify these results:
-
-1. The successful request returns status `201`, body `{"orderId":"order-ok","status":"stored"}`, and logs `released lock-order-ok using db-order-ok` followed by `released db-order-ok`.
-2. The failed request returns status `500`, body `{"error":"OrderFailed"}`, logs `inventory lock unavailable for order-lock-fails`, and does not log `released db-order-lock-fails`.
-
-Reply with a concise pass or fail result for each request. If any requested action fails, report the observed difference without attempting an alternative setup or correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 2. Track partial acquisition manually
@@ -400,7 +237,7 @@ Reply with a concise pass or fail result for each request. If any requested acti
 Move both acquisitions inside the protected region and keep optional references
 for the resources that have actually been acquired:
 
-```ts title="server.ts" collapse={1-28,59-120} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={1-28,58-116} ins={31-32,35-36,40-45}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -431,25 +268,21 @@ const server = createServer(async (request, response) => {
     }
     const input = JSON.parse(body) as PlaceOrderRequest
 
--    const connection = await checkoutDatabase(input.orderId)
--    const lock = await acquireInventoryLock(connection, input.orderId)
-+    let connection: DatabaseConnection | undefined
-+    let lock: InventoryLock | undefined
+    let connection: DatabaseConnection | undefined
+    let lock: InventoryLock | undefined
 
     try {
-+      connection = await checkoutDatabase(input.orderId)
-+      lock = await acquireInventoryLock(connection, input.orderId)
+      connection = await checkoutDatabase(input.orderId)
+      lock = await acquireInventoryLock(connection, input.orderId)
       const order = await storeOrder(connection, lock, input.orderId)
       sendJson(201, order)
     } finally {
--      releaseInventoryLock(connection, lock)
--      releaseDatabase(connection)
-+      if (connection !== undefined && lock !== undefined) {
-+        releaseInventoryLock(connection, lock)
-+      }
-+      if (connection !== undefined) {
-+        releaseDatabase(connection)
-+      }
+      if (connection !== undefined && lock !== undefined) {
+        releaseInventoryLock(connection, lock)
+      }
+      if (connection !== undefined) {
+        releaseDatabase(connection)
+      }
     }
   } catch {
     console.error("request failed")
@@ -548,62 +381,6 @@ maintain by hand.
 >
   A lock acquisition failure still returns `500`, and the connection acquired
   before it is now released.
-
-  <AgentPrompt label="AI prompt: close the acquisition gap">
-
-````text
-Make the current TypeScript `finally` block clean up partially acquired resources.
-
-Rules:
-- Work only in `./clean-up-order-resources` relative to the current workspace root.
-- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After applying the change, verify the behavior but do not fix a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
--    const connection = await checkoutDatabase(input.orderId)
--    const lock = await acquireInventoryLock(connection, input.orderId)
-+    let connection: DatabaseConnection | undefined
-+    let lock: InventoryLock | undefined
-
-     try {
-+      connection = await checkoutDatabase(input.orderId)
-+      lock = await acquireInventoryLock(connection, input.orderId)
-       const order = await storeOrder(connection, lock, input.orderId)
-       sendJson(201, order)
-     } finally {
--      releaseInventoryLock(connection, lock)
--      releaseDatabase(connection)
-+      if (connection !== undefined && lock !== undefined) {
-+        releaseInventoryLock(connection, lock)
-+      }
-+      if (connection !== undefined) {
-+        releaseDatabase(connection)
-+      }
-     }
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Send `{"orderId":"order-lock-fails"}` and verify status `500`, body `{"error":"OrderFailed"}`, and these final log lines in order:
-
-```text
-inventory lock unavailable for order-lock-fails
-released db-order-lock-fails
-request failed
-```
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 3. Disconnect while both resources are in use
@@ -648,32 +425,6 @@ the HTTP request.
 >
   The client receives no response, but storage continues for about 1.5 seconds.
   Both resources remain in use until that Promise finishes.
-
-  <AgentPrompt label="AI prompt: observe delayed cleanup">
-
-```text
-Observe how the current Promise workflow behaves after an HTTP client disconnects.
-
-Rules:
-- Work only in `./clean-up-order-resources` relative to the current workspace root.
-- Verify that `package.json` and `server.ts` exist. Otherwise stop without changing anything.
-- Do not edit any file.
-- If `http://localhost:3000/orders` refuses the connection, start `node --watch server.ts` from the tutorial directory in a persistent terminal, wait for the listening message, and retry. Leave the server active.
-- If the server returns any HTTP response, do not restart it merely because the behavior differs from the expectations below.
-- Do not fix a failed observation.
-
-Send `{"orderId":"order-slow"}` to `POST http://localhost:3000/orders` with `content-type: application/json` and `curl --max-time 0.2`.
-
-Verify all of the following:
-
-1. `curl` reports that its deadline was reached and receives no HTTP response.
-2. When `curl` exits, the server has logged checkout, lock acquisition, and storage start, but neither cleanup.
-3. About 1.5 seconds after the request began, the server logs `stored order-slow`, `released lock-order-slow using db-order-slow`, and `released db-order-slow` in that order.
-
-Reply with a concise pass or fail result. On failure, report only the observed difference. Do not propose or apply a correction.
-```
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 4. Describe the existing workflow with Effect
@@ -685,15 +436,15 @@ changing the endpoint's behavior.
 Keep the watched server running. In the second terminal pane, install Effect:
 
 ```sh title="Install Effect"
-npm install effect
+npm install effect@4.0.0-beta.104
 ```
 
 Make the following changes:
 
-```ts title="server.ts" collapse={77-138} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={64-122} ins={3,14-32,51-52}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
-+import { Effect } from "effect"
+import { Effect } from "effect"
 
 interface PlaceOrderRequest {
   readonly orderId: string
@@ -704,25 +455,25 @@ interface StoredOrder {
   readonly status: "stored"
 }
 
-+const placeOrder = (input: PlaceOrderRequest) =>
-+  Effect.tryPromise(async (signal) => {
-+    let connection: DatabaseConnection | undefined
-+    let lock: InventoryLock | undefined
-+
-+    try {
-+      connection = await checkoutDatabase(input.orderId)
-+      lock = await acquireInventoryLock(connection, input.orderId)
-+      return await storeOrder(connection, lock, input.orderId, { signal })
-+    } finally {
-+      if (connection !== undefined && lock !== undefined) {
-+        releaseInventoryLock(connection, lock)
-+      }
-+      if (connection !== undefined) {
-+        releaseDatabase(connection)
-+      }
-+    }
-+  })
-+
+const placeOrder = (input: PlaceOrderRequest) =>
+  Effect.tryPromise(async (signal) => {
+    let connection: DatabaseConnection | undefined
+    let lock: InventoryLock | undefined
+
+    try {
+      connection = await checkoutDatabase(input.orderId)
+      lock = await acquireInventoryLock(connection, input.orderId)
+      return await storeOrder(connection, lock, input.orderId, { signal })
+    } finally {
+      if (connection !== undefined && lock !== undefined) {
+        releaseInventoryLock(connection, lock)
+      }
+      if (connection !== undefined) {
+        releaseDatabase(connection)
+      }
+    }
+  })
+
 const server = createServer(async (request, response) => {
   const sendJson = (status: number, body: unknown): void => {
     response.writeHead(status, { "content-type": "application/json" })
@@ -741,24 +492,8 @@ const server = createServer(async (request, response) => {
     }
     const input = JSON.parse(body) as PlaceOrderRequest
 
--    let connection: DatabaseConnection | undefined
--    let lock: InventoryLock | undefined
--
--    try {
--      connection = await checkoutDatabase(input.orderId)
--      lock = await acquireInventoryLock(connection, input.orderId)
--      const order = await storeOrder(connection, lock, input.orderId)
--      sendJson(201, order)
--    } finally {
--      if (connection !== undefined && lock !== undefined) {
--        releaseInventoryLock(connection, lock)
--      }
--      if (connection !== undefined) {
--        releaseDatabase(connection)
--      }
--    }
-+    const order = await Effect.runPromise(placeOrder(input))
-+    sendJson(201, order)
+    const order = await Effect.runPromise(placeOrder(input))
+    sendJson(201, order)
   } catch {
     console.error("request failed")
     sendJson(500, { error: "OrderFailed" })
@@ -836,15 +571,11 @@ computation. It does not check out a connection, acquire a lock, or store an
 order yet. Transforming the Effect would still only produce another
 description.
 
-<EffectApi
-  name="Effect.tryPromise"
-  href="/docs/v4/api/effect/Effect#tryPromise"
->
-  Adapts a function that creates a Promise. Effect calls the function only when
-  the computation runs. A resolved Promise becomes a success, while a
-  synchronous throw or rejected Promise enters the error channel. Effect also
-  supplies an `AbortSignal`, which the workflow passes to `storeOrder`.
-</EffectApi>
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts a function
+that creates a Promise. Effect calls the function only when the computation
+runs. A resolved Promise becomes a success, while a synchronous throw or
+rejected Promise enters the error channel. Effect also supplies an
+`AbortSignal`, which the workflow passes to `storeOrder`.
 
 TypeScript infers this type for `placeOrder(input)`:
 
@@ -854,33 +585,24 @@ Effect.Effect<StoredOrder, Cause.UnknownError>
 
 This display explains the inferred type. Do not paste it into `server.ts`.
 
-<EffectApi name="Effect.Effect" href="/docs/v4/api/effect/Effect#Effect">
-  The type of an Effect value. Here, `StoredOrder` is the value produced when
-  the complete Promise workflow succeeds. `Cause.UnknownError` describes how
-  that workflow can fail.
-</EffectApi>
+[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of an Effect
+value. Here, `StoredOrder` is the value produced when the complete Promise
+workflow succeeds. `Cause.UnknownError` describes how that workflow can fail.
 
 Effect calls the second type parameter its error channel. A rejected checkout,
 lock acquisition, or storage operation enters this channel instead of
 producing a `StoredOrder`.
 
-<EffectApi
-  name="Cause.UnknownError"
-  href="/docs/v4/api/effect/Cause#UnknownError-interface"
->
-  Effect's built-in wrapper for an unclassified Promise rejection. Its `cause`
-  property preserves the original rejected value. We keep the tutorial's
-  existing HTTP decision, so the outer `catch` still returns `500`.
-</EffectApi>
+[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+Effect's built-in wrapper for an unclassified Promise rejection. Its `cause`
+property preserves the original rejected value. We keep the tutorial's
+existing HTTP decision, so the outer `catch` still returns `500`.
 
-<EffectApi
-  name="Effect.runPromise"
-  href="/docs/v4/api/effect/Effect#runPromise"
->
-  Runs the described computation at the existing async HTTP boundary and returns
-  a Promise. It resolves with the `StoredOrder` on success. If the Effect does
-  not succeed, the Promise rejects and the existing `catch` handles it.
-</EffectApi>
+At the existing async HTTP boundary,
+[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
+computation and returns a Promise. It resolves with the `StoredOrder` on
+success. If the Effect does not succeed, the Promise rejects and the existing
+`catch` handles it.
 
 Wait for the server to reload, then send `order-ok` and
 `order-lock-fails`. Their status codes, bodies, and cleanup logs remain the same
@@ -895,86 +617,6 @@ described, not its cleanup policy.
   `placeOrder` is a lazy Effect value. `Effect.runPromise` runs it from the HTTP
   handler, while the existing `finally` still closes the resources already
   acquired.
-
-  <AgentPrompt label="AI prompt: describe the workflow with Effect">
-
-````text
-Move the existing Promise workflow into Effect without changing its manual cleanup or HTTP behavior.
-
-Rules:
-- Work only in `./clean-up-order-resources` relative to the current workspace root.
-- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
-- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After applying the change, verify the behavior but do not fix a failed verification.
-
-From the tutorial directory, run `npm install effect`, then apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
- import { createServer } from "node:http"
- import { setTimeout as sleep } from "node:timers/promises"
-+import { Effect } from "effect"
-@@
- interface StoredOrder {
-   readonly orderId: string
-   readonly status: "stored"
- }
-
-+const placeOrder = (input: PlaceOrderRequest) =>
-+  Effect.tryPromise(async (signal) => {
-+    let connection: DatabaseConnection | undefined
-+    let lock: InventoryLock | undefined
-+
-+    try {
-+      connection = await checkoutDatabase(input.orderId)
-+      lock = await acquireInventoryLock(connection, input.orderId)
-+      return await storeOrder(connection, lock, input.orderId, { signal })
-+    } finally {
-+      if (connection !== undefined && lock !== undefined) {
-+        releaseInventoryLock(connection, lock)
-+      }
-+      if (connection !== undefined) {
-+        releaseDatabase(connection)
-+      }
-+    }
-+  })
-+
-@@
--    let connection: DatabaseConnection | undefined
--    let lock: InventoryLock | undefined
--
--    try {
--      connection = await checkoutDatabase(input.orderId)
--      lock = await acquireInventoryLock(connection, input.orderId)
--      const order = await storeOrder(connection, lock, input.orderId)
--      sendJson(201, order)
--    } finally {
--      if (connection !== undefined && lock !== undefined) {
--        releaseInventoryLock(connection, lock)
--      }
--      if (connection !== undefined) {
--        releaseDatabase(connection)
--      }
--    }
-+    const order = await Effect.runPromise(placeOrder(input))
-+    sendJson(201, order)
-*** End Patch
-```
-
-If either request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Verify these two POST requests:
-
-1. `{"orderId":"order-ok"}` returns status `201`, body `{"orderId":"order-ok","status":"stored"}`, then logs `released lock-order-ok using db-order-ok` followed by `released db-order-ok`.
-2. `{"orderId":"order-lock-fails"}` returns status `500`, body `{"error":"OrderFailed"}`, and logs `released db-order-lock-fails` before `request failed`.
-
-Reply with a concise pass or fail result for each request. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 5. Give the resources one lifetime
@@ -983,7 +625,7 @@ The workflow is now an Effect, but its Promise callback still owns the mutable
 resource variables and `finally` block. Replace that bookkeeping so each
 successful acquisition registers its cleanup immediately:
 
-```ts title="server.ts" collapse={92-153} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={71-128} ins={14-18,20-24,26-38,57}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
@@ -997,52 +639,30 @@ interface StoredOrder {
   readonly status: "stored"
 }
 
--const placeOrder = (input: PlaceOrderRequest) =>
--  Effect.tryPromise(async (signal) => {
--    let connection: DatabaseConnection | undefined
--    let lock: InventoryLock | undefined
--
--    try {
--      connection = await checkoutDatabase(input.orderId)
--      lock = await acquireInventoryLock(connection, input.orderId)
--      return await storeOrder(connection, lock, input.orderId, { signal })
--    } finally {
--      if (connection !== undefined && lock !== undefined) {
--        releaseInventoryLock(connection, lock)
--      }
--      if (connection !== undefined) {
--        releaseDatabase(connection)
--      }
--    }
--  })
-+const databaseConnection = (orderId: string) =>
-+  Effect.acquireRelease(
-+    Effect.tryPromise(() => checkoutDatabase(orderId)),
-+    (connection) => Effect.sync(() => releaseDatabase(connection)),
-+  )
-+
-+const inventoryLock = (
-+  connection: DatabaseConnection,
-+  orderId: string,
-+) =>
-+  Effect.acquireRelease(
-+    Effect.tryPromise(() => acquireInventoryLock(connection, orderId)),
-+    (lock) =>
-+      Effect.sync(() => releaseInventoryLock(connection, lock)),
-+  )
-+
-+const placeOrder = (input: PlaceOrderRequest) =>
-+  databaseConnection(input.orderId).pipe(
-+    Effect.flatMap((connection) =>
-+      inventoryLock(connection, input.orderId).pipe(
-+        Effect.flatMap((lock) =>
-+          Effect.tryPromise((signal) =>
-+            storeOrder(connection, lock, input.orderId, { signal }),
-+          ),
-+        ),
-+      ),
-+    ),
-+  )
+const databaseConnection = (orderId: string) =>
+  Effect.acquireRelease(
+    Effect.tryPromise(() => checkoutDatabase(orderId)),
+    (connection) => Effect.sync(() => releaseDatabase(connection)),
+  )
+
+const inventoryLock = (connection: DatabaseConnection, orderId: string) =>
+  Effect.acquireRelease(
+    Effect.tryPromise(() => acquireInventoryLock(connection, orderId)),
+    (lock) => Effect.sync(() => releaseInventoryLock(connection, lock)),
+  )
+
+const placeOrder = (input: PlaceOrderRequest) =>
+  databaseConnection(input.orderId).pipe(
+    Effect.flatMap((connection) =>
+      inventoryLock(connection, input.orderId).pipe(
+        Effect.flatMap((lock) =>
+          Effect.tryPromise((signal) =>
+            storeOrder(connection, lock, input.orderId, { signal }),
+          ),
+        ),
+      ),
+    ),
+  )
 
 const server = createServer(async (request, response) => {
   const sendJson = (status: number, body: unknown): void => {
@@ -1062,10 +682,7 @@ const server = createServer(async (request, response) => {
     }
     const input = JSON.parse(body) as PlaceOrderRequest
 
--    const order = await Effect.runPromise(placeOrder(input))
-+    const order = await Effect.runPromise(
-+      Effect.scoped(placeOrder(input)),
-+    )
+    const order = await Effect.runPromise(Effect.scoped(placeOrder(input)))
     sendJson(201, order)
   } catch {
     console.error("request failed")
@@ -1149,52 +766,41 @@ Effect.Effect<StoredOrder, Cause.UnknownError, Scope.Scope>
 
 This display explains the inferred type. Do not paste it into `server.ts`.
 
-<EffectApi name="Scope.Scope" href="/docs/v4/api/effect/Scope#Scope-interface">
-  Represents a lifetime in which resources can register cleanup work. The
-  `Scope.Scope` requirement in the inferred type means `placeOrder` must run
-  inside such a lifetime.
-</EffectApi>
+[`Scope.Scope`](/docs/v4/api/effect/Scope#Scope-interface) represents a lifetime
+in which resources can register cleanup work. The `Scope.Scope` requirement in
+the inferred type means `placeOrder` must run inside such a lifetime.
 
-Each resource now describes its own acquisition and release:
-
-<EffectApi
-  name="Effect.acquireRelease"
-  href="/docs/v4/api/effect/Effect#acquireRelease"
->
-  Runs the acquisition inside the current Scope. If acquisition succeeds, it
-  immediately registers the release function as a finalizer. If acquisition
-  fails, no finalizer is registered for that resource. When the Scope closes,
-  finalizers run in reverse registration order after success, failure, or
-  interruption.
-</EffectApi>
+Each resource now describes its own acquisition and release with
+[`Effect.acquireRelease`](/docs/v4/api/effect/Effect#acquireRelease). It runs
+the acquisition inside the current Scope. If acquisition succeeds, it
+immediately registers the release function as a finalizer. If acquisition
+fails, no finalizer is registered for that resource. When the Scope closes,
+finalizers run in reverse registration order after success, failure, or
+interruption.
 
 The distinction matters for `order-lock-fails`: checkout succeeds and registers
 the connection finalizer. Lock acquisition fails before it can register a lock
 finalizer. Scope closure therefore releases exactly the connection that exists.
 
-<EffectApi name="Effect.sync" href="/docs/v4/api/effect/Effect#sync">
-  Defers synchronous work until the Effect runs. Here, it prevents the release
-  functions from running while we are only constructing the resource
-  descriptions. Their `void` return becomes each finalizer's successful value.
-</EffectApi>
+[`Effect.sync`](/docs/v4/api/effect/Effect#sync) defers synchronous work until
+the Effect runs. Here, it prevents the release functions from running while we
+are only constructing the resource descriptions. Their `void` return becomes
+each finalizer's successful value.
 
 `pipe` passes an Effect description through transformations from top to bottom.
 It does not run the described work.
 
-<EffectApi name="Effect.flatMap" href="/docs/v4/api/effect/Effect#flatMap">
-  Sequences a dependent Effect. The first call receives the acquired database
-  connection and describes lock acquisition. The second receives that lock and
-  describes storage. If an earlier step fails, later steps are skipped and the
-  Scope closes every resource already acquired.
-</EffectApi>
+[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) sequences a dependent
+Effect. The first call receives the acquired database connection and describes
+lock acquisition. The second receives that lock and describes storage. If an
+earlier step fails, later steps are skipped and the Scope closes every resource
+already acquired.
 
-The HTTP handler supplies the required lifetime:
-
-<EffectApi name="Effect.scoped" href="/docs/v4/api/effect/Effect#scoped">
-  Creates the Scope required by `placeOrder`, runs the complete workflow in it,
-  and closes the Scope before returning. Closing it runs all registered
-  finalizers and removes `Scope.Scope` from the Effect's requirements.
-</EffectApi>
+The HTTP handler supplies the required lifetime with
+[`Effect.scoped`](/docs/v4/api/effect/Effect#scoped). It creates the Scope
+required by `placeOrder`, runs the complete workflow in it, and closes the
+Scope before returning. Closing it runs all registered finalizers and removes
+`Scope.Scope` from the Effect's requirements.
 
 Wait for the server to reload. Send `order-ok` and `order-lock-fails` again. The
 first request returns `201` and closes the lock before the connection. The
@@ -1208,90 +814,6 @@ There are no mutable resource sentinels in `placeOrder`.
 >
   Success closes both resources in reverse order. A failed second acquisition
   closes only the connection that was acquired first.
-
-  <AgentPrompt label="AI prompt: scope both resources">
-
-````text
-Replace the manual cleanup bookkeeping with one Effect Scope containing both resources.
-
-Rules:
-- Work only in `./clean-up-order-resources` relative to the current workspace root.
-- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After applying the change, verify the behavior but do not fix a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
--const placeOrder = (input: PlaceOrderRequest) =>
--  Effect.tryPromise(async (signal) => {
--    let connection: DatabaseConnection | undefined
--    let lock: InventoryLock | undefined
--
--    try {
--      connection = await checkoutDatabase(input.orderId)
--      lock = await acquireInventoryLock(connection, input.orderId)
--      return await storeOrder(connection, lock, input.orderId, { signal })
--    } finally {
--      if (connection !== undefined && lock !== undefined) {
--        releaseInventoryLock(connection, lock)
--      }
--      if (connection !== undefined) {
--        releaseDatabase(connection)
--      }
--    }
--  })
-+const databaseConnection = (orderId: string) =>
-+  Effect.acquireRelease(
-+    Effect.tryPromise(() => checkoutDatabase(orderId)),
-+    (connection) => Effect.sync(() => releaseDatabase(connection)),
-+  )
-+
-+const inventoryLock = (
-+  connection: DatabaseConnection,
-+  orderId: string,
-+) =>
-+  Effect.acquireRelease(
-+    Effect.tryPromise(() => acquireInventoryLock(connection, orderId)),
-+    (lock) =>
-+      Effect.sync(() => releaseInventoryLock(connection, lock)),
-+  )
-+
-+const placeOrder = (input: PlaceOrderRequest) =>
-+  databaseConnection(input.orderId).pipe(
-+    Effect.flatMap((connection) =>
-+      inventoryLock(connection, input.orderId).pipe(
-+        Effect.flatMap((lock) =>
-+          Effect.tryPromise((signal) =>
-+            storeOrder(connection, lock, input.orderId, { signal }),
-+          ),
-+        ),
-+      ),
-+    ),
-+  )
-@@
--    const order = await Effect.runPromise(placeOrder(input))
-+    const order = await Effect.runPromise(
-+      Effect.scoped(placeOrder(input)),
-+    )
-*** End Patch
-```
-
-If either request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Verify these two POST requests:
-
-1. `{"orderId":"order-ok"}` returns status `201`, body `{"orderId":"order-ok","status":"stored"}`, and logs `released lock-order-ok using db-order-ok` followed by `released db-order-ok`.
-2. `{"orderId":"order-lock-fails"}` returns status `500`, body `{"error":"OrderFailed"}`, logs no lock release for that order, and logs `released db-order-lock-fails` before `request failed`.
-
-Reply with a concise pass or fail result for each request. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 6. Interrupt the Scope when the client disconnects
@@ -1300,7 +822,7 @@ The resource lifetime is now explicit, but the HTTP server still has to tell
 Effect when that request lifetime ends. Connect the response's `close` event to
 the running computation:
 
-```ts title="server.ts" collapse={1-42,85-146} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={1-38,78-141} ins={50-57,65-67,70-72}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
@@ -1320,14 +842,10 @@ const databaseConnection = (orderId: string) =>
     (connection) => Effect.sync(() => releaseDatabase(connection)),
   )
 
-const inventoryLock = (
-  connection: DatabaseConnection,
-  orderId: string,
-) =>
+const inventoryLock = (connection: DatabaseConnection, orderId: string) =>
   Effect.acquireRelease(
     Effect.tryPromise(() => acquireInventoryLock(connection, orderId)),
-    (lock) =>
-      Effect.sync(() => releaseInventoryLock(connection, lock)),
+    (lock) => Effect.sync(() => releaseInventoryLock(connection, lock)),
   )
 
 const placeOrder = (input: PlaceOrderRequest) =>
@@ -1354,14 +872,14 @@ const server = createServer(async (request, response) => {
     return
   }
 
-+  const controller = new AbortController()
-+
-+  response.once("close", () => {
-+    if (!response.writableEnded) {
-+      controller.abort()
-+    }
-+  })
-+
+  const controller = new AbortController()
+
+  response.once("close", () => {
+    if (!response.writableEnded) {
+      controller.abort()
+    }
+  })
+
   try {
     let body = ""
     for await (const chunk of request) {
@@ -1369,15 +887,14 @@ const server = createServer(async (request, response) => {
     }
     const input = JSON.parse(body) as PlaceOrderRequest
 
-    const order = await Effect.runPromise(
-      Effect.scoped(placeOrder(input)),
-+      { signal: controller.signal },
-    )
+    const order = await Effect.runPromise(Effect.scoped(placeOrder(input)), {
+      signal: controller.signal,
+    })
     sendJson(201, order)
   } catch {
-+    if (controller.signal.aborted) {
-+      return
-+    }
+    if (controller.signal.aborted) {
+      return
+    }
     console.error("request failed")
     sendJson(500, { error: "OrderFailed" })
   }
@@ -1453,30 +970,22 @@ The response emits `close` both after a normal response and after a premature
 disconnect. `response.writableEnded` distinguishes those cases. Only a
 premature close aborts the controller.
 
-<EffectApi
-  name="Effect.runPromise"
-  href="/docs/v4/api/effect/Effect#runPromise"
->
-  The optional `signal` connects an external `AbortSignal` to the running
-  computation. When the client disconnects, aborting the controller interrupts
-  the complete scoped workflow. The returned Promise rejects after the Scope's
-  finalizers have finished, and the `catch` writes nothing because the response
-  is already gone.
-</EffectApi>
+The optional `signal` accepted by
+[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) connects an
+external `AbortSignal` to the running computation. When the client disconnects,
+aborting the controller interrupts the complete scoped workflow. The returned
+Promise rejects after the Scope's finalizers have finished, and the `catch`
+writes nothing because the response is already gone.
 
 Interruption is Effect's name for cancellation of a running computation. It is
 not an expected failure in the error channel, so the disconnect does not become
 a `Cause.UnknownError` or a `500` response.
 
-<EffectApi
-  name="Effect.tryPromise"
-  href="/docs/v4/api/effect/Effect#tryPromise"
->
-  Supplies an `AbortSignal` to the Promise callback. When the Effect is
-  interrupted, that signal aborts too. The storage fixture passes it to the
-  Promise-based timer, so slow storage stops instead of continuing for 1.5
-  seconds.
-</EffectApi>
+The `AbortSignal` supplied to the callback by
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) is also aborted
+when the Effect is interrupted. The storage fixture passes it to the
+Promise-based timer, so slow storage stops instead of continuing for 1.5
+seconds.
 
 Wait for the server to reload, then repeat the slow request:
 
@@ -1511,66 +1020,6 @@ interruption into the Promise API, and Scope closure runs both finalizers before
   A disconnected client stops slow storage immediately. The lock is released,
   the connection is released, and the server does not attempt a response or
   continue storing the order.
-
-  <AgentPrompt label="AI prompt: propagate client cancellation">
-
-````text
-Connect an HTTP client disconnect to interruption of the scoped Effect workflow.
-
-Rules:
-- Work only in `./clean-up-order-resources` relative to the current workspace root.
-- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After applying the change, verify the behavior but do not fix a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
-   if (request.method !== "POST" || request.url !== "/orders") {
-     sendJson(404, { error: "NotFound" })
-     return
-   }
-
-+  const controller = new AbortController()
-+
-+  response.once("close", () => {
-+    if (!response.writableEnded) {
-+      controller.abort()
-+    }
-+  })
-+
-   try {
-@@
-     const order = await Effect.runPromise(
-       Effect.scoped(placeOrder(input)),
-+      { signal: controller.signal },
-     )
-     sendJson(201, order)
-   } catch {
-+    if (controller.signal.aborted) {
-+      return
-+    }
-     console.error("request failed")
-*** End Patch
-```
-
-If the server refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the result is wrong.
-
-Send `{"orderId":"order-slow"}` to `POST http://localhost:3000/orders` with `content-type: application/json` and `curl --max-time 0.2`. Verify:
-
-1. `curl` reports that its deadline was reached and receives no HTTP response.
-2. The server logs `store aborted` soon after the disconnect.
-3. It then logs `released lock-order-slow using db-order-slow` followed by `released db-order-slow`.
-4. It does not log `stored order-slow` or `request failed` for this request.
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## Keep cleanup beside acquisition

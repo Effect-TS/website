@@ -1,6 +1,6 @@
 ---
 name: write-effect-tutorials
-description: Create and review beginner-friendly Effect tutorials for this website, especially MDX under apps/web/src/content/docs/v4/tutorials. Use when drafting, restructuring, integrating, or auditing a tutorial; designing its progressive backend scenario and controlled fixtures; adding checkpoints and coding-agent prompts; presenting full-file Expressive Code diffs; or checking that every Effect API and concept is explained to a TypeScript developer with no prior Effect knowledge.
+description: Create and review beginner-friendly Effect tutorials for this website, especially MDX under apps/web/src/content/docs/v4/tutorials. Use when drafting, restructuring, integrating, or auditing a tutorial; designing its progressive backend scenario and controlled fixtures; adding checkpoints; presenting complete files with native Expressive Code highlights; or checking that every Effect API and concept is explained to a TypeScript developer with no prior Effect knowledge.
 ---
 
 # Write Effect Tutorials
@@ -25,8 +25,8 @@ Use `apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx
 3. Immediately demonstrate what can go wrong with the starter.
 4. Introduce one limitation at a time. Follow each limitation with the smallest Effect change that addresses it.
 5. Explain the new API or concept in terms of the exact code just added.
-6. Run the backend, show the expected observable result, and end with a checkpoint.
-7. Preserve a single linear state progression. The manual path and coding-agent path must produce the same files and verification result at every checkpoint.
+6. Describe the expected observable result and end with a checkpoint. Local execution may be offered as an optional way to verify it.
+7. Preserve a single linear state progression. Every code block and checkpoint must correspond to the same current project state.
 
 Allow the tutorial to be long when the journey requires it, but keep each step small. Do not introduce an API merely for completeness. Avoid `Effect.gen`, `Schedule`, layers, and other new abstractions unless the current problem cannot be taught clearly with fewer concepts.
 
@@ -72,25 +72,11 @@ Explain every Effect-specific API and term at its first use. When these APIs app
 - `Effect.retry`: rerun the preceding computation after selected failures; explain the predicate and the total attempt bound concretely.
 - `Effect.timeoutOrElse`: bound the preceding computation, interrupt it, and run the fallback on timeout.
 
-Present each concrete API explanation in the shared `EffectApi` card. Keep general concepts such as the error channel, interruption, and defects in the surrounding narrative.
+Present each concrete API explanation in the surrounding prose at its first meaningful use. Keep the explanation close to the code and focused on behavior the reader can connect to that step. Do not require a separate API card when prose communicates the concept more naturally.
 
-```mdx
-<EffectApi
-  name="Effect.tryPromise"
-  href="/docs/v4/api/effect/Effect#tryPromise"
->
-  Describe the API in terms of the code just introduced.
-</EffectApi>
-```
-
-- Use the complete API name as the card title.
-- Keep the description focused on behavior the reader can connect to the current step.
-- Link directly to the declaration in the API reference.
-- Write the `href` explicitly so the reference remains visible in the raw `.md` representation.
-- Verify ambiguous declaration anchors against the generated reference. A symbol exported as both a type and a value may use suffixes such as `-interface` or `-variable`.
-- Reuse a card when a later step introduces a materially different capability of an API, such as passing an external `AbortSignal` to `Effect.runPromise`.
-- Let adjacent `EffectApi` cards form the component's automatic visual stack.
-  Do not add filler prose or MDX wrappers merely to separate related API cards.
+- Link the API name inline to its generated reference declaration when one is available.
+- Write the reference route explicitly so it remains useful in the raw `.md` representation.
+- Verify ambiguous anchors against the generated reference. A symbol exported as both a type and a value may use suffixes such as `-interface` or `-variable`.
 
 Inventory the APIs actually used instead of relying on memory:
 
@@ -109,8 +95,9 @@ Verify API names and semantics against the installed v4 package under `apps/web/
 - Preserve the tutorial collection's existing sidebar placement and ordering conventions when adding or renaming a page.
 - Use `npm` inside standalone tutorial projects unless the tutorial has a concrete reason to require another package manager. Continue using `pnpm` and `vp run` for work on this repository.
 - State a minimum runtime version only when a command or language feature requires it. Do not repeat environment trivia such as “checked on macOS” or pin an arbitrary current version.
-- Start the server with `node --watch server.ts`, explicitly explain `--watch`, and tell the reader to keep it running.
-- Say “open a second terminal pane” for verification commands.
+- Make the tutorial understandable as a reading path. Creating files, starting the server, and sending requests must be optional rather than prerequisites for following the lesson.
+- When offering local execution, start the server with `node --watch server.ts`, explicitly explain `--watch`, and tell the reader to keep it running.
+- Say “open a second terminal pane” for optional verification commands.
 - Do not tell the reader to stop and restart a watched server between edits.
 - Add descriptive subsection headings when they help the reader orient themselves. Avoid generic headings that add no information.
 - Avoid adjacent code fences that render as one block. Separate them with a short transition and give each fence a meaningful `title`.
@@ -120,55 +107,42 @@ Verify API names and semantics against the installed v4 package under `apps/web/
 
 Show the complete current file for every human-facing code modification. A copied block must produce the working file for that checkpoint; do not make the reader reconstruct a file from fragments or manually apply a textual patch.
 
-Use Expressive Code's repository integration:
+Use Expressive Code's native inserted-line highlighting:
 
 ````md
-```ts title="server.ts" collapse={UNCHANGED_RANGES} useDiffSyntax copyFinal
-// complete file, with changed lines marked by diff syntax
+```ts title="server.ts" ins={CHANGED_RANGES}
+// complete current file
 ```
 ````
 
-- Mark additions and removals in the complete file.
+- Show the final state of the file without `+` or `-` diff prefixes.
+- Highlight new or changed lines with native `ins={...}` metadata.
+- Explain removed code in the prose immediately before the block instead of retaining it in the copied file.
 - Keep changed code visible.
-- Collapse as much unchanged code as possible both before and after the changed area.
+- Prefer extracting stable plumbing or fixtures before collapsing the learning code. Collapse unchanged ranges only when the complete current file would otherwise obscure the change.
 - Collapse long fixtures by default.
 - Use the short filename, such as `server.ts`, as the title rather than a long path.
-- Verify that the copy button produces the complete final file without removed lines.
+- Do not use `useDiffSyntax`, `copyFinal`, formatter-ignore comments, or a custom copy plugin for tutorial code.
+- Verify that the ordinary copy button produces the complete current file.
 - Recalculate collapse ranges after every code edit and inspect the rendered result.
 
-## Add checkpoints and coding-agent prompts
+## Add checkpoints
 
-Explain near the beginning that a checkpoint is a short verification performed before continuing, and that each checkpoint offers an optional coding-agent prompt.
+Explain near the beginning that a checkpoint is a short summary of the behavior reached at that point.
 
 End every meaningful state transition with one `TutorialCheckpoint`. Give it an outcome-oriented title and summarize what now works. Do not add internal dashed separators or decorative space that does not communicate state.
 
-Nest one `AgentPrompt` in each checkpoint when agent assistance is useful:
+Keep checkpoints focused on the behavior produced by the current code:
 
-````mdx
+```mdx
 <TutorialCheckpoint number={N} total={TOTAL} title="Observable outcome">
   Summarize the verified state.
-
-  <AgentPrompt label="AI prompt: concise action">
-
-```text
-Agent-ready instructions live here.
+</TutorialCheckpoint>
 ```
 
-  </AgentPrompt>
-</TutorialCheckpoint>
-````
-
-- Keep labels short and always prefix them with `AI prompt:`.
-- Keep prompt content inline in the MDX. Do not load it from an external file. The page's `.md` representation must retain the instructions.
-- Optimize visible prose and code for the human. Keep agent-only operational detail inside the button.
-- Use one prompt per meaningful checkpoint, not one per command or substep.
-- Make the initial prompt capable of creating the complete starter project, starting the watched server, and verifying the first request.
-- For later edits, give the agent an exact predetermined patch. Do not ask it to design, refactor, or improve the solution.
-- State the working directory, allowed files, expected prior checkpoint, exact requested change, verification command, and expected result.
-- Require a clean preflight: if the patch does not apply to the expected state, stop and report the mismatch without changing files.
-- If verification refuses the connection, allow the agent to start `node --watch server.ts`, wait for the listening message, retry, and leave the server active. Do not restart a server that returned an incorrect HTTP response.
-- On verification failure, report the observed difference without silently repairing it.
-- Keep the manual instructions and agent prompt semantically identical.
+- Do not add `AgentPrompt`, coding-agent buttons, hidden prompts, or an AI-assisted path through a tutorial.
+- Do not make setup or verification depend on nondeterministic agent behavior.
+- A tutorial may discuss AI-generated code when that is the subject being taught, but its instructions must still be deterministic and completed by the reader.
 
 ## Validate before handing off
 
@@ -176,8 +150,8 @@ Agent-ready instructions live here.
 - Confirm that every complete code snapshot type-checks and runs after copying.
 - Keep tutorial code fences out of runtime doctests; validate the complete stateful tutorial project separately.
 - Verify every HTTP status, body, log line, attempt count, timeout, and cancellation claim.
-- Inspect the page locally for collapsed ranges, diff colors, copy behavior, prompt button visibility, code-fence spacing, and checkpoint flow.
-- Request the `.md` version of the page and confirm that inline prompts and essential code survive conversion.
+- Inspect the page locally for inserted-line highlights, collapsed ranges, copy behavior, code-fence spacing, and checkpoint flow.
+- Request the `.md` version of the page and confirm that essential instructions and code survive conversion.
 - Scan for forbidden historical framing and typography:
 
 ```sh

@@ -5,12 +5,7 @@ sidebar:
   order: 6
 ---
 
-import {
-  AgentPrompt,
-  Aside,
-  EffectApi,
-  TutorialCheckpoint,
-} from "@astrojs/starlight/components"
+import { TutorialCheckpoint } from "@astrojs/starlight/components"
 
 An AI-generated endpoint can return the expected JSON and still be wrong in
 ways that ordinary review misses. It can create work without running it, hide a
@@ -36,12 +31,8 @@ We will keep the HTTP server in ordinary TypeScript. Effect enters only in the
 file-import change, which keeps the diagnostic and correction loop easy to
 inspect.
 
-<Aside type="tip" title="Using a coding agent?">
-  Each step ends with a checkpoint: a short verification performed before you
-  continue. Every checkpoint includes an optional agent-ready prompt. Read the
-  step, then either follow it yourself or let your coding agent make exactly the
-  same change and run exactly the same check.
-</Aside>
+Each step ends with a checkpoint: a short summary of the behavior reached at
+that point.
 
 ## 1. Start from a familiar TypeScript server
 
@@ -59,40 +50,37 @@ npm install --save-dev @types/node@22
 Create the initial server. It has only a health endpoint, so there is no Effect
 code to understand yet.
 
-```ts title="server.ts" useDiffSyntax copyFinal
-+import { createServer } from "node:http"
-+
-+const sendJson = (
-+  response: import("node:http").ServerResponse,
-+  status: number,
-+  body: unknown,
-+): void => {
-+  response.writeHead(status, { "content-type": "application/json" })
-+  response.end(JSON.stringify(body))
-+}
-+
-+const server = createServer((request, response) => {
-+  if (request.method === "GET" && request.url === "/health") {
-+    sendJson(response, 200, { status: "ready" })
-+    return
-+  }
-+
-+  sendJson(response, 404, { error: "NotFound" })
-+})
-+
-+server.listen(3000, () => {
-+  console.log("Listening on http://localhost:3000")
-+})
+```ts title="server.ts" ins={1-23}
+import { createServer } from "node:http"
+
+const sendJson = (
+  response: import("node:http").ServerResponse,
+  status: number,
+  body: unknown,
+): void => {
+  response.writeHead(status, { "content-type": "application/json" })
+  response.end(JSON.stringify(body))
+}
+
+const server = createServer((request, response) => {
+  if (request.method === "GET" && request.url === "/health") {
+    sendJson(response, 200, { status: "ready" })
+    return
+  }
+
+  sendJson(response, 404, { error: "NotFound" })
+})
+
+server.listen(3000, () => {
+  console.log("Listening on http://localhost:3000")
+})
 ```
 
 Add the controlled order-import fixture. This is tutorial fixture data, and the
 file stays unchanged throughout the tutorial.
 
-```json title="orders.json" useDiffSyntax copyFinal
-+[
-+  { "externalOrderId": "external-1001" },
-+  { "externalOrderId": "external-1002" }
-+]
+```json title="orders.json" ins={1}
+[{ "externalOrderId": "external-1001" }, { "externalOrderId": "external-1002" }]
 ```
 
 Start the server with `--watch` so Node.js reloads it automatically after every
@@ -120,75 +108,6 @@ HTTP/1.1 200 OK
 <TutorialCheckpoint number={1} total={4} title="The starter server is healthy">
   The watched server is running, and `GET /health` returns `200` with
   `{"status":"ready"}`.
-
-  <AgentPrompt label="AI prompt: create the starter">
-
-````text
-Set up the starter project for this Effect tutorial.
-
-Rules:
-- Treat the current workspace root as the parent directory.
-- Work only in `./catch-incorrect-ai-generated-changes`.
-- If that directory already exists, stop without changing anything and report that the setup requires a new directory.
-- Do not add files, dependencies, or configuration that are not requested below.
-
-Create `./catch-incorrect-ai-generated-changes`, then run these commands inside it:
-
-```sh
-npm init -y
-npm pkg set type=module
-npm install --save-dev @types/node@22
-```
-
-Create `server.ts` with exactly this content:
-
-```ts
-import { createServer } from "node:http"
-
-const sendJson = (
-  response: import("node:http").ServerResponse,
-  status: number,
-  body: unknown,
-): void => {
-  response.writeHead(status, { "content-type": "application/json" })
-  response.end(JSON.stringify(body))
-}
-
-const server = createServer((request, response) => {
-  if (request.method === "GET" && request.url === "/health") {
-    sendJson(response, 200, { status: "ready" })
-    return
-  }
-
-  sendJson(response, 404, { error: "NotFound" })
-})
-
-server.listen(3000, () => {
-  console.log("Listening on http://localhost:3000")
-})
-```
-
-Create `orders.json` with exactly this content:
-
-```json
-[
-  { "externalOrderId": "external-1001" },
-  { "externalOrderId": "external-1002" }
-]
-```
-
-Start `node --watch server.ts` from the tutorial directory in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active.
-
-Send a GET request to `http://localhost:3000/health`. Verify status `200` and this exact response body:
-
-```json
-{"status":"ready"}
-```
-
-When finished, reply only that the starter project is running and the health check succeeded. If any requested action fails, report the failure without trying an alternative setup or correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 2. Add only the diagnostics this review needs
@@ -198,7 +117,7 @@ rules from the command line. Install the runtime plus the compatible Oxlint
 tooling:
 
 ```sh title="Install Effect and the static diagnostics"
-npm install effect
+npm install effect@4.0.0-beta.104
 npm install --save-dev @effect/tsgo oxlint oxlint-tsgolint
 npx effect-tsgo patch --oxlint
 npm pkg set scripts.prepare="effect-tsgo patch --oxlint"
@@ -213,11 +132,11 @@ there is no editor-specific setup. The complete development-tool options are in
 
 Create the recommended Oxlint configuration:
 
-```json title=".oxlintrc.json" useDiffSyntax copyFinal
-+{
-+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
-+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"]
-+}
+```json title=".oxlintrc.json" ins={1-4}
+{
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"]
+}
 ```
 
 Check the unchanged starter:
@@ -235,46 +154,8 @@ setup.
   total={4}
   title="The diagnostic baseline is clean"
 >
-  Effect and the command-line diagnostics are installed. `npm run lint`
-  succeeds before the agent changes `server.ts`.
-
-  <AgentPrompt label="AI prompt: enable the diagnostics">
-
-````text
-Enable the exact command-line diagnostics required by this tutorial.
-
-Rules:
-- Work only in `./catch-incorrect-ai-generated-changes` relative to the current workspace root.
-- Verify that `server.ts` and `orders.json` exactly match checkpoint 1 and that `GET http://localhost:3000/health` returns status `200` with `{"status":"ready"}`. If either preflight check fails, stop without changing anything and report the mismatch.
-- Modify only `.oxlintrc.json` and the npm dependency files or package metadata changed by the exact commands below.
-- Do not edit `server.ts` or `orders.json`.
-- Do not install editor extensions or add unrelated configuration.
-
-From the tutorial directory, run:
-
-```sh
-npm install effect
-npm install --save-dev @effect/tsgo oxlint oxlint-tsgolint
-npx effect-tsgo patch --oxlint
-npm pkg set scripts.prepare="effect-tsgo patch --oxlint"
-npm pkg set scripts.lint="oxlint ."
-```
-
-Create `.oxlintrc.json` with exactly this content:
-
-```json
-{
-  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
-  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"]
-}
-```
-
-Run `npm run lint`. It must exit successfully with no findings. If it does not, report the output without changing any file to make it pass.
-
-Reply only that the diagnostic baseline is clean, or report the failed preflight, command, or observed lint output.
-````
-
-  </AgentPrompt>
+  Effect and the command-line diagnostics are installed. `npm run lint` succeeds
+  before the agent changes `server.ts`.
 </TutorialCheckpoint>
 
 ## 3. Let the coding agent add the endpoint
@@ -282,102 +163,95 @@ Reply only that the diagnostic baseline is clean, or report the failed preflight
 The next change is deliberately captured and bounded. Your coding agent applies
 the same plausible implementation shown to manual readers, which makes the
 diagnostic evidence reproducible instead of depending on a particular model.
+The HTTP callback becomes `async` so it can await the Promise returned by
+`Effect.runPromise` before writing the response.
 
-Replace `server.ts` with the complete file below. Green lines are additions,
-red lines are removals, and the copy button copies the complete final file
-without the red lines.
+Replace `server.ts` with the complete file below. The highlighted lines are the
+ones added or changed by the generated implementation.
 
-```ts title="server.ts" collapse={24-32,51-61} useDiffSyntax copyFinal
-+import { readFile } from "node:fs/promises"
- import { createServer } from "node:http"
-+import { Effect } from "effect"
-+
-+interface ImportedOrder {
-+  readonly externalOrderId: string
-+}
-+
-+const ordersFile = new URL("./orders.json", import.meta.url)
-+
-+const readOrdersImplementation = Effect.flatMap(
-+  Effect.tryPromise((signal) =>
-+    readFile(ordersFile, { encoding: "utf8", signal }),
-+  ),
-+  (source) =>
-+    Effect.try(
-+      () => JSON.parse(source) as ReadonlyArray<ImportedOrder>,
-+    ),
-+)
-+
-+const readOrders: Effect.Effect<ReadonlyArray<ImportedOrder>, never> =
-+  readOrdersImplementation
+```ts title="server.ts" collapse={24-32,50-60} ins={1,3-22,33-49}
+import { readFile } from "node:fs/promises"
+import { createServer } from "node:http"
+import { Effect } from "effect"
 
- const sendJson = (
-   response: import("node:http").ServerResponse,
-   status: number,
-   body: unknown,
- ): void => {
-   response.writeHead(status, { "content-type": "application/json" })
-   response.end(JSON.stringify(body))
- }
+interface ImportedOrder {
+  readonly externalOrderId: string
+}
 
--const server = createServer((request, response) => {
-+const server = createServer(async (request, response) => {
-+  if (request.method === "POST" && request.url === "/orders/import") {
-+    try {
-+      Effect.log("Importing orders")
-+      const orders = await Effect.runPromise(readOrders)
-+
-+      sendJson(response, 200, {
-+        imported: orders.length,
-+        orderIds: orders.map((order) => order.externalOrderId),
-+      })
-+    } catch (error) {
-+      console.error(error)
-+      sendJson(response, 500, { error: "OrderImportFailed" })
-+    }
-+    return
-+  }
-+
-   if (request.method === "GET" && request.url === "/health") {
-     sendJson(response, 200, { status: "ready" })
-     return
-   }
+const ordersFile = new URL("./orders.json", import.meta.url)
 
-   sendJson(response, 404, { error: "NotFound" })
- })
+const readOrdersImplementation = Effect.flatMap(
+  Effect.tryPromise((signal) =>
+    readFile(ordersFile, { encoding: "utf8", signal }),
+  ),
+  (source) =>
+    Effect.try(() => JSON.parse(source) as ReadonlyArray<ImportedOrder>),
+)
 
- server.listen(3000, () => {
-   console.log("Listening on http://localhost:3000")
- })
+const readOrders: Effect.Effect<
+  ReadonlyArray<ImportedOrder>,
+  never
+> = readOrdersImplementation
+
+const sendJson = (
+  response: import("node:http").ServerResponse,
+  status: number,
+  body: unknown,
+): void => {
+  response.writeHead(status, { "content-type": "application/json" })
+  response.end(JSON.stringify(body))
+}
+
+const server = createServer(async (request, response) => {
+  if (request.method === "POST" && request.url === "/orders/import") {
+    try {
+      Effect.log("Importing orders")
+      const orders = await Effect.runPromise(readOrders)
+
+      sendJson(response, 200, {
+        imported: orders.length,
+        orderIds: orders.map((order) => order.externalOrderId),
+      })
+    } catch (error) {
+      console.error(error)
+      sendJson(response, 500, { error: "OrderImportFailed" })
+    }
+    return
+  }
+
+  if (request.method === "GET" && request.url === "/health") {
+    sendJson(response, 200, { status: "ready" })
+    return
+  }
+
+  sendJson(response, 404, { error: "NotFound" })
+})
+
+server.listen(3000, () => {
+  console.log("Listening on http://localhost:3000")
+})
 ```
 
-The patch introduces the first Effect value in `readOrdersImplementation`,
-then assigns that value to this narrower contract:
+The generated file introduces the first Effect value in
+`readOrdersImplementation`, then assigns that value to this narrower contract:
 
 ```ts title="Type written by the generated change"
 Effect.Effect<ReadonlyArray<ImportedOrder>, never>
 ```
 
-<EffectApi name="Effect.Effect" href="/docs/v4/api/effect/Effect#Effect">
-  The type of a value that describes a computation. The first type argument is
-  the success value, here a readonly array of imported orders. The second is the
-  error channel, which lists expected failures. The generated annotation says
-  `never`, so it claims the computation has no expected failure. A third,
-  omitted type argument would list required services and defaults to `never`.
-</EffectApi>
+[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of a value that
+describes a computation. Creating one does not read the file, parse JSON, or log
+anything. The first type argument is the success value, here a readonly array
+of imported orders. The second is the error channel, which lists expected
+failures. The generated annotation says `never`, so it claims that the
+computation has no expected failure. A third, omitted type argument would list
+required services and defaults to `never`.
 
-Creating an Effect does not read the file, parse JSON, or log anything. It
-builds a description that can be transformed and later run.
-
-<EffectApi
-  name="Effect.tryPromise"
-  href="/docs/v4/api/effect/Effect#tryPromise"
->
-  Adapts the Promise returned by `readFile`. The function stays lazy and is
-  called only when the Effect runs. A resolved Promise becomes a success, while
-  a rejection enters the error channel. Effect also supplies an `AbortSignal`,
-  which `readFile` observes if the running computation is interrupted.
-</EffectApi>
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the Promise
+returned by `readFile`. The function stays lazy and is called only when the
+Effect runs. A resolved Promise becomes a success, while a rejection enters the
+error channel. Effect also supplies an `AbortSignal`, which `readFile` observes
+if the running computation is interrupted.
 
 Interruption is Effect's name for cancellation of a running computation.
 Stopping a description before it runs is unnecessary because it has not done
@@ -389,43 +263,31 @@ TypeScript infers this actual type for `readOrdersImplementation`:
 Effect.Effect<ReadonlyArray<ImportedOrder>, Cause.UnknownError>
 ```
 
-<EffectApi
-  name="Cause.UnknownError"
-  href="/docs/v4/api/effect/Cause#UnknownError-interface"
->
-  Effect's built-in wrapper for a rejection or thrown value that has not been
-  classified. Its `cause` property preserves the original value. Here, both a
-  rejected file read and a thrown `JSON.parse` call produce this expected error.
-</EffectApi>
+[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+Effect's built-in wrapper for a rejection or thrown value that has not been
+classified. Its `cause` property preserves the original value. Here, both a
+rejected file read and a thrown `JSON.parse` call produce this expected error.
 
-<EffectApi name="Effect.try" href="/docs/v4/api/effect/Effect#try">
-  Defers synchronous code that may throw. Returning normally becomes success;
-  throwing enters the error channel as `Cause.UnknownError` in this form. The
-  generated code uses it to defer `JSON.parse`, but the cast still does not
-  validate the parsed value.
-</EffectApi>
+[`Effect.try`](/docs/v4/api/effect/Effect#try) defers synchronous code that may
+throw. Returning normally becomes success; throwing enters the error channel
+as `Cause.UnknownError` in this form. The generated code uses it to defer
+`JSON.parse`, but the cast still does not validate the parsed value.
 
-<EffectApi name="Effect.flatMap" href="/docs/v4/api/effect/Effect#flatMap">
-  Describes two dependent Effect operations in sequence. When the file read
-  succeeds, its string is passed to the parsing function. A failure from either
-  operation remains in the error channel. Combining them still does not run
-  them.
-</EffectApi>
+[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) describes two dependent
+Effect operations in sequence. When the file read succeeds, its string is
+passed to the parsing function. A failure from either operation remains in the
+error channel. Sequencing them still does not run them.
 
-<EffectApi name="Effect.log" href="/docs/v4/api/effect/Effect#log">
-  Describes a log operation and succeeds with `void` when that operation runs.
-  The generated handler creates this Effect and immediately ignores it, so no
-  log is emitted.
-</EffectApi>
+[`Effect.log`](/docs/v4/api/effect/Effect#log) describes a log operation and
+succeeds with `void` when that operation runs. The generated handler creates
+this Effect and immediately ignores it, so no log is emitted.
 
-<EffectApi
-  name="Effect.runPromise"
-  href="/docs/v4/api/effect/Effect#runPromise"
->
-  Runs the computation at the HTTP handler boundary and returns a Promise.
-  Success resolves with the imported orders. If the Effect does not succeed, the
-  Promise rejects and the surrounding TypeScript `catch` returns `500`.
-</EffectApi>
+[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the computation
+at the HTTP handler boundary and returns a Promise. Success resolves with the
+imported orders. If the Effect does not succeed, the Promise rejects and the
+surrounding TypeScript `catch` returns `500`. It can also observe an external
+`AbortSignal` supplied by an application boundary, although this handler does
+not pass one.
 
 An expected failure belongs in the error channel. A defect is different: it is
 an unexpected bug in the program. The generated code's false `never` annotation
@@ -475,233 +337,116 @@ configuration. The response alone could not reveal any of them.
   `POST /orders/import` returns the expected `200` response, but the import log
   is absent and `npm run lint` reports the three expected Effect-aware rules.
   Keep that output as the evidence for the correction.
-
-  <AgentPrompt label="AI prompt: add the captured endpoint">
-
-````text
-Add the captured `POST /orders/import` change so this tutorial can inspect a deterministic AI-generated result.
-
-Rules:
-- Work only in `./catch-incorrect-ai-generated-changes` relative to the current workspace root.
-- Before editing, verify that `server.ts` exactly matches checkpoint 2, `orders.json` contains the two expected fixture records, and `npm run lint` exits successfully with no findings. If any preflight check fails, stop without changing files and report the mismatch.
-- Modify only `server.ts`.
-- Apply exactly the patch below. Do not refactor, validate the JSON, fix diagnostics, or make any additional improvement.
-- After applying the patch, verify the endpoint and diagnostics but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
-+import { readFile } from "node:fs/promises"
- import { createServer } from "node:http"
-+import { Effect } from "effect"
-+
-+interface ImportedOrder {
-+  readonly externalOrderId: string
-+}
-+
-+const ordersFile = new URL("./orders.json", import.meta.url)
-+
-+const readOrdersImplementation = Effect.flatMap(
-+  Effect.tryPromise((signal) =>
-+    readFile(ordersFile, { encoding: "utf8", signal }),
-+  ),
-+  (source) =>
-+    Effect.try(
-+      () => JSON.parse(source) as ReadonlyArray<ImportedOrder>,
-+    ),
-+)
-+
-+const readOrders: Effect.Effect<ReadonlyArray<ImportedOrder>, never> =
-+  readOrdersImplementation
-
- const sendJson = (
-@@
--const server = createServer((request, response) => {
-+const server = createServer(async (request, response) => {
-+  if (request.method === "POST" && request.url === "/orders/import") {
-+    try {
-+      Effect.log("Importing orders")
-+      const orders = await Effect.runPromise(readOrders)
-+
-+      sendJson(response, 200, {
-+        imported: orders.length,
-+        orderIds: orders.map((order) => order.externalOrderId),
-+      })
-+    } catch (error) {
-+      console.error(error)
-+      sendJson(response, 500, { error: "OrderImportFailed" })
-+    }
-+    return
-+  }
-+
-   if (request.method === "GET" && request.url === "/health") {
-*** End Patch
-```
-
-Wait for the watched server to reload. If `POST http://localhost:3000/orders/import` refuses the connection, start `node --watch server.ts` from the tutorial directory in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Verify that the POST request returns status `200` with this exact body:
-
-```json
-{"imported":2,"orderIds":["external-1001","external-1002"]}
-```
-
-Run `npm run lint`. This is a deliberate failing check. Verify that the output contains all three rule names:
-
-- `effecttsgo/floating-effect`
-- `effecttsgo/missing-effect-error`
-- `effecttsgo/prefer-schema-over-json`
-
-If the response or diagnostic set differs, report only the observed difference. Do not apply a correction. Otherwise, reply only that the endpoint returned the expected response and the three expected findings were captured.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 4. Correct only what the evidence exposed
 
 The evidence gives the correction a precise boundary:
 
-1. compose the log into the operation that is actually run;
+1. include the log in the operation that is actually run;
 2. preserve the file and decode failures in `readOrders`;
 3. replace the cast with a Schema that checks the external value.
 
 Apply the complete corrected `server.ts`:
 
-```ts title="server.ts" collapse={5-9,20-23,38-50,56-78} useDiffSyntax copyFinal
- import { readFile } from "node:fs/promises"
- import { createServer } from "node:http"
--import { Effect } from "effect"
-+import { Cause, Effect, Schema } from "effect"
+```ts title="server.ts" collapse={4-8,31-39,46-68} ins={3,9-16,23,28,43-45}
+import { readFile } from "node:fs/promises"
+import { createServer } from "node:http"
+import { Cause, Effect, Schema } from "effect"
 
- interface ImportedOrder {
-   readonly externalOrderId: string
- }
+interface ImportedOrder {
+  readonly externalOrderId: string
+}
 
-+const ImportedOrderFromJson = Schema.Struct({
-+  externalOrderId: Schema.String,
-+})
-+
-+const ImportedOrdersFromJson = Schema.fromJsonString(
-+  Schema.Array(ImportedOrderFromJson),
-+)
-+
- const ordersFile = new URL("./orders.json", import.meta.url)
+const ImportedOrderFromJson = Schema.Struct({
+  externalOrderId: Schema.String,
+})
 
- const readOrdersImplementation = Effect.flatMap(
-   Effect.tryPromise((signal) =>
-     readFile(ordersFile, { encoding: "utf8", signal }),
-   ),
--  (source) =>
--    Effect.try(
--      () => JSON.parse(source) as ReadonlyArray<ImportedOrder>,
--    ),
-+  Schema.decodeUnknownEffect(ImportedOrdersFromJson),
- )
+const ImportedOrdersFromJson = Schema.fromJsonString(
+  Schema.Array(ImportedOrderFromJson),
+)
 
--const readOrders: Effect.Effect<ReadonlyArray<ImportedOrder>, never> =
--  readOrdersImplementation
-+const readOrders: Effect.Effect<
-+  ReadonlyArray<ImportedOrder>,
-+  Cause.UnknownError | Schema.SchemaError
-+> =
-+  readOrdersImplementation
+const ordersFile = new URL("./orders.json", import.meta.url)
 
- const sendJson = (
-   response: import("node:http").ServerResponse,
-   status: number,
-   body: unknown,
- ): void => {
-   response.writeHead(status, { "content-type": "application/json" })
-   response.end(JSON.stringify(body))
- }
+const readOrdersImplementation = Effect.flatMap(
+  Effect.tryPromise((signal) =>
+    readFile(ordersFile, { encoding: "utf8", signal }),
+  ),
+  Schema.decodeUnknownEffect(ImportedOrdersFromJson),
+)
 
- const server = createServer(async (request, response) => {
-   if (request.method === "POST" && request.url === "/orders/import") {
-     try {
--      Effect.log("Importing orders")
--      const orders = await Effect.runPromise(readOrders)
-+      const orders = await Effect.runPromise(
-+        Effect.flatMap(Effect.log("Importing orders"), () => readOrders),
-+      )
+const readOrders: Effect.Effect<
+  ReadonlyArray<ImportedOrder>,
+  Cause.UnknownError | Schema.SchemaError
+> = readOrdersImplementation
 
-       sendJson(response, 200, {
-         imported: orders.length,
-         orderIds: orders.map((order) => order.externalOrderId),
-       })
-     } catch (error) {
-       console.error(error)
-       sendJson(response, 500, { error: "OrderImportFailed" })
-     }
-     return
-   }
+const sendJson = (
+  response: import("node:http").ServerResponse,
+  status: number,
+  body: unknown,
+): void => {
+  response.writeHead(status, { "content-type": "application/json" })
+  response.end(JSON.stringify(body))
+}
 
-   if (request.method === "GET" && request.url === "/health") {
-     sendJson(response, 200, { status: "ready" })
-     return
-   }
+const server = createServer(async (request, response) => {
+  if (request.method === "POST" && request.url === "/orders/import") {
+    try {
+      const orders = await Effect.runPromise(
+        Effect.flatMap(Effect.log("Importing orders"), () => readOrders),
+      )
 
-   sendJson(response, 404, { error: "NotFound" })
- })
+      sendJson(response, 200, {
+        imported: orders.length,
+        orderIds: orders.map((order) => order.externalOrderId),
+      })
+    } catch (error) {
+      console.error(error)
+      sendJson(response, 500, { error: "OrderImportFailed" })
+    }
+    return
+  }
 
- server.listen(3000, () => {
-   console.log("Listening on http://localhost:3000")
- })
+  if (request.method === "GET" && request.url === "/health") {
+    sendJson(response, 200, { status: "ready" })
+    return
+  }
+
+  sendJson(response, 404, { error: "NotFound" })
+})
+
+server.listen(3000, () => {
+  console.log("Listening on http://localhost:3000")
+})
 ```
 
 The new Schema values describe the external data before the data receives an
 application type.
 
-<EffectApi
-  name="Schema.Struct"
-  href="/docs/v4/api/effect/Schema#Struct-function"
->
-  Describes an object with named fields. Here, an imported order must contain an
-  `externalOrderId` field accepted by the field's Schema.
-</EffectApi>
+[`Schema.Struct`](/docs/v4/api/effect/Schema#Struct-function) describes an
+object with named fields. Here, an imported order must contain an
+`externalOrderId` field accepted by the field's Schema.
+[`Schema.String`](/docs/v4/api/effect/Schema#String-variable) describes a
+JavaScript string, so it rejects a number, object, missing value, or any other
+non-string value at that field.
 
-<EffectApi
-  name="Schema.String"
-  href="/docs/v4/api/effect/Schema#String-variable"
->
-  Describes a JavaScript string. It rejects a number, object, missing value, or
-  any other non-string value at `externalOrderId`.
-</EffectApi>
+[`Schema.Array`](/docs/v4/api/effect/Schema#Array-variable) describes a readonly
+array whose every element must satisfy the supplied Schema. In this case, every
+element must satisfy `ImportedOrderFromJson`.
+[`Schema.fromJsonString`](/docs/v4/api/effect/Schema#fromJsonString-function)
+builds a Schema for JSON text whose parsed value must satisfy another Schema.
+`ImportedOrdersFromJson` therefore checks both JSON syntax and the array of
+imported-order objects.
 
-<EffectApi name="Schema.Array" href="/docs/v4/api/effect/Schema#Array-variable">
-  Describes a readonly array whose every element must satisfy the supplied
-  Schema. Here, every element must satisfy `ImportedOrderFromJson`.
-</EffectApi>
+[`Schema.decodeUnknownEffect`](/docs/v4/api/effect/Schema#decodeUnknownEffect)
+returns a function that decodes an unknown input with the supplied Schema.
+Applied after the file read, it describes an Effect that succeeds with the
+validated readonly array or fails with `Schema.SchemaError`. Decoding stays
+lazy until the complete operation runs.
 
-<EffectApi
-  name="Schema.fromJsonString"
-  href="/docs/v4/api/effect/Schema#fromJsonString-function"
->
-  Builds a Schema for JSON text whose parsed value must satisfy another Schema.
-  `ImportedOrdersFromJson` therefore checks both JSON syntax and the array of
-  imported-order objects.
-</EffectApi>
-
-<EffectApi
-  name="Schema.decodeUnknownEffect"
-  href="/docs/v4/api/effect/Schema#decodeUnknownEffect"
->
-  Returns a function that decodes an unknown input with the supplied Schema.
-  Applied after the file read, it describes an Effect that succeeds with the
-  validated readonly array or fails with `Schema.SchemaError`. Decoding stays
-  lazy until the complete operation runs.
-</EffectApi>
-
-<EffectApi
-  name="Schema.SchemaError"
-  href="/docs/v4/api/effect/Schema#SchemaError"
->
-  The expected failure produced when external data does not satisfy a Schema. It
-  carries a structured `issue` describing where and why decoding failed.
-</EffectApi>
+[`Schema.SchemaError`](/docs/v4/api/effect/Schema#SchemaError) is the expected
+failure produced when external data does not satisfy a Schema. It carries a
+structured `issue` describing where and why decoding failed.
 
 The corrected contract now says exactly what can happen:
 
@@ -742,8 +487,8 @@ HTTP/1.1 200 OK
 ```
 
 The watched server terminal now includes `Importing orders`. The correction
-changed the hidden contracts and composed work without changing the successful
-HTTP behavior.
+changed the hidden contracts and sequenced the work without changing the
+successful HTTP behavior.
 
 <TutorialCheckpoint
   number={4}
@@ -753,91 +498,6 @@ HTTP behavior.
   `npm run lint` succeeds, the endpoint still returns both fixture ids, and the
   import log now runs. The correction addressed the three captured findings
   without expanding the backend change.
-
-  <AgentPrompt label="AI prompt: correct the three findings">
-
-````text
-Use the captured Effect-aware diagnostics as evidence for one bounded correction.
-
-Rules:
-- Work only in `./catch-incorrect-ai-generated-changes` relative to the current workspace root.
-- Modify only `server.ts`.
-- Before editing, run `npm run lint` and verify that `server.ts` is exactly at checkpoint 3 and the output contains all three expected rules: `effecttsgo/floating-effect`, `effecttsgo/missing-effect-error`, and `effecttsgo/prefer-schema-over-json`. If the file or diagnostic set differs, stop without changing anything and report the mismatch.
-- Apply exactly the patch below. Do not refactor, rename, add tests, change the endpoint contract, or make any additional improvement.
-- After applying the patch, run the requested verification. On failure, report the observed difference without attempting another correction.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
- import { readFile } from "node:fs/promises"
- import { createServer } from "node:http"
--import { Effect } from "effect"
-+import { Cause, Effect, Schema } from "effect"
-
- interface ImportedOrder {
-   readonly externalOrderId: string
- }
-
-+const ImportedOrderFromJson = Schema.Struct({
-+  externalOrderId: Schema.String,
-+})
-+
-+const ImportedOrdersFromJson = Schema.fromJsonString(
-+  Schema.Array(ImportedOrderFromJson),
-+)
-+
- const ordersFile = new URL("./orders.json", import.meta.url)
-
- const readOrdersImplementation = Effect.flatMap(
-   Effect.tryPromise((signal) =>
-     readFile(ordersFile, { encoding: "utf8", signal }),
-   ),
--  (source) =>
--    Effect.try(
--      () => JSON.parse(source) as ReadonlyArray<ImportedOrder>,
--    ),
-+  Schema.decodeUnknownEffect(ImportedOrdersFromJson),
- )
-
--const readOrders: Effect.Effect<ReadonlyArray<ImportedOrder>, never> =
--  readOrdersImplementation
-+const readOrders: Effect.Effect<
-+  ReadonlyArray<ImportedOrder>,
-+  Cause.UnknownError | Schema.SchemaError
-+> =
-+  readOrdersImplementation
-@@
-   if (request.method === "POST" && request.url === "/orders/import") {
-     try {
--      Effect.log("Importing orders")
--      const orders = await Effect.runPromise(readOrders)
-+      const orders = await Effect.runPromise(
-+        Effect.flatMap(Effect.log("Importing orders"), () => readOrders),
-+      )
-
-       sendJson(response, 200, {
-*** End Patch
-```
-
-Run `npm run lint`. It must exit successfully with no findings.
-
-Wait for the watched server to reload. If `POST http://localhost:3000/orders/import` refuses the connection, start `node --watch server.ts` from the tutorial directory in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Verify that the POST request returns status `200` with this exact body:
-
-```json
-{"imported":2,"orderIds":["external-1001","external-1002"]}
-```
-
-Also verify that the server output contains `Importing orders` for the request.
-
-Reply only that lint is clean, the endpoint response is unchanged, and the import log ran. If any check fails, report only the observed difference without applying another change.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## Keep the correction loop narrow

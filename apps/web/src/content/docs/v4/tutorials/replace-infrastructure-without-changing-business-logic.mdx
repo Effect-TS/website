@@ -5,12 +5,7 @@ sidebar:
   order: 5
 ---
 
-import {
-  AgentPrompt,
-  Aside,
-  EffectApi,
-  TutorialCheckpoint,
-} from "@astrojs/starlight/components"
+import { TutorialCheckpoint } from "@astrojs/starlight/components"
 
 Passing adapters as function arguments is familiar and explicit. As a backend
 grows, however, request handlers and intermediate functions can become
@@ -32,20 +27,14 @@ The same request will make the change visible:
 The provider and repository are deterministic local fixtures. They imitate
 Promise-based SDKs without credentials, network access, or another process.
 
-<Aside type="tip" title="Using a coding agent?">
-  Each step ends with a checkpoint: a short verification performed before you
-  continue. Every checkpoint includes an optional prompt that asks a coding
-  agent to make exactly the same change and run exactly the same check.
-</Aside>
+Each step ends with a checkpoint: a short verification to complete before continuing.
 
 ## 1. Start with direct adapters
 
 This tutorial requires Node.js 22.18.0 or newer because it runs `server.ts`
 directly with Node's built-in TypeScript support.
 
-To follow the tutorial manually, create an empty project. Otherwise, skip to
-the first checkpoint card. Its prompt creates the complete starter project,
-starts the watched server, and verifies the first request.
+Create an empty project:
 
 ```sh title="Create the project"
 mkdir replace-infrastructure-without-changing-business-logic
@@ -217,168 +206,6 @@ saved order-customer-123
   An approved order returns `201` through the primary provider, and the
   repository records the order. Continue only after you can reproduce both the
   response and the two fixture messages.
-
-  <AgentPrompt label="AI prompt: set up the project">
-
-````text
-Set up the starter project for the Effect tutorial.
-
-Rules:
-- Treat the current workspace root as the parent directory.
-- Work only in `./replace-infrastructure-without-changing-business-logic`.
-- If that directory already exists, stop without changing anything and report that the setup requires a new directory.
-- Do not add files, dependencies, or configuration not requested below.
-
-Create `./replace-infrastructure-without-changing-business-logic`, then run these commands inside it:
-
-```sh
-npm init -y
-npm pkg set type=module
-npm install --save-dev @types/node@22
-```
-
-Create `server.ts` with exactly this content:
-
-```ts
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
-
-interface PlaceOrderRequest {
-  readonly customerId: string
-  readonly quantity: number
-  readonly paymentToken: string
-}
-
-interface AcceptedOrder {
-  readonly orderId: string
-  readonly status: "accepted"
-  readonly totalCents: number
-  readonly paymentProvider: string
-}
-
-interface PaymentProvider {
-  readonly authorize: (input: {
-    readonly operationId: string
-    readonly amountCents: number
-    readonly paymentToken: string
-    readonly signal?: AbortSignal
-  }) => Promise<{ readonly provider: string }>
-}
-
-interface OrderRepository {
-  readonly save: (
-    order: AcceptedOrder,
-    options?: { readonly signal?: AbortSignal },
-  ) => Promise<void>
-}
-
-const placeOrder = async (
-  input: PlaceOrderRequest,
-  dependencies: {
-    readonly payment: PaymentProvider
-    readonly orders: OrderRepository
-  },
-): Promise<AcceptedOrder> => {
-  const totalCents = 1_250 * input.quantity
-  const authorization = await dependencies.payment.authorize({
-    operationId: input.customerId,
-    amountCents: totalCents,
-    paymentToken: input.paymentToken,
-  })
-
-  const order: AcceptedOrder = {
-    orderId: `order-${input.customerId}`,
-    status: "accepted",
-    totalCents,
-    paymentProvider: authorization.provider,
-  }
-
-  await dependencies.orders.save(order)
-  return order
-}
-
-const server = createServer(async (request, response) => {
-  const sendJson = (status: number, body: unknown): void => {
-    response.writeHead(status, { "content-type": "application/json" })
-    response.end(JSON.stringify(body))
-  }
-
-  if (request.method !== "POST" || request.url !== "/orders") {
-    sendJson(404, { error: "NotFound" })
-    return
-  }
-
-  try {
-    let body = ""
-    for await (const chunk of request) {
-      body += chunk
-    }
-    const input = JSON.parse(body) as PlaceOrderRequest
-
-    const order = await placeOrder(input, {
-      payment: primaryPaymentProvider,
-      orders: consoleOrderRepository,
-    })
-
-    sendJson(201, order)
-  } catch (error) {
-    console.error(error)
-    sendJson(500, { error: "InternalServerError" })
-  }
-})
-
-// Tutorial fixtures
-// You will not modify the code below.
-
-const primaryPaymentProvider: PaymentProvider = {
-  authorize: async ({ operationId, signal }) => {
-    console.log(`primary-pay authorization for ${operationId}`)
-    await sleep(40, undefined, { signal })
-    return { provider: "primary-pay" }
-  },
-}
-
-const backupPaymentProvider: PaymentProvider = {
-  authorize: async ({ operationId, signal }) => {
-    console.log(`backup-pay authorization for ${operationId}`)
-    await sleep(40, undefined, { signal })
-    return { provider: "backup-pay" }
-  },
-}
-
-const consoleOrderRepository: OrderRepository = {
-  save: async (order, { signal } = {}) => {
-    await sleep(20, undefined, { signal })
-    console.log(`saved ${order.orderId}`)
-  },
-}
-
-server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-```
-
-Start `node --watch server.ts` from the tutorial directory in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active.
-
-Send a POST request to `http://localhost:3000/orders` with `content-type: application/json` and this body:
-
-```json
-{"customerId":"customer-123","quantity":2,"paymentToken":"tok_approved"}
-```
-
-Verify status `201`, this exact response body, and the two server messages below:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":2500,"paymentProvider":"primary-pay"}
-```
-
-```text
-primary-pay authorization for customer-123
-saved order-customer-123
-```
-
-When finished, reply only that the starter project is running and the request succeeded. If any requested action fails, report the failure without attempting an alternative setup or correction.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 The starter is small, and direct injection is a reasonable design at this
@@ -401,15 +228,15 @@ asynchronous work.
 Keep the watched server running. In the second terminal pane, install Effect:
 
 ```sh title="Install Effect"
-npm install effect
+npm install effect@4.0.0-beta.104
 ```
 
 Make the following changes to `server.ts`:
 
-```ts title="server.ts" collapse={116-140} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={93-118} ins={3,34,40-48,50-55,57-59,79-84}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
-+import { Effect } from "effect"
+import { Effect } from "effect"
 
 interface PlaceOrderRequest {
   readonly customerId: string
@@ -440,51 +267,32 @@ interface OrderRepository {
   ) => Promise<void>
 }
 
--const placeOrder = async (
-+const placeOrder = (
+const placeOrder = (
   input: PlaceOrderRequest,
   dependencies: {
     readonly payment: PaymentProvider
     readonly orders: OrderRepository
   },
--): Promise<AcceptedOrder> => {
--  const totalCents = 1_250 * input.quantity
--  const authorization = await dependencies.payment.authorize({
--    operationId: input.customerId,
--    amountCents: totalCents,
--    paymentToken: input.paymentToken,
--  })
--
--  const order: AcceptedOrder = {
--    orderId: `order-${input.customerId}`,
--    status: "accepted",
--    totalCents,
--    paymentProvider: authorization.provider,
--  }
--
--  await dependencies.orders.save(order)
--  return order
--}
-+) =>
-+  Effect.tryPromise(async (signal) => {
-+    const totalCents = 1_250 * input.quantity
-+    const authorization = await dependencies.payment.authorize({
-+      operationId: input.customerId,
-+      amountCents: totalCents,
-+      paymentToken: input.paymentToken,
-+      signal,
-+    })
-+
-+    const order: AcceptedOrder = {
-+      orderId: `order-${input.customerId}`,
-+      status: "accepted",
-+      totalCents,
-+      paymentProvider: authorization.provider,
-+    }
-+
-+    await dependencies.orders.save(order, { signal })
-+    return order
-+  })
+) =>
+  Effect.tryPromise(async (signal) => {
+    const totalCents = 1_250 * input.quantity
+    const authorization = await dependencies.payment.authorize({
+      operationId: input.customerId,
+      amountCents: totalCents,
+      paymentToken: input.paymentToken,
+      signal,
+    })
+
+    const order: AcceptedOrder = {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      totalCents,
+      paymentProvider: authorization.provider,
+    }
+
+    await dependencies.orders.save(order, { signal })
+    return order
+  })
 
 const server = createServer(async (request, response) => {
   const sendJson = (status: number, body: unknown): void => {
@@ -504,16 +312,12 @@ const server = createServer(async (request, response) => {
     }
     const input = JSON.parse(body) as PlaceOrderRequest
 
--    const order = await placeOrder(input, {
--      payment: primaryPaymentProvider,
--      orders: consoleOrderRepository,
--    })
-+    const order = await Effect.runPromise(
-+      placeOrder(input, {
-+        payment: primaryPaymentProvider,
-+        orders: consoleOrderRepository,
-+      }),
-+    )
+    const order = await Effect.runPromise(
+      placeOrder(input, {
+        payment: primaryPaymentProvider,
+        orders: consoleOrderRepository,
+      }),
+    )
 
     sendJson(201, order)
   } catch (error) {
@@ -559,9 +363,10 @@ Effect.Effect<AcceptedOrder, Cause.UnknownError>
 
 An Effect is a value that describes a computation. Calling `placeOrder` now
 creates that description. It does not authorize a payment, save an order, or
-perform any other side effect. The first type argument, `AcceptedOrder`, is the
-success value. The second is the error channel, which lists expected ways the
-computation can fail.
+perform any other side effect. [`Effect.Effect`](/docs/v4/api/effect/Effect#Effect)
+is the type of that description. The first type argument, `AcceptedOrder`, is
+the success value. The second is the error channel, which lists expected ways
+the computation can fail. In this checkpoint it is `Cause.UnknownError`.
 
 There is no third type argument yet. Both adapters are still supplied as
 ordinary arguments before the Effect is created, so the computation has no
@@ -570,42 +375,23 @@ service requirement.
 Interruption is cancellation of a running computation. A defect is an
 unexpected bug, distinct from an expected failure in the error channel.
 
-<EffectApi name="Effect.Effect" href="/docs/v4/api/effect/Effect#Effect">
-  The type of the value returned by `placeOrder`. In this checkpoint it can
-  succeed with an `AcceptedOrder` or fail with `Cause.UnknownError`. It has no
-  service requirement because the direct adapters are still function arguments.
-</EffectApi>
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the
+Promise-producing provider and repository calls. The async function remains
+lazy until the Effect runs. Its resolved value becomes the Effect success, and
+a rejection enters the error channel. Effect supplies an `AbortSignal`, which
+the code passes to both Promise APIs so interruption can cancel their waits.
 
-<EffectApi
-  name="Effect.tryPromise"
-  href="/docs/v4/api/effect/Effect#tryPromise"
->
-  Adapts the Promise-producing provider and repository calls. The async function
-  remains lazy until the Effect runs. Its resolved value becomes the Effect
-  success, and a rejection enters the error channel. Effect supplies an
-  `AbortSignal`, which we pass to both Promise APIs so interruption can cancel
-  their waits.
-</EffectApi>
+[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+Effect's built-in wrapper for an unclassified Promise rejection. It preserves
+the original rejected value in its `cause` property. Classifying provider
+failures is a separate error-handling lesson, so this endpoint continues to
+send `500` if either fixture rejects.
 
-<EffectApi
-  name="Cause.UnknownError"
-  href="/docs/v4/api/effect/Cause#UnknownError-interface"
->
-  Effect's built-in wrapper for an unclassified Promise rejection. It preserves
-  the original rejected value in its `cause` property. Classifying provider
-  failures is a separate error-handling lesson, so this endpoint continues to
-  send `500` if either fixture rejects.
-</EffectApi>
-
-<EffectApi
-  name="Effect.runPromise"
-  href="/docs/v4/api/effect/Effect#runPromise"
->
-  Runs an Effect at the async HTTP boundary and returns a Promise. The Promise
-  resolves with the success value or rejects when the Effect does not succeed,
-  so the existing `try`/`catch` still controls the HTTP response. It can also
-  accept an external `AbortSignal` when a caller needs to interrupt the run.
-</EffectApi>
+[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the Effect at
+the async HTTP boundary and returns a Promise. That Promise resolves with the
+success value or rejects when the Effect does not succeed, so the existing
+`try`/`catch` still controls the HTTP response. The runner can also accept an
+external `AbortSignal` when a caller needs to interrupt the computation.
 
 Wait for the watched server to reload, then repeat the request from checkpoint
 
@@ -617,109 +403,9 @@ Wait for the watched server to reload, then repeat the request from checkpoint
   total={6}
   title="Effect describes the direct-adapter operation"
 >
-  The approved order still returns `201` through `primary-pay`. `placeOrder`
-  now returns a lazy Effect, while the same dependency object still supplies
-  both adapters.
-
-  <AgentPrompt label="AI prompt: describe the order with Effect">
-
-````text
-Change the direct-adapter order operation from a Promise-returning function to an Effect description without changing its dependencies or behavior.
-
-Rules:
-- Work only in `./replace-infrastructure-without-changing-business-logic` relative to the current workspace root.
-- The expected prior state is checkpoint 1 of the tutorial.
-- Before changing anything, verify that the patch below applies cleanly to `server.ts`. If it does not, stop and report that the file is not at the expected checkpoint.
-- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After the change, verify the behavior but do not repair a failed verification.
-
-After the clean preflight, run `npm install effect` in the tutorial directory and apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
- import { createServer } from "node:http"
- import { setTimeout as sleep } from "node:timers/promises"
-+import { Effect } from "effect"
-@@
--const placeOrder = async (
-+const placeOrder = (
-   input: PlaceOrderRequest,
-   dependencies: {
-     readonly payment: PaymentProvider
-     readonly orders: OrderRepository
-   },
--): Promise<AcceptedOrder> => {
--  const totalCents = 1_250 * input.quantity
--  const authorization = await dependencies.payment.authorize({
--    operationId: input.customerId,
--    amountCents: totalCents,
--    paymentToken: input.paymentToken,
--  })
--
--  const order: AcceptedOrder = {
--    orderId: `order-${input.customerId}`,
--    status: "accepted",
--    totalCents,
--    paymentProvider: authorization.provider,
--  }
--
--  await dependencies.orders.save(order)
--  return order
--}
-+) =>
-+  Effect.tryPromise(async (signal) => {
-+    const totalCents = 1_250 * input.quantity
-+    const authorization = await dependencies.payment.authorize({
-+      operationId: input.customerId,
-+      amountCents: totalCents,
-+      paymentToken: input.paymentToken,
-+      signal,
-+    })
-+
-+    const order: AcceptedOrder = {
-+      orderId: `order-${input.customerId}`,
-+      status: "accepted",
-+      totalCents,
-+      paymentProvider: authorization.provider,
-+    }
-+
-+    await dependencies.orders.save(order, { signal })
-+    return order
-+  })
-@@
--    const order = await placeOrder(input, {
--      payment: primaryPaymentProvider,
--      orders: consoleOrderRepository,
--    })
-+    const order = await Effect.runPromise(
-+      placeOrder(input, {
-+        payment: primaryPaymentProvider,
-+        orders: consoleOrderRepository,
-+      }),
-+    )
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Send the checkpoint request and verify status `201`, this exact body, and the two server messages:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":2500,"paymentProvider":"primary-pay"}
-```
-
-```text
-primary-pay authorization for customer-123
-saved order-customer-123
-```
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not apply a correction after a failed check.
-````
-
-  </AgentPrompt>
+  The approved order still returns `201` through `primary-pay`. `placeOrder` now
+  returns a lazy Effect, while the same dependency object still supplies both
+  adapters.
 </TutorialCheckpoint>
 
 ## 3. Make payment a Context requirement
@@ -728,11 +414,10 @@ The dependency object still crosses the HTTP boundary. Replace only its payment
 entry with a `Context` service. The repository remains an ordinary argument for
 one more checkpoint so we can see one requirement move at a time.
 
-```ts title="server.ts" collapse={123-147} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={94-119} ins={3,27-30,38-59,80-84}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
--import { Effect } from "effect"
-+import { Context, Effect } from "effect"
+import { Context, Effect } from "effect"
 
 interface PlaceOrderRequest {
   readonly customerId: string
@@ -756,10 +441,10 @@ interface PaymentProvider {
   }) => Promise<{ readonly provider: string }>
 }
 
-+const PaymentProvider = Context.Service<PaymentProvider>(
-+  "tutorial/PaymentProvider",
-+)
-+
+const PaymentProvider = Context.Service<PaymentProvider>(
+  "tutorial/PaymentProvider",
+)
+
 interface OrderRepository {
   readonly save: (
     order: AcceptedOrder,
@@ -767,52 +452,28 @@ interface OrderRepository {
   ) => Promise<void>
 }
 
-const placeOrder = (
-  input: PlaceOrderRequest,
--  dependencies: {
--    readonly payment: PaymentProvider
--    readonly orders: OrderRepository
--  },
-+  orders: OrderRepository,
-) =>
--  Effect.tryPromise(async (signal) => {
--    const totalCents = 1_250 * input.quantity
--    const authorization = await dependencies.payment.authorize({
--      operationId: input.customerId,
--      amountCents: totalCents,
--      paymentToken: input.paymentToken,
--      signal,
--    })
-+  PaymentProvider.use((payment) =>
-+    Effect.tryPromise(async (signal) => {
-+      const totalCents = 1_250 * input.quantity
-+      const authorization = await payment.authorize({
-+        operationId: input.customerId,
-+        amountCents: totalCents,
-+        paymentToken: input.paymentToken,
-+        signal,
-+      })
+const placeOrder = (input: PlaceOrderRequest, orders: OrderRepository) =>
+  PaymentProvider.use((payment) =>
+    Effect.tryPromise(async (signal) => {
+      const totalCents = 1_250 * input.quantity
+      const authorization = await payment.authorize({
+        operationId: input.customerId,
+        amountCents: totalCents,
+        paymentToken: input.paymentToken,
+        signal,
+      })
 
--    const order: AcceptedOrder = {
--      orderId: `order-${input.customerId}`,
--      status: "accepted",
--      totalCents,
--      paymentProvider: authorization.provider,
--    }
-+      const order: AcceptedOrder = {
-+        orderId: `order-${input.customerId}`,
-+        status: "accepted",
-+        totalCents,
-+        paymentProvider: authorization.provider,
-+      }
+      const order: AcceptedOrder = {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        totalCents,
+        paymentProvider: authorization.provider,
+      }
 
--    await dependencies.orders.save(order, { signal })
--    return order
--  })
-+      await orders.save(order, { signal })
-+      return order
-+    }),
-+  )
+      await orders.save(order, { signal })
+      return order
+    }),
+  )
 
 const server = createServer(async (request, response) => {
   const sendJson = (status: number, body: unknown): void => {
@@ -833,15 +494,11 @@ const server = createServer(async (request, response) => {
     const input = JSON.parse(body) as PlaceOrderRequest
 
     const order = await Effect.runPromise(
--      placeOrder(input, {
--        payment: primaryPaymentProvider,
--        orders: consoleOrderRepository,
--      }),
-+      Effect.provideService(
-+        placeOrder(input, consoleOrderRepository),
-+        PaymentProvider,
-+        primaryPaymentProvider,
-+      ),
+      Effect.provideService(
+        placeOrder(input, consoleOrderRepository),
+        PaymentProvider,
+        primaryPaymentProvider,
+      ),
     )
 
     sendJson(201, order)
@@ -885,16 +542,12 @@ and runtime values in separate namespaces. The interface remains the adapter
 contract. The `const` is a stable runtime identity for finding an
 implementation of that contract.
 
-<EffectApi
-  name="Context.Service"
-  href="/docs/v4/api/effect/Context#Service-variable"
->
-  Creates a typed key for one service. The string is its runtime identity and
-  must be unique. `PaymentProvider.use` describes reading the implementation
-  stored under that key, then passes it to the callback. It does not read a
-  global or run the callback immediately. Until an implementation is supplied,
-  the returned Effect records `PaymentProvider` as a requirement.
-</EffectApi>
+[`Context.Service`](/docs/v4/api/effect/Context#Service-variable) creates that
+typed key for one service. The string is its runtime identity and must be
+unique. `PaymentProvider.use` describes reading the implementation stored under
+the key, then passing it to the callback. It does not read a global or run the
+callback immediately. Until an implementation is supplied, the returned Effect
+records `PaymentProvider` as a requirement.
 
 `placeOrder(input, consoleOrderRepository)` now returns this inferred type:
 
@@ -907,14 +560,10 @@ new third type argument is the service requirement that must be supplied before
 the computation can run. Unlike the dependency object's runtime value, this
 requirement remains visible while Effects are composed.
 
-<EffectApi
-  name="Effect.provideService"
-  href="/docs/v4/api/effect/Effect#provideService"
->
-  Supplies one already-created implementation for a matching `Context` key. Here
-  it gives `placeOrder` the primary provider and removes `PaymentProvider` from
-  the Effect's remaining requirements.
-</EffectApi>
+[`Effect.provideService`](/docs/v4/api/effect/Effect#provideService) supplies
+one already-created implementation for a matching `Context` key. Here it gives
+`placeOrder` the primary provider and removes `PaymentProvider` from the
+Effect's remaining requirements.
 
 Wait for the watched server to print its listening message again, then repeat
 the same `curl` command. The response and fixture messages remain unchanged.
@@ -929,195 +578,6 @@ implementation as a business-function argument.
   The order still returns `201` through `primary-pay`. `placeOrder` now records
   its payment dependency in the Effect type, while the repository remains an
   ordinary argument.
-
-  <AgentPrompt label="AI prompt: move payment into Context">
-
-````text
-Move the payment adapter from an ordinary argument to a Context service.
-
-Rules:
-- Work only in `./replace-infrastructure-without-changing-business-logic` relative to the current workspace root.
-- The expected prior state is checkpoint 2 of the tutorial.
-- Before changing anything, verify that the patch below applies cleanly to `server.ts`. If it does not, stop and report that the file is not at the expected checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After the change, verify the behavior but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
- import { createServer } from "node:http"
- import { setTimeout as sleep } from "node:timers/promises"
--import { Effect } from "effect"
-+import { Context, Effect } from "effect"
-
- interface PlaceOrderRequest {
-   readonly customerId: string
-   readonly quantity: number
-   readonly paymentToken: string
- }
-
- interface AcceptedOrder {
-   readonly orderId: string
-   readonly status: "accepted"
-   readonly totalCents: number
-   readonly paymentProvider: string
- }
-
- interface PaymentProvider {
-   readonly authorize: (input: {
-     readonly operationId: string
-     readonly amountCents: number
-     readonly paymentToken: string
-     readonly signal?: AbortSignal
-   }) => Promise<{ readonly provider: string }>
- }
-
-+const PaymentProvider = Context.Service<PaymentProvider>(
-+  "tutorial/PaymentProvider",
-+)
-+
- interface OrderRepository {
-   readonly save: (
-     order: AcceptedOrder,
-     options?: { readonly signal?: AbortSignal },
-   ) => Promise<void>
- }
-
- const placeOrder = (
-   input: PlaceOrderRequest,
--  dependencies: {
--    readonly payment: PaymentProvider
--    readonly orders: OrderRepository
--  },
-+  orders: OrderRepository,
- ) =>
--  Effect.tryPromise(async (signal) => {
--    const totalCents = 1_250 * input.quantity
--    const authorization = await dependencies.payment.authorize({
--      operationId: input.customerId,
--      amountCents: totalCents,
--      paymentToken: input.paymentToken,
--      signal,
--    })
-+  PaymentProvider.use((payment) =>
-+    Effect.tryPromise(async (signal) => {
-+      const totalCents = 1_250 * input.quantity
-+      const authorization = await payment.authorize({
-+        operationId: input.customerId,
-+        amountCents: totalCents,
-+        paymentToken: input.paymentToken,
-+        signal,
-+      })
-
--    const order: AcceptedOrder = {
--      orderId: `order-${input.customerId}`,
--      status: "accepted",
--      totalCents,
--      paymentProvider: authorization.provider,
--    }
-+      const order: AcceptedOrder = {
-+        orderId: `order-${input.customerId}`,
-+        status: "accepted",
-+        totalCents,
-+        paymentProvider: authorization.provider,
-+      }
-
--    await dependencies.orders.save(order, { signal })
--    return order
--  })
-+      await orders.save(order, { signal })
-+      return order
-+    }),
-+  )
-
- const server = createServer(async (request, response) => {
-   const sendJson = (status: number, body: unknown): void => {
-     response.writeHead(status, { "content-type": "application/json" })
-     response.end(JSON.stringify(body))
-   }
-
-   if (request.method !== "POST" || request.url !== "/orders") {
-     sendJson(404, { error: "NotFound" })
-     return
-   }
-
-   try {
-     let body = ""
-     for await (const chunk of request) {
-       body += chunk
-     }
-     const input = JSON.parse(body) as PlaceOrderRequest
-
-     const order = await Effect.runPromise(
--      placeOrder(input, {
--        payment: primaryPaymentProvider,
--        orders: consoleOrderRepository,
--      }),
-+      Effect.provideService(
-+        placeOrder(input, consoleOrderRepository),
-+        PaymentProvider,
-+        primaryPaymentProvider,
-+      ),
-     )
-
-     sendJson(201, order)
-   } catch (error) {
-     console.error(error)
-     sendJson(500, { error: "InternalServerError" })
-   }
- })
-
- // Tutorial fixtures
- // You will not modify the code below.
-
- const primaryPaymentProvider: PaymentProvider = {
-   authorize: async ({ operationId, signal }) => {
-     console.log(`primary-pay authorization for ${operationId}`)
-     await sleep(40, undefined, { signal })
-     return { provider: "primary-pay" }
-   },
- }
-
- const backupPaymentProvider: PaymentProvider = {
-   authorize: async ({ operationId, signal }) => {
-     console.log(`backup-pay authorization for ${operationId}`)
-     await sleep(40, undefined, { signal })
-     return { provider: "backup-pay" }
-   },
- }
-
- const consoleOrderRepository: OrderRepository = {
-   save: async (order, { signal } = {}) => {
-     await sleep(20, undefined, { signal })
-     console.log(`saved ${order.orderId}`)
-   },
- }
-
- server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Send the checkpoint request and verify status `201`, this exact body, and the two server messages:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":2500,"paymentProvider":"primary-pay"}
-```
-
-```text
-primary-pay authorization for customer-123
-saved order-customer-123
-```
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not apply a correction after a failed check.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 4. Move the repository requirement too
@@ -1126,7 +586,7 @@ The remaining `orders` parameter still makes the HTTP handler select and
 forward repository infrastructure. Give the repository its own service key and
 read it inside the same computation.
 
-```ts title="server.ts" collapse={129-153} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={104-129} ins={38-42,44-64,87-93}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Context, Effect } from "effect"
@@ -1164,55 +624,33 @@ interface OrderRepository {
   ) => Promise<void>
 }
 
-+const OrderRepository = Context.Service<OrderRepository>(
-+  "tutorial/OrderRepository",
-+)
-+
-const placeOrder = (
-  input: PlaceOrderRequest,
--  orders: OrderRepository,
-) =>
+const OrderRepository = Context.Service<OrderRepository>(
+  "tutorial/OrderRepository",
+)
+
+const placeOrder = (input: PlaceOrderRequest) =>
   PaymentProvider.use((payment) =>
--    Effect.tryPromise(async (signal) => {
--      const totalCents = 1_250 * input.quantity
--      const authorization = await payment.authorize({
--        operationId: input.customerId,
--        amountCents: totalCents,
--        paymentToken: input.paymentToken,
--        signal,
--      })
--
--      const order: AcceptedOrder = {
--        orderId: `order-${input.customerId}`,
--        status: "accepted",
--        totalCents,
--        paymentProvider: authorization.provider,
--      }
--
--      await orders.save(order, { signal })
--      return order
--    }),
-+    OrderRepository.use((orders) =>
-+      Effect.tryPromise(async (signal) => {
-+        const totalCents = 1_250 * input.quantity
-+        const authorization = await payment.authorize({
-+          operationId: input.customerId,
-+          amountCents: totalCents,
-+          paymentToken: input.paymentToken,
-+          signal,
-+        })
-+
-+        const order: AcceptedOrder = {
-+          orderId: `order-${input.customerId}`,
-+          status: "accepted",
-+          totalCents,
-+          paymentProvider: authorization.provider,
-+        }
-+
-+        await orders.save(order, { signal })
-+        return order
-+      }),
-+    ),
+    OrderRepository.use((orders) =>
+      Effect.tryPromise(async (signal) => {
+        const totalCents = 1_250 * input.quantity
+        const authorization = await payment.authorize({
+          operationId: input.customerId,
+          amountCents: totalCents,
+          paymentToken: input.paymentToken,
+          signal,
+        })
+
+        const order: AcceptedOrder = {
+          orderId: `order-${input.customerId}`,
+          status: "accepted",
+          totalCents,
+          paymentProvider: authorization.provider,
+        }
+
+        await orders.save(order, { signal })
+        return order
+      }),
+    ),
   )
 
 const server = createServer(async (request, response) => {
@@ -1235,16 +673,13 @@ const server = createServer(async (request, response) => {
 
     const order = await Effect.runPromise(
       Effect.provideService(
--        placeOrder(input, consoleOrderRepository),
--        PaymentProvider,
--        primaryPaymentProvider,
-+        Effect.provideService(
-+          placeOrder(input),
-+          PaymentProvider,
-+          primaryPaymentProvider,
-+        ),
-+        OrderRepository,
-+        consoleOrderRepository,
+        Effect.provideService(
+          placeOrder(input),
+          PaymentProvider,
+          primaryPaymentProvider,
+        ),
+        OrderRepository,
+        consoleOrderRepository,
       ),
     )
 
@@ -1320,115 +755,6 @@ message.
 >
   `placeOrder` has only its business input. Its Effect type records the payment
   and repository requirements, and the primary request still returns `201`.
-
-  <AgentPrompt label="AI prompt: move repository into Context">
-
-````text
-Move the order repository from an ordinary argument to a second Context service.
-
-Rules:
-- Work only in `./replace-infrastructure-without-changing-business-logic` relative to the current workspace root.
-- The expected prior state is checkpoint 3 of the tutorial.
-- Before changing anything, verify that the patch below applies cleanly to `server.ts`. If it does not, stop and report that the file is not at the expected checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After the change, verify the behavior but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
- interface OrderRepository {
-@@
- }
-
-+const OrderRepository = Context.Service<OrderRepository>(
-+  "tutorial/OrderRepository",
-+)
-+
- const placeOrder = (
-   input: PlaceOrderRequest,
--  orders: OrderRepository,
- ) =>
-   PaymentProvider.use((payment) =>
--    Effect.tryPromise(async (signal) => {
--      const totalCents = 1_250 * input.quantity
--      const authorization = await payment.authorize({
--        operationId: input.customerId,
--        amountCents: totalCents,
--        paymentToken: input.paymentToken,
--        signal,
--      })
--
--      const order: AcceptedOrder = {
--        orderId: `order-${input.customerId}`,
--        status: "accepted",
--        totalCents,
--        paymentProvider: authorization.provider,
--      }
--
--      await orders.save(order, { signal })
--      return order
--    }),
-+    OrderRepository.use((orders) =>
-+      Effect.tryPromise(async (signal) => {
-+        const totalCents = 1_250 * input.quantity
-+        const authorization = await payment.authorize({
-+          operationId: input.customerId,
-+          amountCents: totalCents,
-+          paymentToken: input.paymentToken,
-+          signal,
-+        })
-+
-+        const order: AcceptedOrder = {
-+          orderId: `order-${input.customerId}`,
-+          status: "accepted",
-+          totalCents,
-+          paymentProvider: authorization.provider,
-+        }
-+
-+        await orders.save(order, { signal })
-+        return order
-+      }),
-+    ),
-   )
-@@
-     const order = await Effect.runPromise(
-       Effect.provideService(
--        placeOrder(input, consoleOrderRepository),
--        PaymentProvider,
--        primaryPaymentProvider,
-+        Effect.provideService(
-+          placeOrder(input),
-+          PaymentProvider,
-+          primaryPaymentProvider,
-+        ),
-+        OrderRepository,
-+        consoleOrderRepository,
-       ),
-     )
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Send the checkpoint request and verify status `201`, this exact body, and the two server messages:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":2500,"paymentProvider":"primary-pay"}
-```
-
-```text
-primary-pay authorization for customer-123
-saved order-customer-123
-```
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not apply a correction after a failed check.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 5. Compose implementations with Layer
@@ -1438,279 +764,7 @@ describe how the complete set of implementations is assembled. Replace the
 nested provisioning calls with two Layers and merge them into the application
 Layer.
 
-```ts title="server.ts" collapse={108-132} useDiffSyntax copyFinal
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
--import { Context, Effect } from "effect"
-+import { Context, Effect, Layer } from "effect"
-
-interface PlaceOrderRequest {
-  readonly customerId: string
-  readonly quantity: number
-  readonly paymentToken: string
-}
-
-interface AcceptedOrder {
-  readonly orderId: string
-  readonly status: "accepted"
-  readonly totalCents: number
-  readonly paymentProvider: string
-}
-
-interface PaymentProvider {
-  readonly authorize: (input: {
-    readonly operationId: string
-    readonly amountCents: number
-    readonly paymentToken: string
-    readonly signal?: AbortSignal
-  }) => Promise<{ readonly provider: string }>
-}
-
-const PaymentProvider = Context.Service<PaymentProvider>(
-  "tutorial/PaymentProvider",
-)
-
-interface OrderRepository {
-  readonly save: (
-    order: AcceptedOrder,
-    options?: { readonly signal?: AbortSignal },
-  ) => Promise<void>
-}
-
-const OrderRepository = Context.Service<OrderRepository>(
-  "tutorial/OrderRepository",
-)
-
-const placeOrder = (
-  input: PlaceOrderRequest,
-) =>
-  PaymentProvider.use((payment) =>
-    OrderRepository.use((orders) =>
-      Effect.tryPromise(async (signal) => {
-        const totalCents = 1_250 * input.quantity
-        const authorization = await payment.authorize({
-          operationId: input.customerId,
-          amountCents: totalCents,
-          paymentToken: input.paymentToken,
-          signal,
-        })
-
-        const order: AcceptedOrder = {
-          orderId: `order-${input.customerId}`,
-          status: "accepted",
-          totalCents,
-          paymentProvider: authorization.provider,
-        }
-
-        await orders.save(order, { signal })
-        return order
-      }),
-    ),
-  )
-
-const server = createServer(async (request, response) => {
-  const sendJson = (status: number, body: unknown): void => {
-    response.writeHead(status, { "content-type": "application/json" })
-    response.end(JSON.stringify(body))
-  }
-
-  if (request.method !== "POST" || request.url !== "/orders") {
-    sendJson(404, { error: "NotFound" })
-    return
-  }
-
-  try {
-    let body = ""
-    for await (const chunk of request) {
-      body += chunk
-    }
-    const input = JSON.parse(body) as PlaceOrderRequest
-
-    const order = await Effect.runPromise(
--      Effect.provideService(
--        Effect.provideService(
--          placeOrder(input),
--          PaymentProvider,
--          primaryPaymentProvider,
--        ),
--        OrderRepository,
--        consoleOrderRepository,
--      ),
-+      Effect.provide(placeOrder(input), AppLive),
-    )
-
-    sendJson(201, order)
-  } catch (error) {
-    console.error(error)
-    sendJson(500, { error: "InternalServerError" })
-  }
-})
-
-// Tutorial fixtures
-// You will not modify the code below.
-
-const primaryPaymentProvider: PaymentProvider = {
-  authorize: async ({ operationId, signal }) => {
-    console.log(`primary-pay authorization for ${operationId}`)
-    await sleep(40, undefined, { signal })
-    return { provider: "primary-pay" }
-  },
-}
-
-const backupPaymentProvider: PaymentProvider = {
-  authorize: async ({ operationId, signal }) => {
-    console.log(`backup-pay authorization for ${operationId}`)
-    await sleep(40, undefined, { signal })
-    return { provider: "backup-pay" }
-  },
-}
-
-const consoleOrderRepository: OrderRepository = {
-  save: async (order, { signal } = {}) => {
-    await sleep(20, undefined, { signal })
-    console.log(`saved ${order.orderId}`)
-  },
-}
-
-+const PaymentLive = Layer.succeed(PaymentProvider, primaryPaymentProvider)
-+const OrdersLive = Layer.succeed(OrderRepository, consoleOrderRepository)
-+const AppLive = Layer.merge(PaymentLive, OrdersLive)
-+
-server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-```
-
-A Layer is a value that describes how to construct one or more services. Like
-an Effect, creating a Layer does not run side effects. These implementations
-already exist as fixture values, so their Layers cannot fail and do not need
-other services to be built.
-
-<EffectApi name="Layer.succeed" href="/docs/v4/api/effect/Layer#succeed">
-  Creates a Layer for one already-available service value. `PaymentLive`
-  associates `primaryPaymentProvider` with the `PaymentProvider` key, while
-  `OrdersLive` associates the console repository with its key.
-</EffectApi>
-
-<EffectApi name="Layer.merge" href="/docs/v4/api/effect/Layer#merge">
-  Combines two independent Layers into one Layer that provides both service
-  sets. `AppLive` therefore describes a graph containing `PaymentProvider` and
-  `OrderRepository`. Building either Layer does not require the other one.
-</EffectApi>
-
-The inferred type of the composed Layer can be read as the services it makes
-available:
-
-```ts title="Inferred type, not code to paste"
-Layer.Layer<PaymentProvider | OrderRepository>
-```
-
-`Layer.Layer` can also include an error type and requirements needed while
-building the services. Both default to `never` here because `Layer.succeed`
-uses values that are already available.
-
-<EffectApi name="Layer.Layer" href="/docs/v4/api/effect/Layer#Layer">
-  The type of a Layer description. The first type argument lists the services
-  the Layer provides. Additional type arguments can describe construction
-  failures and services required to build it; `AppLive` has neither.
-</EffectApi>
-
-<EffectApi name="Effect.provide" href="/docs/v4/api/effect/Effect#provide">
-  Builds the supplied Layer and makes its services available to the Effect. Here
-  it satisfies both requirements of `placeOrder`. The resulting Effect has no
-  remaining service requirement, so `Effect.runPromise` can run it at the HTTP
-  boundary.
-</EffectApi>
-
-This is the application boundary: `AppLive` chooses concrete infrastructure,
-while `placeOrder` names only service contracts. If `OrdersLive` were omitted,
-`OrderRepository` would remain in the Effect's requirement type and the call
-to `Effect.runPromise` would not type-check. The incomplete graph is detected
-before the server starts.
-
-Wait for the watched server to reload and send the request again. It still
-returns `primary-pay`; this checkpoint changes the wiring, not the observable
-behavior.
-
-<TutorialCheckpoint
-  number={5}
-  total={6}
-  title="One Layer provides the application graph"
->
-  `AppLive` composes the primary payment provider and console repository. The
-  same request returns `201`, and no individual service is provisioned in the
-  HTTP handler.
-
-  <AgentPrompt label="AI prompt: compose the application Layer">
-
-````text
-Replace individual service provisioning with one composed application Layer.
-
-Rules:
-- Work only in `./replace-infrastructure-without-changing-business-logic` relative to the current workspace root.
-- The expected prior state is checkpoint 4 of the tutorial.
-- Before changing anything, verify that the patch below applies cleanly to `server.ts`. If it does not, stop and report that the file is not at the expected checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After the change, verify the behavior but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
--import { Context, Effect } from "effect"
-+import { Context, Effect, Layer } from "effect"
-@@
-     const order = await Effect.runPromise(
--      Effect.provideService(
--        Effect.provideService(
--          placeOrder(input),
--          PaymentProvider,
--          primaryPaymentProvider,
--        ),
--        OrderRepository,
--        consoleOrderRepository,
--      ),
-+      Effect.provide(placeOrder(input), AppLive),
-     )
-@@
- const consoleOrderRepository: OrderRepository = {
-@@
- }
-
-+const PaymentLive = Layer.succeed(PaymentProvider, primaryPaymentProvider)
-+const OrdersLive = Layer.succeed(OrderRepository, consoleOrderRepository)
-+const AppLive = Layer.merge(PaymentLive, OrdersLive)
-+
- server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Send the checkpoint request and verify status `201`, this exact body, and the two server messages:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":2500,"paymentProvider":"primary-pay"}
-```
-
-```text
-primary-pay authorization for customer-123
-saved order-customer-123
-```
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not apply a correction after a failed check.
-````
-
-  </AgentPrompt>
-</TutorialCheckpoint>
-
-## 6. Replace the payment Layer
-
-The backup fixture already satisfies the same `PaymentProvider` contract. To
-select it, change only the implementation associated with that service key:
-
-```ts title="server.ts" collapse={1-123,126-129} useDiffSyntax copyFinal
+```ts title="server.ts" collapse={96-120} ins={3,86,122-125}
 import { createServer } from "node:http"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Context, Effect, Layer } from "effect"
@@ -1752,9 +806,7 @@ const OrderRepository = Context.Service<OrderRepository>(
   "tutorial/OrderRepository",
 )
 
-const placeOrder = (
-  input: PlaceOrderRequest,
-) =>
+const placeOrder = (input: PlaceOrderRequest) =>
   PaymentProvider.use((payment) =>
     OrderRepository.use((orders) =>
       Effect.tryPromise(async (signal) => {
@@ -1834,8 +886,194 @@ const consoleOrderRepository: OrderRepository = {
   },
 }
 
--const PaymentLive = Layer.succeed(PaymentProvider, primaryPaymentProvider)
-+const PaymentLive = Layer.succeed(PaymentProvider, backupPaymentProvider)
+const PaymentLive = Layer.succeed(PaymentProvider, primaryPaymentProvider)
+const OrdersLive = Layer.succeed(OrderRepository, consoleOrderRepository)
+const AppLive = Layer.merge(PaymentLive, OrdersLive)
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+```
+
+A Layer is a value that describes how to construct one or more services. Like
+an Effect, creating a Layer does not run side effects. These implementations
+already exist as fixture values, so their Layers cannot fail and do not need
+other services to be built.
+
+[`Layer.succeed`](/docs/v4/api/effect/Layer#succeed) creates a Layer for one
+already-available service value. `PaymentLive` associates
+`primaryPaymentProvider` with the `PaymentProvider` key, while `OrdersLive`
+associates the console repository with its key.
+
+[`Layer.merge`](/docs/v4/api/effect/Layer#merge) combines two independent
+Layers into one Layer that provides both sets of services. `AppLive` therefore
+describes a graph containing `PaymentProvider` and `OrderRepository`. Building
+either Layer does not require the other one.
+
+The inferred type of the composed Layer can be read as the services it makes
+available:
+
+```ts title="Inferred type, not code to paste"
+Layer.Layer<PaymentProvider | OrderRepository>
+```
+
+[`Layer.Layer`](/docs/v4/api/effect/Layer#Layer) is the type of a Layer
+description. Its first type argument lists the services the Layer provides.
+Additional type arguments can describe construction failures and services
+required to build it. Both default to `never` here because `Layer.succeed`
+uses values that are already available, so `AppLive` has neither.
+
+[`Effect.provide`](/docs/v4/api/effect/Effect#provide) builds the supplied
+Layer and makes its services available to the Effect. Here it satisfies both
+requirements of `placeOrder`. The resulting Effect has no remaining service
+requirement, so `Effect.runPromise` can run it at the HTTP boundary.
+
+This is the application boundary: `AppLive` chooses concrete infrastructure,
+while `placeOrder` names only service contracts. If `OrdersLive` were omitted,
+`OrderRepository` would remain in the Effect's requirement type and the call
+to `Effect.runPromise` would not type-check. The incomplete graph is detected
+before the server starts.
+
+Wait for the watched server to reload and send the request again. It still
+returns `primary-pay`; this checkpoint changes the wiring, not the observable
+behavior.
+
+<TutorialCheckpoint
+  number={5}
+  total={6}
+  title="One Layer provides the application graph"
+>
+  `AppLive` composes the primary payment provider and console repository. The
+  same request returns `201`, and no individual service is provisioned in the
+  HTTP handler.
+</TutorialCheckpoint>
+
+## 6. Replace the payment Layer
+
+The backup fixture already satisfies the same `PaymentProvider` contract. To
+select it, change only the implementation associated with that service key:
+
+```ts title="server.ts" collapse={1-121} ins={122}
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Context, Effect, Layer } from "effect"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly quantity: number
+  readonly paymentToken: string
+}
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+  readonly totalCents: number
+  readonly paymentProvider: string
+}
+
+interface PaymentProvider {
+  readonly authorize: (input: {
+    readonly operationId: string
+    readonly amountCents: number
+    readonly paymentToken: string
+    readonly signal?: AbortSignal
+  }) => Promise<{ readonly provider: string }>
+}
+
+const PaymentProvider = Context.Service<PaymentProvider>(
+  "tutorial/PaymentProvider",
+)
+
+interface OrderRepository {
+  readonly save: (
+    order: AcceptedOrder,
+    options?: { readonly signal?: AbortSignal },
+  ) => Promise<void>
+}
+
+const OrderRepository = Context.Service<OrderRepository>(
+  "tutorial/OrderRepository",
+)
+
+const placeOrder = (input: PlaceOrderRequest) =>
+  PaymentProvider.use((payment) =>
+    OrderRepository.use((orders) =>
+      Effect.tryPromise(async (signal) => {
+        const totalCents = 1_250 * input.quantity
+        const authorization = await payment.authorize({
+          operationId: input.customerId,
+          amountCents: totalCents,
+          paymentToken: input.paymentToken,
+          signal,
+        })
+
+        const order: AcceptedOrder = {
+          orderId: `order-${input.customerId}`,
+          status: "accepted",
+          totalCents,
+          paymentProvider: authorization.provider,
+        }
+
+        await orders.save(order, { signal })
+        return order
+      }),
+    ),
+  )
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const order = await Effect.runPromise(
+      Effect.provide(placeOrder(input), AppLive),
+    )
+
+    sendJson(201, order)
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+// Tutorial fixtures
+// You will not modify the code below.
+
+const primaryPaymentProvider: PaymentProvider = {
+  authorize: async ({ operationId, signal }) => {
+    console.log(`primary-pay authorization for ${operationId}`)
+    await sleep(40, undefined, { signal })
+    return { provider: "primary-pay" }
+  },
+}
+
+const backupPaymentProvider: PaymentProvider = {
+  authorize: async ({ operationId, signal }) => {
+    console.log(`backup-pay authorization for ${operationId}`)
+    await sleep(40, undefined, { signal })
+    return { provider: "backup-pay" }
+  },
+}
+
+const consoleOrderRepository: OrderRepository = {
+  save: async (order, { signal } = {}) => {
+    await sleep(20, undefined, { signal })
+    console.log(`saved ${order.orderId}`)
+  },
+}
+
+const PaymentLive = Layer.succeed(PaymentProvider, backupPaymentProvider)
 const OrdersLive = Layer.succeed(OrderRepository, consoleOrderRepository)
 const AppLive = Layer.merge(PaymentLive, OrdersLive)
 
@@ -1870,48 +1108,6 @@ is confined to the Layer that associates an implementation with the
 >
   The unchanged order request returns `201` with `backup-pay`. Only the payment
   Layer changed; the business logic and transport code did not.
-
-  <AgentPrompt label="AI prompt: select the backup provider">
-
-````text
-Replace the primary payment implementation with the backup implementation at the Layer boundary.
-
-Rules:
-- Work only in `./replace-infrastructure-without-changing-business-logic` relative to the current workspace root.
-- The expected prior state is checkpoint 5 of the tutorial.
-- Before changing anything, verify that the patch below applies cleanly to `server.ts`. If it does not, stop and report that the file is not at the expected checkpoint.
-- Modify only `server.ts`.
-- Apply exactly the requested patch. Do not refactor or make additional improvements.
-- After the change, verify the behavior but do not repair a failed verification.
-
-Apply this patch to `server.ts`:
-
-```diff
-*** Begin Patch
-*** Update File: server.ts
-@@
--const PaymentLive = Layer.succeed(PaymentProvider, primaryPaymentProvider)
-+const PaymentLive = Layer.succeed(PaymentProvider, backupPaymentProvider)
-*** End Patch
-```
-
-If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
-
-Send the checkpoint request and verify status `201`, this exact body, and the two server messages:
-
-```json
-{"orderId":"order-customer-123","status":"accepted","totalCents":2500,"paymentProvider":"backup-pay"}
-```
-
-```text
-backup-pay authorization for customer-123
-saved order-customer-123
-```
-
-Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not apply a correction after a failed check.
-````
-
-  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## Keep the infrastructure seam at the boundary
