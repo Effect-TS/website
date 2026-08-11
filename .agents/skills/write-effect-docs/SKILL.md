@@ -28,6 +28,10 @@ duplicate those rules here.
   reader should know what they are looking at and why it matters.
 - Use direct, literal language. Replace unexplained jargon, idioms, vague
   metaphors, and feature-marketing language with observable behavior.
+- Do not use Effect terminology or general software jargon as shorthand. Use
+  the simplest words allowed by the audience's stated knowledge. When a
+  technical term is necessary and falls outside that knowledge, define it in
+  plain language at its first use.
 - Prefer short paragraphs. Use lists for parallel roles, cases, steps, or
   outcomes, and tables when readers need to compare repeated fields.
 - Use descriptive headings that help navigation. Do not create headings merely
@@ -40,8 +44,9 @@ duplicate those rules here.
 
 ## Explain every Effect API and concept
 
-Explain each Effect-specific API or term at its first meaningful use. Keep the
-explanation beside the code and cover:
+Whenever a code snippet introduces an Effect-specific API or term, explain it
+briefly immediately before or after that snippet. Do not postpone the
+explanation to a later section. Cover:
 
 - what the API does in general;
 - what its arguments mean in the example;
@@ -50,10 +55,15 @@ explanation beside the code and cover:
 - what concrete type or observable behavior results;
 - what it does not do when the name could create a false impression.
 
-Link the API name inline to its generated reference declaration when one is
-available. Verify ambiguous anchors against the generated reference. A symbol
-exported as both a type and a value may use suffixes such as `-interface` or
-`-variable`.
+Link every introduced Effect API inline to its generated reference declaration.
+Do not leave an API unlinked. Verify ambiguous anchors against the generated
+reference. A symbol exported as both a type and a value may use suffixes such
+as `-interface` or `-variable`.
+
+Before finalizing a page, inspect every code snippet and account for every
+Effect API it contains. Each API must have been introduced and explained either
+before that snippet or immediately after it. An explanation earlier on the same
+page remains valid; do not repeat it mechanically.
 
 When Effect is new to the reader, establish this mental model at the first
 Effect value:
@@ -105,8 +115,11 @@ Inventory APIs from the actual page instead of relying on memory. Adjust the
 module list to the page:
 
 ```sh
-rg -o '\b(?:Effect|Data|Cause|Schema|Layer|Scope)\.[A-Za-z0-9_]+' <page.mdx> | sort -u
+rg -o '\b(?:Cause|Context|Data|Effect|Layer|Option|Result|Schema|SchemaTransformation|Scope|Tracer)\.[A-Za-z0-9_]+' <page.mdx> | sort -u
 ```
+
+Also inspect generated members such as service `.use` accessors and shared
+methods such as `.pipe(...)`; a qualified-name scan does not find them reliably.
 
 ## Present code clearly
 

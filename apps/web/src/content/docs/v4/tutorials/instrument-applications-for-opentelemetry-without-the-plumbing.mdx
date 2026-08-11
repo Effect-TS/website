@@ -1,6 +1,7 @@
 ---
 title: Instrument applications for OpenTelemetry without the plumbing
-description: Produce OpenTelemetry-compatible spans without manual context propagation or span lifecycle management.
+description: Record the timing and relationships of operations without passing tracing data or starting and stopping each record manually.
+diataxis: tutorial
 sidebar:
   order: 7
 ---
@@ -11,13 +12,14 @@ import {
 } from "@astrojs/starlight/components"
 
 <TutorialPainPoint title="OpenTelemetry instrumentation is a chore">
-  Instrumenting an application for OpenTelemetry usually means creating and
-  closing spans, propagating context through asynchronous operations, attaching
-  attributes, and handling failures and cancellation correctly.
+  OpenTelemetry represents one timed operation as a span. Instrumenting an
+  application usually means starting and stopping those records, passing the
+  current operation through asynchronous calls, attaching details, and handling
+  failures and cancellation correctly.
 
-Effect provides tracing primitives that follow the lifetime and structure of
-a computation. Spans, parent-child relationships, concurrency, and
-interruption remain connected without manual context propagation.
+Effect provides tracing tools that follow the lifetime and structure of a
+computation. Each span keeps the correct parent even when operations run
+together, fail, or are cancelled.
 
 </TutorialPainPoint>
 
@@ -51,9 +53,9 @@ still reveal the important structure:
 - storage waits for payment.
 
 Everything runs in one Node.js process. The provider calls use predictable
-simulations, and the tracer and waterfall renderer work locally. The tutorial
-therefore needs no public network, credentials, external tracing service, or
-dashboard.
+simulations, and the trace collector and waterfall renderer work locally. The
+tutorial therefore needs no public network, credentials, external tracing
+service, or dashboard.
 
 ## Where this tutorial fits
 
@@ -89,10 +91,10 @@ sequenceDiagram
 
 The project uses two files:
 
-| File         | Role                                                                          |
-| ------------ | ----------------------------------------------------------------------------- |
-| `fixture.ts` | Fixed fixture that provides the HTTP server, providers, tracer, and renderer. |
-| `server.ts`  | Contains the order-processing code that the tutorial gradually improves.      |
+| File         | Role                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------- |
+| `fixture.ts` | Fixed fixture that provides the HTTP server, providers, trace collector, and renderer. |
+| `server.ts`  | Contains the order-processing code that the tutorial gradually improves.               |
 
 The fixture exports:
 
@@ -105,6 +107,9 @@ The fixture exports:
   - storage takes about 40 milliseconds;
 - `localTracer`, which records spans in memory;
 - `renderLatestTrace`, which turns those spans into the timing waterfall.
+
+An `AbortSignal` is a standard cancellation value. Each provider accepts one so
+the caller can stop its pending timer.
 
 `fixture.ts` contains this complete code:
 
@@ -270,8 +275,8 @@ export const renderLatestTrace = (): string => {
 The tracing section at the end of the fixture is ready-made plumbing.
 [`Tracer.make`](/docs/v4/api/effect/Tracer#make) creates the local collector,
 and each [`Tracer.NativeSpan`](/docs/v4/api/effect/Tracer#NativeSpan) stores one
-operation's timing, parent, and attributes. A span may or may not have a parent,
-so [`Option.isNone`](/docs/v4/api/effect/Option#isNone) and
+operation's timing, parent, and named details called attributes. A span may or
+may not have a parent, so [`Option.isNone`](/docs/v4/api/effect/Option#isNone) and
 [`Option.getOrUndefined`](/docs/v4/api/effect/Option#getOrUndefined) inspect that
 value without exposing its internal representation. The tutorial interacts
 with this plumbing only through `localTracer` and `renderLatestTrace`.
@@ -473,8 +478,9 @@ returns their success values in the same order. With
 `concurrency: "unbounded"`, the three planning Effects can run at the same time
 instead of waiting for one another.
 
-`pipe` passes the combined description through transformations from top to
-bottom. It does not run the computation.
+The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes the
+combined description through transformations from top to bottom. It does not
+run the computation.
 
 [`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) uses a successful value
 to choose the next Effect. Payment is described only after all three planning
@@ -504,9 +510,9 @@ the same three application log lines. The observable result has not changed.
 
 ### 3. Record the whole request as one span
 
-A span is a timed record of one operation. It has a name, start and end times,
-an optional parent, and attributes. A trace is the tree formed by a root span
-and its children.
+The spans form a trace: a tree containing one root span and its children. Each
+span has a name, start and end times, and optional parent. Attributes are named
+details attached to a span.
 
 The project fixture already provides `localTracer`, which records spans in
 memory, and `renderLatestTrace`, which turns them into 20 millisecond timing

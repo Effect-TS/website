@@ -1,6 +1,7 @@
 ---
 title: Clean up resources reliably
 description: Tie acquired resources to one lifetime so cleanup runs after success, failure, or cancellation.
+diataxis: tutorial
 sidebar:
   order: 3
 ---
@@ -11,16 +12,16 @@ import {
 } from "@astrojs/starlight/components"
 
 <TutorialPainPoint title="Resources outlive failed or cancelled work">
-  `finally` and `using` run cleanup when control leaves a block, but an
-  `AbortSignal` does not make pending Promise work leave that block automatically.
+  `finally` and `using` run cleanup when control leaves a block, but cancelling
+  pending Promise work does not make it leave that block automatically.
   Coordinating partial acquisition, cancellation, and cleanup therefore still
   requires manual work.
 
 With Effect, a [`Scope`](/docs/v4/api/effect/Scope#Scope-interface) owns the
-lifetime of an operation and its finalizers.
-[`Effect.acquireRelease`](/docs/v4/api/effect/Effect#acquireRelease) attaches
-cleanup to each successful acquisition. Closing the Scope after success,
-failure, or interruption runs every registered finalizer.
+lifetime of an operation. A finalizer is a cleanup operation registered in that
+Scope. [`Effect.acquireRelease`](/docs/v4/api/effect/Effect#acquireRelease)
+registers one after a resource is acquired successfully. Closing the Scope
+after success, failure, or cancellation runs every registered finalizer.
 
 </TutorialPainPoint>
 
@@ -32,11 +33,11 @@ order. A small HTTP harness supplies an Order ID that the application has
 already generated, so the tutorial can focus on resource cleanup. Each step
 makes that cleanup more reliable until the endpoint behaves as follows:
 
-| Request outcome        | HTTP result | Resource behavior                                 |
-| ---------------------- | ----------- | ------------------------------------------------- |
-| Order is stored        | `201`       | Lock released, then connection released           |
-| Lock acquisition fails | `500`       | The connection already acquired is released       |
-| Client disconnects     | No response | Storage is interrupted, then both resources close |
+| Request outcome        | HTTP result | Resource behavior                               |
+| ---------------------- | ----------- | ----------------------------------------------- |
+| Order is stored        | `201`       | Lock released, then connection released         |
+| Lock acquisition fails | `500`       | The connection already acquired is released     |
+| Client disconnects     | No response | Storage is cancelled, then both resources close |
 
 The HTTP server will remain ordinary TypeScript. Effect will manage only the
 part of the request that acquires, uses, and releases resources.
@@ -88,6 +89,9 @@ The project uses two files:
 - `acquireInventoryLock` and `releaseInventoryLock`, which simulate the
   lifetime of an inventory lock;
 - `storeOrder`, which simulates the storage operation.
+
+An `AbortSignal` is a standard cancellation value. It notifies asynchronous work
+when the caller asks it to stop.
 
 Two `orderId` values select predictable behavior:
 
@@ -471,6 +475,9 @@ runs. A resolved Promise becomes a success, while a synchronous throw or
 rejected Promise enters the error channel. Effect also supplies an
 `AbortSignal`, which the workflow passes to `storeOrder`.
 
+In Effect, cancelling a running computation is called interruption. It is
+separate from the expected failures recorded in the error channel.
+
 TypeScript infers this type for `placeOrder(input)`:
 
 ```ts
@@ -604,8 +611,9 @@ the Effect runs. Here, it prevents the release functions from running while we
 are only constructing the resource descriptions. Their `void` return becomes
 each finalizer's successful value.
 
-`pipe` passes an Effect description through transformations from top to bottom.
-It does not run the described work.
+The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes an Effect
+description through transformations from top to bottom. It does not run the
+described work.
 
 [`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) sequences a dependent
 Effect. The first call receives the acquired database connection and describes
@@ -697,9 +705,8 @@ the signal interrupts the complete scoped workflow. The returned Promise
 rejects after the Scope's finalizers have finished, and `startServer` writes
 nothing because the response is already gone.
 
-Interruption is Effect's name for cancellation of a running computation. It is
-not an expected failure in the error channel, so the disconnect does not become
-a `Cause.UnknownError` or a `500` response.
+This interruption is not an expected failure in the error channel, so the
+disconnect does not become a `Cause.UnknownError` or a `500` response.
 
 The `AbortSignal` supplied to the callback by
 [`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) is also aborted

@@ -1,6 +1,7 @@
 ---
 title: Send rich domain models over the wire
 description: Share rich domain models with clients while retaining control over their JSON representation.
+diataxis: tutorial
 sidebar:
   order: 4
 ---
@@ -453,10 +454,11 @@ external representation to the domain model. Decoding follows the `decode`
 function toward `AcceptedOrder`; encoding follows the `encode` function back
 toward `ExternalAcceptedOrderFields`.
 
-`ExternalAcceptedOrderFields.pipe(...)` passes the Schema into the next
-function. Reading the code from top to bottom, `Schema.decodeTo(...)` receives
-the external fields and returns the connected Schema. `pipe` only builds that
-description; it does not encode or decode an order.
+The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes
+`ExternalAcceptedOrderFields` into the next function. Reading the code from top
+to bottom, `Schema.decodeTo(...)` receives the external fields and returns the
+connected Schema. `pipe` only builds that description; it does not encode or
+decode an order.
 
 [`SchemaTransformation.transform`](/docs/v4/api/effect/SchemaTransformation#transform)
 supplies those two conversions when neither can fail on its own.

@@ -1,6 +1,7 @@
 ---
 title: Keep dependencies explicit without manual wiring
 description: Declare service requirements in types and select implementations at the application boundary without passing them manually.
+diataxis: tutorial
 sidebar:
   order: 5
 ---
@@ -16,10 +17,10 @@ import {
   injection containers reduce that plumbing through tokens, decorators, or
   global lookups, but make the dependency graph more implicit.
 
-With Effect, an operation's type records the services it requires, while
-Layers select and build their implementations at the application boundary.
-Dependencies stay visible to TypeScript without being passed through every
-intermediate function.
+With Effect, an operation's type records the services it needs. The application
+selects their implementations once when it starts, instead of passing them
+through every intermediate function. The dependencies remain visible to
+TypeScript throughout.
 
 </TutorialPainPoint>
 
@@ -97,6 +98,9 @@ The project uses two files:
 without exposing card details. Both deterministic payment implementations
 accept any token because this tutorial focuses on selecting infrastructure,
 not on handling payment outcomes.
+
+An `AbortSignal` is a standard cancellation value. The payment and storage
+contracts accept one so their pending Promise work can be stopped.
 
 ```ts title="fixture.ts"
 // This fixed fixture does not change during the tutorial.
@@ -495,9 +499,13 @@ and runtime values in separate namespaces:
 
 [`Context.Service`](/docs/v4/api/effect/Context#Service-variable) creates the
 typed key. Its string is the runtime identity and must be unique.
-`Payment.use` describes reading the implementation stored under that
-key and passing it to the callback. It does not read a global value or run the
-callback immediately.
+[`Payment.use`](/docs/v4/api/effect/Context#Service-variable) describes reading
+the implementation stored under that key and passing it to the callback. It
+does not read a global value or run the callback immediately.
+
+The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes an Effect
+description through transformations from top to bottom without running it. Here
+it passes the payment authorization to `Effect.flatMap`.
 
 `paymentFromProvider` is the infrastructure adapter. It uses
 [`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) to turn one
@@ -648,8 +656,10 @@ Effect.Effect<AcceptedOrder, Cause.UnknownError, Payment | OrderRepository>
 ```
 
 The union in the third type argument means the computation needs both services.
-It does not mean either service is optional. `Payment.use` and
-`OrderRepository.use` each add their key to that union.
+It does not mean either service is optional.
+[`Payment.use`](/docs/v4/api/effect/Context#Service-variable) and
+[`OrderRepository.use`](/docs/v4/api/effect/Context#Service-variable) each add
+their key to that union.
 
 The handler no longer passes infrastructure to `placeOrder`, but the two nested
 `Effect.provideService` calls repeat the setup for individual services. The next

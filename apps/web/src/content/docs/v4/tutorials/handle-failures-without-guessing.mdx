@@ -1,6 +1,7 @@
 ---
 title: Handle failures without guessing
 description: Make thrown exceptions and Promise rejections explicit, then handle retries, timeouts, and cancellation.
+diataxis: tutorial
 sidebar:
   order: 1
 ---
@@ -28,14 +29,14 @@ starts by turning every rejected Promise into the same `500` response. Each
 step makes one failure decision explicit until the finished backend behaves as
 follows:
 
-| Provider behavior                   | Decision                          | HTTP result |
-| ----------------------------------- | --------------------------------- | ----------- |
-| Payment succeeds                    | Accept the order                  | `201`       |
-| Card is declined                    | Do not retry                      | `422`       |
-| Provider is temporarily unavailable | Retry at most twice               | `201`/`503` |
-| Provider fails unexpectedly         | Do not guess                      | `502`       |
-| Provider takes too long             | Interrupt and retry at most twice | `504`       |
-| Client disconnects                  | Interrupt the complete operation  | No response |
+| Provider behavior                   | Decision                       | HTTP result |
+| ----------------------------------- | ------------------------------ | ----------- |
+| Payment succeeds                    | Accept the order               | `201`       |
+| Card is declined                    | Do not retry                   | `422`       |
+| Provider is temporarily unavailable | Retry at most twice            | `201`/`503` |
+| Provider fails unexpectedly         | Do not guess                   | `502`       |
+| Provider takes too long             | Cancel and retry at most twice | `504`       |
+| Client disconnects                  | Cancel the complete operation  | No response |
 
 ## Where this tutorial fits
 
@@ -72,6 +73,9 @@ The project uses two files:
 | ------------ | ------------------------------------------------------------------------ |
 | `fixture.ts` | Fixed fixture that provides the HTTP server and payment SDK simulation.  |
 | `server.ts`  | Contains the order-processing code that the tutorial gradually improves. |
+
+An `AbortSignal` is a standard cancellation value. The fixture gives one to the
+order handler when the client disconnects and accepts one in the payment call.
 
 ```ts title="fixture.ts"
 // This fixed fixture does not change during the tutorial.
@@ -334,6 +338,7 @@ Promise without starting it immediately. Its two options have separate roles:
 A resolved Promise becomes an Effect success. A rejected Promise becomes one of
 the explicit errors returned by `toPaymentError`. The `AbortSignal` also lets
 Effect cancel the provider Promise when the running computation is interrupted.
+In Effect, cancelling running work is called interruption.
 
 [`Data.TaggedError`](/docs/v4/api/effect/Data#TaggedError) creates a typed error
 class. The string becomes the `_tag`; the optional type argument defines the
@@ -424,8 +429,9 @@ const placeOrder = (input: PlaceOrderInput) =>
 startServer((input) => Effect.runPromise(placeOrder(input)))
 ```
 
-`pipe` passes the description through each transformation from top to bottom.
-It builds a new description and does not run it.
+The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes the
+description through each transformation from top to bottom. It builds a new
+description and does not run it.
 
 [`Effect.map`](/docs/v4/api/effect/Effect#map) transforms the success channel
 with a function and leaves the error channel unchanged. Here the provider
@@ -737,9 +743,8 @@ from outside Effect. When the client disconnects, the complete running
 computation is interrupted, and the signal inside `Effect.tryPromise` aborts
 the provider Promise.
 
-Interruption is cancellation of a running computation. It is neither a success
-nor a typed failure, so it does not become `PaymentTimedOut` and does not enter
-the retry predicate.
+This interruption is neither a success nor a typed failure, so it does not
+become `PaymentTimedOut` and does not enter the retry predicate.
 
 For a local run, a client can disconnect before `tok_slow` completes:
 

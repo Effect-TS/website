@@ -1,6 +1,7 @@
 ---
 title: Keep concurrent work under control
 description: Run independent work concurrently with one timeout, ordered results, and automatic cancellation.
+diataxis: tutorial
 sidebar:
   order: 2
 ---
@@ -33,8 +34,8 @@ endpoint behaves as follows:
 | ----------------------------------------- | --------------------------------------------------------------------------------- |
 | Three normal line items                   | At most two line lookups run at once, while shipping overlaps with the line group |
 | Lookups finish in a different order       | The response keeps the request's item order                                       |
-| Line and shipping providers are both slow | One 500 ms deadline interrupts all unfinished work and returns `504`              |
-| The client disconnects first              | All unfinished work is interrupted and no response is written                     |
+| Line and shipping providers are both slow | One 500 ms deadline cancels all unfinished work and returns `504`                 |
+| The client disconnects first              | All unfinished work is cancelled and no response is written                       |
 
 ## Where this tutorial fits
 
@@ -97,6 +98,9 @@ The provider simulations use predictable timing:
 - Shipping normally takes 180 ms, while postal code `99999` takes one second.
 - Both provider functions stop their timers when their `AbortSignal` is
   aborted.
+
+An `AbortSignal` is a standard cancellation value. Aborting it notifies the
+provider that its pending work should stop.
 
 ```ts title="fixture.ts"
 // This fixed fixture does not change during the tutorial.
@@ -495,6 +499,9 @@ does not run the computation or perform its side effects. The second type
 parameter is the error channel: it records expected failures that callers can
 handle separately from successful values.
 
+In Effect, cancelling a running computation is called interruption. It is
+separate from the expected failures recorded in the error channel.
+
 [`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
 Effect's built-in wrapper for a Promise rejection that has not been classified.
 Its `cause` property preserves the original rejected value. This tutorial
@@ -620,9 +627,9 @@ and shipping Effect:
 - The success tuple keeps the same positions as the input tuple: lines first
   and shipping cents second.
 
-The `.pipe(...)` method passes the Effect description through each listed
-transformation from top to bottom. It creates a new description and does not
-run it.
+The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes the
+Effect description through each listed transformation from top to bottom. It
+creates a new description and does not run it.
 
 [`Effect.map`](/docs/v4/api/effect/Effect#map) transforms the success channel
 with a function and leaves the error channel unchanged. Here, it turns the
@@ -885,9 +892,8 @@ interrupts the complete computation before running `orElse`. Because the
 timeout surrounds `Effect.all`, the same deadline covers the bounded line group
 and shipping together.
 
-Interruption is Effect's term for cancellation of a running computation. The
-interruption reaches each provider's `AbortSignal`, which stops the underlying
-timer Promise instead of leaving it active in the background.
+The interruption reaches each provider's `AbortSignal`, which stops the
+underlying timer Promise instead of leaving it active in the background.
 
 [`Effect.fail`](/docs/v4/api/effect/Effect#fail) describes a computation that
 fails through the error channel; creating it does not throw. Here, the timeout

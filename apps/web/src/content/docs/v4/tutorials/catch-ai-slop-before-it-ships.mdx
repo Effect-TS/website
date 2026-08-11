@@ -1,6 +1,7 @@
 ---
 title: Catch AI slop before it ships
 description: Use Effect's precise types and developer tools to expose plausible but incorrect AI-generated code.
+diataxis: tutorial
 sidebar:
   order: 6
 ---
@@ -12,8 +13,8 @@ import {
 
 <TutorialPainPoint title="LLMs produce plausible-looking slop">
   LLMs can produce code that looks correct and passes the happy path while
-  hiding failures, trusting unvalidated data, or describing Effect operations
-  without running them.
+  hiding failures, trusting unvalidated data, or adding logging and validation
+  work that never runs.
 
 With Effect, precise types make many of these mistakes harder to express.
 Effect-aware developer tools then detect suspicious code that still gets
@@ -25,8 +26,9 @@ through.
 
 The example is a coding agent adding `POST /orders/import` to a familiar
 `node:http` server. The first implementation works for the supplied file, but
-the diagnostics expose three concrete mistakes. The same evidence then defines
-one focused correction before the endpoint is verified again.
+the development checks report three diagnostics: messages that identify
+concrete mistakes. The same evidence then defines one focused correction before
+the endpoint is verified again.
 
 The finished backend has these observable results:
 
@@ -34,7 +36,7 @@ The finished backend has these observable results:
 | ------------------------------- | --------------------------------- | ---------------------------------------- |
 | `POST /orders/import`           | `200` with two imported order ids | The same `200` response                  |
 | Import log                      | Missing                           | `Importing orders` appears               |
-| Effect-aware static diagnostics | Three known findings              | No findings                              |
+| Effect-aware development checks | Three known findings              | No findings                              |
 | File and decoding failure types | Declared error type is `never`    | Both failures remain visible in the type |
 
 The HTTP server remains ordinary TypeScript. Only the order import uses Effect,

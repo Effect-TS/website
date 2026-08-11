@@ -26,6 +26,8 @@ when a concrete MDX pattern is needed.
   ordinary backend development.
 - Assume no knowledge of Effect, generators, functional pipelines, fibers,
   error channels, interruption, defects, schedules, layers, or services.
+- Treat every tutorial as the reader's first encounter with Effect. Do not rely
+  on another tutorial having introduced an API, term, or mental model.
 - Organize the entire tutorial around a common development pain. Treat the
   scenario, code, and Effect APIs as means for exploring Effect's solution, not
   as subjects for a feature tour.
