@@ -31,8 +31,3 @@ export class OgRenderError extends Data.TaggedError("OgRenderError")<{
   readonly template: OgCard["_tag"]
   readonly cause: unknown
 }> {}
-
-export class OgRequestError extends Data.TaggedError("OgRequestError")<{
-  readonly url: string
-  readonly cause: unknown
-}> {}
