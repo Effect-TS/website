@@ -51,6 +51,31 @@ The table identifies the parts of the shared order-processing system covered by 
 | Order domain model | Shared contract       | Validate imported records                                         |
 | Development tools  | Development time      | Report TypeScript and Effect mistakes before the application runs |
 
+### Development and request flow
+
+```mermaid
+sequenceDiagram
+  participant Developer
+  participant Agent as Coding agent
+  participant Tools as Development tools
+  participant HTTP as HTTP routes
+  participant Import as Import orders
+  participant Domain as Order domain model
+
+  Developer->>Agent: Request the import endpoint
+  Agent-->>Developer: Generated change
+  Developer->>Tools: Check the change
+  Tools-->>Developer: Precise type and Effect findings
+  Developer->>Tools: Check the corrected change
+  Tools-->>Developer: No findings
+  Developer->>HTTP: POST /orders/import
+  HTTP->>Import: Run operation
+  Import->>Domain: Validate imported records
+  Domain-->>Import: Valid orders or decode failure
+  Import-->>HTTP: Imported order IDs
+  HTTP-->>Developer: HTTP response
+```
+
 ## Project setup
 
 The project uses four files:

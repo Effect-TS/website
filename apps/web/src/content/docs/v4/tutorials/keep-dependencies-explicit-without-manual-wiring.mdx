@@ -51,6 +51,30 @@ for the full system.
 | Payment and Order repository | Backend services      | Provide stable contracts independent of their implementations |
 | Service setup                | Runtime support       | Select, build, and share the implementations                  |
 
+### Request flow
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Setup as Service setup
+  participant HTTP as HTTP routes
+  participant Order as Place order
+  participant Payment
+  participant Repository as Order repository
+
+  Note over Setup,Repository: Before requests, build and share service implementations
+  Setup->>Payment: Select payment implementation
+  Setup->>Repository: Select storage implementation
+  Client->>HTTP: POST /orders
+  HTTP->>Order: Run operation with provided services
+  Order->>Payment: Authorize payment
+  Payment-->>Order: Authorization
+  Order->>Repository: Store accepted order
+  Repository-->>Order: Storage complete
+  Order-->>HTTP: Accepted order
+  HTTP-->>Client: HTTP response
+```
+
 ## Project setup
 
 The project uses two files:

@@ -53,9 +53,22 @@ The table identifies the parts of the shared order-processing system covered by 
 
 ### Request flow
 
-1. Place order acquires a database connection and an inventory lock.
-2. Order repository stores the accepted order using those resources.
-3. Place order releases both resources after success, failure, or cancellation.
+```mermaid
+sequenceDiagram
+  participant Order as Place order
+  participant Inventory
+  participant Repository as Order repository
+
+  Order->>Repository: Acquire database connection
+  Repository-->>Order: Connection
+  Order->>Inventory: Acquire inventory lock
+  Inventory-->>Order: Lock
+  Order->>Repository: Store accepted order
+  Repository-->>Order: Storage result
+  Note over Order,Repository: Scope closes after success, failure, or cancellation
+  Order->>Inventory: Release lock
+  Order->>Repository: Release connection
+```
 
 ## Project setup
 

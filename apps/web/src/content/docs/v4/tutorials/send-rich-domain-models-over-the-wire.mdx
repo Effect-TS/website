@@ -62,6 +62,30 @@ The table identifies the parts of the shared order-processing system covered by 
 | HTTP routes        | HTTP boundary   | Encode the response for its intended client                      |
 | Order domain model | Shared contract | Define rich values and their derived or explicit representations |
 
+### Request flow
+
+```mermaid
+sequenceDiagram
+  participant Owned as Owned client
+  participant External as External client
+  participant HTTP as HTTP routes
+  participant Domain as Order domain model
+
+  alt Client shares the Schema
+    Owned->>HTTP: POST /orders
+    HTTP->>Domain: Encode the accepted order
+    Domain-->>HTTP: Derived JSON representation
+    HTTP-->>Owned: JSON response
+    Owned->>Domain: Decode with the shared Schema
+    Domain-->>Owned: Rich domain values
+  else Client requires a fixed JSON contract
+    External->>HTTP: POST /orders with external media type
+    HTTP->>Domain: Encode the accepted order
+    Domain-->>HTTP: Explicit external representation
+    HTTP-->>External: JSON response
+  end
+```
+
 ## Project setup
 
 The project uses three files:

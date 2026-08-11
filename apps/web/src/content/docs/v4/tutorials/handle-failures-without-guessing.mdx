@@ -49,10 +49,20 @@ The table identifies the parts of the shared order-processing system covered by 
 
 ### Request flow
 
-1. HTTP routes receive `POST /orders` and run Place order.
-2. Place order applies the payment policy.
-3. Payment returns success or a known failure.
-4. HTTP routes translate the outcome into an HTTP response.
+```mermaid
+sequenceDiagram
+  participant Client
+  participant HTTP as HTTP routes
+  participant Order as Place order
+  participant Payment
+
+  Client->>HTTP: POST /orders
+  HTTP->>Order: Run operation
+  Order->>Payment: Authorize payment
+  Payment-->>Order: Authorization or typed failure
+  Order-->>HTTP: Accepted order or handled failure
+  HTTP-->>Client: HTTP response
+```
 
 ## Project setup
 
@@ -233,94 +243,20 @@ or treated as unexpected.
 
 <TutorialCheckpoint
   number={1}
-  total={7}
+  total={6}
   title="Different failures look identical"
 >
   The Promise baseline succeeds normally, but every provider rejection becomes
   the same `500` response.
 </TutorialCheckpoint>
 
-### 2. The provider call becomes an Effect description
+### 2. Provider failures become explicit
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the
-Promise-producing provider without changing its observable behavior. The
-complete current file is:
+Move the provider call into an Effect and translate its rejections at the same
+boundary. The provider SDK exposes two error classes. `toPaymentError`
+translates those classes and gives every other rejection a safe, explicit name:
 
-```ts title="server.ts" ins={1,9-11,15}
-import { Effect } from "effect"
-import {
-  authorizePayment,
-  json,
-  startServer,
-  type PlaceOrderInput,
-} from "./fixture.ts"
-
-// Describe the provider call without starting it.
-const authorize = (token: string) =>
-  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
-
-const placeOrder = async (input: PlaceOrderInput) => {
-  try {
-    const payment = await Effect.runPromise(authorize(input.paymentToken))
-    return json(201, {
-      orderId: `order-${input.customerId}`,
-      status: "accepted",
-      paymentProvider: payment.provider,
-    })
-  } catch {
-    // Every provider rejection produces the same response.
-    return json(500, { error: "InternalServerError" })
-  }
-}
-
-startServer(placeOrder)
-```
-
-`authorize(input.paymentToken)` creates a value describing the provider call.
-It does not call the provider yet. Its inferred type can be read as:
-
-```ts title="Inferred type, not code to copy"
-Effect.Effect<{ readonly provider: string }, Cause.UnknownError>
-```
-
-The first type argument is the success value. The second is the error channel,
-which records expected ways the computation may fail. This description has no
-service requirements, so its third type argument is omitted.
-
-`Effect.tryPromise` adapts a function that returns a Promise. The function
-remains lazy, resolved values become successes, and rejections enter the error
-channel. Its `AbortSignal` is passed to the provider Promise.
-
-The type [`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) represents a value
-that describes a computation. Here the success value is the provider result and
-the error channel contains
-[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface),
-Effect's wrapper for an unclassified Promise rejection. Its `cause` field
-preserves the original rejected value.
-
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
-computation at the HTTP boundary and returns a Promise. That Promise resolves
-with the success value and rejects if the Effect does not succeed.
-
-The outer `try`/`catch` still turns every rejection into `500`. The benefit at
-this stage is structural: the provider operation is now a lazy description,
-and Effect has a channel in which more precise failures can be recorded.
-
-<TutorialCheckpoint
-  number={2}
-  total={7}
-  title="The provider call is described before it runs"
->
-  Effect now controls when the provider Promise starts and how its rejection is
-  represented. The HTTP behavior is deliberately unchanged.
-</TutorialCheckpoint>
-
-### 3. Provider failures become explicit
-
-The provider SDK exposes two error classes. `toPaymentError` translates those
-classes at the boundary and gives every other rejection a safe, explicit name:
-
-```ts title="server.ts" ins={1,5-6,11-15,17-23,27-30}
+```ts title="server.ts" ins={1,5-6,11-17,19-25,27-32,36}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -371,7 +307,9 @@ const placeOrder = async (input: PlaceOrderInput) => {
 startServer(placeOrder)
 ```
 
-The inferred error channel is now concrete:
+`authorize(input.paymentToken)` now creates an Effect value that describes the
+provider call. Creating that description does not call the provider or perform
+another side effect. Its inferred type is:
 
 ```ts title="Inferred type, not code to copy"
 Effect.Effect<
@@ -379,6 +317,23 @@ Effect.Effect<
   PaymentDeclined | ProviderUnavailable | UnexpectedPaymentProviderError
 >
 ```
+
+[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of that
+description. The first type argument is the provider result produced on
+success. The second is the error channel, which records the three expected ways
+the computation can fail. There are no service requirements, so the third type
+argument is omitted.
+
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the provider
+Promise without starting it immediately. Its two options have separate roles:
+
+- `try` receives an `AbortSignal` and creates the Promise when the Effect runs;
+- `catch` receives a rejected value as `unknown` and translates it with
+  `toPaymentError`.
+
+A resolved Promise becomes an Effect success. A rejected Promise becomes one of
+the explicit errors returned by `toPaymentError`. The `AbortSignal` also lets
+Effect cancel the provider Promise when the running computation is interrupted.
 
 [`Data.TaggedError`](/docs/v4/api/effect/Data#TaggedError) creates a typed error
 class. The string becomes the `_tag`; the optional type argument defines the
@@ -390,25 +345,29 @@ constructor fields.
 TypeScript narrow the union without inspecting error messages or provider
 implementation details.
 
+[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
+computation at the HTTP boundary and returns a Promise. That Promise resolves
+with the provider result or rejects when the Effect does not succeed.
+
 The HTTP result is still `500` because the outer `catch` has not yet been
 replaced. The important change is that the computation now preserves the
 reason it failed.
 
 <TutorialCheckpoint
-  number={3}
-  total={7}
+  number={2}
+  total={6}
   title="Every provider rejection has a name"
 >
   The error channel distinguishes a decline, a temporary outage, and an
   unexpected provider failure before any HTTP decision is made.
 </TutorialCheckpoint>
 
-### 4. Every expected outcome becomes an HTTP result
+### 3. Every expected outcome becomes an HTTP result
 
 The next version moves the successful result and all three expected failures
 into the Effect description:
 
-```ts title="server.ts" ins={32-50,52}
+```ts title="server.ts" ins={34-52,54}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -494,20 +453,20 @@ stable HTTP support converts it to a real `500` rather than pretending it was a
 provider decision.
 
 <TutorialCheckpoint
-  number={4}
-  total={7}
+  number={3}
+  total={6}
   title="HTTP decisions follow typed failures"
 >
   The endpoint returns `422`, `503`, or `502` from explicit error variants. The
   generic `500` remains reserved for unexpected bugs.
 </TutorialCheckpoint>
 
-### 5. Only recoverable failures are retried
+### 4. Only recoverable failures are retried
 
 A temporary outage may recover, while a declined payment or unexpected failure
 must remain final. `Effect.retry` expresses that policy without a loop:
 
-```ts title="server.ts" ins={35-39}
+```ts title="server.ts" ins={37-41}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -579,21 +538,21 @@ The fixture fails twice for `tok_flaky` and then succeeds. The endpoint returns
 predicate.
 
 <TutorialCheckpoint
-  number={5}
-  total={7}
+  number={4}
+  total={6}
   title="Retries follow the recovery policy"
 >
   A temporary outage gets at most three total attempts. A decline and an
   unexpected provider failure are never retried.
 </TutorialCheckpoint>
 
-### 6. Every attempt has a timeout
+### 5. Every attempt has a timeout
 
 `tok_slow` takes two seconds. Without a timeout, one slow attempt can hold the
 request open indefinitely. The timeout belongs before `Effect.retry`, so each
 attempt receives the same 250 millisecond bound:
 
-```ts title="server.ts" ins={13,36-40,44-46,60-61}
+```ts title="server.ts" ins={13,38-42,46-48,62-63}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -687,20 +646,20 @@ primary-pay authorization aborted
 ```
 
 <TutorialCheckpoint
-  number={6}
-  total={7}
+  number={5}
+  total={6}
   title="Slow attempts share one fixed budget"
 >
   Every provider attempt is limited to 250 milliseconds. Three timed-out
   attempts produce one `504` response.
 </TutorialCheckpoint>
 
-### 7. A disconnected client stops the work
+### 6. A disconnected client stops the work
 
 `fixture.ts` already turns a closed HTTP response into an `AbortSignal`.
 The final change supplies that signal to `Effect.runPromise`:
 
-```ts title="server.ts" ins={67-68}
+```ts title="server.ts" ins={69-70}
 import { Data, Effect } from "effect"
 import {
   authorizePayment,
@@ -795,8 +754,8 @@ No retry begins because the external signal stopped the complete operation,
 rather than producing a retryable error.
 
 <TutorialCheckpoint
-  number={7}
-  total={7}
+  number={6}
+  total={6}
   title="Cancellation reaches the provider"
 >
   A disconnected client interrupts the complete Effect operation and the active

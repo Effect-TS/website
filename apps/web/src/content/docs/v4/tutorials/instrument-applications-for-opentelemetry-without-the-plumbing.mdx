@@ -68,10 +68,22 @@ The table identifies the parts of the shared order-processing system covered by 
 
 ### Request flow
 
-1. HTTP routes open a span for the complete request.
-2. Place order opens a child span for the application operation.
-3. Backend services record child spans for provider calls.
-4. Tracing collects the resulting trace.
+```mermaid
+sequenceDiagram
+  participant Client
+  participant HTTP as HTTP routes
+  participant Order as Place order
+  participant Services as Backend services
+  participant Tracing
+
+  Client->>HTTP: POST /orders
+  HTTP->>Order: Run traced operation
+  Order->>Services: Run traced provider calls
+  Services-->>Order: Provider results
+  Order-->>HTTP: Accepted order
+  HTTP-->>Client: HTTP response
+  Note over HTTP,Tracing: Each named operation records a parent or child span
+```
 
 ## Project setup
 

@@ -49,10 +49,27 @@ The table identifies the parts of the shared order-processing system covered by 
 
 ### Request flow
 
-1. HTTP routes receive `POST /quotes` and run Quote order.
-2. Quote order starts the independent work.
-3. Catalog and Shipping run concurrently under the same deadline.
-4. Quote order combines the results while preserving order.
+```mermaid
+sequenceDiagram
+  participant Client
+  participant HTTP as HTTP routes
+  participant Quote as Quote order
+  participant Catalog
+  participant Shipping
+
+  Client->>HTTP: POST /quotes
+  HTTP->>Quote: Run operation
+  par Price order lines
+    Quote->>Catalog: Price lines, at most two at a time
+    Catalog-->>Quote: Prices in request order
+  and Quote shipping
+    Quote->>Shipping: Quote delivery
+    Shipping-->>Quote: Shipping price
+  end
+  Note over Quote,Shipping: One deadline covers all unfinished work
+  Quote-->>HTTP: Completed quote
+  HTTP-->>Client: HTTP response
+```
 
 ## Project setup
 

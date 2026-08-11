@@ -48,6 +48,33 @@ relationships, and the parts covered by each tutorial. A tutorial keeps the
 remaining parts behind simple fixtures so they do not distract from its
 lesson.
 
+This diagram provides an overview of how a request moves from a client through
+the application and into its backend services. The tables below define the
+responsibilities in more detail.
+
+```mermaid
+flowchart TB
+  Clients["API clients<br/>Owned client<br/>External client"]
+  HTTP["HTTP boundary<br/>HTTP routes"]
+  Operations["Application operations<br/>Quote order<br/>Place order<br/>Import orders"]
+  Domain["Shared contract<br/>Order domain model"]
+  Services["Backend services<br/>Catalog, Shipping, Inventory<br/>Payment, Order repository"]
+  Infrastructure["Infrastructure<br/>Inventory provider, Payment provider<br/>Order storage"]
+  Runtime["Runtime support<br/>Service setup, Tracing"]
+  Development["Development time<br/>Development tools"]
+
+  Clients --> HTTP
+  HTTP --> Operations
+  HTTP -. encode and decode .-> Domain
+  Operations -. validate imported records .-> Domain
+  Operations --> Services
+  Services --> Infrastructure
+  Runtime -. supports and observes .-> Operations
+  Runtime -. supports and observes .-> Services
+  Development -. checks .-> Operations
+  Development -. checks .-> Domain
+```
+
 ### API clients
 
 | Component       | Sends requests to | Contract                                   |
