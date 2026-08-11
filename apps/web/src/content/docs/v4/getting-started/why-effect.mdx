@@ -1,6 +1,7 @@
 ---
 title: Why Effect?
 description: Discover how Effect transforms TypeScript programming by using the type system to track errors, context, and success, offering practical solutions for building reliable, maintainable applications.
+diataxis: explanation
 sidebar:
   order: 1
 ---
@@ -40,7 +41,9 @@ Here's the same divide function from above, but with the Effect pattern:
 import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<number, Error, never> =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 Effect.runSync(divide(4, 2)) // => 2
 ```

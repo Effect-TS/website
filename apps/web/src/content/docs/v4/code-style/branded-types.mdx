@@ -1,6 +1,7 @@
 ---
 title: Branded Types
 description: Use branded types to enforce type safety and refine data in TypeScript.
+diataxis: explanation
 sidebar:
   order: 3
 ---
@@ -317,7 +318,9 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.make<Int>((n) => Number.isInteger(n) || `Expected ${n} to be an integer`)
+const Int = Brand.make<Int>(
+  (n) => Number.isInteger(n) || `Expected ${n} to be an integer`,
+)
 
 // Correct usage
 const good: Int = Int(3)
@@ -342,11 +345,15 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.make<Int>((n) => Number.isInteger(n) || `Expected ${n} to be an integer`)
+const Int = Brand.make<Int>(
+  (n) => Number.isInteger(n) || `Expected ${n} to be an integer`,
+)
 
 type Positive = number & Brand.Brand<"Positive">
 
-const Positive = Brand.make<Positive>((n) => n > 0 || `Expected ${n} to be positive`)
+const Positive = Brand.make<Positive>(
+  (n) => n > 0 || `Expected ${n} to be positive`,
+)
 
 // Combine the Int and Positive constructors
 // into a new branded constructor PositiveInt

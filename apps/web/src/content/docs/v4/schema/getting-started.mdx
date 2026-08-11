@@ -1,6 +1,7 @@
 ---
 title: Getting Started
 description: Learn how to define schemas, extract types, and handle decoding and encoding.
+diataxis: reference
 sidebar:
   order: 2
 ---
@@ -296,7 +297,9 @@ const asyncSchema = PersonId.pipe(
   Schema.decodeTo(Person, {
     // Decode with simulated async transformation
     decode: SchemaGetter.transformOrFail((id) =>
-      Effect.succeed({ id, name: "name", age: 18 }).pipe(Effect.delay("10 millis")),
+      Effect.succeed({ id, name: "name", age: 18 }).pipe(
+        Effect.delay("10 millis"),
+      ),
     ),
     encode: SchemaGetter.transformOrFail((person) =>
       Effect.succeed(person.id).pipe(Effect.delay("10 millis")),
@@ -390,8 +393,8 @@ It is wrapped in a tagged error to make it easier to catch errors using [Effect.
 Decoding succeeds with the decoded type `T`, while encoding succeeds with the encoded type `E`. In either direction, a schema mismatch produces a `Failure` containing a `SchemaError`.
 
 <Aside type="tip" title="Returning All Errors">
-  By default only the first error is returned. You can use the [`errors`](#receiving-all-errors)
-  option to receive all errors.
+  By default only the first error is returned. You can use the
+  [`errors`](#receiving-all-errors) option to receive all errors.
 </Aside>
 
 ## Parse Options
@@ -523,7 +526,10 @@ const schema = Schema.Struct({
 Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }) // => { a: 1, b: "b", c: 2 }
 
 // Decoding while preserving input order
-Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }, { propertyOrder: "original" }) // => { b: "b", c: 2, a: 1 }
+Schema.decodeUnknownSync(schema)(
+  { b: "b", c: 2, a: 1 },
+  { propertyOrder: "original" },
+) // => { b: "b", c: 2, a: 1 }
 ```
 
 **Example** (Asynchronous Decoding)
@@ -557,7 +563,10 @@ Schema.decodeEffect(schema)({ a: 1, b: 2, c: 3 }, { concurrency: 3 })
 // Output decided internally: { a: 1, b: 2, c: 3 }
 
 // Decoding while preserving input order
-Schema.decodeEffect(schema)({ a: 1, b: 2, c: 3 }, { concurrency: 3, propertyOrder: "original" })
+Schema.decodeEffect(schema)(
+  { a: 1, b: 2, c: 3 },
+  { concurrency: 3, propertyOrder: "original" },
+)
   .pipe(Effect.runPromise)
   .then(console.log)
 // Output preserving input order: { a: 1, b: 2, c: 3 }
@@ -589,7 +598,10 @@ const schema = Schema.Struct({
 })
 
 // Decode input with custom error-handling behavior
-const result = Schema.decodeUnknownResult(schema)({ a: {} }, { errors: "first" })
+const result = Schema.decodeUnknownResult(schema)(
+  { a: {} },
+  { errors: "first" },
+)
 if (Result.isFailure(result)) {
   console.log(result.failure.message)
   result.failure.message // => 'Missing key\n  at ["a"]["b"]\nMissing key\n  at ["d"]'
@@ -614,9 +626,9 @@ Here's how the `Schema.is` function works:
 2. **Type Guard Creation**: Use the schema to create a user-defined type guard, `(input: unknown) => input is T`. This function can be used at runtime to check if a value meets the requirements of the schema.
 
 <Aside type="note" title="Role of the Encoded Type in Type Guards">
-  The encoded type `E`, which is often used in schema transformations, does not affect the creation
-  of the type guard. The purpose of the guard is to ensure that the input matches the decoded type
-  `T`.
+  The encoded type `E`, which is often used in schema transformations, does not
+  affect the creation of the type guard. The purpose of the guard is to ensure
+  that the input matches the decoded type `T`.
 </Aside>
 
 **Example** (Creating and Using a Type Guard)
@@ -656,8 +668,9 @@ While type guards verify whether a value conforms to a specific type, the `Schem
 If the input does not match the schema, it throws a detailed error, making it useful for runtime validation.
 
 <Aside type="note" title="Role of the Encoded Type in Assertions">
-  The encoded type `E`, which is often used in schema transformations, does not affect the creation
-  of the assertion. Its purpose is to ensure that the input matches the decoded type `T`.
+  The encoded type `E`, which is often used in schema transformations, does not
+  affect the creation of the assertion. Its purpose is to ensure that the input
+  matches the decoded type `T`.
 </Aside>
 
 **Example** (Creating and Using an Assertion)

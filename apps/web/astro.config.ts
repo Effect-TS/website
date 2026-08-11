@@ -1,8 +1,10 @@
 import mdx from "@astrojs/mdx"
+import { unified } from "@astrojs/markdown-remark"
 import react from "@astrojs/react"
 import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
+import mermaid from "astro-mermaid"
 import {
   defineConfig,
   envField,
@@ -39,6 +41,10 @@ const config = defineConfig({
   }),
 
   trailingSlash: "never",
+
+  markdown: {
+    processor: unified(),
+  },
 
   compressHTML: true,
 
@@ -97,7 +103,12 @@ const config = defineConfig({
     },
   },
 
-  integrations: [expressiveCode(), react(), mdx()],
+  integrations: [
+    mermaid({ enableLog: false }),
+    expressiveCode(),
+    react(),
+    mdx(),
+  ],
 
   fonts: [
     {

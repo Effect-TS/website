@@ -1,6 +1,7 @@
 ---
 title: Sink Operations
 description: Explore operations to transform, filter, and adapt sinks, enabling custom input-output handling and element filtering in stream processing.
+diataxis: reference
 sidebar:
   label: Operations
   order: 2
@@ -26,7 +27,9 @@ const stream = Stream.make("1", "2", "3", "4", "5")
 const numericSum = Sink.sum
 
 // Use mapInput to adapt the sink, converting strings to numbers
-const stringSum = numericSum.pipe(Sink.mapInput((s: string) => Number.parseFloat(s)))
+const stringSum = numericSum.pipe(
+  Sink.mapInput((s: string) => Number.parseFloat(s)),
+)
 
 await Effect.runPromise(Stream.run(stream, stringSum)) // => 15
 ```
@@ -67,7 +70,9 @@ In the example below, elements are collected into arrays of three, but only posi
 import { Stream, Sink, Effect } from "effect"
 
 // Define a stream with positive, negative, and zero values
-const stream = Stream.fromIterable([1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6]).pipe(
+const stream = Stream.fromIterable([
+  1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6,
+]).pipe(
   // Filter out non-positive numbers before grouping
   Stream.filter((n) => n > 0),
   // Collect the remaining elements in groups of 3

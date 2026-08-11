@@ -1,6 +1,7 @@
 ---
 title: Cache
 description: Optimize performance with cache for concurrent, compositional, and efficient value retrieval.
+diataxis: reference
 sidebar:
   order: 1
 ---
@@ -21,7 +22,9 @@ Key Features of Cache:
 A cache is defined by a lookup function that computes the value for a given key if it's not already cached:
 
 ```ts showLineNumbers=false
-type Lookup<Key, Value, Error, Requirements> = (key: Key) => Effect<Value, Error, Requirements>
+type Lookup<Key, Value, Error, Requirements> = (
+  key: Key,
+) => Effect<Value, Error, Requirements>
 ```
 
 The lookup function takes a `Key` and returns an `Effect`, which describes how to compute the value (`Value`). This `Effect` may require an environment (`Requirements`), can fail with an `Error`, and succeed with a `Value`. Since it returns an `Effect`, it can handle both synchronous and asynchronous workflows.
@@ -50,7 +53,8 @@ The cache runs this effect only once, so concurrent lookups will wait until the 
 import { Effect, Cache, Duration } from "effect"
 
 // Simulating an expensive lookup with a delay
-const expensiveLookup = (key: string) => Effect.sleep("100 millis").pipe(Effect.as(key.length))
+const expensiveLookup = (key: string) =>
+  Effect.sleep("100 millis").pipe(Effect.as(key.length))
 
 const program = Effect.gen(function* () {
   // Create a cache with a capacity of 100 and an infinite TTL
@@ -62,10 +66,17 @@ const program = Effect.gen(function* () {
 
   // Perform concurrent lookups using the same key
   const result = yield* Effect.all(
-    [Cache.get(cache, "key1"), Cache.get(cache, "key1"), Cache.get(cache, "key1")],
+    [
+      Cache.get(cache, "key1"),
+      Cache.get(cache, "key1"),
+      Cache.get(cache, "key1"),
+    ],
     { concurrency: "unbounded" },
   )
-  console.log("Result of parallel execution of three effects" + `with the same key: ${result}`)
+  console.log(
+    "Result of parallel execution of three effects" +
+      `with the same key: ${result}`,
+  )
 
   // The lookup only ran once, so the cache now holds a single entry
   const size = yield* Cache.size(cache)

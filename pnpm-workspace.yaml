@@ -2,6 +2,10 @@ packages:
   - apps/*
   - packages/*
 
+# Keep dependency installation explicit. Automatic verification can otherwise
+# recreate node_modules when commands run with a different pnpm store.
+verifyDepsBeforeRun: false
+
 patchedDependencies:
   "@effect/doctest@4.0.0-beta.104": patches/@effect__doctest@4.0.0-beta.104.patch
   astro-tweet@0.0.6: patches/astro-tweet.patch
@@ -31,7 +35,11 @@ minimumReleaseAgeExclude:
 catalogMode: prefer
 
 catalog:
+  "@astrojs/markdown-remark": ^7.2.2
+  "@types/node": ^24.13.2
+  astro-mermaid: ^2.1.0
   mdast-util-find-and-replace: ^3.0.2
+  mermaid: ^11.16.1
   vite: npm:@voidzero-dev/vite-plus-core@0.2.8
   vite-plus: 0.2.8
 

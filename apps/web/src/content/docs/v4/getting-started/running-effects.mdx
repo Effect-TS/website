@@ -1,6 +1,7 @@
 ---
 title: Running Effects
 description: Learn how to execute effects in Effect with various functions for synchronous and asynchronous execution, including handling results and managing error outcomes.
+diataxis: reference
 sidebar:
   order: 8
 ---
@@ -10,9 +11,10 @@ import { Aside } from "@astrojs/starlight/components"
 To execute an effect, you can use one of the many `run` functions provided by the `Effect` module.
 
 <Aside type="tip" title="Running Effects at the Program's Edge">
-  The recommended approach is to design your program with the majority of its logic as Effects. It's
-  advisable to use the `run*` functions closer to the "edge" of your program. This approach allows
-  for greater flexibility in executing your program and building sophisticated effects.
+  The recommended approach is to design your program with the majority of its
+  logic as Effects. It's advisable to use the `run*` functions closer to the
+  "edge" of your program. This approach allows for greater flexibility in
+  executing your program and building sophisticated effects.
 </Aside>
 
 ## runSync
@@ -199,8 +201,8 @@ The foundational function for running effects, returning a "fiber" that can be o
 for all other run functions. It starts a fiber that can be observed or interrupted.
 
 <Aside type="tip" title="The Default for Effect Execution">
-  Unless you specifically need a `Promise` or synchronous operation, `Effect.runFork` is a good
-  default choice.
+  Unless you specifically need a `Promise` or synchronous operation,
+  `Effect.runFork` is a good default choice.
 </Aside>
 
 **Example** (Running an Effect in the Background)
@@ -210,7 +212,10 @@ import { Effect, Console, Schedule, Fiber } from "effect"
 
 //      ┌─── Effect<number, never, never>
 //      ▼
-const program = Effect.repeat(Console.log("running..."), Schedule.spaced("200 millis"))
+const program = Effect.repeat(
+  Console.log("running..."),
+  Schedule.spaced("200 millis"),
+)
 
 //      ┌─── RuntimeFiber<number, never>
 //      ▼
@@ -255,4 +260,4 @@ The table provides a summary of the available `run*` functions, along with their
 | `runPromiseExit` | `Effect<A, E>` | `Promise<Exit<A, E>>` |
 | `runFork`        | `Effect<A, E>` | `RuntimeFiber<A, E>`  |
 
-You can find the complete list of `run*` functions [here](/docs/v4/api/effect/Effect#category-running).
+You can find the complete list of `run*` functions here.

@@ -1,6 +1,7 @@
 ---
 title: Parallel and Sequential Errors
 description: Understand how Effect represents multiple failure reasons in Cause.
+diataxis: explanation
 sidebar:
   order: 10
 ---
@@ -22,7 +23,10 @@ Reasons combined sequentially and reasons combined in parallel use the same `rea
 ```ts twoslash import.meta.vitest name="inspecting-multiple-reasons-1"
 import { Cause, Exit } from "effect"
 
-const cause = Cause.combine(Cause.fail("request failed"), Cause.die(new Error("finalizer failed")))
+const cause = Cause.combine(
+  Cause.fail("request failed"),
+  Cause.die(new Error("finalizer failed")),
+)
 
 const exit = Exit.failCause(cause)
 

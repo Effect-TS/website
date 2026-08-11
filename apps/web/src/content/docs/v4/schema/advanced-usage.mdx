@@ -1,6 +1,7 @@
 ---
 title: Advanced Usage
 description: Learn advanced techniques for defining and extending data schemas, including recursive and mutually recursive types, optional fields, branded types, and schema transformations.
+diataxis: reference
 sidebar:
   order: 5
 ---
@@ -23,7 +24,9 @@ To declare a schema for an opaque, non-generic data type, you can use `Schema.de
 import { Schema } from "effect"
 
 // Declare a schema for the File type using a type guard
-const FileSchema = Schema.declare((input: unknown): input is File => input instanceof File)
+const FileSchema = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+)
 
 const decode = Schema.decodeUnknownSync(FileSchema)
 
@@ -43,8 +46,8 @@ SchemaError: Expected <Declaration>
 ```
 
 <Aside type="tip" title="Adding Annotations">
-  Annotations like `identifier` and `description` are useful for improving error messages and making
-  schemas self-documenting.
+  Annotations like `identifier` and `description` are useful for improving error
+  messages and making schemas self-documenting.
 </Aside>
 
 You can add `identifier`, `title`, and `description` annotations to make the declaration easier for people and schema interpreters to understand. `identifier` and `title` can also improve the default expected-value message.
@@ -59,12 +62,15 @@ You can add `identifier`, `title`, and `description` annotations to make the dec
 import { Schema } from "effect"
 
 // Declare a schema for the File type with additional annotations
-const FileSchema = Schema.declare((input: unknown): input is File => input instanceof File, {
-  // A unique identifier for the schema
-  identifier: "File",
-  // Detailed description of the schema
-  description: "The `File` type in JavaScript",
-})
+const FileSchema = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+  {
+    // A unique identifier for the schema
+    identifier: "File",
+    // Detailed description of the schema
+    description: "The `File` type in JavaScript",
+  },
+)
 
 const decode = Schema.decodeUnknownSync(FileSchema)
 
@@ -90,13 +96,22 @@ Type constructors are generic types that take one or more types as arguments and
 **Example** (Declaring a Schema for `ReadonlySet<T>`)
 
 ```ts twoslash
-import { Effect, Schema, SchemaIssue, SchemaParser, SchemaTransformation } from "effect"
+import {
+  Effect,
+  Schema,
+  SchemaIssue,
+  SchemaParser,
+  SchemaTransformation,
+} from "effect"
 
 export const MyReadonlySet = <S extends Schema.Constraint>(
   // Schema for the elements of the Set
   item: S,
 ) =>
-  Schema.declareConstructor<ReadonlySet<S["Type"]>, ReadonlySet<S["Encoded"]>>()(
+  Schema.declareConstructor<
+    ReadonlySet<S["Type"]>,
+    ReadonlySet<S["Encoded"]>
+  >()(
     // Store the schema for the Set's elements
     [item],
     // Decoding function
@@ -156,8 +171,9 @@ SchemaError: Expected string
 ```
 
 <Aside type="caution" title="Decoding/Encoding Limitations">
-  The parser returned by `declareConstructor` is effectful, but the resulting codec can require only
-  the decoding and encoding services already required by its type-parameter schemas.
+  The parser returned by `declareConstructor` is effectful, but the resulting
+  codec can require only the decoding and encoding services already required by
+  its type-parameter schemas.
 </Aside>
 
 ### Adding Interpreter Annotations
@@ -171,9 +187,12 @@ This can result in an error, as the interpreter may lack the necessary informati
 import { Schema } from "effect"
 
 // Define a schema for the File type
-const FileSchema = Schema.declare((input: unknown): input is File => input instanceof File, {
-  identifier: "File",
-})
+const FileSchema = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+  {
+    identifier: "File",
+  },
+)
 
 // Try creating an Arbitrary instance for the schema
 const arb = Schema.toArbitrary(FileSchema)
@@ -193,12 +212,17 @@ In the above example, attempting to generate arbitrary values for `FileSchema` f
 import { Schema } from "effect"
 import { FastCheck } from "effect/testing"
 
-const FileSchema = Schema.declare((input: unknown): input is File => input instanceof File, {
-  identifier: "File",
-  // Provide a function to generate random File instances
-  toArbitrary: () => (fc) =>
-    fc.tuple(fc.string(), fc.string()).map(([content, path]) => new File([content], path)),
-})
+const FileSchema = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+  {
+    identifier: "File",
+    // Provide a function to generate random File instances
+    toArbitrary: () => (fc) =>
+      fc
+        .tuple(fc.string(), fc.string())
+        .map(([content, path]) => new File([content], path)),
+  },
+)
 
 // Create an Arbitrary instance for the schema
 const arb = Schema.toArbitrary(FileSchema)
@@ -449,7 +473,9 @@ import { Option, Predicate, Schema, SchemaGetter } from "effect"
 const Product = Schema.Struct({
   quantity: Schema.optional(Schema.NullOr(Schema.FiniteFromString)).pipe(
     Schema.decodeTo(Schema.optional(Schema.Finite), {
-      decode: SchemaGetter.transformOptional((o) => o.pipe(Option.filter(Predicate.isNotNull))),
+      decode: SchemaGetter.transformOptional((o) =>
+        o.pipe(Option.filter(Predicate.isNotNull)),
+      ),
       encode: SchemaGetter.transformOptional((o) => o),
     }),
   ),
@@ -569,7 +595,9 @@ import { Option, Predicate, Schema, SchemaGetter } from "effect"
 const Product = Schema.Struct({
   quantity: Schema.optionalKey(Schema.NullOr(Schema.FiniteFromString)).pipe(
     Schema.decodeTo(Schema.optionalKey(Schema.Finite), {
-      decode: SchemaGetter.transformOptional((o) => o.pipe(Option.filter(Predicate.isNotNull))),
+      decode: SchemaGetter.transformOptional((o) =>
+        o.pipe(Option.filter(Predicate.isNotNull)),
+      ),
       encode: SchemaGetter.transformOptional((o) => o),
     }),
   ),
@@ -1236,7 +1264,9 @@ const schema = Schema.Struct({
   nullable: Schema.optionalKey(Schema.String).pipe(
     Schema.decodeTo(Schema.NullOr(Schema.String), {
       decode: SchemaGetter.transformOptional(Option.orElseSome(() => null)),
-      encode: SchemaGetter.transformOptional(Option.filter((value) => value !== null)),
+      encode: SchemaGetter.transformOptional(
+        Option.filter((value) => value !== null),
+      ),
     }),
   ),
 })
@@ -1332,8 +1362,9 @@ const schema = Schema.Struct({
 Struct schemas expose their `fields`, which you can spread into a new struct or extend with `Schema.fieldsAssign`. Unions expose `mapMembers`, so the same field operation can be applied to every struct member.
 
 <Aside type="tip" title="Retaining Struct Type with Field Spreading">
-  By using field spreading with `...Struct.fields`, you maintain the schema's `Struct` type, which
-  allows continued access to the `fields` property for further modifications.
+  By using field spreading with `...Struct.fields`, you maintain the schema's
+  `Struct` type, which allows continued access to the `fields` property for
+  further modifications.
 </Aside>
 
 ### Spreading Struct fields
@@ -1440,7 +1471,9 @@ const UnionOfStructs = Schema.Union([
   Schema.Struct({ c: Schema.String }),
 ])
 
-const Extended = UnionOfStructs.mapMembers(Tuple.map(Schema.fieldsAssign(Struct.fields)))
+const Extended = UnionOfStructs.mapMembers(
+  Tuple.map(Schema.fieldsAssign(Struct.fields)),
+)
 
 //     ┌─── {
 //     |        readonly a: string;
@@ -1599,14 +1632,16 @@ interface Category {
 
 const Category = Schema.Struct({
   name: Schema.String,
-  subcategories: Schema.Array(Schema.suspend((): Schema.Codec<Category> => Category)),
+  subcategories: Schema.Array(
+    Schema.suspend((): Schema.Codec<Category> => Category),
+  ),
 })
 ```
 
 <Aside type="note" title="Correct Inference">
-  It is necessary to define the `Category` type and add an explicit type annotation because
-  otherwise TypeScript would struggle to infer types correctly. Without this annotation, you might
-  encounter the error message:
+  It is necessary to define the `Category` type and add an explicit type
+  annotation because otherwise TypeScript would struggle to infer types
+  correctly. Without this annotation, you might encounter the error message:
 </Aside>
 
 **Example** (Type Inference Error)
@@ -1676,7 +1711,10 @@ interface Operation {
 
 const Expression = Schema.Struct({
   type: Schema.Literal("expression"),
-  value: Schema.Union([Schema.Finite, Schema.suspend((): Schema.Codec<Operation> => Operation)]),
+  value: Schema.Union([
+    Schema.Finite,
+    Schema.suspend((): Schema.Codec<Operation> => Operation),
+  ]),
 })
 
 const Operation = Schema.Struct({

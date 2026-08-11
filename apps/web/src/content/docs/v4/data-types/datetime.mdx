@@ -1,6 +1,7 @@
 ---
 title: DateTime
 description: Work with precise points in time using Effect's DateTime, supporting creation, comparison, and arithmetic operations for efficient time handling.
+diataxis: reference
 sidebar:
   order: 5
 ---
@@ -330,7 +331,9 @@ import { DateTime, Option } from "effect"
 
 //      ┌─── Option<Zoned>
 //      ▼
-const zoned = DateTime.makeZonedFromString("2025-01-01T03:00:00.000+01:00[Europe/Rome]")
+const zoned = DateTime.makeZonedFromString(
+  "2025-01-01T03:00:00.000+01:00[Europe/Rome]",
+)
 
 if (Option.isSome(zoned)) {
   console.log("The DateTime is valid")
@@ -361,9 +364,9 @@ await Effect.runPromise(program) // => true
 ```
 
 <Aside type="tip" title="Why Use the Clock Service?">
-  Using the `Clock` service ensures that time is consistent across your application, which is
-  particularly useful in testing environments where you may need to control or mock the current
-  time.
+  Using the `Clock` service ensures that time is consistent across your
+  application, which is particularly useful in testing environments where you
+  may need to control or mock the current time.
 </Aside>
 
 ### unsafeNow

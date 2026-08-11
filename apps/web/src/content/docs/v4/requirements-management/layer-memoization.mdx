@@ -1,6 +1,7 @@
 ---
 title: Layer Memoization
 description: Learn how layer memoization optimizes performance in Effect by reusing layers and controlling their instantiation.
+diataxis: explanation
 sidebar:
   order: 3
 ---
@@ -16,9 +17,10 @@ Layer.merge(Layer.provide(L2, L1), Layer.provide(L3, L1))
 then the `L1` layer will be allocated only once.
 
 <Aside type="caution" title="Avoid Duplicate Layer Creation">
-  Layers are memoized using **reference equality**. Therefore, if you have a layer that is created
-  by calling a function like `f()`, you should _only_ call that `f` once and re-use the resulting
-  layer so that you are always using the same instance.
+  Layers are memoized using **reference equality**. Therefore, if you have a
+  layer that is created by calling a function like `f()`, you should _only_ call
+  that `f` once and re-use the resulting layer so that you are always using the
+  same instance.
 </Aside>
 
 ## Memoization When Providing Globally
@@ -134,7 +136,10 @@ const program = Effect.gen(function* () {
 
 const runnable = Effect.provide(
   program,
-  Layer.merge(Layer.provide(BLive, Layer.fresh(ALive)), Layer.provide(CLive, Layer.fresh(ALive))),
+  Layer.merge(
+    Layer.provide(BLive, Layer.fresh(ALive)),
+    Layer.provide(CLive, Layer.fresh(ALive)),
+  ),
 )
 
 await Effect.runPromise(runnable)

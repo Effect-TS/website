@@ -1,0 +1,108 @@
+---
+import { Check, Copy } from "@lucide/astro"
+
+interface Props {
+  readonly markdownUrl: string
+}
+
+const { markdownUrl } = Astro.props
+---
+
+<copy-markdown class="not-prose block shrink-0">
+  <button
+    type="button"
+    data-role="copy"
+    data-markdown-url={markdownUrl}
+    class="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-500 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-500 dark:hover:bg-zinc-800"
+  >
+    <Copy data-role="copy-icon" size={16} aria-hidden="true" />
+    <Check data-role="check-icon" class="hidden" size={16} aria-hidden="true" />
+    <span data-role="label">Copy markdown</span>
+  </button>
+  <span data-role="status" class="sr-only" role="status" aria-live="polite"></span>
+</copy-markdown>
+
+<script>
+  const COPY_RESET_TIMEOUT_MS = 2000
+
+  class CopyMarkdownElement extends HTMLElement {
+    #resetTimeout: ReturnType<typeof setTimeout> | undefined
+
+    connectedCallback() {
+      this.querySelector<HTMLButtonElement>("[data-role='copy']")?.addEventListener(
+        "click",
+        this.#copy,
+      )
+    }
+
+    disconnectedCallback() {
+      this.querySelector<HTMLButtonElement>("[data-role='copy']")?.removeEventListener(
+        "click",
+        this.#copy,
+      )
+      if (this.#resetTimeout !== undefined) clearTimeout(this.#resetTimeout)
+    }
+
+    #copy = async () => {
+      const button = this.querySelector<HTMLButtonElement>("[data-role='copy']")
+      const url = button?.dataset.markdownUrl
+      if (!button || !url) return
+
+      try {
+        const response = await fetch(url, {
+          headers: { Accept: "text/markdown" },
+        })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+        await this.#writeToClipboard(await response.text())
+        this.#showTemporaryFeedback("copied")
+      } catch {
+        this.#showTemporaryFeedback("error")
+      }
+    }
+
+    #writeToClipboard = async (value: string) => {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(value)
+        return
+      }
+
+      const fallback = document.createElement("textarea")
+      fallback.value = value
+      fallback.style.position = "fixed"
+      fallback.style.opacity = "0"
+      document.body.append(fallback)
+      fallback.select()
+      const copied = document.execCommand("copy")
+      fallback.remove()
+      if (!copied) throw new Error("Copy failed")
+    }
+
+    #showTemporaryFeedback = (state: "copied" | "error") => {
+      const label = this.querySelector<HTMLElement>("[data-role='label']")
+      const copyIcon = this.querySelector<HTMLElement>("[data-role='copy-icon']")
+      const checkIcon = this.querySelector<HTMLElement>("[data-role='check-icon']")
+      const status = this.querySelector<HTMLElement>("[data-role='status']")
+      if (!label || !copyIcon || !checkIcon || !status) return
+
+      const copied = state === "copied"
+      label.textContent = copied ? "Markdown copied" : "Could not copy markdown"
+      copyIcon.classList.toggle("hidden", copied)
+      checkIcon.classList.toggle("hidden", !copied)
+      status.textContent = label.textContent
+
+      if (this.#resetTimeout !== undefined) clearTimeout(this.#resetTimeout)
+      this.#resetTimeout = setTimeout(() => {
+        label.textContent = "Copy markdown"
+        copyIcon.classList.remove("hidden")
+        checkIcon.classList.add("hidden")
+        status.textContent = ""
+        this.#resetTimeout = undefined
+      }, COPY_RESET_TIMEOUT_MS)
+    }
+  }
+
+  if (!customElements.get("copy-markdown")) {
+    customElements.define("copy-markdown", CopyMarkdownElement)
+  }
+</script>

@@ -1,6 +1,7 @@
 ---
 title: Error Formatters
 description: Format schema issues as readable strings or Standard Schema V1 issue arrays.
+diataxis: reference
 sidebar:
   order: 10
 ---
@@ -91,7 +92,9 @@ const decode = Schema.decodeUnknownResult(Person)
 const result = decode({})
 if (Result.isFailure(result)) {
   console.error("Decoding failed:")
-  console.error(SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues)
+  console.error(
+    SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues,
+  )
   SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["name"], message: "Missing key" }]
 }
 /*
@@ -124,7 +127,9 @@ const decode = Schema.decodeUnknownResult(Person, { errors: "all" })
 const result = decode({})
 if (Result.isFailure(result)) {
   console.error("Decoding failed:")
-  console.error(SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues)
+  console.error(
+    SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues,
+  )
   SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["name"], message: "Missing key" }, { path: ["age"], message: "Missing key" }]
 }
 /*
@@ -151,7 +156,9 @@ const Person = Schema.Struct({
 
 const formatter = SchemaIssue.makeFormatterStandardSchemaV1({
   leafHook: (issue) =>
-    issue._tag === "MissingKey" ? "This field is required" : SchemaIssue.defaultLeafHook(issue),
+    issue._tag === "MissingKey"
+      ? "This field is required"
+      : SchemaIssue.defaultLeafHook(issue),
 })
 
 const result = Schema.decodeUnknownResult(Person)({})

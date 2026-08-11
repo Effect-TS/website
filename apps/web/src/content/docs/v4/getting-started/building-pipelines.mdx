@@ -1,6 +1,7 @@
 ---
 title: Building Pipelines
 description: Learn to create modular, readable pipelines for composing and sequencing operations in Effect, enabling clear and efficient data transformations.
+diataxis: explanation
 sidebar:
   order: 10
 ---
@@ -109,8 +110,9 @@ const mappedEffect = myEffect.pipe(Effect.map(transformation))
 effect, creating a new effect with the transformed value.
 
 <Aside type="note" title="Effects are Immutable">
-  It's important to note that effects are immutable, meaning that the original effect is not
-  modified. Instead, a new effect is returned with the updated value.
+  It's important to note that effects are immutable, meaning that the original
+  effect is not modified. Instead, a new effect is returned with the updated
+  value.
 </Aside>
 
 **Example** (Adding a Service Charge)
@@ -140,8 +142,9 @@ Replaces the value inside an effect with a constant value.
 `Effect.as` allows you to ignore the original value inside an effect and replace it with a new constant value.
 
 <Aside type="note" title="Effects are Immutable">
-  It's important to note that effects are immutable, meaning that the original effect is not
-  modified. Instead, a new effect is returned with the updated value.
+  It's important to note that effects are immutable, meaning that the original
+  effect is not modified. Instead, a new effect is returned with the updated
+  value.
 </Aside>
 
 **Example** (Replacing a Value)
@@ -181,8 +184,9 @@ specifically with `Effect` instances, allowing you to avoid deeply nested
 effect structures.
 
 <Aside type="note" title="Effects are Immutable">
-  It's important to note that effects are immutable, meaning that the original effect is not
-  modified. Instead, a new effect is returned with the updated value.
+  It's important to note that effects are immutable, meaning that the original
+  effect is not modified. Instead, a new effect is returned with the updated
+  value.
 </Aside>
 
 **Example** (Applying a Discount)
@@ -191,7 +195,10 @@ effect structures.
 import { pipe, Effect } from "effect"
 
 // Function to apply a discount safely to a transaction amount
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)
@@ -256,7 +263,10 @@ Let's look at an example comparing `Effect.andThen` with `Effect.map` and `Effec
 import { pipe, Effect } from "effect"
 
 // Function to apply a discount safely to a transaction amount
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)
@@ -301,7 +311,9 @@ const fetchNumberValue = Effect.tryPromise(() => Promise.resolve(42))
 //      ▼
 const program = pipe(
   fetchNumberValue,
-  Effect.andThen((x) => Effect.fromOption(x > 0 ? Option.some(x) : Option.none())),
+  Effect.andThen((x) =>
+    Effect.fromOption(x > 0 ? Option.some(x) : Option.none()),
+  ),
 )
 
 await Effect.runPromise(program) // => 42
@@ -322,7 +334,9 @@ import { pipe, Effect, Result } from "effect"
 
 // Function to parse an integer from a string that can fail
 const parseInteger = (input: string): Result.Result<number, string> =>
-  isNaN(parseInt(input)) ? Result.fail("Invalid integer") : Result.succeed(parseInt(input))
+  isNaN(parseInt(input))
+    ? Result.fail("Invalid integer")
+    : Result.succeed(parseInt(input))
 
 // Simulated asynchronous task fetching a string from database
 const fetchStringValue = Effect.tryPromise(() => Promise.resolve("42"))
@@ -364,7 +378,10 @@ will fail too.
 import { pipe, Effect, Console } from "effect"
 
 // Function to apply a discount safely to a transaction amount
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)
@@ -423,10 +440,14 @@ See [Collecting](/docs/v4/getting-started/control-flow/#all) for more informatio
 import { Effect } from "effect"
 
 // Simulated function to read configuration from a file
-const webConfig = Effect.promise(() => Promise.resolve({ dbConnection: "localhost", port: 8080 }))
+const webConfig = Effect.promise(() =>
+  Promise.resolve({ dbConnection: "localhost", port: 8080 }),
+)
 
 // Simulated function to test database connectivity
-const checkDatabaseConnectivity = Effect.promise(() => Promise.resolve("Connected to Database"))
+const checkDatabaseConnectivity = Effect.promise(() =>
+  Promise.resolve("Connected to Database"),
+)
 
 // Combine both effects to perform startup checks
 const startupChecks = Effect.all([webConfig, checkDatabaseConnectivity])
@@ -449,7 +470,10 @@ import { Effect, pipe } from "effect"
 const addServiceCharge = (amount: number) => amount + 1
 
 // Function to apply a discount safely to a transaction amount
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)
@@ -513,7 +537,10 @@ import { Effect } from "effect"
 
 const addServiceCharge = (amount: number) => amount + 1
 
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)

@@ -1,6 +1,7 @@
 ---
 title: Terminal
 description: Interact with standard input and output to read user input and display messages on the terminal.
+diataxis: reference
 sidebar:
   order: 7
 ---
@@ -96,16 +97,19 @@ const prompt = Effect.gen(function* () {
 })
 
 // Get the user's guess, validating it as an integer between 1 and 100
-const answer: Effect.Effect<number, Terminal.QuitError | PlatformError, Terminal.Terminal> =
-  Effect.gen(function* () {
-    const input = yield* prompt
-    const guess = parseGuess(input)
-    if (Option.isNone(guess)) {
-      yield* display("You must enter an integer from 1 to 100")
-      return yield* answer
-    }
-    return guess.value
-  })
+const answer: Effect.Effect<
+  number,
+  Terminal.QuitError | PlatformError,
+  Terminal.Terminal
+> = Effect.gen(function* () {
+  const input = yield* prompt
+  const guess = parseGuess(input)
+  if (Option.isNone(guess)) {
+    yield* display("You must enter an integer from 1 to 100")
+    return yield* answer
+  }
+  return guess.value
+})
 
 // Check if the guess is too high, too low, or correct
 const check = <A, E, R>(

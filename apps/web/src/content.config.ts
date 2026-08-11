@@ -108,6 +108,9 @@ const docs = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string().optional(),
+    diataxis: z
+      .enum(["tutorial", "how-to", "reference", "explanation"])
+      .optional(),
     sidebar: z
       .object({
         label: z.string().optional(),

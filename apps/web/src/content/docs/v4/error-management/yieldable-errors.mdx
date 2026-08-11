@@ -1,6 +1,7 @@
 ---
 title: Yieldable Errors
 description: Define custom errors that can be yielded directly inside Effect.gen.
+diataxis: reference
 sidebar:
   order: 11
 ---
@@ -44,7 +45,9 @@ class PermissionDenied extends Data.TaggedError("PermissionDenied")<{
   readonly id: string
 }> {}
 
-const loadUser = (id: string): Effect.Effect<string, NotFound | PermissionDenied> =>
+const loadUser = (
+  id: string,
+): Effect.Effect<string, NotFound | PermissionDenied> =>
   Effect.gen(function* () {
     if (id === "missing") {
       return yield* new NotFound({ id })

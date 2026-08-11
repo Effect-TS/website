@@ -1,6 +1,7 @@
 ---
 title: Managing Layers
 description: Learn how to use layers in Effect to manage service dependencies and build efficient, clean dependency graphs for your applications.
+diataxis: reference
 sidebar:
   order: 2
 ---
@@ -56,7 +57,9 @@ class Database extends Context.Service<
   Database,
   {
     // ❌ Avoid exposing Config and Logger as a requirement
-    readonly query: (sql: string) => Effect.Effect<unknown, never, Config | Logger>
+    readonly query: (
+      sql: string,
+    ) => Effect.Effect<unknown, never, Config | Logger>
   }
 >()("Database") {}
 
@@ -93,7 +96,9 @@ class Logger extends Context.Service<Logger, {}>()("Logger") {}
 class Database extends Context.Service<
   Database,
   {
-    readonly query: (sql: string) => Effect.Effect<unknown, never, Config | Logger>
+    readonly query: (
+      sql: string,
+    ) => Effect.Effect<unknown, never, Config | Logger>
   }
 >()("Database") {}
 
@@ -129,9 +134,10 @@ Instead of directly tying dependencies to the `Database` service interface, depe
 We can use **layers** to properly construct the `Database` service and manage its dependencies without leaking details into the interface.
 
 <Aside type="tip" title="Use Layers for Dependencies">
-  When a service has its own requirements, it's best to separate implementation details into layers.
-  Layers act as **constructors for creating the service**, allowing us to handle dependencies at the
-  construction level rather than the service level.
+  When a service has its own requirements, it's best to separate implementation
+  details into layers. Layers act as **constructors for creating the service**,
+  allowing us to handle dependencies at the construction level rather than the
+  service level.
 </Aside>
 
 ## Creating Layers
@@ -167,9 +173,10 @@ Now, let's determine how many layers we need to implement our dependency graph:
 | `DatabaseLive` | The `Database` service depends on `Config` and `Logger`    | `Layer<Database, never, Config \| Logger>` |
 
 <Aside type="tip" title="Naming Conventions">
-  A common convention when naming the `Layer` for a particular service is to add a `Live` suffix for
-  the "live" implementation and a `Test` suffix for the "test" implementation. For example, for a
-  `Database` service, the `DatabaseLive` would be the layer you provide in your application and the
+  A common convention when naming the `Layer` for a particular service is to add
+  a `Live` suffix for the "live" implementation and a `Test` suffix for the
+  "test" implementation. For example, for a `Database` service, the
+  `DatabaseLive` would be the layer you provide in your application and the
   `DatabaseTest` would be the layer you provide in your tests.
 </Aside>
 
@@ -208,7 +215,9 @@ const ConfigLive = Layer.succeed(
   }),
 )
 
-await Effect.runPromise(Effect.provide(Config.pipe(Effect.andThen((c) => c.getConfig)), ConfigLive)) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
+await Effect.runPromise(
+  Effect.provide(Config.pipe(Effect.andThen((c) => c.getConfig)), ConfigLive),
+) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
 ```
 
 Looking at the type of `ConfigLive` we can observe:
@@ -244,7 +253,9 @@ const ConfigLive = Layer.succeed(Config, {
   }),
 })
 
-await Effect.runPromise(Effect.provide(Config.pipe(Effect.andThen((c) => c.getConfig)), ConfigLive)) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
+await Effect.runPromise(
+  Effect.provide(Config.pipe(Effect.andThen((c) => c.getConfig)), ConfigLive),
+) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
 ```
 
 ### Logger
@@ -388,7 +399,9 @@ const DatabaseLive = Layer.effect(
   }),
 )
 
-const AppConfigLive = Layer.merge(ConfigLive, LoggerLive).pipe(Layer.provide(ConfigLive))
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive).pipe(
+  Layer.provide(ConfigLive),
+)
 
 await Effect.runPromise(
   Effect.provide(
@@ -582,7 +595,10 @@ const MainLive = DatabaseLive.pipe(
 )
 
 await Effect.runPromise(
-  Effect.provide(Database.pipe(Effect.andThen((db) => db.query("SELECT * FROM users"))), MainLive),
+  Effect.provide(
+    Database.pipe(Effect.andThen((db) => db.query("SELECT * FROM users"))),
+    MainLive,
+  ),
 ) // => { result: "Results from mysql://username:password@hostname:port/database_name" }
 ```
 
@@ -665,7 +681,10 @@ const DatabaseLive = Layer.effect(
 const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
 
 // Layer<Config | Database, never, never>
-const MainLive = DatabaseLive.pipe(Layer.provide(AppConfigLive), Layer.provideMerge(ConfigLive))
+const MainLive = DatabaseLive.pipe(
+  Layer.provide(AppConfigLive),
+  Layer.provideMerge(ConfigLive),
+)
 
 await Effect.runPromise(
   Effect.provide(
@@ -747,7 +766,10 @@ const DatabaseLive = Layer.effect(
 
 const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
 
-const MainLive = DatabaseLive.pipe(Layer.provide(AppConfigLive), Layer.provide(ConfigLive))
+const MainLive = DatabaseLive.pipe(
+  Layer.provide(AppConfigLive),
+  Layer.provide(ConfigLive),
+)
 
 //      ┌─── Effect<unknown, never, Database>
 //      ▼
@@ -827,7 +849,9 @@ const server = Layer.effect(
   // Log a message if the layer acquisition succeeds
   Layer.tap((ctx) => Console.log(`layer acquisition succeeded with:\n${ctx}`)),
   // Log a message if the layer acquisition fails
-  Layer.tapError((err) => Console.log(`layer acquisition failed with:\n${err}`)),
+  Layer.tapError((err) =>
+    Console.log(`layer acquisition failed with:\n${err}`),
+  ),
 )
 
 Effect.runFork(Layer.launch(server))
@@ -910,7 +934,9 @@ const inMemoryDatabaseLayer = Layer.effect(
 )
 
 // Fallback to in-memory database if PostgreSQL connection fails
-const database = postgresDatabaseLayer.pipe(Layer.catch(() => inMemoryDatabaseLayer))
+const database = postgresDatabaseLayer.pipe(
+  Layer.catch(() => inMemoryDatabaseLayer),
+)
 
 Effect.runFork(Layer.launch(database))
 /*
@@ -944,7 +970,9 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
   }),
 }) {
   // Specify dependencies
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(NodeFileSystem.layer))
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(NodeFileSystem.layer),
+  )
 }
 
 Cache.key // => "app/Cache"
@@ -971,7 +999,9 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
     return { lookup } as const
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(NodeFileSystem.layer))
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(NodeFileSystem.layer),
+  )
   static readonly layerWithoutDependencies = Layer.effect(this, this.make)
 }
 
@@ -1021,7 +1051,9 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
     return { lookup } as const
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(NodeFileSystem.layer))
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(NodeFileSystem.layer),
+  )
   static readonly layerWithoutDependencies = Layer.effect(this, this.make)
 }
 
@@ -1073,7 +1105,9 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
     return { lookup } as const
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(NodeFileSystem.layer))
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(NodeFileSystem.layer),
+  )
   static readonly layerWithoutDependencies = Layer.effect(this, this.make)
 }
 
@@ -1119,7 +1153,9 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
     return { lookup } as const
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(NodeFileSystem.layer))
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(NodeFileSystem.layer),
+  )
   static readonly layerWithoutDependencies = Layer.effect(this, this.make)
 }
 
@@ -1148,12 +1184,12 @@ await Effect.runPromise(runnable) // => undefined
 
 `Context.Service`'s `make` field accepts any `Effect`, allowing services to use different construction styles:
 
-| Style        | How to build `make`                                                                                                             |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Static value | `Effect.succeed(...)` — a constant implementation.                                                                              |
-| Synchronous  | `Effect.sync(() => ...)` — a synchronous constructor.                                                                           |
-| Effectful    | `Effect.gen(function* () { ... })` (or any other `Effect`) — a constructor that itself depends on other services.               |
-| Scoped       | `Effect.gen(...)` using `Effect.acquireRelease`/`Effect.addFinalizer` inside `make` — lifecycle management, no separate option. |
+| Style        | How to build `make`                                                                                                            |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Static value | `Effect.succeed(...)`: a constant implementation.                                                                              |
+| Synchronous  | `Effect.sync(() => ...)`: a synchronous constructor.                                                                           |
+| Effectful    | `Effect.gen(function* () { ... })` (or any other `Effect`): a constructor that itself depends on other services.               |
+| Scoped       | `Effect.gen(...)` using `Effect.acquireRelease`/`Effect.addFinalizer` inside `make`: lifecycle management, no separate option. |
 
 **Example** (Defining a Service with a Static Implementation)
 

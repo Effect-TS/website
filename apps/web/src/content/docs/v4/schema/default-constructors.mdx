@@ -1,6 +1,7 @@
 ---
 title: Default Constructors
 description: Construct schema values with make, makeOption, makeEffect, validation options, and default values.
+diataxis: reference
 sidebar:
   order: 12
 ---
@@ -21,7 +22,9 @@ Use `make` when a failure should throw, `makeOption` when you only need to know 
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.FiniteFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
+const schema = Schema.FiniteFromString.check(
+  Schema.isBetween({ minimum: 1, maximum: 10 }),
+)
 
 // The constructor only accepts numbers
 console.log(schema.make(5))
@@ -110,7 +113,9 @@ Filters allow you to define constraints on individual values.
 ```ts twoslash
 import { Schema } from "effect"
 
-const MyNumber = Schema.Finite.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
+const MyNumber = Schema.Finite.check(
+  Schema.isBetween({ minimum: 1, maximum: 10 }),
+)
 
 // Successful creation
 const n = MyNumber.make(5)
@@ -171,7 +176,9 @@ This behavior contrasts with the filter example, where the return type is simply
 ```ts twoslash import.meta.vitest name="constructor-error-handling-1"
 import { Option, Schema } from "effect"
 
-const schema = Schema.FiniteFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
+const schema = Schema.FiniteFromString.check(
+  Schema.isBetween({ minimum: 1, maximum: 10 }),
+)
 
 schema.makeOption(5) // => Option.some(5)
 schema.makeOption(20) // => Option.none()
@@ -244,7 +251,9 @@ const Config = Schema.Struct({
       Schema.withConstructorDefault(Effect.succeed("http://localhost")),
     ),
     application_port: Schema.Finite,
-  }).pipe(Schema.withConstructorDefault(Effect.succeed({ application_port: 3000 }))),
+  }).pipe(
+    Schema.withConstructorDefault(Effect.succeed({ application_port: 3000 })),
+  ),
 })
 
 console.log(Config.make({}))

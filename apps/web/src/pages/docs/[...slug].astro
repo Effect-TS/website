@@ -5,6 +5,7 @@ import { getCollection, getEntry, render } from "astro:content"
 import { ChevronDown, Menu } from "@lucide/astro"
 
 import Footer from "@/components/Footer.astro"
+import CopyMarkdownButton from "@/components/docs/CopyMarkdownButton.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
@@ -111,6 +112,7 @@ function entryHref(e: CollectionEntry<"docs">): string {
 }
 
 const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
+const markdownUrl = `/docs/${entry.id.replace(/\/index$/, "")}.md`
 ---
 
 <BaseLayout title={entry.data.title} description={entry.data.description}>
@@ -148,7 +150,7 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
                         class:list={[
                           "flex items-center justify-between rounded px-2 py-2.5 -mx-2 font-mono text-sm font-medium tracking-wider uppercase transition-colors",
                           item.entry.id === currentId
-                            ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                            ? "bg-zinc-200 dark:bg-zinc-800"
                             : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
                         ]}
                       >
@@ -172,13 +174,13 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
                                 href={entryHref(e)}
                                 aria-current={e.id === currentId ? "page" : undefined}
                                 class:list={[
-                                  "block rounded-md py-1.5 pl-3 text-sm transition-colors",
+                                  "flex items-center justify-between gap-2 rounded-md py-1.5 pr-1.5 pl-3 text-sm transition-colors",
                                   e.id === currentId
-                                    ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                                    ? "bg-zinc-200 dark:bg-zinc-800"
                                     : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
                                 ]}
                               >
-                                {entryLabel(e)}
+                                <span>{entryLabel(e)}</span>
                               </a>
                             </li>
                           ))}
@@ -232,7 +234,7 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
                         class:list={[
                           "flex items-center justify-between rounded px-2 py-2.5 -mx-2 font-mono text-sm font-medium tracking-wider uppercase transition-colors",
                           item.entry.id === currentId
-                            ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                            ? "bg-zinc-200 dark:bg-zinc-800"
                             : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white",
                         ]}
                       >
@@ -256,13 +258,13 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
                                 href={entryHref(e)}
                                 aria-current={e.id === currentId ? "page" : undefined}
                                 class:list={[
-                                  "block rounded-md py-1.5 pl-3 text-sm transition-colors",
+                                  "flex items-center justify-between gap-2 rounded-md py-1.5 pr-1.5 pl-3 text-sm transition-colors",
                                   e.id === currentId
-                                    ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                                    ? "bg-zinc-200 dark:bg-zinc-800"
                                     : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
                                 ]}
                               >
-                                {entryLabel(e)}
+                                <span>{entryLabel(e)}</span>
                               </a>
                             </li>
                           ))}
@@ -280,12 +282,15 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
         <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
           <article
             class="prose prose-zinc dark:prose-invert prose-sm md:prose-base max-w-none
-                   prose-headings:font-semibold prose-headings:tracking-tight
-                   prose-a:text-sky-400 prose-a:no-underline [&_a:hover]:underline
-                   prose-code:bg-black/10 prose-code:text-zinc-700 dark:prose-code:bg-white/10 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
-                   prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700"
+              prose-headings:font-semibold prose-headings:tracking-tight
+              prose-a:text-sky-400 prose-a:no-underline [&_a:hover]:underline
+              prose-code:bg-black/10 prose-code:text-zinc-700 dark:prose-code:bg-white/10 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+              prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700"
           >
-            <h1 class="!mt-0">{entry.data.title}</h1>
+            <div class="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+              <h1 class="!m-0">{entry.data.title}</h1>
+              <CopyMarkdownButton markdownUrl={markdownUrl} />
+            </div>
             <Content />
           </article>
         </main>

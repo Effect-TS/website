@@ -1,6 +1,7 @@
 ---
 title: Devtools
 description: Enhance your Effect development experience with the Effect Language Service (@effect/tsgo) and official VS Code/Cursor extension for advanced diagnostics, refactors, and intelligent code completion.
+diataxis: how-to
 sidebar:
   order: 3
 ---
@@ -13,7 +14,7 @@ Effect provides powerful development tools to enhance your coding experience and
 
 The Effect Language Service extends your editor with Effect-specific features. It analyzes your Effect code and provides intelligent assistance through diagnostics, quick info, completions, and automated refactors.
 
-The language service ships as `@effect/tsgo`: a build of [TypeScript-Go](https://github.com/microsoft/TypeScript-Go) (the new Go-based TypeScript compiler) with the Effect diagnostics layer built in. It is a **superset** of plain `tsgo` — use `@effect/tsgo` as your sole TypeScript language server rather than running both side by side, since that produces duplicate diagnostics.
+The language service ships as `@effect/tsgo`: a build of [TypeScript-Go](https://github.com/microsoft/TypeScript-Go) (the new Go-based TypeScript compiler) with the Effect diagnostics layer built in. It is a **superset** of plain `tsgo`; use `@effect/tsgo` as your sole TypeScript language server rather than running both side by side, since that produces duplicate diagnostics.
 
 It works in editors that support the standard TypeScript LSP, such as Code, Cursor, Zed, NVim, etc.
 
@@ -71,7 +72,7 @@ To set it up manually instead:
 
    </Tabs>
 
-   You'll also need a native TypeScript install alongside it: `typescript` >= 7 (e.g. `typescript@next`) or an alias such as `@typescript/native`.
+   You'll also need TypeScript 7 or newer alongside it, installed as `typescript` or through an alias such as `@typescript/native`.
 
 2. Add the plugin to your `tsconfig.json` (the plugin's `name` stays `@effect/language-service` even though the package is `@effect/tsgo`):
 
@@ -92,9 +93,9 @@ To set it up manually instead:
    This step is critical for the language service to function properly. The plugin must run on the TypeScript version installed in your project, not the one bundled with your editor.
 
    <Aside type="tip">
-     In VS Code or Cursor, you can select the workspace TypeScript version by opening a TypeScript
-     file, clicking on the TypeScript version number in the status bar, and selecting "Use Workspace
-     Version".
+     In VS Code or Cursor, you can select the workspace TypeScript version by
+     opening a TypeScript file, clicking on the TypeScript version number in the
+     status bar, and selecting "Use Workspace Version".
    </Aside>
 
 4. You're ready to play!
@@ -187,9 +188,10 @@ This ensures the language service runs during compilation with the standard `tsc
 ## VS Code / Cursor Extension
 
 <Aside type="caution">
-  The editor extension does not include the Effect LSP! Installation of that should be performed
-  per-project, this allows fine grained control on when to load it, for which projects and with a
-  version pinned with your repository lockfile.
+  The editor extension does not include the Effect LSP! Installation of that
+  should be performed per-project, this allows fine grained control on when to
+  load it, for which projects and with a version pinned with your repository
+  lockfile.
 </Aside>
 
 The editor extension provides utilities in helping you debug your Effect applications.

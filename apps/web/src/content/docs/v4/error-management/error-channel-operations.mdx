@@ -1,6 +1,7 @@
 ---
 title: Error Channel Operations
 description: Transform, filter, inspect, expose, and flip Effect error channels.
+diataxis: reference
 sidebar:
   order: 9
 ---
@@ -18,7 +19,9 @@ Error-channel operators change or observe an Effect's failure behavior without r
 ```ts twoslash import.meta.vitest name="mapping-an-error-1"
 import { Effect } from "effect"
 
-const program = Effect.fail("unavailable").pipe(Effect.mapError((message) => new Error(message)))
+const program = Effect.fail("unavailable").pipe(
+  Effect.mapError((message) => new Error(message)),
+)
 
 const error = Effect.runSync(Effect.flip(program))
 

@@ -1,6 +1,7 @@
 ---
 title: Schema to JSON Schema
 description: Export a schema's canonical JSON representation as JSON Schema Draft 2020-12.
+diataxis: reference
 sidebar:
   label: JSON Schema
   order: 16
@@ -161,7 +162,8 @@ const schema = Schema.String.annotate({
 })
 
 const document = Schema.toJsonSchemaDocument(schema, {
-  includeAnnotationKey: (key) => key === "markdownDescription" || key.startsWith("x-"),
+  includeAnnotationKey: (key) =>
+    key === "markdownDescription" || key.startsWith("x-"),
 })
 
 document.schema.description // => "A name"
@@ -259,7 +261,9 @@ interface Category {
 
 const Category = Schema.Struct({
   name: Schema.String,
-  categories: Schema.Array(Schema.suspend((): Schema.Codec<Category> => Category)),
+  categories: Schema.Array(
+    Schema.suspend((): Schema.Codec<Category> => Category),
+  ),
 }).annotate({ identifier: "Category" })
 
 const document = Schema.toJsonSchemaDocument(Category)

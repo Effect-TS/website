@@ -1,6 +1,7 @@
 ---
 title: Exit
 description: Represent the result of an Effect workflow with Exit, capturing success values or failure causes.
+diataxis: reference
 sidebar:
   order: 8
 ---
@@ -84,7 +85,9 @@ Exit.match(simulatedSuccess, {
 
 //      ┌─── Exit<never, string>
 //      ▼
-const simulatedFailure = Effect.runSyncExit(Effect.failCause(Cause.fail("error")))
+const simulatedFailure = Effect.runSyncExit(
+  Effect.failCause(Cause.fail("error")),
+)
 
 console.log(
   Exit.match(simulatedFailure, {

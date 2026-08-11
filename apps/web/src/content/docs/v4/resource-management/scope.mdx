@@ -1,6 +1,7 @@
 ---
 title: Scope
 description: Learn how Effect simplifies resource management with Scopes, ensuring efficient cleanup and safe resource handling in long-running applications.
+diataxis: reference
 sidebar:
   order: 1
 ---
@@ -25,11 +26,17 @@ const program =
   // create a new scope
   Scope.make().pipe(
     // add finalizer 1
-    Effect.tap((scope) => Scope.addFinalizer(scope, Console.log("finalizer 1"))),
+    Effect.tap((scope) =>
+      Scope.addFinalizer(scope, Console.log("finalizer 1")),
+    ),
     // add finalizer 2
-    Effect.tap((scope) => Scope.addFinalizer(scope, Console.log("finalizer 2"))),
+    Effect.tap((scope) =>
+      Scope.addFinalizer(scope, Console.log("finalizer 2")),
+    ),
     // close the scope
-    Effect.andThen((scope) => Scope.close(scope, Exit.succeed("scope closed successfully"))),
+    Effect.andThen((scope) =>
+      Scope.close(scope, Exit.succeed("scope closed successfully")),
+    ),
   )
 
 Effect.runPromise(program)
@@ -50,7 +57,7 @@ For instance, if you acquire a network connection and then access a file on a re
 
 ## addFinalizer
 
-The `Effect.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the [Exit](/docs/v4/data-types/exit/) value, which represents how the scope was closed—whether successfully or with an error.
+The `Effect.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the [Exit](/docs/v4/data-types/exit/) value, which represents how the scope was closed, whether successfully or with an error.
 
 **Example** (Adding a Finalizer on Success)
 
@@ -64,7 +71,9 @@ import { Effect, Console, Exit } from "effect"
 //      ┌─── Effect<string, never, Scope>
 //      ▼
 const program = Effect.gen(function* () {
-  yield* Effect.addFinalizer((exit) => Console.log(`Finalizer executed. Exit status: ${exit._tag}`))
+  yield* Effect.addFinalizer((exit) =>
+    Console.log(`Finalizer executed. Exit status: ${exit._tag}`),
+  )
   return "some result"
 })
 
@@ -126,8 +135,8 @@ const program: Effect<string, never, Scope>
 shows that the workflow requires a `Scope` to run. You can provide this `Scope` using the `Effect.scoped` function, which creates a new scope, runs the effect within it, and ensures the finalizers are executed when the scope is closed.
 
 <Aside type="note" title="Finalizer Execution Order">
-  Finalizers are executed in reverse order of how they were added, ensuring that resources are
-  released in the proper sequence, just like in stack unwinding.
+  Finalizers are executed in reverse order of how they were added, ensuring that
+  resources are released in the proper sequence, just like in stack unwinding.
 </Aside>
 
 **Example** (Adding a Finalizer on Failure)
@@ -142,7 +151,9 @@ import { Effect, Console, Exit } from "effect"
 //      ┌─── Effect<never, string, Scope>
 //      ▼
 const program = Effect.gen(function* () {
-  yield* Effect.addFinalizer((exit) => Console.log(`Finalizer executed. Exit status: ${exit._tag}`))
+  yield* Effect.addFinalizer((exit) =>
+    Console.log(`Finalizer executed. Exit status: ${exit._tag}`),
+  )
   return yield* Effect.fail("Uh oh!")
 })
 
@@ -207,7 +218,9 @@ import { Effect, Console, Exit } from "effect"
 //      ┌─── Effect<never, never, Scope>
 //      ▼
 const program = Effect.gen(function* () {
-  yield* Effect.addFinalizer((exit) => Console.log(`Finalizer executed. Exit status: ${exit._tag}`))
+  yield* Effect.addFinalizer((exit) =>
+    Console.log(`Finalizer executed. Exit status: ${exit._tag}`),
+  )
   return yield* Effect.interrupt
 })
 
@@ -383,9 +396,10 @@ await Effect.runPromise(program) // => undefined
 In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
 
 <Aside type="note" title="Extending a Scope">
-  The `Scope.provide` function allows you to extend the scope of an effect workflow that requires a
-  scope into another scope without closing the scope when the workflow finishes executing. This
-  allows you to extend a scoped value into a larger scope.
+  The `Scope.provide` function allows you to extend the scope of an effect
+  workflow that requires a scope into another scope without closing the scope
+  when the workflow finishes executing. This allows you to extend a scoped value
+  into a larger scope.
 </Aside>
 
 You might wonder what happens when a scope is closed, but a task within that scope hasn't completed yet.
@@ -480,7 +494,9 @@ const release = (res: MyResource) => Effect.promise(() => res.close())
 //      ▼
 const resource = Effect.acquireRelease(acquire, release)
 
-await Effect.runPromise(Effect.scoped(Effect.map(resource, (res) => res.contents))) // => "lorem ipsum"
+await Effect.runPromise(
+  Effect.scoped(Effect.map(resource, (res) => res.contents)),
+) // => "lorem ipsum"
 ```
 
 In the code above, the `Effect.acquireRelease` function creates a resource workflow that requires a `Scope`:
@@ -655,7 +671,10 @@ interface Entry {
 class Database extends Context.Service<
   Database,
   {
-    readonly createEntry: (bucket: Bucket, index: Index) => Effect.Effect<Entry, DatabaseError>
+    readonly createEntry: (
+      bucket: Bucket,
+      index: Index,
+    ) => Effect.Effect<Entry, DatabaseError>
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
 >()("Database") {}
@@ -705,7 +724,10 @@ interface Entry {
 class Database extends Context.Service<
   Database,
   {
-    readonly createEntry: (bucket: Bucket, index: Index) => Effect.Effect<Entry, DatabaseError>
+    readonly createEntry: (
+      bucket: Bucket,
+      index: Index,
+    ) => Effect.Effect<Entry, DatabaseError>
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
 >()("Database") {}
@@ -742,8 +764,10 @@ const createIndex = Effect.gen(function* () {
 const createEntry = (bucket: Bucket, index: Index) =>
   Effect.gen(function* () {
     const { createEntry, deleteEntry } = yield* Database
-    return yield* Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-      Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void,
+    return yield* Effect.acquireRelease(
+      createEntry(bucket, index),
+      (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void,
     )
   })
 
@@ -818,7 +842,10 @@ interface Entry {
 class Database extends Context.Service<
   Database,
   {
-    readonly createEntry: (bucket: Bucket, index: Index) => Effect.Effect<Entry, DatabaseError>
+    readonly createEntry: (
+      bucket: Bucket,
+      index: Index,
+    ) => Effect.Effect<Entry, DatabaseError>
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
 >()("Database") {}
@@ -855,8 +882,10 @@ const createIndex = Effect.gen(function* () {
 const createEntry = (bucket: Bucket, index: Index) =>
   Effect.gen(function* () {
     const { createEntry, deleteEntry } = yield* Database
-    return yield* Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-      Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void,
+    return yield* Effect.acquireRelease(
+      createEntry(bucket, index),
+      (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void,
     )
   })
 
@@ -883,7 +912,9 @@ const make = Effect.scoped(
 // services and verify their behavior under different error conditions.
 type FailureCaseLiterals = "S3" | "ElasticSearch" | "Database" | undefined
 
-class FailureCase extends Context.Service<FailureCase, FailureCaseLiterals>()("FailureCase") {}
+class FailureCase extends Context.Service<FailureCase, FailureCaseLiterals>()(
+  "FailureCase",
+) {}
 
 // Create a test layer for the S3 service
 
@@ -900,7 +931,8 @@ const S3Test = Layer.effect(
           return { name: "<bucket.name>" }
         }
       }),
-      deleteBucket: (bucket) => Console.log(`[S3] delete bucket ${bucket.name}`),
+      deleteBucket: (bucket) =>
+        Console.log(`[S3] delete bucket ${bucket.name}`),
     }
   }),
 )
@@ -920,7 +952,8 @@ const ElasticSearchTest = Layer.effect(
           return { id: "<index.id>" }
         }
       }),
-      deleteIndex: (index) => Console.log(`[ElasticSearch] delete index ${index.id}`),
+      deleteIndex: (index) =>
+        Console.log(`[ElasticSearch] delete index ${index.id}`),
     }
   }),
 )
@@ -935,7 +968,8 @@ const DatabaseTest = Layer.effect(
       createEntry: (bucket, index) =>
         Effect.gen(function* () {
           console.log(
-            "[Database] creating entry for bucket" + `${bucket.name} and index ${index.id}`,
+            "[Database] creating entry for bucket" +
+              `${bucket.name} and index ${index.id}`,
           )
           if (failureCase === "Database") {
             return yield* Effect.fail(new DatabaseError())
@@ -943,7 +977,8 @@ const DatabaseTest = Layer.effect(
             return { id: "<entry.id>" }
           }
         }),
-      deleteEntry: (entry) => Console.log(`[Database] delete entry ${entry.id}`),
+      deleteEntry: (entry) =>
+        Console.log(`[Database] delete entry ${entry.id}`),
     }
   }),
 )
@@ -977,7 +1012,10 @@ In this case, all operations succeed, and we see a `Result.Success` containing t
 Now, let's simulate a failure in the `Database`:
 
 ```ts showLineNumbers=false
-const runnable = make.pipe(Effect.provide(layer), Effect.provideService(FailureCase, "Database"))
+const runnable = make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(FailureCase, "Database"),
+)
 ```
 
 The console output will be:

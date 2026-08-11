@@ -1,6 +1,7 @@
 ---
 title: Simplifying Excessive Nesting
 description: Simplify nested code with Do simulation and generators.
+diataxis: explanation
 sidebar:
   label: Excessive Nesting
   order: 5
@@ -23,7 +24,9 @@ import { Effect, Console } from "effect"
 const now = Effect.sync(() => new Date().getTime())
 
 // Prints the elapsed time occurred to `self` to execute
-const elapsed = <R, E, A>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+const elapsed = <R, E, A>(
+  self: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
   now.pipe(
     Effect.andThen((startMillis) =>
       self.pipe(
@@ -33,7 +36,9 @@ const elapsed = <R, E, A>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> 
               // Calculate the elapsed time in milliseconds
               const elapsed = endMillis - startMillis
               // Log the elapsed time
-              return Console.log(`Elapsed: ${elapsed}`).pipe(Effect.map(() => result))
+              return Console.log(`Elapsed: ${elapsed}`).pipe(
+                Effect.map(() => result),
+              )
             }),
           ),
         ),
@@ -118,7 +123,9 @@ import { Effect, Console } from "effect"
 // Get the current timestamp
 const now = Effect.sync(() => new Date().getTime())
 
-const elapsed = <R, E, A>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+const elapsed = <R, E, A>(
+  self: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
   Effect.Do.pipe(
     Effect.bind("startMillis", () => now),
     Effect.bind("result", () => self),
@@ -160,7 +167,9 @@ import { Effect } from "effect"
 const now = Effect.sync(() => new Date().getTime())
 
 // Prints the elapsed time occurred to `self` to execute
-const elapsed = <R, E, A>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+const elapsed = <R, E, A>(
+  self: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
   Effect.gen(function* () {
     const startMillis = yield* now
     const result = yield* self

@@ -1,6 +1,7 @@
 ---
 title: Batching
 description: Optimize performance by batching requests and reducing redundant API calls, enhancing efficiency in data fetching and processing.
+diataxis: tutorial
 sidebar:
   order: 9
 ---
@@ -44,9 +45,10 @@ new GetUserError()._tag // => "GetUserError"
 ```
 
 <Aside type="tip" title="Use Precise Types and Detailed Errors">
-  In a real world scenario we may want to use a more precise types instead of directly using
-  primitives for identifiers (see [Branded Types](/docs/v4/code-style/branded-types/)).
-  Additionally, you may want to include more detailed information in the errors.
+  In a real world scenario we may want to use a more precise types instead of
+  directly using primitives for identifiers (see [Branded
+  Types](/docs/v4/code-style/branded-types/)). Additionally, you may want to
+  include more detailed information in the errors.
 </Aside>
 
 ### Defining API Functions
@@ -87,7 +89,9 @@ class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 // Fetches a list of todos from an external API
 const getTodos = Effect.tryPromise({
   try: () =>
-    fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
+    fetch("https://api.example.demo/todos").then(
+      (res) => res.json() as Promise<Array<Todo>>,
+    ),
   catch: () => new GetTodosError(),
 })
 
@@ -122,16 +126,19 @@ const sendEmailToUser = (id: number, message: string) =>
 // Notifies the owner of a todo by sending them an email
 const notifyOwner = (todo: Todo) =>
   getUserById(todo.ownerId).pipe(
-    Effect.andThen((user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)),
+    Effect.andThen((user) =>
+      sendEmailToUser(user.id, `hey ${user.name} you got a todo!`),
+    ),
   )
 
 new SendEmailError()._tag // => "SendEmailError"
 ```
 
 <Aside type="tip" title="Validating API Responses">
-  In a real-world scenario, you might not want to trust your APIs to always return the expected data
-  - for this, you can use [`effect/Schema`](/docs/v4/schema/introduction/) or similar alternatives
-  such as `zod`.
+  In a real-world scenario, you might not want to trust your APIs to always
+  return the expected data - for this, you can use
+  [`effect/Schema`](/docs/v4/schema/introduction/) or similar alternatives such
+  as `zod`.
 </Aside>
 
 While this approach is straightforward and readable, it may not be the most efficient. Repeated API calls, especially when many todos share the same owner, can significantly increase network overhead and slow down your application.
@@ -174,7 +181,9 @@ class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 // Fetches a list of todos from an external API
 const getTodos = Effect.tryPromise({
   try: () =>
-    fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
+    fetch("https://api.example.demo/todos").then(
+      (res) => res.json() as Promise<Array<Todo>>,
+    ),
   catch: () => new GetTodosError(),
 })
 
@@ -209,7 +218,9 @@ const sendEmailToUser = (id: number, message: string) =>
 // Notifies the owner of a todo by sending them an email
 const notifyOwner = (todo: Todo) =>
   getUserById(todo.ownerId).pipe(
-    Effect.andThen((user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)),
+    Effect.andThen((user) =>
+      sendEmailToUser(user.id, `hey ${user.name} you got a todo!`),
+    ),
   )
 
 // Orchestrates operations on todos, notifying their owners
@@ -226,9 +237,9 @@ new GetTodosError()._tag // => "GetTodosError"
 This implementation performs an API call for each todo to fetch the owner's details and send an email. If multiple todos have the same owner, this results in redundant API calls.
 
 <Aside type="tip" title="Improving Efficiency with Batch Calls">
-  To optimize, consider implementing batch API calls if your backend supports them. This reduces the
-  number of HTTP requests by grouping multiple operations into a single request, thereby enhancing
-  performance and reducing load.
+  To optimize, consider implementing batch API calls if your backend supports
+  them. This reduces the number of HTTP requests by grouping multiple operations
+  into a single request, thereby enhancing performance and reducing load.
 </Aside>
 
 ## Batching
@@ -244,9 +255,10 @@ Let's assume that `getUserById` and `sendEmail` can be batched. This means that 
 3. **Defining Queries:** Finally, we'll define queries that utilize these batch-resolvers to perform operations. This step ties together the structured requests and their corresponding resolvers into functional components of the application.
 
 <Aside type="caution" title="Ensuring Request Comparability">
-  It's crucial for the requests to be modeled in a way that allows them to be comparable. This means
-  implementing comparability (using methods like [Equals.equals](/docs/v4/trait/equal/)) to identify
-  and batch identical requests effectively.
+  It's crucial for the requests to be modeled in a way that allows them to be
+  comparable. This means implementing comparability (using methods like
+  [Equals.equals](/docs/v4/trait/equal/)) to identify and batch identical
+  requests effectively.
 </Aside>
 
 ### Declaring Requests
@@ -411,7 +423,9 @@ const GetTodosResolver = RequestResolver.fromEffect(
   (_: Request.Entry<GetTodos>): Effect.Effect<Todo[], GetTodosError> =>
     Effect.tryPromise({
       try: () =>
-        fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
+        fetch("https://api.example.demo/todos").then(
+          (res) => res.json() as Promise<Array<Todo>>,
+        ),
       catch: () => new GetTodosError(),
     }),
 )
@@ -438,43 +452,52 @@ const GetUserByIdResolver = RequestResolver.make(
         ),
       ),
       Effect.catch((error) =>
-        Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.fail(error)),
+        ),
       ),
     ),
 )
 
 // Assuming SendEmail can be batched, we create a batched resolver
-const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
-  Effect.tryPromise({
-    try: () =>
-      fetch("https://api.example.demo/sendEmailBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          emails: entries.map(({ request }) => ({
-            address: request.address,
-            text: request.text,
-          })),
-        }),
-      }).then((res) => res.json() as Promise<void>),
-    catch: () => new SendEmailError(),
-  }).pipe(
-    Effect.andThen(Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.void))),
-    Effect.catch((error) =>
-      Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+const SendEmailResolver = RequestResolver.make(
+  (entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/sendEmailBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            emails: entries.map(({ request }) => ({
+              address: request.address,
+              text: request.text,
+            })),
+          }),
+        }).then((res) => res.json() as Promise<void>),
+      catch: () => new SendEmailError(),
+    }).pipe(
+      Effect.andThen(
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.void),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.fail(error)),
+        ),
+      ),
     ),
-  ),
 )
 
 SendEmail({ address: "a@b.com", text: "hi" })._tag // => "SendEmail"
 ```
 
 <Aside type="tip" title="Accessing Context in Resolvers">
-  Resolvers can also access the context like any other effect, and there are many different ways to
-  create resolvers. For further details, consider exploring the reference documentation for the
-  [RequestResolver](/docs/v4/api/effect/RequestResolver) module.
+  Resolvers can also access the context like any other effect, and there are
+  many different ways to create resolvers. For further details, consider
+  exploring the reference documentation for the RequestResolver module.
 </Aside>
 
 In this configuration:
@@ -556,7 +579,9 @@ const GetTodosResolver = RequestResolver.fromEffect(
   (_: Request.Entry<GetTodos>): Effect.Effect<Todo[], GetTodosError> =>
     Effect.tryPromise({
       try: () =>
-        fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
+        fetch("https://api.example.demo/todos").then(
+          (res) => res.json() as Promise<Array<Todo>>,
+        ),
       catch: () => new GetTodosError(),
     }),
 )
@@ -583,34 +608,43 @@ const GetUserByIdResolver = RequestResolver.make(
         ),
       ),
       Effect.catch((error) =>
-        Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.fail(error)),
+        ),
       ),
     ),
 )
 
 // Assuming SendEmail can be batched, we create a batched resolver
-const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
-  Effect.tryPromise({
-    try: () =>
-      fetch("https://api.example.demo/sendEmailBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          emails: entries.map(({ request }) => ({
-            address: request.address,
-            text: request.text,
-          })),
-        }),
-      }).then((res) => res.json() as Promise<void>),
-    catch: () => new SendEmailError(),
-  }).pipe(
-    Effect.andThen(Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.void))),
-    Effect.catch((error) =>
-      Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+const SendEmailResolver = RequestResolver.make(
+  (entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/sendEmailBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            emails: entries.map(({ request }) => ({
+              address: request.address,
+              text: request.text,
+            })),
+          }),
+        }).then((res) => res.json() as Promise<void>),
+      catch: () => new SendEmailError(),
+    }).pipe(
+      Effect.andThen(
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.void),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.fail(error)),
+        ),
+      ),
     ),
-  ),
 )
 
 // ------------------------------
@@ -624,7 +658,8 @@ const getTodos: Effect.Effect<Array<Todo>, GetTodosError> = Effect.request(
 )
 
 // Defines a query to fetch a user by their ID
-const getUserById = (id: number) => Effect.request(GetUserById({ id }), GetUserByIdResolver)
+const getUserById = (id: number) =>
+  Effect.request(GetUserById({ id }), GetUserByIdResolver)
 
 // Defines a query to send an email to a specific address
 const sendEmail = (address: string, text: string) =>
@@ -637,7 +672,9 @@ const sendEmailToUser = (id: number, message: string) =>
 // Uses getUserById to fetch the owner of a Todo and then sends them an email notification
 const notifyOwner = (todo: Todo) =>
   getUserById(todo.ownerId).pipe(
-    Effect.andThen((user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)),
+    Effect.andThen((user) =>
+      sendEmailToUser(user.id, `hey ${user.name} you got a todo!`),
+    ),
   )
 
 GetUserById({ id: 1 }).id // => 1
@@ -699,7 +736,11 @@ class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // Define a request to get multiple Todo items which might
 // fail with a GetTodosError
-interface GetTodos extends Request.Request<Array<Todo>, GetTodosError, HttpService> {
+interface GetTodos extends Request.Request<
+  Array<Todo>,
+  GetTodosError,
+  HttpService
+> {
   readonly _tag: "GetTodos"
 }
 
@@ -731,7 +772,10 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 // Resolvers With Context
 // ------------------------------
 
-class HttpService extends Context.Service<HttpService, { fetch: typeof fetch }>()("HttpService") {}
+class HttpService extends Context.Service<
+  HttpService,
+  { fetch: typeof fetch }
+>()("HttpService") {}
 
 // the resolver itself must have no requirements, so we resolve HttpService
 // before constructing it, and let that outer effect carry the requirement
@@ -762,10 +806,8 @@ which is an effect that access the `HttpService` and returns a composed resolver
 Once we have such effect we can directly use it in our query definition:
 
 ```ts showLineNumbers=false
-const getTodos: Effect.Effect<Todo[], GetTodosError, HttpService> = Effect.request(
-  GetTodos(),
-  GetTodosResolver,
-)
+const getTodos: Effect.Effect<Todo[], GetTodosError, HttpService> =
+  Effect.request(GetTodos(), GetTodosResolver)
 ```
 
 We can see that the Effect correctly requires `HttpService` to be provided.
@@ -839,7 +881,10 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 // Resolvers With Context
 // ------------------------------
 
-class HttpService extends Context.Service<HttpService, { fetch: typeof fetch }>()("HttpService") {}
+class HttpService extends Context.Service<
+  HttpService,
+  { fetch: typeof fetch }
+>()("HttpService") {}
 
 // the resolver itself must have no requirements, so we resolve HttpService
 // before constructing it, and let that outer effect carry the requirement
@@ -874,7 +919,9 @@ const TodosServiceLive = Layer.effect(
     const resolver = RequestResolver.fromEffect((_: Request.Entry<GetTodos>) =>
       Effect.tryPromise({
         try: () =>
-          http.fetch("https://api.example.demo/todos").then<any, Todo[]>((res) => res.json()),
+          http
+            .fetch("https://api.example.demo/todos")
+            .then<any, Todo[]>((res) => res.json()),
         catch: () => new GetTodosError(),
       }),
     )
@@ -884,10 +931,11 @@ const TodosServiceLive = Layer.effect(
   }),
 )
 
-const getTodos: Effect.Effect<Array<Todo>, GetTodosError, TodosService> = Effect.andThen(
-  TodosService,
-  (service) => service.getTodos,
-)
+const getTodos: Effect.Effect<
+  Array<Todo>,
+  GetTodosError,
+  TodosService
+> = Effect.andThen(TodosService, (service) => service.getTodos)
 
 TodosService.key // => "TodosService"
 ```
@@ -972,7 +1020,9 @@ const GetTodosResolver = RequestResolver.fromEffect(
   (_: Request.Entry<GetTodos>): Effect.Effect<Todo[], GetTodosError> =>
     Effect.tryPromise({
       try: () =>
-        fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
+        fetch("https://api.example.demo/todos").then(
+          (res) => res.json() as Promise<Array<Todo>>,
+        ),
       catch: () => new GetTodosError(),
     }),
 )
@@ -999,34 +1049,43 @@ const GetUserByIdResolver = RequestResolver.make(
         ),
       ),
       Effect.catch((error) =>
-        Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.fail(error)),
+        ),
       ),
     ),
 )
 
 // Assuming SendEmail can be batched, we create a batched resolver
-const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
-  Effect.tryPromise({
-    try: () =>
-      fetch("https://api.example.demo/sendEmailBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          emails: entries.map(({ request }) => ({
-            address: request.address,
-            text: request.text,
-          })),
-        }),
-      }).then((res) => res.json() as Promise<void>),
-    catch: () => new SendEmailError(),
-  }).pipe(
-    Effect.andThen(Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.void))),
-    Effect.catch((error) =>
-      Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+const SendEmailResolver = RequestResolver.make(
+  (entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/sendEmailBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            emails: entries.map(({ request }) => ({
+              address: request.address,
+              text: request.text,
+            })),
+          }),
+        }).then((res) => res.json() as Promise<void>),
+      catch: () => new SendEmailError(),
+    }).pipe(
+      Effect.andThen(
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.void),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.forEach(entries, (entry) =>
+          Request.completeEffect(entry, Effect.fail(error)),
+        ),
+      ),
     ),
-  ),
 )
 
 // ------------------------------
@@ -1039,7 +1098,8 @@ const cachedGetUserByIdResolver = Effect.runSync(
   RequestResolver.withCache(GetUserByIdResolver, { capacity: 256 }),
 )
 
-const getUserById = (id: number) => Effect.request(GetUserById({ id }), cachedGetUserByIdResolver)
+const getUserById = (id: number) =>
+  Effect.request(GetUserById({ id }), cachedGetUserByIdResolver)
 
 cachedGetUserByIdResolver === GetUserByIdResolver // => false
 ```
@@ -1071,8 +1131,11 @@ Furthermore, the program is designed to send emails in batches, allowing for eff
 
 ```ts showLineNumbers=false
 const fifoCachedResolver = Effect.runSync(
-  RequestResolver.withCache(GetUserByIdResolver, { capacity: 256, strategy: "fifo" }),
+  RequestResolver.withCache(GetUserByIdResolver, {
+    capacity: 256,
+    strategy: "fifo",
+  }),
 )
 ```
 
-Cache entries created this way don't expire by time. If you need time-to-live-based expiry, or want cache lookups exposed as a first-class `Cache` (with `get`/`refresh`/`invalidate`, see [Cache](/docs/v4/caching/cache/)) instead of a plain `RequestResolver`, use [`RequestResolver.asCache`](/docs/v4/api/effect/RequestResolver) instead — it accepts the same `capacity` option plus an optional `timeToLive`.
+Cache entries created this way don't expire by time. If you need time-to-live-based expiry, or want cache lookups exposed as a first-class `Cache` (with `get`/`refresh`/`invalidate`, see [Cache](/docs/v4/caching/cache/)) instead of a plain `RequestResolver`, use `RequestResolver.asCache` instead. It accepts the same `capacity` option plus an optional `timeToLive`.

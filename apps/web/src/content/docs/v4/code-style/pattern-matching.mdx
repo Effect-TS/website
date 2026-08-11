@@ -1,6 +1,7 @@
 ---
 title: Pattern Matching
 description: Simplify complex branching with pattern matching using the Match module.
+diataxis: reference
 sidebar:
   order: 4
 ---
@@ -99,7 +100,10 @@ const input = { name: "John", age: 30 }
 // Create a matcher for the specific object
 const result = Match.value(input).pipe(
   // Match when the 'name' property is "John"
-  Match.when({ name: "John" }, (user) => `${user.name} is ${user.age} years old`),
+  Match.when(
+    { name: "John" },
+    (user) => `${user.name} is ${user.age} years old`,
+  ),
   // Provide a fallback if no match is found
   Match.orElse(() => "Oh, not John"),
 )
@@ -225,9 +229,9 @@ match({ _tag: "error", error: new Error("Oops!") }) // => "Error: Oops!"
 ```
 
 <Aside type="caution" title="Tag Field Naming Convention">
-  The `Match.tag` function relies on the convention within the Effect ecosystem of naming the tag
-  field as `"_tag"`. Ensure that your discriminated unions follow this naming convention for proper
-  functionality.
+  The `Match.tag` function relies on the convention within the Effect ecosystem
+  of naming the tag field as `"_tag"`. Ensure that your discriminated unions
+  follow this naming convention for proper functionality.
 </Aside>
 
 ### Built-in Predicates

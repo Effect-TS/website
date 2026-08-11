@@ -1,6 +1,7 @@
 ---
 title: Fallback
 description: Recover from typed failures with fallback effects and values.
+diataxis: reference
 sidebar:
   order: 3
 ---
@@ -18,7 +19,9 @@ import { Effect } from "effect"
 
 const primary = Effect.fail("primary unavailable")
 
-const program = primary.pipe(Effect.catch((error) => Effect.succeed(`fallback: ${error}`)))
+const program = primary.pipe(
+  Effect.catch((error) => Effect.succeed(`fallback: ${error}`)),
+)
 
 Effect.runSync(program) // => "fallback: primary unavailable"
 ```

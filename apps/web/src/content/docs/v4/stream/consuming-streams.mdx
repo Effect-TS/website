@@ -1,6 +1,7 @@
 ---
 title: Consuming Streams
 description: Learn techniques for consuming streams, including collecting elements, processing with callbacks, and using folds and sinks.
+diataxis: reference
 sidebar:
   order: 2
 ---
@@ -29,7 +30,9 @@ Another way to consume elements of a stream is by using `Stream.runForEach`. It 
 ```ts twoslash import.meta.vitest name="using-runforeach-1"
 import { Stream, Effect, Console } from "effect"
 
-const effect = Stream.make(1, 2, 3).pipe(Stream.runForEach((n) => Console.log(n)))
+const effect = Stream.make(1, 2, 3).pipe(
+  Stream.runForEach((n) => Console.log(n)),
+)
 
 await Effect.runPromise(effect) // => undefined
 ```

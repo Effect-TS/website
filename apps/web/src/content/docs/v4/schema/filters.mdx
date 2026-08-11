@@ -1,6 +1,7 @@
 ---
 title: Filters
 description: Define custom validation logic with filters to enhance data validation beyond basic type checks.
+diataxis: reference
 sidebar:
   order: 4
 ---
@@ -58,7 +59,11 @@ Filters add additional validation constraints without modifying the schema's und
 The predicate function in a filter follows this structure:
 
 ```ts
-type Predicate<T> = (input: T, ast: SchemaAST.AST, options: SchemaAST.ParseOptions) => FilterOutput
+type Predicate<T> = (
+  input: T,
+  ast: SchemaAST.AST,
+  options: SchemaAST.ParseOptions,
+) => FilterOutput
 ```
 
 where
@@ -72,7 +77,8 @@ type FilterIssue =
       readonly issue: string | SchemaIssue.Issue
     }
 
-type FilterOutput = undefined | boolean | FilterIssue | ReadonlyArray<FilterIssue>
+type FilterOutput =
+  undefined | boolean | FilterIssue | ReadonlyArray<FilterIssue>
 ```
 
 The filter's predicate can return several types of values, each affecting validation in a different way:
@@ -87,8 +93,9 @@ The filter's predicate can return several types of values, each affecting valida
 | `ReadonlyArray<FilterIssue>` | An array of issues can be returned if multiple validation errors need to be reported.            |
 
 <Aside type="tip" title="Effectful Filters">
-  Normal filters only handle synchronous, non-effectful validations. If you need filters that
-  involve asynchronous logic or services, use `SchemaGetter.checkEffect` as part of a
+  Normal filters only handle synchronous, non-effectful validations. If you need
+  filters that involve asynchronous logic or services, use
+  `SchemaGetter.checkEffect` as part of a
   [transformation](/docs/v4/schema/transformations#effectful-filters).
 </Aside>
 
@@ -102,11 +109,15 @@ Embedding metadata within the schema, such as identifiers, JSON schema specifica
 import { Schema } from "effect"
 
 const LongString = Schema.String.check(
-  Schema.makeFilter((s) => (s.length >= 10 ? undefined : "a string at least 10 characters long"), {
-    identifier: "LongString",
-    toJsonSchema: () => ({ minLength: 10 }),
-    description: "Lorem ipsum dolor sit amet, ...",
-  }),
+  Schema.makeFilter(
+    (s) =>
+      s.length >= 10 ? undefined : "a string at least 10 characters long",
+    {
+      identifier: "LongString",
+      toJsonSchema: () => ({ minLength: 10 }),
+      description: "Lorem ipsum dolor sit amet, ...",
+    },
+  ),
 )
 
 console.log(Schema.decodeUnknownSync(LongString)("a"))
@@ -199,7 +210,8 @@ In this example, we define a `MyForm` schema with two password fields (`password
 The error is formatted as a Standard Schema issue array with `SchemaIssue.makeFormatterStandardSchemaV1`, making it easier to post-process or pass to form libraries.
 
 <Aside type="tip" title="Formatting Structured Errors">
-  For the other available representations, see [Error Formatters](/docs/v4/schema/error-formatters).
+  For the other available representations, see [Error
+  Formatters](/docs/v4/schema/error-formatters).
 </Aside>
 
 ## Multiple Error Reporting
@@ -279,7 +291,8 @@ Output:
 In this example, we define a `MyForm` schema with fields for password validation and optional name/surname fields. The `Schema.makeFilter` function checks if the passwords match and ensures that either a name or surname is provided. If either validation fails, the corresponding error message is associated with the relevant field and both errors are returned in a structured format.
 
 <Aside type="tip" title="Formatting Structured Errors">
-  For the other available representations, see [Error Formatters](/docs/v4/schema/error-formatters).
+  For the other available representations, see [Error
+  Formatters](/docs/v4/schema/error-formatters).
 </Aside>
 
 ## Built-in Filters
@@ -337,8 +350,9 @@ Schema.String.check(Schema.isUncapitalized())
 ```
 
 <Aside type="tip" title="Trim vs Trimmed">
-  `Schema.isTrimmed` only validates. Use `Schema.Trim` when decoding should remove leading and
-  trailing whitespace, or `Schema.Trimmed` when the input must already be trimmed.
+  `Schema.isTrimmed` only validates. Use `Schema.Trim` when decoding should
+  remove leading and trailing whitespace, or `Schema.Trimmed` when the input
+  must already be trimmed.
 </Aside>
 
 ### Number Filters
@@ -387,7 +401,10 @@ Schema.Finite.check(Schema.isLessThanOrEqualTo(0))
 Schema.Finite.check(Schema.isMultipleOf(5))
 
 // A 8-bit unsigned integer (0 to 255)
-Schema.Finite.check(Schema.isInt(), Schema.isBetween({ minimum: 0, maximum: 255 }))
+Schema.Finite.check(
+  Schema.isInt(),
+  Schema.isBetween({ minimum: 0, maximum: 255 }),
+)
 ```
 
 ### ReadonlyArray Filters
@@ -428,7 +445,9 @@ Schema.Date.check(Schema.isLessThanDate(new Date()))
 Schema.Date.check(Schema.isLessThanOrEqualToDate(new Date()))
 
 // Specifies a date between two dates
-Schema.Date.check(Schema.isBetweenDate({ minimum: new Date(0), maximum: new Date() }))
+Schema.Date.check(
+  Schema.isBetweenDate({ minimum: new Date(0), maximum: new Date() }),
+)
 ```
 
 ### BigInt Filters
@@ -474,15 +493,23 @@ Here is a list of useful `BigDecimal` filters provided by the Schema module:
 import { Schema, BigDecimal } from "effect"
 
 // Specifies a BigDecimal greater than 5
-Schema.BigDecimal.check(Schema.isGreaterThanBigDecimal(BigDecimal.fromNumberUnsafe(5)))
+Schema.BigDecimal.check(
+  Schema.isGreaterThanBigDecimal(BigDecimal.fromNumberUnsafe(5)),
+)
 
 // Specifies a BigDecimal greater than or equal to 5
-Schema.BigDecimal.check(Schema.isGreaterThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(5)))
+Schema.BigDecimal.check(
+  Schema.isGreaterThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(5)),
+)
 // Specifies a BigDecimal less than 5
-Schema.BigDecimal.check(Schema.isLessThanBigDecimal(BigDecimal.fromNumberUnsafe(5)))
+Schema.BigDecimal.check(
+  Schema.isLessThanBigDecimal(BigDecimal.fromNumberUnsafe(5)),
+)
 
 // Specifies a BigDecimal less than or equal to 5
-Schema.BigDecimal.check(Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(5)))
+Schema.BigDecimal.check(
+  Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(5)),
+)
 
 // Specifies a BigDecimal between -2 and 2, inclusive
 Schema.BigDecimal.check(
@@ -493,16 +520,24 @@ Schema.BigDecimal.check(
 )
 
 // Specifies a positive BigDecimal (> 0)
-Schema.BigDecimal.check(Schema.isGreaterThanBigDecimal(BigDecimal.fromNumberUnsafe(0)))
+Schema.BigDecimal.check(
+  Schema.isGreaterThanBigDecimal(BigDecimal.fromNumberUnsafe(0)),
+)
 
 // Specifies a non-negative BigDecimal (>= 0)
-Schema.BigDecimal.check(Schema.isGreaterThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(0)))
+Schema.BigDecimal.check(
+  Schema.isGreaterThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(0)),
+)
 
 // Specifies a negative BigDecimal (< 0)
-Schema.BigDecimal.check(Schema.isLessThanBigDecimal(BigDecimal.fromNumberUnsafe(0)))
+Schema.BigDecimal.check(
+  Schema.isLessThanBigDecimal(BigDecimal.fromNumberUnsafe(0)),
+)
 
 // Specifies a non-positive BigDecimal (<= 0)
-Schema.BigDecimal.check(Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(0)))
+Schema.BigDecimal.check(
+  Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(0)),
+)
 ```
 
 ### Duration Filters
@@ -513,25 +548,36 @@ Here is a list of useful [Duration](/docs/v4/data-types/duration) filters provid
 import { Schema, Duration } from "effect"
 
 // Specifies a duration greater than 5 seconds
-Schema.Duration.check(Schema.makeFilter((d) => Duration.isGreaterThan(d, Duration.seconds(5))))
+Schema.Duration.check(
+  Schema.makeFilter((d) => Duration.isGreaterThan(d, Duration.seconds(5))),
+)
 
 // Specifies a duration greater than or equal to 5 seconds
 Schema.Duration.check(
-  Schema.makeFilter((d) => Duration.isGreaterThanOrEqualTo(d, Duration.seconds(5))),
+  Schema.makeFilter((d) =>
+    Duration.isGreaterThanOrEqualTo(d, Duration.seconds(5)),
+  ),
 )
 
 // Specifies a duration less than 5 seconds
-Schema.Duration.check(Schema.makeFilter((d) => Duration.isLessThan(d, Duration.seconds(5))))
+Schema.Duration.check(
+  Schema.makeFilter((d) => Duration.isLessThan(d, Duration.seconds(5))),
+)
 
 // Specifies a duration less than or equal to 5 seconds
 Schema.Duration.check(
-  Schema.makeFilter((d) => Duration.isLessThanOrEqualTo(d, Duration.seconds(5))),
+  Schema.makeFilter((d) =>
+    Duration.isLessThanOrEqualTo(d, Duration.seconds(5)),
+  ),
 )
 
 // Specifies a duration between 5 seconds and 10 seconds, inclusive
 Schema.Duration.check(
   Schema.makeFilter((d) =>
-    Duration.between(d, { minimum: Duration.seconds(5), maximum: Duration.seconds(10) }),
+    Duration.between(d, {
+      minimum: Duration.seconds(5),
+      maximum: Duration.seconds(10),
+    }),
   ),
 )
 ```

@@ -1,6 +1,7 @@
 ---
 title: Using Generators
 description: Learn how to use generators in Effect for writing effectful code, enhancing control flow, handling errors, and simplifying asynchronous operations with a syntax similar to async/await.
+diataxis: explanation
 sidebar:
   order: 9
 ---
@@ -10,8 +11,9 @@ import { Aside, Tabs, TabItem, Badge } from "@astrojs/starlight/components"
 Effect offers a convenient syntax, similar to `async`/`await`, to write effectful code using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator).
 
 <Aside type="note" title="Optional Feature">
-  The use of generators is an optional feature in Effect. If you find generators unfamiliar or
-  prefer a different coding style, you can explore the documentation about [Building
+  The use of generators is an optional feature in Effect. If you find generators
+  unfamiliar or prefer a different coding style, you can explore the
+  documentation about [Building
   Pipelines](/docs/v4/getting-started/building-pipelines/) in Effect.
 </Aside>
 
@@ -30,7 +32,10 @@ import { Effect } from "effect"
 const addServiceCharge = (amount: number) => amount + 1
 
 // Function to apply a discount safely to a transaction amount
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)
@@ -76,8 +81,8 @@ If any of the effects that you handle inside of the generator with `yield*`
 fail, then the generator will stop and exit with that failure.
 
 <Aside type="caution" title="Required TypeScript Configuration">
-  The generator API is only available when using the `downlevelIteration` flag or with a `target` of
-  `"es2015"` or higher in your `tsconfig.json` file.
+  The generator API is only available when using the `downlevelIteration` flag
+  or with a `target` of `"es2015"` or higher in your `tsconfig.json` file.
 </Aside>
 
 ## Comparing Effect.gen with async/await
@@ -95,7 +100,10 @@ import { Effect } from "effect"
 
 const addServiceCharge = (amount: number) => amount + 1
 
-const applyDiscount = (total: number, discountRate: number): Effect.Effect<number, Error> =>
+const applyDiscount = (
+  total: number,
+  discountRate: number,
+): Effect.Effect<number, Error> =>
   discountRate === 0
     ? Effect.fail(new Error("Discount rate cannot be zero"))
     : Effect.succeed(total - (total * discountRate) / 100)
@@ -157,7 +165,10 @@ One significant advantage of using `Effect.gen` in conjunction with generators i
 ```ts twoslash import.meta.vitest name="using-control-flow-1"
 import { Effect } from "effect"
 
-const calculateTax = (amount: number, taxRate: number): Effect.Effect<number, Error> =>
+const calculateTax = (
+  amount: number,
+  taxRate: number,
+): Effect.Effect<number, Error> =>
   taxRate > 0
     ? Effect.succeed((amount * taxRate) / 100)
     : Effect.fail(new Error("Invalid tax rate"))
