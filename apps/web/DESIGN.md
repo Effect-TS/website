@@ -37,7 +37,10 @@ and `sky` scales.
 | ----------------------------- | ------------------------------------ | ----------- | ----------- |
 | `background`                  | page background                      | white       | zinc-950    |
 | `foreground`                  | headings, strong text, active        | zinc-900    | zinc-50     |
-| `muted-foreground`            | secondary text, body text, labels    | zinc-500    | zinc-400    |
+| `prose-foreground`            | rendered prose body text             | zinc-700    | zinc-300    |
+| `navigation-foreground`       | sidebar and TOC links                | zinc-700    | zinc-400    |
+| `navigation-heading`          | sidebar and TOC section labels       | zinc-700    | zinc-300    |
+| `muted-foreground`            | secondary text, metadata, labels     | zinc-600    | zinc-400    |
 | `subtle-foreground`           | faint text, timestamps, inactive     | zinc-400    | zinc-500    |
 | `card` / `popover`            | subtle surface (see below)           | zinc-50     | zinc-900    |
 | `card-foreground`             | text on a card                       | zinc-900    | zinc-50     |
@@ -62,7 +65,9 @@ Use three neutral text levels. Order them from most to least emphasis:
 
 ### Interactive states (navigation, TOC, breadcrumb, and links)
 
-- Use `text-muted-foreground` for interactive text in its resting state.
+- Use `text-muted-foreground` for general interactive text in its resting state.
+  Sidebar and TOC links use `text-navigation-foreground` to preserve their denser,
+  higher-contrast reading treatment.
 - Use `text-foreground` for hover and active states.
 - Use `bg-muted` for hover fill. Use `bg-accent` for selected and active fill.
 - Set the active state from `aria-current`. Use variants such as
@@ -92,10 +97,12 @@ second base color:
 - Use this exact class for rendered prose (Markdown or MDX):
   `class="prose prose-effect"`. Do not add other prose classes. Docs, API
   Reference, and API declaration comments use this class. They have the same
-  body size, headings, spacing, and links. Do not add per-page prose overrides,
-  such as `prose-sm`, `prose-p:text-[…]`, or `prose-headings:*`. Do not use
-  `dark:prose-invert`. Change `.prose-effect` in `global.css` when the shared
-  style must change. It is the single source.
+  body size, headings, spacing, and links. Body text uses the higher-contrast
+  `prose-foreground` token (`zinc-700` in light mode and `zinc-300` in dark
+  mode). Do not add per-page prose overrides, such as `prose-sm`,
+  `prose-p:text-[…]`, or `prose-headings:*`. Do not use `dark:prose-invert`.
+  Change `.prose-effect` or its tokens in `global.css` when the shared style
+  must change. It is the single source.
 - **Blog** uses one other reading style. It has larger body text, more space
   between elements, and pull quotes. Add `blog-article` to the shared class:
   `class="prose prose-effect blog-article"`. Put all blog overrides in
@@ -142,7 +149,8 @@ Use these radius values: `rounded-sm` 4px · `md` 6px · `lg` 8px · `xl` 12px �
   component once. Examples include `Eyebrow.astro` and
   `docs/DocsSidebarTree.astro`.
 - **Sidebars** use small primitives in `components/ui/sidebar/`:
-  `SidebarLink`, `SidebarGroup`, and `SidebarSectionLabel`.
+  `SidebarLink`, `SidebarGroup`, and `SidebarSectionLabel`. Resting sidebar links
+  use `navigation-foreground`; section labels use `navigation-heading`.
   `SidebarLink` defines the resting, hover, and active link styles. The caller
   passes padding and font classes with `class`. The caller passes `data-*`
   attributes with a spread. `SidebarGroup` provides the `<details>` disclosure

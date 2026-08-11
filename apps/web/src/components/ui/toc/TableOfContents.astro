@@ -15,6 +15,7 @@ export type TocItem = {
   readonly label: string
   readonly hint?: string | undefined
   readonly indent?: boolean | undefined
+  readonly emphasis?: boolean | undefined
   readonly class?: string | undefined
   readonly title?: string | undefined
   readonly children?: readonly TocItem[] | undefined
@@ -32,6 +33,7 @@ const getLinkProps = (item: TocItem) => ({
   id: item.id,
   label: item.label,
   hint: item.hint,
+  emphasis: item.emphasis,
   title: item.title,
   class: item.class,
 })
@@ -42,7 +44,9 @@ const hasNestedItems = items.some((item) => (item.children?.length ?? 0) > 0)
 {
   items.length > 0 && (
     <nav aria-label="On this page" class={className}>
-      <Eyebrow class="mb-4">On this page</Eyebrow>
+      <Eyebrow tone="navigation" class="mb-4">
+        On this page
+      </Eyebrow>
       <div class="mb-5 h-px bg-border" />
 
       <ul class:list={["flex flex-col", hasNestedItems ? "gap-5" : "gap-3"]}>

@@ -2,22 +2,20 @@
 /**
  * Eyebrow / kicker label — the mono, uppercase, tracked label used across Blog,
  * Docs and API Reference. The utility string lives here once; call sites pass
- * extra classes (spacing, size) via `class` and pick the tag via `as`.
+ * extra classes (spacing, size) via `class`, choose the tag via `as`, and can
+ * use the stronger navigation tone for section labels.
  */
 interface Props {
   readonly as?: string
   readonly class?: string
+  readonly tone?: "muted" | "navigation"
 }
 
-const { as = "p", class: className }: Props = Astro.props
+const { as = "p", class: className, tone = "muted" }: Props = Astro.props
 const Tag = as as keyof HTMLElementTagNameMap
+const toneClass = tone === "navigation" ? "text-navigation-heading" : "text-muted-foreground"
 ---
 
-<Tag
-  class:list={[
-    "font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase",
-    className,
-  ]}
->
+<Tag class:list={["font-mono text-sm font-medium tracking-wider uppercase", toneClass, className]}>
   <slot />
 </Tag>
