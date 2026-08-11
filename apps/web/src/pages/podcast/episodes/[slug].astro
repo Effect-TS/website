@@ -1,52 +1,45 @@
 ---
 import { ArrowRightIcon } from "@lucide/astro"
-import { AstroError } from "astro/errors"
-import { type CollectionEntry, getCollection, render } from "astro:content"
-import fs from "node:fs/promises"
-import * as NodePath from "node:path"
+import { getCollection, render } from "astro:content"
+import { createHash } from "node:crypto"
 import SrtParser from "srt-parser-2"
 import Link from "@/components/Link.astro"
 import { PodcastEpisodeRoot } from "@/features/podcast/components/PodcastEpisodeRoot"
+import { readPodcastTranscriptContent } from "@/features/podcast/transcript"
 import { slugifyPodcast } from "@/features/podcast/utils"
 import PageLayout from "@/layouts/PageLayout.astro"
-
-async function readPodcastTranscript(entry: CollectionEntry<"podcasts">) {
-  const episodeDir = NodePath.dirname(entry.filePath ?? "")
-  const path = NodePath.join(NodePath.resolve(), episodeDir, "transcript.srt")
-
-  let content: Buffer
-
-  try {
-    content = await fs.readFile(path)
-  } catch {
-    throw new AstroError(
-      `Failed to read transcript file from \`${path}\`.`,
-      `Make sure the transcript file path provided in the video entry frontmatter is correct.
-
-- Entry: \`${entry.filePath}\`
-- Transcript: \`${path}\``,
-    )
-  }
-
-  return new SrtParser().fromSrt(content.toString())
-}
+import { createCacheKey } from "@/lib/cache-key"
 
 export async function getStaticPaths() {
   const entries = await getCollection("podcasts")
-  return entries.map((entry) => {
-    const slug = slugifyPodcast(entry.data)
-    return {
-      params: { slug },
-      props: { entry },
-    }
-  })
+  return Promise.all(
+    entries.map(async (entry) => {
+      const slug = slugifyPodcast(entry.data)
+      const transcript = await readPodcastTranscriptContent(entry)
+      const digest = entry.digest
+      const path = {
+        params: { slug },
+        props: { entry },
+      }
+      return digest === undefined
+        ? path
+        : {
+            ...path,
+            cacheKey: createCacheKey([
+              digest,
+              createHash("sha256").update(transcript).digest("hex"),
+            ]),
+          }
+    }),
+  )
 }
 
 const { entry } = Astro.props
 
 const episode = entry.data
 const episodeNumber = String(episode.episodeNumber).padStart(2, "0")
-const transcript = await readPodcastTranscript(entry)
+const transcriptContent = await readPodcastTranscriptContent(entry)
+const transcript = new SrtParser().fromSrt(transcriptContent.toString())
 const { Content } = await render(entry)
 ---
 
