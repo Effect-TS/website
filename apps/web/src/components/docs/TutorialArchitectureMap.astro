@@ -1,6 +1,4 @@
 ---
-import { ArrowDown } from "@lucide/astro"
-
 type TutorialId =
   | "handle-failures-without-guessing"
   | "keep-concurrent-work-under-control"
@@ -10,9 +8,56 @@ type TutorialId =
   | "catch-ai-slop-before-it-ships"
   | "instrument-applications-for-opentelemetry-without-the-plumbing"
 
+type ArchitectureNodeId =
+  | "owned-client"
+  | "external-client"
+  | "domain-model"
+  | "http-routes"
+  | "quote-order"
+  | "place-order"
+  | "import-orders"
+  | "catalog"
+  | "shipping"
+  | "inventory"
+  | "payment"
+  | "order-repository"
+  | "service-setup"
+  | "tracing"
+  | "development-tools"
+
 interface Props {
   active?: TutorialId
   compact?: boolean
+}
+
+interface ArchitectureNode {
+  readonly id: ArchitectureNodeId
+  readonly label: string
+  readonly type: string
+  readonly detail: string
+  readonly area:
+    "client" | "contract" | "boundary" | "operation" | "service" | "support" | "development"
+  readonly tutorials: ReadonlyArray<TutorialId>
+}
+
+interface ArchitectureRelationship {
+  readonly from: ArchitectureNodeId
+  readonly to: ArchitectureNodeId
+  readonly label: string
+  readonly kind: "runtime" | "contract" | "support" | "development"
+  readonly tutorials: ReadonlyArray<TutorialId>
+}
+
+interface FocusStep {
+  readonly type: string
+  readonly label: string
+  readonly relation?: string
+}
+
+interface DynamicStep {
+  readonly label: string
+  readonly detail: string
+  readonly relation?: string
 }
 
 const { active, compact = false } = Astro.props
@@ -67,145 +112,367 @@ const tutorials: ReadonlyArray<{
   },
 ]
 
-const layers = [
+const nodes: ReadonlyArray<ArchitectureNode> = [
   {
-    label: "API clients",
-    columns: 2,
-    nodes: [
-      {
-        label: "Owned client",
-        detail: "Shares the domain Schema",
-        tutorials: ["send-rich-domain-models-over-the-wire"],
-      },
-      {
-        label: "External client",
-        detail: "Requires a fixed JSON contract",
-        tutorials: ["send-rich-domain-models-over-the-wire"],
-      },
+    id: "owned-client",
+    label: "Owned client",
+    type: "API client",
+    detail: "Shares the Order Schema",
+    area: "client",
+    tutorials: ["send-rich-domain-models-over-the-wire"],
+  },
+  {
+    id: "external-client",
+    label: "External client",
+    type: "API client",
+    detail: "Requires a fixed JSON contract",
+    area: "client",
+    tutorials: ["send-rich-domain-models-over-the-wire"],
+  },
+  {
+    id: "domain-model",
+    label: "Order domain model",
+    type: "Shared contract",
+    detail: "Connects rich values to JSON representations",
+    area: "contract",
+    tutorials: ["send-rich-domain-models-over-the-wire", "catch-ai-slop-before-it-ships"],
+  },
+  {
+    id: "http-routes",
+    label: "HTTP routes",
+    type: "HTTP boundary",
+    detail: "Decode requests and encode responses",
+    area: "boundary",
+    tutorials: [
+      "handle-failures-without-guessing",
+      "keep-concurrent-work-under-control",
+      "send-rich-domain-models-over-the-wire",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "catch-ai-slop-before-it-ships",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
     ],
   },
   {
-    label: "HTTP boundary",
-    columns: 2,
-    nodes: [
-      {
-        label: "HTTP routes",
-        detail: "Read requests and send responses",
-        tutorials: [
-          "handle-failures-without-guessing",
-          "keep-concurrent-work-under-control",
-          "send-rich-domain-models-over-the-wire",
-          "keep-dependencies-explicit-without-manual-wiring",
-          "catch-ai-slop-before-it-ships",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
-      {
-        label: "Domain model",
-        detail: "Connect rich values to JSON representations",
-        tutorials: ["send-rich-domain-models-over-the-wire", "catch-ai-slop-before-it-ships"],
-      },
+    id: "quote-order",
+    label: "Quote order",
+    type: "Application operation",
+    detail: "Price Order Lines and shipping",
+    area: "operation",
+    tutorials: [
+      "keep-concurrent-work-under-control",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
     ],
   },
   {
-    label: "Application operations",
-    columns: 3,
-    nodes: [
-      {
-        label: "Quote order",
-        detail: "Price lines and shipping",
-        tutorials: ["keep-concurrent-work-under-control"],
-      },
-      {
-        label: "Place order",
-        detail: "Reserve, pay, and store",
-        tutorials: [
-          "handle-failures-without-guessing",
-          "clean-up-resources-reliably",
-          "keep-dependencies-explicit-without-manual-wiring",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
-      {
-        label: "Import orders",
-        detail: "Validate external records",
-        tutorials: ["catch-ai-slop-before-it-ships"],
-      },
+    id: "place-order",
+    label: "Place order",
+    type: "Application operation",
+    detail: "Reserve, pay, and store",
+    area: "operation",
+    tutorials: [
+      "handle-failures-without-guessing",
+      "clean-up-resources-reliably",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
     ],
   },
   {
-    label: "Backend services",
-    columns: 5,
-    nodes: [
-      {
-        label: "Catalog",
-        detail: "Price a line",
-        tutorials: [
-          "keep-concurrent-work-under-control",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
-      {
-        label: "Shipping",
-        detail: "Quote delivery",
-        tutorials: [
-          "keep-concurrent-work-under-control",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
-      {
-        label: "Inventory",
-        detail: "Reserve stock",
-        tutorials: [
-          "clean-up-resources-reliably",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
-      {
-        label: "Payment",
-        detail: "Authorize payment",
-        tutorials: [
-          "handle-failures-without-guessing",
-          "keep-dependencies-explicit-without-manual-wiring",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
-      {
-        label: "Order repository",
-        detail: "Store accepted orders",
-        tutorials: [
-          "clean-up-resources-reliably",
-          "keep-dependencies-explicit-without-manual-wiring",
-          "instrument-applications-for-opentelemetry-without-the-plumbing",
-        ],
-      },
+    id: "import-orders",
+    label: "Import orders",
+    type: "Application operation",
+    detail: "Validate external records",
+    area: "operation",
+    tutorials: ["catch-ai-slop-before-it-ships"],
+  },
+  {
+    id: "catalog",
+    label: "Catalog",
+    type: "Backend service",
+    detail: "Price an Order Line",
+    area: "service",
+    tutorials: [
+      "keep-concurrent-work-under-control",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
     ],
   },
   {
-    label: "Application-wide support",
-    columns: 3,
-    nodes: [
-      {
-        label: "Service setup",
-        detail: "Select and share implementations",
-        tutorials: ["keep-dependencies-explicit-without-manual-wiring"],
-      },
-      {
-        label: "Tracing",
-        detail: "Connect operations in one trace",
-        tutorials: ["instrument-applications-for-opentelemetry-without-the-plumbing"],
-      },
-      {
-        label: "Development tools",
-        detail: "Check code before it ships",
-        tutorials: ["catch-ai-slop-before-it-ships"],
-      },
+    id: "shipping",
+    label: "Shipping",
+    type: "Backend service",
+    detail: "Quote delivery",
+    area: "service",
+    tutorials: [
+      "keep-concurrent-work-under-control",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
     ],
   },
-] as const
+  {
+    id: "inventory",
+    label: "Inventory",
+    type: "Backend service",
+    detail: "Reserve stock",
+    area: "service",
+    tutorials: [
+      "clean-up-resources-reliably",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    id: "payment",
+    label: "Payment",
+    type: "Backend service",
+    detail: "Authorize payment",
+    area: "service",
+    tutorials: [
+      "handle-failures-without-guessing",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    id: "order-repository",
+    label: "Order repository",
+    type: "Backend service",
+    detail: "Store Accepted Orders",
+    area: "service",
+    tutorials: [
+      "clean-up-resources-reliably",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    id: "service-setup",
+    label: "Service setup",
+    type: "Composition",
+    detail: "Select and share implementations",
+    area: "support",
+    tutorials: ["keep-dependencies-explicit-without-manual-wiring"],
+  },
+  {
+    id: "tracing",
+    label: "Tracing",
+    type: "Observability",
+    detail: "Observe named operations",
+    area: "support",
+    tutorials: ["instrument-applications-for-opentelemetry-without-the-plumbing"],
+  },
+  {
+    id: "development-tools",
+    label: "Development tools",
+    type: "Quality gate",
+    detail: "Check code before it runs",
+    area: "development",
+    tutorials: ["catch-ai-slop-before-it-ships"],
+  },
+]
 
-const isHighlighted = (related: readonly string[]) =>
+const relationships: ReadonlyArray<ArchitectureRelationship> = [
+  {
+    from: "owned-client",
+    to: "http-routes",
+    label: "HTTP",
+    kind: "runtime",
+    tutorials: ["send-rich-domain-models-over-the-wire"],
+  },
+  {
+    from: "external-client",
+    to: "http-routes",
+    label: "HTTP",
+    kind: "runtime",
+    tutorials: ["send-rich-domain-models-over-the-wire"],
+  },
+  {
+    from: "domain-model",
+    to: "http-routes",
+    label: "decodes and encodes",
+    kind: "contract",
+    tutorials: ["send-rich-domain-models-over-the-wire", "catch-ai-slop-before-it-ships"],
+  },
+  {
+    from: "http-routes",
+    to: "quote-order",
+    label: "runs",
+    kind: "runtime",
+    tutorials: [
+      "keep-concurrent-work-under-control",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "http-routes",
+    to: "place-order",
+    label: "runs",
+    kind: "runtime",
+    tutorials: [
+      "handle-failures-without-guessing",
+      "clean-up-resources-reliably",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "http-routes",
+    to: "import-orders",
+    label: "runs",
+    kind: "runtime",
+    tutorials: ["catch-ai-slop-before-it-ships"],
+  },
+  {
+    from: "place-order",
+    to: "quote-order",
+    label: "gets quote",
+    kind: "runtime",
+    tutorials: ["instrument-applications-for-opentelemetry-without-the-plumbing"],
+  },
+  {
+    from: "quote-order",
+    to: "catalog",
+    label: "prices lines",
+    kind: "runtime",
+    tutorials: [
+      "keep-concurrent-work-under-control",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "quote-order",
+    to: "shipping",
+    label: "quotes delivery",
+    kind: "runtime",
+    tutorials: [
+      "keep-concurrent-work-under-control",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "place-order",
+    to: "inventory",
+    label: "reserves stock",
+    kind: "runtime",
+    tutorials: [
+      "clean-up-resources-reliably",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "place-order",
+    to: "payment",
+    label: "authorizes",
+    kind: "runtime",
+    tutorials: [
+      "handle-failures-without-guessing",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "place-order",
+    to: "order-repository",
+    label: "stores",
+    kind: "runtime",
+    tutorials: [
+      "clean-up-resources-reliably",
+      "keep-dependencies-explicit-without-manual-wiring",
+      "instrument-applications-for-opentelemetry-without-the-plumbing",
+    ],
+  },
+  {
+    from: "import-orders",
+    to: "domain-model",
+    label: "validates",
+    kind: "contract",
+    tutorials: ["catch-ai-slop-before-it-ships"],
+  },
+]
+
+const focusByTutorial: Record<TutorialId, ReadonlyArray<FocusStep>> = {
+  "handle-failures-without-guessing": [
+    { type: "HTTP boundary", label: "HTTP routes" },
+    { type: "Application operation", label: "Place order", relation: "runs" },
+    { type: "Backend service", label: "Payment", relation: "authorizes" },
+  ],
+  "keep-concurrent-work-under-control": [
+    { type: "HTTP boundary", label: "HTTP routes" },
+    { type: "Application operation", label: "Quote order", relation: "runs" },
+    { type: "Backend services", label: "Catalog and Shipping", relation: "calls concurrently" },
+  ],
+  "clean-up-resources-reliably": [
+    { type: "Application operation", label: "Place order" },
+    {
+      type: "Backend services",
+      label: "Inventory and Order repository",
+      relation: "uses resources from",
+    },
+  ],
+  "send-rich-domain-models-over-the-wire": [
+    { type: "Shared contract", label: "Order domain model" },
+    { type: "HTTP boundary", label: "HTTP routes", relation: "encodes at" },
+    { type: "API clients", label: "Owned and external clients", relation: "sends to" },
+  ],
+  "keep-dependencies-explicit-without-manual-wiring": [
+    { type: "Application operation", label: "Place order" },
+    { type: "Backend services", label: "Payment and repository", relation: "requires" },
+    { type: "Runtime support", label: "Service setup", relation: "configured by" },
+  ],
+  "catch-ai-slop-before-it-ships": [
+    { type: "Development time", label: "Development tools" },
+    { type: "Application operation", label: "Import orders", relation: "checks" },
+    { type: "Shared contract", label: "Order domain model", relation: "validates against" },
+  ],
+  "instrument-applications-for-opentelemetry-without-the-plumbing": [
+    { type: "Runtime support", label: "Tracing" },
+    { type: "HTTP boundary", label: "HTTP routes", relation: "observes" },
+    {
+      type: "Application and services",
+      label: "Place order and its services",
+      relation: "follows",
+    },
+  ],
+}
+
+const dynamicByTutorial: Partial<Record<TutorialId, ReadonlyArray<DynamicStep>>> = {
+  "handle-failures-without-guessing": [
+    { label: "Order request", detail: "POST /orders" },
+    { label: "HTTP route", detail: "Runs the operation", relation: "enters" },
+    { label: "Place order", detail: "Applies the payment policy", relation: "calls" },
+    { label: "Payment", detail: "Returns success or a typed failure", relation: "authorizes" },
+    { label: "HTTP result", detail: "Uses the known outcome", relation: "maps to" },
+  ],
+  "keep-concurrent-work-under-control": [
+    { label: "Quote request", detail: "POST /quotes" },
+    { label: "Quote order", detail: "Coordinates the work", relation: "enters" },
+    { label: "Catalog and Shipping", detail: "Run concurrently", relation: "starts together" },
+    { label: "Quote response", detail: "Keeps stable result order", relation: "joins as" },
+  ],
+  "clean-up-resources-reliably": [
+    { label: "Order request", detail: "POST /orders" },
+    { label: "Acquire resources", detail: "Connection, then inventory lock", relation: "enters" },
+    { label: "Store order", detail: "Uses both resources", relation: "continues with" },
+    { label: "Release resources", detail: "Runs after every outcome", relation: "always reaches" },
+  ],
+  "instrument-applications-for-opentelemetry-without-the-plumbing": [
+    { label: "Order request", detail: "POST /orders" },
+    { label: "HTTP span", detail: "Covers the whole request", relation: "opens" },
+    {
+      label: "Operation spans",
+      detail: "Follow Place order and its services",
+      relation: "contains",
+    },
+    {
+      label: "Trace waterfall",
+      detail: "Shows timing and parent relationships",
+      relation: "records",
+    },
+  ],
+}
+
+const isRelated = (related: ReadonlyArray<TutorialId>) =>
   active === undefined || related.includes(active)
+
+const activeFocus = active === undefined ? undefined : focusByTutorial[active]
+const activeDynamic = active === undefined ? undefined : dynamicByTutorial[active]
+const markerSuffix = active ?? "overview"
 ---
 
 <tutorial-architecture-map
@@ -213,134 +480,364 @@ const isHighlighted = (related: readonly string[]) =>
   data-active={active ?? "all"}
   data-compact={compact ? "true" : "false"}
   data-filtered={active === undefined ? "false" : "true"}
+  data-marker-suffix={markerSuffix}
 >
   <section
-    class="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-950/40"
-    aria-label={compact ? "Tutorial architecture focus" : "Order-processing tutorial architecture"}
+    class="architecture-frame"
+    aria-label={compact ? "Tutorial architecture focus" : "Order-processing system architecture"}
   >
-    <header class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          {
-            !compact && (
-              <p class="architecture-eyebrow m-0 text-xs font-semibold tracking-wider uppercase">
-                Shared tutorial scenario
-              </p>
-            )
-          }
-          <p
-            class:list={[
-              "mb-0 text-base font-semibold text-zinc-950 dark:text-white",
-              compact ? "mt-0" : "mt-1",
-            ]}
-          >
-            The order-processing system
-          </p>
-        </div>
-        {
-          compact && (
-            <a
-              class="architecture-link text-sm font-medium hover:underline"
-              href="/docs/v4/tutorials/introduction"
-            >
-              View the complete architecture
-            </a>
-          )
-        }
+    <header class="architecture-header">
+      <div>
+        <p class="architecture-eyebrow">System structure</p>
+        <p class="architecture-title">The order-processing system</p>
+        <p class="architecture-subtitle">
+          Components, contracts, and the relationships between them
+        </p>
       </div>
-    </header>
-
-    <div class:list={["architecture-layout", { "is-compact": compact }]}>
       {
-        !compact && (
-          <div class="architecture-controls" aria-label="Select a tutorial">
-            <p class="mt-0 mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-              Select a tutorial to see which parts of the system it affects.
-            </p>
-            <div class="grid gap-2 sm:grid-cols-2">
-              {tutorials.map((tutorial) => (
-                <button
-                  type="button"
-                  class="architecture-control"
-                  data-tutorial-control={tutorial.id}
-                  data-tutorial-title={tutorial.title}
-                  data-tutorial-pain={tutorial.pain}
-                  data-tutorial-href={tutorial.href}
-                  aria-pressed="false"
-                >
-                  {tutorial.title}
-                </button>
-              ))}
-            </div>
-
-            <div class="architecture-selection" data-selection hidden>
-              <p
-                class="mt-0 mb-1 font-semibold text-zinc-950 dark:text-white"
-                data-selection-title
-              />
-              <p class="mt-0 mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-                <span class="font-medium text-zinc-800 dark:text-zinc-200">Problem addressed:</span>{" "}
-                <span data-selection-pain />
-              </p>
-              <a class="tutorial-link text-sm font-medium hover:underline" data-selection-link>
-                Open tutorial
-              </a>
-            </div>
-          </div>
+        compact && (
+          <a class="architecture-link" href="/docs/v4/tutorials/introduction">
+            View the complete architecture
+          </a>
         )
       }
+    </header>
 
-      <div class="architecture-diagram" aria-label="System layers">
-        {
-          layers.map((layer, layerIndex) => (
+    {
+      !compact && (
+        <div class="architecture-explorer">
+          <label class="architecture-select-label">
+            <span>Tutorial focus</span>
+            <select data-tutorial-select>
+              <option value="all">Complete system</option>
+              {tutorials.map((tutorial) => (
+                <option
+                  value={tutorial.id}
+                  data-tutorial-pain={tutorial.pain}
+                  data-tutorial-href={tutorial.href}
+                >
+                  {tutorial.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div class="architecture-selection" data-selection hidden>
             <div>
-              {layerIndex > 0 && (
-                <div class="architecture-arrow" aria-hidden="true">
-                  <ArrowDown size={17} />
-                </div>
-              )}
-              <section class="architecture-layer">
-                <p class="architecture-layer-label">{layer.label}</p>
-                <div class="architecture-nodes" style={`--architecture-columns: ${layer.columns}`}>
-                  {layer.nodes.map((node) => (
-                    <div
+              <p class="architecture-selection-title" data-selection-title />
+              <p class="architecture-selection-pain" data-selection-pain />
+            </div>
+            <a class="tutorial-link" data-selection-link>
+              Open tutorial
+            </a>
+          </div>
+        </div>
+      )
+    }
+
+    <div class="architecture-legend" aria-label="Diagram key">
+      <span><i class="legend-line" aria-hidden="true"></i> Runtime call</span>
+      <span><i class="legend-line is-dashed" aria-hidden="true"></i> Contract relationship</span>
+      <span><i class="legend-focus" aria-hidden="true"></i> Tutorial focus</span>
+    </div>
+
+    <div class="architecture-canvas-scroll">
+      <div class="architecture-canvas" data-architecture-canvas>
+        <section class="architecture-clients" aria-label="API clients">
+          <p class="architecture-group-label">API clients</p>
+          {
+            nodes
+              .filter((node) => node.area === "client")
+              .map((node) => (
+                <article
+                  class="architecture-node"
+                  data-architecture-node
+                  data-node-id={node.id}
+                  data-related={node.tutorials.join(" ")}
+                  data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
+                >
+                  <p class="architecture-node-type">{node.type}</p>
+                  <p class="architecture-node-title">{node.label}</p>
+                  <p class="architecture-node-detail">{node.detail}</p>
+                </article>
+              ))
+          }
+        </section>
+
+        <section class="application-boundary" aria-label="Order application">
+          <p class="architecture-boundary-label">Order application</p>
+
+          {
+            nodes
+              .filter((node) => node.area === "contract")
+              .map((node) => (
+                <article
+                  class="architecture-node architecture-contract"
+                  data-architecture-node
+                  data-node-id={node.id}
+                  data-related={node.tutorials.join(" ")}
+                  data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
+                >
+                  <p class="architecture-node-type">{node.type}</p>
+                  <p class="architecture-node-title">{node.label}</p>
+                  <p class="architecture-node-detail">{node.detail}</p>
+                </article>
+              ))
+          }
+
+          <div class="architecture-runtime">
+            <section class="architecture-column architecture-entry" aria-label="HTTP boundary">
+              <p class="architecture-group-label">HTTP boundary</p>
+              {
+                nodes
+                  .filter((node) => node.area === "boundary")
+                  .map((node) => (
+                    <article
                       class="architecture-node"
                       data-architecture-node
+                      data-node-id={node.id}
                       data-related={node.tutorials.join(" ")}
-                      data-highlighted={isHighlighted(node.tutorials) ? "true" : "false"}
+                      data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
                     >
+                      <p class="architecture-node-type">{node.type}</p>
                       <p class="architecture-node-title">{node.label}</p>
                       <p class="architecture-node-detail">{node.detail}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                    </article>
+                  ))
+              }
+            </section>
+
+            <section
+              class="architecture-column architecture-operations"
+              aria-label="Application operations"
+            >
+              <p class="architecture-group-label">Application operations</p>
+              {
+                nodes
+                  .filter((node) => node.area === "operation")
+                  .map((node) => (
+                    <article
+                      class="architecture-node"
+                      data-architecture-node
+                      data-node-id={node.id}
+                      data-related={node.tutorials.join(" ")}
+                      data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
+                    >
+                      <p class="architecture-node-type">{node.type}</p>
+                      <p class="architecture-node-title">{node.label}</p>
+                      <p class="architecture-node-detail">{node.detail}</p>
+                    </article>
+                  ))
+              }
+            </section>
+
+            <section
+              class="architecture-column architecture-services"
+              aria-label="Backend services"
+            >
+              <p class="architecture-group-label">Backend services</p>
+              <div class="architecture-service-grid">
+                {
+                  nodes
+                    .filter((node) => node.area === "service")
+                    .map((node) => (
+                      <article
+                        class="architecture-node"
+                        data-architecture-node
+                        data-node-id={node.id}
+                        data-related={node.tutorials.join(" ")}
+                        data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
+                      >
+                        <p class="architecture-node-type">{node.type}</p>
+                        <p class="architecture-node-title">{node.label}</p>
+                        <p class="architecture-node-detail">{node.detail}</p>
+                      </article>
+                    ))
+                }
+              </div>
+            </section>
+          </div>
+
+          <section class="architecture-support" aria-label="Runtime support">
+            <p class="architecture-group-label">Runtime support</p>
+            <div class="architecture-support-grid">
+              {
+                nodes
+                  .filter((node) => node.area === "support")
+                  .map((node) => (
+                    <article
+                      class="architecture-node"
+                      data-architecture-node
+                      data-node-id={node.id}
+                      data-related={node.tutorials.join(" ")}
+                      data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
+                    >
+                      <p class="architecture-node-type">{node.type}</p>
+                      <p class="architecture-node-title">{node.label}</p>
+                      <p class="architecture-node-detail">{node.detail}</p>
+                    </article>
+                  ))
+              }
             </div>
-          ))
-        }
+          </section>
+        </section>
+
+        <section class="architecture-development" aria-label="Development time">
+          <p class="architecture-group-label">Development time</p>
+          {
+            nodes
+              .filter((node) => node.area === "development")
+              .map((node) => (
+                <article
+                  class="architecture-node"
+                  data-architecture-node
+                  data-node-id={node.id}
+                  data-related={node.tutorials.join(" ")}
+                  data-highlighted={isRelated(node.tutorials) ? "true" : "false"}
+                >
+                  <p class="architecture-node-type">{node.type}</p>
+                  <p class="architecture-node-title">{node.label}</p>
+                  <p class="architecture-node-detail">{node.detail}</p>
+                </article>
+              ))
+          }
+        </section>
+
+        <svg class="architecture-connectors" data-architecture-connectors aria-hidden="true">
+          <defs>
+            <marker
+              id={`architecture-arrow-${markerSuffix}`}
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="4"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path d="M 0 0 L 8 4 L 0 8 z"></path>
+            </marker>
+            <marker
+              id={`architecture-arrow-active-${markerSuffix}`}
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="4"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path d="M 0 0 L 8 4 L 0 8 z"></path>
+            </marker>
+          </defs>
+          {
+            relationships.map((relationship) => (
+              <g
+                class="architecture-relationship"
+                data-architecture-relationship
+                data-from={relationship.from}
+                data-to={relationship.to}
+                data-kind={relationship.kind}
+                data-related={relationship.tutorials.join(" ")}
+                data-highlighted={isRelated(relationship.tutorials) ? "true" : "false"}
+              >
+                <path
+                  data-relationship-path
+                  marker-end={`url(#architecture-arrow-${markerSuffix})`}
+                />
+                <text data-relationship-label>{relationship.label}</text>
+              </g>
+            ))
+          }
+        </svg>
       </div>
     </div>
+
+    {
+      compact && activeFocus && (
+        <section class="architecture-focus-strip" aria-label="Components in this tutorial">
+          <p class="architecture-strip-label">Tutorial focus</p>
+          <ol style={`--step-count: ${activeFocus.length}`}>
+            {activeFocus.map((step, index) => (
+              <li>
+                {index > 0 && (
+                  <div class="architecture-focus-connector" aria-hidden="true">
+                    <span>{step.relation}</span>
+                    <i />
+                  </div>
+                )}
+                <div class="architecture-focus-node">
+                  <span>{step.type}</span>
+                  <strong>{step.label}</strong>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )
+    }
+
+    {
+      compact && activeDynamic && (
+        <section class="architecture-dynamic" aria-label="Request flow">
+          <div class="architecture-dynamic-heading">
+            <p class="architecture-strip-label">Request flow</p>
+            <p>Numbered interactions show what happens during this tutorial's scenario.</p>
+          </div>
+          <ol style={`--dynamic-columns: ${activeDynamic.length}`}>
+            {activeDynamic.map((step, index) => (
+              <li>
+                {index > 0 && (
+                  <div class="architecture-dynamic-connector" aria-hidden="true">
+                    <span>{step.relation}</span>
+                    <i />
+                  </div>
+                )}
+                <div class="architecture-dynamic-step">
+                  <span class="architecture-step-number">{index + 1}</span>
+                  <div>
+                    <strong>{step.label}</strong>
+                    <span>{step.detail}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )
+    }
   </section>
 </tutorial-architecture-map>
 
 <script>
   class TutorialArchitectureMap extends HTMLElement {
+    resizeObserver?: ResizeObserver
+    drawFrame?: number
+
     connectedCallback() {
-      this.addEventListener("click", this.onClick)
+      this.addEventListener("change", this.onChange)
       this.applySelection(this.dataset.active ?? "all")
+      this.resizeObserver = new ResizeObserver(this.scheduleDraw)
+      const canvas = this.querySelector<HTMLElement>("[data-architecture-canvas]")
+      if (canvas !== null) this.resizeObserver.observe(canvas)
+      this.scheduleDraw()
     }
 
     disconnectedCallback() {
-      this.removeEventListener("click", this.onClick)
+      this.removeEventListener("change", this.onChange)
+      this.resizeObserver?.disconnect()
+      if (this.drawFrame !== undefined) cancelAnimationFrame(this.drawFrame)
     }
 
-    onClick = (event: Event) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
-      const control = target.closest<HTMLButtonElement>("[data-tutorial-control]")
-      if (control === null || !this.contains(control)) return
-      const tutorial = control.dataset.tutorialControl ?? "all"
-      this.applySelection(this.dataset.active === tutorial ? "all" : tutorial)
+    onChange = (event: Event) => {
+      const select = event.target
+      if (!(select instanceof HTMLSelectElement) || !select.matches("[data-tutorial-select]")) {
+        return
+      }
+      this.applySelection(select.value)
+    }
+
+    scheduleDraw = () => {
+      if (this.drawFrame !== undefined) cancelAnimationFrame(this.drawFrame)
+      this.drawFrame = requestAnimationFrame(() => this.drawRelationships())
     }
 
     applySelection(tutorial: string) {
@@ -352,23 +849,115 @@ const isHighlighted = (related: readonly string[]) =>
         node.dataset.highlighted = String(tutorial === "all" || related.includes(tutorial))
       })
 
-      const controls = this.querySelectorAll<HTMLButtonElement>("[data-tutorial-control]")
-      controls.forEach((control) => {
-        control.setAttribute("aria-pressed", String(control.dataset.tutorialControl === tutorial))
-      })
+      this.querySelectorAll<SVGElement>("[data-architecture-relationship]").forEach(
+        (relationship) => {
+          const related = relationship.dataset.related?.split(" ") ?? []
+          const highlighted = tutorial === "all" || related.includes(tutorial)
+          relationship.dataset.highlighted = String(highlighted)
+          const path = relationship.querySelector<SVGPathElement>("[data-relationship-path]")
+          if (path === null) return
+          const suffix = this.dataset.markerSuffix ?? "overview"
+          path.setAttribute(
+            "marker-end",
+            `url(#architecture-arrow${highlighted && tutorial !== "all" ? "-active" : ""}-${suffix})`,
+          )
+        },
+      )
 
-      const selected = [...controls].find((control) => control.dataset.tutorialControl === tutorial)
+      const select = this.querySelector<HTMLSelectElement>("[data-tutorial-select]")
+      if (select !== null) select.value = tutorial
+
+      const option = select?.selectedOptions.item(0)
+      const selectedTutorial = option === null || option?.value === "all" ? undefined : tutorial
       const selection = this.querySelector<HTMLElement>("[data-selection]")
-      if (selection === null) return
-      selection.hidden = selected === undefined
-      if (selected === undefined) return
+      if (selection !== null) selection.hidden = selectedTutorial === undefined
 
-      const title = selection.querySelector<HTMLElement>("[data-selection-title]")
-      const pain = selection.querySelector<HTMLElement>("[data-selection-pain]")
-      const link = selection.querySelector<HTMLAnchorElement>("[data-selection-link]")
-      if (title !== null) title.textContent = selected.dataset.tutorialTitle ?? ""
-      if (pain !== null) pain.textContent = selected.dataset.tutorialPain ?? ""
-      if (link !== null) link.href = selected.dataset.tutorialHref ?? ""
+      if (selectedTutorial !== undefined) {
+        const title = selection?.querySelector<HTMLElement>("[data-selection-title]")
+        const pain = selection?.querySelector<HTMLElement>("[data-selection-pain]")
+        const link = selection?.querySelector<HTMLAnchorElement>("[data-selection-link]")
+        if (title !== null && title !== undefined) title.textContent = option?.textContent ?? ""
+        if (pain !== null && pain !== undefined) {
+          pain.textContent = option?.dataset.tutorialPain ?? ""
+        }
+        if (link !== null && link !== undefined) {
+          link.href = option?.dataset.tutorialHref ?? ""
+        }
+      }
+
+      this.scheduleDraw()
+    }
+
+    drawRelationships() {
+      const canvas = this.querySelector<HTMLElement>("[data-architecture-canvas]")
+      const svg = this.querySelector<SVGSVGElement>("[data-architecture-connectors]")
+      if (canvas === null || svg === null) return
+
+      const canvasRect = canvas.getBoundingClientRect()
+      svg.setAttribute("viewBox", `0 0 ${canvasRect.width} ${canvasRect.height}`)
+
+      this.querySelectorAll<SVGGElement>("[data-architecture-relationship]").forEach(
+        (relationship) => {
+          const fromId = relationship.dataset.from
+          const toId = relationship.dataset.to
+          if (fromId === undefined || toId === undefined) return
+
+          const from = this.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(fromId)}"]`)
+          const to = this.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(toId)}"]`)
+          const path = relationship.querySelector<SVGPathElement>("[data-relationship-path]")
+          const label = relationship.querySelector<SVGTextElement>("[data-relationship-label]")
+          if (from === null || to === null || path === null || label === null) return
+
+          const fromRect = from.getBoundingClientRect()
+          const toRect = to.getBoundingClientRect()
+          const fromCenterX = fromRect.left - canvasRect.left + fromRect.width / 2
+          const fromCenterY = fromRect.top - canvasRect.top + fromRect.height / 2
+          const toCenterX = toRect.left - canvasRect.left + toRect.width / 2
+          const toCenterY = toRect.top - canvasRect.top + toRect.height / 2
+
+          let d: string
+          let labelX: number
+          let labelY: number
+
+          if (fromId === "import-orders" && toId === "domain-model") {
+            const startX = fromRect.left - canvasRect.left
+            const startY = fromCenterY
+            const routeX = startX - 36
+            const endY = toRect.bottom - canvasRect.top
+            d = `M ${startX} ${startY} H ${routeX} V ${endY}`
+            labelX = (startX + routeX) / 2
+            labelY = startY - 7
+          } else if (Math.abs(toCenterX - fromCenterX) < 90) {
+            const movingDown = toCenterY > fromCenterY
+            const startX = fromCenterX
+            const startY = movingDown
+              ? fromRect.bottom - canvasRect.top
+              : fromRect.top - canvasRect.top
+            const endX = toCenterX
+            const endY = movingDown ? toRect.top - canvasRect.top : toRect.bottom - canvasRect.top
+            const middleY = (startY + endY) / 2
+            d = `M ${startX} ${startY} C ${startX} ${middleY}, ${endX} ${middleY}, ${endX} ${endY}`
+            labelX = startX + 8
+            labelY = middleY - 5
+          } else {
+            const movingRight = toCenterX > fromCenterX
+            const startX = movingRight
+              ? fromRect.right - canvasRect.left
+              : fromRect.left - canvasRect.left
+            const endX = movingRight
+              ? toRect.left - canvasRect.left
+              : toRect.right - canvasRect.left
+            const middleX = (startX + endX) / 2
+            d = `M ${startX} ${fromCenterY} C ${middleX} ${fromCenterY}, ${middleX} ${toCenterY}, ${endX} ${toCenterY}`
+            labelX = middleX
+            labelY = (fromCenterY + toCenterY) / 2 - 7
+          }
+
+          path.setAttribute("d", d)
+          label.setAttribute("x", String(labelX))
+          label.setAttribute("y", String(labelY))
+        },
+      )
     }
   }
 
@@ -378,75 +967,294 @@ const isHighlighted = (related: readonly string[]) =>
 </script>
 
 <style>
-  .architecture-layout {
-    display: grid;
-    gap: 1.25rem;
-    padding: 1.25rem;
-  }
-
-  .architecture-layout:not(.is-compact) {
-    grid-template-columns: minmax(13rem, 0.8fr) minmax(0, 1.5fr);
-  }
-
-  .architecture-controls {
-    align-self: start;
-  }
-
-  .architecture-control {
+  .architecture-frame {
+    overflow: hidden;
     border: 1px solid var(--color-zinc-200);
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--color-white) 75%, transparent);
-    padding: 0.625rem 0.75rem;
-    text-align: left;
+    border-radius: 0.875rem;
+    background: color-mix(in srgb, var(--color-white) 82%, transparent);
+  }
+
+  .architecture-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--color-zinc-200);
+    padding: 1.125rem 1.25rem;
+  }
+
+  .architecture-eyebrow,
+  .architecture-title,
+  .architecture-subtitle,
+  .architecture-group-label,
+  .architecture-boundary-label,
+  .architecture-node-type,
+  .architecture-node-title,
+  .architecture-node-detail,
+  .architecture-selection-title,
+  .architecture-selection-pain,
+  .architecture-strip-label,
+  .architecture-dynamic-heading p {
+    margin: 0;
+  }
+
+  .architecture-eyebrow,
+  .architecture-group-label,
+  .architecture-boundary-label,
+  .architecture-strip-label {
+    color: var(--docs-architecture-text);
+    font-size: 0.6875rem;
+    font-weight: 750;
+    letter-spacing: 0.09em;
+    line-height: 1rem;
+    text-transform: uppercase;
+  }
+
+  .architecture-title {
+    margin-top: 0.25rem;
+    color: var(--color-zinc-950);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.5rem;
+  }
+
+  .architecture-subtitle {
+    margin-top: 0.125rem;
+    color: var(--color-zinc-600);
     font-size: 0.8125rem;
     line-height: 1.25rem;
-    color: var(--color-zinc-700);
-    transition:
-      border-color 150ms ease,
-      background-color 150ms ease,
-      color 150ms ease;
   }
 
-  .architecture-control:hover,
-  .architecture-control[aria-pressed="true"] {
-    border-color: var(--docs-tutorial-border-strong);
-    background: var(--docs-tutorial-surface-strong);
+  .architecture-link,
+  .tutorial-link {
+    flex: none;
+    color: var(--docs-tutorial-text);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    line-height: 1.25rem;
+    text-decoration: none;
+  }
+
+  .architecture-link:hover,
+  .tutorial-link:hover {
     color: var(--docs-tutorial-text-strong);
+    text-decoration: underline;
   }
 
-  .architecture-control:focus-visible {
+  .architecture-explorer {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.9fr) minmax(0, 1.5fr);
+    gap: 1rem;
+    align-items: end;
+    border-bottom: 1px solid var(--color-zinc-200);
+    padding: 1rem 1.25rem;
+    background: color-mix(in srgb, var(--docs-architecture-surface) 45%, transparent);
+  }
+
+  .architecture-select-label {
+    display: grid;
+    gap: 0.375rem;
+    color: var(--color-zinc-700);
+    font-size: 0.75rem;
+    font-weight: 650;
+  }
+
+  .architecture-select-label select {
+    width: 100%;
+    min-height: 2.5rem;
+    border: 1px solid var(--color-zinc-300);
+    border-radius: 0.5rem;
+    background: var(--color-white);
+    padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+    color: var(--color-zinc-900);
+    font: inherit;
+    font-weight: 500;
+  }
+
+  .architecture-select-label select:focus-visible {
     outline: 2px solid var(--docs-tutorial-focus);
     outline-offset: 2px;
   }
 
   .architecture-selection {
-    margin-top: 1rem;
-    border-top: 1px solid var(--color-zinc-200);
-    padding-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.5rem;
   }
 
-  .architecture-layer {
-    border-radius: 0.625rem;
-    background: color-mix(in srgb, var(--color-white) 58%, transparent);
-    padding: 0.75rem;
+  .architecture-selection[hidden] {
+    display: none;
   }
 
-  .architecture-layer-label {
-    margin: 0 0 0.5rem;
-    font-size: 0.6875rem;
+  .architecture-selection-title {
+    color: var(--color-zinc-950);
+    font-size: 0.8125rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-zinc-500);
+    line-height: 1.25rem;
   }
 
-  .architecture-nodes {
+  .architecture-selection-pain {
+    margin-top: 0.125rem;
+    color: var(--color-zinc-600);
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+  }
+
+  .architecture-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    padding: 0.75rem 1.25rem 0;
+    color: var(--color-zinc-600);
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  .architecture-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .legend-line {
+    width: 1.5rem;
+    border-top: 1.5px solid var(--docs-architecture-border-strong);
+  }
+
+  .legend-line.is-dashed {
+    border-top-style: dashed;
+  }
+
+  .legend-focus {
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 2px solid var(--docs-tutorial-border-strong);
+    border-radius: 0.1875rem;
+    background: var(--docs-tutorial-surface);
+  }
+
+  .architecture-canvas-scroll {
+    overflow-x: auto;
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .architecture-canvas {
+    position: relative;
     display: grid;
-    grid-template-columns: repeat(var(--architecture-columns), minmax(0, 1fr));
+    grid-template-columns: 8.5rem minmax(37rem, 1fr);
+    grid-template-rows: auto auto;
+    gap: 1rem 1.75rem;
+    min-width: 47.25rem;
+    isolation: isolate;
+  }
+
+  .architecture-clients,
+  .architecture-development,
+  .application-boundary {
+    position: relative;
+  }
+
+  .architecture-clients {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .application-boundary {
+    grid-column: 2;
+    grid-row: 1;
+    border: 1px solid var(--docs-architecture-border);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--docs-architecture-surface) 48%, var(--color-white));
+    padding: 2.25rem 0.875rem 0.875rem;
+  }
+
+  .architecture-boundary-label {
+    position: absolute;
+    z-index: 3;
+    top: 0.75rem;
+    left: 0.875rem;
+  }
+
+  .architecture-group-label {
+    position: relative;
+    z-index: 3;
+  }
+
+  .architecture-contract {
+    margin-bottom: 0.75rem;
+  }
+
+  .architecture-runtime {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.8fr) minmax(8.5rem, 1fr) minmax(11rem, 1.3fr);
+    gap: 3.5rem;
+    align-items: stretch;
+  }
+
+  .architecture-column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
     gap: 0.5rem;
   }
 
+  .architecture-entry {
+    justify-content: center;
+  }
+
+  .architecture-entry .architecture-group-label {
+    margin-bottom: auto;
+  }
+
+  .architecture-entry .architecture-node {
+    margin-block: auto;
+  }
+
+  .architecture-operations .architecture-node {
+    flex: 1;
+  }
+
+  .architecture-service-grid {
+    display: grid;
+    flex: 1;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .architecture-support {
+    margin-top: 0.75rem;
+    border-top: 1px dashed var(--docs-architecture-border);
+    padding-top: 0.625rem;
+  }
+
+  .architecture-support-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .architecture-development {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+    border: 1px dashed var(--docs-architecture-border);
+    border-radius: 0.625rem;
+    background: color-mix(in srgb, var(--docs-architecture-surface) 34%, transparent);
+    padding: 0.625rem;
+  }
+
   .architecture-node {
+    position: relative;
+    z-index: 3;
     min-width: 0;
     border: 1px solid var(--color-zinc-200);
     border-radius: 0.5rem;
@@ -459,125 +1267,384 @@ const isHighlighted = (related: readonly string[]) =>
       box-shadow 160ms ease;
   }
 
-  [data-filtered="true"] .architecture-node[data-highlighted="true"] {
-    border-color: var(--docs-architecture-border-strong);
-    background: var(--docs-architecture-surface);
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--docs-architecture-border-strong) 24%, transparent);
-  }
-
-  [data-filtered="true"] .architecture-node[data-highlighted="true"] .architecture-node-title {
-    color: var(--docs-architecture-text);
-  }
-
-  [data-filtered="true"] .architecture-node[data-highlighted="false"] {
-    opacity: 0.28;
+  .architecture-node-type {
+    color: var(--color-zinc-500);
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 0.875rem;
+    text-transform: uppercase;
   }
 
   .architecture-node-title {
-    margin: 0;
-    font-size: 0.8125rem;
-    font-weight: 650;
-    line-height: 1.2rem;
+    margin-top: 0.125rem;
     color: var(--color-zinc-950);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.125rem;
   }
 
   .architecture-node-detail {
-    margin: 0.1875rem 0 0;
-    font-size: 0.6875rem;
-    line-height: 1rem;
+    margin-top: 0.125rem;
     color: var(--color-zinc-500);
+    font-size: 0.625rem;
+    line-height: 0.9375rem;
   }
 
-  .architecture-arrow {
-    display: flex;
-    height: 1.25rem;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-zinc-400);
+  [data-filtered="true"] .architecture-node[data-highlighted="true"] {
+    border-color: var(--docs-tutorial-border-strong);
+    background: var(--docs-tutorial-surface);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--docs-tutorial-border-strong) 20%, transparent);
   }
 
-  .architecture-eyebrow {
-    color: var(--docs-architecture-text);
-  }
-
-  .architecture-link {
-    color: var(--docs-architecture-text);
-  }
-
-  .architecture-link:hover {
-    color: var(--docs-architecture-text);
-  }
-
-  .tutorial-link {
-    color: var(--docs-tutorial-text);
-  }
-
-  .tutorial-link:hover {
+  [data-filtered="true"] .architecture-node[data-highlighted="true"] .architecture-node-title {
     color: var(--docs-tutorial-text-strong);
   }
 
-  .is-compact .architecture-node-detail {
+  [data-filtered="true"] .architecture-node[data-highlighted="false"] {
+    opacity: 0.18;
+  }
+
+  .architecture-connectors {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .architecture-relationship path {
+    fill: none;
+    stroke: var(--docs-architecture-border-strong);
+    stroke-width: 1.35;
+    vector-effect: non-scaling-stroke;
+    transition:
+      opacity 160ms ease,
+      stroke 160ms ease,
+      stroke-width 160ms ease;
+  }
+
+  .architecture-relationship[data-kind="contract"] path,
+  .architecture-relationship[data-kind="support"] path,
+  .architecture-relationship[data-kind="development"] path {
+    stroke-dasharray: 4 4;
+  }
+
+  .architecture-relationship text {
+    fill: var(--docs-architecture-text);
+    stroke: var(--color-white);
+    stroke-width: 5px;
+    paint-order: stroke;
+    font-size: 9px;
+    font-weight: 650;
+    text-anchor: middle;
+    transition:
+      opacity 160ms ease,
+      fill 160ms ease;
+  }
+
+  .architecture-relationship marker path,
+  .architecture-connectors marker path {
+    fill: var(--docs-architecture-border-strong);
+  }
+
+  .architecture-connectors marker[id*="arrow-active"] path {
+    fill: var(--docs-tutorial-border-strong);
+  }
+
+  [data-filtered="true"] .architecture-relationship[data-highlighted="true"] path {
+    stroke: var(--docs-tutorial-border-strong);
+    stroke-width: 2;
+  }
+
+  [data-filtered="true"] .architecture-relationship[data-highlighted="true"] text {
+    fill: var(--docs-tutorial-text);
+  }
+
+  [data-filtered="true"] .architecture-relationship[data-highlighted="false"] {
+    opacity: 0.035;
+  }
+
+  .architecture-focus-strip,
+  .architecture-dynamic {
+    border-top: 1px solid var(--color-zinc-200);
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .architecture-focus-strip {
     display: none;
   }
 
-  .is-compact .architecture-layer {
+  .architecture-focus-strip ol,
+  .architecture-dynamic ol {
+    display: grid;
+    grid-template-columns: repeat(var(--step-count, 3), minmax(0, 1fr));
+    gap: 2.25rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .architecture-focus-strip li,
+  .architecture-dynamic li {
+    position: relative;
+    min-width: 0;
+  }
+
+  .architecture-focus-node,
+  .architecture-dynamic-step {
+    min-height: 100%;
+    border: 1px solid var(--docs-tutorial-border-strong);
+    border-radius: 0.5rem;
+    background: var(--docs-tutorial-surface);
     padding: 0.625rem;
   }
 
-  .is-compact .architecture-arrow {
-    height: 1rem;
+  .architecture-focus-node {
+    display: grid;
+    gap: 0.125rem;
   }
 
-  :global(.dark) .architecture-control {
+  .architecture-focus-node span {
+    color: var(--docs-tutorial-text);
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 0.875rem;
+    text-transform: uppercase;
+  }
+
+  .architecture-focus-node strong,
+  .architecture-dynamic-step strong {
+    color: var(--docs-tutorial-text-strong);
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .architecture-focus-connector,
+  .architecture-dynamic-connector {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 0.375rem);
+    width: 1.5rem;
+    transform: translateY(-50%);
+  }
+
+  .architecture-focus-connector span,
+  .architecture-dynamic-connector span {
+    position: absolute;
+    right: 0;
+    bottom: 0.375rem;
+    left: 0;
+    color: var(--color-zinc-500);
+    font-size: 0.5625rem;
+    line-height: 0.75rem;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .architecture-focus-connector i,
+  .architecture-dynamic-connector i {
+    display: block;
+    border-top: 1.5px solid var(--docs-tutorial-border-strong);
+  }
+
+  .architecture-focus-connector i::after,
+  .architecture-dynamic-connector i::after {
+    position: absolute;
+    top: -0.1875rem;
+    right: -0.0625rem;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-top: 1.5px solid var(--docs-tutorial-border-strong);
+    border-right: 1.5px solid var(--docs-tutorial-border-strong);
+    content: "";
+    transform: rotate(45deg);
+  }
+
+  .architecture-dynamic-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .architecture-dynamic-heading > p:last-child {
+    color: var(--color-zinc-600);
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  .architecture-dynamic ol {
+    grid-template-columns: repeat(var(--dynamic-columns), minmax(0, 1fr));
+  }
+
+  .architecture-dynamic-step {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    border-color: var(--docs-architecture-border);
+    background: color-mix(in srgb, var(--docs-architecture-surface) 52%, transparent);
+  }
+
+  .architecture-step-number {
+    display: grid;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--docs-tutorial-surface-strong);
+    color: var(--docs-tutorial-text-strong);
+    font-size: 0.625rem;
+    font-weight: 750;
+  }
+
+  .architecture-dynamic-step > div {
+    display: grid;
+    gap: 0.125rem;
+  }
+
+  .architecture-dynamic-step > div > span {
+    color: var(--color-zinc-600);
+    font-size: 0.625rem;
+    line-height: 0.875rem;
+  }
+
+  [data-compact="true"] .architecture-node-detail {
+    display: none;
+  }
+
+  :global(.dark) .architecture-frame {
     border-color: var(--color-zinc-800);
-    background: color-mix(in srgb, var(--color-zinc-900) 72%, transparent);
+    background: color-mix(in srgb, var(--color-zinc-950) 82%, transparent);
+  }
+
+  :global(.dark) .architecture-header,
+  :global(.dark) .architecture-explorer,
+  :global(.dark) .architecture-focus-strip,
+  :global(.dark) .architecture-dynamic {
+    border-color: var(--color-zinc-800);
+  }
+
+  :global(.dark) .architecture-title,
+  :global(.dark) .architecture-selection-title {
+    color: var(--color-zinc-100);
+  }
+
+  :global(.dark) .architecture-subtitle,
+  :global(.dark) .architecture-selection-pain,
+  :global(.dark) .architecture-legend,
+  :global(.dark) .architecture-dynamic-heading > p:last-child {
+    color: var(--color-zinc-400);
+  }
+
+  :global(.dark) .architecture-explorer {
+    background: color-mix(in srgb, var(--docs-architecture-surface) 35%, transparent);
+  }
+
+  :global(.dark) .architecture-select-label {
     color: var(--color-zinc-300);
   }
 
-  :global(.dark) .architecture-control:hover,
-  :global(.dark) .architecture-control[aria-pressed="true"] {
-    border-color: var(--docs-tutorial-border-strong);
-    background: var(--docs-tutorial-surface-strong);
-    color: var(--docs-tutorial-text-strong);
-  }
-
-  :global(.dark) .architecture-selection {
-    border-color: var(--color-zinc-800);
-  }
-
-  :global(.dark) .architecture-layer {
-    background: color-mix(in srgb, var(--color-zinc-900) 50%, transparent);
-  }
-
+  :global(.dark) .architecture-select-label select,
   :global(.dark) .architecture-node {
-    border-color: var(--color-zinc-800);
+    border-color: var(--color-zinc-700);
     background: var(--color-zinc-950);
+    color: var(--color-zinc-100);
   }
 
-  :global(.dark) [data-filtered="true"] .architecture-node[data-highlighted="true"] {
-    border-color: var(--docs-architecture-border-strong);
-    background: var(--docs-architecture-surface);
+  :global(.dark) .application-boundary {
+    background: color-mix(in srgb, var(--docs-architecture-surface) 45%, var(--color-zinc-950));
   }
 
   :global(.dark) .architecture-node-title {
     color: var(--color-zinc-100);
   }
 
+  :global(.dark) .architecture-node-type,
   :global(.dark) .architecture-node-detail,
-  :global(.dark) .architecture-layer-label {
+  :global(.dark) .architecture-focus-connector span,
+  :global(.dark) .architecture-dynamic-connector span,
+  :global(.dark) .architecture-dynamic-step > div > span {
     color: var(--color-zinc-400);
   }
 
+  :global(.dark) .architecture-relationship text {
+    stroke: var(--color-zinc-950);
+  }
+
+  :global(.dark) [data-filtered="true"] .architecture-node[data-highlighted="true"] {
+    border-color: var(--docs-tutorial-border-strong);
+    background: var(--docs-tutorial-surface);
+  }
+
   @media (max-width: 52rem) {
-    .architecture-layout:not(.is-compact) {
+    .architecture-explorer {
       grid-template-columns: 1fr;
+      align-items: start;
+    }
+
+    .architecture-selection {
+      align-items: flex-start;
     }
   }
 
   @media (max-width: 40rem) {
-    .architecture-nodes {
+    .architecture-header {
+      display: grid;
+      padding: 1rem;
+    }
+
+    .architecture-explorer,
+    .architecture-canvas-scroll,
+    .architecture-focus-strip,
+    .architecture-dynamic {
+      padding-inline: 1rem;
+    }
+
+    .architecture-legend {
+      padding-inline: 1rem;
+    }
+
+    [data-compact="true"] .architecture-canvas-scroll,
+    [data-compact="true"] .architecture-legend {
+      display: none;
+    }
+
+    [data-compact="true"] .architecture-focus-strip {
+      display: block;
+    }
+
+    .architecture-focus-strip ol,
+    .architecture-dynamic ol {
       grid-template-columns: 1fr;
+      gap: 2.25rem;
+    }
+
+    .architecture-focus-connector,
+    .architecture-dynamic-connector {
+      top: auto;
+      right: auto;
+      bottom: calc(100% + 0.375rem);
+      left: 50%;
+      width: 1.5rem;
+      transform: translateX(-50%) rotate(90deg);
+    }
+
+    .architecture-focus-connector span,
+    .architecture-dynamic-connector span {
+      right: auto;
+      bottom: 0.375rem;
+      left: 50%;
+      transform: translateX(-50%) rotate(-90deg);
+    }
+
+    .architecture-dynamic-heading {
+      display: grid;
+      gap: 0.25rem;
     }
   }
 </style>
