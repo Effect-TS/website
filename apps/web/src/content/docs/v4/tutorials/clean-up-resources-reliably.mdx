@@ -8,22 +8,19 @@ sidebar:
 
 import {
   TutorialCheckpoint,
-  TutorialPainPoint,
+  EffectStrength,
 } from "@astrojs/starlight/components"
 
-<TutorialPainPoint title="Resources outlive failed or cancelled work">
-  `finally` and `using` run cleanup when control leaves a block, but cancelling
-  pending Promise work does not make it leave that block automatically.
-  Coordinating partial acquisition, cancellation, and cleanup therefore still
-  requires manual work.
+<EffectStrength title="Cleanup follows the resource lifetime">
 
-With Effect, a `Scope` owns the
-lifetime of an operation. A finalizer is a cleanup operation registered in that
-Scope. `Effect.acquireRelease`
-registers one after a resource is acquired successfully. Closing the Scope
-after success, failure, or cancellation runs every registered finalizer.
+With Effect, a `Scope` owns the lifetime of an operation. A finalizer is a
+cleanup operation registered in that Scope. `Effect.acquireRelease` registers
+one after a resource is acquired successfully.
 
-</TutorialPainPoint>
+Closing the Scope after success, failure, or cancellation runs every registered
+finalizer, including cleanup for resources acquired before later work failed.
+
+</EffectStrength>
 
 ## What you will build
 
@@ -239,7 +236,7 @@ edit, so the same process can remain running throughout the tutorial:
 node --watch server.ts
 ```
 
-## The solution, step by step
+## Tie cleanup to the lifetime of the work
 
 ### 1. Find the gap around `finally`
 

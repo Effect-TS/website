@@ -11,7 +11,7 @@ when a concrete MDX pattern is needed.
 ## Contents
 
 - [Establish the reader and outcome](#establish-the-reader-and-outcome)
-- [Build a pain-first progression](#build-a-pain-first-progression)
+- [Build a strength-led progression](#build-a-strength-led-progression)
 - [Use a realistic controlled backend](#use-a-realistic-controlled-backend)
 - [Keep the tutorial suite coherent](#keep-the-tutorial-suite-coherent)
 - [Show where the tutorial fits](#show-where-the-tutorial-fits)
@@ -28,27 +28,31 @@ when a concrete MDX pattern is needed.
   error channels, interruption, defects, schedules, layers, or services.
 - Treat every tutorial as the reader's first encounter with Effect. Do not rely
   on another tutorial having introduced an API, term, or mental model.
-- Organize the entire tutorial around a common development pain. Treat the
-  scenario, code, and Effect APIs as means for exploring Effect's solution, not
+- Organize the entire tutorial around a recognizable Effect strength. Treat the
+  scenario, code, and Effect APIs as means for experiencing that strength, not
   as subjects for a feature tour.
 - Name the tutorial after the positive outcome Effect provides. Do not name it
   after an API, feature, or scenario-specific task.
-- Begin with exactly one `TutorialPainPoint`. Give it a short title that names
-  the pain directly. In two short paragraphs, first describe the problem in
-  ordinary TypeScript, then explain at a high level how Effect addresses it.
-- Keep this terminology strict: the pain point is the problem; the tutorial
-  title is the positive outcome.
-- Introduce the concrete scenario immediately after the pain-point card. Keep
+- Begin with exactly one `EffectStrength`. Give it a short, positive title
+  that names the capability Effect provides. Describe what Effect makes
+  possible and the concrete benefit for the reader before explaining the
+  ordinary limitation that makes the capability valuable. Do not remove the
+  motivating problem merely to keep the framing positive.
+- Keep this terminology strict: the strength is the capability; the tutorial
+  title is the positive outcome the reader will learn to achieve.
+- Introduce the concrete scenario immediately after the strength card. Keep
   scenario-specific actors and details outside the card.
 - Use `## What you will build` to state the observable behavior of the finished
   backend. Use a compact table when several cases must be distinguished.
 - Keep the tutorial learning-oriented and guided. Do not turn it into an
   explanation page, reference page, or menu of alternatives.
 
-## Build a pain-first progression
+## Build a strength-led progression
 
 1. Start with a small working backend in conventional TypeScript. Prefer one
-   local HTTP server and one endpoint.
+   local HTTP server and one endpoint. Make the baseline realistic and
+   competent: use the documented APIs, error types, and ordinary handling
+   available to the reader.
 2. Keep the starter familiar and short. Inline one-use types and helpers when a
    name adds ceremony rather than clarity.
 3. Immediately show what can go wrong.
@@ -61,10 +65,21 @@ when a concrete MDX pattern is needed.
 7. Preserve one linear project state. Every code block and checkpoint must
    describe the same current version of the project.
 
-Keep the connection to the original pain visible at every step. Identify the
-limitation being removed, show the capability that removes it, and demonstrate
-the resulting behavior. Remove or relocate sections that mainly showcase an
-API without advancing that journey.
+Introduce the numbered progression with a specific H2 that names the
+transformation the reader is about to follow. Keep its position and heading
+level consistent across tutorials, but do not reuse a generic title such as
+“The solution, step by step.”
+
+Keep the connection to the Effect strength visible at every step. Identify the
+ordinary limitation being removed, show the capability that removes it, and
+demonstrate the resulting behavior. Remove or relocate sections that mainly
+showcase an API without advancing that journey.
+
+Never weaken the baseline to make Effect look better. Before presenting a
+limitation, ask whether a competent TypeScript developer could address it with
+the information already available. If so, show that reasonable solution and
+teach the actual remaining advantage of Effect, such as making the contract
+visible in the type or expressing policies without manual coordination.
 
 Allow a tutorial to be long when necessary, but keep each step small. Avoid
 `Effect.gen`, `Schedule`, Layers, and other new abstractions unless the current

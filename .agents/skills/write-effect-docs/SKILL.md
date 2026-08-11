@@ -126,6 +126,14 @@ methods such as `.pipe(...)`; a qualified-name scan does not find them reliably.
 
 - Verify every snippet against the installed package rather than remembered
   APIs.
+- Keep comparisons honest. Show the strongest reasonable implementation a
+  competent TypeScript developer would write with the APIs and information
+  already available.
+- Never omit documented errors, standard type narrowing, validation, cleanup,
+  cancellation, or other ordinary handling merely to manufacture a problem
+  for Effect to solve.
+- State when ordinary TypeScript can produce the same behavior. Demonstrate
+  Effect's actual advantage without misrepresenting the alternative.
 - Give each code fence a short, meaningful title.
 - Separate adjacent code fences with a brief transition so they do not render
   as one block.
@@ -142,9 +150,10 @@ encode a page's Diátaxis category in the color of links that point to it. Keep
 current-page navigation neutral because it communicates location rather than
 document family.
 
-Keep pain points amber and errors red. Define and inspect both light and dark
-values for any new semantic style, and keep text, labels, icons, borders, or
-other non-color cues so color is never the only distinction.
+Keep Effect-strength cards visually distinct from errors and checkpoints.
+Define and inspect both light and dark values for any new semantic style, and
+keep text, labels, icons, borders, or other non-color cues so color is never the
+only distinction.
 
 Use normal documentation typography for explanatory content. Prefer native
 Markdown headings, tables, and lists for static information. Do not hide static
