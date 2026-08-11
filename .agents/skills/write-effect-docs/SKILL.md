@@ -143,9 +143,12 @@ documentation token already expresses the meaning.
 - Use emerald `--docs-tutorial-*` tokens for tutorials and checkpoints.
 - Use sky `--docs-guide-*` tokens for how-to guides.
 - Use indigo `--docs-reference-*` tokens for API reference content.
-- Use fuchsia `--docs-explanation-*` tokens for explanation.
+- Use orange `--docs-explanation-*` tokens for explanation.
 - Use neutral slate `--docs-architecture-*` tokens for architecture.
 - Keep pain points amber and errors red.
+- Color an internal documentation link according to the Diátaxis category of
+  its destination, never according to the category of the current page. Keep
+  links neutral when their destination has no documentation category.
 - Keep current-page navigation neutral because it communicates location rather
   than document family.
 

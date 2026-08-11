@@ -6,6 +6,7 @@ import { ChevronDown, Menu } from "@lucide/astro"
 
 import Footer from "@/components/Footer.astro"
 import CopyMarkdownButton from "@/components/docs/CopyMarkdownButton.astro"
+import DocsLink from "@/components/docs/DocsLink.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
@@ -23,14 +24,6 @@ const { Content, headings } = await render(entry)
 
 const currentId = entry.id
 const currentVersion = currentId.split("/")[0]
-const currentDocsFamily =
-  entry.data.diataxis ?? (currentId.split("/")[1] === "tutorials" ? "tutorial" : "how-to")
-const currentDocsFamilyClass = {
-  tutorial: "docs-article-tutorial",
-  "how-to": "docs-article-guide",
-  reference: "docs-article-reference",
-  explanation: "docs-article-explanation",
-}[currentDocsFamily]
 const currentLabel = entryLabel(entry)
 const versions = ["v4", "v3"] as const
 
@@ -289,20 +282,17 @@ const markdownUrl = `/docs/${entry.id.replace(/\/index$/, "")}.md`
         <!-- Main content -->
         <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
           <article
-            class:list={[
-              `prose prose-zinc dark:prose-invert prose-sm md:prose-base max-w-none
-               prose-headings:font-semibold prose-headings:tracking-tight
-               prose-a:no-underline [&_a:hover]:underline
-               prose-code:bg-black/10 prose-code:text-zinc-700 dark:prose-code:bg-white/10 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
-               prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700`,
-              currentDocsFamilyClass,
-            ]}
+            class="prose prose-zinc dark:prose-invert prose-sm md:prose-base max-w-none
+              prose-headings:font-semibold prose-headings:tracking-tight
+              prose-a:no-underline [&_a:hover]:underline
+              prose-code:bg-black/10 prose-code:text-zinc-700 dark:prose-code:bg-white/10 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+              prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700"
           >
             <div class="mb-8 flex items-start justify-between gap-4">
               <h1 class="!m-0">{entry.data.title}</h1>
               <CopyMarkdownButton markdownUrl={markdownUrl} />
             </div>
-            <Content />
+            <Content components={{ a: DocsLink }} />
           </article>
         </main>
 
