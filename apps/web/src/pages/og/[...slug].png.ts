@@ -7,11 +7,12 @@ import * as Option from "effect/Option"
 import type { OgTemplateProps } from "@/services/OpenGraph"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import {
-  loadAssets,
+  createOgAssets,
   renderApiReferenceOg,
   renderBlogOg,
   renderDocsOg,
 } from "@/services/OpenGraph"
+import { loadOgFonts } from "@/services/OpenGraphFonts"
 
 // On-demand server endpoint: slugs derive from arbitrary page pathnames
 // (see BaseLayout.getOgImagePath), so the route cannot be enumerated at build
@@ -122,7 +123,7 @@ export const GET: APIRoute = async (context) => {
     if (card === undefined) {
       return notFound()
     }
-    const ogAssets = await loadAssets()
+    const ogAssets = createOgAssets(await loadOgFonts(context.url))
     return pngResponse(await renderApiReferenceOg(card.template, ogAssets))
   }
 
@@ -131,7 +132,7 @@ export const GET: APIRoute = async (context) => {
     if (Option.isNone(ogProps)) {
       return notFound()
     }
-    const ogAssets = await loadAssets()
+    const ogAssets = createOgAssets(await loadOgFonts(context.url))
     return pngResponse(await renderDocsOg(ogProps.value, ogAssets))
   }
 
@@ -140,7 +141,7 @@ export const GET: APIRoute = async (context) => {
     if (Option.isNone(ogProps)) {
       return notFound()
     }
-    const ogAssets = await loadAssets()
+    const ogAssets = createOgAssets(await loadOgFonts(context.url))
     return pngResponse(await renderBlogOg(ogProps.value, ogAssets))
   }
 

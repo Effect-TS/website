@@ -1,10 +1,6 @@
 import type { CSSProperties } from "react"
 import { Resvg } from "@resvg/resvg-js"
 import satori, { type SatoriOptions } from "satori"
-import interBoldDataUri from "../assets/fonts/Inter-Bold.ttf?inline"
-import interRegularDataUri from "../assets/fonts/Inter-Regular.ttf?inline"
-import jetbrainsMonoBoldDataUri from "../assets/fonts/JetBrainsMono-Bold.ttf?inline"
-import jetbrainsMonoDataUri from "../assets/fonts/JetBrainsMono-Regular.ttf?inline"
 import {
   OPENGRAPH_IMAGE_HEIGHT,
   OPENGRAPH_IMAGE_WIDTH,
@@ -22,56 +18,24 @@ export interface ApiReferenceOgTemplateProps {
   readonly title: string
 }
 
-type SatoriFont = NonNullable<SatoriOptions["fonts"]>[number]
+export type OgFont = NonNullable<SatoriOptions["fonts"]>[number]
 
 export interface OgAssets {
-  readonly fonts: ReadonlyArray<SatoriFont>
+  readonly fonts: ReadonlyArray<OgFont>
   readonly docsBgDataUri: string
   readonly blogBgDataUri: string
 }
 
 // ---------------------------------------------------------------------------
-// Asset loading — decode once, cached for the lifetime of the function.
+// Assets
 // ---------------------------------------------------------------------------
 
-let _assets: OgAssets | null = null
-
-export async function loadAssets(): Promise<OgAssets> {
-  if (_assets !== null) {
-    return _assets
-  }
-  const fonts: Array<SatoriFont> = [
-    {
-      name: "Inter",
-      style: "normal",
-      data: dataUriToArrayBuffer(interRegularDataUri),
-      weight: 400,
-    },
-    {
-      name: "Inter",
-      style: "normal",
-      data: dataUriToArrayBuffer(interBoldDataUri),
-      weight: 700,
-    },
-    {
-      name: "JetBrains Mono",
-      style: "normal",
-      data: dataUriToArrayBuffer(jetbrainsMonoDataUri),
-      weight: 400,
-    },
-    {
-      name: "JetBrains Mono",
-      style: "normal",
-      data: dataUriToArrayBuffer(jetbrainsMonoBoldDataUri),
-      weight: 700,
-    },
-  ]
-  _assets = {
+export function createOgAssets(fonts: ReadonlyArray<OgFont>): OgAssets {
+  return {
     fonts,
     docsBgDataUri,
     blogBgDataUri,
   }
-  return _assets
 }
 
 // ---------------------------------------------------------------------------
@@ -153,13 +117,6 @@ interface OgNode {
   type: string
   key: string | null
   props: OgNodeProps
-}
-
-const dataUriToArrayBuffer = (dataUri: string): ArrayBuffer => {
-  const bytes = Uint8Array.from(
-    Buffer.from(dataUri.slice(dataUri.indexOf(",") + 1), "base64"),
-  )
-  return bytes.buffer
 }
 
 const safeText = (text: string): string => {

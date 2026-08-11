@@ -15,7 +15,7 @@ import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-edi
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 
-const GoogleFontProvider = fontProviders.google()
+const FontsourceProvider = fontProviders.fontsource()
 
 // https://astro.build/config
 const config = defineConfig({
@@ -86,18 +86,39 @@ const config = defineConfig({
 
   fonts: [
     {
-      provider: GoogleFontProvider,
+      provider: FontsourceProvider,
       name: "Inter",
-      weights: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+      weights: ["100 900"],
+      styles: ["normal", "italic"],
       cssVariable: "--font-inter",
       fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
     },
     {
-      provider: GoogleFontProvider,
+      provider: FontsourceProvider,
+      name: "Inter",
+      weights: ["400", "700"],
+      styles: ["normal"],
+      formats: ["woff"],
+      cssVariable: "--font-og-inter",
+      fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
+    },
+    {
+      provider: FontsourceProvider,
       name: "JetBrains Mono",
-      weights: ["300", "400", "500", "600", "700"],
+      weights: ["300 700"],
+      styles: ["normal", "italic"],
       display: "swap",
       cssVariable: "--font-jetbrains-mono",
+      fallbacks: ["ui-monospace", "SFMono-Regular", "monospace"],
+    },
+    {
+      provider: FontsourceProvider,
+      name: "JetBrains Mono",
+      weights: ["400", "700"],
+      styles: ["normal"],
+      formats: ["woff"],
+      display: "swap",
+      cssVariable: "--font-og-jetbrains-mono",
       fallbacks: ["ui-monospace", "SFMono-Regular", "monospace"],
     },
   ],
