@@ -9,7 +9,6 @@ import {
   fontProviders,
   svgoOptimizer,
 } from "astro/config"
-import { readdirSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
@@ -18,25 +17,11 @@ import { twieRedirectList } from "./src/generated/twie-redirects"
 
 const GoogleFontProvider = fontProviders.google()
 
-const ogAssetPngs = (
-  readdirSync("src/pages/og/_assets", { recursive: true }) as string[]
-)
-  .filter((f) => f.endsWith(".png"))
-  .map((f) => `./src/pages/og/_assets/${f}`)
-
 // https://astro.build/config
 const config = defineConfig({
   site: "https://effect.website",
 
-  adapter: vercel({
-    includeFiles: [
-      "./src/assets/fonts/Inter-Regular.ttf",
-      "./src/assets/fonts/Inter-Bold.ttf",
-      "./src/assets/fonts/JetBrainsMono-Regular.ttf",
-      "./src/assets/fonts/JetBrainsMono-Bold.ttf",
-      ...ogAssetPngs,
-    ],
-  }),
+  adapter: vercel(),
 
   trailingSlash: "never",
 

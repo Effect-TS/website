@@ -4,8 +4,6 @@ import * as Array from "effect/Array"
 import { pipe } from "effect/Function"
 import * as Function from "effect/Function"
 import * as Option from "effect/Option"
-import { readFile } from "node:fs/promises"
-import { join } from "node:path"
 import type { OgTemplateProps } from "@/services/OpenGraph"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import {
@@ -13,7 +11,6 @@ import {
   renderApiReferenceOg,
   renderBlogOg,
   renderDocsOg,
-  webSourceRoot,
 } from "@/services/OpenGraph"
 
 // On-demand server endpoint: slugs derive from arbitrary page pathnames
@@ -80,31 +77,29 @@ async function findBlogPost(documentPath: string) {
   )
 }
 
-const tryReadFile = async (
-  filePath: string,
-): Promise<Option.Option<Uint8Array>> => {
-  try {
-    return Option.some(await readFile(filePath))
-  } catch {
-    return Option.none()
-  }
-}
+const staticPngs = import.meta.glob<string>("./_assets/**/*.png", {
+  eager: true,
+  import: "default",
+  query: "?inline",
+})
 
-async function readStaticPng(
-  imagePath: string,
-): Promise<Option.Option<Uint8Array>> {
+function readStaticPng(imagePath: string): Option.Option<Uint8Array> {
   if (imagePath.includes("..")) {
     return Option.none()
   }
 
-  const base = join(webSourceRoot, "pages/og/_assets")
-  const firstAttempt = await tryReadFile(`${base}/${imagePath}.png`)
-
-  if (Option.isSome(firstAttempt)) {
-    return firstAttempt
-  }
-
-  return tryReadFile(`${base}/${imagePath}/index.png`)
+  const dataUri =
+    staticPngs[`./_assets/${imagePath}.png`] ??
+    staticPngs[`./_assets/${imagePath}/index.png`]
+  return pipe(
+    dataUri,
+    Option.fromNullishOr,
+    Option.map((value) =>
+      Uint8Array.from(
+        Buffer.from(value.slice(value.indexOf(",") + 1), "base64"),
+      ),
+    ),
+  )
 }
 
 export const GET: APIRoute = async (context) => {
@@ -113,7 +108,7 @@ export const GET: APIRoute = async (context) => {
     return notFound()
   }
 
-  const staticImage = await readStaticPng(maybeSlug.value)
+  const staticImage = readStaticPng(maybeSlug.value)
   if (Option.isSome(staticImage)) {
     return pngResponse(staticImage.value)
   }

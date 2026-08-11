@@ -99,7 +99,7 @@ test("renders a 1200 by 630 PNG", async () => {
       eyebrow: "API Reference",
       title: "HttpClient",
     },
-    await loadAssets(new URL("../../../src/", import.meta.url)),
+    await loadAssets(),
   )
   const view = new DataView(image.buffer, image.byteOffset, image.byteLength)
 
