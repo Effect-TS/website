@@ -1,4 +1,5 @@
 import { defineConfig } from "vite-plus"
+import { fileURLToPath } from "node:url"
 
 export default defineConfig({
   staged: {
@@ -28,6 +29,20 @@ export default defineConfig({
   test: {
     projects: [
       {
+        resolve: {
+          alias: {
+            "@/": fileURLToPath(new URL("./apps/web/src/", import.meta.url)),
+            "astro:assets": fileURLToPath(
+              new URL("./apps/web/test/stubs/astro-assets.ts", import.meta.url),
+            ),
+            "astro:content": fileURLToPath(
+              new URL(
+                "./apps/web/test/stubs/astro-content.ts",
+                import.meta.url,
+              ),
+            ),
+          },
+        },
         test: {
           name: "web",
           root: "apps/web",

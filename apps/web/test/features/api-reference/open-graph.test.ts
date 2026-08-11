@@ -1,10 +1,11 @@
 import { assert, test } from "vite-plus/test"
+import { readFile } from "node:fs/promises"
 import {
   type ApiReferenceOpenGraphEntry,
   resolveApiReferenceOpenGraph,
 } from "../../../src/features/api-reference/open-graph.ts"
 import {
-  loadAssets,
+  createOgAssets,
   renderApiReferenceOg,
 } from "../../../src/services/OpenGraph.ts"
 
@@ -94,12 +95,30 @@ test("rejects unknown or malformed routes", () => {
 })
 
 test("renders a 1200 by 630 PNG", async () => {
+  const fontRoot = new URL("../../../src/assets/fonts/", import.meta.url)
+  const [regular, bold] = await Promise.all([
+    readFile(new URL("JetBrainsMono-Regular.ttf", fontRoot)),
+    readFile(new URL("JetBrainsMono-Bold.ttf", fontRoot)),
+  ])
   const image = await renderApiReferenceOg(
     {
       eyebrow: "API Reference",
       title: "HttpClient",
     },
-    await loadAssets(new URL("../../../src/", import.meta.url)),
+    createOgAssets([
+      {
+        name: "JetBrains Mono",
+        data: Uint8Array.from(regular).buffer,
+        weight: 400,
+        style: "normal",
+      },
+      {
+        name: "JetBrains Mono",
+        data: Uint8Array.from(bold).buffer,
+        weight: 700,
+        style: "normal",
+      },
+    ]),
   )
   const view = new DataView(image.buffer, image.byteOffset, image.byteLength)
 

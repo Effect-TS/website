@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react"
 import { Resvg } from "@resvg/resvg-js"
-import { readFile } from "node:fs/promises"
-import { join } from "node:path"
 import satori, { type SatoriOptions } from "satori"
 import {
   OPENGRAPH_IMAGE_HEIGHT,
   OPENGRAPH_IMAGE_WIDTH,
 } from "../lib/open-graph.ts"
+import blogBgDataUri from "../pages/og/_assets/blog/base.png?inline"
+import docsBgDataUri from "../pages/og/_assets/docs/base.png?inline"
 
 export interface OgTemplateProps {
   readonly title: string
@@ -18,82 +18,24 @@ export interface ApiReferenceOgTemplateProps {
   readonly title: string
 }
 
-type SatoriFont = NonNullable<SatoriOptions["fonts"]>[number]
+export type OgFont = NonNullable<SatoriOptions["fonts"]>[number]
 
 export interface OgAssets {
-  readonly fonts: ReadonlyArray<SatoriFont>
+  readonly fonts: ReadonlyArray<OgFont>
   readonly docsBgDataUri: string
   readonly blogBgDataUri: string
 }
 
 // ---------------------------------------------------------------------------
-// Asset loading — read once, cached for the lifetime of the function.
-//
-// The Vercel adapter copies files relative to the workspace root. In this
-// monorepo that means deployed files live under `apps/web/src`, while local
-// Astro commands run with `apps/web` as their working directory and see them
-// under `src`.
+// Assets
 // ---------------------------------------------------------------------------
 
-let _assets: OgAssets | null = null
-
-export const webSourceRoot = process.env.VERCEL === "1" ? "apps/web/src" : "src"
-
-export async function loadAssets(
-  root: string | URL = webSourceRoot,
-): Promise<OgAssets> {
-  if (_assets !== null) {
-    return _assets
-  }
-  const asset = (path: string): string | URL =>
-    typeof root === "string" ? join(root, path) : new URL(path, root)
-  const [
-    interRegular,
-    interBold,
-    jetbrainsMono,
-    jetbrainsMonoBold,
-    docsBase,
-    blogBase,
-  ] = await Promise.all([
-    readFile(asset("assets/fonts/Inter-Regular.ttf")),
-    readFile(asset("assets/fonts/Inter-Bold.ttf")),
-    readFile(asset("assets/fonts/JetBrainsMono-Regular.ttf")),
-    readFile(asset("assets/fonts/JetBrainsMono-Bold.ttf")),
-    readFile(asset("pages/og/_assets/docs/base.png")),
-    readFile(asset("pages/og/_assets/blog/base.png")),
-  ])
-  const fonts: Array<SatoriFont> = [
-    {
-      name: "Inter",
-      style: "normal",
-      data: toArrayBuffer(interRegular),
-      weight: 400,
-    },
-    {
-      name: "Inter",
-      style: "normal",
-      data: toArrayBuffer(interBold),
-      weight: 700,
-    },
-    {
-      name: "JetBrains Mono",
-      style: "normal",
-      data: toArrayBuffer(jetbrainsMono),
-      weight: 400,
-    },
-    {
-      name: "JetBrains Mono",
-      style: "normal",
-      data: toArrayBuffer(jetbrainsMonoBold),
-      weight: 700,
-    },
-  ]
-  _assets = {
+export function createOgAssets(fonts: ReadonlyArray<OgFont>): OgAssets {
+  return {
     fonts,
-    docsBgDataUri: pngToDataUri(docsBase),
-    blogBgDataUri: pngToDataUri(blogBase),
+    docsBgDataUri,
+    blogBgDataUri,
   }
-  return _assets
 }
 
 // ---------------------------------------------------------------------------
@@ -175,16 +117,6 @@ interface OgNode {
   type: string
   key: string | null
   props: OgNodeProps
-}
-
-const toArrayBuffer = (data: Uint8Array): ArrayBuffer => {
-  const bytes = Uint8Array.from(data)
-  return bytes.buffer
-}
-
-const pngToDataUri = (data: Uint8Array): string => {
-  const base64 = Buffer.from(data).toString("base64")
-  return `data:image/png;base64,${base64}`
 }
 
 const safeText = (text: string): string => {
