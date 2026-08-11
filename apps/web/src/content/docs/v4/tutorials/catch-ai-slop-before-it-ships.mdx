@@ -80,14 +80,25 @@ sequenceDiagram
 
 ## Project setup
 
-The project uses four files:
+The project uses five files:
 
 | File             | Role                                                                |
 | ---------------- | ------------------------------------------------------------------- |
 | `server.ts`      | Contains the endpoint generated and then corrected in the tutorial. |
 | `orders.json`    | Fixed input that supplies predictable external order data.          |
 | `package.json`   | Records the diagnostic tools and commands.                          |
+| `tsconfig.json`  | Enables strict type checking with TypeScript 7.                     |
 | `.oxlintrc.json` | Configures the Effect-aware diagnostics.                            |
+
+The TypeScript configuration enables the strict checks expected by Effect:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}
+```
 
 The controlled order-import data lives in `orders.json`:
 
@@ -162,7 +173,7 @@ rules from the command line. These commands install the compatible Oxlint
 tooling:
 
 ```sh title="Static diagnostics"
-npm install --save-dev @types/node@22 @effect/tsgo oxlint oxlint-tsgolint
+npm install --save-dev typescript@latest @types/node@22 @effect/tsgo oxlint oxlint-tsgolint
 npx effect-tsgo patch --oxlint
 npm pkg set scripts.prepare="effect-tsgo patch --oxlint"
 npm pkg set scripts.lint="oxlint ."

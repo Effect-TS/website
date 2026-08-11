@@ -13,6 +13,8 @@ duplicate those rules here.
 
 - Identify the page's audience and what earlier pages can safely be assumed.
   Do not assume knowledge that the collection has not introduced.
+- Treat TypeScript 7 or newer with `strict: true` as the baseline for the v4
+  documentation. Do not document an older compatibility floor.
 - Inspect adjacent pages before changing established terminology, navigation,
   or information hierarchy.
 - Verify Effect API names and semantics against the installed v4 package under

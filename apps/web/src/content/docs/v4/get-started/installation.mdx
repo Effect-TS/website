@@ -9,7 +9,17 @@ sidebar:
 import TabItem from "@/components/docs/TabItem.astro"
 import Tabs from "@/components/docs/Tabs.astro"
 
-You need one package to start using Effect. The development tools are optional, but they become valuable as soon as the codebase grows or an AI starts editing it.
+You need one package to start using Effect. Effect requires TypeScript 7 or newer with strict type checking enabled:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}
+```
+
+The same package works with Node.js, Deno, Bun, and browser applications. The development tools are optional, but they become valuable as soon as the codebase grows or an AI starts editing it.
 
 ## Install Effect
 
@@ -45,6 +55,14 @@ yarn add effect@4.0.0-beta.104
 
 ```sh
 bun add effect@4.0.0-beta.104
+```
+
+</TabItem>
+
+<TabItem label="Deno">
+
+```sh
+deno add npm:effect@4.0.0-beta.104
 ```
 
 </TabItem>
@@ -86,17 +104,61 @@ You should see:
 
 This part is recommended, not required to use Effect.
 
-Effect's [development tools](https://github.com/Effect-TS/tsgo) add Effect-aware diagnostics, quick fixes, refactors, and type information to the normal TypeScript workflow. Run the guided setup to install compatible versions and configure the project:
+Effect's [development tools](https://github.com/Effect-TS/tsgo) add Effect-aware diagnostics, quick fixes, refactors, and type information to the normal TypeScript workflow. `@effect/tsgo` includes TypeScript-Go and the Effect language server. Use it instead of the standard `tsgo` language server, not alongside it, to avoid duplicate diagnostics.
+
+Run the guided setup to install compatible versions and configure the project:
 
 ```sh
-pnpm dlx @effect/tsgo setup
+npx @effect/tsgo setup
 ```
 
-For the same type-aware diagnostics from Oxlint, follow the [official Oxlint setup](https://github.com/Effect-TS/tsgo/blob/main/docs/README.md): install the compatible packages and apply Effect's Oxlint patch.
+### Install the VS Code or Cursor extension
+
+The language server analyzes code while you edit it. The separate [Effect extension from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=effectful-tech.effect-vscode) adds debugger views for VS Code and Cursor. It does not install the language server, so keep `@effect/tsgo` in the project.
+
+When execution is paused, the extension can show:
+
+- the services available to the current computation;
+- the traced operations that led to the paused line;
+- the computations currently running in the background;
+- unexpected failures, with an option to pause when one occurs.
+
+The extension is also available from the [Open VSX Registry](https://open-vsx.org/extension/effectful-tech/effect-vscode).
+
+### Run diagnostics outside the editor
+
+The language server reports problems while you edit code. To report the same problems during automated checks, integrate it with either the TypeScript compiler or Oxlint.
+
+<Tabs>
+
+<TabItem label="TypeScript">
+
+Patch the TypeScript installation used by the project:
 
 ```sh
-pnpm add --save-dev @effect/tsgo oxlint oxlint-tsgolint
-pnpm exec effect-tsgo patch --oxlint
+npx effect-tsgo patch
+```
+
+Make the patch repeatable after every install and add a command for type checking:
+
+```json title="package.json"
+{
+  "scripts": {
+    "prepare": "effect-tsgo patch",
+    "check": "tsc --noEmit"
+  }
+}
+```
+
+</TabItem>
+
+<TabItem label="Oxlint">
+
+Install the compatible packages and apply Effect's Oxlint patch:
+
+```sh
+npm install --save-dev oxlint oxlint-tsgolint
+npx effect-tsgo patch --oxlint
 ```
 
 Make the patch repeatable after every install:
@@ -121,6 +183,10 @@ Then create `.oxlintrc.json`:
 
 The recommended preset enables type-aware Effect rules under the `effecttsgo/*` namespace. The patch modifies the compatible Oxlint binaries installed in your project; it is not a separate fork that you run instead of Oxlint.
 
+</TabItem>
+
+</Tabs>
+
 ## Check the setup
 
 Temporarily add an Effect that is created but ignored:
@@ -136,11 +202,7 @@ const program = Effect.gen(function* () {
 await Effect.runPromise(program)
 ```
 
-Your editor and the command below should report `effecttsgo/floating-effect` on the ignored `Effect.log` call:
-
-```sh
-pnpm lint
-```
+Your editor should report `effecttsgo/floating-effect` on the ignored `Effect.log` call. The same diagnostic should appear when you run `npm run check` with the TypeScript integration or `npm run lint` with the Oxlint integration.
 
 The correction is to compose the operation into the workflow:
 
@@ -159,5 +221,4 @@ You now have everything required by the rest of the documentation.
 
 ## Where to go next
 
-- Learn the fundamentals in [Getting Started](/docs/v4/getting-started/introduction).
-- Explore solutions to common backend problems in the [Tutorials](/docs/v4/tutorials/introduction).
+Explore solutions to common backend problems in the [Tutorials](/docs/v4/tutorials/introduction).
