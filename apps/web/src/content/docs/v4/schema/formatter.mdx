@@ -1,6 +1,7 @@
 ---
 title: Schema to Formatter
 description: Generate formatted string representations of values based on schemas.
+diataxis: reference
 sidebar:
   label: Formatter
   order: 18
@@ -60,7 +61,8 @@ const Person = Schema.Struct({
 })
 
 const formatter = Schema.toFormatter(Person, {
-  onBefore: (ast) => (ast._tag === "String" ? (value: string) => `<${value}>` : undefined),
+  onBefore: (ast) =>
+    ast._tag === "String" ? (value: string) => `<${value}>` : undefined,
 })
 
 formatter({ name: "Alice", city: "Rome" }) // => `{ "name": <Alice>, "city": <Rome> }`

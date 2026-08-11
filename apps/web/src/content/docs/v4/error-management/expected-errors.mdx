@@ -1,6 +1,7 @@
 ---
 title: Expected Errors
 description: Create, track, expose, and recover from typed errors.
+diataxis: reference
 sidebar:
   order: 1
 ---
@@ -141,13 +142,14 @@ class ValidationError extends Data.TaggedError("ValidationError")<{
   readonly field: string
 }> {}
 
-const request: Effect.Effect<string, NetworkError | ValidationError> = Effect.fail(
-  new NetworkError({ status: 503 }),
-)
+const request: Effect.Effect<string, NetworkError | ValidationError> =
+  Effect.fail(new NetworkError({ status: 503 }))
 
 // Effect<string, ValidationError>
 const recovered = request.pipe(
-  Effect.catchTag("NetworkError", (error) => Effect.succeed(`cached after ${error.status}`)),
+  Effect.catchTag("NetworkError", (error) =>
+    Effect.succeed(`cached after ${error.status}`),
+  ),
 )
 
 Effect.runSync(recovered) // => "cached after 503"
@@ -172,9 +174,8 @@ class ValidationError extends Data.TaggedError("ValidationError")<{
   readonly field: string
 }> {}
 
-const request: Effect.Effect<string, NetworkError | ValidationError> = Effect.fail(
-  new ValidationError({ field: "email" }),
-)
+const request: Effect.Effect<string, NetworkError | ValidationError> =
+  Effect.fail(new ValidationError({ field: "email" }))
 
 const recovered = request.pipe(
   Effect.catchTags({
@@ -215,10 +216,14 @@ import { Data, Effect, Filter } from "effect"
 class NetworkError extends Data.TaggedError("NetworkError")<{}> {}
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-const task: Effect.Effect<string, NetworkError | ValidationError> = Effect.fail(new NetworkError())
+const task: Effect.Effect<string, NetworkError | ValidationError> = Effect.fail(
+  new NetworkError(),
+)
 
 const program = task.pipe(
-  Effect.catchFilter(Filter.tagged("NetworkError"), () => Effect.succeed("using cache")),
+  Effect.catchFilter(Filter.tagged("NetworkError"), () =>
+    Effect.succeed("using cache"),
+  ),
 )
 
 Effect.runSync(program) // => "using cache"

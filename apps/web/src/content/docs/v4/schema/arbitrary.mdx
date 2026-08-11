@@ -1,6 +1,7 @@
 ---
 title: Schema to Arbitrary
 description: Derive fast-check arbitraries from schemas and customize generation with filters, candidates, and annotations.
+diataxis: reference
 sidebar:
   label: Arbitrary
   order: 15
@@ -29,7 +30,8 @@ samples.every(({ name, age }) => name.length > 0 && age >= 18 && age <= 80) // =
 ```
 
 <Aside type="tip" title="FastCheck API">
-  Effect re-exports the complete fast-check API as `FastCheck` from `effect/testing`.
+  Effect re-exports the complete fast-check API as `FastCheck` from
+  `effect/testing`.
 </Aside>
 
 Use `Schema.toArbitraryLazy` when the caller should provide the fast-check module.
@@ -66,7 +68,10 @@ const Username = Schema.String.check(
 
 const samples = FastCheck.sample(Schema.toArbitrary(Username), 20)
 
-samples.every((value) => value.length >= 3 && value.length <= 20 && /^[a-z0-9_]+$/.test(value)) // => true
+samples.every(
+  (value) =>
+    value.length >= 3 && value.length <= 20 && /^[a-z0-9_]+$/.test(value),
+) // => true
 ```
 
 Length, range, integer, pattern, uniqueness, and other built-in constraints are translated to the corresponding fast-check constraints where possible.
@@ -82,7 +87,8 @@ Pass `{ report: true }` to find filters that could not guide generation. An `Opa
 ```ts twoslash import.meta.vitest name="arbitrary-report-1"
 import { Schema } from "effect"
 
-const isPalindrome = (value: string) => value === Array.from(value).reverse().join("")
+const isPalindrome = (value: string) =>
+  value === Array.from(value).reverse().join("")
 
 const Palindrome = Schema.String.check(
   Schema.makeFilter(isPalindrome, { expected: "a palindrome" }),

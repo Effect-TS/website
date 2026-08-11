@@ -1,6 +1,7 @@
 ---
 title: Schema Transformations
 description: Transform and manipulate data with schema-based transformations, including type conversions, validations, and custom processing.
+diataxis: reference
 sidebar:
   label: Transformations
   order: 7
@@ -174,7 +175,8 @@ const ReadonlySetFromArray = <S extends Schema.Constraint>(itemSchema: S) =>
       Schema.ReadonlySet(Schema.toType(itemSchema)),
       SchemaTransformation.transform({
         decode: (items: ReadonlyArray<S["Type"]>) => new Set(items),
-        encode: (set: ReadonlySet<S["Type"]>): ReadonlyArray<S["Type"]> => Array.from(set.values()),
+        encode: (set: ReadonlySet<S["Type"]>): ReadonlyArray<S["Type"]> =>
+          Array.from(set.values()),
       }),
     ),
   )
@@ -200,9 +202,9 @@ Schema.encodeSync(schema)(new Set(["a", "b", "c"])) // => ["a", "b", "c"]
 
 <Aside type="note" title="Why Schema.toType is used">
   Please note that to define the target schema, we used
-  [Schema.toType](/docs/v4/schema/projections#totype). This is because the decoding/encoding of the
-  elements is already handled by the `from` schema: `Schema.Array(itemSchema)`, avoiding double
-  decoding.
+  [Schema.toType](/docs/v4/schema/projections#totype). This is because the
+  decoding/encoding of the elements is already handled by the `from` schema:
+  `Schema.Array(itemSchema)`, avoiding double decoding.
 </Aside>
 
 ## Fallible Transformations
@@ -229,10 +231,16 @@ export const ColorFromString = Schema.String.pipe(
   Schema.decodeTo(Color, {
     decode: SchemaGetter.transformOrFail((input) => {
       const normalized = input.toLowerCase()
-      if (normalized === "red" || normalized === "green" || normalized === "blue") {
+      if (
+        normalized === "red" ||
+        normalized === "green" ||
+        normalized === "blue"
+      ) {
         return Effect.succeed(normalized)
       }
-      return Effect.fail(new SchemaIssue.InvalidValue({ message: "Unsupported color" }))
+      return Effect.fail(
+        new SchemaIssue.InvalidValue({ message: "Unsupported color" }),
+      )
     }),
     encode: SchemaGetter.passthrough(),
   }),
@@ -314,14 +322,18 @@ type Type = typeof PeopleIdFromString.Type
 type DecodingServices = typeof PeopleIdFromString.DecodingServices
 
 // Run a successful decode operation
-Effect.runPromiseExit(Schema.decodeUnknownEffect(PeopleIdFromString)("1")).then(console.log)
+Effect.runPromiseExit(Schema.decodeUnknownEffect(PeopleIdFromString)("1")).then(
+  console.log,
+)
 /*
 Output:
 { _id: 'Exit', _tag: 'Success', value: '1' }
 */
 
 // Run a decode operation that will fail
-Effect.runPromiseExit(Schema.decodeUnknownEffect(PeopleIdFromString)("fail")).then(console.log)
+Effect.runPromiseExit(
+  Schema.decodeUnknownEffect(PeopleIdFromString)("fail"),
+).then(console.log)
 /*
 Output:
 {
@@ -343,7 +355,14 @@ Codec<T, E, RD, RE>
 **Example** (Validating Data with a Service)
 
 ```ts twoslash
-import { Context, Effect, Schema, SchemaGetter, SchemaIssue, Layer } from "effect"
+import {
+  Context,
+  Effect,
+  Schema,
+  SchemaGetter,
+  SchemaIssue,
+  Layer,
+} from "effect"
 
 // Define a Validation service for dependency injection
 class Validation extends Context.Service<
@@ -368,7 +387,11 @@ const PeopleIdFromString = Schema.String.pipe(
         // Use service to validate ID
         yield* validator.validatePeopleid(s)
         return s
-      }).pipe(Effect.mapError((e) => new SchemaIssue.InvalidValue({ message: e.message }))),
+      }).pipe(
+        Effect.mapError(
+          (e) => new SchemaIssue.InvalidValue({ message: e.message }),
+        ),
+      ),
     ),
     encode: SchemaGetter.passthrough(), // Encode by simply returning the string
   }),
@@ -393,7 +416,9 @@ const SuccessTest = Layer.succeed(Validation, {
 
 // Run a successful decode operation
 Effect.runPromiseExit(
-  Schema.decodeUnknownEffect(PeopleIdFromString)("1").pipe(Effect.provide(SuccessTest)),
+  Schema.decodeUnknownEffect(PeopleIdFromString)("1").pipe(
+    Effect.provide(SuccessTest),
+  ),
 ).then(console.log)
 /*
 Output:
@@ -407,7 +432,9 @@ const FailureTest = Layer.succeed(Validation, {
 
 // Run a decode operation that will fail
 Effect.runPromiseExit(
-  Schema.decodeUnknownEffect(PeopleIdFromString)("fail").pipe(Effect.provide(FailureTest)),
+  Schema.decodeUnknownEffect(PeopleIdFromString)("fail").pipe(
+    Effect.provide(FailureTest),
+  ),
 ).then(console.log)
 /*
 Output:
@@ -437,8 +464,12 @@ const Sha256Digest = Schema.String.pipe(Schema.brand("Sha256Digest"))
 
 export const ContentDigest = Content.pipe(
   Schema.decodeTo(Sha256Digest, {
-    decode: SchemaGetter.transform((content) => createHash("sha256").update(content).digest("hex")),
-    encode: SchemaGetter.forbidden(() => "A SHA-256 digest cannot be encoded as its source."),
+    decode: SchemaGetter.transform((content) =>
+      createHash("sha256").update(content).digest("hex"),
+    ),
+    encode: SchemaGetter.forbidden(
+      () => "A SHA-256 digest cannot be encoded as its source.",
+    ),
   }),
 )
 
@@ -486,7 +517,9 @@ const FiniteArrayFromStringArray = Schema.Array(Schema.FiniteFromString)
 
 // Composed schema that takes a string, splits it by commas,
 // and converts the result into an array of numbers
-const ComposedSchema = split(",").pipe(Schema.decodeTo(FiniteArrayFromStringArray))
+const ComposedSchema = split(",").pipe(
+  Schema.decodeTo(FiniteArrayFromStringArray),
+)
 
 Schema.decodeUnknownSync(ComposedSchema)("1,2,3") // => [1, 2, 3]
 ```
@@ -519,7 +552,9 @@ const ValidUsername = Schema.String.pipe(
   }),
 ).annotate({ identifier: "ValidUsername" })
 
-Effect.runPromise(Schema.decodeUnknownEffect(ValidUsername)("xxx")).then(console.log)
+Effect.runPromise(Schema.decodeUnknownEffect(ValidUsername)("xxx")).then(
+  console.log,
+)
 /*
 throws:
 SchemaError: Invalid username
@@ -581,8 +616,8 @@ decode(" a ") // => "a"
 ```
 
 <Aside type="tip" title="Trimmed Check">
-  If you were looking for a combinator to check if a string is trimmed, check out the
-  `Schema.isTrimmed` filter.
+  If you were looking for a combinator to check if a string is trimmed, check
+  out the `Schema.isTrimmed` filter.
 </Aside>
 
 ### Lowercase
@@ -596,7 +631,10 @@ import { Schema, SchemaTransformation } from "effect"
 
 const decode = Schema.decodeUnknownSync(
   Schema.String.pipe(
-    Schema.decodeTo(Schema.String.check(Schema.isLowercased()), SchemaTransformation.toLowerCase()),
+    Schema.decodeTo(
+      Schema.String.check(Schema.isLowercased()),
+      SchemaTransformation.toLowerCase(),
+    ),
   ),
 )
 
@@ -609,7 +647,8 @@ decode("A") // => "a"
 ```
 
 <Aside type="tip" title="Lowercase And Lowercased">
-  To validate without transforming, use `Schema.String.check(Schema.isLowercased())`.
+  To validate without transforming, use
+  `Schema.String.check(Schema.isLowercased())`.
 </Aside>
 
 ### Uppercase
@@ -623,7 +662,10 @@ import { Schema, SchemaTransformation } from "effect"
 
 const decode = Schema.decodeUnknownSync(
   Schema.String.pipe(
-    Schema.decodeTo(Schema.String.check(Schema.isUppercased()), SchemaTransformation.toUpperCase()),
+    Schema.decodeTo(
+      Schema.String.check(Schema.isUppercased()),
+      SchemaTransformation.toUpperCase(),
+    ),
   ),
 )
 
@@ -636,7 +678,8 @@ decode("a") // => "A"
 ```
 
 <Aside type="tip" title="Uppercase And Uppercased">
-  To validate without transforming, use `Schema.String.check(Schema.isUppercased())`.
+  To validate without transforming, use
+  `Schema.String.check(Schema.isUppercased())`.
 </Aside>
 
 ### Capitalize
@@ -650,7 +693,10 @@ import { Schema, SchemaTransformation } from "effect"
 
 const decode = Schema.decodeUnknownSync(
   Schema.String.pipe(
-    Schema.decodeTo(Schema.String.check(Schema.isCapitalized()), SchemaTransformation.capitalize()),
+    Schema.decodeTo(
+      Schema.String.check(Schema.isCapitalized()),
+      SchemaTransformation.capitalize(),
+    ),
   ),
 )
 
@@ -663,7 +709,8 @@ decode("aa") // => "Aa"
 ```
 
 <Aside type="tip" title="Capitalize And Capitalized">
-  To validate without transforming, use `Schema.String.check(Schema.isCapitalized())`.
+  To validate without transforming, use
+  `Schema.String.check(Schema.isCapitalized())`.
 </Aside>
 
 ### Uncapitalize
@@ -693,7 +740,8 @@ decode("AA") // => "aA"
 ```
 
 <Aside type="tip" title="Uncapitalize And Uncapitalized">
-  To validate without transforming, use `Schema.String.check(Schema.isUncapitalized())`.
+  To validate without transforming, use
+  `Schema.String.check(Schema.isUncapitalized())`.
 </Aside>
 
 ### JSON Strings

@@ -1,6 +1,7 @@
 ---
 title: Matching
 description: Handle success and failure outcomes with pure or effectful handlers.
+diataxis: reference
 sidebar:
   order: 4
 ---
@@ -56,7 +57,8 @@ import { Cause, Effect } from "effect"
 
 const program = Effect.die("boom").pipe(
   Effect.matchCause({
-    onFailure: (cause) => (Cause.hasDies(cause) ? "terminated by a defect" : "failed"),
+    onFailure: (cause) =>
+      Cause.hasDies(cause) ? "terminated by a defect" : "failed",
     onSuccess: () => "succeeded",
   }),
 )

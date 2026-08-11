@@ -1,6 +1,7 @@
 ---
 title: Built-In Schedules
 description: Explore built-in scheduling patterns in Effect for efficient timed repetitions and delays.
+diataxis: reference
 sidebar:
   order: 2
 ---
@@ -19,7 +20,10 @@ that logs each repetition along with the corresponding delay in milliseconds, fo
 ```ts twoslash import.meta.vitest name="logging-execution-delays-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): void => {
   const maxRecurs = 10 // Limit the number of executions
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(

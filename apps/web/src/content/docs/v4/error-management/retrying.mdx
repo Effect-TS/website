@@ -1,6 +1,7 @@
 ---
 title: Retrying
 description: Retry transient typed failures with limits, conditions, schedules, and fallbacks.
+diataxis: reference
 sidebar:
   order: 5
 ---
@@ -108,8 +109,10 @@ const request = Effect.failSync(() => {
   return "unavailable"
 })
 
-const program = Effect.retryOrElse(request, Schedule.recurs(2), (error, retries) =>
-  Effect.succeed(`${error} after ${retries} retries`),
+const program = Effect.retryOrElse(
+  request,
+  Schedule.recurs(2),
+  (error, retries) => Effect.succeed(`${error} after ${retries} retries`),
 )
 
 Effect.runSync(program) // => "unavailable after 2 retries"

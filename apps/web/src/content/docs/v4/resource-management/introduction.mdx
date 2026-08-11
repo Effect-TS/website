@@ -1,6 +1,7 @@
 ---
 title: Introduction
 description: Common patterns for safe resource management
+diataxis: explanation
 sidebar:
   order: 0
 ---
@@ -30,7 +31,10 @@ import { Console, Effect, Exit } from "effect"
 const handler = Effect.ensuring(Console.log("Cleanup completed"))
 
 // Define a successful effect
-const success = Console.log("Task completed").pipe(Effect.as("some result"), handler)
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler,
+)
 
 Effect.runFork(success)
 /*
@@ -42,7 +46,10 @@ Cleanup completed
 await Effect.runPromise(success) // => "some result"
 
 // Define a failing effect
-const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler,
+)
 
 Effect.runFork(failure)
 /*
@@ -54,7 +61,10 @@ Cleanup completed
 await Effect.runPromiseExit(failure) // => Exit.fail("some error")
 
 // Define an interrupted effect
-const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler,
+)
 
 Effect.runFork(interruption)
 /*
@@ -85,11 +95,16 @@ import { Console, Effect, Exit, identity } from "effect"
 
 // Define a cleanup effect that logs the result
 const handler = Effect.onExit((exit) =>
-  Console.log(`Cleanup completed: ${Exit.match(exit, { onSuccess: identity, onFailure: String })}`),
+  Console.log(
+    `Cleanup completed: ${Exit.match(exit, { onSuccess: identity, onFailure: String })}`,
+  ),
 )
 
 // Define a successful effect
-const success = Console.log("Task completed").pipe(Effect.as("some result"), handler)
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler,
+)
 
 Effect.runFork(success)
 /*
@@ -101,7 +116,10 @@ Cleanup completed: some result
 await Effect.runPromise(success) // => "some result"
 
 // Define a failing effect
-const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler,
+)
 
 Effect.runFork(failure)
 /*
@@ -113,7 +131,10 @@ Cleanup completed: Error: some error
 await Effect.runPromiseExit(failure) // => Exit.fail("some error")
 
 // Define an interrupted effect
-const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler,
+)
 
 Effect.runFork(interruption)
 /*
@@ -141,10 +162,15 @@ The cleanup effect will also run if the failure is caused by interruption, and i
 import { Console, Effect, Exit } from "effect"
 
 // This handler logs the failure cause when the effect fails
-const handler = Effect.onError((cause) => Console.log(`Cleanup completed: ${cause}`))
+const handler = Effect.onError((cause) =>
+  Console.log(`Cleanup completed: ${cause}`),
+)
 
 // Define a successful effect
-const success = Console.log("Task completed").pipe(Effect.as("some result"), handler)
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler,
+)
 
 Effect.runFork(success)
 /*
@@ -155,7 +181,10 @@ Task completed
 await Effect.runPromise(success) // => "some result"
 
 // Define a failing effect
-const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler,
+)
 
 Effect.runFork(failure)
 /*
@@ -182,7 +211,10 @@ Cleanup completed: Error: Boom!
 await Effect.runPromiseExit(defect) // => Exit.die("Boom!")
 
 // Define an interrupted effect
-const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler,
+)
 
 Effect.runFork(interruption)
 /*

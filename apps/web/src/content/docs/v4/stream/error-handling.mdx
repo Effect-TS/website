@@ -1,6 +1,7 @@
 ---
 title: Error Handling in Streams
 description: Learn how to handle errors in streams, ensuring robust recovery, retries, and graceful error management for reliable stream processing.
+diataxis: reference
 sidebar:
   label: Error Handling
   order: 3
@@ -41,7 +42,9 @@ const s1 = Stream.make(1, 2, 3).pipe(
 
 const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.map(s1, Result.succeed).pipe(Stream.catch(() => Stream.map(s2, Result.fail)))
+const stream = Stream.map(s1, Result.succeed).pipe(
+  Stream.catch(() => Stream.map(s2, Result.fail)),
+)
 
 await Effect.runPromise(Stream.runCollect(stream)) // => [Result.succeed(1), Result.succeed(2), Result.succeed(3), Result.fail("a"), Result.fail("b"), Result.fail("c")]
 ```
@@ -151,7 +154,9 @@ const stream = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.die(new Error("Oh! Boom!"))),
   Stream.concat(Stream.make(4, 5)),
   Stream.onError(() =>
-    Console.log("Stream application closed! We are doing some cleanup jobs.").pipe(Effect.orDie),
+    Console.log(
+      "Stream application closed! We are doing some cleanup jobs.",
+    ).pipe(Effect.orDie),
   ),
 )
 
@@ -228,7 +233,8 @@ import { Stream, Option, Effect, Exit } from "effect"
 const stream = Stream.fail(new Error())
 
 const res = Stream.catch(stream, (error) => {
-  const refined = error instanceof SyntaxError ? Option.some(error) : Option.none()
+  const refined =
+    error instanceof SyntaxError ? Option.some(error) : Option.none()
   return Option.isSome(refined) ? Stream.fail(refined.value) : Stream.die(error)
 })
 
@@ -261,7 +267,10 @@ The `Stream.timeoutOrElse` operator combines a timeout with a custom failure mes
 import { Stream, Effect, Exit } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
-  Stream.timeoutOrElse({ duration: "2 seconds", orElse: () => Stream.fail("timeout") }),
+  Stream.timeoutOrElse({
+    duration: "2 seconds",
+    orElse: () => Stream.fail("timeout"),
+  }),
 )
 
 await Effect.runPromiseExit(Stream.runCollect(stream)) // => Exit.fail("timeout")
@@ -292,7 +301,10 @@ The `Stream.timeoutOrElse` operator allows you to switch to another stream if th
 import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
-  Stream.timeoutOrElse({ duration: "2 seconds", orElse: () => Stream.make(1, 2, 3) }),
+  Stream.timeoutOrElse({
+    duration: "2 seconds",
+    orElse: () => Stream.make(1, 2, 3),
+  }),
 )
 
 await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3]

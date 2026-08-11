@@ -1,6 +1,7 @@
 ---
 title: Schedule Combinators
 description: Learn how to combine and customize schedules in Effect to create complex recurrence patterns, including union, intersection, sequencing, and more.
+diataxis: reference
 sidebar:
   order: 3
 ---
@@ -21,7 +22,10 @@ that logs each repetition along with the corresponding delay in milliseconds, fo
 ```ts twoslash import.meta.vitest name="logging-execution-delays-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): void => {
   const maxRecurs = 10 // Limit the number of executions
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -111,7 +115,10 @@ const log = (
   return delays
 }
 
-const schedule = Schedule.min([Schedule.exponential("100 millis"), Schedule.spaced("1 second")])
+const schedule = Schedule.min([
+  Schedule.exponential("100 millis"),
+  Schedule.spaced("1 second"),
+])
 
 log(schedule)
 /*
@@ -180,7 +187,10 @@ const log = (
   return delays
 }
 
-const schedule = Schedule.max([Schedule.exponential("10 millis"), Schedule.recurs(5)])
+const schedule = Schedule.max([
+  Schedule.exponential("10 millis"),
+  Schedule.recurs(5),
+])
 
 log(schedule)
 /*
@@ -244,7 +254,10 @@ const log = (
   return delays
 }
 
-const schedule = Schedule.concat(Schedule.recurs(5), Schedule.spaced("1 second"))
+const schedule = Schedule.concat(
+  Schedule.recurs(5),
+  Schedule.spaced("1 second"),
+)
 
 log(schedule)
 /*
@@ -450,8 +463,10 @@ const log = (
   return delays
 }
 
-const schedule = Schedule.modifyDelay(Schedule.spaced("1 second"), ({ output, duration }) =>
-  Effect.succeed(output > 2 ? "100 millis" : duration),
+const schedule = Schedule.modifyDelay(
+  Schedule.spaced("1 second"),
+  ({ output, duration }) =>
+    Effect.succeed(output > 2 ? "100 millis" : duration),
 )
 
 log(schedule)

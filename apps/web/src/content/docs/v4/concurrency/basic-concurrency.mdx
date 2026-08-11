@@ -1,6 +1,7 @@
 ---
 title: Basic Concurrency
 description: Manage and control effect execution with concurrency, interruptions, and racing.
+diataxis: reference
 sidebar:
   order: 0
 ---
@@ -26,8 +27,8 @@ type Concurrency = number | "unbounded"
 Let's explore each configuration in detail.
 
 <Aside type="tip" title="Applicability of Concurrency Options">
-  The examples here use the `Effect.all` function, but these options apply to many other Effect
-  APIs.
+  The examples here use the `Effect.all` function, but these options apply to
+  many other Effect APIs.
 </Aside>
 
 ### Sequential Execution (Default)
@@ -256,9 +257,14 @@ In this example, we set up a handler that logs "Cleanup completed" whenever the 
 import { Console, Effect, Exit } from "effect"
 
 // This handler is executed when the fiber is interrupted
-const handler = Effect.onInterrupt((_fibers) => Console.log("Cleanup completed"))
+const handler = Effect.onInterrupt((_fibers) =>
+  Console.log("Cleanup completed"),
+)
 
-const success = Console.log("Task completed").pipe(Effect.as("some result"), handler)
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler,
+)
 
 await Effect.runPromise(success) // => "some result"
 /*
@@ -266,7 +272,10 @@ Output:
 Task completed
 */
 
-const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler,
+)
 
 await Effect.runPromiseExit(failure) // => Exit.fail("some error")
 /*
@@ -274,7 +283,10 @@ Output:
 Task failed
 */
 
-const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler,
+)
 
 const interruptionExit = await Effect.runPromiseExit(interruption)
 interruptionExit._tag // => "Failure"
@@ -623,15 +635,21 @@ import { Effect, Console, Exit } from "effect"
 const task1 = Effect.succeed("task1").pipe(
   Effect.delay("100 millis"),
   Effect.tap(Console.log("task1 done")),
-  Effect.onInterrupt(() => Console.log("task1 interrupted").pipe(Effect.delay("100 millis"))),
+  Effect.onInterrupt(() =>
+    Console.log("task1 interrupted").pipe(Effect.delay("100 millis")),
+  ),
 )
 const task2 = Effect.succeed("task2").pipe(
   Effect.delay("200 millis"),
   Effect.tap(Console.log("task2 done")),
-  Effect.onInterrupt(() => Console.log("task2 interrupted").pipe(Effect.delay("100 millis"))),
+  Effect.onInterrupt(() =>
+    Console.log("task2 interrupted").pipe(Effect.delay("100 millis")),
+  ),
 )
 
-const program = Effect.raceFirst(task1, task2).pipe(Effect.tap(Console.log("more work...")))
+const program = Effect.raceFirst(task1, task2).pipe(
+  Effect.tap(Console.log("more work...")),
+)
 
 await Effect.runPromiseExit(program) // => Exit.succeed("task1")
 /*
@@ -650,15 +668,21 @@ import { Effect, Console, Exit } from "effect"
 const task1 = Effect.fail("task1").pipe(
   Effect.delay("100 millis"),
   Effect.tap(Console.log("task1 done")),
-  Effect.onInterrupt(() => Console.log("task1 interrupted").pipe(Effect.delay("100 millis"))),
+  Effect.onInterrupt(() =>
+    Console.log("task1 interrupted").pipe(Effect.delay("100 millis")),
+  ),
 )
 const task2 = Effect.succeed("task2").pipe(
   Effect.delay("200 millis"),
   Effect.tap(Console.log("task2 done")),
-  Effect.onInterrupt(() => Console.log("task2 interrupted").pipe(Effect.delay("100 millis"))),
+  Effect.onInterrupt(() =>
+    Console.log("task2 interrupted").pipe(Effect.delay("100 millis")),
+  ),
 )
 
-const program = Effect.raceFirst(task1, task2).pipe(Effect.tap(Console.log("more work...")))
+const program = Effect.raceFirst(task1, task2).pipe(
+  Effect.tap(Console.log("more work...")),
+)
 
 await Effect.runPromiseExit(program) // => Exit.fail("task1")
 /*
@@ -679,12 +703,16 @@ import { Effect, Console } from "effect"
 const task1 = Effect.succeed("task1").pipe(
   Effect.delay("100 millis"),
   Effect.tap(Console.log("task1 done")),
-  Effect.onInterrupt(() => Console.log("task1 interrupted").pipe(Effect.delay("100 millis"))),
+  Effect.onInterrupt(() =>
+    Console.log("task1 interrupted").pipe(Effect.delay("100 millis")),
+  ),
 )
 const task2 = Effect.succeed("task2").pipe(
   Effect.delay("200 millis"),
   Effect.tap(Console.log("task2 done")),
-  Effect.onInterrupt(() => Console.log("task2 interrupted").pipe(Effect.delay("100 millis"))),
+  Effect.onInterrupt(() =>
+    Console.log("task2 interrupted").pipe(Effect.delay("100 millis")),
+  ),
 )
 
 const program = Effect.raceFirst(task1, task2, {

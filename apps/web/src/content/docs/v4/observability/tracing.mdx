@@ -1,6 +1,7 @@
 ---
 title: Tracing in Effect
 description: Explore tracing in distributed systems to track request lifecycles across services using spans and traces for debugging and performance optimization.
+diataxis: reference
 sidebar:
   label: Tracing
   order: 2
@@ -135,8 +136,9 @@ bun add @opentelemetry/sdk-metrics
    </Tabs>
 
 <Aside type="note" title="Peer Dependency">
-  The `@opentelemetry/api` package is a peer dependency of `@effect/opentelemetry`. If your package
-  manager does not automatically install peer dependencies, you must add it manually.
+  The `@opentelemetry/api` package is a peer dependency of
+  `@effect/opentelemetry`. If your package manager does not automatically
+  install peer dependencies, you must add it manually.
 </Aside>
 
 ### Printing a Span to the Console
@@ -148,7 +150,10 @@ Once the dependencies are installed, you can set up span printing using OpenTele
 ```ts twoslash
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
-import { ConsoleSpanExporter, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor,
+} from "@opentelemetry/sdk-trace-base"
 
 // Define an effect that delays for 100 milliseconds
 const program = Effect.void.pipe(Effect.delay("100 millis"))
@@ -219,16 +224,24 @@ Here's how a span looks when the effect encounters an error:
 ```ts twoslash "code: 2"
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
-import { ConsoleSpanExporter, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor,
+} from "@opentelemetry/sdk-trace-base"
 
-const program = Effect.fail("Oh no!").pipe(Effect.delay("100 millis"), Effect.withSpan("myspan"))
+const program = Effect.fail("Oh no!").pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("myspan"),
+)
 
 const NodeSdkLive = NodeSdk.layer(() => ({
   resource: { serviceName: "example" },
   spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter()),
 }))
 
-Effect.runPromiseExit(program.pipe(Effect.provide(NodeSdkLive))).then(console.log)
+Effect.runPromiseExit(program.pipe(Effect.provide(NodeSdkLive))).then(
+  console.log,
+)
 /*
 Example Output:
 {
@@ -287,7 +300,10 @@ This function allows you to attach key-value pairs, offering more context about 
 ```ts twoslash "attributes: { key: 'value' }"
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
-import { ConsoleSpanExporter, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor,
+} from "@opentelemetry/sdk-trace-base"
 
 const program = Effect.void.pipe(
   Effect.delay("100 millis"),
@@ -340,10 +356,16 @@ In the context of tracing, logs are converted into "Span Events." These events o
 ```ts twoslash {47}
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
-import { ConsoleSpanExporter, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor,
+} from "@opentelemetry/sdk-trace-base"
 
 // Define a program that logs a message and delays for 100 milliseconds
-const program = Effect.log("Hello").pipe(Effect.delay("100 millis"), Effect.withSpan("myspan"))
+const program = Effect.log("Hello").pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("myspan"),
+)
 
 // Set up tracing with the OpenTelemetry SDK
 const NodeSdkLive = NodeSdk.layer(() => ({
@@ -406,9 +428,15 @@ Spans can be nested to represent a hierarchy of operations. This allows you to t
 ```ts twoslash "a09e5c3fdfdbbc1d"
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
-import { ConsoleSpanExporter, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor,
+} from "@opentelemetry/sdk-trace-base"
 
-const child = Effect.void.pipe(Effect.delay("100 millis"), Effect.withSpan("child"))
+const child = Effect.void.pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("child"),
+)
 
 const parent = Effect.gen(function* () {
   yield* Effect.sleep("20 millis")
@@ -626,7 +654,11 @@ To get Docker, follow these steps:
    import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 
    // Function to simulate a task with possible subtasks
-   const task = (name: string, delay: number, children: ReadonlyArray<Effect.Effect<void>> = []) =>
+   const task = (
+     name: string,
+     delay: number,
+     children: ReadonlyArray<Effect.Effect<void>> = [],
+   ) =>
      Effect.gen(function* () {
        yield* Effect.log(name)
        yield* Effect.sleep(`${delay} millis`)
@@ -656,7 +688,12 @@ To get Docker, follow these steps:
      spanProcessor: new BatchSpanProcessor(new OTLPTraceExporter()),
    }))
 
-   Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive), Effect.catchCause(Effect.logError)))
+   Effect.runPromise(
+     program.pipe(
+       Effect.provide(NodeSdkLive),
+       Effect.catchCause(Effect.logError),
+     ),
+   )
    /*
    Output:
    timestamp=... level=INFO fiber=#0 message=client
