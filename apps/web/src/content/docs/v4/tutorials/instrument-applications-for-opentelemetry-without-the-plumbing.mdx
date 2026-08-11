@@ -6,7 +6,6 @@ sidebar:
 ---
 
 import {
-  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -58,12 +57,21 @@ dashboard.
 
 ## Where this tutorial fits
 
-The highlighted components show where this tutorial changes the shared order-processing system.
+The table identifies the parts of the shared order-processing system covered by this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture) for the full system.
 
-<TutorialArchitectureMap
-  active="instrument-applications-for-opentelemetry-without-the-plumbing"
-  compact
-/>
+| Part                                                        | Area                  | Role in this tutorial                                |
+| ----------------------------------------------------------- | --------------------- | ---------------------------------------------------- |
+| HTTP routes                                                 | HTTP boundary         | Record the complete request as the root span         |
+| Place order                                                 | Application operation | Record the order operation as a named child span     |
+| Catalog, Shipping, Inventory, Payment, and Order repository | Backend services      | Record child spans without passing tracing arguments |
+| Tracing                                                     | Runtime support       | Collect timing and parent relationships              |
+
+### Request flow
+
+1. HTTP routes open a span for the complete request.
+2. Place order opens a child span for the application operation.
+3. Backend services record child spans for provider calls.
+4. Tracing collects the resulting trace.
 
 ## Project setup
 

@@ -6,7 +6,6 @@ sidebar:
 ---
 
 import {
-  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -17,7 +16,7 @@ Backend operations can fail for different reasons, take too long, or continue
 after the client disconnects. With ordinary Promise code, these behaviors
 require separate conventions, while rejections reach `catch` as `unknown`.
 
-With Effect, the **type system** tracks expected failures, while retry limits,
+With Effect, the type system tracks expected failures, while retry limits,
 timeouts, and cancellation are defined directly on the operation.
 
 </TutorialPainPoint>
@@ -40,9 +39,20 @@ follows:
 
 ## Where this tutorial fits
 
-The highlighted components show where this tutorial changes the shared order-processing system.
+The table identifies the parts of the shared order-processing system covered by this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture) for the full system.
 
-<TutorialArchitectureMap active="handle-failures-without-guessing" compact />
+| Part        | Area                  | Role in this tutorial                                                                        |
+| ----------- | --------------------- | -------------------------------------------------------------------------------------------- |
+| HTTP routes | HTTP boundary         | Run Place order, forward client cancellation, and translate known outcomes into HTTP results |
+| Place order | Application operation | Apply retry, timeout, and failure handling around payment                                    |
+| Payment     | Backend service       | Adapt a Promise-based provider that can approve, decline, or be unavailable                  |
+
+### Request flow
+
+1. HTTP routes receive `POST /orders` and run Place order.
+2. Place order applies the payment policy.
+3. Payment returns success or a known failure.
+4. HTTP routes translate the outcome into an HTTP response.
 
 ## Project setup
 

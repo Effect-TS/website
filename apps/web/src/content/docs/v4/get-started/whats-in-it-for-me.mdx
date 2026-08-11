@@ -42,8 +42,8 @@ import { Effect } from "effect"
 
 declare const placeOrder: Effect.Effect<
   AcceptedOrder,
-  OutOfStock | PaymentDeclined,
-  InventoryService | PaymentProvider
+  InventoryUnavailable | PaymentDeclined,
+  Inventory | Payment
 >
 
 interface AcceptedOrder {
@@ -51,28 +51,28 @@ interface AcceptedOrder {
   readonly status: "accepted"
 }
 
-declare class OutOfStock {
-  readonly _tag: "OutOfStock"
+declare class InventoryUnavailable {
+  readonly _tag: "InventoryUnavailable"
 }
 
 declare class PaymentDeclined {
   readonly _tag: "PaymentDeclined"
 }
 
-declare class InventoryService {
-  readonly _tag: "InventoryService"
+declare class Inventory {
+  readonly _tag: "Inventory"
 }
 
-declare class PaymentProvider {
-  readonly _tag: "PaymentProvider"
+declare class Payment {
+  readonly _tag: "Payment"
 }
 ```
 
 Read the type from left to right:
 
 - the operation can produce an `AcceptedOrder`;
-- it can fail with `OutOfStock` or `PaymentDeclined`;
-- it still requires `InventoryService` and `PaymentProvider`.
+- it can fail with `InventoryUnavailable` or `PaymentDeclined`;
+- it still requires `Inventory` and `Payment`.
 
 As operations are combined, TypeScript keeps updating that information. At the application boundary, you supply the remaining services and choose how the program runs.
 
@@ -119,7 +119,7 @@ Named Effect functions create spans whose lifetimes and parent-child
 relationships follow the operations they describe. Concurrency, failures, and
 cancellation remain connected without manual tracing context propagation.
 
-## Choose the outcome you need
+## Find the tutorial for your problem
 
 Each tutorial uses a small order-processing backend as a concrete example. The
 scenario provides context, while the focus remains on one common problem and

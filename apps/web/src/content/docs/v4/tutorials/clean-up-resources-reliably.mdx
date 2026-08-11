@@ -6,7 +6,6 @@ sidebar:
 ---
 
 import {
-  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -44,9 +43,19 @@ part of the request that acquires, uses, and releases resources.
 
 ## Where this tutorial fits
 
-The highlighted components show where this tutorial changes the shared order-processing system.
+The table identifies the parts of the shared order-processing system covered by this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture) for the full system.
 
-<TutorialArchitectureMap active="clean-up-resources-reliably" compact />
+| Part             | Area                  | Role in this tutorial                                             |
+| ---------------- | --------------------- | ----------------------------------------------------------------- |
+| Place order      | Application operation | Give a database connection and inventory lock one shared lifetime |
+| Inventory        | Backend service       | Acquire and release the inventory lock                            |
+| Order repository | Backend service       | Acquire and release the connection, then store the accepted order |
+
+### Request flow
+
+1. Place order acquires a database connection and an inventory lock.
+2. Order repository stores the accepted order using those resources.
+3. Place order releases both resources after success, failure, or cancellation.
 
 ## Project setup
 

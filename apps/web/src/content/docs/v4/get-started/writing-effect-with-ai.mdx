@@ -17,7 +17,8 @@ that still gets through. The result can be checked instead of merely trusted.
 
 Consider a request such as:
 
-> Add an endpoint that reads an order-import file and returns the imported ids.
+> Add an endpoint that reads an order-import file and returns the imported
+> external order IDs.
 
 The prompt leaves important questions unanswered. Can reading the file fail? Is the input trusted? Where does the filesystem come from? What happens if the caller cancels the operation?
 
@@ -42,19 +43,19 @@ computation that runs:
 import { Effect } from "effect"
 
 const importOrders = Effect.gen(function* () {
-  Effect.log("Reading orders.json")
-  return { imported: 0 }
+  Effect.log("Importing orders")
+  return { imported: 0, orderIds: [] }
 })
 ```
 
 `effecttsgo/floating-effect` identifies the ignored `Effect.log`. The correction is explicit:
 
-```ts
+```ts ins={4}
 import { Effect } from "effect"
 
 const importOrders = Effect.gen(function* () {
-  yield* Effect.log("Reading orders.json")
-  return { imported: 0 }
+  yield* Effect.log("Importing orders")
+  return { imported: 0, orderIds: [] }
 })
 ```
 
@@ -91,7 +92,9 @@ Use the tools to expose the decision, then make the decision deliberately.
 
 ## See the feedback loop in practice
 
-[Catch AI slop before it ships](/docs/v4/tutorials/catch-ai-slop-before-it-ships) starts from a captured AI-generated implementation of `POST /orders/import`, inspects its mistakes, and uses Effect-specific diagnostics to correct them.
+The tutorial [Catch AI slop before it ships](/docs/v4/tutorials/catch-ai-slop-before-it-ships)
+starts from a captured AI-generated implementation of `POST /orders/import`,
+inspects its mistakes, and uses Effect-specific diagnostics to correct them.
 
 Because the generated change is fixed, the same findings can be reproduced
 without depending on a particular model or AI tool.

@@ -6,7 +6,6 @@ sidebar:
 ---
 
 import {
-  TutorialArchitectureMap,
   TutorialCheckpoint,
   TutorialPainPoint,
 } from "@astrojs/starlight/components"
@@ -41,29 +40,34 @@ The same request makes the final change visible:
 
 ## Where this tutorial fits
 
-The highlighted components show where this tutorial changes the shared order-processing system.
+The table identifies the parts of the shared order-processing system covered by
+this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture)
+for the full system.
 
-<TutorialArchitectureMap
-  active="keep-dependencies-explicit-without-manual-wiring"
-  compact
-/>
+| Part                         | Area                  | Role in this tutorial                                         |
+| ---------------------------- | --------------------- | ------------------------------------------------------------- |
+| HTTP routes                  | HTTP boundary         | Run Place order with implementations selected at startup      |
+| Place order                  | Application operation | Declare its Payment and Order repository requirements         |
+| Payment and Order repository | Backend services      | Provide stable contracts independent of their implementations |
+| Service setup                | Runtime support       | Select, build, and share the implementations                  |
 
 ## Project setup
 
 The project uses two files:
 
-| File         | Role                                                                     |
-| ------------ | ------------------------------------------------------------------------ |
-| `fixture.ts` | Fixed fixture that provides the HTTP server, payment, and repository.    |
-| `server.ts`  | Contains the order logic and infrastructure setup the tutorial improves. |
+| File         | Role                                                                               |
+| ------------ | ---------------------------------------------------------------------------------- |
+| `fixture.ts` | Fixed fixture that provides the HTTP server, payment providers, and order storage. |
+| `server.ts`  | Contains the order logic and infrastructure setup the tutorial improves.           |
 
 `fixture.ts` does not change. It exports:
 
 - `startServer`, which exposes the order function as `POST /orders` and turns
   its result into an HTTP response;
 - `paymentProviders.primary` and `paymentProviders.backup`, which implement the
-  same payment contract and identify themselves in the accepted order;
-- `consoleOrderRepository`, which records the saved order in the terminal.
+  same Promise-based provider contract and identify themselves in the accepted
+  order;
+- `consoleOrderStorage`, which records the saved order in the terminal.
 
 `paymentToken` is a string that identifies the customer's payment method
 without exposing card details. Both deterministic payment implementations
@@ -88,16 +92,20 @@ export interface AcceptedOrder {
   readonly paymentProvider: string
 }
 
+export interface PaymentAuthorization {
+  readonly provider: string
+}
+
 export interface PaymentProvider {
   readonly authorize: (input: {
     readonly operationId: string
     readonly amountCents: number
     readonly paymentToken: string
     readonly signal?: AbortSignal
-  }) => Promise<{ readonly provider: string }>
+  }) => Promise<PaymentAuthorization>
 }
 
-export interface OrderRepository {
+export interface OrderStorage {
   readonly save: (
     order: AcceptedOrder,
     options?: { readonly signal?: AbortSignal },
@@ -151,7 +159,7 @@ export const paymentProviders = {
   },
 } satisfies Record<"primary" | "backup", PaymentProvider>
 
-export const consoleOrderRepository: OrderRepository = {
+export const consoleOrderStorage: OrderStorage = {
   save: async (order, { signal } = {}) => {
     await sleep(20, undefined, { signal })
     console.log(`saved ${order.orderId}`)
@@ -171,15 +179,15 @@ node --watch server.ts
 ### 1. Start with direct dependencies
 
 The initial `server.ts` uses conventional `async`/`await`. `placeOrder`
-receives its payment provider and repository as ordinary function arguments:
+receives its payment provider and order storage as ordinary function arguments:
 
 ```ts title="server.ts"
 import {
-  consoleOrderRepository,
+  consoleOrderStorage,
   paymentProviders,
   startServer,
   type AcceptedOrder,
-  type OrderRepository,
+  type OrderStorage,
   type PaymentProvider,
   type PlaceOrderRequest,
 } from "./fixture.ts"
@@ -188,7 +196,7 @@ const placeOrder = async (
   input: PlaceOrderRequest,
   dependencies: {
     readonly payment: PaymentProvider
-    readonly orders: OrderRepository
+    readonly orders: OrderStorage
   },
 ): Promise<AcceptedOrder> => {
   const totalCents = 1_250 * input.quantity
@@ -213,7 +221,7 @@ const placeOrder = async (
 startServer((input) =>
   placeOrder(input, {
     payment: paymentProviders.primary,
-    orders: consoleOrderRepository,
+    orders: consoleOrderStorage,
   }),
 )
 ```
@@ -247,15 +255,15 @@ saved order-customer-123
   total={6}
   title="The direct-dependency endpoint works"
 >
-  An approved order returns `201` through the primary provider, and the
-  repository records the order.
+  An approved order returns `201` through the primary provider, and the storage
+  implementation records the order.
 </TutorialCheckpoint>
 
 Passing dependencies directly is reasonable at this size. The cost is already
 visible, however:
 
 - the HTTP entry point chooses `paymentProviders.primary` and
-  `consoleOrderRepository`;
+  `consoleOrderStorage`;
 - it builds a dependency object;
 - it forwards that object to `placeOrder`, even though HTTP handling does not
   use either implementation.
@@ -272,11 +280,11 @@ what changed. First, keep both direct arguments and change only how
 
 ```ts title="server.ts" ins={10,12,18-26,28-33,35-37,39,41-46}
 import {
-  consoleOrderRepository,
+  consoleOrderStorage,
   paymentProviders,
   startServer,
   type AcceptedOrder,
-  type OrderRepository,
+  type OrderStorage,
   type PaymentProvider,
   type PlaceOrderRequest,
 } from "./fixture.ts"
@@ -286,7 +294,7 @@ const placeOrder = (
   input: PlaceOrderRequest,
   dependencies: {
     readonly payment: PaymentProvider
-    readonly orders: OrderRepository
+    readonly orders: OrderStorage
   },
 ) =>
   Effect.tryPromise(async (signal) => {
@@ -314,7 +322,7 @@ startServer((input) =>
   Effect.runPromise(
     placeOrder(input, {
       payment: paymentProviders.primary,
-      orders: consoleOrderRepository,
+      orders: consoleOrderStorage,
     }),
   ),
 )
@@ -380,77 +388,108 @@ are selected.
 ### 3. Make payment a service requirement
 
 The dependency object still crosses the HTTP boundary. Replace only its
-payment entry with a `Context` service. The repository remains an ordinary
+payment entry with a `Context` service. Order storage remains an ordinary
 argument for one more step, making the effect of this change visible:
 
-```ts title="server.ts" collapse={1-9} ins={10,12-15,17-26,28-33,35-40,43-47}
+```ts title="server.ts" ins={7,11,13-28,30-65}
 import {
-  consoleOrderRepository,
+  consoleOrderStorage,
   paymentProviders,
   startServer,
   type AcceptedOrder,
-  type OrderRepository,
+  type OrderStorage,
+  type PaymentAuthorization,
   type PaymentProvider,
   type PlaceOrderRequest,
 } from "./fixture.ts"
-import { Context, Effect } from "effect"
+import { Cause, Context, Effect } from "effect"
+
+interface Payment {
+  readonly authorize: (input: {
+    readonly operationId: string
+    readonly amountCents: number
+    readonly paymentToken: string
+  }) => Effect.Effect<PaymentAuthorization, Cause.UnknownError>
+}
 
 // The service key connects the TypeScript contract to a runtime implementation.
-const PaymentProvider = Context.Service<PaymentProvider>(
-  "tutorial/PaymentProvider",
-)
+const Payment = Context.Service<Payment>("tutorial/Payment")
 
-const placeOrder = (input: PlaceOrderRequest, orders: OrderRepository) =>
-  PaymentProvider.use((payment) =>
-    Effect.tryPromise(async (signal) => {
-      const totalCents = 1_250 * input.quantity
-      const authorization = await payment.authorize({
+// Infrastructure adapters keep Promise APIs behind the service contract.
+const paymentFromProvider = (provider: PaymentProvider): Payment => ({
+  authorize: (input) =>
+    Effect.tryPromise((signal) => provider.authorize({ ...input, signal })),
+})
+
+const placeOrder = (input: PlaceOrderRequest, orders: OrderStorage) =>
+  Payment.use((payment) => {
+    const totalCents = 1_250 * input.quantity
+    return payment
+      .authorize({
         operationId: input.customerId,
         amountCents: totalCents,
         paymentToken: input.paymentToken,
-        signal,
       })
+      .pipe(
+        Effect.flatMap((authorization) =>
+          Effect.tryPromise(async (signal) => {
+            const order: AcceptedOrder = {
+              orderId: `order-${input.customerId}`,
+              status: "accepted",
+              totalCents,
+              paymentProvider: authorization.provider,
+            }
 
-      const order: AcceptedOrder = {
-        orderId: `order-${input.customerId}`,
-        status: "accepted",
-        totalCents,
-        paymentProvider: authorization.provider,
-      }
-
-      await orders.save(order, { signal })
-      return order
-    }),
-  )
+            await orders.save(order, { signal })
+            return order
+          }),
+        ),
+      )
+  })
 
 // The HTTP entry point still selects both implementations.
 startServer((input) =>
   Effect.runPromise(
     Effect.provideService(
-      placeOrder(input, consoleOrderRepository),
-      PaymentProvider,
-      paymentProviders.primary,
+      placeOrder(input, consoleOrderStorage),
+      Payment,
+      paymentFromProvider(paymentProviders.primary),
     ),
   ),
 )
 ```
 
-The interface and the `const` are both named `PaymentProvider`. TypeScript
-keeps types and runtime values in separate namespaces:
+`PaymentProvider` remains the Promise-based external SDK contract from the
+fixture. The new `Payment` interface is the application service contract, and
+its `authorize` method returns an Effect instead of exposing that Promise.
+
+The interface and the `const` are both named `Payment`. TypeScript keeps types
+and runtime values in separate namespaces:
 
 - the interface remains the contract that an implementation must satisfy;
 - the `const` is a runtime key used to find an implementation of that contract.
 
 [`Context.Service`](/docs/v4/api/effect/Context#Service-variable) creates the
 typed key. Its string is the runtime identity and must be unique.
-`PaymentProvider.use` describes reading the implementation stored under that
+`Payment.use` describes reading the implementation stored under that
 key and passing it to the callback. It does not read a global value or run the
 callback immediately.
 
-`placeOrder(input, consoleOrderRepository)` now returns this inferred type:
+`paymentFromProvider` is the infrastructure adapter. It uses
+[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) to turn one
+`PaymentProvider` into the Effect-based `Payment` service. Rejected provider
+Promises become `Cause.UnknownError`, and interruption reaches the provider
+through its `AbortSignal`.
+
+[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) uses the successful
+`PaymentAuthorization` to describe the storage operation that must run next.
+If authorization fails, the callback is not run and the same failure remains
+in the error channel.
+
+`placeOrder(input, consoleOrderStorage)` now returns this inferred type:
 
 ```ts title="Inferred type, not code to paste"
-Effect.Effect<AcceptedOrder, Cause.UnknownError, PaymentProvider>
+Effect.Effect<AcceptedOrder, Cause.UnknownError, Payment>
 ```
 
 The success and error types are unchanged. The third type argument is the
@@ -459,7 +498,7 @@ remains visible while Effect values are combined.
 
 [`Effect.provideService`](/docs/v4/api/effect/Effect#provideService) supplies
 one existing implementation for a matching service key. Here it supplies the
-primary provider and removes `PaymentProvider` from the remaining requirements.
+primary provider adapter and removes `Payment` from the remaining requirements.
 
 The same request still returns `primary-pay`. The HTTP entry point supplies the
 payment implementation, but it no longer passes that implementation as a
@@ -471,58 +510,80 @@ business-function argument.
   title="Payment is an explicit service requirement"
 >
   The order still returns `201` through `primary-pay`. The Effect type records
-  the payment requirement, while the repository remains an ordinary argument.
+  the payment requirement, while order storage remains an ordinary argument.
 </TutorialCheckpoint>
 
 ### 4. Move the repository requirement too
 
 The remaining `orders` parameter still makes the HTTP entry point select and
-forward repository infrastructure. Give the repository its own service key and
-read it inside the same computation:
+forward order storage. Introduce the `OrderRepository` service, adapt the
+storage implementation behind it, and read that service inside the same
+computation:
 
-```ts title="server.ts" collapse={1-10} ins={12,16-18,20,22-30,32-37,39-42,45,49-55}
+```ts title="server.ts" collapse={1-25} ins={27-41,43-79}
 import {
-  consoleOrderRepository,
+  consoleOrderStorage,
   paymentProviders,
   startServer,
   type AcceptedOrder,
-  type OrderRepository,
+  type OrderStorage,
+  type PaymentAuthorization,
   type PaymentProvider,
   type PlaceOrderRequest,
 } from "./fixture.ts"
-import { Context, Effect } from "effect"
+import { Cause, Context, Effect } from "effect"
 
-// Service keys connect TypeScript contracts to runtime implementations.
-const PaymentProvider = Context.Service<PaymentProvider>(
-  "tutorial/PaymentProvider",
-)
+interface Payment {
+  readonly authorize: (input: {
+    readonly operationId: string
+    readonly amountCents: number
+    readonly paymentToken: string
+  }) => Effect.Effect<PaymentAuthorization, Cause.UnknownError>
+}
+const Payment = Context.Service<Payment>("tutorial/Payment")
+
+const paymentFromProvider = (provider: PaymentProvider): Payment => ({
+  authorize: (input) =>
+    Effect.tryPromise((signal) => provider.authorize({ ...input, signal })),
+})
+
+interface OrderRepository {
+  readonly save: (
+    order: AcceptedOrder,
+  ) => Effect.Effect<AcceptedOrder, Cause.UnknownError>
+}
 const OrderRepository = Context.Service<OrderRepository>(
   "tutorial/OrderRepository",
 )
 
+const ordersFromStorage = (storage: OrderStorage): OrderRepository => ({
+  save: (order) =>
+    Effect.tryPromise((signal) => storage.save(order, { signal })).pipe(
+      Effect.map(() => order),
+    ),
+})
+
 const placeOrder = (input: PlaceOrderRequest) =>
-  PaymentProvider.use((payment) =>
-    OrderRepository.use((orders) =>
-      Effect.tryPromise(async (signal) => {
-        const totalCents = 1_250 * input.quantity
-        const authorization = await payment.authorize({
+  Payment.use((payment) =>
+    OrderRepository.use((orders) => {
+      const totalCents = 1_250 * input.quantity
+      return payment
+        .authorize({
           operationId: input.customerId,
           amountCents: totalCents,
           paymentToken: input.paymentToken,
-          signal,
         })
-
-        const order: AcceptedOrder = {
-          orderId: `order-${input.customerId}`,
-          status: "accepted",
-          totalCents,
-          paymentProvider: authorization.provider,
-        }
-
-        await orders.save(order, { signal })
-        return order
-      }),
-    ),
+        .pipe(
+          Effect.flatMap((authorization) =>
+            orders.save({
+              orderId: `order-${input.customerId}`,
+              status: "accepted",
+              totalCents,
+              paymentProvider: authorization.provider,
+            }),
+          ),
+        )
+    }),
   )
 
 // The HTTP entry point supplies both services instead of passing arguments.
@@ -531,11 +592,11 @@ startServer((input) =>
     Effect.provideService(
       Effect.provideService(
         placeOrder(input),
-        PaymentProvider,
-        paymentProviders.primary,
+        Payment,
+        paymentFromProvider(paymentProviders.primary),
       ),
       OrderRepository,
-      consoleOrderRepository,
+      ordersFromStorage(consoleOrderStorage),
     ),
   ),
 )
@@ -546,18 +607,24 @@ service key identifies one entry in that collection. The value stored under
 `OrderRepository` must satisfy the `OrderRepository` interface, connecting the
 runtime lookup to TypeScript's compile-time checks.
 
+`OrderStorage` remains the Promise-based infrastructure contract. The new
+`OrderRepository` service exposes an Effect operation instead.
+`ordersFromStorage` adapts the storage Promise with `Effect.tryPromise` and
+forwards interruption through the `AbortSignal`.
+
+[`Effect.map`](/docs/v4/api/effect/Effect#map) transforms the successful
+`undefined` returned by storage into the accepted order. It leaves
+`Cause.UnknownError` unchanged, so a rejected storage Promise remains visible
+in the error channel.
+
 The inferred type of `placeOrder(input)` now shows both requirements:
 
 ```ts title="Inferred type, not code to paste"
-Effect.Effect<
-  AcceptedOrder,
-  Cause.UnknownError,
-  PaymentProvider | OrderRepository
->
+Effect.Effect<AcceptedOrder, Cause.UnknownError, Payment | OrderRepository>
 ```
 
 The union in the third type argument means the computation needs both services.
-It does not mean either service is optional. `PaymentProvider.use` and
+It does not mean either service is optional. `Payment.use` and
 `OrderRepository.use` each add their key to that union.
 
 The handler no longer passes infrastructure to `placeOrder`, but the two nested
@@ -583,54 +650,81 @@ A `Context` key describes what a computation needs. We still need one place to
 describe how all implementations are selected. Replace the individual
 `Effect.provideService` calls with Layers and combine them into `AppLive`:
 
-```ts title="server.ts" collapse={1-9,12-43} ins={10,45-50,52}
+```ts title="server.ts" collapse={1-64} ins={11,66-80}
 import {
-  consoleOrderRepository,
+  consoleOrderStorage,
   paymentProviders,
   startServer,
   type AcceptedOrder,
-  type OrderRepository,
+  type OrderStorage,
+  type PaymentAuthorization,
   type PaymentProvider,
   type PlaceOrderRequest,
 } from "./fixture.ts"
-import { Context, Effect, Layer } from "effect"
+import { Cause, Context, Effect, Layer } from "effect"
 
-// Service keys connect TypeScript contracts to runtime implementations.
-const PaymentProvider = Context.Service<PaymentProvider>(
-  "tutorial/PaymentProvider",
-)
+interface Payment {
+  readonly authorize: (input: {
+    readonly operationId: string
+    readonly amountCents: number
+    readonly paymentToken: string
+  }) => Effect.Effect<PaymentAuthorization, Cause.UnknownError>
+}
+const Payment = Context.Service<Payment>("tutorial/Payment")
+
+const paymentFromProvider = (provider: PaymentProvider): Payment => ({
+  authorize: (input) =>
+    Effect.tryPromise((signal) => provider.authorize({ ...input, signal })),
+})
+
+interface OrderRepository {
+  readonly save: (
+    order: AcceptedOrder,
+  ) => Effect.Effect<AcceptedOrder, Cause.UnknownError>
+}
 const OrderRepository = Context.Service<OrderRepository>(
   "tutorial/OrderRepository",
 )
 
+const ordersFromStorage = (storage: OrderStorage): OrderRepository => ({
+  save: (order) =>
+    Effect.tryPromise((signal) => storage.save(order, { signal })).pipe(
+      Effect.map(() => order),
+    ),
+})
+
 const placeOrder = (input: PlaceOrderRequest) =>
-  PaymentProvider.use((payment) =>
-    OrderRepository.use((orders) =>
-      Effect.tryPromise(async (signal) => {
-        const totalCents = 1_250 * input.quantity
-        const authorization = await payment.authorize({
+  Payment.use((payment) =>
+    OrderRepository.use((orders) => {
+      const totalCents = 1_250 * input.quantity
+      return payment
+        .authorize({
           operationId: input.customerId,
           amountCents: totalCents,
           paymentToken: input.paymentToken,
-          signal,
         })
-
-        const order: AcceptedOrder = {
-          orderId: `order-${input.customerId}`,
-          status: "accepted",
-          totalCents,
-          paymentProvider: authorization.provider,
-        }
-
-        await orders.save(order, { signal })
-        return order
-      }),
-    ),
+        .pipe(
+          Effect.flatMap((authorization) =>
+            orders.save({
+              orderId: `order-${input.customerId}`,
+              status: "accepted",
+              totalCents,
+              paymentProvider: authorization.provider,
+            }),
+          ),
+        )
+    }),
   )
 
 // The application Layer selects every infrastructure implementation.
-const PaymentLive = Layer.succeed(PaymentProvider, paymentProviders.primary)
-const OrdersLive = Layer.succeed(OrderRepository, consoleOrderRepository)
+const PaymentLive = Layer.succeed(
+  Payment,
+  paymentFromProvider(paymentProviders.primary),
+)
+const OrdersLive = Layer.succeed(
+  OrderRepository,
+  ordersFromStorage(consoleOrderStorage),
+)
 const AppLive = Layer.merge(PaymentLive, OrdersLive)
 
 // The HTTP boundary provides the complete service graph.
@@ -640,17 +734,17 @@ startServer((input) =>
 ```
 
 A Layer is a value that describes how to construct one or more services. Like
-an Effect, creating a Layer does not perform side effects. These implementations
-already exist as fixture values, so constructing their Layers cannot fail and
-does not require other services.
+an Effect, creating a Layer does not perform side effects. The adapter
+functions create these service values from existing fixture values, so their
+Layers cannot fail and do not require other services.
 
 [`Layer.succeed`](/docs/v4/api/effect/Layer#succeed) creates a Layer for one
 already-available service value:
 
 - `PaymentLive` associates `paymentProviders.primary` with the
-  `PaymentProvider` key;
-- `OrdersLive` associates `consoleOrderRepository` with the `OrderRepository`
-  key.
+  `Payment` key through `paymentFromProvider`;
+- `OrdersLive` associates `consoleOrderStorage` with the `OrderRepository` key
+  through `ordersFromStorage`.
 
 [`Layer.merge`](/docs/v4/api/effect/Layer#merge) combines two independent Layers
 into one Layer that provides both sets of services. `AppLive` therefore
@@ -659,7 +753,7 @@ describes the complete set of services used by this application.
 The inferred type shows the services provided by `AppLive`:
 
 ```ts title="Inferred type, not code to paste"
-Layer.Layer<PaymentProvider | OrderRepository>
+Layer.Layer<Payment | OrderRepository>
 ```
 
 [`Layer.Layer`](/docs/v4/api/effect/Layer#Layer) is the type of a Layer
@@ -687,64 +781,91 @@ implementations are selected, not the observable behavior.
   total={6}
   title="One Layer provides every service"
 >
-  `AppLive` selects the primary payment provider and console repository. The
-  request returns `201`, and no individual service is supplied in the HTTP entry
-  point.
+  `AppLive` adapts the primary payment provider and console storage into the two
+  application services. The request returns `201`, and no individual service is
+  supplied in the HTTP entry point.
 </TutorialCheckpoint>
 
 ### 6. Replace the payment implementation
 
-The backup fixture satisfies the same `PaymentProvider` contract. Select it by
-changing only the value associated with that service key:
+The backup fixture satisfies the same `PaymentProvider` SDK contract. Adapt it
+to `Payment` by changing only the provider passed to `paymentFromProvider`:
 
-```ts title="server.ts" collapse={1-44,47-53} ins={46}
+```ts title="server.ts" collapse={1-66,71-80} ins={69}
 import {
-  consoleOrderRepository,
+  consoleOrderStorage,
   paymentProviders,
   startServer,
   type AcceptedOrder,
-  type OrderRepository,
+  type OrderStorage,
+  type PaymentAuthorization,
   type PaymentProvider,
   type PlaceOrderRequest,
 } from "./fixture.ts"
-import { Context, Effect, Layer } from "effect"
+import { Cause, Context, Effect, Layer } from "effect"
 
-// Service keys connect TypeScript contracts to runtime implementations.
-const PaymentProvider = Context.Service<PaymentProvider>(
-  "tutorial/PaymentProvider",
-)
+interface Payment {
+  readonly authorize: (input: {
+    readonly operationId: string
+    readonly amountCents: number
+    readonly paymentToken: string
+  }) => Effect.Effect<PaymentAuthorization, Cause.UnknownError>
+}
+const Payment = Context.Service<Payment>("tutorial/Payment")
+
+const paymentFromProvider = (provider: PaymentProvider): Payment => ({
+  authorize: (input) =>
+    Effect.tryPromise((signal) => provider.authorize({ ...input, signal })),
+})
+
+interface OrderRepository {
+  readonly save: (
+    order: AcceptedOrder,
+  ) => Effect.Effect<AcceptedOrder, Cause.UnknownError>
+}
 const OrderRepository = Context.Service<OrderRepository>(
   "tutorial/OrderRepository",
 )
 
+const ordersFromStorage = (storage: OrderStorage): OrderRepository => ({
+  save: (order) =>
+    Effect.tryPromise((signal) => storage.save(order, { signal })).pipe(
+      Effect.map(() => order),
+    ),
+})
+
 const placeOrder = (input: PlaceOrderRequest) =>
-  PaymentProvider.use((payment) =>
-    OrderRepository.use((orders) =>
-      Effect.tryPromise(async (signal) => {
-        const totalCents = 1_250 * input.quantity
-        const authorization = await payment.authorize({
+  Payment.use((payment) =>
+    OrderRepository.use((orders) => {
+      const totalCents = 1_250 * input.quantity
+      return payment
+        .authorize({
           operationId: input.customerId,
           amountCents: totalCents,
           paymentToken: input.paymentToken,
-          signal,
         })
-
-        const order: AcceptedOrder = {
-          orderId: `order-${input.customerId}`,
-          status: "accepted",
-          totalCents,
-          paymentProvider: authorization.provider,
-        }
-
-        await orders.save(order, { signal })
-        return order
-      }),
-    ),
+        .pipe(
+          Effect.flatMap((authorization) =>
+            orders.save({
+              orderId: `order-${input.customerId}`,
+              status: "accepted",
+              totalCents,
+              paymentProvider: authorization.provider,
+            }),
+          ),
+        )
+    }),
   )
 
 // The application Layer selects every infrastructure implementation.
-const PaymentLive = Layer.succeed(PaymentProvider, paymentProviders.backup)
-const OrdersLive = Layer.succeed(OrderRepository, consoleOrderRepository)
+const PaymentLive = Layer.succeed(
+  Payment,
+  paymentFromProvider(paymentProviders.backup),
+)
+const OrdersLive = Layer.succeed(
+  OrderRepository,
+  ordersFromStorage(consoleOrderStorage),
+)
 const AppLive = Layer.merge(PaymentLive, OrdersLive)
 
 // The HTTP boundary provides the complete service graph.
@@ -771,7 +892,7 @@ saved order-customer-123
 
 `placeOrder`, the HTTP fixture, and `OrdersLive` are unchanged. The replacement
 is confined to the Layer that associates an implementation with the
-`PaymentProvider` key.
+`Payment` key.
 
 <TutorialCheckpoint
   number={6}
@@ -791,8 +912,8 @@ list. `Layer.succeed` associates those identities with concrete values, and
 `Layer.merge` creates the complete application setup.
 
 That separation gives the final one-line replacement its meaning. The Layer
-changed the `PaymentProvider` implementation; no code that calculates,
-authorizes, saves, or serves an order had to change.
+changed the provider adapted into the `Payment` service; no code that
+calculates, authorizes, saves, or serves an order had to change.
 
 ## Related tutorials
 

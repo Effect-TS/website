@@ -1,197 +1,162 @@
 ---
 name: write-effect-tutorials
-description: Create and review beginner-friendly Effect tutorials for this website, especially MDX under apps/web/src/content/docs/v4/tutorials. Use when drafting, restructuring, integrating, or auditing a tutorial; designing its progressive backend scenario and controlled fixtures; adding checkpoints; presenting complete files with native Expressive Code highlights; or checking that every Effect API and concept is explained to a TypeScript developer with no prior Effect knowledge.
+description: Create and review beginner-friendly Effect tutorials under apps/web/src/content/docs/v4/tutorials. Use when drafting, restructuring, integrating, or auditing a tutorial; designing its pain-driven progression, order-processing scenario, controlled fixtures, architecture section, project setup, complete code states, or checkpoints.
 ---
 
 # Write Effect Tutorials
 
-Create Diataxis-style tutorials that lead a TypeScript backend developer from familiar code to one robust, observable result through small verified steps.
+Create Diataxis-style tutorials that lead a TypeScript developer from familiar
+code to one robust, observable result through small steps.
 
-Use `apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx` as the canonical implementation reference. Inspect only the relevant portions when a concrete MDX or prompt pattern is needed.
+## Apply the general documentation skill
+
+Before editing a tutorial, read `../write-effect-docs/SKILL.md` completely and
+apply it together with this skill. It owns the shared rules for prose,
+terminology, API explanations, links, code presentation, typography, stable
+exports, and documentation validation. Do not recreate those rules here.
+
+Use
+`apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx`
+as the canonical tutorial implementation. Inspect only the relevant portions
+when a concrete MDX pattern is needed.
 
 ## Establish the reader and outcome
 
-- Treat the pain point as the organizing principle of the entire tutorial. The scenario, code, Effect APIs, and observable results are means for exploring how Effect addresses that pain, not subjects to emphasize for their own sake. Reject feature tours and API-first progressions.
-- Assume the reader knows TypeScript, Promises, `async`/`await`, HTTP, and ordinary backend development.
-- Assume no knowledge of Effect, generators, functional pipelines, fibers, error channels, interruption, defects, schedules, layers, or services.
-- Name the tutorial after the positive outcome Effect provides for a general pain recognizable to backend developers. Do not name it after an API, feature, or scenario-specific task.
-- Begin every tutorial with exactly one `TutorialPainPoint`. Give the card a short title that names the pain directly. In two short paragraphs, first describe how the problem appears in ordinary TypeScript and then explain how Effect addresses it. Use only language a TypeScript developer who has never used Effect already understands; introduce Effect-specific APIs and concepts later. Replace equivalent introductory prose instead of repeating it outside the card.
-- Keep this terminology strict: a pain point is the problem, while a tutorial
-  title is the positive outcome Effect provides. When navigation presents
-  tutorial titles, call them tutorials or outcomes, never pain points.
-- Introduce the concrete scenario immediately after `TutorialPainPoint`. Keep scenario-specific actors and details outside the card, then explain the scenario before asking the reader to act.
-- State what the reader will learn and the observable behavior of the finished backend. Use a compact table when several cases must be distinguished.
-- Keep the tutorial learning-oriented and guided. Do not turn it into explanation, reference, or a menu of alternatives.
+- Assume the reader knows TypeScript, Promises, `async`/`await`, HTTP, and
+  ordinary backend development.
+- Assume no knowledge of Effect, generators, functional pipelines, fibers,
+  error channels, interruption, defects, schedules, layers, or services.
+- Organize the entire tutorial around a common development pain. Treat the
+  scenario, code, and Effect APIs as means for exploring Effect's solution, not
+  as subjects for a feature tour.
+- Name the tutorial after the positive outcome Effect provides. Do not name it
+  after an API, feature, or scenario-specific task.
+- Begin with exactly one `TutorialPainPoint`. Give it a short title that names
+  the pain directly. In two short paragraphs, first describe the problem in
+  ordinary TypeScript, then explain at a high level how Effect addresses it.
+- Keep this terminology strict: the pain point is the problem; the tutorial
+  title is the positive outcome.
+- Introduce the concrete scenario immediately after the pain-point card. Keep
+  scenario-specific actors and details outside the card.
+- Use `## What you will build` to state the observable behavior of the finished
+  backend. Use a compact table when several cases must be distinguished.
+- Keep the tutorial learning-oriented and guided. Do not turn it into an
+  explanation page, reference page, or menu of alternatives.
 
-## Design a pain-first progression
+## Build a pain-first progression
 
-1. Start with a small, working backend written in conventional TypeScript. Prefer one local HTTP server and one endpoint.
-2. Keep the starter familiar and short. Inline one-use types and helpers when naming them adds ceremony rather than clarity.
-3. Immediately demonstrate what can go wrong with the starter.
-4. Introduce one limitation at a time. Follow each limitation with the smallest Effect change that addresses it.
-5. Explain the new API or concept in terms of the exact code just added.
-6. Describe the expected observable result and end with a checkpoint. Local execution may be available without being required to understand the result.
-7. Preserve a single linear state progression. Every code block and checkpoint must correspond to the same current project state.
+1. Start with a small working backend in conventional TypeScript. Prefer one
+   local HTTP server and one endpoint.
+2. Keep the starter familiar and short. Inline one-use types and helpers when a
+   name adds ceremony rather than clarity.
+3. Immediately show what can go wrong.
+4. Introduce one limitation at a time and follow it with the smallest Effect
+   change that addresses it.
+5. Apply the general documentation skill's API-explanation rule to every new
+   Effect API or concept at the point where it first matters.
+6. State the expected observable result and end the transition with a
+   checkpoint.
+7. Preserve one linear project state. Every code block and checkpoint must
+   describe the same current version of the project.
 
-At every step, keep the connection to the original pain visible: identify the
-specific limitation being removed, show the Effect capability that removes it,
-and demonstrate the resulting behavior. If a section mainly showcases an API
-without advancing that journey, remove it or move it to explanatory or
-reference documentation.
+Keep the connection to the original pain visible at every step. Identify the
+limitation being removed, show the capability that removes it, and demonstrate
+the resulting behavior. Remove or relocate sections that mainly showcase an
+API without advancing that journey.
 
-Allow the tutorial to be long when the journey requires it, but keep each step small. Do not introduce an API merely for completeness. Avoid `Effect.gen`, `Schedule`, layers, and other new abstractions unless the current problem cannot be taught clearly with fewer concepts.
-
-When a valuable capability would require enough setup to obscure the lesson, mention it briefly and defer its implementation to a later tutorial. Do not burden the reader merely to make the example comprehensive.
+Allow a tutorial to be long when necessary, but keep each step small. Avoid
+`Effect.gen`, `Schedule`, layers, and other new abstractions unless the current
+problem cannot be taught clearly with fewer concepts. Mention and defer a
+valuable capability when its setup would obscure the lesson.
 
 ## Use a realistic controlled backend
 
-- Build a real local backend rather than isolated toy expressions.
-- Represent external providers with deterministic Promise-based fixtures. Model useful latency, rejection, outage, recovery, and cancellation behavior without public internet access, credentials, Docker, or a second process.
-- Keep fixture setup out of the lesson. Supply it ready-made and label it as tutorial fixture code.
-- Keep the external SDK contract, documented errors, inputs, outputs, and deterministic behavior visible before the tutorial first uses them. Do not hide that required context inside a `details` element.
-- After a file has been presented once in full, collapse only fixture plumbing that the reader does not need to understand, such as an HTTP adapter's internal implementation.
-- Put a fixture shared by several tutorials in a `.ts` asset rather than publishing an internal MDX documentation page.
-- Give fixture inputs stable meanings throughout the tutorial suite.
-- Make state reset behavior explicit when it affects verification.
+- Build a real local backend rather than isolated expressions.
+- Represent external providers with deterministic Promise-based fixtures.
+  Model latency, rejection, outage, recovery, and cancellation without public
+  internet access, credentials, Docker, or another process.
+- Keep fixture setup out of the lesson. Supply it ready-made and label it as
+  tutorial fixture code.
+- Show the external SDK contract, documented errors, inputs, outputs, and
+  deterministic behavior before the tutorial first uses it. Do not collapse
+  this required context.
+- After a fixture has been presented once in full, collapse only plumbing the
+  reader no longer needs to inspect.
+- Put a fixture shared by multiple tutorials in a `.ts` asset rather than an
+  internal MDX page.
+- Give fixture inputs stable meanings across the suite and explain when state
+  resets affect verification.
 
 ## Keep the tutorial suite coherent
 
 Before changing the order-processing scenario, domain terms, routes, or
-architectural responsibilities, read
-`specs/tutorial-order-processing/CONTEXT.md` and
-`specs/tutorial-order-processing/SUITE-CONTRACT.md`.
+architectural responsibilities, read both:
 
-Treat every tutorial as a small, standalone projection of the same backend
-system, not as an independent reinvention of it. The purpose is to prevent
-architectural and domain-model drift without making a tutorial carry concepts
-that do not serve its pain point.
+- `specs/tutorial-order-processing/CONTEXT.md`
+- `specs/tutorial-order-processing/SUITE-CONTRACT.md`
 
-Keep these invariants aligned across the suite:
+Treat every tutorial as a small standalone projection of the same backend, not
+as an independent reinvention. Align:
 
-- ubiquitous domain terms and their meanings;
-- identifiers, shared value objects, and the ownership of generated values;
-- the meaning of HTTP routes and response statuses;
-- the boundary between HTTP concerns, application operations, service
-  contracts, and infrastructure implementations;
-- service names, error names, and the behavior represented by deterministic
-  fixture inputs;
-- cancellation and resource-lifetime boundaries.
+- domain terms, identifiers, and value ownership;
+- routes and response statuses;
+- HTTP, application, service, and infrastructure boundaries;
+- service and error names;
+- deterministic fixture behavior;
+- cancellation and resource lifetimes.
 
-A tutorial may use only the fields, services, and files required for its
-lesson. That reduced model must be a compatible projection of the shared model,
-not a conflicting alternative. Keep unrelated capabilities behind small
-fixtures instead of introducing extra Effect APIs merely for consistency.
+A tutorial may use only the fields and services required for its lesson. The
+reduced model must remain compatible with the shared model. Keep unrelated
+capabilities behind small fixtures instead of adding Effect APIs merely for
+consistency.
 
-Maintain a separate reference application as the integration target for the
-suite. Tutorial solutions should fit its contracts conceptually, but they do
-not need to reproduce its full architecture or be mechanically concatenated.
-When coherence and pedagogical simplicity conflict, preserve the tutorial's
-focus and simplify through a compatible fixture.
+Treat the separate reference application as the integration target. Tutorial
+solutions should fit its contracts conceptually, but they need not reproduce
+its full architecture or concatenate mechanically. When coherence conflicts
+with pedagogical simplicity, preserve focus through a compatible fixture.
 
-## Explain Effect from zero
+## Show where the tutorial fits
 
-Introduce the mental model at the first Effect value:
+- Give every tutorial a `## Where this tutorial fits` section after
+  `What you will build`.
+- Link that section directly to
+  `/docs/v4/tutorials/introduction#architecture`.
+- Show only the architectural parts covered by the tutorial in a native
+  Markdown table. Do not hide static architecture behind a component.
+- Add a short numbered request flow only when sequence or concurrency helps
+  explain the lesson.
+- In the suite introduction, document stable components and responsibilities,
+  then present the tutorial directory as one Markdown table with `Tutorial`,
+  `Outcome`, and `Architecture focus` columns.
 
-- An Effect is a value that describes a computation.
-- Creating or transforming it does not run the computation or perform side effects.
-- A runner such as `Effect.runPromise` actually runs it at an application boundary.
-- The success type describes the produced value. The error type describes expected failures and is called the error channel.
-- Interruption is cancellation of a running computation.
-- A defect is an unexpected bug, distinct from an expected failure.
+## Structure project setup consistently
 
-Never leave abstract placeholders such as `Effect<Success, Error>` disconnected from the code. Show the concrete inferred type of the value the reader just created, map each type argument to a concrete outcome, and state when the type display is explanatory rather than code to paste.
-
-Explain every Effect-specific API and term at its first use. When these APIs appear, cover at least the following points:
-
-- `Effect.tryPromise`: adapt a Promise-producing function; resolved values become successes, rejections enter the error channel, the function remains lazy, and the provided `AbortSignal` reaches the Promise API.
-- `Effect.runPromise`: run the computation, return a Promise, resolve with the success value, reject when the Effect does not succeed, and optionally observe an external `AbortSignal`.
-- `pipe`: compose descriptions from top to bottom without running them.
-- `Effect.map`: transform the success channel with a function and leave the
-  error channel unchanged. Keep the general behavior separate from the
-  concrete result type chosen by the tutorial.
-- `Cause.UnknownError`: identify it as Effect's built-in wrapper for an unclassified rejection and explain preservation of the original `cause`.
-- `Data.TaggedError`: explain the generated typed error class, the tag string, the constructor fields declared by the type argument, and the resulting instance.
-- `_tag`: identify it as the ubiquitous Effect convention for discriminating variants.
-- `Effect.catchTags`: match tagged values in the error channel, require handlers that return Effects, and remove a handled error when the handler succeeds.
-- `Effect.sync`: defer synchronous work; its return value becomes the success value.
-- `Effect.succeed`: describe success with an already available value.
-- `Effect.fail`: describe a failed computation; creating it does not throw.
-- `Effect.retry`: rerun the preceding computation after selected failures; explain the predicate and the total attempt bound concretely.
-- `Effect.timeoutOrElse`: bound the preceding computation, interrupt it, and run the fallback on timeout.
-- `Effect.fn`: use its named form for functions whose execution should be traced. Explain that calling the function returns an Effect, the generator body sequences Effect operations, and the named form creates and closes a span when that Effect runs. Reserve `Effect.withSpan` for an existing Effect or an anonymous block that does not merit a named function.
-
-Present each concrete API explanation in the surrounding prose at its first meaningful use. Keep the explanation close to the code and focused on behavior the reader can connect to that step. Do not require a separate API card when prose communicates the concept more naturally.
-
-- Link the API name inline to its generated reference declaration when one is available.
-- Write the reference route explicitly so it remains useful in the raw `.md` representation.
-- Verify ambiguous anchors against the generated reference. A symbol exported as both a type and a value may use suffixes such as `-interface` or `-variable`.
-
-Inventory the APIs actually used instead of relying on memory:
-
-```sh
-rg -o '\b(?:Effect|Data|Cause)\.[A-Za-z0-9_]+' <tutorial.mdx> | sort -u
-```
-
-For each result, verify that a reader encounters a concrete explanation close to the first meaningful use. Ordinary backend terms such as “happy path” and “boundary” do not require Effect-specific definitions. Replace vague Effect jargon such as “bring the Promise into Effect” or “start the Effect” with observable behavior.
-
-Verify API names and semantics against the installed v4 package under `apps/web/node_modules/effect`. Use only stable exports. Do not teach `effect/unstable`, historical APIs, migration material, or comparisons with other documentation versions.
-
-## Write the human path
-
-- Use frontmatter for the page title and do not repeat it as an H1 in the MDX body.
-- Use site routes for internal links and never include a `.mdx` extension.
-- Preserve the tutorial collection's existing sidebar placement and ordering conventions when adding or renaming a page.
-- Use `npm` inside standalone tutorial projects unless the tutorial has a concrete reason to require another package manager. Continue using `pnpm` and `vp run` for work on this repository.
-- Do not teach generic project initialization. Assume the reader can create and configure a normal TypeScript project; include setup only when it is specific to the tutorial's subject.
 - Assume Effect is already installed through the dedicated installation page.
-  Do not repeat `npm install effect` or its equivalents inside tutorials.
-- Put tutorial-specific starter files and the reusable command that establishes the local run loop in a `## Project setup` section. Name every file, state its role, and make clear which file or files change during the tutorial and which remain fixed. Keep requests and checks that demonstrate a particular step beside that step.
-- Start every `Project setup` with the same compact structure: a `File` / `Role`
-  table. Make changing and fixed roles clear in that table instead of repeating
-  them in a paragraph. Describe fixed fixtures next, then present the
-  watched-server command after any fixture code the reader must copy.
-- Mark a fixed TypeScript fixture both in its `Role` cell and with one brief
-  comment at the top of its first complete code block. Do not add invalid
-  comments to data formats such as JSON.
-- Keep Node.js requirements in the dedicated installation page. Do not repeat
-  runtime versions or type-stripping requirements inside tutorials.
-- Make the tutorial understandable as a reading path. Creating files, starting the server, and sending requests must not be prerequisites for following the lesson.
-- Treat that flexibility as an editorial rule. Do not tell the reader that setup, commands, sections, or verification are “optional,” and do not put “optional” in their titles.
-- When offering local execution, start the server with `node --watch server.ts`, explicitly explain `--watch`, and tell the reader to keep it running.
-- Say “open a second terminal pane” for verification commands.
-- Do not tell the reader to stop and restart a watched server between edits.
-- Add descriptive subsection headings when they help the reader orient themselves. Avoid generic headings that add no information.
-- Prefer lists when presenting multiple parallel roles, cases, steps, or outcomes. Do not bury an enumeration in a long sentence.
-- Use direct, literal language. Avoid colloquialisms, idioms, and unexplained jargon, even when they are common among fluent English speakers.
-- Avoid adjacent code fences that render as one block. Separate them with a short transition and give each fence a meaningful `title`.
-- Never use the em dash character `—` in documentation copy.
+  Do not repeat installation commands.
+- Do not teach generic project initialization.
+- Use `npm` inside standalone tutorial projects. Continue using `pnpm` and
+  `vp run` for repository work.
+- Put starter files and the local run loop in `## Project setup`.
+- Begin with the same `File` / `Role` table. State which files change and which
+  remain fixed in the table rather than repeating it in prose.
+- Describe fixed fixtures next, then present the watched-server command after
+  any fixture code the reader must copy.
+- Mark a fixed TypeScript fixture in its `Role` cell and with one brief comment
+  at the top of its first complete code block.
+- Keep Node.js versions and type-stripping requirements in the installation
+  page.
+- Make the tutorial understandable by reading alone. Creating files, starting
+  the server, and sending requests must not be prerequisites for understanding.
+- Do not describe setup, commands, sections, or verification as “optional.”
+- When offering local execution, use `node --watch server.ts`, explain
+  `--watch`, and tell the reader to keep the process running.
+- Say “open a second terminal pane” for verification commands. Do not tell the
+  reader to restart a watched server between edits.
 
-## Preserve the documentation color language
+## Present complete project states
 
-Use the semantic documentation tokens defined in `apps/web/src/styles/global.css`
-when changing documentation UI, navigation, or callouts. Do not introduce raw
-palette classes where a documentation token already expresses the meaning.
-
-- Use emerald `--docs-tutorial-*` tokens for tutorials and checkpoints.
-- Use sky `--docs-guide-*` tokens for guides.
-- Use indigo `--docs-reference-*` tokens for API reference content.
-- Use neutral slate `--docs-architecture-*` tokens for architectural
-  components and relationships inside tutorial visualizations. Architecture is
-  supporting structure, not a document family, so it must not compete with the
-  indigo used by API reference content.
-- Keep pain points amber and errors red. These state meanings override the
-  surrounding document-family color.
-- Keep the current-page treatment in shared documentation navigation neutral.
-  It communicates location, not document family; use family colors inside the
-  content and purpose-built visualizations instead.
-
-Define and inspect both light and dark values for every new semantic token.
-Keep labels, icons, borders, or other non-color cues so color is never the only
-way to identify a document family or state.
-
-## Present code for copying
-
-Show the complete current file for every human-facing code modification. A copied block must produce the working file for that checkpoint; do not make the reader reconstruct a file from fragments or manually apply a textual patch.
+Show the complete current file for every human-facing code modification. A
+copied block must produce the working file for that checkpoint.
 
 Use Expressive Code's native inserted-line highlighting:
 
@@ -201,26 +166,25 @@ Use Expressive Code's native inserted-line highlighting:
 ```
 ````
 
-- Show the final state of the file without `+` or `-` diff prefixes.
-- Highlight new or changed lines with native `ins={...}` metadata.
-- Explain removed code in the prose immediately before the block instead of retaining it in the copied file.
+- Show the final state without `+` or `-` diff prefixes.
+- Highlight new or changed lines with `ins={...}`.
+- Explain removed code in the prose before the block.
 - Keep changed code visible.
-- Never collapse code the first time it is introduced. Present the complete file or block once before collapsing any of its ranges in later snapshots.
-- Prefer extracting stable plumbing or fixtures before collapsing the learning code. Collapse unchanged ranges only when the complete current file would otherwise obscure the change.
-- After their first complete presentation, collapse unchanged ranges in long fixtures when that keeps later snapshots focused.
-- Use the short filename, such as `server.ts`, as the title rather than a long path.
-- Add code comments sparingly. Use them only to explain a non-obvious decision, boundary, or behavior; do not narrate ordinary syntax or repeat the surrounding prose.
-- Do not use `useDiffSyntax`, `copyFinal`, formatter-ignore comments, or a custom copy plugin for tutorial code.
+- Never collapse code the first time it appears.
+- Prefer extracting stable plumbing or fixtures before collapsing learning
+  code. Collapse unchanged ranges only when the complete current file would
+  obscure the change.
+- Recalculate collapse ranges after every edit.
+- Do not use `useDiffSyntax`, `copyFinal`, formatter-ignore comments, custom
+  copy plugins, or coding-agent prompts.
 - Verify that the ordinary copy button produces the complete current file.
-- Recalculate collapse ranges after every code edit and inspect the rendered result.
 
 ## Add checkpoints
 
-Explain near the beginning that a checkpoint is a short summary of the behavior reached at that point.
+Explain near the beginning that a checkpoint is a short summary of the
+behavior reached at that point.
 
-End every meaningful state transition with one `TutorialCheckpoint`. Give it an outcome-oriented title and summarize what now works. Do not add internal dashed separators or decorative space that does not communicate state.
-
-Keep checkpoints focused on the behavior produced by the current code:
+End every meaningful state transition with one outcome-oriented checkpoint:
 
 ```mdx
 <TutorialCheckpoint number={N} total={TOTAL} title="Observable outcome">
@@ -228,23 +192,23 @@ Keep checkpoints focused on the behavior produced by the current code:
 </TutorialCheckpoint>
 ```
 
-- Do not add `AgentPrompt`, coding-agent buttons, hidden prompts, or an AI-assisted path through a tutorial.
-- Do not make setup or verification depend on nondeterministic agent behavior.
-- A tutorial may discuss AI-generated code when that is the subject being taught, but its instructions must still be deterministic and completed by the reader.
+- Keep a checkpoint focused on behavior produced by the current code.
+- Do not add dashed separators or decorative space inside it.
+- Do not add `AgentPrompt`, coding-agent buttons, hidden prompts, or an
+  AI-assisted path.
+- A tutorial may discuss AI-generated code when that is the subject, but its
+  instructions must remain deterministic and reader-driven.
 
-## Validate before handing off
+## Validate the tutorial path
 
-- Materialize the tutorial project in a clean scratch directory and exercise every checkpoint in order.
+In addition to the general documentation checks:
+
+- Materialize the tutorial project in a clean scratch directory.
+- Exercise every project state and checkpoint in order.
 - Confirm that every complete code snapshot type-checks and runs after copying.
-- Keep tutorial code fences out of runtime doctests; validate the complete stateful tutorial project separately.
-- Verify every HTTP status, body, log line, attempt count, timeout, and cancellation claim.
-- Inspect the page locally for inserted-line highlights, collapsed ranges, copy behavior, code-fence spacing, and checkpoint flow.
-- Request the `.md` version of the page and confirm that essential instructions and code survive conversion.
-- Scan for forbidden historical framing and typography:
-
-```sh
-rg -n '—|\b(?:v3|v4|migration|migrat(?:e|ing|ion))\b' <tutorial.mdx>
-```
-
-- Run `git diff --check` and the relevant repository checks through `vp run`.
-- During review, fix objective clarity, terminology, rendering, and API-explanation problems autonomously. Pause only for a strong editorial choice that would materially change the tutorial's audience, outcome, scenario, or architecture.
+- Keep stateful tutorial code fences out of runtime doctests and validate the
+  materialized project separately.
+- Verify every claimed HTTP status, body, log line, attempt count, timeout, and
+  cancellation result.
+- Inspect inserted-line highlights, collapsed ranges, copy behavior, code-fence
+  spacing, and checkpoint flow locally.
