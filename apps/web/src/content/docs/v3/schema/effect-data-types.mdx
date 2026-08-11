@@ -9,7 +9,7 @@ import { Aside } from "@astrojs/starlight/components"
 
 ## Interop With Data
 
-The [Data](/docs/data-types/data/) module in the Effect ecosystem simplifies value comparison by automatically implementing the [Equal](/docs/trait/equal/) and [Hash](/docs/trait/hash/) traits. This eliminates the need for manual implementations, making equality checks straightforward.
+The [Data](/docs/v3/api/effect/Data) module in the Effect ecosystem simplifies value comparison by automatically implementing the [Equal](/docs/v3/trait/equal/) and [Hash](/docs/v3/trait/hash/) traits. This eliminates the need for manual implementations, making equality checks straightforward.
 
 **Example** (Comparing Structs with Data)
 
@@ -85,7 +85,7 @@ This function takes two arguments:
 - `name`: Identifier for the configuration setting.
 - `schema`: Schema describing the expected data type and structure.
 
-It returns a [Config](/docs/configuration/) object that integrates with your application's configuration system.
+It returns a [Config](/docs/v3/configuration/) object that integrates with your application's configuration system.
 
 The Encoded type `I` must extend `string`, so the schema must be able to decode from a string, this includes schemas like `Schema.String`, `Schema.Literal("...")`, or `Schema.NumberFromString`, possibly with refinements applied.
 
@@ -93,7 +93,7 @@ Behind the scenes, `Schema.Config` follows these steps:
 
 1. **Fetch the value** using the provided name (e.g. from an environment variable).
 2. **Decode the value** using the given schema. If the value is invalid, decoding fails.
-3. **Format any errors** using [TreeFormatter.formatErrorSync](/docs/schema/error-formatters/#treeformatter-default), which helps produce readable and detailed error messages.
+3. **Format any errors** using [TreeFormatter.formatErrorSync](/docs/v3/schema/error-formatters/#treeformatter-default), which helps produce readable and detailed error messages.
 
 **Example** (Decoding a Configuration Value)
 
@@ -1780,7 +1780,7 @@ console.log(decode(Duration.decode("11 seconds")))
 
 ### Redacted
 
-The `Schema.Redacted` function is specifically designed to handle sensitive information by converting a `string` into a [Redacted](/docs/data-types/redacted/) object.
+The `Schema.Redacted` function is specifically designed to handle sensitive information by converting a `string` into a [Redacted](/docs/v3/api/effect/Redacted) object.
 This transformation ensures that the sensitive data is not exposed in the application's output.
 
 **Example** (Basic Redacted Schema)

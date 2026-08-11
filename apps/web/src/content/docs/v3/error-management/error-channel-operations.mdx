@@ -143,11 +143,11 @@ const program = pipe(
 
 In the example above, a guard is used within the `filterOrFail` API to ensure that the `user` is of type `User` rather than `User | null`.
 
-If you prefer, you can utilize a pre-made guard like [Predicate.isNotNull](https://effect-ts.github.io/effect/effect/Predicate.ts.html#isnotnull) for simplicity and consistency.
+If you prefer, you can utilize a pre-made guard like [Predicate.isNotNull](/docs/v3/api/effect/Predicate#isNotNull) for simplicity and consistency.
 
 ## Inspecting Errors
 
-Similar to [tapping](/docs/getting-started/building-pipelines/#tap) for success values, Effect provides several operators for inspecting error values.
+Similar to [tapping](/docs/v3/getting-started/building-pipelines/#tap) for success values, Effect provides several operators for inspecting error values.
 These operators allow developers to observe failures or underlying issues without modifying the outcome.
 
 ### tapError
@@ -250,7 +250,7 @@ error cause: RuntimeException: Something went wrong
 
 ### tapDefect
 
-Specifically inspects non-recoverable failures or defects in an effect (i.e., one or more [Die](/docs/data-types/cause/#die) causes).
+Specifically inspects non-recoverable failures or defects in an effect (i.e., one or more [Die](/docs/v3/data-types/cause/#die) causes).
 
 **Example** (Inspecting Defects)
 
@@ -319,7 +319,7 @@ failure: random number is negative
 
 ## Exposing Errors in The Success Channel
 
-The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
+The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/v3/api/effect/Either) data type:
 
 ```ts showLineNumbers=false
 Effect<A, E, R> -> Effect<Either<A, E>, never, R>
@@ -340,7 +340,7 @@ Effect<Either<string, HttpError>, never, never>
 The resulting effect cannot fail because the potential failure is now represented within the `Either`'s `Left` type.
 The error type of the returned `Effect` is specified as `never`, confirming that the effect is structured to not fail.
 
-This function becomes especially useful when recovering from effects that may fail when using [Effect.gen](/docs/getting-started/using-generators/#understanding-effectgen):
+This function becomes especially useful when recovering from effects that may fail when using [Effect.gen](/docs/v3/getting-started/using-generators/#understanding-effectgen):
 
 **Example** (Using `Effect.either` to Handle Errors)
 

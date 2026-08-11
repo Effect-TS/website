@@ -69,7 +69,7 @@ Output:
 
 ## runSyncExit
 
-Runs an effect synchronously and returns the result as an [Exit](/docs/data-types/exit/) type, which represents the outcome (success or failure) of the effect.
+Runs an effect synchronously and returns the result as an [Exit](/docs/v3/data-types/exit/) type, which represents the outcome (success or failure) of the effect.
 
 Use `Effect.runSyncExit` to find out whether an effect succeeded or failed,
 including any defects, without dealing with asynchronous operations.
@@ -78,7 +78,7 @@ The `Exit` type represents the result of the effect:
 
 - If the effect succeeds, the result is wrapped in a `Success`.
 - If it fails, the failure information is provided as a `Failure` containing
-  a [Cause](/docs/data-types/cause/) type.
+  a [Cause](/docs/v3/data-types/cause/) type.
 
 **Example** (Handling Results as Exit)
 
@@ -172,7 +172,7 @@ Output:
 
 ## runPromiseExit
 
-Runs an effect and returns a `Promise` that resolves to an [Exit](/docs/data-types/exit/), which
+Runs an effect and returns a `Promise` that resolves to an [Exit](/docs/v3/data-types/exit/), which
 represents the outcome (success or failure) of the effect.
 
 Use `Effect.runPromiseExit` when you need to determine if an effect succeeded
@@ -182,7 +182,7 @@ The `Exit` type represents the result of the effect:
 
 - If the effect succeeds, the result is wrapped in a `Success`.
 - If it fails, the failure information is provided as a `Failure` containing
-  a [Cause](/docs/data-types/cause/) type.
+  a [Cause](/docs/v3/data-types/cause/) type.
 
 **Example** (Handling Results as Exit)
 
@@ -247,11 +247,11 @@ setTimeout(() => {
 }, 500)
 ```
 
-In this example, the `program` continuously logs "running..." with each repetition spaced 200 milliseconds apart. You can learn more about repetitions and scheduling in our [Introduction to Scheduling](/docs/scheduling/introduction/) guide.
+In this example, the `program` continuously logs "running..." with each repetition spaced 200 milliseconds apart. You can learn more about repetitions and scheduling in our [Introduction to Scheduling](/docs/v3/scheduling/introduction/) guide.
 
 To stop the execution of the program, we use `Fiber.interrupt` on the fiber returned by `Effect.runFork`. This allows you to control the execution flow and terminate it when necessary.
 
-For a deeper understanding of how fibers work and how to handle interruptions, check out our guides on [Fibers](/docs/concurrency/fibers/) and [Interruptions](/docs/concurrency/basic-concurrency/#interruptions).
+For a deeper understanding of how fibers work and how to handle interruptions, check out our guides on [Fibers](/docs/v3/concurrency/fibers/) and [Interruptions](/docs/v3/concurrency/basic-concurrency/#interruptions).
 
 ## Synchronous vs. Asynchronous Effects
 
@@ -281,4 +281,4 @@ The table provides a summary of the available `run*` functions, along with their
 | `runPromiseExit` | `Effect<A, E>` | `Promise<Exit<A, E>>` |
 | `runFork`        | `Effect<A, E>` | `RuntimeFiber<A, E>`  |
 
-You can find the complete list of `run*` functions [here](https://effect-ts.github.io/effect/effect/Effect.ts.html#running-effects).
+You can find the complete list of `run*` functions [here](/docs/v3/api/effect/Effect#category-running-effects).

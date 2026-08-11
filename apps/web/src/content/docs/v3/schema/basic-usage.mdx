@@ -168,7 +168,7 @@ ParseError: "a" | "b" | "c"
 */
 ```
 
-If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
+If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/v3/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
 
 **Example** (Adding a Custom Message to a Union of Literals)
 
@@ -329,7 +329,7 @@ const schema = Schema.TemplateLiteral("Bearer ", AuthorizationToken)
 
 ### TemplateLiteralParser
 
-The `Schema.TemplateLiteral` constructor, while useful as a simple validator, only verifies that an input conforms to a specific string pattern by converting template literal definitions into regular expressions. Similarly, [`Schema.pattern`](/docs/schema/filters/#string-filters) employs regular expressions directly for the same purpose. Post-validation, both methods require additional manual parsing to convert the validated string into a usable data format.
+The `Schema.TemplateLiteral` constructor, while useful as a simple validator, only verifies that an input conforms to a specific string pattern by converting template literal definitions into regular expressions. Similarly, [`Schema.pattern`](/docs/v3/schema/filters/#string-filters) employs regular expressions directly for the same purpose. Post-validation, both methods require additional manual parsing to convert the validated string into a usable data format.
 
 To address these limitations and eliminate the need for manual post-validation parsing, the `Schema.TemplateLiteralParser` API has been developed. It not only validates the input format but also automatically parses it into a more structured and type-safe output, specifically into a **tuple** format.
 
@@ -485,7 +485,7 @@ const schema = Schema.Literal("a", "b", "c")
 type Type = typeof schema.Type
 ```
 
-If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
+If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/v3/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
 
 **Example** (Adding a Custom Message to a Union of Literals)
 
@@ -604,7 +604,7 @@ const Shape = Schema.Union(Circle, Square)
 To make your code more manageable, you may want to transform the simple union into a discriminated union. This way, TypeScript will be able to automatically determine which member of the union you're working with based on the value of a specific property.
 
 To achieve this, you can add a special property to each member of the union, which will allow TypeScript to know which type it's dealing with at runtime.
-Here's how you can [transform](/docs/schema/transformations/#transform) the `Shape` schema into another schema that represents a discriminated union:
+Here's how you can [transform](/docs/v3/schema/transformations/#transform) the `Shape` schema into another schema that represents a discriminated union:
 
 **Example** (Adding Discriminant Property)
 
@@ -1115,7 +1115,7 @@ console.log(Schema.decodeUnknownSync(schema)({ a: 1, bb: 2 }))
 ```
 
 If you want decoding to fail when a key does not meet the constraints,
-you can set [`onExcessProperty`](/docs/schema/getting-started/#managing-excess-properties) to `"error"`.
+you can set [`onExcessProperty`](/docs/v3/schema/getting-started/#managing-excess-properties) to `"error"`.
 
 **Example** (Forcing an Error on Invalid Keys)
 
@@ -1169,7 +1169,7 @@ schema (Transformation): Trim
 </Aside>
 
 To modify record keys, you must apply transformations outside of `Schema.Record`.
-A common approach is to use [Schema.transform](/docs/schema/transformations/#transform) to adjust keys during decoding.
+A common approach is to use [Schema.transform](/docs/v3/schema/transformations/#transform) to adjust keys during decoding.
 
 **Example** (Trimming Keys While Decoding)
 
@@ -1473,7 +1473,7 @@ type IndexSignatureProperties = {
 type OutputData = readonly [FixedProperties, IndexSignatureProperties]
 ```
 
-By using [Schema.transform](/docs/schema/transformations/#transform) and [Schema.compose](/docs/schema/transformations/#composition),
+By using [Schema.transform](/docs/v3/schema/transformations/#transform) and [Schema.compose](/docs/v3/schema/transformations/#composition),
 you can preprocess the input data before validation. This approach ensures that fixed properties and index signature properties are treated independently.
 
 ```ts twoslash
@@ -1742,7 +1742,7 @@ ParseError: Expected MyData, actual {"name":"name"}
 */
 ```
 
-The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](/docs/schema/advanced-usage/#declaring-new-data-types) API, which is the primitive in `effect/Schema` for declaring new custom data types.
+The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](/docs/v3/schema/advanced-usage/#declaring-new-data-types) API, which is the primitive in `effect/Schema` for declaring new custom data types.
 
 ### Private Constructors
 
@@ -1763,7 +1763,7 @@ class MyData {
 const MyDataSchema = Schema.instanceOf(MyData)
 ```
 
-In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](/docs/schema/advanced-usage/#declaring-new-data-types) like this:
+In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](/docs/v3/schema/advanced-usage/#declaring-new-data-types) like this:
 
 **Example** (Using `Schema.declare` With Private Constructors)
 
@@ -1791,7 +1791,7 @@ ParseError: Expected MyData, actual {"name":"name"}
 
 ### Validating Fields of the Instance
 
-To validate the fields of a class instance, you can use a [filter](/docs/schema/filters/). This approach combines instance validation with additional checks on the instance's fields.
+To validate the fields of a class instance, you can use a [filter](/docs/v3/schema/filters/). This approach combines instance validation with additional checks on the instance's fields.
 
 **Example** (Adding Field Validation to an Instance Schema)
 

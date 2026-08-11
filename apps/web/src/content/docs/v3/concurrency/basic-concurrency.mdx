@@ -266,7 +266,7 @@ task5 done
 
 ## Interruptions
 
-All effects in Effect are executed by [fibers](/docs/concurrency/fibers/). If you didn't create the fiber yourself, it was created by an operation you're using (if it's concurrent) or by the Effect [runtime](/docs/runtime/) system.
+All effects in Effect are executed by [fibers](/docs/v3/concurrency/fibers/). If you didn't create the fiber yourself, it was created by an operation you're using (if it's concurrent) or by the Effect [runtime](/docs/v3/runtime/) system.
 
 A fiber is created any time an effect is run. When running effects concurrently, a fiber is created for each concurrent effect.
 
@@ -283,7 +283,7 @@ A fiber can be interrupted using the `Effect.interrupt` effect on that particula
 
 This effect models the explicit interruption of the fiber in which it runs.
 When executed, it causes the fiber to stop its operation immediately, capturing the interruption details such as the fiber's ID and its start time.
-The resulting interruption can be observed in the [Exit](/docs/data-types/exit/) type if the effect is run with functions like [runPromiseExit](/docs/getting-started/running-effects/#runpromiseexit).
+The resulting interruption can be observed in the [Exit](/docs/v3/data-types/exit/) type if the effect is run with functions like [runPromiseExit](/docs/v3/getting-started/running-effects/#runpromiseexit).
 
 **Example** (Without Interruption)
 
@@ -402,7 +402,7 @@ Cleanup completed
 
 When running multiple effects concurrently, such as with `Effect.forEach`, if one of the effects is interrupted, it causes all concurrent effects to be interrupted as well.
 
-The resulting [cause](/docs/data-types/cause/) includes information about which fibers were interrupted.
+The resulting [cause](/docs/v3/data-types/cause/) includes information about which fibers were interrupted.
 
 **Example** (Interrupting Concurrent Effects)
 
@@ -481,7 +481,7 @@ This function takes two effects and runs them concurrently. The first effect
 that successfully completes will determine the result of the race, and the
 other effect will be interrupted.
 
-If neither effect succeeds, the function will fail with a [cause](/docs/data-types/cause/) containing all the errors.
+If neither effect succeeds, the function will fail with a [cause](/docs/v3/data-types/cause/) containing all the errors.
 
 This is useful when you want to run two effects concurrently, but only care
 about the first one to succeed. It is commonly used in cases like timeouts,
@@ -573,7 +573,7 @@ Output:
 */
 ```
 
-If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Effect.either` function. This function wraps the result in an [Either](/docs/data-types/either/) type, allowing you to see if the result was a success (`Right`) or a failure (`Left`):
+If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Effect.either` function. This function wraps the result in an [Either](/docs/v3/api/effect/Either) type, allowing you to see if the result was a success (`Right`) or a failure (`Left`):
 
 **Example** (Handling Success or Failure with Either)
 

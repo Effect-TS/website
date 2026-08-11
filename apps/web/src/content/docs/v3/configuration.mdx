@@ -25,18 +25,18 @@ To make our application configurable, we need to understand three essential elem
 
 Effect provides several built-in types for configuration values, which you can use right out of the box:
 
-| Type       | Description                                                             |
-| ---------- | ----------------------------------------------------------------------- |
-| `string`   | Reads a configuration value as a string.                                |
-| `number`   | Reads a value as a floating-point number.                               |
-| `boolean`  | Reads a value as a boolean (`true` or `false`).                         |
-| `integer`  | Reads a value as an integer.                                            |
-| `date`     | Parses a value into a `Date` object.                                    |
-| `literal`  | Reads a fixed literal (\*).                                             |
-| `logLevel` | Reads a value as a [LogLevel](/docs/observability/logging/#log-levels). |
-| `duration` | Parses a value as a time duration.                                      |
-| `redacted` | Reads a **sensitive value**, ensuring it is protected when logged.      |
-| `url`      | Parses a value as a valid URL.                                          |
+| Type       | Description                                                                |
+| ---------- | -------------------------------------------------------------------------- |
+| `string`   | Reads a configuration value as a string.                                   |
+| `number`   | Reads a value as a floating-point number.                                  |
+| `boolean`  | Reads a value as a boolean (`true` or `false`).                            |
+| `integer`  | Reads a value as an integer.                                               |
+| `date`     | Parses a value into a `Date` object.                                       |
+| `literal`  | Reads a fixed literal (\*).                                                |
+| `logLevel` | Reads a value as a [LogLevel](/docs/v3/observability/logging/#log-levels). |
+| `duration` | Parses a value as a time duration.                                         |
+| `redacted` | Reads a **sensitive value**, ensuring it is protected when logged.         |
+| `url`      | Parses a value as a valid URL.                                             |
 
 (\*) `string | number | boolean | null | bigint`
 
@@ -106,7 +106,7 @@ import { Effect, Schema } from "effect"
 const myConfig = Schema.Config("Foo", Schema.String.pipe(Schema.minLength(4)))
 ```
 
-For more information, see the [Schema.Config](/docs/schema/effect-data-types/#config) documentation.
+For more information, see the [Schema.Config](/docs/v3/schema/effect-data-types/#config) documentation.
 
 ## Providing Default Values
 
@@ -146,7 +146,7 @@ In this case, even though the `PORT` environment variable is not set, the progra
 Some configuration values, like API keys, should not be printed in logs.
 
 The `Config.redacted` function is used to handle sensitive information safely.
-It parses the configuration value and wraps it in a `Redacted<string>`, a specialized [data type](/docs/data-types/redacted/) designed to protect secrets.
+It parses the configuration value and wraps it in a `Redacted<string>`, a specialized [data type](/docs/v3/api/effect/Redacted) designed to protect secrets.
 
 When you log a `Redacted` value using `console.log`, the actual content remains hidden, providing an extra layer of security. To access the real value, you must explicitly use `Redacted.value`.
 

@@ -8,7 +8,7 @@ sidebar:
 import { Aside } from "@astrojs/starlight/components"
 
 The Cron module lets you define schedules in a style similar to [UNIX cron expressions](https://en.wikipedia.org/wiki/Cron).
-It also supports partial constraints (e.g., certain months or weekdays), time zone awareness through the [DateTime](/docs/data-types/datetime/) module, and robust error handling.
+It also supports partial constraints (e.g., certain months or weekdays), time zone awareness through the [DateTime](/docs/v3/api/effect/DateTime) module, and robust error handling.
 
 This module helps you:
 
@@ -54,7 +54,7 @@ Instead of manually constructing a `Cron`, you can use UNIX-like cron strings an
 
 ### parse
 
-The `parse(cronExpression, tz?)` function safely parses a cron string into a `Cron` instance. It returns an [Either](/docs/data-types/either/), which will contain either the parsed `Cron` or a parsing error.
+The `parse(cronExpression, tz?)` function safely parses a cron string into a `Cron` instance. It returns an [Either](/docs/v3/api/effect/Either), which will contain either the parsed `Cron` or a parsing error.
 
 **Example** (Safely Parsing a Cron Expression)
 
@@ -79,7 +79,7 @@ if (Either.isRight(eitherCron)) {
 
 ### unsafeParse
 
-The `unsafeParse(cronExpression, tz?)` function works like [parse](#parse), but instead of returning an [Either](/docs/data-types/either/), it throws an exception if the input is invalid.
+The `unsafeParse(cronExpression, tz?)` function works like [parse](#parse), but instead of returning an [Either](/docs/v3/api/effect/Either), it throws an exception if the input is invalid.
 
 **Example** (Parsing a Cron Expression)
 
@@ -94,7 +94,7 @@ const cron = Cron.unsafeParse("0 0 4 8-14 * *")
 
 ## Checking Dates with match
 
-The `match` function allows you to determine if a given `Date` (or any [DateTime.Input](/docs/data-types/datetime/#the-datetimeinput-type)) satisfies the constraints of a cron schedule.
+The `match` function allows you to determine if a given `Date` (or any [DateTime.Input](/docs/v3/api/effect/DateTime)) satisfies the constraints of a cron schedule.
 
 If the date meets the schedule's conditions, `match` returns `true`. Otherwise, it returns `false`.
 
@@ -172,7 +172,7 @@ The Schedule module allows you to define recurring behaviors, such as retries or
 
 ### cron
 
-The `Schedule.cron` function generates a [Schedule](/docs/scheduling/introduction/) that triggers at the start of each interval defined by the provided cron expression or `Cron` instance. When triggered, the schedule produces a tuple `[start, end]` representing the timestamps (in milliseconds) of the cron interval window.
+The `Schedule.cron` function generates a [Schedule](/docs/v3/scheduling/introduction/) that triggers at the start of each interval defined by the provided cron expression or `Cron` instance. When triggered, the schedule produces a tuple `[start, end]` representing the timestamps (in milliseconds) of the cron interval window.
 
 **Example** (Creating a Schedule from a Cron)
 

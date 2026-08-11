@@ -14,7 +14,7 @@ import { Aside } from "@astrojs/starlight/components"
 
 The Micro module is designed as a lighter alternative to the standard Effect module, tailored for situations where it is beneficial to reduce the bundle size.
 
-This module is standalone and does not include more complex functionalities such as [Layer](/docs/requirements-management/layers/), [Ref](/docs/state-management/ref/), [Queue](/docs/concurrency/queue/), and [Deferred](/docs/concurrency/deferred/). This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
+This module is standalone and does not include more complex functionalities such as [Layer](/docs/v3/requirements-management/layers/), [Ref](/docs/v3/state-management/ref/), [Queue](/docs/v3/concurrency/queue/), and [Deferred](/docs/v3/concurrency/deferred/). This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
 
 Micro also supports use cases where a client application uses Micro, and a server employs the full suite of Effect features, maintaining both compatibility and logical consistency across various application components.
 
@@ -68,7 +68,7 @@ which mirror those of the `Effect` type.
 
 ### MicroExit
 
-The `MicroExit` type is a streamlined version of the [Exit](/docs/data-types/exit/) type, designed to capture the outcome of a `Micro` computation.
+The `MicroExit` type is a streamlined version of the [Exit](/docs/v3/data-types/exit/) type, designed to capture the outcome of a `Micro` computation.
 It can either be successful, containing a value of type `A`, or it can fail, containing an error of type `E` wrapped in a `MicroCause`.
 
 ```ts showLineNumbers=false
@@ -77,7 +77,7 @@ type MicroExit<A, E> = MicroExit.Success<A, E> | MicroExit.Failure<A, E>
 
 ### MicroCause
 
-The `MicroCause` type is a streamlined version of the [Cause](/docs/data-types/cause/) type.
+The `MicroCause` type is a streamlined version of the [Cause](/docs/v3/data-types/cause/) type.
 
 Similar to how `Cause` is a union of types, `MicroCause` comes in three forms:
 
@@ -93,7 +93,7 @@ type MicroCause<E> = Die | Fail<E> | Interrupt
 
 ### MicroSchedule
 
-The `MicroSchedule` type is a streamlined version of the [Schedule](/docs/scheduling/introduction/) type.
+The `MicroSchedule` type is a streamlined version of the [Schedule](/docs/v3/scheduling/introduction/) type.
 
 ```ts showLineNumbers=false
 type MicroSchedule = (attempt: number, elapsed: number) => Option<number>

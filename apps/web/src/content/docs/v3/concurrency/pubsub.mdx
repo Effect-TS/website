@@ -9,16 +9,16 @@ import { Aside } from "@astrojs/starlight/components"
 
 A `PubSub` serves as an asynchronous message hub, allowing publishers to send messages that can be received by all current subscribers.
 
-Unlike a [Queue](/docs/concurrency/queue/), where each value is delivered to only one consumer, a `PubSub` broadcasts each published message to all subscribers. This makes `PubSub` ideal for scenarios requiring message broadcasting rather than load distribution.
+Unlike a [Queue](/docs/v3/concurrency/queue/), where each value is delivered to only one consumer, a `PubSub` broadcasts each published message to all subscribers. This makes `PubSub` ideal for scenarios requiring message broadcasting rather than load distribution.
 
 ## Basic Operations
 
 A `PubSub<A>` stores messages of type `A` and provides two fundamental operations:
 
-| API                | Description                                                                                                                                                                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PubSub.publish`   | Sends a message of type `A` to the `PubSub`, returning an effect indicating if the message was successfully published.                                                                                                                |
-| `PubSub.subscribe` | Creates a scoped effect that allows subscription to the `PubSub`, automatically unsubscribing when the scope ends. Subscribers receive messages through a [Dequeue](/docs/concurrency/queue/#dequeue) which holds published messages. |
+| API                | Description                                                                                                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PubSub.publish`   | Sends a message of type `A` to the `PubSub`, returning an effect indicating if the message was successfully published.                                                                                                                   |
+| `PubSub.subscribe` | Creates a scoped effect that allows subscription to the `PubSub`, automatically unsubscribing when the scope ends. Subscribers receive messages through a [Dequeue](/docs/v3/concurrency/queue/#dequeue) which holds published messages. |
 
 **Example** (Publishing a Message to Multiple Subscribers)
 
@@ -179,7 +179,7 @@ To shut down a pubsub, use `PubSub.shutdown`. You can also verify if it has been
 
 ## PubSub as an Enqueue
 
-`PubSub` operators mirror those of [Queue](/docs/concurrency/queue/) with the main difference being that `PubSub.publish` and `PubSub.subscribe` are used in place of `Queue.offer` and `Queue.take`. If you're already familiar with using a `Queue`, you’ll find `PubSub` straightforward.
+`PubSub` operators mirror those of [Queue](/docs/v3/concurrency/queue/) with the main difference being that `PubSub.publish` and `PubSub.subscribe` are used in place of `Queue.offer` and `Queue.take`. If you're already familiar with using a `Queue`, you’ll find `PubSub` straightforward.
 
 Essentially, a `PubSub` can be seen as a `Enqueue` that only allows writes:
 

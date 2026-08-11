@@ -6,14 +6,27 @@ const staticRoot = path.resolve(
   process.argv[2] ??
     fileURLToPath(new URL("../.vercel/output/static", import.meta.url)),
 )
-const apiRoot = path.join(staticRoot, "docs")
+const docsRoot = path.join(staticRoot, "docs")
 const htmlByPath = new Map()
 const failures = []
 
-for (const filePath of await htmlFiles(apiRoot)) {
-  if (!/[/\\]api[/\\]/.test(filePath)) continue
+for (const filePath of await htmlFiles(docsRoot)) {
   const html = await readFile(filePath, "utf8")
   htmlByPath.set(filePath, html)
+
+  for (const match of html.matchAll(
+    /href="(https:\/\/effect-ts\.github\.io\/effect\/[^"]+)"/g,
+  )) {
+    failures.push(`${relative(filePath)} uses legacy API link ${match[1]}`)
+  }
+
+  for (const match of html.matchAll(/href="(\/docs\/(?!v[34]\/)[^"]+)"/g)) {
+    if (match[1] !== "/docs/") {
+      failures.push(
+        `${relative(filePath)} uses unversioned documentation link ${match[1]}`,
+      )
+    }
+  }
 
   const visibleHtml = html
     .replace(/<pre\b[\s\S]*?<\/pre>/gi, "")
@@ -29,7 +42,7 @@ for (const filePath of await htmlFiles(apiRoot)) {
   }
 
   for (const match of html.matchAll(
-    /href="(\/docs\/v[34]\/api(?:\/[^"#?]+)?(?:#[^"]+)?)"/g,
+    /href="(\/docs\/v[34](?:\/[^"#?]+)?(?:#[^"]+)?)"/g,
   )) {
     const href = match[1]
     if (href === undefined) continue
@@ -54,7 +67,7 @@ for (const filePath of await htmlFiles(apiRoot)) {
 
 if (failures.length > 0) {
   throw new Error(
-    `API reference link verification failed (${failures.length}):\n${failures
+    `Documentation link verification failed (${failures.length}):\n${failures
       .slice(0, 50)
       .map((failure) => `- ${failure}`)
       .join(
@@ -64,7 +77,7 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Verified API reference links in ${htmlByPath.size} generated pages`,
+  `Verified links in ${htmlByPath.size} generated documentation pages`,
 )
 
 async function htmlFiles(directory) {
