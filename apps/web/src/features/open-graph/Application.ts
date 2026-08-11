@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect"
-import { OgContent } from "./Content"
-import { OgRenderer } from "./Renderer"
+import { OgContent, layer as contentLayer } from "./Content"
+import { OgRenderer, layer as rendererLayer } from "./Renderer"
 
 export class OpenGraph extends Context.Service<OpenGraph>()(
   "website/OpenGraph",
@@ -22,6 +22,9 @@ export class OpenGraph extends Context.Service<OpenGraph>()(
       return { generate } as const
     }),
   },
-) {
-  static readonly layer = Layer.effect(this, this.make)
-}
+) {}
+
+export const layer = Layer.effect(OpenGraph, OpenGraph.make).pipe(
+  Layer.provide(contentLayer),
+  Layer.provide(rendererLayer),
+)

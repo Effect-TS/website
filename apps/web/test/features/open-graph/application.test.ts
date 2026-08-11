@@ -20,7 +20,7 @@ const runGenerate = (
   resolve: OgContentService["resolve"],
   render: OgRendererService["render"],
 ) => {
-  const layer = OpenGraph.layer.pipe(
+  const layer = Layer.effect(OpenGraph, OpenGraph.make).pipe(
     Layer.provide(Layer.succeed(OgContent, { resolve })),
     Layer.provide(Layer.succeed(OgRenderer, { render })),
   )

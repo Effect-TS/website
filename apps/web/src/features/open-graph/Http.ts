@@ -1,6 +1,6 @@
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
-import { OpenGraph } from "./Application"
+import { OpenGraph, layer as openGraphLayer } from "./Application"
 import { OgContentError, OgFontError, OgNotFound, OgRenderError } from "./Model"
 
 const notFound = HttpServerResponse.text("Not Found", { status: 404 })
@@ -15,7 +15,7 @@ const reportInternalError = (
     Effect.as(internalError),
   )
 
-export const OpenGraphRoute = HttpRouter.add(
+export const route = HttpRouter.add(
   "GET",
   "/og/*",
   Effect.fnUntraced(
@@ -43,3 +43,15 @@ export const OpenGraphRoute = HttpRouter.add(
     }),
   ),
 )
+
+const middleware = HttpRouter.middleware<{
+  provides: OpenGraph
+}>()(
+  Effect.gen(function* () {
+    const openGraph = yield* OpenGraph
+    return (httpEffect) =>
+      Effect.provideService(httpEffect, OpenGraph, openGraph)
+  }),
+)
+
+export const layer = middleware.layer.pipe(Layer.provide(openGraphLayer))
