@@ -284,7 +284,7 @@ The generated file introduces the first Effect value in
 Effect.Effect<ReadonlyArray<ImportedOrder>, never>
 ```
 
-[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of a value that
+`Effect.Effect` is the type of a value that
 describes a computation. Creating one does not read the file, parse JSON, or log
 anything. The first type argument is the success value, here a readonly array
 of imported orders. The second is the error channel, which lists expected
@@ -292,7 +292,7 @@ failures. The generated annotation says `never`, so it claims that the
 computation has no expected failure. A third, omitted type argument would list
 required services and defaults to `never`.
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the Promise
+`Effect.tryPromise` adapts the Promise
 returned by `readFile`. The function stays lazy and is called only when the
 Effect runs. A resolved Promise becomes a success, while a rejection enters the
 error channel. Effect also supplies an `AbortSignal`, which `readFile` observes
@@ -308,26 +308,26 @@ TypeScript infers this actual type for `readOrdersImplementation`:
 Effect.Effect<ReadonlyArray<ImportedOrder>, Cause.UnknownError>
 ```
 
-[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+`Cause.UnknownError` is
 Effect's built-in wrapper for a rejection or thrown value that has not been
 classified. Its `cause` property preserves the original value. Here, both a
 rejected file read and a thrown `JSON.parse` call produce this expected error.
 
-[`Effect.try`](/docs/v4/api/effect/Effect#try) defers synchronous code that may
+`Effect.try` defers synchronous code that may
 throw. Returning normally becomes success; throwing enters the error channel
 as `Cause.UnknownError` in this form. The generated code uses it to defer
 `JSON.parse`, but the cast still does not validate the parsed value.
 
-[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) describes two dependent
+`Effect.flatMap` describes two dependent
 Effect operations in sequence. When the file read succeeds, its string is
 passed to the parsing function. A failure from either operation remains in the
 error channel. Sequencing them still does not run them.
 
-[`Effect.log`](/docs/v4/api/effect/Effect#log) describes a log operation and
+`Effect.log` describes a log operation and
 succeeds with `void` when that operation runs. The generated handler creates
 this Effect and immediately ignores it, so no log is emitted.
 
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the computation
+`Effect.runPromise` runs the computation
 inside the HTTP handler and returns a Promise. Success resolves with the
 imported orders. If the Effect does not succeed, the Promise rejects and the
 surrounding TypeScript `catch` returns `500`. Its second argument can contain an
@@ -470,28 +470,28 @@ server.listen(3000, () => {
 The new Schema values describe the external data before the data receives an
 application type.
 
-[`Schema.Struct`](/docs/v4/api/effect/Schema#Struct-function) describes an
+`Schema.Struct` describes an
 object with named fields. Here, an imported order must contain an
 `externalOrderId` field accepted by the field's Schema.
-[`Schema.String`](/docs/v4/api/effect/Schema#String-variable) describes a
+`Schema.String` describes a
 JavaScript string, so it rejects a number, object, missing value, or any other
 non-string value at that field.
 
-[`Schema.Array`](/docs/v4/api/effect/Schema#Array-variable) describes a readonly
+`Schema.Array` describes a readonly
 array whose every element must satisfy the supplied Schema. In this case, every
 element must satisfy `ImportedOrderFromJson`.
-[`Schema.fromJsonString`](/docs/v4/api/effect/Schema#fromJsonString-function)
+`Schema.fromJsonString`
 builds a Schema for JSON text whose parsed value must satisfy another Schema.
 `ImportedOrdersFromJson` therefore checks both JSON syntax and the array of
 imported-order objects.
 
-[`Schema.decodeUnknownEffect`](/docs/v4/api/effect/Schema#decodeUnknownEffect)
+`Schema.decodeUnknownEffect`
 returns a function that decodes an unknown input with the supplied Schema.
 Applied after the file read, it describes an Effect that succeeds with the
 validated readonly array or fails with `Schema.SchemaError`. Decoding stays
 lazy until the complete operation runs.
 
-[`Schema.SchemaError`](/docs/v4/api/effect/Schema#SchemaError) is the expected
+`Schema.SchemaError` is the expected
 failure produced when external data does not satisfy a Schema. It carries a
 structured `issue` describing where and why decoding failed.
 

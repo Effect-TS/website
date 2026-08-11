@@ -17,9 +17,9 @@ import {
   Coordinating partial acquisition, cancellation, and cleanup therefore still
   requires manual work.
 
-With Effect, a [`Scope`](/docs/v4/api/effect/Scope#Scope-interface) owns the
+With Effect, a `Scope` owns the
 lifetime of an operation. A finalizer is a cleanup operation registered in that
-Scope. [`Effect.acquireRelease`](/docs/v4/api/effect/Effect#acquireRelease)
+Scope. `Effect.acquireRelease`
 registers one after a resource is acquired successfully. Closing the Scope
 after success, failure, or cancellation runs every registered finalizer.
 
@@ -469,7 +469,7 @@ computation. It does not check out a connection, acquire a lock, or store an
 order yet. Transforming the Effect would still only produce another
 description.
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts a function
+`Effect.tryPromise` adapts a function
 that creates a Promise. Effect calls the function only when the computation
 runs. A resolved Promise becomes a success, while a synchronous throw or
 rejected Promise enters the error channel. Effect also supplies an
@@ -486,7 +486,7 @@ Effect.Effect<StoredOrder, Cause.UnknownError>
 
 This display explains the inferred type. Do not paste it into `server.ts`.
 
-[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of an Effect
+`Effect.Effect` is the type of an Effect
 value. Here, `StoredOrder` is the value produced when the complete Promise
 workflow succeeds. `Cause.UnknownError` describes how that workflow can fail.
 
@@ -494,14 +494,14 @@ Effect calls the second type parameter its error channel. A rejected checkout,
 lock acquisition, or storage operation enters this channel instead of
 producing a `StoredOrder`.
 
-[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+`Cause.UnknownError` is
 Effect's built-in wrapper for an unclassified Promise rejection. Its `cause`
 property preserves the original rejected value. We keep the tutorial's
 existing HTTP decision, so the `catch` inside `startServer` still returns
 `500`.
 
 At the existing async HTTP boundary,
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
+`Effect.runPromise` runs the described
 computation and returns a Promise. It resolves with the `StoredOrder` on
 success. If the Effect does not succeed, the Promise rejects and `startServer`
 handles it.
@@ -590,12 +590,12 @@ Effect.Effect<StoredOrder, Cause.UnknownError, Scope.Scope>
 
 This display explains the inferred type. Do not paste it into `server.ts`.
 
-[`Scope.Scope`](/docs/v4/api/effect/Scope#Scope-interface) represents a lifetime
+`Scope.Scope` represents a lifetime
 in which resources can register cleanup work. The `Scope.Scope` requirement in
 the inferred type means `placeOrder` must run inside such a lifetime.
 
 Each resource now describes its own acquisition and release with
-[`Effect.acquireRelease`](/docs/v4/api/effect/Effect#acquireRelease). It runs
+`Effect.acquireRelease`. It runs
 the acquisition inside the current Scope. If acquisition succeeds, it
 immediately registers the release function as a finalizer. If acquisition
 fails, no finalizer is registered for that resource. When the Scope closes,
@@ -606,23 +606,23 @@ The distinction matters for `order-lock-fails`: checkout succeeds and registers
 the connection finalizer. Lock acquisition fails before it can register a lock
 finalizer. Scope closure therefore releases exactly the connection that exists.
 
-[`Effect.sync`](/docs/v4/api/effect/Effect#sync) defers synchronous work until
+`Effect.sync` defers synchronous work until
 the Effect runs. Here, it prevents the release functions from running while we
 are only constructing the resource descriptions. Their `void` return becomes
 each finalizer's successful value.
 
-The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes an Effect
+The `.pipe(...)` method passes an Effect
 description through transformations from top to bottom. It does not run the
 described work.
 
-[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) sequences a dependent
+`Effect.flatMap` sequences a dependent
 Effect. The first call receives the acquired database connection and describes
 lock acquisition. The second receives that lock and describes storage. If an
 earlier step fails, later steps are skipped and the Scope closes every resource
 already acquired.
 
 The HTTP handler supplies the required lifetime with
-[`Effect.scoped`](/docs/v4/api/effect/Effect#scoped). It creates the Scope
+`Effect.scoped`. It creates the Scope
 required by `placeOrder`, runs the complete workflow in it, and closes the
 Scope before returning. Closing it runs all registered finalizers and removes
 `Scope.Scope` from the Effect's requirements.
@@ -699,7 +699,7 @@ its connection before receiving a response. A normally completed response does
 not abort it.
 
 The optional `signal` accepted by
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) connects an
+`Effect.runPromise` connects an
 external `AbortSignal` to the running computation. When the client disconnects,
 the signal interrupts the complete scoped workflow. The returned Promise
 rejects after the Scope's finalizers have finished, and `startServer` writes
@@ -709,7 +709,7 @@ This interruption is not an expected failure in the error channel, so the
 disconnect does not become a `Cause.UnknownError` or a `500` response.
 
 The `AbortSignal` supplied to the callback by
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) is also aborted
+`Effect.tryPromise` is also aborted
 when the Effect is interrupted. The storage fixture passes it to the
 Promise-based timer, so slow storage stops instead of continuing for 1.5
 seconds.

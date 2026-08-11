@@ -222,26 +222,26 @@ A Schema is an immutable value that describes the values accepted at runtime
 and the values produced after decoding. Defining it does not inspect or convert
 anything.
 
-[`Schema.TemplateLiteral`](/docs/v4/api/effect/Schema#TemplateLiteral-function)
+`Schema.TemplateLiteral`
 combines fixed and variable string parts. `OrderIdText` accepts strings that
 start with `ord_`, while
-[`Schema.String`](/docs/v4/api/effect/Schema#String-variable) describes the
-remaining JavaScript string. [`Schema.Class`](/docs/v4/api/effect/Schema#Class-variable)
+`Schema.String` describes the
+remaining JavaScript string. `Schema.Class`
 creates a class that is also a Schema, so decoding constructs an `OrderId`
 instance rather than returning a structurally similar object.
 
-[`Schema.Struct`](/docs/v4/api/effect/Schema#Struct-function) combines the field
-schemas into one object Schema. [`Schema.Date`](/docs/v4/api/effect/Schema#Date-variable)
+`Schema.Struct` combines the field
+schemas into one object Schema. `Schema.Date`
 describes a valid JavaScript `Date` instance.
-[`Schema.ReadonlySet`](/docs/v4/api/effect/Schema#ReadonlySet-function) describes
-a set whose elements satisfy its inner Schema. [`Schema.Literal`](/docs/v4/api/effect/Schema#Literal-function)
+`Schema.ReadonlySet` describes
+a set whose elements satisfy its inner Schema. `Schema.Literal`
 accepts one exact value, so the status can only be `"accepted"`.
 
 `typeof AcceptedOrder.Type` is the TypeScript type of the rich value described
 by the Schema. The model and its runtime checks therefore come from the same
 definition.
 
-[`Schema.toCodecJson`](/docs/v4/api/effect/Schema#toCodecJson-function) derives
+`Schema.toCodecJson` derives
 a JSON-compatible codec from that model. A codec describes both directions:
 encoding turns an `AcceptedOrder` into JSON-safe data, while decoding rebuilds
 an `AcceptedOrder` from that data. For the fields above, it selects an object
@@ -279,11 +279,11 @@ const server = createServer((request, response) => {
 server.listen(3000, () => console.log("Listening on http://localhost:3000"))
 ```
 
-[`Schema.encodeResult`](/docs/v4/api/effect/Schema#encodeResult) creates an
+`Schema.encodeResult` creates an
 encoder for the codec. Calling it returns a `Result`: success contains the
 JSON-safe representation, while failure means the application attempted to
 send a value that did not satisfy `AcceptedOrder`.
-[`Result.isFailure`](/docs/v4/api/effect/Result#isFailure) identifies the
+`Result.isFailure` identifies the
 failure case. After the early return, TypeScript knows `encoded.success` is
 available.
 
@@ -333,7 +333,7 @@ console.log({
 })
 ```
 
-[`Schema.decodeUnknownResult`](/docs/v4/api/effect/Schema#decodeUnknownResult)
+`Schema.decodeUnknownResult`
 creates a decoder for untrusted input. The value returned by `response.json()`
 is not trusted merely because the server sent it. Calling the decoder checks
 the JSON representation and reconstructs the types described by the shared
@@ -444,25 +444,25 @@ export const ExternalAcceptedOrderJson = Schema.toCodecJson(
 ```
 
 `ExternalAcceptedOrderFields` describes the external names and formats.
-[`Schema.DateFromMillis`](/docs/v4/api/effect/Schema#DateFromMillis-variable)
+`Schema.DateFromMillis`
 decodes epoch milliseconds into a JavaScript `Date` and encodes the `Date` back
-into epoch milliseconds. [`Schema.Array`](/docs/v4/api/effect/Schema#Array-variable)
+into epoch milliseconds. `Schema.Array`
 describes the array required for the external `labels` field.
 
-[`Schema.decodeTo`](/docs/v4/api/effect/Schema#decodeTo-function) connects the
+`Schema.decodeTo` connects the
 external representation to the domain model. Decoding follows the `decode`
 function toward `AcceptedOrder`; encoding follows the `encode` function back
 toward `ExternalAcceptedOrderFields`.
 
-The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes
+The `.pipe(...)` method passes
 `ExternalAcceptedOrderFields` into the next function. Reading the code from top
 to bottom, `Schema.decodeTo(...)` receives the external fields and returns the
 connected Schema. `pipe` only builds that description; it does not encode or
 decode an order.
 
-[`SchemaTransformation.transform`](/docs/v4/api/effect/SchemaTransformation#transform)
+`SchemaTransformation.transform`
 supplies those two conversions when neither can fail on its own.
-[`Schema.toType`](/docs/v4/api/effect/Schema#toType-function) exposes only the
+`Schema.toType` exposes only the
 domain side of `AcceptedOrder` as the target, because this new connection owns
 the external encoding.
 

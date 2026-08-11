@@ -29,7 +29,8 @@ causes, constraints, and design choices.
 - Do not use step-by-step instructions as the page's spine.
 - Link to how-to guides for operational tasks and tutorials for managed
   practice.
-- Link to reference for exhaustive API facts instead of reproducing them.
+- Leave exhaustive API facts to reference material instead of reproducing
+  them.
 
 ## Review the explanation
 

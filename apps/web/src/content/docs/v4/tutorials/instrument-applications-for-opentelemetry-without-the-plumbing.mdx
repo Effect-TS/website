@@ -273,11 +273,11 @@ export const renderLatestTrace = (): string => {
 ```
 
 The tracing section at the end of the fixture is ready-made plumbing.
-[`Tracer.make`](/docs/v4/api/effect/Tracer#make) creates the local collector,
-and each [`Tracer.NativeSpan`](/docs/v4/api/effect/Tracer#NativeSpan) stores one
+`Tracer.make` creates the local collector,
+and each `Tracer.NativeSpan` stores one
 operation's timing, parent, and named details called attributes. A span may or
-may not have a parent, so [`Option.isNone`](/docs/v4/api/effect/Option#isNone) and
-[`Option.getOrUndefined`](/docs/v4/api/effect/Option#getOrUndefined) inspect that
+may not have a parent, so `Option.isNone` and
+`Option.getOrUndefined` inspect that
 value without exposing its internal representation. The tutorial interacts
 with this plumbing only through `localTracer` and `renderLatestTrace`.
 
@@ -460,36 +460,36 @@ cancellation of a running computation and is separate from that error channel.
 An unexpected bug is called a defect and is also separate from an expected
 failure.
 
-[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of an Effect
+`Effect.Effect` is the type of an Effect
 description. Here, its success type is the order object and its
 error type is
-[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface).
+`Cause.UnknownError`.
 `Cause.UnknownError` is Effect's built-in wrapper for an unclassified Promise
 rejection, and its `cause` property preserves the original rejected value.
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts a function
+`Effect.tryPromise` adapts a function
 that creates a Promise. It does not call that function until the Effect runs. A
 resolved Promise becomes a success, and a rejection enters the error channel.
 Effect supplies an `AbortSignal`, which this code forwards to every local
 provider so interruption can cancel its timer.
 
-[`Effect.all`](/docs/v4/api/effect/Effect#all) combines several Effects and
+`Effect.all` combines several Effects and
 returns their success values in the same order. With
 `concurrency: "unbounded"`, the three planning Effects can run at the same time
 instead of waiting for one another.
 
-The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes the
+The `.pipe(...)` method passes the
 combined description through transformations from top to bottom. It does not
 run the computation.
 
-[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) uses a successful value
+`Effect.flatMap` uses a successful value
 to choose the next Effect. Payment is described only after all three planning
 values exist, and storage is described only after payment succeeds.
-[`Effect.map`](/docs/v4/api/effect/Effect#map) transforms only the success value
+`Effect.map` transforms only the success value
 and leaves the error channel unchanged. Here, it turns the stored order id into
 the HTTP response object.
 
-Finally, [`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the
+Finally, `Effect.runPromise` runs the
 complete description and returns a Promise. `startServer` expects the order
 handler to return a Promise, so the callback at the bottom uses
 `Effect.runPromise` to connect the Effect computation to that existing
@@ -592,7 +592,7 @@ startServer(async (input) => {
 })
 ```
 
-[`Effect.fn`](/docs/v4/api/effect/Effect#fn) creates a reusable function whose
+`Effect.fn` creates a reusable function whose
 body describes Effect operations. Calling `handleOrder` does not execute the
 body; it returns an Effect. The `function*` body lets the function sequence
 Effect operations with `yield*`, so `yield* placeOrder(input)` waits for the
@@ -603,7 +603,7 @@ function a span. Effect opens the span when the returned Effect starts and
 closes it after success, failure, interruption, or a defect. `root: true`
 starts a new trace, and `kind: "server"` identifies request-handling work.
 
-[`Effect.withTracer`](/docs/v4/api/effect/Effect#withTracer) runs this Effect
+`Effect.withTracer` runs this Effect
 using `localTracer`. Every span created while this computation runs is sent to
 that tracer. `placeOrder` does not need a tracer parameter and does not import
 the tracing setup.
@@ -912,7 +912,7 @@ startServer(async (input) => {
 })
 ```
 
-[`Effect.annotateCurrentSpan`](/docs/v4/api/effect/Effect#annotateCurrentSpan)
+`Effect.annotateCurrentSpan`
 describes adding one or more attributes to the span active when this Effect
 runs. Here, the root is already active, so the customer id and quantity are
 attached to `http.post.orders` before the provider calls begin.

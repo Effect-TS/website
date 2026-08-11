@@ -364,7 +364,7 @@ Effect.Effect<AcceptedOrder, Cause.UnknownError>
 
 An Effect is a value that describes a computation. Calling `placeOrder` creates
 that description, but does not authorize a payment, save an order, or perform
-another side effect. [`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the
+another side effect. `Effect.Effect` is the
 type of the description:
 
 - `AcceptedOrder` is the value produced when the computation succeeds;
@@ -375,7 +375,7 @@ There is no third type argument yet. Both implementations are supplied as
 ordinary arguments before the Effect is created, so the computation has no
 service requirement.
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the two
+`Effect.tryPromise` adapts the two
 Promise calls. Its behavior in this code is:
 
 - the async function remains inactive until the Effect runs;
@@ -387,13 +387,13 @@ Promise calls. Its behavior in this code is:
 Interruption is Effect's name for cancelling a running computation. A defect is
 an unexpected bug, distinct from an expected failure in the error channel.
 
-[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+`Cause.UnknownError` is
 Effect's built-in wrapper for a Promise rejection that has not been classified.
 Its `cause` property preserves the original rejected value. Classifying
 failures is a separate error-handling lesson, so this endpoint continues to
 return `500` if either implementation rejects.
 
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
+`Effect.runPromise` runs the described
 computation at the HTTP entry point and returns a Promise. That Promise resolves
 with the accepted order or rejects when the Effect does not succeed. It can
 also receive an external `AbortSignal` when a caller needs to interrupt the
@@ -497,23 +497,23 @@ and runtime values in separate namespaces:
 - the interface remains the contract that an implementation must satisfy;
 - the `const` is a runtime key used to find an implementation of that contract.
 
-[`Context.Service`](/docs/v4/api/effect/Context#Service-variable) creates the
+`Context.Service` creates the
 typed key. Its string is the runtime identity and must be unique.
-[`Payment.use`](/docs/v4/api/effect/Context#Service-variable) describes reading
+`Payment.use` describes reading
 the implementation stored under that key and passing it to the callback. It
 does not read a global value or run the callback immediately.
 
-The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes an Effect
+The `.pipe(...)` method passes an Effect
 description through transformations from top to bottom without running it. Here
 it passes the payment authorization to `Effect.flatMap`.
 
 `paymentFromProvider` is the infrastructure adapter. It uses
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) to turn one
+`Effect.tryPromise` to turn one
 `PaymentProvider` into the Effect-based `Payment` service. Rejected provider
 Promises become `Cause.UnknownError`, and interruption reaches the provider
 through its `AbortSignal`.
 
-[`Effect.flatMap`](/docs/v4/api/effect/Effect#flatMap) uses the successful
+`Effect.flatMap` uses the successful
 `PaymentAuthorization` to describe the storage operation that must run next.
 If authorization fails, the callback is not run and the same failure remains
 in the error channel.
@@ -528,7 +528,7 @@ The success and error types are unchanged. The third type argument is the
 service that must be supplied before the computation can run. This requirement
 remains visible while Effect values are combined.
 
-[`Effect.provideService`](/docs/v4/api/effect/Effect#provideService) supplies
+`Effect.provideService` supplies
 one existing implementation for a matching service key. Here it supplies the
 primary provider adapter and removes `Payment` from the remaining requirements.
 
@@ -644,7 +644,7 @@ runtime lookup to TypeScript's compile-time checks.
 `ordersFromStorage` adapts the storage Promise with `Effect.tryPromise` and
 forwards interruption through the `AbortSignal`.
 
-[`Effect.map`](/docs/v4/api/effect/Effect#map) transforms the successful
+`Effect.map` transforms the successful
 `undefined` returned by storage into the accepted order. It leaves
 `Cause.UnknownError` unchanged, so a rejected storage Promise remains visible
 in the error channel.
@@ -657,8 +657,8 @@ Effect.Effect<AcceptedOrder, Cause.UnknownError, Payment | OrderRepository>
 
 The union in the third type argument means the computation needs both services.
 It does not mean either service is optional.
-[`Payment.use`](/docs/v4/api/effect/Context#Service-variable) and
-[`OrderRepository.use`](/docs/v4/api/effect/Context#Service-variable) each add
+`Payment.use` and
+`OrderRepository.use` each add
 their key to that union.
 
 The handler no longer passes infrastructure to `placeOrder`, but the two nested
@@ -772,7 +772,7 @@ an Effect, creating a Layer does not perform side effects. The adapter
 functions create these service values from existing fixture values, so their
 Layers cannot fail and do not require other services.
 
-[`Layer.succeed`](/docs/v4/api/effect/Layer#succeed) creates a Layer for one
+`Layer.succeed` creates a Layer for one
 already-available service value:
 
 - `PaymentLive` associates `paymentProviders.primary` with the
@@ -780,7 +780,7 @@ already-available service value:
 - `OrdersLive` associates `consoleOrderStorage` with the `OrderRepository` key
   through `ordersFromStorage`.
 
-[`Layer.merge`](/docs/v4/api/effect/Layer#merge) combines two independent Layers
+`Layer.merge` combines two independent Layers
 into one Layer that provides both sets of services. `AppLive` therefore
 describes the complete set of services used by this application.
 
@@ -790,13 +790,13 @@ The inferred type shows the services provided by `AppLive`:
 Layer.Layer<Payment | OrderRepository>
 ```
 
-[`Layer.Layer`](/docs/v4/api/effect/Layer#Layer) is the type of a Layer
+`Layer.Layer` is the type of a Layer
 description. Its first type argument lists the services the Layer provides.
 Additional type arguments can describe construction failures and services
 required to construct it. Both default to `never` here because `Layer.succeed`
 uses existing values.
 
-[`Effect.provide`](/docs/v4/api/effect/Effect#provide) constructs the supplied
+`Effect.provide` constructs the supplied
 Layer and makes its services available to the Effect. Here it satisfies both
 requirements of `placeOrder`, so `Effect.runPromise` can run the resulting
 Effect.

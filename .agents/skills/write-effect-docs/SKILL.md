@@ -55,10 +55,9 @@ explanation to a later section. Cover:
 - what concrete type or observable behavior results;
 - what it does not do when the name could create a false impression.
 
-Link every introduced Effect API inline to its generated reference declaration.
-Do not leave an API unlinked. Verify ambiguous anchors against the generated
-reference. A symbol exported as both a type and a value may use suffixes such
-as `-interface` or `-variable`.
+Write Effect API names as inline code, never as links to their generated
+reference declarations. A page may link to the API Reference as a separate
+related resource when the reader genuinely needs its complete facts.
 
 Before finalizing a page, inspect every code snippet and account for every
 Effect API it contains. Each API must have been introduced and explained either
@@ -136,25 +135,14 @@ methods such as `.pipe(...)`; a qualified-name scan does not find them reliably.
 
 ## Preserve the documentation presentation
 
-Use the semantic documentation tokens defined in
-`apps/web/src/styles/global.css`. Do not introduce raw palette values when a
-documentation token already expresses the meaning.
+Use the site's standard link styling throughout the documentation. Do not
+encode a page's Diátaxis category in the color of links that point to it. Keep
+current-page navigation neutral because it communicates location rather than
+document family.
 
-- Use emerald `--docs-tutorial-*` tokens for tutorials and checkpoints.
-- Use sky `--docs-guide-*` tokens for how-to guides.
-- Use indigo `--docs-reference-*` tokens for API reference content.
-- Use orange `--docs-explanation-*` tokens for explanation.
-- Use neutral slate `--docs-architecture-*` tokens for architecture.
-- Keep pain points amber and errors red.
-- Color an internal documentation link according to the Diátaxis category of
-  its destination, never according to the category of the current page. Keep
-  links neutral when their destination has no documentation category.
-- Keep current-page navigation neutral because it communicates location rather
-  than document family.
-
-Define and inspect both light and dark values for every new semantic token.
-Keep text, labels, icons, borders, or other non-color cues so color is never the
-only distinction.
+Keep pain points amber and errors red. Define and inspect both light and dark
+values for any new semantic style, and keep text, labels, icons, borders, or
+other non-color cues so color is never the only distinction.
 
 Use normal documentation typography for explanatory content. Prefer native
 Markdown headings, tables, and lists for static information. Do not hide static

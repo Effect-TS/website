@@ -476,7 +476,7 @@ const handleQuote = async (input: QuoteRequest) =>
 startServer(handleQuote)
 ```
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts a function
+`Effect.tryPromise` adapts a function
 that creates a Promise. Calling `quoteOrder` creates a lazy description:
 
 - `quoteOrderPromise` is not called until the Effect runs.
@@ -490,7 +490,7 @@ TypeScript infers this type for the value returned by `quoteOrder`:
 Effect.Effect<QuoteResponse, Cause.UnknownError>
 ```
 
-[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of an Effect
+`Effect.Effect` is the type of an Effect
 value. Here, `QuoteResponse` is the success value. The second type argument says
 that the described computation may fail with `Cause.UnknownError`.
 
@@ -502,13 +502,13 @@ handle separately from successful values.
 In Effect, cancelling a running computation is called interruption. It is
 separate from the expected failures recorded in the error channel.
 
-[`Cause.UnknownError`](/docs/v4/api/effect/Cause#UnknownError-interface) is
+`Cause.UnknownError` is
 Effect's built-in wrapper for a Promise rejection that has not been classified.
 Its `cause` property preserves the original rejected value. This tutorial
 focuses on concurrency, so `startServer` continues to turn an unclassified
 provider failure into `500`.
 
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
+`Effect.runPromise` runs the described
 computation at the HTTP boundary and returns a Promise. That Promise:
 
 - resolves with `QuoteResponse` on success;
@@ -612,7 +612,7 @@ Effect's success, and a rejected Promise becomes `Cause.UnknownError` in its
 error channel. This smaller scope lets the surrounding operation interrupt
 each unfinished provider call.
 
-[`Effect.forEach`](/docs/v4/api/effect/Effect#forEach) applies
+`Effect.forEach` applies
 `quoteLineEffect` to every request item and returns one Effect whose success is
 the collected array:
 
@@ -620,18 +620,18 @@ the collected array:
 - The collected results preserve input order, even when the calls complete in
   another order.
 
-[`Effect.all`](/docs/v4/api/effect/Effect#all) combines the line-group Effect
+`Effect.all` combines the line-group Effect
 and shipping Effect:
 
 - `concurrency: "unbounded"` lets the two independent branches run together.
 - The success tuple keeps the same positions as the input tuple: lines first
   and shipping cents second.
 
-The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes the
+The `.pipe(...)` method passes the
 Effect description through each listed transformation from top to bottom. It
 creates a new description and does not run it.
 
-[`Effect.map`](/docs/v4/api/effect/Effect#map) transforms the success channel
+`Effect.map` transforms the success channel
 with a function and leaves the error channel unchanged. Here, it turns the
 `[lines, shippingCents]` success tuple into the `QuoteResponse` expected by the
 HTTP handler.
@@ -876,7 +876,7 @@ const handleQuote = async (input: QuoteRequest) =>
 startServer(handleQuote)
 ```
 
-[`Data.TaggedError`](/docs/v4/api/effect/Data#TaggedError) creates the typed
+`Data.TaggedError` creates the typed
 `QuoteTimedOut` error class. In this declaration:
 
 - `"QuoteTimedOut"` becomes the instance's `_tag`.
@@ -886,7 +886,7 @@ startServer(handleQuote)
 `_tag` is a ubiquitous convention in Effect for identifying variants. Code
 can inspect this stable string without relying on an error message.
 
-[`Effect.timeoutOrElse`](/docs/v4/api/effect/Effect#timeoutOrElse) gives the
+`Effect.timeoutOrElse` gives the
 preceding `quoteOrder` computation 500 ms. If the deadline is reached first, it
 interrupts the complete computation before running `orElse`. Because the
 timeout surrounds `Effect.all`, the same deadline covers the bounded line group
@@ -895,16 +895,16 @@ and shipping together.
 The interruption reaches each provider's `AbortSignal`, which stops the
 underlying timer Promise instead of leaving it active in the background.
 
-[`Effect.fail`](/docs/v4/api/effect/Effect#fail) describes a computation that
+`Effect.fail` describes a computation that
 fails through the error channel; creating it does not throw. Here, the timeout
 fallback adds `QuoteTimedOut` to the error channel of `quoteRequest`.
 
-[`Effect.catchTag`](/docs/v4/api/effect/Effect#catchTag) matches one error in
+`Effect.catchTag` matches one error in
 the error channel by its `_tag`. Its handler must return an Effect. When this
 handler succeeds, `QuoteTimedOut` is handled and removed from the remaining
 error channel; unclassified provider failures are not matched.
 
-[`Effect.succeed`](/docs/v4/api/effect/Effect#succeed) describes a successful
+`Effect.succeed` describes a successful
 computation with an already available value. Here, it provides the `504`
 `HttpResult`; creating the Effect does not send the HTTP response.
 

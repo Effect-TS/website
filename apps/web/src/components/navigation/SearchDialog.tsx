@@ -1148,7 +1148,7 @@ function ApiReferenceItem({
         className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
-          <span className="docs-reference-badge inline-flex items-center gap-1.5 rounded-md px-2 py-0.5">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300">
             <Braces className="size-3 text-xs" />
             <span>API</span>
             <span aria-hidden="true">·</span>
@@ -1183,7 +1183,7 @@ function ApiReferenceItem({
                 {chunk.title}
               </p>
               {chunk.detail ? (
-                <p className="docs-reference-detail mt-0.5 line-clamp-1 font-mono text-xs">
+                <p className="mt-0.5 line-clamp-1 font-mono text-xs text-violet-700 dark:text-violet-300">
                   {chunk.detail}
                 </p>
               ) : null}

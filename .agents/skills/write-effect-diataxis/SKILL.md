@@ -38,8 +38,8 @@ rewriting the page.
 
 Record the dominant mode in the page frontmatter with the `diataxis` field.
 Use exactly one of `tutorial`, `how-to`, `reference`, or `explanation`. This
-metadata applies the corresponding documentation palette; it does not replace
-the structural and editorial requirements of the selected mode.
+metadata records the page's editorial purpose. It does not determine link
+colors or replace the structural requirements of the selected mode.
 
 ## Load the selected mode
 
@@ -56,12 +56,13 @@ mode's structure to the page.
 
 ## Keep the modes connected
 
-Use links instead of blending purposes:
+Use links to keep substantial secondary topics out of the current page, not to
+decorate Effect API mentions:
 
-- Link tutorials to reference for complete API details and to explanation for
-  concepts that would interrupt the lesson.
-- Link how-to guides to reference for options and exact signatures, and to
-  explanation for background decisions.
+- Link tutorials and how-to guides to explanation when a concept would
+  interrupt their practical flow.
+- Keep complete API facts in reference material. Link to the API Reference as
+  a separate related resource only when the reader needs those facts.
 - Link reference entries to task-oriented or learning material rather than
   embedding instructions or lessons.
 - Link explanations to the practical pages where readers can apply the idea.

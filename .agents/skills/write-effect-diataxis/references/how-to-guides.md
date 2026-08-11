@@ -29,8 +29,8 @@ in real work.
 
 - Do not manage a learning journey, introduce APIs one at a time for practice,
   or add tutorial checkpoints.
-- Explain an Effect API only as much as the current decision requires. Link to
-  reference for signatures and complete options.
+- Explain an Effect API only as much as the current decision requires. Leave
+  complete signatures and options to reference material.
 - Link to explanation for background, design rationale, and broader tradeoffs.
 - Remove digressions that do not change what the reader should do.
 

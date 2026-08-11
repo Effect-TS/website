@@ -322,13 +322,13 @@ Effect.Effect<
 >
 ```
 
-[`Effect.Effect`](/docs/v4/api/effect/Effect#Effect) is the type of that
+`Effect.Effect` is the type of that
 description. The first type argument is the provider result produced on
 success. The second is the error channel, which records the three expected ways
 the computation can fail. There are no service requirements, so the third type
 argument is omitted.
 
-[`Effect.tryPromise`](/docs/v4/api/effect/Effect#tryPromise) adapts the provider
+`Effect.tryPromise` adapts the provider
 Promise without starting it immediately. Its two options have separate roles:
 
 - `try` receives an `AbortSignal` and creates the Promise when the Effect runs;
@@ -340,7 +340,7 @@ the explicit errors returned by `toPaymentError`. The `AbortSignal` also lets
 Effect cancel the provider Promise when the running computation is interrupted.
 In Effect, cancelling running work is called interruption.
 
-[`Data.TaggedError`](/docs/v4/api/effect/Data#TaggedError) creates a typed error
+`Data.TaggedError` creates a typed error
 class. The string becomes the `_tag`; the optional type argument defines the
 constructor fields.
 `UnexpectedPaymentProviderError` therefore keeps the original rejection in
@@ -350,7 +350,7 @@ constructor fields.
 TypeScript narrow the union without inspecting error messages or provider
 implementation details.
 
-[`Effect.runPromise`](/docs/v4/api/effect/Effect#runPromise) runs the described
+`Effect.runPromise` runs the described
 computation at the HTTP boundary and returns a Promise. That Promise resolves
 with the provider result or rejects when the Effect does not succeed.
 
@@ -429,18 +429,18 @@ const placeOrder = (input: PlaceOrderInput) =>
 startServer((input) => Effect.runPromise(placeOrder(input)))
 ```
 
-The [`.pipe(...)` method](/docs/v4/api/effect/Pipeable#Pipeable) passes the
+The `.pipe(...)` method passes the
 description through each transformation from top to bottom. It builds a new
 description and does not run it.
 
-[`Effect.map`](/docs/v4/api/effect/Effect#map) transforms the success channel
+`Effect.map` transforms the success channel
 with a function and leaves the error channel unchanged. Here the provider
 result becomes a `201` `HttpResult`.
 
-[`Effect.catchTags`](/docs/v4/api/effect/Effect#catchTags) selects failures by
+`Effect.catchTags` selects failures by
 `_tag`. Each handler returns an Effect, and a handler that succeeds removes its
 matching failure from the error channel. These handlers use
-[`Effect.succeed`](/docs/v4/api/effect/Effect#succeed) to describe a computation
+`Effect.succeed` to describe a computation
 that succeeds with an already available HTTP result.
 
 All expected outcomes now become successful `HttpResult` values before
@@ -534,7 +534,7 @@ const placeOrder = (input: PlaceOrderInput) =>
 startServer((input) => Effect.runPromise(placeOrder(input)))
 ```
 
-[`Effect.retry`](/docs/v4/api/effect/Effect#retry) reruns the preceding
+`Effect.retry` reruns the preceding
 computation after selected failures. `times: 2` allows two retries after the
 initial attempt, and `while` admits only `ProviderUnavailable`.
 
@@ -630,11 +630,11 @@ const placeOrder = (input: PlaceOrderInput) =>
 startServer((input) => Effect.runPromise(placeOrder(input)))
 ```
 
-[`Effect.timeoutOrElse`](/docs/v4/api/effect/Effect#timeoutOrElse) gives the
+`Effect.timeoutOrElse` gives the
 preceding computation a time limit. When the limit wins, it interrupts that
 attempt and runs the fallback Effect returned by `orElse`.
 
-The fallback uses [`Effect.fail`](/docs/v4/api/effect/Effect#fail) to describe a
+The fallback uses `Effect.fail` to describe a
 computation that fails when it runs. It does not throw while the description is
 being built; it places `PaymentTimedOut` in the error channel.
 
