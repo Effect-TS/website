@@ -1,0 +1,25 @@
+---
+/**
+ * Sidebar link — owns the reusable interaction/color treatment shared by the
+ * Docs and API Reference sidebars (resting navigation text, hover fill + strong text,
+ * active fill via `aria-current`). Structural classes (padding, `font-mono`,
+ * `truncate`, indentation) come from the caller via `class`; extra attributes
+ * (e.g. `data-*`) are spread onto the `<a>`.
+ */
+interface Props {
+  readonly href: string
+  readonly active?: boolean | undefined
+  readonly class?: string | undefined
+  readonly [key: string]: unknown
+}
+
+const { href, active, class: className, ...rest } = Astro.props
+
+// The single source of the sidebar link treatment.
+const base =
+  "block rounded-md text-navigation-foreground transition-colors hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-semibold aria-[current=page]:text-foreground"
+---
+
+<a href={href} aria-current={active ? "page" : undefined} class:list={[base, className]} {...rest}>
+  <slot />
+</a>

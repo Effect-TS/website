@@ -1,0 +1,187 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import TocLink from "@/components/ui/toc/TocLink.astro"
+
+/**
+ * "On this page" table of contents — the presentational container shared by
+ * Docs, API Reference and Blog. It renders the label, divider and the (flat or
+ * nested) list from a generic `items` prop, and hosts the single scroll-spy
+ * `<script>` for the whole page. It knows nothing about docs/api/blog: callers
+ * pass positioning / box chrome via `class` and per-item treatment via each
+ * item's `class`. See apps/web/DESIGN.md.
+ */
+export type TocItem = {
+  readonly id: string
+  readonly label: string
+  readonly hint?: string | undefined
+  readonly indent?: boolean | undefined
+  readonly emphasis?: boolean | undefined
+  readonly class?: string | undefined
+  readonly title?: string | undefined
+  readonly children?: readonly TocItem[] | undefined
+}
+
+interface Props {
+  readonly items: readonly TocItem[]
+  readonly class?: string | undefined
+}
+
+const { items, class: className } = Astro.props
+
+// TocLink gets only the link fields; `indent`/`children` stay in this component.
+const getLinkProps = (item: TocItem) => ({
+  id: item.id,
+  label: item.label,
+  hint: item.hint,
+  emphasis: item.emphasis,
+  title: item.title,
+  class: item.class,
+})
+
+const hasNestedItems = items.some((item) => (item.children?.length ?? 0) > 0)
+---
+
+{
+  items.length > 0 && (
+    <nav aria-label="On this page" class={className}>
+      <Eyebrow tone="navigation" class="mb-4">
+        On this page
+      </Eyebrow>
+      <div class="mb-5 h-px bg-border" />
+
+      <ul class:list={["flex flex-col", hasNestedItems ? "gap-5" : "gap-3"]}>
+        {items.map((item) => {
+          const childItems = item.children ?? []
+          const hasChildren = childItems.length > 0
+
+          return (
+            <li class:list={[!hasChildren && item.indent && "pl-3"]}>
+              <TocLink {...getLinkProps(item)} />
+              {hasChildren && (
+                <ul class="mt-2 space-y-2 pl-3">
+                  {childItems.map((child) => (
+                    <li>
+                      <TocLink {...getLinkProps(child)} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
+  )
+}
+
+<script>
+  const links = document.querySelectorAll<HTMLAnchorElement>("[data-toc-link]")
+
+  if (links.length > 0) {
+    // Group duplicate links by heading id so a change only updates the links
+    // that actually need to change.
+    const linksById = new Map<string, HTMLAnchorElement[]>()
+    for (const link of links) {
+      const id = link.dataset.tocLink
+      if (id === undefined) {
+        continue
+      }
+
+      const linksForHeading = linksById.get(id)
+      if (linksForHeading === undefined) {
+        linksById.set(id, [link])
+      } else {
+        linksForHeading.push(link)
+      }
+    }
+
+    // API group and declaration ids live on sections. Using the section's top
+    // as the position means nested sections can replace their parent instead
+    // of leaving the parent active for the entire group.
+    const tocTargets = new Map<string, Element>()
+    for (const id of linksById.keys()) {
+      const section = document.getElementById(id)
+      if (section !== null) {
+        tocTargets.set(id, section)
+      }
+    }
+
+    if (tocTargets.size > 0) {
+      let activeId: string | undefined
+
+      function setActiveHeading(id: string): void {
+        if (id === activeId) {
+          return
+        }
+
+        if (activeId !== undefined) {
+          for (const link of linksById.get(activeId) ?? []) {
+            link.removeAttribute("aria-current")
+          }
+        }
+
+        for (const link of linksById.get(id) ?? []) {
+          link.setAttribute("aria-current", "location")
+        }
+
+        activeId = id
+      }
+
+      // Select the deepest section that has reached the activation line.
+      // Reading every section on one animation frame avoids missing short
+      // sections when a normal scroll moves past a narrow detection band.
+      function highlightCurrentTarget(): void {
+        // The viewport midpoint represents the section currently being read.
+        const activationOffset = window.innerHeight * 0.5
+        let firstVisibleId: string | undefined
+        let firstVisibleOffset = Number.POSITIVE_INFINITY
+        let currentId: string | undefined
+        let currentOffset = Number.NEGATIVE_INFINITY
+
+        for (const [id, section] of tocTargets) {
+          const offset = section.getBoundingClientRect().top
+
+          if (offset < firstVisibleOffset) {
+            firstVisibleOffset = offset
+            firstVisibleId = id
+          }
+
+          if (offset <= activationOffset && offset > currentOffset) {
+            currentOffset = offset
+            currentId = id
+          }
+        }
+
+        // Before the first activation line is reached, highlight the first
+        // section once it enters the viewport. This also gives the TOC a
+        // useful initial state when the page opens near the top.
+        let nextId = currentId
+        if (nextId === undefined && firstVisibleOffset < window.innerHeight) {
+          nextId = firstVisibleId
+        }
+
+        if (nextId !== undefined) {
+          setActiveHeading(nextId)
+        }
+      }
+
+      // Scroll events can fire many times per frame. Coalesce them so the
+      // layout reads above happen at most once per animation frame.
+      let pendingFrame: number | undefined
+      function scheduleHighlight(): void {
+        if (pendingFrame !== undefined) {
+          return
+        }
+
+        pendingFrame = requestAnimationFrame(() => {
+          pendingFrame = undefined
+          highlightCurrentTarget()
+        })
+      }
+
+      window.addEventListener("scroll", scheduleHighlight, { passive: true })
+      window.addEventListener("resize", scheduleHighlight)
+      highlightCurrentTarget()
+    }
+  }
+</script>

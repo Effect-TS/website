@@ -14,20 +14,22 @@ const { declaration } = Astro.props
 
 <section id={declaration.anchor} class="scroll-mt-12 py-8">
   <div class="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-    <h3 class="m-0! flex items-center gap-3 font-mono text-xl! font-semibold tracking-tight">
+    <h3
+      class="m-0! flex items-center gap-3 font-mono text-xl! font-semibold tracking-tight text-foreground"
+    >
       <a
         href={`#${declaration.anchor}`}
         class="group relative inline-block text-inherit no-underline!"
       >
         <LinkIcon
-          class="absolute top-1/2 right-full mr-2 size-3.5 -translate-y-1/2 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          class="absolute top-1/2 right-full mr-2 size-3.5 -translate-y-1/2 text-subtle-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
           aria-hidden="true"
         />
         {declaration.name}
       </a>
       {
         declaration.typeKind && (
-          <span class="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-zinc-500 uppercase dark:border-zinc-700">
+          <span class="rounded border border-border-strong px-1.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-muted-foreground uppercase">
             {declaration.typeKind}
           </span>
         )
@@ -35,13 +37,13 @@ const { declaration } = Astro.props
     </h3>
     {
       (declaration.since || declaration.sourceUrl) && (
-        <div class="not-prose flex shrink-0 items-center gap-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
+        <div class="not-prose flex shrink-0 items-center gap-2 font-mono text-xs text-muted-foreground">
           {declaration.since && <span>Added in v{declaration.since}</span>}
           {declaration.sourceUrl && (
             <a
               href={declaration.sourceUrl}
               target="_blank"
-              class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:text-zinc-900 focus-visible:text-zinc-900 dark:hover:text-zinc-200 dark:focus-visible:text-zinc-200"
+              class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:text-foreground focus-visible:text-foreground"
             >
               Source <ExternalLink class="size-3" aria-hidden="true" />
             </a>
@@ -51,12 +53,16 @@ const { declaration } = Astro.props
     }
   </div>
 
-  {declaration.commentHtml && <div class="api-comment" set:html={declaration.commentHtml} />}
+  {
+    declaration.commentHtml && (
+      <div class="prose prose-effect mt-2 max-w-none" set:html={declaration.commentHtml} />
+    )
+  }
 
   {
     declaration.signature && (
       <div class="not-prose mt-3">
-        <h4 class="mb-1.5 text-base font-semibold text-zinc-600 dark:text-white">Signature</h4>
+        <h4 class="mb-1.5 text-base font-semibold text-foreground">Signature</h4>
         <Code
           code={declaration.signature}
           lang="typescript"
@@ -76,68 +82,3 @@ const { declaration } = Astro.props
     )
   }
 </section>
-
-<style>
-  .api-comment :global(p) {
-    margin-block: 0.5rem;
-    color: var(--color-zinc-700);
-    font-size: 0.9375rem;
-    line-height: 1.55;
-  }
-
-  .api-comment :global(h4) {
-    margin-block: 0.85rem 0.35rem;
-    color: var(--color-zinc-600);
-    font-size: 1rem;
-    font-weight: 650;
-  }
-
-  .api-comment :global(ul) {
-    margin-block: 0.35rem;
-    padding-left: 1.4rem;
-    list-style: disc;
-  }
-
-  .api-comment :global(a) {
-    color: var(--color-violet-600);
-    text-decoration: none;
-    transition: color 150ms;
-  }
-
-  .api-comment :global(a:hover) {
-    color: var(--color-violet-700);
-  }
-
-  .api-comment :global(a:focus-visible) {
-    border-radius: 0.2rem;
-    outline: 2px solid var(--color-violet-500);
-    outline-offset: 2px;
-  }
-
-  .api-comment :global(code) {
-    border-radius: 0.3rem;
-    background: var(--color-zinc-200);
-    padding: 0.15rem 0.35rem;
-    font-size: 0.875em;
-  }
-
-  :global(.dark) .api-comment :global(p) {
-    color: var(--color-zinc-300);
-  }
-
-  :global(.dark .api-comment h4) {
-    color: var(--color-white);
-  }
-
-  :global(.dark .api-comment a) {
-    color: var(--color-violet-400);
-  }
-
-  :global(.dark .api-comment a:hover) {
-    color: var(--color-violet-300);
-  }
-
-  :global(.dark) .api-comment :global(code) {
-    background: var(--color-zinc-800);
-  }
-</style>

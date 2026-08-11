@@ -1,0 +1,30 @@
+---
+import { ChevronDown } from "@lucide/astro"
+
+/**
+ * Sidebar collapsible group — the `<details>` disclosure with a mono-uppercase
+ * summary and a rotating chevron, shared by the Docs and API Reference
+ * sidebars. Callers place their `<li>` items in the slot.
+ */
+interface Props {
+  readonly label: string
+  readonly open?: boolean
+}
+
+const { label, open } = Astro.props
+---
+
+<details open={open || undefined} class="group">
+  <summary
+    class="flex cursor-pointer list-none items-center justify-between rounded py-2.5 font-mono text-sm font-medium tracking-wider text-navigation-heading uppercase transition-colors select-none hover:text-foreground"
+  >
+    <span>{label}</span>
+    <ChevronDown
+      class="size-4 shrink-0 transition-transform group-open:rotate-180"
+      aria-hidden="true"
+    />
+  </summary>
+  <ul class="flex flex-col gap-0.5 pb-4">
+    <slot />
+  </ul>
+</details>
