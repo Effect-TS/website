@@ -5,8 +5,9 @@ description: Write and review clear, consistent Effect documentation for this re
 
 # Write Effect Docs
 
-Apply these conventions to every documentation family. When a task concerns a
-tutorial, apply `write-effect-tutorials` as well.
+Apply these conventions to every documentation family. Diátaxis classification
+and category-specific structure are owned by `write-effect-diataxis`; do not
+duplicate those rules here.
 
 ## Establish the context
 
@@ -127,8 +128,9 @@ Use the semantic documentation tokens defined in
 documentation token already expresses the meaning.
 
 - Use emerald `--docs-tutorial-*` tokens for tutorials and checkpoints.
-- Use sky `--docs-guide-*` tokens for guides.
+- Use sky `--docs-guide-*` tokens for how-to guides.
 - Use indigo `--docs-reference-*` tokens for API reference content.
+- Use fuchsia `--docs-explanation-*` tokens for explanation.
 - Use neutral slate `--docs-architecture-*` tokens for architecture.
 - Keep pain points amber and errors red.
 - Keep current-page navigation neutral because it communicates location rather

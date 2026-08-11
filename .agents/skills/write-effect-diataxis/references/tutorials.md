@@ -1,24 +1,24 @@
----
-name: write-effect-tutorials
-description: Create and review beginner-friendly Effect tutorials under apps/web/src/content/docs/v4/tutorials. Use when drafting, restructuring, integrating, or auditing a tutorial; designing its pain-driven progression, order-processing scenario, controlled fixtures, architecture section, project setup, complete code states, or checkpoints.
----
+# Tutorials
 
-# Write Effect Tutorials
-
-Create Diataxis-style tutorials that lead a TypeScript developer from familiar
-code to one robust, observable result through small steps.
-
-## Apply the general documentation skill
-
-Before editing a tutorial, read `../write-effect-docs/SKILL.md` completely and
-apply it together with this skill. It owns the shared rules for prose,
-terminology, API explanations, links, code presentation, typography, stable
-exports, and documentation validation. Do not recreate those rules here.
+Create a managed learning experience that leads a TypeScript developer from
+familiar code to one robust, observable result through small steps.
 
 Use
 `apps/web/src/content/docs/v4/tutorials/handle-failures-without-guessing.mdx`
 as the canonical tutorial implementation. Inspect only the relevant portions
 when a concrete MDX pattern is needed.
+
+## Contents
+
+- [Establish the reader and outcome](#establish-the-reader-and-outcome)
+- [Build a pain-first progression](#build-a-pain-first-progression)
+- [Use a realistic controlled backend](#use-a-realistic-controlled-backend)
+- [Keep the tutorial suite coherent](#keep-the-tutorial-suite-coherent)
+- [Show where the tutorial fits](#show-where-the-tutorial-fits)
+- [Structure project setup consistently](#structure-project-setup-consistently)
+- [Present complete project states](#present-complete-project-states)
+- [Add checkpoints](#add-checkpoints)
+- [Validate the tutorial path](#validate-the-tutorial-path)
 
 ## Establish the reader and outcome
 
@@ -52,8 +52,8 @@ when a concrete MDX pattern is needed.
 3. Immediately show what can go wrong.
 4. Introduce one limitation at a time and follow it with the smallest Effect
    change that addresses it.
-5. Apply the general documentation skill's API-explanation rule to every new
-   Effect API or concept at the point where it first matters.
+5. Apply `write-effect-docs` API-explanation rules to every new Effect API or
+   concept at the point where it first matters.
 6. State the expected observable result and end the transition with a
    checkpoint.
 7. Preserve one linear project state. Every code block and checkpoint must
@@ -65,7 +65,7 @@ the resulting behavior. Remove or relocate sections that mainly showcase an
 API without advancing that journey.
 
 Allow a tutorial to be long when necessary, but keep each step small. Avoid
-`Effect.gen`, `Schedule`, layers, and other new abstractions unless the current
+`Effect.gen`, `Schedule`, Layers, and other new abstractions unless the current
 problem cannot be taught clearly with fewer concepts. Mention and defer a
 valuable capability when its setup would obscure the lesson.
 
@@ -106,9 +106,9 @@ as an independent reinvention. Align:
 - cancellation and resource lifetimes.
 
 A tutorial may use only the fields and services required for its lesson. The
-reduced model must remain compatible with the shared model. Keep unrelated
-capabilities behind small fixtures instead of adding Effect APIs merely for
-consistency.
+reduced model must preserve the canonical meaning of every term it keeps. Keep
+unrelated capabilities behind small fixtures instead of adding Effect APIs
+merely for consistency.
 
 Treat the separate reference application as the integration target. Tutorial
 solutions should fit its contracts conceptually, but they need not reproduce
@@ -123,7 +123,7 @@ with pedagogical simplicity, preserve focus through a compatible fixture.
   `/docs/v4/tutorials/introduction#architecture`.
 - Show only the architectural parts covered by the tutorial in a native
   Markdown table. Do not hide static architecture behind a component.
-- Add a short numbered request flow only when sequence or concurrency helps
+- Add a short Mermaid sequence diagram when sequence or concurrency helps
   explain the lesson.
 - In the suite introduction, document stable components and responsibilities,
   then present the tutorial directory as one Markdown table with `Tutorial`,
@@ -211,4 +211,4 @@ In addition to the general documentation checks:
 - Verify every claimed HTTP status, body, log line, attempt count, timeout, and
   cancellation result.
 - Inspect inserted-line highlights, collapsed ranges, copy behavior, code-fence
-  spacing, and checkpoint flow locally.
+  spacing, checkpoint flow, and Mermaid rendering locally.

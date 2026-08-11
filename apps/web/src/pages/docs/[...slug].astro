@@ -23,7 +23,14 @@ const { Content, headings } = await render(entry)
 
 const currentId = entry.id
 const currentVersion = currentId.split("/")[0]
-const currentDocsFamily = currentId.split("/")[1] === "tutorials" ? "tutorial" : "guide"
+const currentDocsFamily =
+  entry.data.diataxis ?? (currentId.split("/")[1] === "tutorials" ? "tutorial" : "how-to")
+const currentDocsFamilyClass = {
+  tutorial: "docs-article-tutorial",
+  "how-to": "docs-article-guide",
+  reference: "docs-article-reference",
+  explanation: "docs-article-explanation",
+}[currentDocsFamily]
 const currentLabel = entryLabel(entry)
 const versions = ["v4", "v3"] as const
 
@@ -288,7 +295,7 @@ const markdownUrl = `/docs/${entry.id.replace(/\/index$/, "")}.md`
                prose-a:no-underline [&_a:hover]:underline
                prose-code:bg-black/10 prose-code:text-zinc-700 dark:prose-code:bg-white/10 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
                prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700`,
-              currentDocsFamily === "tutorial" ? "docs-article-tutorial" : "docs-article-guide",
+              currentDocsFamilyClass,
             ]}
           >
             <div class="mb-8 flex items-start justify-between gap-4">
