@@ -60,9 +60,31 @@ import { Schema } from "effect"
 
 const document = Schema.toJsonSchemaDocument(Schema.Option(Schema.String))
 
-document.schema.anyOf?.length // => 2
-document.schema.anyOf?.[0].required // => ["_tag", "value"]
-document.schema.anyOf?.[1].required // => ["_tag"]
+console.log(document.schema)
+/*
+Output:
+{
+  anyOf: [
+    {
+      type: "object",
+      properties: {
+        _tag: { type: "string", enum: ["Some"] },
+        value: { type: "string" }
+      },
+      required: ["_tag", "value"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: {
+        _tag: { type: "string", enum: ["None"] }
+      },
+      required: ["_tag"],
+      additionalProperties: false
+    }
+  ]
+}
+*/
 ```
 
 When defining a custom declaration, provide a `toCodecJson` annotation if it has a meaningful JSON representation. Both `Schema.toCodecJson` and `Schema.toJsonSchemaDocument` will then use the same shape.
@@ -161,7 +183,8 @@ const schema = Schema.String.annotate({
 })
 
 const document = Schema.toJsonSchemaDocument(schema, {
-  includeAnnotationKey: (key) => key === "markdownDescription" || key.startsWith("x-"),
+  includeAnnotationKey: (key) =>
+    key === "markdownDescription" || key.startsWith("x-"),
 })
 
 document.schema.description // => "A name"
@@ -222,9 +245,20 @@ const schema = Schema.Struct({
 
 const document = Schema.toJsonSchemaDocument(schema)
 
-document.schema.required // => undefined
-document.schema.properties?.name // => { type: "string" }
-document.schema.properties?.nickname // => { anyOf: [{ type: "string" }, { type: "null" }] }
+console.log(document.schema)
+/*
+Output:
+{
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    nickname: {
+      anyOf: [{ type: "string" }, { type: "null" }]
+    }
+  },
+  additionalProperties: false
+}
+*/
 ```
 
 ## References and Recursion
@@ -241,8 +275,18 @@ const Person = Schema.Struct({ name: Name })
 
 const document = Schema.toJsonSchemaDocument(Person)
 
-document.schema.properties?.name // => { $ref: "#/$defs/Name" }
-document.definitions // => { Name: { type: "string" } }
+console.log(document.schema)
+/*
+Output:
+{
+  type: "object",
+  properties: {
+    name: { $ref: "#/$defs/Name" }
+  },
+  required: ["name"],
+  additionalProperties: false
+}
+*/
 ```
 
 Recursive schemas require an identifier so their self-references can be emitted as `$ref`.
@@ -259,15 +303,37 @@ interface Category {
 
 const Category = Schema.Struct({
   name: Schema.String,
-  categories: Schema.Array(Schema.suspend((): Schema.Codec<Category> => Category)),
+  categories: Schema.Array(
+    Schema.suspend((): Schema.Codec<Category> => Category),
+  ),
 }).annotate({ identifier: "Category" })
 
 const document = Schema.toJsonSchemaDocument(Category)
 
-document.schema // => { $ref: "#/$defs/Category" }
-document.definitions.Category.type // => "object"
-document.definitions.Category.required // => ["name", "categories"]
-document.definitions.Category.properties?.categories // => { type: "array", items: { $ref: "#/$defs/Category" } }
+console.log(document)
+/*
+Output:
+{
+  dialect: "draft-2020-12",
+  schema: {
+    $ref: "#/$defs/Category"
+  },
+  definitions: {
+    Category: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        categories: {
+          type: "array",
+          items: { $ref: "#/$defs/Category" }
+        }
+      },
+      required: ["name", "categories"],
+      additionalProperties: false
+    }
+  }
+}
+*/
 ```
 
 ## Generation Options

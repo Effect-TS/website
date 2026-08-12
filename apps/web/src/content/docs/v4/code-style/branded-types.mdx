@@ -263,9 +263,9 @@ getProductById(UserId(1))
 
 ### refined
 
-The `Brand.make` function enables the creation of branded types that include data validation. It requires a refinement predicate to check the validity of input data against specific criteria.
+The `Brand.make` function creates a branded type constructor that validates its input. The validation function returns `true` for a valid value or describes why the value is invalid.
 
-When the input data does not meet the criteria, the function uses `Brand.error` to generate a `BrandErrors` data type. This provides detailed information about why the validation failed.
+Calling the constructor with invalid input throws a `BrandError`. Its `option`, `result`, and `is` methods provide non-throwing alternatives.
 
 **Example** (Creating a Branded Type with Validation)
 
@@ -317,7 +317,9 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.make<Int>((n) => Number.isInteger(n) || `Expected ${n} to be an integer`)
+const Int = Brand.make<Int>(
+  (n) => Number.isInteger(n) || `Expected ${n} to be an integer`,
+)
 
 // Correct usage
 const good: Int = Int(3)
@@ -342,11 +344,15 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.make<Int>((n) => Number.isInteger(n) || `Expected ${n} to be an integer`)
+const Int = Brand.make<Int>(
+  (n) => Number.isInteger(n) || `Expected ${n} to be an integer`,
+)
 
 type Positive = number & Brand.Brand<"Positive">
 
-const Positive = Brand.make<Positive>((n) => n > 0 || `Expected ${n} to be positive`)
+const Positive = Brand.make<Positive>(
+  (n) => n > 0 || `Expected ${n} to be positive`,
+)
 
 // Combine the Int and Positive constructors
 // into a new branded constructor PositiveInt
