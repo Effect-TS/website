@@ -1,0 +1,48 @@
+---
+/**
+ * TOC link — owns the single reusable "On this page" link treatment shared by
+ * Docs, API Reference and Blog: resting navigation text, hover → foreground, and the
+ * active state driven by `aria-current="location"`. The active attribute is set
+ * by the shared scroll-spy in `TableOfContents.astro`, never here.
+ *
+ * Structural classes (size, `font-mono`, `truncate`, indentation) come from the
+ * caller via `class`; extra attributes (e.g. `title`) are spread onto the `<a>`.
+ * A `hint` (e.g. an API export's type kind) renders as a trailing `(kind)` and
+ * lays the row out as a flex line so the label can truncate beside it; without a
+ * hint the label renders inline and wraps (or truncates if the caller opts in).
+ * Set `emphasis` for a section heading in a nested TOC.
+ */
+interface Props {
+  readonly id: string
+  readonly label: string
+  readonly hint?: string | undefined
+  readonly emphasis?: boolean | undefined
+  readonly class?: string | undefined
+  readonly [key: string]: unknown
+}
+
+const { id, label, hint, emphasis = false, class: className, ...rest } = Astro.props
+
+// The single source of the TOC link treatment.
+const base = emphasis
+  ? "block font-semibold text-foreground transition-colors hover:text-foreground aria-[current=location]:text-foreground"
+  : "block text-navigation-foreground transition-colors hover:text-foreground aria-[current=location]:font-semibold aria-[current=location]:text-foreground"
+---
+
+<a
+  href={`#${id}`}
+  data-toc-link={id}
+  class:list={[base, hint !== undefined && "flex min-w-0 items-baseline gap-1", className]}
+  {...rest}
+>
+  {
+    hint === undefined ? (
+      label
+    ) : (
+      <Fragment>
+        <span class="truncate">{label}</span>
+        <span class="shrink-0">({hint})</span>
+      </Fragment>
+    )
+  }
+</a>

@@ -9,34 +9,19 @@ import {
   fontProviders,
   svgoOptimizer,
 } from "astro/config"
-import { readdirSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 
-const GoogleFontProvider = fontProviders.google()
-
-const ogAssetPngs = (
-  readdirSync("src/pages/og/_assets", { recursive: true }) as string[]
-)
-  .filter((f) => f.endsWith(".png"))
-  .map((f) => `./src/pages/og/_assets/${f}`)
+const FontsourceProvider = fontProviders.fontsource()
 
 // https://astro.build/config
 const config = defineConfig({
   site: "https://effect.website",
 
-  adapter: vercel({
-    includeFiles: [
-      "./src/assets/fonts/Inter-Regular.ttf",
-      "./src/assets/fonts/Inter-Bold.ttf",
-      "./src/assets/fonts/JetBrainsMono-Regular.ttf",
-      "./src/assets/fonts/JetBrainsMono-Bold.ttf",
-      ...ogAssetPngs,
-    ],
-  }),
+  adapter: vercel(),
 
   trailingSlash: "never",
 
@@ -101,18 +86,39 @@ const config = defineConfig({
 
   fonts: [
     {
-      provider: GoogleFontProvider,
+      provider: FontsourceProvider,
       name: "Inter",
-      weights: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+      weights: ["100 900"],
+      styles: ["normal", "italic"],
       cssVariable: "--font-inter",
       fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
     },
     {
-      provider: GoogleFontProvider,
+      provider: FontsourceProvider,
+      name: "Inter",
+      weights: ["400", "700"],
+      styles: ["normal"],
+      formats: ["woff"],
+      cssVariable: "--font-og-inter",
+      fallbacks: ["ui-sans-serif", "system-ui", "sans-serif"],
+    },
+    {
+      provider: FontsourceProvider,
       name: "JetBrains Mono",
-      weights: ["300", "400", "500", "600", "700"],
+      weights: ["300 700"],
+      styles: ["normal", "italic"],
       display: "swap",
       cssVariable: "--font-jetbrains-mono",
+      fallbacks: ["ui-monospace", "SFMono-Regular", "monospace"],
+    },
+    {
+      provider: FontsourceProvider,
+      name: "JetBrains Mono",
+      weights: ["400", "700"],
+      styles: ["normal"],
+      formats: ["woff"],
+      display: "swap",
+      cssVariable: "--font-og-jetbrains-mono",
       fallbacks: ["ui-monospace", "SFMono-Regular", "monospace"],
     },
   ],

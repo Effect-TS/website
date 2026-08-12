@@ -7,7 +7,7 @@ export class TemperatureResult extends RenderableResult {
     this.value = value
   }
   render(): React.ReactNode {
-    return <div className="text-2xl">{this.value}°</div>
+    return <div className="text-lg">{this.value}°</div>
   }
 }
 
@@ -19,7 +19,7 @@ export class TemperatureArrayResult extends RenderableResult {
   }
   render(): React.ReactNode {
     return (
-      <div className="text-2xl">
+      <div className="text-lg">
         [{this.values.map((value) => `${value}°`).join(", ")}]
       </div>
     )

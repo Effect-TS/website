@@ -1,45 +1,32 @@
-import type { CSSProperties } from "react"
+import { motion } from "motion/react"
 import type { TabsIndicatorRect } from "@/hooks/useTabsIndicator"
 import { cn } from "@/lib/utils"
 
 interface TabsIndicatorProps {
   readonly rect: TabsIndicatorRect | undefined
-  readonly variant: "line" | "fill"
   readonly className?: string | undefined
 }
 
-export function TabsIndicator({
-  rect,
-  variant,
-  className,
-}: TabsIndicatorProps) {
+export function TabsIndicator({ rect, className }: TabsIndicatorProps) {
   if (rect === undefined) {
     return null
   }
 
-  const style: CSSProperties =
-    variant === "line"
-      ? {
-          left: `${rect.left}px`,
-          width: `${rect.width}px`,
-        }
-      : {
-          left: `${rect.left}px`,
-          top: `${rect.top}px`,
-          width: `${rect.width}px`,
-          height: `${rect.height}px`,
-        }
-
   return (
-    <div
-      style={style}
-      className={cn(
-        "pointer-events-none absolute z-0 motion-reduce:transition-none",
-        variant === "line"
-          ? "bottom-0 h-px transition-[left,width] duration-200 ease-out"
-          : "transition-[left,top,width,height] duration-200 ease-out",
-        className,
-      )}
+    <motion.div
+      initial={false}
+      animate={{
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      }}
+      transition={{
+        type: "spring",
+        visualDuration: 0.3,
+        bounce: 0,
+      }}
+      className={cn("pointer-events-none absolute z-0", className)}
       aria-hidden="true"
     />
   )

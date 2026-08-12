@@ -1,0 +1,70 @@
+---
+import type { CollectionEntry } from "astro:content"
+
+import SidebarGroup from "@/components/ui/sidebar/SidebarGroup.astro"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+
+/**
+ * Documentation sidebar navigation tree. Rendered identically in the mobile
+ * disclosure and the desktop rail — one source, no duplication. It composes the
+ * shared sidebar primitives (`SidebarLink`, `SidebarGroup`), the same ones the
+ * API Reference sidebar uses, so both trees stay in visual lockstep. Active
+ * state is expressed with `aria-current` + Tailwind `aria-[current=page]:`
+ * variants (handled inside `SidebarLink`), so styling stays in the markup — no
+ * custom CSS class, no JS class toggling.
+ */
+interface SidebarGroupData {
+  readonly dir: string
+  readonly label: string
+  readonly entries: ReadonlyArray<CollectionEntry<"docs">>
+  readonly isOpen: boolean
+}
+
+type SidebarItem =
+  | { readonly kind: "entry"; readonly entry: CollectionEntry<"docs"> }
+  | { readonly kind: "group"; readonly group: SidebarGroupData }
+
+interface Props {
+  readonly items: ReadonlyArray<SidebarItem>
+  readonly currentId: string
+}
+
+const { items, currentId } = Astro.props
+
+const entryLabel = (e: CollectionEntry<"docs">): string => e.data.sidebar?.label ?? e.data.title
+const entryHref = (e: CollectionEntry<"docs">): string => `/docs/${e.id.replace(/\/index$/, "")}`
+---
+
+<ul class="flex flex-col gap-0.5">
+  {
+    items.map((item) =>
+      item.kind === "entry" ? (
+        <li>
+          <SidebarLink
+            href={entryHref(item.entry)}
+            active={item.entry.id === currentId}
+            class="-mx-2 flex items-center justify-between px-2 py-2.5 font-mono text-sm font-medium tracking-wider uppercase"
+          >
+            {entryLabel(item.entry)}
+          </SidebarLink>
+        </li>
+      ) : (
+        <li class="mb-1 last:mb-0">
+          <SidebarGroup label={item.group.label} open={item.group.isOpen}>
+            {item.group.entries.map((e) => (
+              <li>
+                <SidebarLink
+                  href={entryHref(e)}
+                  active={e.id === currentId}
+                  class="py-1.5 pl-3 text-sm"
+                >
+                  {entryLabel(e)}
+                </SidebarLink>
+              </li>
+            ))}
+          </SidebarGroup>
+        </li>
+      ),
+    )
+  }
+</ul>

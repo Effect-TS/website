@@ -11,6 +11,7 @@ import WarpLogo from "@/assets/logos/warp/Warp.svg?react"
 import YouTubeLogo from "@/assets/logos/youtube/YouTube.svg?react"
 import ZendeskLogo from "@/assets/logos/zendesk/Zendesk.svg?react"
 import { usePodcastEpisode } from "../context"
+import ZivergeLogo from "@/assets/logos/ziverge.png"
 
 export function PodcastGuestCard() {
   const episode = usePodcastEpisode()
@@ -108,6 +109,8 @@ function CompanyLogo({ company }: { readonly company: string }) {
       return <WarpLogo className="h-4 w-auto" />
     case "zendesk":
       return <ZendeskLogo className="h-4 w-auto" />
+    case "ziverge":
+      return <img src={ZivergeLogo.src} alt="Ziverge" className="h-4 w-auto" />
     default:
       return null
   }
