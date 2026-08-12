@@ -23,7 +23,6 @@ function ProgramOutcomeControl({
   return (
     <VisualEffectSegmentedControl
       control={control}
-      label="OUTCOME"
       options={PROGRAM_OUTCOMES}
     />
   )

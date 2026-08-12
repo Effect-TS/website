@@ -1,97 +1,49 @@
-import { motion } from "motion/react"
-import { useEffect, useRef, useState } from "react"
+import { useTabsIndicator } from "@/hooks/useTabsIndicator"
+import { cn } from "@/lib/utils"
+import { Tabs, TabsList, TabsTrigger } from "./tabs"
+import { TabsIndicator } from "./tabs-indicator"
 
-interface SegmentedControlProps<T extends string | number> {
-  value: T
-  onChange: (value: T) => void
-  options: ReadonlyArray<T>
-  className?: string
-  disabled?: boolean
-  backgroundClassName?: string
-  buttonClassName?: string
+interface SegmentedControlProps<T extends string> {
+  readonly value: T
+  readonly onChange: (value: T) => void
+  readonly options: ReadonlyArray<T>
+  readonly className?: string
 }
 
-export function SegmentedControl<T extends string | number>({
-  backgroundClassName = "bg-blue-600",
-  buttonClassName = "",
-  className = "",
-  disabled = false,
+export function SegmentedControl<T extends string>({
+  className,
   onChange,
   options,
   value,
 }: SegmentedControlProps<T>) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const buttonRefs = useRef<Map<T, HTMLButtonElement>>(new Map())
-  const [indicatorStyle, setIndicatorStyle] = useState({
-    left: 0,
-    width: 0,
-  })
-
-  // Update indicator position when value changes
-  useEffect(() => {
-    const activeButton = buttonRefs.current.get(value)
-    const container = containerRef.current
-
-    if (activeButton && container) {
-      const containerRect = container.getBoundingClientRect()
-      const buttonRect = activeButton.getBoundingClientRect()
-
-      const left = buttonRect.left - containerRect.left
-      const width = buttonRect.width
-
-      setIndicatorStyle({ left, width })
-    }
-  }, [value, options])
-
-  // Set button ref
-  const setButtonRef = (option: T) => (el: HTMLButtonElement | null) => {
-    if (el) {
-      buttonRefs.current.set(option, el)
-    } else {
-      buttonRefs.current.delete(option)
-    }
-  }
+  const { indicatorRect, rootRef } = useTabsIndicator(value)
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative flex items-center rounded-lg border border-neutral-700/30 bg-neutral-800/50 p-1 ${className}`}
-    >
-      {options.map((option) => (
-        <button
-          type="button"
-          key={option}
-          ref={setButtonRef(option)}
-          onClick={() => !disabled && onChange(option)}
-          disabled={disabled}
-          className={`
-            relative z-10 flex-1 cursor-pointer rounded-md px-3 py-1.5 text-center font-mono text-sm transition-colors duration-200
-            ${
-              value === option
-                ? "font-medium text-white"
-                : "text-neutral-400 hover:text-neutral-300"
-            }
-            ${disabled ? "cursor-not-allowed opacity-50" : ""}
-            ${buttonClassName}
-          `}
-        >
-          {option}
-        </button>
-      ))}
-      <motion.div
-        className={`absolute top-1 bottom-1 rounded-md shadow-md ${backgroundClassName}`}
-        initial={false}
-        animate={{
-          left: indicatorStyle.left,
-          width: indicatorStyle.width,
-        }}
-        transition={{
-          type: "spring",
-          visualDuration: 0.3,
-          bounce: 0.0,
-        }}
-        style={{ zIndex: 0 }}
-      />
+    <div ref={rootRef} className={cn("min-w-0", className)}>
+      <Tabs value={value} onValueChange={(value) => onChange(value as T)}>
+        <TabsList className="relative isolate w-fit flex-wrap rounded-lg border border-neutral-700/30 bg-neutral-800/50 p-1 group-data-[orientation=horizontal]/tabs:h-auto">
+          <TabsIndicator
+            rect={indicatorRect}
+            className="rounded-md bg-neutral-700/80 shadow-md"
+          />
+
+          {options.map((option) => (
+            <TabsTrigger
+              key={option}
+              className={cn(
+                "relative z-10 cursor-pointer border-none px-3 py-1.5 text-center font-mono font-normal shadow-none",
+                "bg-transparent text-neutral-400 hover:text-neutral-300",
+                "data-active:border-transparent data-active:bg-transparent data-active:font-semibold data-active:text-white data-active:shadow-none",
+                "dark:data-active:border-transparent dark:data-active:bg-transparent",
+                "group-data-[variant=default]/tabs-list:data-active:shadow-none",
+              )}
+              value={option}
+            >
+              {option}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
     </div>
   )
 }

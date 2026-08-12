@@ -24,7 +24,6 @@ function ConcurrencyModeControl({
   return (
     <VisualEffectSegmentedControl
       control={control}
-      label="CONCURRENCY"
       options={CONCURRENCY_OPTIONS}
     />
   )

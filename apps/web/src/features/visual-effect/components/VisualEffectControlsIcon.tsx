@@ -54,7 +54,7 @@ export function VisualEffectControlsIcon({
 
   return (
     <motion.span
-      className="flex size-10 shrink-0 items-center justify-center rounded-md border border-zinc-500 text-white"
+      className="flex size-10 shrink-0 items-center justify-center rounded-lg text-white"
       initial={false}
       animate={{
         background: getBackgroundColor(state),
