@@ -181,6 +181,12 @@ function moduleName(modulePath: string, group: string): string {
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
+    {
+      showVersionSwitch && (
+        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+      )
+    }
+
     <header class="mb-4">
       <a
         href={`/docs/${version}/api`}
@@ -196,12 +202,6 @@ function moduleName(modulePath: string, group: string): string {
 
       <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
     </header>
-
-    {
-      showVersionSwitch && (
-        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
-      )
-    }
 
     <div aria-label={`${pkg.name} modules`}>
       <ApiSidebarNav sections={sidebarSections} />

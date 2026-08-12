@@ -176,6 +176,12 @@ const tocItems = apiModule.groups.map((group) => ({
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar data-module-sidebar>
+    {
+      showVersionSwitch && (
+        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+      )
+    }
+
     <header class="mb-4">
       <a
         href={`/docs/${entry.data.version}/api`}
@@ -189,12 +195,6 @@ const tocItems = apiModule.groups.map((group) => ({
         {entry.data.packageVersion}
       </p>
     </header>
-
-    {
-      showVersionSwitch && (
-        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
-      )
-    }
 
     <ApiSidebarNav sections={sidebarSections} />
   </nav>
