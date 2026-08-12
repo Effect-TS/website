@@ -9,6 +9,7 @@ import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
+import { DOCS_VERSIONS } from "@/lib/navigation"
 
 interface StaticPathEntry {
   readonly params: {
@@ -96,10 +97,10 @@ const sections = [
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
 const sidebarGroupCount = sections.reduce((count, section) => count + section.groups.length, 0)
-const sidebarVersions = ["v3", "v4"].map((candidate) => ({
-  href: `/docs/${candidate}/api/${pkg.slug}`,
-  label: candidate,
-  active: candidate === version,
+const sidebarVersions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: `/docs/${value}/api/${pkg.slug}`,
+  label,
+  active: value === version,
 }))
 const sidebarSections = sections.map((section) => ({
   label: section.label,

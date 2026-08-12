@@ -8,6 +8,7 @@ import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import DocShell from "@/layouts/DocShell.astro"
+import { DOCS_VERSIONS } from "@/lib/navigation"
 
 export async function getStaticPaths() {
   const entries = await getCollection("docs")
@@ -23,7 +24,6 @@ const { Content, headings } = await render(entry)
 const currentId = entry.id
 const currentVersion = currentId.split("/")[0]
 const currentLabel = entryLabel(entry)
-const versions = ["v4", "v3"] as const
 
 if (currentVersion === undefined) {
   throw new Error("Unable to generate sidebar entry without document version")
@@ -150,10 +150,10 @@ const tocItems = tocHeadings.map((heading) => ({
   <!-- Desktop sidebar -->
   <nav slot="sidebar" aria-label="Documentation navigation">
     <VersionSwitch
-      versions={versions.map((v) => ({
-        href: `/docs/${v}`,
-        label: v === "v4" ? "v4 (rc)" : v,
-        active: currentVersion === v,
+      versions={DOCS_VERSIONS.map(({ value, label }) => ({
+        href: `/docs/${value}`,
+        label,
+        active: currentVersion === value,
       }))}
     />
     <DocsSidebarTree items={sidebarItems} currentId={currentId} />
