@@ -17,8 +17,9 @@ Classes offer several features that simplify the schema creation process:
 - **Structural equality**: Instances can be compared with [`Equal.equals`](/docs/v4/trait/equal/).
 
 <Aside type="caution" title="Class Schemas Are Transformations">
-  Classes defined with `Schema.Class` act as [transformations](/docs/v4/schema/transformations/).
-  See [Class Schemas are Transformations](#class-schemas-are-transformations) for details.
+  Classes defined with `Schema.Class` act as
+  [transformations](/docs/v4/schema/transformations/). See [Class Schemas are
+  Transformations](#class-schemas-are-transformations) for details.
 </Aside>
 
 ## Definition
@@ -133,7 +134,11 @@ class WithFilter extends Schema.Class<WithFilter>("WithFilter")(
   Schema.Struct({
     a: Schema.FiniteFromString,
     b: Schema.FiniteFromString,
-  }).check(Schema.makeFilter(({ a, b }) => a >= b || "a must be greater than or equal to b")),
+  }).check(
+    Schema.makeFilter(
+      ({ a, b }) => a >= b || "a must be greater than or equal to b",
+    ),
+  ),
 ) {}
 
 // Constructor
@@ -360,7 +365,7 @@ class Person extends Schema.Class<Person>("Person")(
 ) {}
 
 Person.identifier // => "Person"
-Person.ast.annotations.title // => "Person model"
+Person.ast.annotations?.title // => "Person model"
 ```
 
 ## Recursive Schemas
@@ -376,13 +381,16 @@ import { Schema } from "effect"
 // Define a Category schema with a recursive subcategories field
 class Category extends Schema.Class<Category>("Category")({
   name: Schema.String,
-  subcategories: Schema.Array(Schema.suspend((): Schema.Codec<Category> => Category)),
+  subcategories: Schema.Array(
+    Schema.suspend((): Schema.Codec<Category> => Category),
+  ),
 }) {}
 ```
 
 <Aside type="note" title="Correct Inference">
-  It is necessary to add an explicit type annotation because otherwise TypeScript would struggle to
-  infer types correctly. Without this annotation, you might encounter this error message:
+  It is necessary to add an explicit type annotation because otherwise
+  TypeScript would struggle to infer types correctly. Without this annotation,
+  you might encounter this error message:
 </Aside>
 
 **Example** (Missing Type Annotation Error)
@@ -408,7 +416,10 @@ import { Schema } from "effect"
 
 class Expression extends Schema.Class<Expression>("Expression")({
   type: Schema.Literal("expression"),
-  value: Schema.Union([Schema.Finite, Schema.suspend((): Schema.Codec<Operation> => Operation)]),
+  value: Schema.Union([
+    Schema.Finite,
+    Schema.suspend((): Schema.Codec<Operation> => Operation),
+  ]),
 }) {}
 
 class Operation extends Schema.Class<Operation>("Operation")({
@@ -434,7 +445,10 @@ import { Schema } from "effect"
 class Category extends Schema.Class<Category>("Category")({
   id: Schema.FiniteFromString,
   name: Schema.String,
-  subcategories: Schema.Array(Schema.suspend((): Schema.Codec<Category> => Category)),
+  subcategories: Schema.Array(
+    // @errors: 2322
+    Schema.suspend((): Schema.Codec<Category> => Category),
+  ),
 }) {}
 ```
 

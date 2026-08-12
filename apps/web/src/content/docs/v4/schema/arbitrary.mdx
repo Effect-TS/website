@@ -29,7 +29,8 @@ samples.every(({ name, age }) => name.length > 0 && age >= 18 && age <= 80) // =
 ```
 
 <Aside type="tip" title="FastCheck API">
-  Effect re-exports the complete fast-check API as `FastCheck` from `effect/testing`.
+  Effect re-exports the complete fast-check API as `FastCheck` from
+  `effect/testing`.
 </Aside>
 
 Use `Schema.toArbitraryLazy` when the caller should provide the fast-check module.
@@ -66,7 +67,10 @@ const Username = Schema.String.check(
 
 const samples = FastCheck.sample(Schema.toArbitrary(Username), 20)
 
-samples.every((value) => value.length >= 3 && value.length <= 20 && /^[a-z0-9_]+$/.test(value)) // => true
+samples.every(
+  (value) =>
+    value.length >= 3 && value.length <= 20 && /^[a-z0-9_]+$/.test(value),
+) // => true
 ```
 
 Length, range, integer, pattern, uniqueness, and other built-in constraints are translated to the corresponding fast-check constraints where possible.
@@ -82,7 +86,8 @@ Pass `{ report: true }` to find filters that could not guide generation. An `Opa
 ```ts twoslash import.meta.vitest name="arbitrary-report-1"
 import { Schema } from "effect"
 
-const isPalindrome = (value: string) => value === Array.from(value).reverse().join("")
+const isPalindrome = (value: string) =>
+  value === Array.from(value).reverse().join("")
 
 const Palindrome = Schema.String.check(
   Schema.makeFilter(isPalindrome, { expected: "a palindrome" }),
@@ -204,37 +209,3 @@ samples.every(({ name }) => ["Alice", "Dante", "Marta"].includes(name)) // => tr
 ```
 
 Avoid placing an override after filters unless it intentionally handles those filters. For example, an override that always produces `""` cannot satisfy a preceding `Schema.isNonEmpty()` check and will exhaust fast-check's discard budget.
-
-## Integration with Synthetic Data Generators
-
-Synthetic data libraries such as `@faker-js/faker` can provide realistic values. Seed them from a fast-check arbitrary so runs remain reproducible and values can shrink.
-
-**Example** (Using Faker from a toArbitrary Annotation)
-
-```ts twoslash
-import { faker } from "@faker-js/faker"
-import { Schema } from "effect"
-
-function fake<T>(
-  generate: (instance: typeof faker) => T,
-): Schema.Annotations.ToArbitrary.Declaration<T, readonly []> {
-  return () => (fc) =>
-    fc.nat().map((seed) => {
-      faker.seed(seed)
-      return generate(faker)
-    })
-}
-
-const FirstName = Schema.String.annotate({
-  toArbitrary: fake((faker) => faker.person.firstName()),
-})
-
-const LastName = Schema.String.annotate({
-  toArbitrary: fake((faker) => faker.person.lastName()),
-})
-
-const Person = Schema.Struct({
-  firstName: FirstName,
-  lastName: LastName,
-})
-```
