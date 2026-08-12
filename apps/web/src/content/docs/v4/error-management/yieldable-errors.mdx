@@ -44,7 +44,9 @@ class PermissionDenied extends Data.TaggedError("PermissionDenied")<{
   readonly id: string
 }> {}
 
-const loadUser = (id: string): Effect.Effect<string, NotFound | PermissionDenied> =>
+const loadUser = (
+  id: string,
+): Effect.Effect<string, NotFound | PermissionDenied> =>
   Effect.gen(function* () {
     if (id === "missing") {
       return yield* new NotFound({ id })

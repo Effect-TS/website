@@ -40,7 +40,9 @@ Here's the same divide function from above, but with the Effect pattern:
 import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<number, Error, never> =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 Effect.runSync(divide(4, 2)) // => 2
 ```

@@ -87,8 +87,8 @@ CounterState {
 ```
 
 <Aside type="note" title="Type Preservation">
-  Applying a counter to an effect doesn't change its original type. The metric simply adds tracking
-  without affecting the effect's output type.
+  Applying a counter to an effect doesn't change its original type. The metric
+  simply adds tracking without affecting the effect's output type.
 </Aside>
 
 ### Counter Types
@@ -126,10 +126,16 @@ const incrementalCounter = Metric.counter("count", {
 })
 
 const program = Effect.gen(function* () {
-  const a = yield* Effect.succeed(1).pipe(Effect.trackSuccesses(incrementalCounter))
-  const b = yield* Effect.succeed(2).pipe(Effect.trackSuccesses(incrementalCounter))
+  const a = yield* Effect.succeed(1).pipe(
+    Effect.trackSuccesses(incrementalCounter),
+  )
+  const b = yield* Effect.succeed(2).pipe(
+    Effect.trackSuccesses(incrementalCounter),
+  )
   // This will have no effect on the counter
-  const c = yield* Effect.succeed(-4).pipe(Effect.trackSuccesses(incrementalCounter))
+  const c = yield* Effect.succeed(-4).pipe(
+    Effect.trackSuccesses(incrementalCounter),
+  )
 
   const state = yield* Metric.value(incrementalCounter)
   console.log(state)
@@ -274,8 +280,9 @@ GaugeState {
 ```
 
 <Aside type="note" title="Gauge Behavior">
-  Gauges capture the most recent value set, so if you're tracking a sequence of updates, the final
-  state will show only the last recorded value, not the entire series.
+  Gauges capture the most recent value set, so if you're tracking a sequence of
+  updates, the final state will show only the last recorded value, not the
+  entire series.
 </Aside>
 
 ### Gauge Types
@@ -325,8 +332,9 @@ Common use cases for histograms include:
 - **Aggregation**: Histograms can be aggregated across multiple instances, making them ideal for distributed systems where you need to collect data from different sources.
 
 <Aside type="note" title="Histogram Buckets and Precision">
-  Keep in mind that histograms don't retain exact values. Instead, they group values into buckets,
-  so the precision of your data depends on how you define these buckets.
+  Keep in mind that histograms don't retain exact values. Instead, they group
+  values into buckets, so the precision of your data depends on how you define
+  these buckets.
 </Aside>
 
 **Example** (Histogram With Linear Buckets)
@@ -552,7 +560,10 @@ const task = Effect.gen(function* () {
 
 // Program that simulates random errors and tracks their occurrences
 const program = Effect.gen(function* () {
-  yield* task.pipe(Effect.trackSuccesses(errorFrequency), Effect.repeat({ times: 99 }))
+  yield* task.pipe(
+    Effect.trackSuccesses(errorFrequency),
+    Effect.repeat({ times: 99 }),
+  )
 
   // Retrieve and log the current state of the summary
   const state = yield* Metric.value(errorFrequency)
@@ -629,7 +640,11 @@ const task = Effect.succeed(1).pipe(Effect.delay("100 millis"))
 const program = Effect.gen(function* () {
   yield* task.pipe(Effect.trackSuccesses(counter1))
   yield* task.pipe(Effect.trackSuccesses(counter2))
-}).pipe(Effect.provideService(Metric.CurrentMetricAttributes, { environment: "production" }))
+}).pipe(
+  Effect.provideService(Metric.CurrentMetricAttributes, {
+    environment: "production",
+  }),
+)
 
 // Confirm that running the program updates both attributed counters
 // (state must be read under the same attribute context it was written under)
@@ -638,7 +653,11 @@ const readState = Effect.gen(function* () {
   const state1 = yield* Metric.value(counter1)
   const state2 = yield* Metric.value(counter2)
   return { state1, state2 }
-}).pipe(Effect.provideService(Metric.CurrentMetricAttributes, { environment: "production" }))
+}).pipe(
+  Effect.provideService(Metric.CurrentMetricAttributes, {
+    environment: "production",
+  }),
+)
 
 const { state1, state2 } = await Effect.runPromise(readState)
 state1.count // => 1

@@ -145,7 +145,10 @@ To respond to specific error scenarios with custom behavior, iterate `cause.reas
 ```ts twoslash import.meta.vitest name="formatting-reasons-1"
 import { Cause } from "effect"
 
-const cause = Cause.combine(Cause.fail(new Error("my fail message")), Cause.die("my die message"))
+const cause = Cause.combine(
+  Cause.fail(new Error("my fail message")),
+  Cause.die("my die message"),
+)
 
 const formatted = cause.reasons
   .map((reason) => {
@@ -198,7 +201,9 @@ Cause.pretty(Cause.die("my die message")).split("\n")[0] // => "Error: my die me
 console.log(Cause.pretty(Cause.interrupt(1)))
 Cause.pretty(Cause.interrupt(1)) // => "InterruptError: All fibers interrupted without error {\n  [cause]: InterruptCause: The fiber was interrupted by:\n      at fiber (#1)\n}"
 
-console.log(Cause.pretty(Cause.combine(Cause.fail("fail1"), Cause.fail("fail2"))))
+console.log(
+  Cause.pretty(Cause.combine(Cause.fail("fail1"), Cause.fail("fail2"))),
+)
 /*
 Output:
 Error: fail1
@@ -222,12 +227,24 @@ import { Effect, Cause, Exit } from "effect"
 
 const program = Effect.gen(function* () {
   const exit = yield* Effect.exit(
-    Effect.all([Effect.fail("error 1"), Effect.die("defect"), Effect.fail("error 2")]),
+    Effect.all([
+      Effect.fail("error 1"),
+      Effect.die("defect"),
+      Effect.fail("error 2"),
+    ]),
   )
   if (Exit.isFailure(exit)) {
-    console.log(exit.cause.reasons.filter(Cause.isFailReason).map((reason) => reason.error))
+    console.log(
+      exit.cause.reasons
+        .filter(Cause.isFailReason)
+        .map((reason) => reason.error),
+    )
     exit.cause.reasons.filter(Cause.isFailReason).map((reason) => reason.error) // => ["error 1"]
-    console.log(exit.cause.reasons.filter(Cause.isDieReason).map((reason) => reason.defect))
+    console.log(
+      exit.cause.reasons
+        .filter(Cause.isDieReason)
+        .map((reason) => reason.defect),
+    )
     exit.cause.reasons.filter(Cause.isDieReason).map((reason) => reason.defect) // => []
   }
 })

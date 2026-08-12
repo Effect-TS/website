@@ -100,8 +100,8 @@ await Effect.runPromise(
 ```
 
 <Aside type="note" title="Ref Operations Are Effectful">
-  All the operations on the `Ref` data type are effectful. So when we are reading from or writing to
-  a `Ref`, we are performing an effectful operation.
+  All the operations on the `Ref` data type are effectful. So when we are
+  reading from or writing to a `Ref`, we are performing an effectful operation.
 </Aside>
 
 ## Using Ref in a Concurrent Environment
@@ -218,7 +218,9 @@ const program = Effect.gen(function* () {
 const initialState = Ref.make(0)
 
 // Provide the Ref as a service
-const runnable = program.pipe(Effect.provideServiceEffect(MyState, initialState))
+const runnable = program.pipe(
+  Effect.provideServiceEffect(MyState, initialState),
+)
 
 // Run the program and observe the output
 Effect.runPromise(runnable)

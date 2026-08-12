@@ -51,8 +51,9 @@ outcome // => undefined
 A key point is forking the fiber where `Effect.sleep` is invoked. Calls to `Effect.sleep` and related methods wait until the clock time matches or exceeds the scheduled time for their execution. By forking the fiber, we retain control over the clock time adjustments.
 
 <Aside type="tip" title="Best Practices">
-  A recommended pattern when using the `TestClock` is to fork the effect being tested, adjust the
-  clock time as needed, and then verify that the expected outcomes have occurred.
+  A recommended pattern when using the `TestClock` is to fork the effect being
+  tested, adjust the clock time as needed, and then verify that the expected
+  outcomes have occurred.
 </Aside>
 
 ## Testing Recurring Effects
@@ -158,9 +159,12 @@ const test = Effect.gen(function* () {
 
   // Run two effects concurrently: sleep for 10 seconds and succeed
   // the deferred with a value of 1
-  yield* Effect.all([Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)], {
-    concurrency: "unbounded",
-  }).pipe(Effect.forkChild)
+  yield* Effect.all(
+    [Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)],
+    {
+      concurrency: "unbounded",
+    },
+  ).pipe(Effect.forkChild)
 
   // Adjust the TestClock by 10 seconds
   yield* TestClock.adjust("10 seconds")

@@ -99,9 +99,10 @@ Let's create a service for generating random numbers.
 import { Effect, Context } from "effect"
 
 // Declaring a service key for a service that generates random numbers
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 Random.key // => "MyRandomService"
 ```
@@ -143,9 +144,10 @@ Now that we have our service key defined, let's see how we can use it by buildin
 import { Effect, Context } from "effect"
 
 // Declaring a service key for a service that generates random numbers
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 // Using the service
 //
@@ -158,7 +160,9 @@ const program = Effect.gen(function* () {
 })
 
 // Providing a fixed implementation lets us exercise the program above
-await Effect.runPromise(Effect.provideService(program, Random, { next: Effect.succeed(42) })) // => undefined
+await Effect.runPromise(
+  Effect.provideService(program, Random, { next: Effect.succeed(42) }),
+) // => undefined
 ```
 
 In the code above, we can observe that we are able to yield the `Random` service key as if it were an effect itself.
@@ -172,9 +176,10 @@ This allows us to access the `next` operation of the service.
 import { Effect, Context, Console } from "effect"
 
 // Declaring a service key for a service that generates random numbers
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 // Using the service
 //
@@ -182,11 +187,15 @@ class Random extends Context.Service<Random, { readonly next: Effect.Effect<numb
 //      ▼
 const program = Random.pipe(
   Effect.andThen((random) => random.next),
-  Effect.andThen((randomNumber) => Console.log(`random number: ${randomNumber}`)),
+  Effect.andThen((randomNumber) =>
+    Console.log(`random number: ${randomNumber}`),
+  ),
 )
 
 // Providing a fixed implementation lets us exercise the program above
-await Effect.runPromise(Effect.provideService(program, Random, { next: Effect.succeed(42) })) // => undefined
+await Effect.runPromise(
+  Effect.provideService(program, Random, { next: Effect.succeed(42) }),
+) // => undefined
 ```
 
 In the code above, we can observe that we are able to flat-map over the `Random` service key as if it were an effect itself.
@@ -212,9 +221,10 @@ If we attempt to execute the effect without providing the necessary service we w
 import { Effect, Context } from "effect"
 
 // Declaring a service key for a service that generates random numbers
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 // Using the service
 const program = Effect.gen(function* () {
@@ -241,9 +251,10 @@ In order to provide an actual implementation of the `Random` service, we can uti
 import { Effect, Context } from "effect"
 
 // Declaring a service key for a service that generates random numbers
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 // Using the service
 const program = Effect.gen(function* () {
@@ -286,9 +297,10 @@ To retrieve the service type from a service key, use the `Context.Service.Shape`
 import { Effect, Context } from "effect"
 
 // Declaring a service key
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 // Extracting the type
 type RandomShape = Context.Service.Shape<typeof Random>
@@ -341,7 +353,9 @@ const program = Effect.gen(function* () {
 await Effect.runPromise(
   program.pipe(
     Effect.provideService(Random, { next: Effect.succeed(7) }),
-    Effect.provideService(Logger, { log: (message) => Effect.sync(() => console.log(message)) }),
+    Effect.provideService(Logger, {
+      log: (message) => Effect.sync(() => console.log(message)),
+    }),
   ),
 ) // => undefined
 ```
@@ -457,9 +471,10 @@ To determine what action to take, we can use the `Option.isNone` function provid
 import { Effect, Context, Option } from "effect"
 
 // Declaring a service key for a service that generates random numbers
-class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
-  "MyRandomService",
-) {}
+class Random extends Context.Service<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>()("MyRandomService") {}
 
 const program = Effect.gen(function* () {
   const maybeRandom = yield* Effect.serviceOption(Random)
@@ -528,7 +543,8 @@ Logger.key // => "MyLoggerService"
 To handle these dependencies in a structured way and prevent them from leaking into the service interfaces, you can use the `Layer` abstraction. For more details on managing dependencies with layers, refer to the [Managing Layers](/docs/v4/requirements-management/layers/) page.
 
 <Aside type="tip" title="Use Layers for Dependencies">
-  When a service has its own requirements, it's best to separate implementation details into layers.
-  Layers act as **constructors for creating the service**, allowing us to handle dependencies at the
-  construction level rather than the service level.
+  When a service has its own requirements, it's best to separate implementation
+  details into layers. Layers act as **constructors for creating the service**,
+  allowing us to handle dependencies at the construction level rather than the
+  service level.
 </Aside>

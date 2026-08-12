@@ -123,7 +123,10 @@ console.log(successResult)
 successResult // => Result.succeed(1)
 
 // Transform the Failure value by appending "!"
-const failureResult = Result.mapError(Result.fail("not a number"), (s) => s + "!")
+const failureResult = Result.mapError(
+  Result.fail("not a number"),
+  (s) => s + "!",
+)
 console.log(failureResult)
 failureResult // => Result.fail("not a number!")
 ```
@@ -177,7 +180,9 @@ head([1, 2, 3]) // => Result.succeed(1)
 // Simulated fetch function that returns Effect
 const fetchData = (): Effect.Effect<string, string> => {
   const success = Math.random() > 0.5
-  return success ? Effect.succeed("some data") : Effect.fail("Failed to fetch data")
+  return success
+    ? Effect.succeed("some data")
+    : Effect.fail("Failed to fetch data")
 }
 
 // Result is not an Effect subtype - convert explicitly with Effect.fromResult

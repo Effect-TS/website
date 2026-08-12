@@ -21,9 +21,15 @@ const Person = Schema.Struct({
 
 const equivalence = Schema.toEquivalence(Person)
 
-equivalence({ name: "John", age: 23, tags: ["admin"] }, { name: "John", age: 23, tags: ["admin"] }) // => true
+equivalence(
+  { name: "John", age: 23, tags: ["admin"] },
+  { name: "John", age: 23, tags: ["admin"] },
+) // => true
 
-equivalence({ name: "John", age: 23, tags: ["admin"] }, { name: "John", age: 24, tags: ["admin"] }) // => false
+equivalence(
+  { name: "John", age: 23, tags: ["admin"] },
+  { name: "John", age: 24, tags: ["admin"] },
+) // => false
 ```
 
 For a struct, only fields described by the schema participate in the derived equivalence. Arrays and nested structs are compared recursively.

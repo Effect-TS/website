@@ -10130,7 +10130,9 @@ Import FastCheck from effect/testing. Generate one base64 alphabet character; ba
 **Example**
 
 ```ts
-FastCheck.constantFrom(..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/")
+FastCheck.constantFrom(
+  ..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/",
+)
 ```
 
 - `FastCheck.bigIntN` -> `FastCheck.bigInt`: Import FastCheck from effect/testing. Express the signed bit range with min and max constraints.
@@ -10655,9 +10657,8 @@ Apply the per-group function over the [key, stream] pairs with Stream.flatMap (o
 // v3: stream.pipe(Stream.groupByKey(f), GroupBy.evaluate((key, s) => g(key, s)))
 stream.pipe(
   Stream.groupByKey(f),
-  Stream.flatMap(([key, s]) => g(key, s), { concurrency: "unbounded" })
+  Stream.flatMap(([key, s]) => g(key, s), { concurrency: "unbounded" }),
 )
-
 ```
 
 - `GroupBy.filter` -> `Stream.filter`: Filter the groups by key with an ordinary Stream.filter on the pairs: Stream.filter(([key]) =\> predicate(key)).
@@ -10702,7 +10703,7 @@ stream.pipe(
 
 - `HashSet.toggle` -> `HashSet.has + HashSet.remove / HashSet.add`: Use HashSet.has(self, value) ? HashSet.remove(self, value) : HashSet.add(self, value).
 
-- `HashSet.values` -> `none`: The HashSet itself is iterable; iterate it directly or call self[Symbol.iterator]() when an iterator object is required.
+- `HashSet.values` -> `none`: The HashSet itself is iterable; iterate it directly or call self[Symbol.iterator](<>) when an iterator object is required.
 
 ### `effect/Inspectable`
 
@@ -11729,7 +11730,9 @@ No direct equivalent; use Effect.filterOrElse and fail with a cause in the fallb
 **Example**
 
 ```ts
-Effect.filterOrElse(effect, predicate, { orElse: () => Effect.failCause(Cause.die("invalid")) })
+Effect.filterOrElse(effect, predicate, {
+  orElse: () => Effect.failCause(Cause.die("invalid")),
+})
 ```
 
 - `Micro.flatten` -> `Effect.flatten`: Micro was removed in v4; the rewritten Effect runtime is itself lightweight and replaces it. Same-name equivalent on effect/Effect.
@@ -11757,7 +11760,10 @@ Removed; log explicitly before ignoring.
 **Example**
 
 ```ts
-effect.pipe(Effect.tapCause((cause) => Effect.logError(cause)), Effect.ignore)
+effect.pipe(
+  Effect.tapCause((cause) => Effect.logError(cause)),
+  Effect.ignore,
+)
 ```
 
 - `Micro.interrupt` -> `Effect.interrupt`: Micro was removed in v4; the rewritten Effect runtime is itself lightweight and replaces it. Same-name equivalent on effect/Effect.
@@ -11783,7 +11789,9 @@ No direct equivalent; transform the cause by catching it and re-failing.
 **Example**
 
 ```ts
-Effect.catchCause(effect, (cause) => Effect.failCause(Cause.map(cause, transformError)))
+Effect.catchCause(effect, (cause) =>
+  Effect.failCause(Cause.map(cause, transformError)),
+)
 ```
 
 - `Micro.match` -> `Effect.match`: Micro was removed in v4; the rewritten Effect runtime is itself lightweight and replaces it. Same-name equivalent on effect/Effect.
@@ -11819,7 +11827,10 @@ Removed; use Effect.repeat with while/until/times/schedule options. To inspect f
 **Example**
 
 ```ts
-Effect.repeat(Effect.exit(effect), { while: (exit) => Exit.isFailure(exit), times: 3 })
+Effect.repeat(Effect.exit(effect), {
+  while: (exit) => Exit.isFailure(exit),
+  times: 3,
+})
 ```
 
 - `Micro.replicate` -> `Effect.replicate`: Micro was removed in v4; the rewritten Effect runtime is itself lightweight and replaces it. Same-name equivalent on effect/Effect.
@@ -14847,7 +14858,9 @@ Removed; the closest v4 primitive is Stream.peel(self, Sink.take(n)), a scoped E
 **Example**
 
 ```ts
-Stream.unwrap(Effect.map(Stream.peel(self, Sink.take(n)), ([head, rest]) => f(head)(rest)))
+Stream.unwrap(
+  Effect.map(Stream.peel(self, Sink.take(n)), ([head, rest]) => f(head)(rest)),
+)
 ```
 
 - `Stream.broadcastDynamic` -> `Stream.broadcast`: v4 Stream.broadcast({ capacity, strategy?, replay? }) is the dynamic-subscriber fan-out returning Effect\<Stream\<A, E\>, never, Scope | R\> (v3 fixed-arity broadcast(n) became Stream.broadcastN); Stream.share adds refcounted/idleTimeToLive semantics.
@@ -14969,7 +14982,12 @@ Struct-to-tagged-union merge removed. Recreate with Stream.mergeAll over the ent
 **Example**
 
 ```ts
-Stream.mergeAll(Object.entries(streams).map(([_tag, s]) => Stream.map(s, (value) => ({ _tag, value }))), { concurrency })
+Stream.mergeAll(
+  Object.entries(streams).map(([_tag, s]) =>
+    Stream.map(s, (value) => ({ _tag, value })),
+  ),
+  { concurrency },
+)
 ```
 
 - `Stream.onDone` -> `Stream.onEnd`: Renamed; v4 onEnd takes an Effect value (not a () =\> Effect thunk) run when the stream ends successfully, and its error type may add to the stream's.
@@ -15045,7 +15063,6 @@ Effect.suspend(() => {
     return Effect.succeed(cont(acc))
   }).pipe(Effect.map(() => acc))
 })
-
 ```
 
 - `Stream.runFoldWhileEffect` -> `none`: v4 runFoldEffect has no early-exit predicate; emulate with Stream.runForEachWhile and a mutable accumulator, mapping the effectful step to Effect\<boolean\> via cont(acc) (see runFoldWhile example).
@@ -15151,11 +15168,11 @@ The StreamEmit module is gone; v4 Stream.callback hands the callback a Queue\<A,
 ```ts
 // v3: Stream.async<number, Err>((emit) => { emit.single(1); emit.end() })
 Stream.callback<number, Err>((queue) =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     yield* Queue.offer(queue, 1)
     yield* Queue.end(queue)
-  }))
-
+  }),
+)
 ```
 
 - `StreamEmit.EmitOps` -> `Queue.offer / Queue.offerAll / Queue.end / Queue.fail / Queue.failCause`: Method-by-method mapping onto the Queue passed to Stream.callback: single(a) -\> Queue.offer(queue, a); chunk(c) -\> Queue.offerAll(queue, c); end() -\> Queue.end(queue); fail(e) -\> Queue.fail(queue, e); halt(cause) -\> Queue.failCause(queue, cause); die(d)/dieMessage(m) -\> Queue.failCause(queue, Cause.die(d)); done(exit) -\> Queue.offer then Queue.end on success, Queue.failCause on failure; fromEffect(eff) -\> run eff and offer its value (Effect.flatMap(eff, (a) =\> Queue.offer(queue, a))).
@@ -15197,12 +15214,15 @@ Fold over the strategy with an ordinary switch (or ternary chain) on the string 
 ```ts
 // v3: HaltStrategy.match(s, { onLeft, onRight, onBoth, onEither })
 switch (strategy) {
-  case "left": return onLeft()
-  case "right": return onRight()
-  case "both": return onBoth()
-  case "either": return onEither()
+  case "left":
+    return onLeft()
+  case "right":
+    return onRight()
+  case "both":
+    return onBoth()
+  case "either":
+    return onEither()
 }
-
 ```
 
 ### `effect/Struct`
@@ -15732,7 +15752,9 @@ Run the effect with Effect.exit and convert the result: a successful exit value 
 **Example**
 
 ```ts
-Effect.map(Effect.exit(effect), (exit) => Exit.isSuccess(exit) ? [exit.value] as const : exit)
+Effect.map(Effect.exit(effect), (exit) =>
+  Exit.isSuccess(exit) ? ([exit.value] as const) : exit,
+)
 ```
 
 - `Take.fromExit` -> `Exit.isSuccess(exit) ? [exit.value] : exit`: A success exit becomes the single-element batch [a]; a failure exit is already a valid v4 Take and is used as-is.
@@ -15746,7 +15768,10 @@ Convert one v4 Pull step into a Take: the success batch is the Take itself, and 
 **Example**
 
 ```ts
-Effect.matchCause(pull, { onSuccess: (arr) => arr, onFailure: Pull.doneExitFromCause })
+Effect.matchCause(pull, {
+  onSuccess: (arr) => arr,
+  onFailure: Pull.doneExitFromCause,
+})
 ```
 
 - `Take.isDone` -> `Exit.isExit(take) && Exit.isSuccess(take)`: End-of-stream is the successful-Exit branch of the union.
@@ -15770,9 +15795,11 @@ Branch on the union: the array branch is v3's onSuccess(chunk), and Exit.match s
 ```ts
 // v3: Take.match(take, { onEnd, onFailure, onSuccess })
 Exit.isExit(take)
-  ? Exit.match(take, { onSuccess: () => onEnd(), onFailure: (cause) => onFailure(cause) })
+  ? Exit.match(take, {
+      onSuccess: () => onEnd(),
+      onFailure: (cause) => onFailure(cause),
+    })
   : onSuccess(take)
-
 ```
 
 - `Take.matchEffect` -> `Pull.matchEffect(Take.toPull(take), { onSuccess, onFailure, onDone })`: Convert with Take.toPull and fold with Pull.matchEffect: onSuccess receives the batch (v3 onSuccess), onFailure the cause, onDone the completion value (v3 onEnd); alternatively branch manually with Exit.isExit as for match.

@@ -41,11 +41,15 @@ Effect.runSync(program) // => "result"
 ```ts twoslash import.meta.vitest name="returning-none-on-timeout-1"
 import { Effect, Option } from "effect"
 
-const timedOut = await Effect.runPromise(Effect.never.pipe(Effect.timeoutOption(0)))
+const timedOut = await Effect.runPromise(
+  Effect.never.pipe(Effect.timeoutOption(0)),
+)
 
 timedOut // => Option.none()
 
-const completed = Effect.runSync(Effect.succeed("result").pipe(Effect.timeoutOption("1 second")))
+const completed = Effect.runSync(
+  Effect.succeed("result").pipe(Effect.timeoutOption("1 second")),
+)
 
 completed // => Option.some("result")
 ```

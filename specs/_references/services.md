@@ -40,9 +40,12 @@ const Database = Context.Service<Database>("Database")
 ```ts
 import { Context } from "effect"
 
-class Database extends Context.Tag("Database")<Database, {
-  readonly query: (sql: string) => string
-}>() {}
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    readonly query: (sql: string) => string
+  }
+>() {}
 ```
 
 **v4: `Context.Service` class syntax**
@@ -50,9 +53,12 @@ class Database extends Context.Tag("Database")<Database, {
 ```ts
 import { Context } from "effect"
 
-class Database extends Context.Service<Database, {
-  readonly query: (sql: string) => string
-}>()("Database") {}
+class Database extends Context.Service<
+  Database,
+  {
+    readonly query: (sql: string) => string
+  }
+>()("Database") {}
 ```
 
 Note the difference in argument order: in v3, the identifier string is passed to
@@ -86,9 +92,12 @@ which receives the service instance and runs a callback:
 ```ts
 import { Effect } from "effect"
 
-class Notifications extends Effect.Tag("Notifications")<Notifications, {
-  readonly notify: (message: string) => Effect.Effect<void>
-}>() {}
+class Notifications extends Effect.Tag("Notifications")<
+  Notifications,
+  {
+    readonly notify: (message: string) => Effect.Effect<void>
+  }
+>() {}
 
 // Static proxy access
 const program = Notifications.notify("hello")
@@ -99,9 +108,12 @@ const program = Notifications.notify("hello")
 ```ts
 import { Context, Effect } from "effect"
 
-class Notifications extends Context.Service<Notifications, {
-  readonly notify: (message: string) => Effect.Effect<void>
-}>()("Notifications") {}
+class Notifications extends Context.Service<
+  Notifications,
+  {
+    readonly notify: (message: string) => Effect.Effect<void>
+  }
+>()("Notifications") {}
 
 // use: access the service and call a method in one step
 const program = Notifications.use((n) => n.notify("hello"))
@@ -132,7 +144,7 @@ makes dependencies explicit and keeps service access co-located with the rest
 of your effect logic:
 
 ```ts
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const notifications = yield* Notifications
   yield* notifications.notify("hello")
   yield* notifications.notify("world")
@@ -153,16 +165,16 @@ provided constructor, and wired `dependencies` into it:
 import { Effect, Layer } from "effect"
 
 class Logger extends Effect.Service<Logger>()("Logger", {
-  effect: Effect.gen(function*() {
+  effect: Effect.gen(function* () {
     const config = yield* Config
     return { log: (msg: string) => Effect.log(`[${config.prefix}] ${msg}`) }
   }),
-  dependencies: [Config.Default]
+  dependencies: [Config.Default],
 }) {}
 
 // Logger.Default is auto-generated: Layer<Logger, never, never>
 // (dependencies are already wired in)
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const logger = yield* Logger
   yield* logger.log("hello")
 }).pipe(Effect.provide(Logger.Default))
@@ -178,14 +190,14 @@ class but does **not** auto-generate a layer. Define layers explicitly using
 import { Context, Effect, Layer } from "effect"
 
 class Logger extends Context.Service<Logger>()("Logger", {
-  make: Effect.gen(function*() {
+  make: Effect.gen(function* () {
     const config = yield* Config
     return { log: (msg: string) => Effect.log(`[${config.prefix}] ${msg}`) }
-  })
+  }),
 }) {
   // Build the layer yourself from the make effect
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide(Config.layer)
+    Layer.provide(Config.layer),
   )
 }
 ```
@@ -206,7 +218,7 @@ for the primary layer and descriptive suffixes for variants (e.g.
 import { Context } from "effect"
 
 class LogLevel extends Context.Reference<LogLevel>()("LogLevel", {
-  defaultValue: () => "info" as const
+  defaultValue: () => "info" as const,
 }) {}
 ```
 
@@ -216,7 +228,7 @@ class LogLevel extends Context.Reference<LogLevel>()("LogLevel", {
 import { Context } from "effect"
 
 const LogLevel = Context.Reference<"info" | "warn" | "error">("LogLevel", {
-  defaultValue: () => "info" as const
+  defaultValue: () => "info" as const,
 })
 ```
 

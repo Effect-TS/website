@@ -25,7 +25,9 @@ const open = (filename: string) =>
   })
 
 const stream = Stream.scoped(
-  Stream.fromEffect(Effect.acquireRelease(open("file.txt"), (file) => file.close)),
+  Stream.fromEffect(
+    Effect.acquireRelease(open("file.txt"), (file) => file.close),
+  ),
 ).pipe(Stream.flatMap((file) => Stream.fromIterableEffect(file.getLines)))
 
 await Effect.runPromise(Stream.runCollect(stream)) // => ["Line 1", "Line 2", "Line 3"]
@@ -46,7 +48,9 @@ const deleteDir = (dir: string) => Console.log(`Deleting dir: ${dir}`)
 
 const program = application.pipe(
   Stream.ensuring(
-    deleteDir("tmp").pipe(Effect.andThen(Console.log("Temporary directory was deleted."))),
+    deleteDir("tmp").pipe(
+      Effect.andThen(Console.log("Temporary directory was deleted.")),
+    ),
   ),
 )
 

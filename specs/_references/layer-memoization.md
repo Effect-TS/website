@@ -19,13 +19,13 @@ const MyService = Context.Service<{ readonly value: string }>("MyService")
 
 const MyServiceLayer = Layer.effect(
   MyService,
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     yield* Console.log("Building MyService")
     return { value: "hello" }
-  })
+  }),
 )
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const a = yield* MyService
   return a.value
 })
@@ -33,7 +33,7 @@ const program = Effect.gen(function*() {
 // Same layer provided twice in separate provide calls
 const main = program.pipe(
   Effect.provide(MyServiceLayer),
-  Effect.provide(MyServiceLayer)
+  Effect.provide(MyServiceLayer),
 )
 
 // Effect v3: "Building MyService" is logged TWICE
@@ -72,7 +72,7 @@ import { Effect, Layer } from "effect"
 
 const main = program.pipe(
   Effect.provide(MyServiceLayer),
-  Effect.provide(Layer.fresh(MyServiceLayer))
+  Effect.provide(Layer.fresh(MyServiceLayer)),
 )
 // "Building MyService" is logged TWICE — fresh bypasses the shared cache
 ```
@@ -88,7 +88,7 @@ import { Effect } from "effect"
 
 const main = program.pipe(
   Effect.provide(MyServiceLayer),
-  Effect.provide(MyServiceLayer, { local: true })
+  Effect.provide(MyServiceLayer, { local: true }),
 )
 // "Building MyService" is logged TWICE — local creates its own memo map
 ```

@@ -128,7 +128,9 @@ Here's how you can rewrite the [`divide`](#why-not-throw-errors) function using 
 import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 Effect.runSync(divide(4, 2)) // => 2
 ```
@@ -356,7 +358,9 @@ import { Effect } from "effect"
 
 const getTodo = (id: number) =>
   // Will catch any errors and propagate them as UnknownError
-  Effect.tryPromise(() => fetch(`https://jsonplaceholder.typicode.com/todos/${id}`))
+  Effect.tryPromise(() =>
+    fetch(`https://jsonplaceholder.typicode.com/todos/${id}`),
+  )
 
 //      ┌─── Effect<Response, UnknownError, never>
 //      ▼
@@ -496,7 +500,9 @@ const writeFileWithCleanup = (filename: string, data: string) =>
   })
 
 const program = Effect.gen(function* () {
-  const fiber = yield* Effect.forkChild(writeFileWithCleanup("example.txt", "Some long data..."))
+  const fiber = yield* Effect.forkChild(
+    writeFileWithCleanup("example.txt", "Some long data..."),
+  )
   // Simulate interrupting the fiber after 1 second
   yield* Effect.sleep("1 second")
   yield* Fiber.interrupt(fiber) // This will trigger the cleanup
@@ -596,8 +602,9 @@ good2 // => 2
 ```
 
 <Aside type="note" title="Running Effects">
-  This example utilizes `Effect.runSync` to execute effects and display their results (refer to
-  [Running Effects](/docs/v4/getting-started/running-effects/#runsync) for more details).
+  This example utilizes `Effect.runSync` to execute effects and display their
+  results (refer to [Running
+  Effects](/docs/v4/getting-started/running-effects/#runsync) for more details).
 </Aside>
 
 In this example, `bad` is the result of calling `Effect.succeed(i++)` a single time, which increments the scoped variable but [returns its original value](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Increment#postfix_increment). `Effect.runSync(bad)` does not result in any new computation, because `Effect.succeed(i++)` has already been called. On the other hand, each time `Effect.runSync(good)` is called, the thunk passed to `Effect.suspend()` will be executed, outputting the scoped variable's most recent value.
@@ -613,7 +620,9 @@ For example it's fairly common for `Effect.suspend` to be used in recursive func
 import { Effect } from "effect"
 
 const blowsUp = (n: number): Effect.Effect<number> =>
-  n < 2 ? Effect.succeed(1) : Effect.zipWith(blowsUp(n - 1), blowsUp(n - 2), (a, b) => a + b)
+  n < 2
+    ? Effect.succeed(1)
+    : Effect.zipWith(blowsUp(n - 1), blowsUp(n - 2), (a, b) => a + b)
 
 // console.log(Effect.runSync(blowsUp(32)))
 // crash: JavaScript heap out of memory
@@ -631,8 +640,9 @@ console.log(Effect.runSync(allGood(32))) // Output: 3524578
 ```
 
 <Aside type="note" title="Running Effects">
-  This example utilizes `Effect.zipWith` to combine the results of two effects (refer to the
-  documentation on [zipping](/docs/v4/getting-started/control-flow/#zipwith) for more details).
+  This example utilizes `Effect.zipWith` to combine the results of two effects
+  (refer to the documentation on
+  [zipping](/docs/v4/getting-started/control-flow/#zipwith) for more details).
 </Aside>
 
 The `blowsUp` function creates a recursive Fibonacci sequence without deferring execution. Each call to `blowsUp` triggers further immediate recursive calls, rapidly increasing the JavaScript call stack size.
@@ -656,7 +666,9 @@ import { Effect, Exit } from "effect"
       Effect<never, Error, never> | Effect<number, never, never>
 */
 const withoutSuspend = (a: number, b: number) =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 /*
   Using suspend to unify return types.
@@ -666,7 +678,9 @@ const withoutSuspend = (a: number, b: number) =>
 */
 const withSuspend = (a: number, b: number) =>
   Effect.suspend(() =>
-    b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b),
+    b === 0
+      ? Effect.fail(new Error("Cannot divide by zero"))
+      : Effect.succeed(a / b),
   )
 
 await Effect.runPromise(withSuspend(4, 2)) // => 2

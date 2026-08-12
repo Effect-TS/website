@@ -207,7 +207,9 @@ const log = <A>(
           // Limit the number of iterations for the example
           Schedule.upTo({ times: 10 }),
           Schedule.tap(({ now, output }) =>
-            Console.log(i === 11 ? "..." : new Date(now + Duration.toMillis(output))),
+            Console.log(
+              i === 11 ? "..." : new Date(now + Duration.toMillis(output)),
+            ),
           ),
         ),
       ),
@@ -248,11 +250,14 @@ Output:
 // The schedule fires at the same instants the Cron itself reports,
 // starting from the Unix epoch (TestClock starts at time 0)
 const iterator = Cron.sequence(cron, new Date(0))
-const firstTen = Array.from({ length: 10 }, () => iterator.next().value?.toISOString())
+const firstTen = Array.from({ length: 10 }, () =>
+  iterator.next().value?.toISOString(),
+)
 firstTen // => ["1970-01-08T04:00:00.000Z", "1970-01-09T04:00:00.000Z", "1970-01-10T04:00:00.000Z", "1970-01-11T04:00:00.000Z", "1970-01-12T04:00:00.000Z", "1970-01-13T04:00:00.000Z", "1970-01-14T04:00:00.000Z", "1970-02-08T04:00:00.000Z", "1970-02-09T04:00:00.000Z", "1970-02-10T04:00:00.000Z"]
 ```
 
 <Aside type="note" title="Using a Real Clock">
-  In a real application, you do not need to use the `TestClock` or `TestContext`. These are only
-  necessary for simulating time and controlling the execution in test environments.
+  In a real application, you do not need to use the `TestClock` or
+  `TestContext`. These are only necessary for simulating time and controlling
+  the execution in test environments.
 </Aside>

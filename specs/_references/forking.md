@@ -73,9 +73,7 @@ optional options object with the following fields:
 ```ts
 import { Effect } from "effect"
 
-const fiber = myEffect.pipe(
-  Effect.forkChild({ startImmediately: true })
-)
+const fiber = myEffect.pipe(Effect.forkChild({ startImmediately: true }))
 ```
 
 **Usage as data-first**

@@ -15,7 +15,9 @@ Sometimes, you may want to create a new schema based on an existing one, focusin
 **Function Signature**
 
 ```ts showLineNumbers=false
-declare const toType: <S extends Schema.Constraint>(schema: S) => Schema.toType<S>
+declare const toType: <S extends Schema.Constraint>(
+  schema: S,
+) => Schema.toType<S>
 ```
 
 **Example** (Extracting Only Type-Specific Properties)
@@ -46,7 +48,9 @@ Schema.decodeUnknownSync(TypeSchema)({ quantity: 5 }) // => { quantity: 5 }
 **Function Signature**
 
 ```ts showLineNumbers=false
-declare const toEncoded: <S extends Schema.Constraint>(schema: S) => Schema.toEncoded<S>
+declare const toEncoded: <S extends Schema.Constraint>(
+  schema: S,
+) => Schema.toEncoded<S>
 ```
 
 **Example** (Retaining Initial Refinements Only)
@@ -55,7 +59,9 @@ declare const toEncoded: <S extends Schema.Constraint>(schema: S) => Schema.toEn
 import { Schema } from "effect"
 
 const Original = Schema.Struct({
-  foo: Schema.String.check(Schema.isMinLength(3)).pipe(Schema.decodeTo(Schema.Trim)),
+  foo: Schema.String.check(Schema.isMinLength(3)).pipe(
+    Schema.decodeTo(Schema.Trim),
+  ),
 })
 
 // The EncodedSchema preserves the minLength(3) check,

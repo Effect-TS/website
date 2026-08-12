@@ -31,7 +31,9 @@ const fileLogger = myStringLogger.pipe(Logger.toFile("/tmp/log.txt"))
 
 // Replace the default logger, providing NodeFileSystem
 // to access the file system
-const LoggerLive = Logger.layer([fileLogger]).pipe(Layer.provide(NodeFileSystem.layer))
+const LoggerLive = Logger.layer([fileLogger]).pipe(
+  Layer.provide(NodeFileSystem.layer),
+)
 
 const program = Effect.log("Hello")
 

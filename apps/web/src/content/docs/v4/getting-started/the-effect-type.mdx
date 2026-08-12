@@ -28,7 +28,9 @@ This type indicates that an effect:
 Conceptually, you can think of `Effect` as an effectful version of the following function type:
 
 ```ts showLineNumbers=false
-type Effect<Success, Error, Requirements> = (context: Context<Requirements>) => Error | Success
+type Effect<Success, Error, Requirements> = (
+  context: Context<Requirements>,
+) => Error | Success
 ```
 
 However, effects are not actually functions. They can model synchronous, asynchronous, concurrent, and resourceful computations.
@@ -51,9 +53,9 @@ The `Effect` type has three type parameters with the following meanings:
 | **Requirements** | Represents the contextual data required by the effect to be executed. This data is stored in a collection named `Context`. If this type parameter is `never`, it means the effect has no requirements and the `Context` collection is empty.   |
 
 <Aside type="note" title="Type Parameter Abbreviations">
-  In the Effect ecosystem, you may often encounter the type parameters of `Effect` abbreviated as
-  `A`, `E`, and `R` respectively. This is just shorthand for the success value of type **A**,
-  **E**rror, and **R**equirements.
+  In the Effect ecosystem, you may often encounter the type parameters of
+  `Effect` abbreviated as `A`, `E`, and `R` respectively. This is just shorthand
+  for the success value of type **A**, **E**rror, and **R**equirements.
 </Aside>
 
 ## Extracting Inferred Types

@@ -202,7 +202,10 @@ const expensiveTask = Effect.promise<string>(() => {
 
 const program = Effect.gen(function* () {
   // Caches the result for 150 milliseconds
-  const [cached, invalidate] = yield* Effect.cachedInvalidateWithTTL(expensiveTask, "150 millis")
+  const [cached, invalidate] = yield* Effect.cachedInvalidateWithTTL(
+    expensiveTask,
+    "150 millis",
+  )
 
   // First evaluation triggers the task
   yield* cached.pipe(Effect.andThen(Console.log))

@@ -228,7 +228,9 @@ Effect.runSync(apiKey.parse(provider)) // => Option.none()
 ```ts twoslash import.meta.vitest name="config-or-else-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
-const host = Config.string("HOST").pipe(Config.orElse(() => Config.string("FALLBACK_HOST")))
+const host = Config.string("HOST").pipe(
+  Config.orElse(() => Config.string("FALLBACK_HOST")),
+)
 
 const provider = ConfigProvider.fromUnknown({ FALLBACK_HOST: "localhost" })
 

@@ -111,7 +111,9 @@ const program = Effect.gen(function* () {
   const serverFiber = yield* Effect.forkChild(server(ref))
 
   // Create 5 clients that subscribe to the changes stream
-  const clients = new Array(5).fill(null).map(() => client(SubscriptionRef.changes(ref)))
+  const clients = new Array(5)
+    .fill(null)
+    .map(() => client(SubscriptionRef.changes(ref)))
 
   // Run all clients in concurrently and collect their results
   const chunks = yield* Effect.all(clients, { concurrency: "unbounded" })
@@ -141,7 +143,9 @@ const chunkCount = await Effect.runPromise(
   Effect.gen(function* () {
     const ref = yield* SubscriptionRef.make(0)
     const serverFiber = yield* Effect.forkChild(server(ref))
-    const clients = new Array(5).fill(null).map(() => client(SubscriptionRef.changes(ref)))
+    const clients = new Array(5)
+      .fill(null)
+      .map(() => client(SubscriptionRef.changes(ref)))
     const chunks = yield* Effect.all(clients, { concurrency: "unbounded" })
     yield* Fiber.interrupt(serverFiber)
     return chunks.length

@@ -19,7 +19,9 @@ Here we are using the [Option](/docs/v4/data-types/option/) data type to represe
 import { Effect, Option } from "effect"
 
 // Function to validate weight and return an Option
-const validateWeightOption = (weight: number): Effect.Effect<Option.Option<number>> => {
+const validateWeightOption = (
+  weight: number,
+): Effect.Effect<Option.Option<number>> => {
   if (weight >= 0) {
     // Return Some if the weight is valid
     return Effect.succeed(Option.some(weight))
@@ -41,7 +43,9 @@ You can also handle invalid inputs by using the error channel, which allows you 
 import { Effect, Exit } from "effect"
 
 // Function to validate weight or fail with an error
-const validateWeightOrFail = (weight: number): Effect.Effect<number, string> => {
+const validateWeightOrFail = (
+  weight: number,
+): Effect.Effect<number, string> => {
   if (weight >= 0) {
     // Return the weight if valid
     return Effect.succeed(weight)
@@ -329,7 +333,8 @@ import { Effect, Console } from "effect"
 // Apply effects but discard the results
 const result = Effect.forEach(
   [1, 2, 3, 4, 5],
-  (n, index) => Console.log(`Currently at index ${index}`).pipe(Effect.as(n * 2)),
+  (n, index) =>
+    Console.log(`Currently at index ${index}`).pipe(Effect.as(n * 2)),
   { discard: true },
 )
 

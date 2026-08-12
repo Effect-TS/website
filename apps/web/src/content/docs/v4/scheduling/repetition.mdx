@@ -14,9 +14,9 @@ Repetition is a common requirement when working with effects in software develop
 The `Effect.repeat` function returns a new effect that repeats the given effect according to a specified schedule or until the first failure.
 
 <Aside type="note" title="Initial Execution Included">
-  The scheduled recurrences are in addition to the initial execution, so `Effect.repeat(action,
-  Schedule.duration(Duration.zero))` executes `action` once initially, and if it succeeds, repeats
-  it an additional time.
+  The scheduled recurrences are in addition to the initial execution, so
+  `Effect.repeat(action, Schedule.duration(Duration.zero))` executes `action`
+  once initially, and if it succeeds, repeats it an additional time.
 </Aside>
 
 **Example** (Repeating a Successful Effect)
@@ -28,7 +28,9 @@ import { Effect, Schedule, Console } from "effect"
 const action = Console.log("success")
 
 // Define a schedule that repeats the action 2 more times with a delay
-const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
+const policy = Schedule.addDelay(Schedule.recurs(2), () =>
+  Effect.succeed("100 millis"),
+)
 
 // Repeat the action according to the schedule
 const program = Effect.repeat(action, policy)
@@ -66,7 +68,9 @@ const action = Effect.callback<string, string>((resume) => {
 })
 
 // Define a schedule that repeats the action 2 more times with a delay
-const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
+const policy = Schedule.addDelay(Schedule.recurs(2), () =>
+  Effect.succeed("100 millis"),
+)
 
 // Repeat the action according to the schedule
 const program = Effect.repeat(action, policy)
@@ -94,7 +98,9 @@ import { Effect, Schedule, Console } from "effect"
 
 const action = Console.log("success")
 
-const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
+const policy = Schedule.addDelay(Schedule.recurs(2), () =>
+  Effect.succeed("100 millis"),
+)
 
 const program = Effect.schedule(action, policy)
 
@@ -160,7 +166,9 @@ const action = Effect.callback<string, string>((resume) => {
 
 // Define a schedule that repeats up to 2 times
 // with a 100ms delay between attempts
-const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
+const policy = Schedule.addDelay(Schedule.recurs(2), () =>
+  Effect.succeed("100 millis"),
+)
 
 // Provide a handler to run when failure occurs after the retries
 const program = Effect.repeatOrElse(action, policy, () =>
@@ -214,6 +222,8 @@ result // => 3
 ```
 
 <Aside type="tip" title="Retrying on Errors">
-  You can use [Effect.retry](/docs/v4/error-management/retrying/#retrying-selected-errors) if you
-  need to set conditions based on error occurrences rather than success outcomes.
+  You can use
+  [Effect.retry](/docs/v4/error-management/retrying/#retrying-selected-errors)
+  if you need to set conditions based on error occurrences rather than success
+  outcomes.
 </Aside>

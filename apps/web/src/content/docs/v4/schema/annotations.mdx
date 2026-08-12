@@ -23,7 +23,9 @@ const Password = Schema.String
       Schema.isNonEmpty({ message: "required" }),
       // Restrict the string length to 10 characters or fewer
       // with a custom error message for exceeding length
-      Schema.makeFilter((s) => (s.length <= 10 ? undefined : "must be at most 10 characters long")),
+      Schema.makeFilter((s) =>
+        s.length <= 10 ? undefined : "must be at most 10 characters long",
+      ),
     ),
   )
   .annotate({
@@ -103,7 +105,11 @@ const item = (id: number, duration: Duration.Input) =>
     }),
   )
 
-const Sequential = Schema.Tuple([item(1, "30 millis"), item(2, "10 millis"), item(3, "20 millis")])
+const Sequential = Schema.Tuple([
+  item(1, "30 millis"),
+  item(2, "10 millis"),
+  item(3, "20 millis"),
+])
 
 Effect.runPromise(Schema.decodeEffect(Sequential)(["a", "b", "c"]))
 /*
@@ -138,9 +144,19 @@ const item = (id: number, duration: Duration.Input) =>
     }),
   )
 
-const Concurrent = Schema.Tuple([item(1, "30 millis"), item(2, "10 millis"), item(3, "20 millis")])
+const Concurrent = Schema.Tuple([
+  item(1, "30 millis"),
+  item(2, "10 millis"),
+  item(3, "20 millis"),
+])
 
-Effect.runPromise(Schema.decodeEffect(Concurrent, { concurrency: "unbounded" })(["a", "b", "c"]))
+Effect.runPromise(
+  Schema.decodeEffect(Concurrent, { concurrency: "unbounded" })([
+    "a",
+    "b",
+    "c",
+  ]),
+)
 /*
 Output:
 Task 2 done
@@ -170,7 +186,9 @@ import { Schema } from "effect"
 import { Effect } from "effect"
 
 // Schema with a fallback value
-const schema = Schema.String.pipe(Schema.catchDecoding(() => Effect.succeedSome("<fallback>")))
+const schema = Schema.String.pipe(
+  Schema.catchDecoding(() => Effect.succeedSome("<fallback>")),
+)
 
 console.log(Schema.decodeUnknownSync(schema)("valid input"))
 // Output: valid input
@@ -203,7 +221,9 @@ const schemaWithLog = Schema.String.pipe(
 )
 
 // Run the effectful fallback logic
-Effect.runPromise(Schema.decodeUnknownEffect(schemaWithLog)(null)).then(console.log)
+Effect.runPromise(Schema.decodeUnknownEffect(schemaWithLog)(null)).then(
+  console.log,
+)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=InvalidType
@@ -221,7 +241,9 @@ In addition to built-in annotations, you can define custom annotations to meet s
 import { Schema } from "effect"
 
 // Define a unique identifier for your custom annotation
-const DeprecatedId = Symbol.for("some/unique/identifier/for/your/custom/annotation")
+const DeprecatedId = Symbol.for(
+  "some/unique/identifier/for/your/custom/annotation",
+)
 
 // Apply the custom annotation to the schema
 const MyString = Schema.String.annotate({ [DeprecatedId]: true })
@@ -234,7 +256,9 @@ To make your new custom annotation type-safe, you can use a module augmentation.
 ```ts twoslash
 import { Schema } from "effect"
 
-const DeprecatedId = Symbol.for("some/unique/identifier/for/your/custom/annotation")
+const DeprecatedId = Symbol.for(
+  "some/unique/identifier/for/your/custom/annotation",
+)
 
 // Module augmentation
 declare module "effect/Schema" {
@@ -258,7 +282,9 @@ You can retrieve custom annotations using the `Schema.resolveAnnotations` helper
 ```ts twoslash collapse={3-15} import.meta.vitest name="custom-annotations-3"
 import { Schema } from "effect"
 
-const DeprecatedId = Symbol.for("some/unique/identifier/for/your/custom/annotation")
+const DeprecatedId = Symbol.for(
+  "some/unique/identifier/for/your/custom/annotation",
+)
 
 declare module "effect/Schema" {
   namespace Annotations {

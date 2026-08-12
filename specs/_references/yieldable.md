@@ -48,7 +48,7 @@ implement `Yieldable`:
 import { Effect, Option } from "effect"
 
 // The type of program is `Effect<number, NoSuchElementError>`
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   // yield* works with Yieldable types — same as v3
   const value = yield* Option.some(42)
   return value // 42
@@ -79,7 +79,7 @@ import { Effect, Option } from "effect"
 const program = Effect.map(Option.some(42).asEffect(), (n) => n + 1)
 
 // Or more idiomatically, use a generator:
-const program2 = Effect.gen(function*() {
+const program2 = Effect.gen(function* () {
   const n = yield* Option.some(42)
   return n + 1
 })
@@ -95,7 +95,7 @@ appropriate module functions instead.
 ```ts
 import { Effect, Ref } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const ref = yield* Ref.make(0)
   const value = yield* ref // Ref is an Effect<number>
 })
@@ -106,7 +106,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Effect, Ref } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const ref = yield* Ref.make(0)
   const value = yield* Ref.get(ref)
 })
@@ -117,7 +117,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Deferred, Effect } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const deferred = yield* Deferred.make<string, never>()
   const value = yield* deferred // Deferred is an Effect<string>
 })
@@ -128,7 +128,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Deferred, Effect } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const deferred = yield* Deferred.make<string, never>()
   const value = yield* Deferred.await(deferred)
 })
@@ -139,7 +139,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Effect, Fiber } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const fiber = yield* Effect.fork(task)
   const result = yield* fiber // Fiber is an Effect<A, E>
 })
@@ -150,7 +150,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Effect, Fiber } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const fiber = yield* Effect.forkChild(task)
   const result = yield* Fiber.join(fiber)
 })

@@ -11,9 +11,9 @@ import { Aside } from "@astrojs/starlight/components"
 With it, we can store **immutable** data and perform updates **atomically** and effectfully.
 
 <Aside type="tip" title="Learn Ref First">
-  Most of the operations for `SynchronizedRef` are similar to those of `Ref`. If you're not already
-  familiar with `Ref`, it's recommended to read about [the Ref
-  concept](/docs/v4/state-management/ref/) first.
+  Most of the operations for `SynchronizedRef` are similar to those of `Ref`. If
+  you're not already familiar with `Ref`, it's recommended to read about [the
+  Ref concept](/docs/v4/state-management/ref/) first.
 </Aside>
 
 The distinctive function in `SynchronizedRef` is `updateEffect`.
@@ -30,7 +30,8 @@ In this example, we simulate fetching user ages concurrently and updating a shar
 import { Effect, SynchronizedRef } from "effect"
 
 // Simulated API to get user age
-const getUserAge = (userId: number) => Effect.succeed(userId * 10).pipe(Effect.delay(10 - userId))
+const getUserAge = (userId: number) =>
+  Effect.succeed(userId * 10).pipe(Effect.delay(10 - userId))
 
 const meanAge = Effect.gen(function* () {
   // Initialize a SynchronizedRef to hold an array of ages

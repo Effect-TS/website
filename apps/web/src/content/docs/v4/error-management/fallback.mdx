@@ -18,7 +18,9 @@ import { Effect } from "effect"
 
 const primary = Effect.fail("primary unavailable")
 
-const program = primary.pipe(Effect.catch((error) => Effect.succeed(`fallback: ${error}`)))
+const program = primary.pipe(
+  Effect.catch((error) => Effect.succeed(`fallback: ${error}`)),
+)
 
 Effect.runSync(program) // => "fallback: primary unavailable"
 ```

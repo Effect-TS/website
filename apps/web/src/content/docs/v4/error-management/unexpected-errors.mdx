@@ -19,7 +19,9 @@ Defects normally should be reported and allowed to terminate the affected fiber.
 import { Effect, Exit } from "effect"
 
 const divide = (a: number, b: number) =>
-  b === 0 ? Effect.die(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+  b === 0
+    ? Effect.die(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 const exit = Effect.runSyncExit(divide(1, 0))
 
@@ -39,7 +41,9 @@ Exceptions thrown while evaluating Effect callbacks such as `Effect.sync` are al
 ```ts twoslash import.meta.vitest name="converting-a-failure-to-a-defect-1"
 import { Effect, Exit } from "effect"
 
-const program = Effect.fail(new Error("Invalid startup configuration")).pipe(Effect.orDie)
+const program = Effect.fail(new Error("Invalid startup configuration")).pipe(
+  Effect.orDie,
+)
 
 const exit = Effect.runSyncExit(program)
 
@@ -60,7 +64,9 @@ const exit = Effect.runSyncExit(program)
 
 const reason = Exit.isFailure(exit) ? exit.cause.reasons[0] : undefined
 const message =
-  reason !== undefined && Cause.isDieReason(reason) && Predicate.isError(reason.defect)
+  reason !== undefined &&
+  Cause.isDieReason(reason) &&
+  Predicate.isError(reason.defect)
     ? reason.defect.message
     : undefined
 
@@ -122,7 +128,9 @@ import { Cause, Effect } from "effect"
 
 const program = Effect.die("boom").pipe(
   Effect.catchCause((cause) =>
-    Cause.hasDies(cause) ? Effect.succeed("recovered at the boundary") : Effect.failCause(cause),
+    Cause.hasDies(cause)
+      ? Effect.succeed("recovered at the boundary")
+      : Effect.failCause(cause),
   ),
 )
 

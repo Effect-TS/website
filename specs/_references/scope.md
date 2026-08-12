@@ -16,7 +16,7 @@ Effect.
 ```ts
 import { Effect, Scope } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const scope = yield* Scope.make()
   yield* Scope.extend(myEffect, scope)
 })
@@ -27,7 +27,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Effect, Scope } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const scope = yield* Scope.make()
   yield* Scope.provide(scope)(myEffect)
 })

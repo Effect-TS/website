@@ -19,7 +19,7 @@ Consider the following program:
 ```ts
 import { Deferred, Effect } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const deferred = yield* Deferred.make<string>()
 
   yield* Deferred.await(deferred)
@@ -52,7 +52,7 @@ This means the following program works in v4 **without** `runMain`:
 ```ts
 import { Deferred, Effect, Fiber } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const deferred = yield* Deferred.make<string>()
 
   // The process stays alive while waiting — no runMain needed

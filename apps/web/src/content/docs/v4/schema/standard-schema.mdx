@@ -26,7 +26,8 @@ standardSchema["~standard"].vendor // => "effect"
 ```
 
 <Aside type="note" title="Schema Restrictions">
-  The schema must not require decoding services: its `DecodingServices` must be `never`.
+  The schema must not require decoding services: its `DecodingServices` must be
+  `never`.
 </Aside>
 
 ## Sync vs Async Validation
@@ -77,7 +78,9 @@ const async = sync.pipe(
     }),
     {
       // Simulate an asynchronous validation delay
-      decode: SchemaGetter.transformOrFail((x) => Effect.sleep("100 millis").pipe(Effect.as(x))),
+      decode: SchemaGetter.transformOrFail((x) =>
+        Effect.sleep("100 millis").pipe(Effect.as(x)),
+      ),
       encode: SchemaGetter.passthrough(),
     },
   ),

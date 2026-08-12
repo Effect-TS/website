@@ -117,7 +117,9 @@ A check runs only after the base schema accepts the input. Base-type failures an
 ```ts twoslash
 import { Schema } from "effect"
 
-const Name = Schema.String.check(Schema.isNonEmpty({ expected: "a non-empty name" }))
+const Name = Schema.String.check(
+  Schema.isNonEmpty({ expected: "a non-empty name" }),
+)
 
 const Person = Schema.Struct({
   name: Name,
@@ -157,7 +159,9 @@ import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect"
 const schema = Schema.String.pipe(
   Schema.decodeTo(Schema.String.check(Schema.isMinLength(2)), {
     decode: SchemaGetter.transformOrFail((s) =>
-      s.length > 0 ? Effect.succeed(s) : Effect.fail(new SchemaIssue.InvalidValue()),
+      s.length > 0
+        ? Effect.succeed(s)
+        : Effect.fail(new SchemaIssue.InvalidValue()),
     ),
     encode: SchemaGetter.passthrough(),
   }),
@@ -237,7 +241,10 @@ SchemaError: Expected string | number
 */
 
 // Define a union schema with a custom message
-const MyUnionWithMessage = Schema.Union([Schema.String, Schema.Finite]).annotate({
+const MyUnionWithMessage = Schema.Union([
+  Schema.String,
+  Schema.Finite,
+]).annotate({
   message: "Please provide a string or a number",
 })
 
@@ -283,7 +290,10 @@ This example sets a custom message on the last check in a chain. The custom mess
 ```ts twoslash import.meta.vitest name="refinements-1"
 import { Schema } from "effect"
 
-const MyString = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(2)).annotate({
+const MyString = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(2),
+).annotate({
   // This message is displayed only if the last filter (`isMaxLength`) fails
   message: "my custom message",
 })
@@ -377,7 +387,9 @@ const IntFromString = Schema.String
             ? Effect.fail(
                 // This message is displayed only if the input
                 // cannot be converted to a number
-                new SchemaIssue.InvalidValue({ message: "please enter a parseable string" }),
+                new SchemaIssue.InvalidValue({
+                  message: "please enter a parseable string",
+                }),
               )
             : Effect.succeed(n)
         }),

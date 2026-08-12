@@ -144,7 +144,9 @@ Its default JSON representation uses `{ _tag: "Success", success }` and `{ _tag:
 ```ts twoslash import.meta.vitest name="result-json-1"
 import { Result, Schema } from "effect"
 
-const schema = Schema.toCodecJson(Schema.Result(Schema.FiniteFromString, Schema.Trim))
+const schema = Schema.toCodecJson(
+  Schema.Result(Schema.FiniteFromString, Schema.Trim),
+)
 
 Schema.decodeUnknownSync(schema)({ _tag: "Success", success: "1" }) // => Result.succeed(1)
 Schema.encodeSync(schema)(Result.fail("error")) // => { _tag: "Failure", failure: "error" }
@@ -159,7 +161,11 @@ Schema.encodeSync(schema)(Result.fail("error")) // => { _tag: "Failure", failure
 ```ts twoslash import.meta.vitest name="exit-1"
 import { Exit, Schema } from "effect"
 
-const schema = Schema.Exit(Schema.FiniteFromString, Schema.Trim, Schema.Defect())
+const schema = Schema.Exit(
+  Schema.FiniteFromString,
+  Schema.Trim,
+  Schema.Defect(),
+)
 
 Schema.decodeUnknownSync(schema)(Exit.succeed("1")) // => Exit.succeed(1)
 Schema.decodeUnknownSync(schema)(Exit.fail(" error ")) // => Exit.fail("error")

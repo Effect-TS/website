@@ -100,8 +100,8 @@ interface User {
 ```
 
 <Aside type="note" title="Property Key Always Present">
-  Optionality only applies to the value of the property. The key `"email"` will always be present in
-  the object, regardless of whether it has a value or not.
+  Optionality only applies to the value of the property. The key `"email"` will
+  always be present in the object, regardless of whether it has a value or not.
 </Aside>
 
 Here are examples of how to create `User` instances with and without an email:
@@ -399,7 +399,9 @@ const alternativeComputation = (): Option.Option<number> =>
   Math.random() < 0.5 ? Option.some(20) : Option.none()
 
 // Attempt the first computation, then try an alternative if needed
-const program = computation().pipe(Option.orElse(() => alternativeComputation()))
+const program = computation().pipe(
+  Option.orElse(() => alternativeComputation()),
+)
 
 const result = Option.match(program, {
   onNone: () => "Both computations resulted in None",
@@ -420,7 +422,12 @@ You can also use `Option.firstSomeOf` to get the first `Some` value from an iter
 ```ts twoslash import.meta.vitest name="firstsomeof-1"
 import { Option } from "effect"
 
-const first = Option.firstSomeOf([Option.none(), Option.some(2), Option.none(), Option.some(3)])
+const first = Option.firstSomeOf([
+  Option.none(),
+  Option.some(2),
+  Option.none(),
+  Option.some(3),
+])
 
 console.log(first)
 first // => Option.some(2)
@@ -479,7 +486,9 @@ head([1, 2, 3]) // => Option.some(1)
 // Simulated fetch function that returns Effect
 const fetchData = (): Effect.Effect<string, string> => {
   const success = Math.random() > 0.5
-  return success ? Effect.succeed("some data") : Effect.fail("Failed to fetch data")
+  return success
+    ? Effect.succeed("some data")
+    : Effect.fail("Failed to fetch data")
 }
 
 // Option is not an Effect subtype - convert explicitly with Effect.fromOption
@@ -699,7 +708,11 @@ const items = [
 ]
 
 // Define the order to sort dates within Option values in reverse
-const sorted = Array.sortWith(items, (item) => item.data, Order.flip(Option.makeOrder(Order.Date)))
+const sorted = Array.sortWith(
+  items,
+  (item) => item.data,
+  Order.flip(Option.makeOrder(Order.Date)),
+)
 
 console.log(sorted)
 /*

@@ -30,7 +30,7 @@ services — `yield*` them directly.
 ```ts
 import { Effect, FiberRef } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const level = yield* FiberRef.get(FiberRef.currentLogLevel)
   console.log(level)
 })
@@ -41,7 +41,7 @@ const program = Effect.gen(function*() {
 ```ts
 import { Effect, References } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const level = yield* References.CurrentLogLevel
   console.log(level) // "Info" (default)
 })
@@ -60,7 +60,7 @@ import { Effect, FiberRef, LogLevel } from "effect"
 const program = Effect.locally(
   myEffect,
   FiberRef.currentLogLevel,
-  LogLevel.Debug
+  LogLevel.Debug,
 )
 ```
 
@@ -72,7 +72,7 @@ import { Effect, References } from "effect"
 const program = Effect.provideService(
   myEffect,
   References.CurrentLogLevel,
-  "Debug"
+  "Debug",
 )
 ```
 
@@ -86,7 +86,7 @@ set via `Effect.provideService`, which scopes the value to the provided effect.
 ```ts
 import { Effect, FiberRef } from "effect"
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   yield* FiberRef.set(FiberRef.currentMaxOpsBeforeYield, 500)
   // subsequent code sees maxOpsBeforeYield = 500
 })
@@ -98,11 +98,11 @@ const program = Effect.gen(function*() {
 import { Effect, References } from "effect"
 
 const program = Effect.provideService(
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const maxOps = yield* References.MaxOpsBeforeYield
     console.log(maxOps) // 500
   }),
   References.MaxOpsBeforeYield,
-  500
+  500,
 )
 ```

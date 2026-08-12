@@ -12,7 +12,7 @@ import { Effect } from "effect"
 
 class MyService {
   readonly local = 1
-  compute = Effect.gen(this, function*() {
+  compute = Effect.gen(this, function* () {
     return yield* Effect.succeed(this.local + 1)
   })
 }
@@ -25,7 +25,7 @@ import { Effect } from "effect"
 
 class MyService {
   readonly local = 1
-  compute = Effect.gen({ self: this }, function*() {
+  compute = Effect.gen({ self: this }, function* () {
     return yield* Effect.succeed(this.local + 1)
   })
 }

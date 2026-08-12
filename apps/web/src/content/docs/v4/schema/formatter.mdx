@@ -60,7 +60,8 @@ const Person = Schema.Struct({
 })
 
 const formatter = Schema.toFormatter(Person, {
-  onBefore: (ast) => (ast._tag === "String" ? (value: string) => `<${value}>` : undefined),
+  onBefore: (ast) =>
+    ast._tag === "String" ? (value: string) => `<${value}>` : undefined,
 })
 
 formatter({ name: "Alice", city: "Rome" }) // => `{ "name": <Alice>, "city": <Rome> }`

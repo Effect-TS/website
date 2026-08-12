@@ -44,7 +44,9 @@ timestamp=... level=INFO fiber=#0 message="Application started"
 const messages: Array<unknown> = []
 Effect.runSync(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages // => [["Application started"]]
@@ -61,9 +63,9 @@ The default logger in Effect adds several useful details to each log entry:
 | `span`      | (Optional) The duration of a span in milliseconds, providing insight into the timing of operations. |
 
 <Aside type="tip" title="Customizing Loggers">
-  For information on how to tailor the logging setup to meet specific needs, such as integrating a
-  custom logging framework or adjusting log formats, please consult the section on [Custom
-  Loggers](#custom-loggers).
+  For information on how to tailor the logging setup to meet specific needs,
+  such as integrating a custom logging framework or adjusting log formats,
+  please consult the section on [Custom Loggers](#custom-loggers).
 </Aside>
 
 You can also log multiple messages at once.
@@ -85,7 +87,9 @@ timestamp=... level=INFO fiber=#0 message=message1 message=message2 message=mess
 const messages: Array<unknown> = []
 Effect.runSync(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages // => [["message1", "message2", "message3"]]
@@ -99,7 +103,12 @@ which provide detailed error information under an additional `cause` annotation:
 ```ts twoslash "cause" import.meta.vitest name="log-3"
 import { Effect, Cause, Logger } from "effect"
 
-const program = Effect.log("message1", "message2", Cause.die("Oh no!"), Cause.die("Oh uh!"))
+const program = Effect.log(
+  "message1",
+  "message2",
+  Cause.die("Oh no!"),
+  Cause.die("Oh uh!"),
+)
 
 Effect.runFork(program)
 /*
@@ -167,7 +176,9 @@ timestamp=... level=INFO message=done <-- 1 second later
 const messages: Array<unknown> = []
 await Effect.runPromise(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 // task2's debug message is filtered out, since it never enables the Debug level
@@ -175,8 +186,8 @@ messages // => [["start"], ["task1 done"], ["done"]]
 ```
 
 <Aside type="tip" title="Controlling Log Levels Per Effect">
-  Provide `References.MinimumLogLevel` only to the relevant effect to control its logging without
-  changing the surrounding program.
+  Provide `References.MinimumLogLevel` only to the relevant effect to control
+  its logging without changing the surrounding program.
 </Aside>
 
 ### logInfo
@@ -206,7 +217,9 @@ timestamp=... level=INFO message=done <-- 3 seconds later
 const messages: Array<unknown> = []
 await Effect.runPromise(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages // => [["start"], ["done"]]
@@ -243,7 +256,9 @@ timestamp=... level=WARN fiber=#0 message="Oh uh!"
 const messages: Array<unknown> = []
 const result = await Effect.runPromise(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 result // => 0
@@ -281,7 +296,9 @@ timestamp=... level=ERROR fiber=#0 message="Oh uh!"
 const messages: Array<unknown> = []
 const result = await Effect.runPromise(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 result // => 0
@@ -319,7 +336,9 @@ timestamp=... level=FATAL fiber=#0 message="Oh uh!"
 const messages: Array<unknown> = []
 const result = await Effect.runPromise(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 result // => 0
@@ -362,7 +381,9 @@ Effect.runSync(
     Effect.provide(
       Logger.layer([
         Logger.make((options) =>
-          annotations.push(options.fiber.getRef(References.CurrentLogAnnotations)),
+          annotations.push(
+            options.fiber.getRef(References.CurrentLogAnnotations),
+          ),
         ),
       ]),
     ),
@@ -374,8 +395,9 @@ annotations // => [{ key: "value" }, { key: "value" }]
 In this example, all logs generated within the `program` will include the annotation `key=value`.
 
 <Aside type="tip" title="Scope of Annotations">
-  Annotations applied with `Effect.annotateLogs` are automatically added to all logs generated
-  within the annotated effect's scope, including logs from nested effects.
+  Annotations applied with `Effect.annotateLogs` are automatically added to all
+  logs generated within the annotated effect's scope, including logs from nested
+  effects.
 </Aside>
 
 ### Annotations with Nested Effects
@@ -416,7 +438,9 @@ timestamp=... level=ERROR fiber=#0 message=error1 key=value
 const messages: Array<unknown> = []
 Effect.runSync(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages // => [["message1"], ["message2"], ["error1"]]
@@ -453,7 +477,9 @@ Effect.runSync(
     Effect.provide(
       Logger.layer([
         Logger.make((options) =>
-          annotations.push(options.fiber.getRef(References.CurrentLogAnnotations)),
+          annotations.push(
+            options.fiber.getRef(References.CurrentLogAnnotations),
+          ),
         ),
       ]),
     ),
@@ -547,7 +573,9 @@ await Effect.runPromise(
         Logger.make((options) => {
           records.push({
             message: options.message,
-            spans: options.fiber.getRef(References.CurrentLogSpans).map(([label]) => label),
+            spans: options.fiber
+              .getRef(References.CurrentLogSpans)
+              .map(([label]) => label),
           })
         }),
       ]),
@@ -583,7 +611,9 @@ task done
 */
 
 // Disable logging by setting minimum log level to 'None'
-Effect.runFork(program.pipe(Effect.provideService(References.MinimumLogLevel, "None")))
+Effect.runFork(
+  program.pipe(Effect.provideService(References.MinimumLogLevel, "None")),
+)
 /*
 Output:
 task done
@@ -593,7 +623,11 @@ task done
 const enabledMessages: Array<unknown> = []
 await Effect.runPromise(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => enabledMessages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([
+        Logger.make((options) => enabledMessages.push(options.message)),
+      ]),
+    ),
   ),
 )
 enabledMessages.length // => 1
@@ -603,7 +637,9 @@ await Effect.runPromise(
   program.pipe(
     Effect.provideService(References.MinimumLogLevel, "None"),
     Effect.provide(
-      Logger.layer([Logger.make((options) => disabledMessages.push(options.message))]),
+      Logger.layer([
+        Logger.make((options) => disabledMessages.push(options.message)),
+      ]),
     ),
   ),
 )
@@ -638,7 +674,9 @@ const messages: Array<unknown> = []
 await Effect.runPromise(
   program.pipe(
     Effect.provide(layer),
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages.length // => 0
@@ -658,7 +696,9 @@ const program = Effect.gen(function* () {
 })
 
 // Create a custom runtime that disables logging
-const customRuntime = ManagedRuntime.make(Layer.succeed(References.MinimumLogLevel, "None"))
+const customRuntime = ManagedRuntime.make(
+  Layer.succeed(References.MinimumLogLevel, "None"),
+)
 
 // Run the program using the custom runtime
 customRuntime.runFork(program)
@@ -686,7 +726,14 @@ To load the log level from a [configuration](/docs/v4/configuration/) and apply 
 **Example** (Loading Log Level from Configuration)
 
 ```ts twoslash import.meta.vitest name="loading-the-log-level-from-configuration-1"
-import { Effect, Config, Layer, ConfigProvider, References, Logger } from "effect"
+import {
+  Effect,
+  Config,
+  Layer,
+  ConfigProvider,
+  References,
+  Logger,
+} from "effect"
 
 // Simulate a program with logs
 const program = Effect.gen(function* () {
@@ -725,16 +772,18 @@ Output:
 const messages: Array<unknown> = []
 await Effect.runPromise(
   test.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages // => [["ERROR!"], ["WARNING!"]]
 ```
 
 <Aside type="tip" title="Using ConfigProvider for Testing">
-  The `ConfigProvider.fromUnknown` function is useful for testing by simulating configuration
-  values. See [Loading an In-Memory Object](/docs/v4/configuration/#loading-an-in-memory-object) for
-  an example.
+  The `ConfigProvider.fromUnknown` function is useful for testing by simulating
+  configuration values. See [Loading an In-Memory
+  Object](/docs/v4/configuration/#loading-an-in-memory-object) for an example.
 </Aside>
 
 ## Custom loggers
@@ -825,7 +874,10 @@ const program = Effect.gen(function* () {
 const layer = Logger.layer([logger, Logger.tracerLogger])
 
 Effect.runFork(
-  program.pipe(Effect.provideService(References.MinimumLogLevel, "Debug"), Effect.provide(layer)),
+  program.pipe(
+    Effect.provideService(References.MinimumLogLevel, "Debug"),
+    Effect.provide(layer),
+  ),
 )
 
 // Capture the level+message pairs delivered to the custom logger
@@ -917,7 +969,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
 )
 
 Effect.runFork(
-  program.pipe(Effect.provide(Logger.layer([Logger.consoleLogFmt, Logger.tracerLogger]))),
+  program.pipe(
+    Effect.provide(Logger.layer([Logger.consoleLogFmt, Logger.tracerLogger])),
+  ),
 )
 
 // Capture the formatted log line (ignoring the non-deterministic timestamp/fiber/span duration)
@@ -957,7 +1011,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
 )
 
 Effect.runFork(
-  program.pipe(Effect.provide(Logger.layer([Logger.consolePretty(), Logger.tracerLogger]))),
+  program.pipe(
+    Effect.provide(Logger.layer([Logger.consolePretty(), Logger.tracerLogger])),
+  ),
 )
 
 // Wait for the fire-and-forget run above to finish logging before capturing below
@@ -972,7 +1028,11 @@ console.log = (...args: Array<unknown>) => {
 }
 try {
   await Effect.runPromise(
-    program.pipe(Effect.provide(Logger.layer([Logger.consolePretty(), Logger.tracerLogger]))),
+    program.pipe(
+      Effect.provide(
+        Logger.layer([Logger.consolePretty(), Logger.tracerLogger]),
+      ),
+    ),
   )
 } finally {
   console.log = originalLog
@@ -1005,7 +1065,11 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
 )
 
 Effect.runFork(
-  program.pipe(Effect.provide(Logger.layer([Logger.consoleStructured, Logger.tracerLogger]))),
+  program.pipe(
+    Effect.provide(
+      Logger.layer([Logger.consoleStructured, Logger.tracerLogger]),
+    ),
+  ),
 )
 
 // Capture the structured record (ignoring the non-deterministic timestamp/fiberId/span duration)
@@ -1066,7 +1130,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
 )
 
 Effect.runFork(
-  program.pipe(Effect.provide(Logger.layer([Logger.consoleJson, Logger.tracerLogger]))),
+  program.pipe(
+    Effect.provide(Logger.layer([Logger.consoleJson, Logger.tracerLogger])),
+  ),
 )
 
 // Capture the JSON record (ignoring the non-deterministic timestamp/fiberId/span duration)
@@ -1115,7 +1181,10 @@ const logger = Logger.make(({ logLevel, message }) => {
 //
 //      ┌─── Logger<unknown, [void, void]>
 //      ▼
-const combined = Logger.make((options) => [Logger.defaultLogger.log(options), logger.log(options)])
+const combined = Logger.make((options) => [
+  Logger.defaultLogger.log(options),
+  logger.log(options),
+])
 
 const program = Effect.log("something")
 
@@ -1135,7 +1204,9 @@ timestamp=2025-01-09T13:50:58.655Z level=INFO fiber=#0 message=something
 const messages: Array<unknown> = []
 Effect.runSync(
   program.pipe(
-    Effect.provide(Logger.layer([Logger.make((options) => messages.push(options.message))])),
+    Effect.provide(
+      Logger.layer([Logger.make((options) => messages.push(options.message))]),
+    ),
   ),
 )
 messages // => [["something"]]
