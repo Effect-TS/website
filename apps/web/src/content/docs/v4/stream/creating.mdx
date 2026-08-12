@@ -308,14 +308,18 @@ import { Stream, Effect, Random } from "effect"
 
 const stream = Stream.fromEffectRepeat(Random.nextInt)
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
+Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(
+  console.log,
+)
 /*
 Example Output:
 [ 1666935266, 604851965, 2194299958, 3393707011, 4090317618 ]
 */
 
 // The values are random, but the stream always emits exactly 5 elements
-const result = await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5))))
+const result = await Effect.runPromise(
+  Stream.runCollect(stream.pipe(Stream.take(5))),
+)
 result.length // => 5
 ```
 
@@ -342,7 +346,9 @@ const drainIterator = <A>(it: Iterator<A>): Stream.Stream<A> =>
 
 const numbers = [10, 20, 30]
 
-await Effect.runPromise(Stream.runCollect(drainIterator(numbers[Symbol.iterator]()))) // => [10, 20, 30]
+await Effect.runPromise(
+  Stream.runCollect(drainIterator(numbers[Symbol.iterator]())),
+) // => [10, 20, 30]
 ```
 
 ### Generating Ticks
@@ -403,15 +409,21 @@ Here's an example of creating an infinite stream of random `1` and `-1` values u
 import { Stream, Effect, Random } from "effect"
 
 const stream = Stream.unfold(1, (n) =>
-  Random.nextBoolean.pipe(Effect.map((b) => (b ? ([n, -n] as const) : ([n, n] as const)))),
+  Random.nextBoolean.pipe(
+    Effect.map((b) => (b ? ([n, -n] as const) : ([n, n] as const))),
+  ),
 )
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
+Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(
+  console.log,
+)
 // Example Output: [ 1, 1, 1, 1, -1 ]
 
 // The sign is random, but the state starts at 1 and only ever flips sign,
 // so its absolute value is deterministically always 1
-const result = await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5))))
+const result = await Effect.runPromise(
+  Stream.runCollect(stream.pipe(Stream.take(5))),
+)
 result.map(Math.abs) // => [1, 1, 1, 1, 1]
 ```
 
@@ -442,7 +454,7 @@ Here's how it works:
 
 You might wonder about the difference between the `unfold` and `paginate` combinators and when to use one over the other. `Stream.unfold` produces exactly one value per step, so it can't consume an API whose step naturally returns a batch of values at once. `Stream.paginate` is built for that shape: each step returns an array of values together with the next state, so a single call can emit zero, one, or many elements before deciding whether to continue.
 
-This is exactly the shape of a paginated API. Imagine a `fetchUsers` request that, given a cursor, returns a page of users and — if there's more data — the cursor for the next page:
+This is exactly the shape of a paginated API. Imagine a `fetchUsers` request that, given a cursor, returns a page of users and, if there's more data, the cursor for the next page:
 
 ```ts twoslash import.meta.vitest name="unfolding-vs-pagination-1"
 import { Effect, Option, Stream } from "effect"
@@ -457,20 +469,23 @@ const fetchUsers = (cursor: number): Effect.Effect<Page<string>> => {
   const users = ["Alice", "Bob", "Carol", "Dave", "Erin", "Frank"]
   const pageSize = 2
   const items = users.slice(cursor, cursor + pageSize)
-  const nextCursor = cursor + pageSize < users.length ? cursor + pageSize : undefined
+  const nextCursor =
+    cursor + pageSize < users.length ? cursor + pageSize : undefined
   return Effect.succeed({ items, nextCursor })
 }
 
 const stream = Stream.paginate(0, (cursor) =>
   fetchUsers(cursor).pipe(
-    Effect.map((page) => [page.items, Option.fromUndefinedOr(page.nextCursor)] as const),
+    Effect.map(
+      (page) => [page.items, Option.fromUndefinedOr(page.nextCursor)] as const,
+    ),
   ),
 )
 
 await Effect.runPromise(Stream.runCollect(stream)) // => ["Alice", "Bob", "Carol", "Dave", "Erin", "Frank"]
 ```
 
-Each call to `fetchUsers` hands back a whole page of items, and `Stream.paginate` flattens every page into the resulting stream, stopping once `nextCursor` is `undefined`. Modeling this with `Stream.unfold` would require peeling one item off the current page at a time and keeping the rest around as extra state — logic that `Stream.paginate` already handles by accepting an array per step.
+Each call to `fetchUsers` hands back a whole page of items, and `Stream.paginate` flattens every page into the resulting stream, stopping once `nextCursor` is `undefined`. Modeling this with `Stream.unfold` would require peeling one item off the current page at a time and keeping the rest around as extra state. `Stream.paginate` already handles that logic by accepting an array per step.
 
 ## From Queue and PubSub
 
@@ -484,7 +499,9 @@ We can create a stream from a `Schedule` that does not require any further input
 import { Effect, Stream, Schedule } from "effect"
 
 // Emits values every 100 milliseconds for a total of 10 emissions
-const schedule = Schedule.spaced("100 millis").pipe(Schedule.upTo({ times: 10 }))
+const schedule = Schedule.spaced("100 millis").pipe(
+  Schedule.upTo({ times: 10 }),
+)
 
 const stream = Stream.fromSchedule(schedule)
 
