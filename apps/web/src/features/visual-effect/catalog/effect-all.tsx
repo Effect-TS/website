@@ -1,12 +1,7 @@
-import { useAtomValue } from "@effect/atom-react"
 import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as String from "effect/String"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TabsIndicator } from "@/components/ui/tabs-indicator"
-import { useControlWrite } from "@/features/visual-effect/components/VisualEffectProvider"
-import { useTabsIndicator } from "@/hooks/useTabsIndicator"
-import { cn } from "@/lib/utils"
+import { VisualEffectSegmentedControl } from "@/features/visual-effect/components/VisualEffectSegmentedControl"
 import type { ControlRenderProps } from "../model/example-definition"
 import { defineExample } from "../model/define-example"
 import { HighlightSelector } from "../model/snippet-definition"
@@ -26,47 +21,12 @@ const CONCURRENCY_OPTIONS: ReadonlyArray<ConcurrencyMode> = [
 function ConcurrencyModeControl({
   control,
 }: ControlRenderProps<ConcurrencyMode>) {
-  const value = useAtomValue(control.atom)
-  const setValue = useControlWrite(control)
-  const { indicatorRect, rootRef } = useTabsIndicator(value)
-
   return (
-    <div
-      ref={rootRef}
-      className="flex flex-wrap items-center justify-start gap-3"
-    >
-      <span className="font-mono tracking-wider text-neutral-500 select-none">
-        CONCURRENCY
-      </span>
-      <Tabs
-        value={value}
-        onValueChange={(value) => setValue(value)}
-        className="min-w-0"
-      >
-        <TabsList className="relative isolate w-fit flex-wrap gap-3 overflow-hidden border border-zinc-700 bg-zinc-900 p-1 group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:min-h-11">
-          <TabsIndicator
-            rect={indicatorRect}
-            variant="fill"
-            className="rounded-md bg-zinc-950"
-          />
-
-          {CONCURRENCY_OPTIONS.map((option) => (
-            <TabsTrigger
-              key={option}
-              className={cn(
-                "relative z-10 cursor-pointer border-none px-3 text-center font-mono shadow-none",
-                "bg-transparent data-active:border-transparent data-active:bg-transparent data-active:font-semibold data-active:shadow-none",
-                "dark:data-active:border-transparent dark:data-active:bg-transparent",
-                "group-data-[variant=default]/tabs-list:data-active:shadow-none",
-              )}
-              value={option}
-            >
-              {option}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-    </div>
+    <VisualEffectSegmentedControl
+      control={control}
+      label="CONCURRENCY"
+      options={CONCURRENCY_OPTIONS}
+    />
   )
 }
 
