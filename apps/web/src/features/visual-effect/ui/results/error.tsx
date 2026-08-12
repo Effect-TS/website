@@ -7,6 +7,6 @@ export class ErrorResult extends RenderableResult {
     this.message = typeof error === "string" ? error : error.message
   }
   render(): React.ReactNode {
-    return <div className="text-2xl">{this.message}</div>
+    return <div className="text-lg">{this.message}</div>
   }
 }
