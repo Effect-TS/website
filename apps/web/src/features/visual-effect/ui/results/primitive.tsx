@@ -7,6 +7,6 @@ export class PrimitiveResult extends RenderableResult {
     this.value = value
   }
   render(): React.ReactNode {
-    return <div className="text-xl">{this.value}</div>
+    return <div className="text-lg">{this.value}</div>
   }
 }

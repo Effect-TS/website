@@ -1,0 +1,41 @@
+---
+/**
+ * Segmented version switcher shared by the Docs and API Reference sidebars.
+ * Each page supplies the per-target hrefs; this holds the shared markup and
+ * the single source of the visual treatment.
+ */
+interface Props {
+  readonly versions: ReadonlyArray<{
+    readonly href: string
+    readonly label: string
+    readonly active: boolean
+  }>
+  readonly "aria-label"?: string | undefined
+}
+
+const { versions, "aria-label": ariaLabel = "Documentation version" } = Astro.props
+---
+
+<div
+  role="group"
+  aria-label={ariaLabel}
+  class="mb-4 grid gap-1 rounded-lg border border-border p-1"
+  style={`grid-template-columns: repeat(${versions.length}, minmax(0, 1fr))`}
+>
+  {
+    versions.map(({ href, label, active }) => (
+      <a
+        href={href}
+        aria-current={active ? "page" : undefined}
+        class:list={[
+          "rounded-md px-2 py-1 text-center font-mono text-xs transition-colors",
+          active
+            ? "bg-accent font-semibold text-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        ]}
+      >
+        {label}
+      </a>
+    ))
+  }
+</div>

@@ -2,7 +2,7 @@ import type { SpringOptions } from "motion/react"
 
 export const COLORS = {
   border: {
-    default: "#a1a1aa", // zinc-400
+    default: "rgba(255, 255, 255, 0.12)",
     death: "rgba(220, 38, 38, 0.4)",
   },
 

@@ -20,7 +20,9 @@ for (const filePath of await htmlFiles(docsRoot)) {
     failures.push(`${relative(filePath)} uses legacy API link ${match[1]}`)
   }
 
-  for (const match of html.matchAll(/href="(\/docs\/(?!v[34]\/)[^"]+)"/g)) {
+  for (const match of html.matchAll(
+    /href="(\/docs\/(?!v[34](?:\/|"))[^"]+)"/g,
+  )) {
     if (match[1] !== "/docs/") {
       failures.push(
         `${relative(filePath)} uses unversioned documentation link ${match[1]}`,
@@ -46,6 +48,7 @@ for (const filePath of await htmlFiles(docsRoot)) {
   )) {
     const href = match[1]
     if (href === undefined) continue
+    if (/^\/docs\/v[34]$/.test(href)) continue
     const url = new URL(href, "https://effect.website")
     const targetPath = path.join(
       staticRoot,
