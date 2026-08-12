@@ -107,7 +107,7 @@ Effect.runFork(program) // Output: 55
 
 ## Awaiting Fibers
 
-The `Fiber.await` function is a helpful tool when working with fibers. It allows you to wait for a fiber to complete and retrieve detailed information about how it finished. The result is encapsulated in an [Exit](/docs/data-types/exit/) value, which gives you insight into whether the fiber succeeded, failed, or was interrupted.
+The `Fiber.await` function is a helpful tool when working with fibers. It allows you to wait for a fiber to complete and retrieve detailed information about how it finished. The result is encapsulated in an [Exit](/docs/v3/data-types/exit/) value, which gives you insight into whether the fiber succeeded, failed, or was interrupted.
 
 **Example** (Awaiting Fiber Completion)
 
@@ -172,7 +172,7 @@ Instead, there are two popular and valid solutions to tackle this problem:
 
 Fibers can be interrupted if their result is no longer needed. This action immediately stops the fiber and safely runs all finalizers to release any resources.
 
-Like `Fiber.await`, the `Fiber.interrupt` function returns an [Exit](/docs/data-types/exit/) value that provides detailed information about how the fiber ended.
+Like `Fiber.await`, the `Fiber.interrupt` function returns an [Exit](/docs/v3/data-types/exit/) value that provides detailed information about how the fiber ended.
 
 **Example** (Interrupting a Fiber)
 
@@ -266,7 +266,7 @@ Do something else...
 <Aside type="tip" title="Interrupting via Effect.interrupt">
   You can also interrupt fibers using the high-level API `Effect.interrupt`. For
   more details, refer to the [Effect.interrupt
-  documentation](/docs/concurrency/basic-concurrency/#interruptions).
+  documentation](/docs/v3/concurrency/basic-concurrency/#interruptions).
 </Aside>
 
 ## Composing Fibers
@@ -466,7 +466,7 @@ daemon: still running!
 
 ### Fork in Local Scope
 
-Sometimes we want to create a fiber that is tied to a local [scope](/docs/resource-management/scope/), meaning its lifetime is not dependent on its parent fiber but is bound to the local scope in which it was forked. This can be done using the `Effect.forkScoped` operator.
+Sometimes we want to create a fiber that is tied to a local [scope](/docs/v3/resource-management/scope/), meaning its lifetime is not dependent on its parent fiber but is bound to the local scope in which it was forked. This can be done using the `Effect.forkScoped` operator.
 
 Fibers created with `Effect.forkScoped` can outlive their parent fibers and will only be terminated when the local scope itself is closed.
 

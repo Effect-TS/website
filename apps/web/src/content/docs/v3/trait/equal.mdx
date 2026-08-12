@@ -21,7 +21,7 @@ Here are some key reasons why Effect exports an Equal module:
 
 In Effect it's advisable to **stop using** JavaScript's `===` and `==` operators and instead rely on the `Equal.equals` function.
 This function can work with any data type that implements the `Equal` interface.
-Some examples of such data types include [Option](/docs/data-types/option/), [Either](/docs/data-types/either/), [HashSet](/docs/v3/api/effect/HashSet), and [HashMap](/docs/v3/api/effect/HashMap).
+Some examples of such data types include [Option](/docs/v3/data-types/option/), [Either](/docs/v3/data-types/either/), [HashSet](/docs/v3/api/effect/HashSet), and [HashMap](/docs/v3/api/effect/HashMap).
 
 When you use `Equal.equals` and your objects do not implement the `Equal` interface, it defaults to using the `===` operator for object comparison:
 
@@ -45,13 +45,13 @@ However, you can configure your models to ensure that `Equal.equals` behaves con
 
 1. **Implementing the `Equal` Interface**: This method is useful when you need to define your custom equality check.
 
-2. **Using the Data Module**: For simple value equality, the [Data](/docs/data-types/data/) module provides a more straightforward solution by automatically generating default implementations for `Equal`.
+2. **Using the Data Module**: For simple value equality, the [Data](/docs/v3/data-types/data/) module provides a more straightforward solution by automatically generating default implementations for `Equal`.
 
 Let's explore both.
 
 ### Implementing the Equal Interface
 
-To create custom equality behavior, you can implement the `Equal` interface in your models. This interface extends the `Hash` interface from the [Hash](/docs/trait/hash/) module.
+To create custom equality behavior, you can implement the `Equal` interface in your models. This interface extends the `Hash` interface from the [Hash](/docs/v3/trait/hash/) module.
 
 **Example** (Implementing `Equal` and `Hash` for a Custom Class)
 
@@ -131,7 +131,7 @@ In this code, the equality check returns `true` when comparing `alice` to a new 
 
 ### Simplifying Equality with the Data Module
 
-Implementing both `Equal` and `Hash` can become cumbersome when all you need is straightforward value equality checks. Luckily, the [Data](/docs/data-types/data/) module provides a simpler solution. It offers APIs that automatically generate default implementations for both `Equal` and `Hash`.
+Implementing both `Equal` and `Hash` can become cumbersome when all you need is straightforward value equality checks. Luckily, the [Data](/docs/v3/data-types/data/) module provides a simpler solution. It offers APIs that automatically generate default implementations for both `Equal` and `Hash`.
 
 **Example** (Using `Data.struct` for Equality Checks)
 
@@ -152,9 +152,9 @@ console.log(Equal.equals(alice, bob))
 // Output: false
 ```
 
-In this example, we use the [Data.struct](/docs/data-types/data/#struct) function to create structured data objects and check their equality using `Equal.equals`. The Data module simplifies the process by providing a default implementation for both `Equal` and `Hash`, allowing you to focus on comparing values without the need for explicit implementations.
+In this example, we use the [Data.struct](/docs/v3/data-types/data/#struct) function to create structured data objects and check their equality using `Equal.equals`. The Data module simplifies the process by providing a default implementation for both `Equal` and `Hash`, allowing you to focus on comparing values without the need for explicit implementations.
 
-The Data module isn't limited to just structs. It can handle various data types, including tuples, arrays, and records. If you're curious about how to leverage its full range of features, you can explore the [Data module documentation](/docs/data-types/data/#value-equality).
+The Data module isn't limited to just structs. It can handle various data types, including tuples, arrays, and records. If you're curious about how to leverage its full range of features, you can explore the [Data module documentation](/docs/v3/data-types/data/#value-equality).
 
 ## Working with Collections
 
