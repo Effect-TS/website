@@ -1,14 +1,27 @@
 ---
 import NavigationAnchor from "@/components/navigation/NavigationAnchor.astro"
-import { getNavigationLinks, type NavigationActiveSlug } from "@/lib/navigation"
+import {
+  getNavigationLinks,
+  type NavigationActiveSlug,
+  type NavigationLink,
+} from "@/lib/navigation"
 
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly version?: string | undefined
 }
 
-const { activeSlug } = Astro.props
+const { activeSlug, version } = Astro.props
 
-const links = getNavigationLinks("desktop", "primary")
+const links =
+  version === undefined
+    ? getNavigationLinks("desktop", "primary")
+    : getNavigationLinks("desktop", "primary").map((link): NavigationLink => {
+        if (link.kind !== "internal") return link
+        if (link.id === "docs") return { ...link, href: `/docs/${version}` as `/${string}` }
+        if (link.id === "api") return { ...link, href: `/docs/${version}/api` as `/${string}` }
+        return link
+      })
 ---
 
 {

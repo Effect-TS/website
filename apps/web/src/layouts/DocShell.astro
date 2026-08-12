@@ -20,9 +20,10 @@ interface Props {
   readonly description?: string | undefined
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly ogImageVersion?: string | undefined
+  readonly version?: string | undefined
 }
 
-const { title, description, activeSlug = "docs", ogImageVersion } = Astro.props
+const { title, description, activeSlug = "docs", ogImageVersion, version } = Astro.props
 
 const hasSidebar = Astro.slots.has("sidebar")
 const hasToc = Astro.slots.has("toc")
@@ -38,7 +39,7 @@ const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 p
   {...description ? { description } : undefined}
   {...ogImageVersion ? { ogImageVersion } : undefined}
 >
-  <Navigation activeSlug={activeSlug} />
+  <Navigation activeSlug={activeSlug} version={version} />
 
   <div class="relative w-full">
     <slot name="mobile-nav" />

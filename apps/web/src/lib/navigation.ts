@@ -52,7 +52,7 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     id: "api",
     kind: "internal",
     label: "API",
-    href: "/docs/v3/api",
+    href: "/docs/v4/api",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
@@ -129,5 +129,19 @@ export const getNavigationLinks = (
 ): ReadonlyArray<NavigationLink> => {
   return LANDING_NAVIGATION_LINKS.filter((link) => {
     return link.group === group && link.surfaces.includes(surface)
+  })
+}
+
+export const applyVersionToLinks = (
+  version: string,
+  links: ReadonlyArray<NavigationLink>,
+): ReadonlyArray<NavigationLink> => {
+  return links.map((link): NavigationLink => {
+    if (link.kind !== "internal") return link
+    if (link.id === "docs")
+      return { ...link, href: `/docs/${version}` as `/${string}` }
+    if (link.id === "api")
+      return { ...link, href: `/docs/${version}/api` as `/${string}` }
+    return link
   })
 }
