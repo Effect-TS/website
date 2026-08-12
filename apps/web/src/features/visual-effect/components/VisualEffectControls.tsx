@@ -33,11 +33,6 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
 
   const title = example.title
   const subtitle = example.subtitle
-  const cta = isRunning
-    ? "Click to stop"
-    : isResettable
-      ? "Click to reset"
-      : "Click to run an Effect"
 
   const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "#27272a"
   const headerBackground = isDied
@@ -74,14 +69,9 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
       />
 
       <span className="flex min-w-0 flex-1 flex-col gap-1 text-neutral-400">
-        <span className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <span className="flex items-baseline gap-2 font-mono text-base leading-tighter font-semibold whitespace-nowrap">
-            <span className="text-white">{title}</span>
-            {subtitle && <span className="font-medium">{subtitle}</span>}
-          </span>
-          <span className="shrink-0 font-mono text-xs whitespace-nowrap">
-            {cta}
-          </span>
+        <span className="flex items-baseline gap-2 font-mono text-base leading-tighter font-semibold whitespace-nowrap">
+          <span className="text-white">{title}</span>
+          {subtitle && <span className="font-medium">{subtitle}</span>}
         </span>
         <span className="text-left text-sm leading-4">
           {example.description}
