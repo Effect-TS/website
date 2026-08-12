@@ -132,7 +132,7 @@ const config = defineConfig({
     },
     "/docs": {
       status: 307,
-      destination: "/docs/v3/getting-started/introduction",
+      destination: "/docs/v4/getting-started/introduction",
     },
     "/docs/v3": {
       status: 307,
