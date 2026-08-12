@@ -8,11 +8,15 @@ import {
 } from "motion/react"
 import type { VisualEffectState } from "@/features/visual-effect/model/domain"
 
+const WIGGLE_KEYFRAMES = [0, -8, 8, -6, 6, -3, 3, 0]
+
 export function VisualEffectControlsIcon({
+  isAttracting = false,
   isHovered,
   isPressed,
   state,
 }: {
+  readonly isAttracting?: boolean
   readonly isHovered: boolean
   readonly isPressed: boolean
   readonly state: VisualEffectState
@@ -20,6 +24,7 @@ export function VisualEffectControlsIcon({
   const prefersReducedMotion = useReducedMotion() === true
   const icon = getIcon(state)
   const motionConfig = getMotionConfig(state, isHovered, prefersReducedMotion)
+  const shouldWiggle = isAttracting && !prefersReducedMotion
 
   const getBackgroundColor = (state: VisualEffectState): string => {
     switch (state._tag) {
@@ -54,33 +59,49 @@ export function VisualEffectControlsIcon({
 
   return (
     <motion.span
-      className="flex size-10 shrink-0 items-center justify-center rounded-md border border-zinc-500 text-white"
-      initial={false}
-      animate={{
-        background: getBackgroundColor(state),
-        scale: isPressed ? 0.95 : isHovered ? 1.05 : 1,
-      }}
-      transition={{
-        ...(prefersReducedMotion
-          ? undefined
-          : {
-              scale: { type: "spring", stiffness: 300, damping: 20 },
-              background: { duration: 0.2, ease: "easeInOut" },
-            }),
-      }}
+      className="flex shrink-0"
+      animate={{ rotate: shouldWiggle ? WIGGLE_KEYFRAMES : 0 }}
+      transition={
+        shouldWiggle
+          ? {
+              duration: 0.6,
+              ease: "easeInOut",
+              delay: 2,
+              repeat: Infinity,
+              repeatDelay: 4,
+            }
+          : { duration: 0.15, ease: "easeOut" }
+      }
     >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={getPresenceKey(state)}
-          className="flex items-center"
-          initial={motionConfig.initial}
-          animate={motionConfig.animate}
-          exit={motionConfig.exit}
-          transition={motionConfig.transition}
-        >
-          {icon}
-        </motion.span>
-      </AnimatePresence>
+      <motion.span
+        className="flex size-10 items-center justify-center rounded-lg text-white"
+        initial={false}
+        animate={{
+          background: getBackgroundColor(state),
+          scale: isPressed ? 0.95 : isHovered ? 1.05 : 1,
+        }}
+        transition={{
+          ...(prefersReducedMotion
+            ? undefined
+            : {
+                scale: { type: "spring", stiffness: 300, damping: 20 },
+                background: { duration: 0.2, ease: "easeInOut" },
+              }),
+        }}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={getPresenceKey(state)}
+            className="flex items-center"
+            initial={motionConfig.initial}
+            animate={motionConfig.animate}
+            exit={motionConfig.exit}
+            transition={motionConfig.transition}
+          >
+            {icon}
+          </motion.span>
+        </AnimatePresence>
+      </motion.span>
     </motion.span>
   )
 }

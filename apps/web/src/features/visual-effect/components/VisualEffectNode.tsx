@@ -443,7 +443,7 @@ function VisualEffectContent({
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center py-2 font-bold"
+      className="absolute inset-0 flex items-center justify-center py-2 font-mono font-bold"
       style={{
         color: "white",
         opacity: motionValues.contentOpacity,
@@ -487,7 +487,7 @@ function VisualEffectNodeIcon({
 
 function VisualEffectLabel({ label }: { readonly label: string }) {
   return (
-    <motion.div className="mt-2 text-center text-xs font-semibold text-muted-foreground">
+    <motion.div className="mt-2 text-center font-mono text-xs font-medium text-muted-foreground">
       <span>{label}</span>
     </motion.div>
   )
