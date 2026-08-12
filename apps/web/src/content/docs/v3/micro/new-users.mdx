@@ -15,7 +15,7 @@ import { Aside, Tabs, TabItem, Steps } from "@astrojs/starlight/components"
 
 The Micro module is designed as a lighter alternative to the standard Effect module, tailored for situations where it is beneficial to reduce the bundle size.
 
-This module is standalone and does not include more complex functionalities such as [Layer](/docs/requirements-management/layers/), [Ref](/docs/state-management/ref/), [Queue](/docs/concurrency/queue/), and [Deferred](/docs/concurrency/deferred/). This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
+This module is standalone and does not include more complex functionalities such as [Layer](/docs/v3/requirements-management/layers/), [Ref](/docs/v3/state-management/ref/), [Queue](/docs/v3/concurrency/queue/), and [Deferred](/docs/v3/concurrency/deferred/). This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
 
 Micro also supports use cases where a client application uses Micro, and a server employs the full suite of Effect features, maintaining both compatibility and logical consistency across various application components.
 
@@ -350,7 +350,7 @@ Micro<Success, Error, Requirements>
 
 ### either
 
-The `Micro.either` function transforms an `Micro<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
+The `Micro.either` function transforms an `Micro<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/v3/data-types/either/) data type:
 
 ```ts showLineNumbers=false
 Micro<A, E, R> -> Micro<Either<A, E>, never, R>
@@ -1007,7 +1007,7 @@ error cause: MicroCause.Die: Something went wrong
 
 ### tapDefect
 
-Specifically inspects non-recoverable failures or defects in an effect (i.e., one or more [Die](/docs/data-types/cause/#die) causes).
+Specifically inspects non-recoverable failures or defects in an effect (i.e., one or more [Die](/docs/v3/data-types/cause/#die) causes).
 
 **Example** (Inspecting Defects)
 
@@ -2038,7 +2038,7 @@ task2
 */
 ```
 
-If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Micro.either` function. This function wraps the result in an [Either](/docs/data-types/either/) type, allowing you to see if the result was a success (`Right`) or a failure (`Left`):
+If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Micro.either` function. This function wraps the result in an [Either](/docs/v3/data-types/either/) type, allowing you to see if the result was a success (`Right`) or a failure (`Left`):
 
 **Example** (Handling Success or Failure with Either)
 

@@ -7,18 +7,18 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-When working with schemas, you have a choice beyond the [Schema.Struct](/docs/schema/basic-usage/#structs) constructor.
+When working with schemas, you have a choice beyond the [Schema.Struct](/docs/v3/schema/basic-usage/#structs) constructor.
 You can leverage the power of classes through the `Schema.Class` utility, which comes with its own set of advantages tailored to common use cases:
 
 Classes offer several features that simplify the schema creation process:
 
 - **All-in-One Definition**: With classes, you can define both a schema and an opaque type simultaneously.
 - **Shared Functionality**: You can incorporate shared functionality using class methods or getters.
-- **Value Hashing and Equality**: Utilize the built-in capability for checking value equality and applying hashing (thanks to `Class` implementing [Data.Class](/docs/data-types/data/#class)).
+- **Value Hashing and Equality**: Utilize the built-in capability for checking value equality and applying hashing (thanks to `Class` implementing [Data.Class](/docs/v3/data-types/data/#class)).
 
 <Aside type="caution" title="Class Schemas Are Transformations">
   Classes defined with `Schema.Class` act as
-  [transformations](/docs/schema/transformations/). See [Class Schemas are
+  [transformations](/docs/v3/schema/transformations/). See [Class Schemas are
   Transformations](#class-schemas-are-transformations) for details.
 </Aside>
 
@@ -70,7 +70,7 @@ Person { id: 1, name: 'John' }
 <Aside type="note" title="Why Use Identifiers?">
   You need to specify an identifier to make the class global. This ensures that two classes with the same identifier refer to the same instance, avoiding reliance on `instanceof` checks.
 
-This behavior is similar to how we handle other class-based APIs like [Context.Tag](/docs/requirements-management/services/#creating-a-service).
+This behavior is similar to how we handle other class-based APIs like [Context.Tag](/docs/v3/requirements-management/services/#creating-a-service).
 
 Using a unique identifier is particularly useful in scenarios where live reloads can occur, as it helps preserve the instance across reloads. It ensures there is no duplication of instances (although it shouldn't happen, some bundlers and frameworks can behave unpredictably).
 
@@ -78,7 +78,7 @@ Using a unique identifier is particularly useful in scenarios where live reloads
 
 ### Class Schemas are Transformations
 
-Class schemas [transform](/docs/schema/transformations/) a struct schema into a [declaration](/docs/schema/advanced-usage/#declaring-new-data-types) schema that represents a class type.
+Class schemas [transform](/docs/v3/schema/transformations/) a struct schema into a [declaration](/docs/v3/schema/advanced-usage/#declaring-new-data-types) schema that represents a class type.
 
 - When decoding, a plain object is converted into an instance of the class.
 - When encoding, a class instance is converted back into a plain object.
@@ -235,7 +235,7 @@ new Person({ id: 1, name: "" }, { disableValidation: true })
 
 ## Automatic Hashing and Equality in Classes
 
-Instances of classes created with `Schema.Class` support the [Equal](/docs/trait/equal/) trait through their integration with [Data.Class](/docs/data-types/data/#class). This enables straightforward value comparisons, even across different instances.
+Instances of classes created with `Schema.Class` support the [Equal](/docs/v3/trait/equal/) trait through their integration with [Data.Class](/docs/v3/data-types/data/#class). This enables straightforward value comparisons, even across different instances.
 
 ### Basic Equality Check
 
@@ -424,7 +424,7 @@ Person.fields
 
 ## Adding Annotations
 
-Defining a class with `Schema.Class` is similar to creating a [transformation](/docs/schema/transformations/) schema that converts a struct schema into a [declaration](/docs/schema/advanced-usage/#declaring-new-data-types) schema representing the class type.
+Defining a class with `Schema.Class` is similar to creating a [transformation](/docs/v3/schema/transformations/) schema that converts a struct schema into a [declaration](/docs/v3/schema/advanced-usage/#declaring-new-data-types) schema representing the class type.
 
 For example, consider the following class definition:
 
@@ -679,7 +679,7 @@ class Category extends Schema.Class<Category>("Category")({
 
 ## Tagged Class variants
 
-You can also create classes that extend [TaggedClass](/docs/data-types/data/#taggedclass) and [TaggedError](/docs/data-types/data/#taggederror) from the `effect/Data` module.
+You can also create classes that extend [TaggedClass](/docs/v3/data-types/data/#taggedclass) and [TaggedError](/docs/v3/data-types/data/#taggederror) from the `effect/Data` module.
 
 **Example** (Creating Tagged Classes and Errors)
 

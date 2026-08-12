@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-In the [Managing Services](/docs/requirements-management/services/) page, you learned how to create effects which depend on some service to be provided in order to execute, as well as how to provide that service to an effect.
+In the [Managing Services](/docs/v3/requirements-management/services/) page, you learned how to create effects which depend on some service to be provided in order to execute, as well as how to provide that service to an effect.
 
 However, what if we have a service within our effect program that has dependencies on other services in order to be built? We want to avoid leaking these implementation details into the service interface.
 
@@ -183,7 +183,7 @@ Layer<Database, never, Config | Logger>
 
 ### Config
 
-The `Config` service does not depend on any other services, so `ConfigLive` will be the simplest layer to implement. Just like in the [Managing Services](/docs/requirements-management/services/) page, we must create a tag for the service. And because the service has no dependencies, we can create the layer directly using the `Layer.succeed` constructor:
+The `Config` service does not depend on any other services, so `ConfigLive` will be the simplest layer to implement. Just like in the [Managing Services](/docs/v3/requirements-management/services/) page, we must create a tag for the service. And because the service has no dependencies, we can create the layer directly using the `Layer.succeed` constructor:
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
@@ -249,7 +249,7 @@ const ConfigLive = Layer.succeed(Config, {
 
 Now we can move on to the implementation of the `Logger` service, which depends on the `Config` service to retrieve some configuration.
 
-Just like we did in the [Managing Services](/docs/requirements-management/services/#using-the-service) page, we can yield the `Config` tag to "extract" the service from the context.
+Just like we did in the [Managing Services](/docs/v3/requirements-management/services/#using-the-service) page, we can yield the `Config` tag to "extract" the service from the context.
 
 Given that using the `Config` tag is an effectful operation, we use `Layer.effect` to create a layer from the resulting effect.
 

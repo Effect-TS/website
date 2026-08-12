@@ -11,7 +11,7 @@ There are situations where you may encounter unexpected errors, and you need to 
 
 ## Creating Unrecoverable Errors
 
-In the same way it is possible to leverage combinators such as [Effect.fail](/docs/getting-started/creating-effects/#fail) to create values of type `Effect<never, E, never>` the Effect library provides tools to create defects.
+In the same way it is possible to leverage combinators such as [Effect.fail](/docs/v3/getting-started/creating-effects/#fail) to create values of type `Effect<never, E, never>` the Effect library provides tools to create defects.
 
 Creating defects is a common necessity when dealing with errors from which it is not possible to recover from a business logic perspective, such as attempting to establish a connection that is refused after multiple retries.
 
@@ -169,7 +169,7 @@ or explanatory purposes.
 
 ### exit
 
-The `Effect.exit` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Exit](/docs/data-types/exit/) data type:
+The `Effect.exit` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Exit](/docs/v3/data-types/exit/) data type:
 
 ```ts showLineNumbers=false
 Effect<A, E, R> -> Effect<Exit<A, E>, never, R>
@@ -235,8 +235,8 @@ Recovers from all defects using a provided recovery function.
 that usually cause the program to terminate. This function lets you recover
 from these defects by providing a function that handles the error.
 
-However, it does not handle expected errors (like those from [Effect.fail](/docs/getting-started/creating-effects/#fail)) or
-execution interruptions (like those from [Effect.interrupt](/docs/concurrency/basic-concurrency/#interrupt)).
+However, it does not handle expected errors (like those from [Effect.fail](/docs/v3/getting-started/creating-effects/#fail)) or
+execution interruptions (like those from [Effect.interrupt](/docs/v3/concurrency/basic-concurrency/#interrupt)).
 
 **Example** (Handling All Defects)
 
@@ -282,8 +282,8 @@ Recovers from specific defects using a provided partial function.
 unexpected errors that can cause the program to stop. It uses a partial
 function to catch only certain defects and ignores others.
 
-However, it does not handle expected errors (like those from [Effect.fail](/docs/getting-started/creating-effects/#fail)) or
-execution interruptions (like those from [Effect.interrupt](/docs/concurrency/basic-concurrency/#interrupt)).
+However, it does not handle expected errors (like those from [Effect.fail](/docs/v3/getting-started/creating-effects/#fail)) or
+execution interruptions (like those from [Effect.interrupt](/docs/v3/concurrency/basic-concurrency/#interrupt)).
 
 The function provided to `Effect.catchSomeDefect` acts as a filter and a handler for defects:
 

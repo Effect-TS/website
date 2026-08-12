@@ -194,7 +194,7 @@ interface Person extends Schema.Schema.Type<typeof _Person> {}
 const Person: Schema.Schema<Person> = _Person
 ```
 
-Alternatively, you can use the Class APIs (see the [Class APIs](/docs/schema/classes/) section for more details).
+Alternatively, you can use the Class APIs (see the [Class APIs](/docs/v3/schema/classes/) section for more details).
 
 Note that the technique shown above becomes more complex when the schema is defined such that `Type` is different from `Encoded`.
 
@@ -253,13 +253,13 @@ the resulting inferred `Type` would be:
 
 When working with unknown data types in TypeScript, decoding them into a known structure can be challenging. Luckily, `effect/Schema` provides several functions to help with this process. Let's explore how to decode unknown values using these functions.
 
-| API                    | Description                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| `decodeUnknownSync`    | Synchronously decodes a value and throws an error if parsing fails.              |
-| `decodeUnknownOption`  | Decodes a value and returns an [Option](/docs/data-types/option/) type.          |
-| `decodeUnknownEither`  | Decodes a value and returns an [Either](/docs/data-types/either/) type.          |
-| `decodeUnknownPromise` | Decodes a value and returns a `Promise`.                                         |
-| `decodeUnknown`        | Decodes a value and returns an [Effect](/docs/getting-started/the-effect-type/). |
+| API                    | Description                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `decodeUnknownSync`    | Synchronously decodes a value and throws an error if parsing fails.                 |
+| `decodeUnknownOption`  | Decodes a value and returns an [Option](/docs/v3/data-types/option/) type.          |
+| `decodeUnknownEither`  | Decodes a value and returns an [Either](/docs/v3/data-types/either/) type.          |
+| `decodeUnknownPromise` | Decodes a value and returns a `Promise`.                                            |
+| `decodeUnknown`        | Decodes a value and returns an [Effect](/docs/v3/getting-started/the-effect-type/). |
 
 ### decodeUnknownSync
 
@@ -292,7 +292,7 @@ ParseError: Expected { readonly name: string; readonly age: number }, actual nul
 
 ### decodeUnknownEither
 
-The `Schema.decodeUnknownEither` function allows you to parse a value and receive the result as an [Either](/docs/data-types/either/), representing success (`Right`) or failure (`Left`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
+The `Schema.decodeUnknownEither` function allows you to parse a value and receive the result as an [Either](/docs/v3/data-types/either/), representing success (`Right`) or failure (`Left`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
 
 **Example** (Using `Schema.decodeUnknownEither` for Error Handling)
 
@@ -337,7 +337,7 @@ if (Either.isLeft(result2)) {
 ### decodeUnknown
 
 If your schema involves asynchronous transformations, the `Schema.decodeUnknownSync` and `Schema.decodeUnknownEither` functions will not be suitable.
-In such cases, you should use the `Schema.decodeUnknown` function, which returns an [Effect](/docs/getting-started/the-effect-type/).
+In such cases, you should use the `Schema.decodeUnknown` function, which returns an [Effect](/docs/v3/getting-started/the-effect-type/).
 
 **Example** (Handling Asynchronous Decoding)
 
@@ -394,13 +394,13 @@ The second approach, which uses `Schema.decodeUnknown`, works correctly, allowin
 
 The `Schema` module provides several `encode*` functions to encode data according to a schema:
 
-| API             | Description                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------- |
-| `encodeSync`    | Synchronously encodes data and throws an error if encoding fails.                                    |
-| `encodeOption`  | Encodes data and returns an [Option](/docs/data-types/option/) type.                                 |
-| `encodeEither`  | Encodes data and returns an [Either](/docs/data-types/either/) type representing success or failure. |
-| `encodePromise` | Encodes data and returns a `Promise`.                                                                |
-| `encode`        | Encodes data and returns an [Effect](/docs/getting-started/the-effect-type/).                        |
+| API             | Description                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
+| `encodeSync`    | Synchronously encodes data and throws an error if encoding fails.                                       |
+| `encodeOption`  | Encodes data and returns an [Option](/docs/v3/data-types/option/) type.                                 |
+| `encodeEither`  | Encodes data and returns an [Either](/docs/v3/data-types/either/) type representing success or failure. |
+| `encodePromise` | Encodes data and returns a `Promise`.                                                                   |
+| `encode`        | Encodes data and returns an [Effect](/docs/v3/getting-started/the-effect-type/).                        |
 
 **Example** (Using `Schema.encodeSync` for Immediate Encoding)
 
@@ -438,7 +438,7 @@ In certain cases, it may not be feasible to support encoding for a schema. While
 
 **Example** (Using `Forbidden` to Indicate Unsupported Encoding)
 
-Here is an example of a transformation that never fails during decoding. It returns an [Either](/docs/data-types/either/) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
+Here is an example of a transformation that never fails during decoding. It returns an [Either](/docs/v3/data-types/either/) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
 
 ```ts twoslash
 import { Either, ParseResult, Schema } from "effect"
@@ -478,12 +478,12 @@ export const SafeDecode = <A, I>(self: Schema.Schema<A, I, never>) => {
 
 **Explanation**
 
-- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an [Either](/docs/data-types/either/), where a successful decoding results in a `Right` and a failed decoding results in a `Left` containing the original input.
+- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an [Either](/docs/v3/data-types/either/), where a successful decoding results in a `Right` and a failed decoding results in a `Left` containing the original input.
 - **Encoding**: The encoding process uses the `Forbidden` error to indicate that encoding a `Left` value is not supported. Only `Right` values are successfully encoded.
 
 ## ParseError
 
-The `Schema.decodeUnknownEither` and `Schema.encodeEither` functions returns a [Either](/docs/data-types/either/):
+The `Schema.decodeUnknownEither` and `Schema.encodeEither` functions returns a [Either](/docs/v3/data-types/either/):
 
 ```ts showLineNumbers=false
 Either<Type, ParseError>
@@ -499,7 +499,7 @@ interface ParseError {
 ```
 
 In this structure, `ParseIssue` represents an error that might occur during the parsing process.
-It is wrapped in a tagged error to make it easier to catch errors using [Effect.catchTag](/docs/error-management/expected-errors/#catchtag).
+It is wrapped in a tagged error to make it easier to catch errors using [Effect.catchTag](/docs/v3/error-management/expected-errors/#catchtag).
 The result `Either<Type, ParseError>` contains the inferred data type described by the schema (`Type`).
 A successful parse yields a `Right` value with the parsed data `Type`, while a failed parse results in a `Left` value containing a `ParseError`.
 

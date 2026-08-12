@@ -54,7 +54,7 @@ For instance, if you acquire a network connection and then access a file on a re
 
 ## addFinalizer
 
-The `Effect.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the [Exit](/docs/data-types/exit/) value, which represents how the scope was closed—whether successfully or with an error.
+The `Effect.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the [Exit](/docs/v3/data-types/exit/) value, which represents how the scope was closed—whether successfully or with an error.
 
 **Example** (Adding a Finalizer on Success)
 
@@ -207,7 +207,7 @@ Finalizer executed. Exit status: Failure
 
 In this case, the finalizer is executed even when the effect fails. The log output reflects that the finalizer runs after the failure, and it logs the failure details.
 
-**Example** (Adding a Finalizer on [Interruption](/docs/concurrency/basic-concurrency/#interruptions))
+**Example** (Adding a Finalizer on [Interruption](/docs/v3/concurrency/basic-concurrency/#interruptions))
 
 <Tabs syncKey="pipe-vs-gen">
 
@@ -604,7 +604,7 @@ In certain scenarios, you might need to perform a sequence of chained operations
 
 Let's go through an example of implementing this pattern. Suppose we want to create a "Workspace" in our application, which involves creating an S3 bucket, an ElasticSearch index, and a Database entry that relies on the previous two.
 
-To begin, we define the domain model for the required [services](/docs/requirements-management/services/):
+To begin, we define the domain model for the required [services](/docs/v3/requirements-management/services/):
 
 - `S3`
 - `ElasticSearch`
@@ -758,7 +758,7 @@ const make = Effect.scoped(
 ```
 
 We then create simple service implementations to test the behavior of our Workspace code.
-To achieve this, we will utilize [layers](/docs/requirements-management/layers/) to construct test
+To achieve this, we will utilize [layers](/docs/v3/requirements-management/layers/) to construct test
 These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
 ```ts twoslash collapse={3-95}

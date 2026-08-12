@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-Expected errors are tracked at the type level by the [Effect data type](/docs/getting-started/the-effect-type/) in the "Error channel":
+Expected errors are tracked at the type level by the [Effect data type](/docs/v3/getting-started/the-effect-type/) in the "Error channel":
 
 ```text showLineNumbers=false "Error"
          ┌─── Represents the success type
@@ -68,7 +68,7 @@ This discriminant field will be useful when we discuss APIs like [Effect.catchTa
   It also prevents TypeScript from unifying types, ensuring that each
   error is treated uniquely based on its discriminant value.
 
-For more information on constructing tagged errors, see [Data.TaggedError](/docs/error-management/yieldable-errors/#datataggederror).
+For more information on constructing tagged errors, see [Data.TaggedError](/docs/v3/error-management/yieldable-errors/#datataggederror).
 
 </Aside>
 
@@ -118,7 +118,7 @@ indicating that it can potentially fail with either a `HttpError` or a `Validati
 
 ## Short-Circuiting
 
-When working with APIs like [Effect.gen](/docs/getting-started/using-generators/#understanding-effectgen), [Effect.map](/docs/getting-started/building-pipelines/#map), [Effect.flatMap](/docs/getting-started/building-pipelines/#flatmap), and [Effect.andThen](/docs/getting-started/building-pipelines/#andthen), it's important to understand how they handle errors.
+When working with APIs like [Effect.gen](/docs/v3/getting-started/using-generators/#understanding-effectgen), [Effect.map](/docs/v3/getting-started/building-pipelines/#map), [Effect.flatMap](/docs/v3/getting-started/building-pipelines/#flatmap), and [Effect.andThen](/docs/v3/getting-started/building-pipelines/#andthen), it's important to understand how they handle errors.
 These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
 
 What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
@@ -166,7 +166,7 @@ In this specific example, `task3` is never executed because an error occurs in `
 
 ### either
 
-The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
+The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/v3/data-types/either/) data type:
 
 ```ts showLineNumbers=false
 Effect<A, E, R> -> Effect<Either<A, E>, never, R>
@@ -275,7 +275,7 @@ const recovered = Effect.gen(function* () {
 
 ### option
 
-Transforms an effect to encapsulate both failure and success using the [Option](/docs/data-types/option/) data type.
+Transforms an effect to encapsulate both failure and success using the [Option](/docs/v3/data-types/option/) data type.
 
 The `Effect.option` function wraps the success or failure of an effect within the
 `Option` type, making both cases explicit. If the original effect succeeds,
@@ -830,7 +830,7 @@ and the corresponding value is the error handler function to be executed when th
 The `Effect.fn` function allows you to create traced functions that return an effect. It provides two key features:
 
 - **Stack traces with location details** if an error occurs.
-- **Automatic span creation** for [tracing](/docs/observability/tracing/) when a span name is provided.
+- **Automatic span creation** for [tracing](/docs/v3/observability/tracing/) when a span name is provided.
 
 If a span name is passed as the first argument, the function's execution is tracked using that name.
 If no name is provided, stack tracing still works, but spans are not created.
@@ -864,7 +864,7 @@ timestamp=... level=ERROR fiber=#0 cause="Error: Boom!
 
 ### Exporting Spans for Tracing
 
-`Effect.fn` automatically creates [spans](/docs/observability/tracing/). The spans capture information about the function execution, including metadata and error details.
+`Effect.fn` automatically creates [spans](/docs/v3/observability/tracing/). The spans capture information about the function execution, including metadata and error details.
 
 **Example** (Exporting Spans to the Console)
 
