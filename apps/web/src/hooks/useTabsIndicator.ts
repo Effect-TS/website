@@ -39,9 +39,13 @@ export const useTabsIndicator = (selection: unknown) => {
 
     const tabListRect = tabListElement.getBoundingClientRect()
     const activeTriggerRect = activeTriggerElement.getBoundingClientRect()
+    // The indicator is positioned relative to the tab list's padding box,
+    // so subtract the border to convert border-box rects to padding-box offsets
+    const { borderLeftWidth, borderTopWidth } = getComputedStyle(tabListElement)
     const nextRect: TabsIndicatorRect = {
-      left: activeTriggerRect.left - tabListRect.left,
-      top: activeTriggerRect.top - tabListRect.top,
+      left:
+        activeTriggerRect.left - tabListRect.left - parseFloat(borderLeftWidth),
+      top: activeTriggerRect.top - tabListRect.top - parseFloat(borderTopWidth),
       width: activeTriggerRect.width,
       height: activeTriggerRect.height,
     }
