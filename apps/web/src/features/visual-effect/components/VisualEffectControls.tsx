@@ -16,10 +16,12 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
   const sound = useSoundControls()
   const [isHovered, setIsHovered] = React.useState(false)
   const [isPressed, setIsPressed] = React.useState(false)
+  const [hasInteracted, setHasInteracted] = React.useState(false)
   const isRunning = exampleState._tag === "Running"
   const isResettable = canReset(exampleState)
 
   const handleClick = () => {
+    setHasInteracted(true)
     sound.unlockSounds()
 
     if (isRunning) {
@@ -66,6 +68,7 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
       aria-label={`${isRunning ? "Stop" : isResettable ? "Reset" : "Run"} ${title}`}
     >
       <VisualEffectControlsIcon
+        isAttracting={!hasInteracted && !isHovered && !isRunning}
         isHovered={isHovered}
         isPressed={isPressed}
         state={exampleState}
