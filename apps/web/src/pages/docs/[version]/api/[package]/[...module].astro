@@ -8,7 +8,7 @@ import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 
@@ -189,7 +189,11 @@ const tocItems = apiModule.groups.map((group) => ({
       </p>
     </header>
 
-    {showVersionSwitch && <ApiVersionSwitch versions={sidebarVersions} />}
+    {
+      showVersionSwitch && (
+        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+      )
+    }
 
     <ApiSidebarNav sections={sidebarSections} />
   </nav>

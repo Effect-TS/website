@@ -6,7 +6,7 @@ import { Search } from "@lucide/astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 
@@ -196,7 +196,11 @@ function moduleName(modulePath: string, group: string): string {
       <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
     </header>
 
-    {showVersionSwitch && <ApiVersionSwitch versions={sidebarVersions} />}
+    {
+      showVersionSwitch && (
+        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+      )
+    }
 
     <div aria-label={`${pkg.name} modules`}>
       <ApiSidebarNav sections={sidebarSections} />
