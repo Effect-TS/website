@@ -11,8 +11,8 @@ A HashSet represents an **unordered** collection of **unique** values with effic
 
 The Effect library provides two versions of this structure:
 
-- [HashSet](/docs/data-types/hash-set/#hashset) - Immutable
-- [MutableHashSet](/docs/data-types/hash-set/#mutablehashset) - Mutable
+- [HashSet](/docs/v3/data-types/hash-set/#hashset) - Immutable
+- [MutableHashSet](/docs/v3/data-types/hash-set/#mutablehashset) - Mutable
 
 Both versions provide constant-time operations on average. The main difference is how they handle changes: one returns new sets, the other modifies the original.
 
@@ -132,7 +132,7 @@ The main difference is how updates are handled:
 
 ## Equality and uniqueness
 
-Both `HashSet` and `MutableHashSet` use Effect's [`Equal`](/docs/trait/equal/) trait to determine if two elements are the same. This ensures that each value appears only once in the set.
+Both `HashSet` and `MutableHashSet` use Effect's [`Equal`](/docs/v3/trait/equal/) trait to determine if two elements are the same. This ensures that each value appears only once in the set.
 
 - **Primitive values** (like numbers or strings) are compared by value, similar to the `===` operator.
 - **Objects and custom types** must implement the `Equal` interface to define what it means for two instances to be equal. If no implementation is provided, equality falls back to reference comparison.
@@ -181,7 +181,7 @@ console.log(HashSet.size(set))
 
 ### Simplifying Equality with Data and Schema
 
-Effect's [`Data`](/docs/data-types/data/) and [`Schema.Data`](/docs/schema/effect-data-types/#interop-with-data) modules implement `Equal` for you automatically, based on structural equality.
+Effect's [`Data`](/docs/v3/data-types/data/) and [`Schema.Data`](/docs/v3/schema/effect-data-types/#interop-with-data) modules implement `Equal` for you automatically, based on structural equality.
 
 **Example** (Using `Data.struct`)
 
@@ -250,30 +250,30 @@ Any operation that would modify the set (like adding or removing a value) return
 
 ### Operations
 
-| Category     | Operation                                                                              | Description                                 | Time Complexity |
-| ------------ | -------------------------------------------------------------------------------------- | ------------------------------------------- | --------------- |
-| constructors | [empty](https://effect-ts.github.io/effect/effect/HashSet.ts.html#empty)               | Creates an empty HashSet                    | O(1)            |
-| constructors | [fromIterable](https://effect-ts.github.io/effect/effect/HashSet.ts.html#fromiterable) | Creates a HashSet from an iterable          | O(n)            |
-| constructors | [make](https://effect-ts.github.io/effect/effect/HashSet.ts.html#make)                 | Creates a HashSet from multiple values      | O(n)            |
-| elements     | [has](https://effect-ts.github.io/effect/effect/HashSet.ts.html#has)                   | Checks if a value exists in the set         | O(1) avg        |
-| elements     | [some](https://effect-ts.github.io/effect/effect/HashSet.ts.html#some)                 | Checks if any element satisfies a predicate | O(n)            |
-| elements     | [every](https://effect-ts.github.io/effect/effect/HashSet.ts.html#every)               | Checks if all elements satisfy a predicate  | O(n)            |
-| elements     | [isSubset](https://effect-ts.github.io/effect/effect/HashSet.ts.html#issubset)         | Checks if a set is a subset of another      | O(n)            |
-| getters      | [values](https://effect-ts.github.io/effect/effect/HashSet.ts.html#values)             | Gets an `Iterator` of all values            | O(1)            |
-| getters      | [toValues](https://effect-ts.github.io/effect/effect/HashSet.ts.html#tovalues)         | Gets an `Array` of all values               | O(n)            |
-| getters      | [size](https://effect-ts.github.io/effect/effect/HashSet.ts.html#size)                 | Gets the number of elements                 | O(1)            |
-| mutations    | [add](https://effect-ts.github.io/effect/effect/HashSet.ts.html#add)                   | Adds a value to the set                     | O(1) avg        |
-| mutations    | [remove](https://effect-ts.github.io/effect/effect/HashSet.ts.html#remove)             | Removes a value from the set                | O(1) avg        |
-| mutations    | [toggle](https://effect-ts.github.io/effect/effect/HashSet.ts.html#toggle)             | Toggles a value's presence                  | O(1) avg        |
-| operations   | [difference](https://effect-ts.github.io/effect/effect/HashSet.ts.html#difference)     | Computes set difference (A - B)             | O(n)            |
-| operations   | [intersection](https://effect-ts.github.io/effect/effect/HashSet.ts.html#intersection) | Computes set intersection (A ∩ B)           | O(n)            |
-| operations   | [union](https://effect-ts.github.io/effect/effect/HashSet.ts.html#union)               | Computes set union (A ∪ B)                  | O(n)            |
-| mapping      | [map](https://effect-ts.github.io/effect/effect/HashSet.ts.html#map)                   | Transforms each element                     | O(n)            |
-| sequencing   | [flatMap](https://effect-ts.github.io/effect/effect/HashSet.ts.html#flatmap)           | Transforms and flattens elements            | O(n)            |
-| traversing   | [forEach](https://effect-ts.github.io/effect/effect/HashSet.ts.html#foreach)           | Applies a function to each element          | O(n)            |
-| folding      | [reduce](https://effect-ts.github.io/effect/effect/HashSet.ts.html#reduce)             | Reduces the set to a single value           | O(n)            |
-| filtering    | [filter](https://effect-ts.github.io/effect/effect/HashSet.ts.html#filter)             | Keeps elements that satisfy a predicate     | O(n)            |
-| partitioning | [partition](https://effect-ts.github.io/effect/effect/HashSet.ts.html#partition)       | Splits into two sets by a predicate         | O(n)            |
+| Category     | Operation                                                | Description                                 | Time Complexity |
+| ------------ | -------------------------------------------------------- | ------------------------------------------- | --------------- |
+| constructors | [empty](/docs/v3/api/effect/HashSet#empty)               | Creates an empty HashSet                    | O(1)            |
+| constructors | [fromIterable](/docs/v3/api/effect/HashSet#fromIterable) | Creates a HashSet from an iterable          | O(n)            |
+| constructors | [make](/docs/v3/api/effect/HashSet#make)                 | Creates a HashSet from multiple values      | O(n)            |
+| elements     | [has](/docs/v3/api/effect/HashSet#has)                   | Checks if a value exists in the set         | O(1) avg        |
+| elements     | [some](/docs/v3/api/effect/HashSet#some)                 | Checks if any element satisfies a predicate | O(n)            |
+| elements     | [every](/docs/v3/api/effect/HashSet#every)               | Checks if all elements satisfy a predicate  | O(n)            |
+| elements     | [isSubset](/docs/v3/api/effect/HashSet#isSubset)         | Checks if a set is a subset of another      | O(n)            |
+| getters      | [values](/docs/v3/api/effect/HashSet#values)             | Gets an `Iterator` of all values            | O(1)            |
+| getters      | [toValues](/docs/v3/api/effect/HashSet#toValues)         | Gets an `Array` of all values               | O(n)            |
+| getters      | [size](/docs/v3/api/effect/HashSet#size)                 | Gets the number of elements                 | O(1)            |
+| mutations    | [add](/docs/v3/api/effect/HashSet#add)                   | Adds a value to the set                     | O(1) avg        |
+| mutations    | [remove](/docs/v3/api/effect/HashSet#remove)             | Removes a value from the set                | O(1) avg        |
+| mutations    | [toggle](/docs/v3/api/effect/HashSet#toggle)             | Toggles a value's presence                  | O(1) avg        |
+| operations   | [difference](/docs/v3/api/effect/HashSet#difference)     | Computes set difference (A - B)             | O(n)            |
+| operations   | [intersection](/docs/v3/api/effect/HashSet#intersection) | Computes set intersection (A ∩ B)           | O(n)            |
+| operations   | [union](/docs/v3/api/effect/HashSet#union)               | Computes set union (A ∪ B)                  | O(n)            |
+| mapping      | [map](/docs/v3/api/effect/HashSet#map)                   | Transforms each element                     | O(n)            |
+| sequencing   | [flatMap](/docs/v3/api/effect/HashSet#flatMap)           | Transforms and flattens elements            | O(n)            |
+| traversing   | [forEach](/docs/v3/api/effect/HashSet#forEach)           | Applies a function to each element          | O(n)            |
+| folding      | [reduce](/docs/v3/api/effect/HashSet#reduce)             | Reduces the set to a single value           | O(n)            |
+| filtering    | [filter](/docs/v3/api/effect/HashSet#filter)             | Keeps elements that satisfy a predicate     | O(n)            |
+| partitioning | [partition](/docs/v3/api/effect/HashSet#partition)       | Splits into two sets by a predicate         | O(n)            |
 
 **Example** (Basic creation and operations)
 
@@ -344,16 +344,16 @@ This mutability can improve performance when you need to build or update a set r
 
 ### Operations
 
-| Category     | Operation                                                                                     | Description                         | Complexity |
-| ------------ | --------------------------------------------------------------------------------------------- | ----------------------------------- | ---------- |
-| constructors | [empty](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#empty)               | Creates an empty MutableHashSet     | O(1)       |
-| constructors | [fromIterable](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#fromiterable) | Creates a set from an iterable      | O(n)       |
-| constructors | [make](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#make)                 | Creates a set from multiple values  | O(n)       |
-| elements     | [has](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#has)                   | Checks if a value exists in the set | O(1) avg   |
-| elements     | [add](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#add)                   | Adds a value to the set             | O(1) avg   |
-| elements     | [remove](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#remove)             | Removes a value from the set        | O(1) avg   |
-| getters      | [size](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#size)                 | Gets the number of elements         | O(1)       |
-| mutations    | [clear](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#clear)               | Removes all values from the set     | O(1)       |
+| Category     | Operation                                                       | Description                         | Complexity |
+| ------------ | --------------------------------------------------------------- | ----------------------------------- | ---------- |
+| constructors | [empty](/docs/v3/api/effect/MutableHashSet#empty)               | Creates an empty MutableHashSet     | O(1)       |
+| constructors | [fromIterable](/docs/v3/api/effect/MutableHashSet#fromIterable) | Creates a set from an iterable      | O(n)       |
+| constructors | [make](/docs/v3/api/effect/MutableHashSet#make)                 | Creates a set from multiple values  | O(n)       |
+| elements     | [has](/docs/v3/api/effect/MutableHashSet#has)                   | Checks if a value exists in the set | O(1) avg   |
+| elements     | [add](/docs/v3/api/effect/MutableHashSet#add)                   | Adds a value to the set             | O(1) avg   |
+| elements     | [remove](/docs/v3/api/effect/MutableHashSet#remove)             | Removes a value from the set        | O(1) avg   |
+| getters      | [size](/docs/v3/api/effect/MutableHashSet#size)                 | Gets the number of elements         | O(1)       |
+| mutations    | [clear](/docs/v3/api/effect/MutableHashSet#clear)               | Removes all values from the set     | O(1)       |
 
 **Example** (Working with a mutable set)
 

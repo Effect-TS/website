@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 
 export default defineConfig({
   staged: {
-    "*": "vp fmt",
+    "*.{js,jsx,ts,tsx,mjs,cjs,md,mdx,yaml,yml,toml,json}": "vp fmt",
     "*.astro": "prettier --write",
   },
   fmt: {

@@ -8,9 +8,10 @@ import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
+import { DOCS_VERSIONS } from "@/lib/navigation"
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
@@ -48,7 +49,7 @@ const apiModule = ApiReference.ApiReference.moduleView(reflection, {
     packageModulePaths.has(modulePath) ? moduleHref(modulePath) : undefined,
   modulePath: entry.data.modulePath,
 })
-const versionLinks = ["v3", "v4"].map((version) => {
+const versionLinks = DOCS_VERSIONS.map(({ value: version, label }) => {
   const exact = allEntries.find(
     (candidate) =>
       candidate.data.version === version &&
@@ -61,6 +62,7 @@ const versionLinks = ["v3", "v4"].map((version) => {
         ? undefined
         : `/docs/${exact.data.version}/api/${exact.data.packageSlug}/${exact.data.modulePath}`,
     version,
+    label,
   }
 })
 const showVersionSwitch = versionLinks.every(({ href }) => href !== undefined)
@@ -79,9 +81,9 @@ const sections = [
   { label: undefined, groups: stableGroups },
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
-const sidebarVersions = versionLinks.map(({ href, version: candidate }) => ({
+const sidebarVersions = versionLinks.map(({ href, version: candidate, label }) => ({
   href: href ?? "",
-  label: candidate,
+  label,
   active: candidate === entry.data.version,
 }))
 const sidebarSections = sections.map((section) => ({
@@ -165,6 +167,7 @@ const tocItems = apiModule.groups.map((group) => ({
   description={openGraph?.description}
   ogImageVersion={entry.data.revision}
   activeSlug="api"
+  version={entry.data.version}
 >
   <ApiMobileNavigation
     slot="mobile-nav"
@@ -175,6 +178,12 @@ const tocItems = apiModule.groups.map((group) => ({
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar data-module-sidebar>
+    {
+      showVersionSwitch && (
+        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+      )
+    }
+
     <header class="mb-4">
       <a
         href={`/docs/${entry.data.version}/api`}
@@ -188,8 +197,6 @@ const tocItems = apiModule.groups.map((group) => ({
         {entry.data.packageVersion}
       </p>
     </header>
-
-    {showVersionSwitch && <ApiVersionSwitch versions={sidebarVersions} />}
 
     <ApiSidebarNav sections={sidebarSections} />
   </nav>

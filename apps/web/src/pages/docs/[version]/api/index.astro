@@ -6,9 +6,10 @@ import { Search } from "@lucide/astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
+import { DOCS_VERSIONS } from "@/lib/navigation"
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
@@ -166,10 +167,10 @@ const sidebarGroups = Array.from(groupedPackages)
     const nameOrder = left.name.localeCompare(right.name)
     return leftOrder - rightOrder || nameOrder
   })
-const sidebarVersions = ["v3", "v4"].map((candidate) => ({
-  href: `/docs/${candidate}/api`,
-  label: candidate,
-  active: candidate === version,
+const sidebarVersions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: `/docs/${value}/api`,
+  label,
+  active: value === version,
 }))
 const sidebarSections = [
   {
@@ -184,10 +185,10 @@ const sidebarSections = [
     })),
   },
 ]
-const mobileVersions = ["v3", "v4"].map((candidate) => ({
-  href: `/docs/${candidate}/api`,
-  label: candidate,
-  selected: candidate === version,
+const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: `/docs/${value}/api`,
+  label,
+  selected: value === version,
 }))
 const mobilePackages = [
   { disabled: true, href: "", label: "Packages", selected: true },
@@ -205,6 +206,7 @@ const mobilePackages = [
   description={openGraph?.description}
   ogImageVersion={openGraph?.revision}
   activeSlug="api"
+  version={version}
 >
   <ApiMobileNavigation
     slot="mobile-nav"
@@ -214,6 +216,8 @@ const mobilePackages = [
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
+    <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+
     <a
       href={`/docs/${version}/api`}
       aria-current="page"
@@ -221,8 +225,6 @@ const mobilePackages = [
     >
       API Reference
     </a>
-
-    <ApiVersionSwitch versions={sidebarVersions} />
 
     <ApiSidebarNav sections={sidebarSections} />
   </nav>

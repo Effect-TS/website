@@ -4,13 +4,18 @@ import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLinks from "@/components/navigation/NavigationLinks.astro"
 import { SearchDialog } from "@/components/navigation/SearchDialog"
-import { getNavigationLinks, type NavigationActiveSlug } from "@/lib/navigation"
+import {
+  getNavigationLinks,
+  type NavigationActiveSlug,
+  type NavigationLink,
+} from "@/lib/navigation"
 
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly version?: string | undefined
 }
 
-const { activeSlug } = Astro.props
+const { activeSlug, version } = Astro.props
 
 const showThemeToggle =
   activeSlug === "playground" ||
@@ -18,7 +23,17 @@ const showThemeToggle =
   activeSlug === "api" ||
   activeSlug === "blog"
 
-const mobilePrimaryLinks = getNavigationLinks("mobile", "primary")
+const withVersion = (links: ReadonlyArray<NavigationLink>) =>
+  version === undefined
+    ? links
+    : links.map((link): NavigationLink => {
+        if (link.kind !== "internal") return link
+        if (link.id === "docs") return { ...link, href: `/docs/${version}` as `/${string}` }
+        if (link.id === "api") return { ...link, href: `/docs/${version}/api` as `/${string}` }
+        return link
+      })
+
+const mobilePrimaryLinks = withVersion(getNavigationLinks("mobile", "primary"))
 const mobileSocialLinks = getNavigationLinks("mobile", "social")
 ---
 
@@ -31,7 +46,7 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
         <NavigationLogo />
 
         <div class="ml-8 hidden items-center gap-6 md:flex">
-          <NavigationLinks activeSlug={activeSlug} />
+          <NavigationLinks activeSlug={activeSlug} version={version} />
         </div>
 
         <NavigationMobileMenu

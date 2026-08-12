@@ -47,7 +47,7 @@ The default logger in Effect adds several useful details to each log entry:
 | ----------- | --------------------------------------------------------------------------------------------------- |
 | `timestamp` | The timestamp when the log message was generated.                                                   |
 | `level`     | The log level at which the message is logged (e.g., `INFO`, `ERROR`).                               |
-| `fiber`     | The identifier of the [fiber](/docs/concurrency/fibers/) executing the program.                     |
+| `fiber`     | The identifier of the [fiber](/docs/v3/concurrency/fibers/) executing the program.                  |
 | `message`   | The log message content, which can include multiple strings or values.                              |
 | `span`      | (Optional) The duration of a span in milliseconds, providing insight into the timing of operations. |
 
@@ -73,7 +73,7 @@ timestamp=... level=INFO fiber=#0 message=message1 message=message2 message=mess
 */
 ```
 
-For added context, you can also include one or more [Cause](/docs/data-types/cause/) instances in your logs,
+For added context, you can also include one or more [Cause](/docs/v3/data-types/cause/) instances in your logs,
 which provide detailed error information under an additional `cause` annotation:
 
 **Example** (Logging with Causes)
@@ -487,7 +487,7 @@ task done
 
 ## Loading the Log Level from Configuration
 
-To dynamically load the log level from a [configuration](/docs/configuration/) and apply it to your program, you can use the `Logger.minimumLogLevel` layer. This allows your application to adjust its logging behavior based on external configuration.
+To dynamically load the log level from a [configuration](/docs/v3/configuration/) and apply it to your program, you can use the `Logger.minimumLogLevel` layer. This allows your application to adjust its logging behavior based on external configuration.
 
 **Example** (Loading Log Level from Configuration)
 
@@ -533,8 +533,8 @@ Output:
 <Aside type="tip" title="Using ConfigProvider for Testing">
   The `ConfigProvider.fromMap` function is useful for testing by simulating
   configuration values. You can also refer to [Mocking Configurations in
-  Tests](/docs/configuration/#mocking-configurations-in-tests) for more details
-  on using mock configuration during tests.
+  Tests](/docs/v3/configuration/#mocking-configurations-in-tests) for more
+  details on using mock configuration during tests.
 </Aside>
 
 ## Custom loggers
@@ -641,7 +641,7 @@ When you run the above program, the following log messages are printed to the co
 
 Effect provides several built-in loggers that you can use depending on your logging needs. These loggers offer different formats, each suited for different environments or purposes, such as development, production, or integration with external logging services.
 
-Each logger is available in two forms: the logger itself, and a layer that uses the logger and sends its output to the `Console` [default service](/docs/requirements-management/default-services/). For example, the `structuredLogger` logger generates logs in a detailed object-based format, while the `structured` layer uses the same logger and writes the output to the `Console` service.
+Each logger is available in two forms: the logger itself, and a layer that uses the logger and sends its output to the `Console` [default service](/docs/v3/requirements-management/default-services/). For example, the `structuredLogger` logger generates logs in a detailed object-based format, while the `structured` layer uses the same logger and writes the output to the `Console` service.
 
 ### stringLogger (default)
 

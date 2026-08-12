@@ -6,9 +6,10 @@ import { Search } from "@lucide/astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import ApiVersionSwitch from "@/features/api-reference/ApiVersionSwitch.astro"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
+import { DOCS_VERSIONS } from "@/lib/navigation"
 
 interface StaticPathEntry {
   readonly params: {
@@ -96,10 +97,10 @@ const sections = [
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
 const sidebarGroupCount = sections.reduce((count, section) => count + section.groups.length, 0)
-const sidebarVersions = ["v3", "v4"].map((candidate) => ({
-  href: `/docs/${candidate}/api/${pkg.slug}`,
-  label: candidate,
-  active: candidate === version,
+const sidebarVersions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: `/docs/${value}/api/${pkg.slug}`,
+  label,
+  active: value === version,
 }))
 const sidebarSections = sections.map((section) => ({
   label: section.label,
@@ -170,6 +171,7 @@ function moduleName(modulePath: string, group: string): string {
   description={pkg.description}
   ogImageVersion={openGraph?.revision}
   activeSlug="api"
+  version={version}
 >
   <ApiMobileNavigation
     slot="mobile-nav"
@@ -180,6 +182,12 @@ function moduleName(modulePath: string, group: string): string {
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
+    {
+      showVersionSwitch && (
+        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
+      )
+    }
+
     <header class="mb-4">
       <a
         href={`/docs/${version}/api`}
@@ -195,8 +203,6 @@ function moduleName(modulePath: string, group: string): string {
 
       <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
     </header>
-
-    {showVersionSwitch && <ApiVersionSwitch versions={sidebarVersions} />}
 
     <div aria-label={`${pkg.name} modules`}>
       <ApiSidebarNav sections={sidebarSections} />
