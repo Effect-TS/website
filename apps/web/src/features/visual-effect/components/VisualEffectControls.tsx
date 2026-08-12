@@ -47,7 +47,10 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
     <motion.button
       className="flex w-full cursor-pointer items-start gap-3 border-b px-6 py-4 text-left"
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        setIsHovered(false)
+        setIsPressed(false)
+      }}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onClick={handleClick}
@@ -60,7 +63,7 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
         borderColor: { duration: 0.2, ease: "easeInOut" },
         backgroundColor: { duration: 0.15, ease: "easeInOut" },
       }}
-      aria-label={isRunning ? "Stop example" : "Run example"}
+      aria-label={`${isRunning ? "Stop" : isResettable ? "Reset" : "Run"} ${title}`}
     >
       <VisualEffectControlsIcon
         isHovered={isHovered}
