@@ -1,0 +1,36 @@
+---
+import { CircleCheck } from "@lucide/astro"
+
+interface Props {
+  title?: string
+}
+
+const { title } = Astro.props
+const hasTitleSlot = Astro.slots.has("title")
+---
+
+<section
+  class="not-prose my-8 rounded-lg border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900 dark:bg-emerald-950/30"
+  aria-label="Effect strength"
+>
+  <div
+    class="flex items-center gap-2 text-xs font-semibold tracking-wider text-emerald-700 uppercase dark:text-emerald-300"
+  >
+    <CircleCheck size={15} aria-hidden="true" />
+    <span>Effect strength</span>
+  </div>
+
+  {
+    hasTitleSlot ? (
+      <p class="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-100">
+        <slot name="title" />
+      </p>
+    ) : title ? (
+      <p class="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-100">{title}</p>
+    ) : null
+  }
+
+  <div class="mt-2 space-y-3 text-base leading-7 text-zinc-700 dark:text-zinc-300">
+    <slot />
+  </div>
+</section>
