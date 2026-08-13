@@ -4,17 +4,28 @@ import type { NavigationActiveSlug, NavigationLink } from "@/lib/navigation"
 import DiscordIcon from "@/assets/logos/discord/Discord.svg"
 import GitHubIcon from "@/assets/logos/github/GitHub.svg"
 import TwitterIcon from "@/assets/logos/twitter/Twitter.svg"
+import ThemeToggle from "@/components/ui/ThemeToggle"
 
 interface Props {
   readonly primaryLinks: ReadonlyArray<NavigationLink>
   readonly socialLinks: ReadonlyArray<NavigationLink>
   readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly showThemeToggle?: boolean
 }
 
-const { primaryLinks, socialLinks, activeSlug } = Astro.props
+const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro.props
 ---
 
-<effect-mobile-menu class="ml-auto">
+<effect-mobile-menu class="ml-auto flex items-center gap-2">
+  {
+    showThemeToggle && (
+      <ThemeToggle
+        client:only="react"
+        className="h-10 w-10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white md:hidden"
+      />
+    )
+  }
+
   <button
     type="button"
     data-role="menu-button"

@@ -120,11 +120,6 @@ const CHANNELS = [
     linkLabel: "youtube.com/@effect-ts",
   },
 ]
-
-const UPCOMING_EVENTS: string[] = [
-  "evt-TMCsunywf5AqxSX", // Effect Office Hours 41
-  "evt-IpTTFhOGblrQdoK", // Effect Warsaw #1
-]
 ---
 
 <PageLayout
@@ -223,38 +218,50 @@ const UPCOMING_EVENTS: string[] = [
     </div>
   </section>
 
-  <section id="upcoming-events" class="scroll-mt-16 border-t border-zinc-800 py-24 md:pt-40">
+  <section id="upcoming-events" class="scroll-mt-16 border-t border-zinc-800 py-24">
     <div class="mx-auto w-full max-w-295 px-4">
-      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
-        // Upcoming events
-      </p>
-      <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
-          Join an upcoming event
-        </h2>
-        <a
-          href="https://luma.com/effect-community"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-zinc-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-900"
-        >
-          View events calendar
-          <ArrowUpRight class="size-4" aria-hidden="true" />
-        </a>
-      </div>
+      <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
+        <div>
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            // Upcoming events
+          </p>
+          <h2 class="leading-tighter text-2xl font-semibold text-white md:text-3xl">
+            Join an upcoming event
+          </h2>
+          <p class="mt-4 text-lg text-zinc-400">
+            Office Hours every Wednesday, plus meetups and conferences hosted by the community
+            worldwide.
+          </p>
+          <div class="mt-8 flex flex-wrap items-stretch gap-4">
+            <a
+              href="https://luma.com/effect-community"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-zinc-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-900"
+            >
+              View events calendar
+              <ArrowUpRight
+                class="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                aria-hidden="true"
+              />
+            </a>
+          </div>
+        </div>
 
-      <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {
-          UPCOMING_EVENTS.map((eventId) => (
-            <iframe
-              src={`https://luma.com/embed/event/${eventId}/simple?lt=dark`}
-              title="Upcoming Effect community event"
-              class="h-[720px] w-full rounded-md border border-zinc-800 bg-[#131517]"
-              allow="fullscreen; payment"
-              loading="lazy"
-            />
-          ))
-        }
+        <div class="relative bg-[#131517]">
+          <iframe
+            src="https://luma.com/embed/calendar/cal-6pnQFi64vfu2qlO/events"
+            title="Effect community events calendar"
+            class="block h-[560px] w-full"
+            allow="fullscreen"
+            loading="lazy"
+            aria-hidden="false"
+            tabindex="0"></iframe>
+          <div
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-[#131517] to-transparent"
+          >
+          </div>
+        </div>
       </div>
     </div>
   </section>
