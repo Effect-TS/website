@@ -7,14 +7,15 @@ import * as Hash from "effect/Hash"
 import * as Iterable from "effect/Iterable"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
+import { DocsVersion, defaultDocsVersion } from "@/lib/versions"
 
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
 
-export const EffectVersion = Schema.Literals(["v3", "v4"])
+export const EffectVersion = DocsVersion
 export type EffectVersion = typeof EffectVersion.Type
 
-export const defaultVersion: EffectVersion = "v4"
+export const defaultVersion: EffectVersion = defaultDocsVersion
 
 /**
  * Unversioned `?code` links predate the version toggle and contain v3 source.

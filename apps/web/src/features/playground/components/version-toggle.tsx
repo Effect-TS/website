@@ -1,6 +1,6 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useState } from "react"
-import { DOCS_VERSIONS } from "@/lib/navigation"
+import { DOCS_VERSIONS } from "@/lib/versions"
 import { switchVersionAtom } from "../atoms/import"
 import { useWorkspaceAtom } from "../context/workspace"
 import type { EffectVersion } from "../domain/workspace"
