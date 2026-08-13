@@ -487,8 +487,7 @@ const program = Effect.gen(function*() {
 }))
 
 NodeRuntime.runMain(program.pipe(
-  Effect.provide(DevToolsLayer),
-  Effect.provide(LoggerLive)
+  Effect.provide([DevToolsLayer, LoggerLive])
 ))
 `,
 )
@@ -531,7 +530,8 @@ const loggerV4 = makeFile(
   `import { Logger } from "effect"
 
 export const LoggerLive = Logger.layer([
-  Logger.consolePretty({ colors: true })
+  Logger.consolePretty({ colors: true }),
+  Logger.tracerLogger
 ])
 `,
 )

@@ -25,6 +25,9 @@ test("v4 default workspace provides a pretty logger with colors enabled", () => 
     "Logger.consolePretty({ colors: true })",
   )
   assert.include(logger.initialContent, "Logger.layer(")
+  // Logger.layer overwrites the default logger set, which includes
+  // tracerLogger; dropping it removes span events from the DevTools trace.
+  assert.include(logger.initialContent, "Logger.tracerLogger")
 })
 
 test("v4 default main provides the logger layer", () => {
@@ -32,7 +35,10 @@ test("v4 default main provides the logger layer", () => {
     .findFile("src/main.ts")
     .pipe(Option.getOrThrow)
   assert.include(main.initialContent, 'import { LoggerLive } from "./Logger"')
-  assert.include(main.initialContent, "Effect.provide(LoggerLive)")
+  assert.include(
+    main.initialContent,
+    "Effect.provide([DevToolsLayer, LoggerLive])",
+  )
 })
 
 test("v3 default workspace does not ship a logger layer", () => {
