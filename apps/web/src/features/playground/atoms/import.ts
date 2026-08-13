@@ -10,6 +10,8 @@ import {
   defaultVersion,
   defaultMainFile,
   EffectVersion,
+  effectVersionForCodeLink,
+  isStaleWorkspaceHandle,
   makeDefaultWorkspace,
   makeFile,
   Workspace,
@@ -94,11 +96,15 @@ export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
           // After a version switch this loop keeps ticking for the outgoing
           // handle until it unmounts; saving then would resurrect the old
           // workspace on the next load.
-          const stale = get
+          const selectedVersion = get
             .once(versionOverrideAtom)
-            .pipe(
-              Option.exists((version) => version !== workspace.effectVersion),
-            )
+            .pipe(Option.getOrUndefined)
+          // A user can edit package.json after mounting, so identify the
+          // outgoing handle by its immutable initial version.
+          const stale = isStaleWorkspaceHandle(
+            selectedVersion,
+            handle.initialWorkspace.effectVersion,
+          )
 
           if (unchanged || stale) {
             return
@@ -168,9 +174,9 @@ function fromCode(get: Atom.FnContext): Option.Option<Workspace> {
     return Option.none()
   }
 
-  // Links without a version get v3: every `?code` link that predates the
-  // version toggle carries v3 code.
-  const version = Option.getOrElse(get(versionParamAtom), () => "v3" as const)
+  const version = effectVersionForCodeLink(
+    Option.getOrUndefined(get(versionParamAtom)),
+  )
   const node = makeFile("main.ts", code.value, false)
   return Option.some(
     makeDefaultWorkspace(version).replaceNode(defaultMainFile(version), node),

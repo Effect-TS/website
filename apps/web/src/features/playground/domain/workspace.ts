@@ -16,6 +16,25 @@ export type EffectVersion = typeof EffectVersion.Type
 
 export const defaultVersion: EffectVersion = "v4"
 
+/**
+ * Unversioned `?code` links predate the version toggle and contain v3 source.
+ * Keep them on v3 even though new, empty playgrounds default to v4.
+ */
+export function effectVersionForCodeLink(
+  version: EffectVersion | undefined,
+): EffectVersion {
+  return version ?? "v3"
+}
+
+export function isStaleWorkspaceHandle(
+  selectedVersion: EffectVersion | undefined,
+  handleInitialVersion: EffectVersion,
+): boolean {
+  return (
+    selectedVersion !== undefined && selectedVersion !== handleInitialVersion
+  )
+}
+
 export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
   "WorkspaceShell",
 )({
@@ -263,7 +282,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     if (effect === undefined) {
       return "v3"
     }
-    if (effect === "rc" || effect === "beta") {
+    if (effect === "rc" || effect === "beta" || effect === "next") {
       return "v4"
     }
     return /^\D*4(\.|$)/.test(effect) ? "v4" : "v3"
