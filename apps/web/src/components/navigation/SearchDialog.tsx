@@ -58,9 +58,18 @@ type SearchResultGroup = SearchResult["kind"]
 
 type SearchVersion = "v3" | "v4"
 
+type RecentSearch = {
+  readonly query: string
+  readonly version: SearchVersion
+}
+
+type StoredRecentSearch = RecentSearch | string
+
 const searchQueryAtom = Atom.make("")
 
 const selectedVersionAtom = Atom.make<SearchVersion>("v3")
+
+const pageVersionAtom = Atom.make(Option.none<SearchVersion>())
 
 const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
 
@@ -73,7 +82,15 @@ const kvsRuntime = Atom.runtime(BrowserKeyValueStore.layerLocalStorage)
 const recentSearchesAtom = Atom.kvs({
   runtime: kvsRuntime,
   key: "effect-website:search:recent",
-  schema: Schema.Array(Schema.String),
+  schema: Schema.Array(
+    Schema.Union([
+      Schema.String,
+      Schema.Struct({
+        query: Schema.String,
+        version: Schema.Literals(["v3", "v4"]),
+      }),
+    ]),
+  ),
   defaultValue: () => [],
 })
 
@@ -89,14 +106,25 @@ const addRecentSearchAtom = Atom.fnSync<string>()((query, get) => {
 
   const normalizedQuery = trimmedQuery.toLowerCase()
   const recentSearches = get(recentSearchesAtom).filter(
-    (recentSearch) => recentSearch.toLowerCase() !== normalizedQuery,
+    (recentSearch) =>
+      (typeof recentSearch === "string"
+        ? recentSearch
+        : recentSearch.query
+      ).toLowerCase() !== normalizedQuery,
   )
-  get.set(recentSearchesAtom, [trimmedQuery, ...recentSearches].slice(0, 5))
+  get.set(
+    recentSearchesAtom,
+    [
+      { query: trimmedQuery, version: get(selectedVersionAtom) },
+      ...recentSearches,
+    ].slice(0, 5),
+  )
 })
 
-const selectSearchQueryAtom = Atom.fnSync<string>()((query, get) => {
-  get.set(searchQueryAtom, query)
-  get.set(addRecentSearchAtom, query)
+const selectRecentSearchAtom = Atom.fnSync<RecentSearch>()((search, get) => {
+  get.set(selectedVersionAtom, search.version)
+  get.set(searchQueryAtom, search.query)
+  get.set(addRecentSearchAtom, search.query)
   Option.match(get(inputElementAtom), {
     onNone: constVoid,
     onSome: (element) => element.focus({ preventScroll: true }),
@@ -110,7 +138,12 @@ const clearRecentSearchesAtom = Atom.fnSync<void>()((_, get) => {
 const removeRecentSearchAtom = Atom.fnSync<string>()((search, get) => {
   get.set(
     recentSearchesAtom,
-    get(recentSearchesAtom).filter((recentSearch) => recentSearch !== search),
+    get(recentSearchesAtom).filter(
+      (recentSearch) =>
+        (typeof recentSearch === "string"
+          ? recentSearch
+          : recentSearch.query) !== search,
+    ),
   )
 })
 
@@ -127,6 +160,18 @@ const clearSelectedGroupsAtom = Atom.fnSync<void>()((_, get) => {
 })
 
 const SEARCH_VERSIONS: ReadonlyArray<SearchVersion> = ["v3", "v4"]
+
+const searchVersionForPathname = (pathname: string): SearchVersion =>
+  pathname.startsWith("/docs/v4") ? "v4" : "v3"
+
+const searchVersionFromValue = (
+  version: string | undefined,
+): Option.Option<SearchVersion> =>
+  Option.fromNullOr(version).pipe(
+    Option.filter((value): value is SearchVersion =>
+      SEARCH_VERSIONS.some((searchVersion) => searchVersion === value),
+    ),
+  )
 
 const SUGGESTED_SEARCHES: ReadonlyArray<string> = [
   "Getting Started",
@@ -298,6 +343,12 @@ const searchDialogOpenAtom = Atom.writable(
 
     const openDialog = (event: Event) => {
       get.set(searchOpenSourceAtom, searchOpenSource(event))
+      get.set(
+        selectedVersionAtom,
+        Option.getOrElse(get(pageVersionAtom), () =>
+          searchVersionForPathname(window.location.pathname),
+        ),
+      )
       get.setSelf(true)
     }
     const closeDialog = () => get.setSelf(false)
@@ -306,6 +357,12 @@ const searchDialogOpenAtom = Atom.writable(
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault()
         get.set(searchOpenSourceAtom, "keyboard")
+        get.set(
+          selectedVersionAtom,
+          Option.getOrElse(get(pageVersionAtom), () =>
+            searchVersionForPathname(window.location.pathname),
+          ),
+        )
         get.setSelf(true)
       }
     }
@@ -394,12 +451,21 @@ function useSearchDialogKeyDown() {
   }
 }
 
-export function SearchDialog() {
+export function SearchDialog({
+  version,
+}: {
+  readonly version?: string | undefined
+}) {
   const registry = React.useContext(RegistryContext)
   const [open, setOpen] = useAtom(searchDialogOpenAtom)
+  const setPageVersion = useAtomSet(pageVersionAtom)
   const setDialogElement = useAtomSet(dialogElementAtom)
   const handleDialogKeyDown = useSearchDialogKeyDown()
   const wasOpen = React.useRef(false)
+
+  React.useEffect(() => {
+    setPageVersion(searchVersionFromValue(version))
+  }, [setPageVersion, version])
 
   // Initial focus needs the latest mounted input, not an atom snapshot captured during render.
   const getInputElement = () => {
@@ -681,9 +747,10 @@ function SearchStart() {
 function RecentSearches({
   searches,
 }: {
-  readonly searches: ReadonlyArray<string>
+  readonly searches: ReadonlyArray<StoredRecentSearch>
 }) {
-  const selectSearchQuery = useAtomSet(selectSearchQueryAtom)
+  const version = useAtomValue(selectedVersionAtom)
+  const selectRecentSearch = useAtomSet(selectRecentSearchAtom)
   const clearRecentSearches = useAtomSet(clearRecentSearchesAtom)
   const removeRecentSearch = useAtomSet(removeRecentSearchAtom)
 
@@ -700,40 +767,48 @@ function RecentSearches({
         </button>
       </div>
       <ul className="space-y-0.5">
-        {searches.map((search) => (
-          <li
-            key={search}
-            className="group flex items-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
-          >
-            <button
-              type="button"
-              data-search-option
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
-              onClick={() => selectSearchQuery(search)}
+        {searches.map((storedSearch) => {
+          const search =
+            typeof storedSearch === "string"
+              ? { query: storedSearch, version }
+              : storedSearch
+
+          return (
+            <li
+              key={search.query}
+              className="group flex items-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
             >
-              <History
-                aria-hidden="true"
-                className="size-4 shrink-0 text-zinc-500"
-              />
-              <span className="truncate">{search}</span>
-            </button>
-            <button
-              type="button"
-              aria-label={`Remove recent search: ${search}`}
-              className="mr-1 flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-white"
-              onClick={() => removeRecentSearch(search)}
-            >
-              <X aria-hidden="true" className="size-3.5" />
-            </button>
-          </li>
-        ))}
+              <button
+                type="button"
+                data-search-option
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+                onClick={() => selectRecentSearch(search)}
+              >
+                <History
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-zinc-500"
+                />
+                <span className="truncate">{search.query}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove recent search: ${search.query}`}
+                className="mr-1 flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-white"
+                onClick={() => removeRecentSearch(search.query)}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
 }
 
 function SuggestedSearches() {
-  const selectSearchQuery = useAtomSet(selectSearchQueryAtom)
+  const version = useAtomValue(selectedVersionAtom)
+  const selectRecentSearch = useAtomSet(selectRecentSearchAtom)
 
   return (
     <section>
@@ -747,7 +822,7 @@ function SuggestedSearches() {
               type="button"
               data-search-option
               className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-              onClick={() => selectSearchQuery(search)}
+              onClick={() => selectRecentSearch({ query: search, version })}
             >
               <Search
                 aria-hidden="true"
