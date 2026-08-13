@@ -1,0 +1,160 @@
+---
+pagefind: false
+title: This Week in Effect - 131
+excerpt: "Effect v4 has officially moved to Release Candidate! The first Effect Warsaw Meetup is scheduled for September 15. New community projects: effect-domain, repo-dive, and a new Retrieval-Augmented Generation course."
+date: 2026-08-14
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week In Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Release Candidate](https://www.effect.website/blog/releases/effect/40-rc)! 🚀
+- [Effect AI SDK](https://github.com/Effect-TS/effect/releases/tag/%40effect%2Fai%400.27.0) Release.
+- Durable workflows in TypeScript with [`@effect/workflow`](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/unstable/workflow) - currently in alpha.
+- 6550+ community members on [Discord](https://discord.gg/effect-ts).
+
+## Technology
+
+### Effect v4 updates: RC Announcement.
+
+This week marks a milestone: Effect v4 has officially moved to [**Release Candidate**](https://www.effect.website/blog/releases/effect/40-rc) status.
+
+<Tweet id="2087542692867678611" />
+
+The team continued its deep codebase audit, with the focus now squarely on correctness and reliability.
+
+- **RC announcement**: Effect v4 is now in Release Candidate. The API surface is presumed stable and the focus has shifted entirely to correctness, reliability, and documentation.
+
+- **Cluster & durable execution**: Fixed a cluster shutdown hang from abandoned requests, fixed defecting execution-plan observers replacing outcomes and leaving events unpaired, fixed `TxPubSub` subscriber release interrupting after hub shutdown, fixed SQL `findById` resolvers invoking `NonEmpty` callbacks with empty batches, fixed SQL resolvers executing empty batches, used migrations for SQL persisted queues, added integration coverage for entity shutdown, replay, workflow owner-loss, and cluster transport failure scenarios.
+
+- **AI providers**: Corrected max output tokens for Claude Opus 4.6, 4.7, 4.8 and Sonnet 4.6, fixed OpenRouter emitting cumulative tool-parameter prefixes as deltas, fixed OpenRouter reasoning-end metadata casing, fixed OpenRouter streamed citation end offsets overwriting start offsets, fixed OpenAI telemetry response attributes using the request namespace type, fixed batched encrypted event records reusing per-record randomization metadata, and fixed unknown MCP cancellation suppressing a later reused request ID.
+
+- **Platform & HTTP**: Fixed Bun and Deno `fileWebResponse` ignoring range options, fixed closing an older Bun server not properly tearing down, fixed client-server-client `FormData` round-trip, fixed `rcRef` leaking resources acquired before acquisition failure, fixed `scopedRef.set` orphaning a replacement when old cleanup defects, fixed log annotations overwriting active span correlation identifiers, fixed disabled tracer timing still recording span end times, and fixed buffered worker send failures escaping the `WorkerError` channel.
+
+- **Fiber & runtime**: Fixed `fiber.joinAll` erasing input fiber error types, fixed `NodeTerminal` readline staying alive between prompts.
+
+- **SQL & persistence**: Migrated `NodeRedis` from `ioredis` to `redis` (node-redis), added `SQL`, `HttpApi` testing, and CLI schema coverage to AI docs.
+
+- **Documentation & examples**: Updated `HttpApi` examples to use `handleAll`, added AI docs coverage for SQL, HttpApi testing, and CLI schemas.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [**Effect v4 Beta updates**](https://effect.website/blog/tags/effect-v4-beta-recaps/).
+
+---
+
+Other technical changes from the past week.
+
+### Effect CLI
+
+- [Fix(cli): escape quotes in generated completion descriptions](https://github.com/Effect-TS/effect/pull/7173) (Bug Fix)
+
+## Effect Adoption Partner
+
+Save your seat for the first [Effect Training Workshop](https://www.eventbrite.com/e/ziverge-effect-ts-workshop-tickets-1993621741295?aff=oddtdtcreator) by John De Goes!
+
+<Tweet id="2084222033424982343" />
+
+## Community Events
+
+- We're thrilled to announce that the first [Effect Warsaw](https://luma.com/29fn6spj) Meetup is scheduled on September 15!
+
+  <Tweet id="2086778100180824403" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Community Highlights
+
+- Who knows?👀
+
+  <Tweet id="2086386531502276999" />
+
+- **The state library that made me drop Zustand** by Lucas Barake.
+
+<YouTube
+  id="https://www.youtube.com/embed/397MsJf8HGg?si=xjupLG7zIRgZEiN-"
+  title="The state library that made me drop Zustand"
+/>
+
+- [effect-domain](https://github.com/mac-monet/effect-domain) - a domain action graph for Effect applications, letting you define resources, computed fields, actions, subscriptions, and runtime schemas once with Effect Schema and serve them over REST, RPC, GraphQL, or sync engines. By mac-monet.
+
+- New course added: [Retrieval-Augmented Generation](https://www.effective.software/courses/rag) - learn to build a chat-with-your-PDF app with Effect, covering the full pipeline from PDF text extraction through vector storage to AI-powered answer generation. By Hemanta Kumar Sundaray.
+
+- [repo-dive](https://github.com/kachkaev/repo-dive) - dive into a git repo's history with per-commit snapshots, an indexed metrics catalog, and an interactive dashboard, with MCP support for AI agents. By Alexey Kachkaev.
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Maple.dev | Effect Office Hours 41 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/YWxxSC9qL4o?si=0WC_yK5YYv9dFJnW"
+  title="Maple.dev | Effect Office Hours 41 🔥"
+/>
+
+- Resumable/durable streams for AI agents
+
+<YouTube
+  id="https://www.youtube.com/embed/4CrbT4zHctg?si=OMYoKNN4B6biNFCR"
+  title="Resumable/durable streams for AI agents"
+/>
+
+- Modeling URI string protocols | Community Code Review
+
+<YouTube
+  id="https://www.youtube.com/embed/GmqnyKZpM98?si=B077h3d6x_c0tkZp"
+  title="Modeling URI string protocols | Community Code Review"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page with open roles from companies using Effect. We’ll keep it updated as new opportunities come in.
+
+New this week: **Superwall** is hiring a Global Remote (US timezones preferred) Support Engineer.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
