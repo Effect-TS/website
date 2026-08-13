@@ -263,8 +263,8 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   }
   /**
    * The Effect major version this workspace runs on, derived from the `effect`
-   * entry in `package.json`. Handles the published v4 dist-tags (`rc`, `beta`,
-   * `snapshot`), exact versions written back by `pnpm install -E`, and ranges.
+   * entry in `package.json`. Handles the published v4 dist-tags (`rc`, `beta`),
+   * exact versions written back by `pnpm install -E`, and ranges.
    * `latest` and missing entries map to v3, the version the playground shipped
    * with before the toggle existed.
    */
@@ -273,12 +273,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     if (effect === undefined) {
       return "v3"
     }
-    if (
-      effect === "rc" ||
-      effect === "beta" ||
-      effect === "snapshot" ||
-      /^0\.0\.0-snapshot-/.test(effect)
-    ) {
+    if (effect === "rc" || effect === "beta") {
       return "v4"
     }
     return /^\D*4(\.|$)/.test(effect) ? "v4" : "v3"

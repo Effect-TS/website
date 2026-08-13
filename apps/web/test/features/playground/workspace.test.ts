@@ -6,7 +6,7 @@ import {
 } from "../../../src/features/playground/domain/workspace.ts"
 
 test("recognizes published v4 dist-tags", () => {
-  for (const version of ["rc", "beta", "snapshot", "0.0.0-snapshot-9b2f1a7"]) {
+  for (const version of ["rc", "beta"]) {
     assert.equal(workspaceWithEffectVersion(version).effectVersion, "v4")
   }
 })

@@ -105,6 +105,68 @@ test("autosave identifies a handle by its initial version", async () => {
   }
 })
 
+test("autosave rejects a handle whose initial version is no longer selected", async () => {
+  const initialWorkspace = makeDefaultWorkspace("v4")
+  const liveWorkspace = makeDefaultWorkspace("v3").replaceNode(
+    defaultMainFile("v3"),
+    makeFile("main.ts", "Effect.log('edited')"),
+  )
+  const workspaceAtom = Atom.make(liveWorkspace)
+  const savedWorkspaceAtom = Atom.make(Option.none<typeof liveWorkspace>())
+  const versionOverrideAtom = Atom.make(Option.some("v3" as const))
+  let resolveSnapshot!: () => void
+  const snapshotTaken = new Promise<void>((resolve) => {
+    resolveSnapshot = resolve
+  })
+  const runtime = Atom.context()(
+    Layer.mergeAll(
+      Layer.succeed(WebContainer, {
+        readFileString: () => Effect.succeed(""),
+      } as unknown as WebContainer["Service"]),
+      Layer.succeed(WorkspaceCompression, {
+        snapshot: () =>
+          Effect.sync(() => {
+            resolveSnapshot()
+            return liveWorkspace
+          }),
+      } as unknown as WorkspaceCompression["Service"]),
+    ),
+  )
+  const autoSave = makeAutoSaveAtom({
+    runtime,
+    versionOverrideAtom,
+    autoSaveWorkspaceAtom: savedWorkspaceAtom,
+  })
+  const handle = {
+    initialWorkspace,
+    workspaceAtom,
+  } as AtomWorkspaceHandle
+  const registry = AtomRegistry.make()
+  let persisted = false
+  const unsubscribe = registry.subscribe(savedWorkspaceAtom, (workspace) => {
+    persisted ||= Option.isSome(workspace)
+  })
+
+  try {
+    await Effect.runPromise(AtomRegistry.getResult(registry, autoSave(handle)))
+    await Promise.race([
+      snapshotTaken,
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Autosave did not take a snapshot")),
+          1_000,
+        ),
+      ),
+    ])
+    await Promise.resolve()
+    assert.isFalse(persisted)
+    assert.isTrue(Option.isNone(registry.get(savedWorkspaceAtom)))
+  } finally {
+    unsubscribe()
+    registry.dispose()
+  }
+})
+
 async function importCodeLink(code: string, version?: "v3" | "v4") {
   const search = new URLSearchParams({
     code: Encoding.encodeBase64Url(code),
