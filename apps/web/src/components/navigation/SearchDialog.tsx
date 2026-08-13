@@ -52,11 +52,17 @@ import {
   type BlogSearchResult,
   type DocumentationSearchResult,
 } from "@/services/search/domain"
+import {
+  addRecentSearch,
+  type RecentSearch,
+  RecentSearches as RecentSearchHistory,
+  type SearchVersion,
+  normalizeRecentSearch,
+  searchVersionFromPathname,
+} from "@/services/search/preferences"
 import MixedbreadLogo from "./MixedbreadLogo.svg?react"
 
 type SearchResultGroup = SearchResult["kind"]
-
-type SearchVersion = "v3" | "v4"
 
 const searchQueryAtom = Atom.make("")
 
@@ -73,7 +79,7 @@ const kvsRuntime = Atom.runtime(BrowserKeyValueStore.layerLocalStorage)
 const recentSearchesAtom = Atom.kvs({
   runtime: kvsRuntime,
   key: "effect-website:search:recent",
-  schema: Schema.Array(Schema.String),
+  schema: RecentSearchHistory,
   defaultValue: () => [],
 })
 
@@ -83,20 +89,14 @@ const inputElementAtom = Atom.make(Option.none<HTMLInputElement>())
 
 const resultsElementAtom = Atom.make(Option.none<HTMLDivElement>())
 
-const addRecentSearchAtom = Atom.fnSync<string>()((query, get) => {
-  const trimmedQuery = query.trim()
-  if (trimmedQuery.length === 0) return
-
-  const normalizedQuery = trimmedQuery.toLowerCase()
-  const recentSearches = get(recentSearchesAtom).filter(
-    (recentSearch) => recentSearch.toLowerCase() !== normalizedQuery,
-  )
-  get.set(recentSearchesAtom, [trimmedQuery, ...recentSearches].slice(0, 5))
+const addRecentSearchAtom = Atom.fnSync<RecentSearch>()((search, get) => {
+  get.set(recentSearchesAtom, addRecentSearch(get(recentSearchesAtom), search))
 })
 
-const selectSearchQueryAtom = Atom.fnSync<string>()((query, get) => {
-  get.set(searchQueryAtom, query)
-  get.set(addRecentSearchAtom, query)
+const selectSearchQueryAtom = Atom.fnSync<RecentSearch>()((search, get) => {
+  get.set(searchQueryAtom, search.query)
+  get.set(selectedVersionAtom, search.version)
+  get.set(addRecentSearchAtom, search)
   Option.match(get(inputElementAtom), {
     onNone: constVoid,
     onSome: (element) => element.focus({ preventScroll: true }),
@@ -107,10 +107,13 @@ const clearRecentSearchesAtom = Atom.fnSync<void>()((_, get) => {
   get.set(recentSearchesAtom, [])
 })
 
-const removeRecentSearchAtom = Atom.fnSync<string>()((search, get) => {
+const removeRecentSearchAtom = Atom.fnSync<RecentSearch>()((search, get) => {
   get.set(
     recentSearchesAtom,
-    get(recentSearchesAtom).filter((recentSearch) => recentSearch !== search),
+    get(recentSearchesAtom).filter(
+      (recentSearch) =>
+        normalizeRecentSearch(recentSearch).query !== search.query,
+    ),
   )
 })
 
@@ -164,7 +167,10 @@ const searchRequestAtom = Atom.make((get) => {
     return Effect.succeed<ReadonlyArray<SearchResult>>([])
   }
 
-  get.set(addRecentSearchAtom, query)
+  get.set(addRecentSearchAtom, {
+    query,
+    version: get(selectedVersionAtom),
+  })
 
   const url = `/api/search?query=${encodeURIComponent(query)}`
 
@@ -298,6 +304,10 @@ const searchDialogOpenAtom = Atom.writable(
 
     const openDialog = (event: Event) => {
       get.set(searchOpenSourceAtom, searchOpenSource(event))
+      get.set(
+        selectedVersionAtom,
+        searchVersionFromPathname(window.location.pathname),
+      )
       get.setSelf(true)
     }
     const closeDialog = () => get.setSelf(false)
@@ -306,6 +316,10 @@ const searchDialogOpenAtom = Atom.writable(
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault()
         get.set(searchOpenSourceAtom, "keyboard")
+        get.set(
+          selectedVersionAtom,
+          searchVersionFromPathname(window.location.pathname),
+        )
         get.setSelf(true)
       }
     }
@@ -668,7 +682,9 @@ function SearchDialogResults() {
 
 function SearchStart() {
   const query = useAtomValue(searchQueryAtom)
-  const recentSearches = useAtomValue(recentSearchesAtom)
+  const recentSearches = useAtomValue(recentSearchesAtom).map(
+    normalizeRecentSearch,
+  )
 
   if (query.trim().length > 0) return null
   return recentSearches.length > 0 ? (
@@ -681,7 +697,7 @@ function SearchStart() {
 function RecentSearches({
   searches,
 }: {
-  readonly searches: ReadonlyArray<string>
+  readonly searches: ReadonlyArray<RecentSearch>
 }) {
   const selectSearchQuery = useAtomSet(selectSearchQueryAtom)
   const clearRecentSearches = useAtomSet(clearRecentSearchesAtom)
@@ -702,7 +718,7 @@ function RecentSearches({
       <ul className="space-y-0.5">
         {searches.map((search) => (
           <li
-            key={search}
+            key={`${search.version}:${search.query}`}
             className="group flex items-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
           >
             <button
@@ -715,11 +731,14 @@ function RecentSearches({
                 aria-hidden="true"
                 className="size-4 shrink-0 text-zinc-500"
               />
-              <span className="truncate">{search}</span>
+              <span className="truncate">{search.query}</span>
+              <span className="ml-auto font-mono text-xs text-zinc-400 dark:text-zinc-500">
+                {search.version}
+              </span>
             </button>
             <button
               type="button"
-              aria-label={`Remove recent search: ${search}`}
+              aria-label={`Remove recent search: ${search.query}`}
               className="mr-1 flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-white"
               onClick={() => removeRecentSearch(search)}
             >
@@ -734,6 +753,7 @@ function RecentSearches({
 
 function SuggestedSearches() {
   const selectSearchQuery = useAtomSet(selectSearchQueryAtom)
+  const version = useAtomValue(selectedVersionAtom)
 
   return (
     <section>
@@ -747,7 +767,7 @@ function SuggestedSearches() {
               type="button"
               data-search-option
               className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
-              onClick={() => selectSearchQuery(search)}
+              onClick={() => selectSearchQuery({ query: search, version })}
             >
               <Search
                 aria-hidden="true"
