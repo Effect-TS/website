@@ -60,7 +60,7 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     id: "playground",
     kind: "internal",
     label: "Play",
-    href: "/play/",
+    href: "/play",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
