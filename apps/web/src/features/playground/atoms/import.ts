@@ -8,8 +8,8 @@ import { ShortenClient } from "@/services/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import {
   defaultVersion,
+  defaultMainFile,
   EffectVersion,
-  main,
   makeDefaultWorkspace,
   makeFile,
   Workspace,
@@ -172,7 +172,9 @@ function fromCode(get: Atom.FnContext): Option.Option<Workspace> {
   // version toggle carries v3 code.
   const version = Option.getOrElse(get(versionParamAtom), () => "v3" as const)
   const node = makeFile("main.ts", code.value, false)
-  return Option.some(makeDefaultWorkspace(version).replaceNode(main, node))
+  return Option.some(
+    makeDefaultWorkspace(version).replaceNode(defaultMainFile(version), node),
+  )
 }
 
 export const importAtom = runtime.atom(

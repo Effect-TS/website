@@ -444,7 +444,7 @@ function filterMapTree(
   return out
 }
 
-export const main = makeFile(
+const mainV3 = makeFile(
   "main.ts",
   `import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
@@ -463,6 +463,33 @@ program.pipe(
 `,
 )
 
+const mainV4 = makeFile(
+  "main.ts",
+  `import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+import { DevToolsLayer } from "./DevTools"
+
+const program = Effect.gen(function*() {
+  yield* Effect.log("Welcome to the Effect v4 Playground!")
+}).pipe(Effect.withSpan("program", {
+  attributes: { source: "Playground" }
+}))
+
+NodeRuntime.runMain(program.pipe(
+  Effect.provide(DevToolsLayer)
+))
+`,
+)
+
+const defaultMainFiles: Record<EffectVersion, File> = {
+  v3: mainV3,
+  v4: mainV4,
+}
+
+export function defaultMainFile(version: EffectVersion): File {
+  return defaultMainFiles[version]
+}
+
 const devToolsV3 = makeFile(
   "DevTools.ts",
   `import { DevTools } from "@effect/experimental"
@@ -475,33 +502,14 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 `,
 )
 
-// The playground's DevTools bridge is a raw TCP server on port 34437 (see
-// `devToolsProxyExe` in services/webcontainer.ts). Effect v4 dropped
-// `NodeSocket.layerNet`, so the socket is built from the Node TCP connection's
-// web-stream view instead.
 const devToolsV4 = makeFile(
   "DevTools.ts",
-  `import { Effect, Layer } from "effect"
+  `import { NodeSocket } from "@effect/platform-node"
 import { DevTools } from "effect/unstable/devtools"
-import { Socket } from "effect/unstable/socket"
-import * as Net from "node:net"
-import { Duplex } from "node:stream"
-
-const NetSocket = Layer.effect(
-  Socket.Socket,
-  Socket.fromTransformStream(
-    Effect.sync(() => {
-      const connection = Net.createConnection({ port: 34437 })
-      return Duplex.toWeb(connection) as {
-        readable: ReadableStream<Uint8Array>
-        writable: WritableStream<Uint8Array>
-      }
-    })
-  )
-)
+import { Layer } from "effect"
 
 export const DevToolsLayer = DevTools.layerSocket.pipe(
-  Layer.provide(NetSocket)
+  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
 )
 `,
 )
@@ -526,7 +534,7 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
     initialFilePath: "src/main.ts",
-    tree: [makeDirectory("src", [main, devToolsV3])],
+    tree: [makeDirectory("src", [mainV3, devToolsV3])],
   }),
   v4: Workspace.new({
     name: "playground-v4",
@@ -538,7 +546,7 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
     initialFilePath: "src/main.ts",
-    tree: [makeDirectory("src", [main, devToolsV4])],
+    tree: [makeDirectory("src", [mainV4, devToolsV4])],
   }),
 }
 
