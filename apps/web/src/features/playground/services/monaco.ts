@@ -125,6 +125,19 @@ export class Monaco extends Context.Service<Monaco>()("app/Monaco", {
           (editor) => Effect.sync(() => editor.dispose()),
         )
 
+        yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            editor.addAction({
+              id: "format",
+              label: "Format",
+              keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+              run: () =>
+                editor.getAction("editor.action.formatDocument")?.run(),
+            }),
+          ),
+          (action) => Effect.sync(() => action.dispose()),
+        )
+
         /**
          * Loads the specified model into the editor.
          */

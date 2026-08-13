@@ -432,13 +432,6 @@ function setupWorkspaceFormatters(workspace: Workspace) {
     const toaster = yield* Toaster
     const container = yield* WebContainer
 
-    monaco.editor.addEditorAction({
-      id: "format",
-      label: "Format",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
-      run: (editor) => editor.getAction("editor.action.formatDocument")?.run(),
-    })
-
     const installedFormatters = new Map<string, InstalledFormatter>()
 
     yield* Effect.addFinalizer(() =>

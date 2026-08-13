@@ -251,9 +251,9 @@ export class WebContainer extends Context.Service<WebContainer>()(
        * Updates an existing file without recreating it if it was removed outside
        * the editor.
        */
-      function updateFile(path: string, content: string, language: string) {
+      function updateFile(path: string, content: string) {
         return readFileString(path).pipe(
-          Effect.andThen(writeFile(path, content, language)),
+          Effect.andThen(writeFileString(path, content)),
         )
       }
 
@@ -746,9 +746,9 @@ export class WebContainer extends Context.Service<WebContainer>()(
           workspace: workspaceRef,
           spawn: spawnInWorkspace,
           run: runInWorkspace,
-          writeFile: (path: string, content: string, language: string) =>
+          writeFile: (path: string, content: string, _language: string) =>
             mutationLock.withPermit(
-              updateFile(path, content, language).pipe(
+              updateFile(path, content).pipe(
                 Effect.tap(() =>
                   Effect.sync(() => localWrites.set(path, content)),
                 ),
