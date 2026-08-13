@@ -44,7 +44,7 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     id: "docs",
     kind: "internal",
     label: "Docs",
-    href: "/docs",
+    href: "/docs/v4",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
