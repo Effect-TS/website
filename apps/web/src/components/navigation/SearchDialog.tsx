@@ -184,8 +184,8 @@ const SEARCH_RESULT_GROUPS: ReadonlyArray<{
   readonly label: string
 }> = [
   { value: "documentation", label: "docs" },
-  { value: "blog", label: "blog" },
   { value: "api-reference", label: "api" },
+  { value: "blog", label: "blog" },
 ]
 const MAX_GROUP_RESULTS = 5
 
