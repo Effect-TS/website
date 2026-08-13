@@ -478,6 +478,7 @@ const mainV4 = makeFile(
   `import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 import { DevToolsLayer } from "./DevTools"
+import { LoggerLive } from "./Logger"
 
 const program = Effect.gen(function*() {
   yield* Effect.log("Welcome to the Effect v4 Playground!")
@@ -486,7 +487,8 @@ const program = Effect.gen(function*() {
 }))
 
 NodeRuntime.runMain(program.pipe(
-  Effect.provide(DevToolsLayer)
+  Effect.provide(DevToolsLayer),
+  Effect.provide(LoggerLive)
 ))
 `,
 )
@@ -524,6 +526,16 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 `,
 )
 
+const loggerV4 = makeFile(
+  "Logger.ts",
+  `import { Logger } from "effect"
+
+export const LoggerLive = Logger.layer([
+  Logger.consolePretty({ colors: true })
+])
+`,
+)
+
 /**
  * The v3 workspace keeps the pre-toggle name "playground" so existing
  * autosaves and share links keep working. The names must differ between
@@ -556,7 +568,7 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
     initialFilePath: "src/main.ts",
-    tree: [makeDirectory("src", [mainV4, devToolsV4])],
+    tree: [makeDirectory("src", [mainV4, devToolsV4, loggerV4])],
   }),
 }
 
