@@ -1069,17 +1069,22 @@ Effect.runFork(runnable)
 /*
 {
   _id: 'Cause',
-  _tag: 'Fail',
-  failure: {
-    _tag: 'SystemError',
-    reason: 'NotFound',
-    module: 'FileSystem',
-    method: 'readFile',
-    pathOrDescriptor: 'cache/my-key',
-    syscall: 'open',
-    message: "ENOENT: no such file or directory, open 'cache/my-key'",
-    [Symbol(@effect/platform/Error/PlatformErrorTypeId)]: Symbol(@effect/platform/Error/PlatformErrorTypeId)
-  }
+  failures: [
+    {
+      _tag: 'Fail',
+      error: {
+        _tag: 'PlatformError',
+        reason: {
+          _tag: 'NotFound',
+          module: 'FileSystem',
+          method: 'readFile',
+          pathOrDescriptor: 'cache/my-key',
+          syscall: 'open',
+          cause: [Error: ENOENT: no such file or directory, open 'cache/my-key']
+        }
+      }
+    }
+  ]
 }
 */
 ```
