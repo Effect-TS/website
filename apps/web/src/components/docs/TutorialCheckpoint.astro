@@ -1,0 +1,29 @@
+---
+import { Flag } from "@lucide/astro"
+
+interface Props {
+  number: number
+  total: number
+  title: string
+}
+
+const { number, total, title } = Astro.props
+---
+
+<section
+  class="not-prose my-8 rounded-lg border border-sky-200 bg-sky-50/60 p-5 dark:border-sky-900 dark:bg-sky-950/30"
+>
+  <div
+    class="flex items-center gap-2 text-xs font-semibold tracking-wider text-sky-700 uppercase dark:text-sky-300"
+  >
+    <Flag size={15} aria-hidden="true" />
+    <span>Checkpoint {number} of {total}</span>
+  </div>
+
+  <p class="mt-3 mb-0 text-base font-semibold text-zinc-950 dark:text-white">
+    {title}
+  </p>
+  <div class="mt-2 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+    <slot />
+  </div>
+</section>

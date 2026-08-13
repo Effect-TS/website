@@ -1,0 +1,148 @@
+---
+title: What's in it for me?
+description: See which production problems Effect solves in a TypeScript service and choose the tutorial that matches your problem.
+diataxis: explanation
+sidebar:
+  order: 1
+---
+
+**Effect is a TypeScript library for building applications that have to work in production.**
+
+It gives you one set of tools for errors, retries, timeouts, concurrency, cancellation, dependency injection, resource cleanup, validation, and tracing without assembling and coordinating a different library for every problem.
+
+Your service calls three APIs. One is slow, one returns invalid data, and the request is cancelled halfway through. You still need to stop the remaining work, retry only what makes sense, release every resource, preserve useful error information, and explain what happened in a trace.
+
+That is what Effect is for.
+
+## The difficult part is coordination
+
+Calling one API from TypeScript is easy. Keeping the complete operation correct as requirements accumulate is where production code becomes difficult.
+
+A conventional implementation may coordinate:
+
+- rejected Promises and thrown exceptions;
+- HTTP status handling and response validation;
+- retry helpers and timers;
+- `AbortController` instances;
+- a concurrency limiter;
+- `try`/`finally` cleanup;
+- dependency wiring;
+- manual trace start, propagation, and completion.
+
+Each tool can be reasonable by itself. The risk lives in the connections: does a timeout abort the request, does a retry preserve cancellation, does cleanup run after interruption, and can the caller see which failures remain possible?
+
+Effect keeps those concerns attached to the operation as it is built.
+
+The following declaration shows the type of one order operation, not its
+implementation. `placeOrder` describes work that can produce an accepted
+order, fail in two expected ways, and still need two external services before
+it can run. TypeScript can see all three facts in one `Effect.Effect` type:
+
+```ts title="The type of an order operation"
+import { Effect } from "effect"
+
+declare const placeOrder: Effect.Effect<
+  AcceptedOrder,
+  InventoryUnavailable | PaymentDeclined,
+  Inventory | Payment
+>
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+}
+
+declare class InventoryUnavailable {
+  readonly _tag: "InventoryUnavailable"
+}
+
+declare class PaymentDeclined {
+  readonly _tag: "PaymentDeclined"
+}
+
+declare class Inventory {
+  readonly _tag: "Inventory"
+}
+
+declare class Payment {
+  readonly _tag: "Payment"
+}
+```
+
+Read the type from left to right:
+
+- the operation can produce an `AcceptedOrder`;
+- it can fail with `InventoryUnavailable` or `PaymentDeclined`;
+- it still requires `Inventory` and `Payment`.
+
+As operations are combined, TypeScript keeps updating that information. At the application boundary, you supply the remaining services and choose how the program runs.
+
+## What changes in day-to-day work
+
+### Failures become explicit
+
+Thrown values and Promise rejections normally reach `catch` as `unknown`. Effect
+keeps expected failures visible in the operation's type, so each failure can
+have an explicit retry, timeout, or HTTP response decision.
+
+### Structured concurrency is built in
+
+Concurrency limits, ordered results, timeouts, cancellation, and failure
+propagation belong to the same runtime. If the complete operation stops, its
+unfinished work stops too.
+
+### Resources follow operation lifetimes
+
+Effect ties cleanup to the work that uses a resource. Cleanup runs when that
+work succeeds, fails, or is cancelled, without manually coordinating
+`try`/`finally` blocks and cancellation signals.
+
+### Rich domain models cross JSON boundaries
+
+Schema can derive a JSON representation for clients that share the same domain
+description. When an external contract fixes that representation, its encoding
+can be defined explicitly without changing the domain model.
+
+### Dependencies stay explicit without manual wiring
+
+An operation's type records the services it requires. Their implementations
+are selected in one place at the application boundary, so dependencies stay
+visible without passing them through every intermediate function.
+
+### AI-generated code faces precise constraints
+
+Effect's precise types make plausible but incorrect code harder to express.
+Effect-aware developer tools identify suspicious code that still gets through.
+
+### OpenTelemetry instrumentation follows the code
+
+Named Effect functions create spans whose lifetimes and parent-child
+relationships follow the operations they describe. Concurrency, failures, and
+cancellation remain connected without manual tracing context propagation.
+
+## Find the tutorial for your problem
+
+Each tutorial uses a small order-processing backend as a concrete example. The
+scenario provides context, while the focus remains on one common problem and
+the solution Effect offers.
+
+[Explore the shared tutorial scenario](/docs/v4/tutorials/introduction) to see
+the backend architecture and where each tutorial applies its solution.
+
+### When production gets messy
+
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Keep concurrent work under control](/docs/v4/tutorials/keep-concurrent-work-under-control)
+- [Clean up resources reliably](/docs/v4/tutorials/clean-up-resources-reliably)
+
+### When the pieces need to fit together
+
+- [Send rich domain models over the wire](/docs/v4/tutorials/send-rich-domain-models-over-the-wire)
+- [Keep dependencies explicit without manual wiring](/docs/v4/tutorials/keep-dependencies-explicit-without-manual-wiring)
+
+### When the team ships and operates
+
+- [Catch AI slop before it ships](/docs/v4/tutorials/catch-ai-slop-before-it-ships)
+- [Instrument applications for OpenTelemetry without the plumbing](/docs/v4/tutorials/instrument-applications-for-opentelemetry-without-the-plumbing)
+
+You do not need to read these in order. Each tutorial starts with a working, independent program and ends with a result you can inspect.
