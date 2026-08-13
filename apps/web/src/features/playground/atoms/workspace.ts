@@ -14,7 +14,7 @@ import * as Atom from "effect/unstable/reactivity/Atom"
 import {
   Directory,
   File,
-  defaultWorkspace,
+  makeDefaultWorkspace,
   Workspace,
   WorkspaceTerminal,
 } from "../domain/workspace"
@@ -195,6 +195,10 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
       const resetContent = Atom.fn<void>()(
         Effect.fnUntraced(function* (_, get) {
           const currentWorkspace = get(handle.workspace)
+          // Switching versions is handled by `switchVersionAtom`.
+          const defaultWorkspace = makeDefaultWorkspace(
+            currentWorkspace.effectVersion,
+          )
           const resetWorkspace = new Workspace({
             name: currentWorkspace.name,
             tree: defaultWorkspace.tree,

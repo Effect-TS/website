@@ -11,6 +11,21 @@ import * as Schema from "effect/Schema"
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
 
+export const EffectVersion = Schema.Literals(["v3", "v4"])
+export type EffectVersion = typeof EffectVersion.Type
+
+export const defaultVersion: EffectVersion = "v4"
+
+/**
+ * Unversioned `?code` links predate the version toggle and contain v3 source.
+ * Keep them on v3 even though new, empty playgrounds default to v4.
+ */
+export function effectVersionForCodeLink(
+  version: Option.Option<EffectVersion>,
+): EffectVersion {
+  return Option.getOrElse(version, () => "v3" as const)
+}
+
 export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
   "WorkspaceShell",
 )({
@@ -228,13 +243,40 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       Option.getOrThrow,
     )
   }
+  /**
+   * Total even for a user-edited `package.json`: invalid JSON (e.g. mid-edit
+   * autosave snapshots) or a missing `dependencies` key yield `{}`.
+   */
   get dependencies(): Record<string, string> {
-    const parse = Option.liftNullishOr(JSON.parse)
     return this.findFile("package.json").pipe(
-      Option.flatMap(([file]) => parse(file.initialContent)),
-      Option.map((json) => json.dependencies),
+      Option.flatMap(([file]) => {
+        try {
+          return Option.fromNullishOr(
+            JSON.parse(file.initialContent).dependencies,
+          )
+        } catch {
+          return Option.none()
+        }
+      }),
       Option.getOrElse(() => ({})),
     )
+  }
+  /**
+   * The Effect major version this workspace runs on, derived from the `effect`
+   * entry in `package.json`. Handles the published v4 dist-tags (`rc`, `beta`),
+   * exact versions written back by `pnpm install -E`, and ranges.
+   * `latest` and missing entries map to v3, the version the playground shipped
+   * with before the toggle existed.
+   */
+  get effectVersion(): EffectVersion {
+    const effect = this.dependencies["effect"]
+    if (effect === undefined) {
+      return "v3"
+    }
+    if (effect === "rc" || effect === "beta") {
+      return "v4"
+    }
+    return /^\D*4(\.|$)/.test(effect) ? "v4" : "v3"
   }
   pathTo(file: File | Directory) {
     return Option.fromNullishOr(this.filePaths.get(file))
@@ -412,7 +454,7 @@ function filterMapTree(
   return out
 }
 
-export const main = makeFile(
+const mainV3 = makeFile(
   "main.ts",
   `import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
@@ -431,7 +473,34 @@ program.pipe(
 `,
 )
 
-const devTools = makeFile(
+const mainV4 = makeFile(
+  "main.ts",
+  `import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+import { DevToolsLayer } from "./DevTools"
+
+const program = Effect.gen(function*() {
+  yield* Effect.log("Welcome to the Effect v4 Playground!")
+}).pipe(Effect.withSpan("program", {
+  attributes: { source: "Playground" }
+}))
+
+NodeRuntime.runMain(program.pipe(
+  Effect.provide(DevToolsLayer)
+))
+`,
+)
+
+const defaultMainFiles: Record<EffectVersion, File> = {
+  v3: mainV3,
+  v4: mainV4,
+}
+
+export function defaultMainFile(version: EffectVersion): File {
+  return defaultMainFiles[version]
+}
+
+const devToolsV3 = makeFile(
   "DevTools.ts",
   `import { DevTools } from "@effect/experimental"
 import { NodeSocket } from "@effect/platform-node"
@@ -443,21 +512,54 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 `,
 )
 
-export const defaultWorkspace = Workspace.new({
-  name: "playground",
-  dependencies: {
-    "@effect/experimental": "latest",
-    "@effect/platform": "latest",
-    "@effect/platform-node": "latest",
-    "@types/node": "latest",
-    effect: "latest",
-    typescript: "6.0.2",
-  },
-  shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
-  initialFilePath: "src/main.ts",
-  tree: [makeDirectory("src", [main, devTools])],
-})
+const devToolsV4 = makeFile(
+  "DevTools.ts",
+  `import { NodeSocket } from "@effect/platform-node"
+import { DevTools } from "effect/unstable/devtools"
+import { Layer } from "effect"
 
-export function makeDefaultWorkspace() {
-  return defaultWorkspace
+export const DevToolsLayer = DevTools.layerSocket.pipe(
+  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
+)
+`,
+)
+
+/**
+ * The v3 workspace keeps the pre-toggle name "playground" so existing
+ * autosaves and share links keep working. The names must differ between
+ * versions: switching swaps the workspace handle, and the outgoing handle's
+ * unmount would otherwise delete the directory the incoming handle just
+ * mounted.
+ */
+const defaultWorkspaces: Record<EffectVersion, Workspace> = {
+  v3: Workspace.new({
+    name: "playground",
+    dependencies: {
+      "@effect/experimental": "latest",
+      "@effect/platform": "latest",
+      "@effect/platform-node": "latest",
+      "@types/node": "latest",
+      effect: "latest",
+      typescript: "6.0.2",
+    },
+    shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
+    initialFilePath: "src/main.ts",
+    tree: [makeDirectory("src", [mainV3, devToolsV3])],
+  }),
+  v4: Workspace.new({
+    name: "playground-v4",
+    dependencies: {
+      "@effect/platform-node": "rc",
+      "@types/node": "latest",
+      effect: "rc",
+      typescript: "6.0.2",
+    },
+    shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
+    initialFilePath: "src/main.ts",
+    tree: [makeDirectory("src", [mainV4, devToolsV4])],
+  }),
+}
+
+export function makeDefaultWorkspace(version: EffectVersion): Workspace {
+  return defaultWorkspaces[version]
 }

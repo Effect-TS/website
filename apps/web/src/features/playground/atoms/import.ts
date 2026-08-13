@@ -7,8 +7,10 @@ import * as Atom from "effect/unstable/reactivity/Atom"
 import { ShortenClient } from "@/services/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import {
-  defaultWorkspace,
-  main,
+  defaultVersion,
+  defaultMainFile,
+  EffectVersion,
+  effectVersionForCodeLink,
   makeDefaultWorkspace,
   makeFile,
   Workspace,
@@ -29,31 +31,118 @@ const codeAtom = Atom.searchParam("code", {
   schema: Schema.StringFromBase64Url.pipe(Schema.check(Schema.isNonEmpty())),
 })
 
-export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
-  autoSaveRuntime.atom(
-    Effect.fnUntraced(function* (get) {
-      const workspace = get(handle.workspaceAtom)
-      const container = yield* WebContainer
-      const compression = yield* WorkspaceCompression
-      yield* compression.snapshot(workspace, container.readFileString).pipe(
-        Effect.map((snapshot) => {
-          const unchanged =
-            snapshot.isUnchangedFrom(defaultWorkspace) ||
-            snapshot.isUnchangedFrom(handle.initialWorkspace)
+/**
+ * Optional `?version` parameter targeting a specific Effect version, e.g. on
+ * `?code` links from the docs.
+ */
+const versionParamAtom = Atom.searchParam("version", {
+  schema: EffectVersion,
+})
 
-          if (unchanged) {
-            return
-          }
+const localStorageRuntime = Atom.runtime(BrowserKeyValueStore.layerLocalStorage)
 
-          get.set(autoSaveWorkspaceAtom, Option.some(snapshot))
-        }),
-        Effect.andThen(Effect.sleep("2 seconds")),
-        Effect.forever,
-        Effect.forkScoped,
-      )
-    }, Effect.tapCause(Effect.logError)),
-  ),
-)
+export const EFFECT_VERSION_KEY = "playground-effect-version"
+
+/**
+ * The user's last explicitly selected Effect version. Only consulted when
+ * nothing else (share hash, `?code`, autosave) determines the workspace.
+ */
+const versionPreferenceAtom = Atom.kvs({
+  runtime: localStorageRuntime,
+  key: EFFECT_VERSION_KEY,
+  schema: EffectVersion,
+  defaultValue: () => defaultVersion,
+})
+
+/**
+ * Set when the user switches versions in the current session. Read first by
+ * `importAtom`, so setting it deterministically swaps the workspace for the
+ * selected version's default one. It stays set (switching is an explicit
+ * "reset to this version"), so later in-page hash or `?code` changes only take
+ * effect after a reload.
+ */
+const versionOverrideAtom = Atom.make(Option.none<EffectVersion>())
+
+export const WORKSPACE_AUTOSAVE_KEY = "workspace-autosave"
+
+const autoSaveWorkspaceAtom = Atom.kvs({
+  runtime: localStorageRuntime,
+  key: WORKSPACE_AUTOSAVE_KEY,
+  schema: Schema.Option(Workspace),
+  defaultValue: Option.none,
+})
+
+/**
+ * Switches the playground to the given Effect version by resetting to that
+ * version's default workspace. Like `resetAtom`, this drops the current
+ * share hash / `?code` parameter and the autosave.
+ */
+export const switchVersionAtom = Atom.fnSync((version: EffectVersion, get) => {
+  window.history.replaceState(
+    window.history.state,
+    "",
+    window.location.pathname,
+  )
+  get.set(autoSaveWorkspaceAtom, Option.none())
+  get.set(versionPreferenceAtom, version)
+  get.set(versionOverrideAtom, Option.some(version))
+})
+
+export function makeAutoSaveAtom(options: {
+  readonly runtime: typeof autoSaveRuntime
+  readonly versionOverrideAtom: Atom.Atom<Option.Option<EffectVersion>>
+  readonly autoSaveWorkspaceAtom: Atom.Writable<
+    Option.Option<Workspace>,
+    Option.Option<Workspace>
+  >
+}) {
+  return Atom.family((handle: AtomWorkspaceHandle) =>
+    options.runtime.atom(
+      Effect.fnUntraced(function* (get) {
+        const workspace = get(handle.workspaceAtom)
+        const container = yield* WebContainer
+        const compression = yield* WorkspaceCompression
+        yield* compression.snapshot(workspace, container.readFileString).pipe(
+          Effect.map((snapshot) => {
+            const unchanged =
+              snapshot.isUnchangedFrom(
+                makeDefaultWorkspace(snapshot.effectVersion),
+              ) || snapshot.isUnchangedFrom(handle.initialWorkspace)
+
+            // After a version switch this loop keeps ticking for the outgoing
+            // handle until it unmounts; saving then would resurrect the old
+            // workspace on the next load.
+            // A user can edit package.json after mounting, so identify the
+            // outgoing handle by its immutable initial version.
+            const stale = get
+              .once(options.versionOverrideAtom)
+              .pipe(
+                Option.exists(
+                  (version) =>
+                    version !== handle.initialWorkspace.effectVersion,
+                ),
+              )
+
+            if (unchanged || stale) {
+              return
+            }
+
+            get.set(options.autoSaveWorkspaceAtom, Option.some(snapshot))
+          }),
+          Effect.andThen(Effect.sleep("2 seconds")),
+          Effect.forever,
+          Effect.forkScoped,
+        )
+      }, Effect.tapCause(Effect.logError)),
+    ),
+  )
+}
+
+export const autoSaveAtom = makeAutoSaveAtom({
+  runtime: autoSaveRuntime,
+  versionOverrideAtom,
+  autoSaveWorkspaceAtom,
+})
 
 export const resetAtom = Atom.fnSync((handle: AtomWorkspaceHandle, get) => {
   window.history.replaceState(
@@ -63,15 +152,6 @@ export const resetAtom = Atom.fnSync((handle: AtomWorkspaceHandle, get) => {
   )
   get.set(autoSaveWorkspaceAtom, Option.none())
   get.set(handle.resetContent, undefined)
-})
-
-export const WORKSPACE_AUTOSAVE_KEY = "workspace-autosave"
-
-const autoSaveWorkspaceAtom = Atom.kvs({
-  runtime: Atom.runtime(BrowserKeyValueStore.layerLocalStorage),
-  key: WORKSPACE_AUTOSAVE_KEY,
-  schema: Schema.Option(Workspace),
-  defaultValue: Option.none,
 })
 
 /**
@@ -109,12 +189,23 @@ function fromCode(get: Atom.FnContext): Option.Option<Workspace> {
     return Option.none()
   }
 
+  const version = effectVersionForCodeLink(get(versionParamAtom))
   const node = makeFile("main.ts", code.value, false)
-  return Option.some(defaultWorkspace.replaceNode(main, node))
+  return Option.some(
+    makeDefaultWorkspace(version).replaceNode(defaultMainFile(version), node),
+  )
 }
 
 export const importAtom = runtime.atom(
   Effect.fnUntraced(function* (get) {
+    const override = get(versionOverrideAtom)
+    if (Option.isSome(override)) {
+      yield* Effect.logInfo(
+        `Playground: switched to the Effect ${override.value} workspace`,
+      )
+      return makeDefaultWorkspace(override.value)
+    }
+
     const hash = yield* fromHash(get)
     if (Option.isSome(hash)) {
       yield* Effect.logInfo("Playground: loaded workspace from the URL hash")
@@ -137,9 +228,12 @@ export const importAtom = runtime.atom(
       return autoSaved.value
     }
 
-    yield* Effect.logInfo(
-      "Playground: no saved workspace found, loading the default workspace",
+    const version = Option.getOrElse(get(versionParamAtom), () =>
+      get.once(versionPreferenceAtom),
     )
-    return makeDefaultWorkspace()
+    yield* Effect.logInfo(
+      `Playground: no saved workspace found, loading the default ${version} workspace`,
+    )
+    return makeDefaultWorkspace(version)
   }),
 )
