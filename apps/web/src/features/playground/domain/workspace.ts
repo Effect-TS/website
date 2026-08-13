@@ -21,18 +21,9 @@ export const defaultVersion: EffectVersion = "v4"
  * Keep them on v3 even though new, empty playgrounds default to v4.
  */
 export function effectVersionForCodeLink(
-  version: EffectVersion | undefined,
+  version: Option.Option<EffectVersion>,
 ): EffectVersion {
-  return version ?? "v3"
-}
-
-export function isStaleWorkspaceHandle(
-  selectedVersion: EffectVersion | undefined,
-  handleInitialVersion: EffectVersion,
-): boolean {
-  return (
-    selectedVersion !== undefined && selectedVersion !== handleInitialVersion
-  )
+  return Option.getOrElse(version, () => "v3" as const)
 }
 
 export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
@@ -272,17 +263,22 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   }
   /**
    * The Effect major version this workspace runs on, derived from the `effect`
-   * entry in `package.json`. Handles dist-tags (`rc`, `beta`, `next`), exact
-   * versions written back by `pnpm install -E`, and ranges. `latest` and
-   * missing entries map to v3, the version the playground shipped with before
-   * the toggle existed.
+   * entry in `package.json`. Handles the published v4 dist-tags (`rc`, `beta`,
+   * `snapshot`), exact versions written back by `pnpm install -E`, and ranges.
+   * `latest` and missing entries map to v3, the version the playground shipped
+   * with before the toggle existed.
    */
   get effectVersion(): EffectVersion {
     const effect = this.dependencies["effect"]
     if (effect === undefined) {
       return "v3"
     }
-    if (effect === "rc" || effect === "beta" || effect === "next") {
+    if (
+      effect === "rc" ||
+      effect === "beta" ||
+      effect === "snapshot" ||
+      /^0\.0\.0-snapshot-/.test(effect)
+    ) {
       return "v4"
     }
     return /^\D*4(\.|$)/.test(effect) ? "v4" : "v3"
