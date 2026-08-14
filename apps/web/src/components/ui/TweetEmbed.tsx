@@ -4,6 +4,21 @@ interface TweetEmbedProps {
   tweetId: string
 }
 
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="1em"
+      height="1em"
+      viewBox="0 0 640 640"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M453.2 112h70.6L369.6 288.2L551 528H409L297.7 382.6L170.5 528H99.8l164.9-188.5L90.8 112h145.6l100.5 132.9zm-24.8 373.8h39.1L215.1 152h-42z" />
+    </svg>
+  )
+}
+
 declare global {
   interface Window {
     twttr?: {
@@ -117,7 +132,7 @@ export function TweetEmbed({ tweetId }: TweetEmbedProps) {
       {!loaded && !error && (
         <div className="flex min-h-[200px] items-center justify-center">
           <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <i className="ri-twitter-x-line text-base" />
+            <XIcon className="text-base" />
             Loading tweet...
           </div>
         </div>
@@ -136,7 +151,7 @@ export function TweetEmbed({ tweetId }: TweetEmbedProps) {
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
           >
-            <i className="ri-twitter-x-line text-base" />
+            <XIcon className="text-base" />
             View on X
           </a>
         </div>
