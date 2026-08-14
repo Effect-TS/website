@@ -3,6 +3,7 @@ import react from "@astrojs/react"
 import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
+import icon from "astro-icon"
 import {
   defineConfig,
   envField,
@@ -83,7 +84,7 @@ const config = defineConfig({
     },
   },
 
-  integrations: [expressiveCode(), react(), mdx()],
+  integrations: [expressiveCode(), react(), mdx(), icon()],
 
   fonts: [
     {
