@@ -719,6 +719,19 @@ const FAQ_COLUMNS = [
   <SectionDivider />
 
   <EnjoyEffectDaysCTA />
+
+  <script>
+    document.querySelectorAll<HTMLButtonElement>("[data-faq-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const isOpen = button.getAttribute("aria-expanded") === "true"
+        button.setAttribute("aria-expanded", String(!isOpen))
+        button
+          .closest("[data-faq-row]")
+          ?.querySelector<HTMLElement>(".faq-panel")
+          ?.classList.toggle("is-open", !isOpen)
+      })
+    })
+  </script>
 </EffectDaysLayout>
 
 <style is:global>
@@ -769,16 +782,3 @@ const FAQ_COLUMNS = [
     text-decoration-color: transparent;
   }
 </style>
-
-<script>
-  document.querySelectorAll<HTMLButtonElement>("[data-faq-toggle]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const isOpen = button.getAttribute("aria-expanded") === "true"
-      button.setAttribute("aria-expanded", String(!isOpen))
-      button
-        .closest("[data-faq-row]")
-        ?.querySelector<HTMLElement>(".faq-panel")
-        ?.classList.toggle("is-open", !isOpen)
-    })
-  })
-</script>
