@@ -127,6 +127,18 @@ const config = defineConfig({
   redirects: {
     ...twieRedirectList,
     ...docsLegacyRedirectList,
+    "/events/effect-days": {
+      status: 308,
+      destination: "/effect-days",
+    },
+    "/events/effect-days/about-livorno": {
+      status: 308,
+      destination: "/effect-days/about-livorno",
+    },
+    "/events/effect-days/refund-policy": {
+      status: 308,
+      destination: "/effect-days/refund-policy",
+    },
     "/adoption-partners": {
       status: 307,
       destination: "/adoption-partners/ziverge",
