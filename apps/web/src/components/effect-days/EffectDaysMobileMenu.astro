@@ -1,0 +1,133 @@
+---
+import { Menu, X } from "@lucide/astro"
+import { cn } from "@/lib/utils"
+
+/**
+ * Mobile menu for the Effect Days navbar: a toggle button plus a full-width
+ * panel that drops below the bar. Interactivity is scoped to this element (the
+ * `effect-mobile-menu` pattern from the main site nav) so the navbar itself
+ * stays a plain, static wrapper.
+ */
+interface Props {
+  readonly links: ReadonlyArray<{ href: string; label: string }>
+  readonly activePath?: string | undefined
+}
+
+const { links, activePath } = Astro.props
+
+const isActive = (href: string): boolean => {
+  if (href.includes("#")) return false
+  if (href === "/effect-days") return activePath === "/effect-days"
+  return Boolean(activePath?.startsWith(href))
+}
+---
+
+{
+  /* flex (not the custom element's inline default) so the button lays out; lg:hidden retires it on desktop */
+}
+<effect-days-mobile-menu class="flex items-center lg:hidden">
+  <button
+    type="button"
+    data-role="toggle"
+    aria-label="Open menu"
+    aria-expanded="false"
+    aria-controls="effect-days-mobile-panel"
+    class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+  >
+    <Menu data-role="icon-open" class="h-6 w-6" aria-hidden="true" />
+    <X data-role="icon-close" class="hidden h-6 w-6" aria-hidden="true" />
+  </button>
+
+  {
+    /* top-full resolves against the sticky nav wrapper, so the drop point tracks
+      the banner+bar height with no hardcoded offset. */
+  }
+  <div
+    id="effect-days-mobile-panel"
+    data-role="panel"
+    class="fixed inset-x-0 top-full z-90 hidden border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
+  >
+    <ul class="mx-auto w-full max-w-352 px-4 py-3">
+      {
+        links.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              data-role="link"
+              aria-current={isActive(link.href) ? "page" : undefined}
+              class={cn(
+                "block py-3 text-sm font-medium text-zinc-400 no-underline transition-colors hover:text-white",
+                isActive(link.href) && "text-white",
+              )}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</effect-days-mobile-menu>
+
+<script>
+  class EffectDaysMobileMenuElement extends HTMLElement {
+    #toggle: HTMLButtonElement | null = null
+    #iconOpen: SVGElement | null = null
+    #iconClose: SVGElement | null = null
+    #panel: HTMLElement | null = null
+    #open = false
+
+    connectedCallback() {
+      this.#toggle = this.querySelector("[data-role='toggle']")
+      this.#iconOpen = this.querySelector("[data-role='icon-open']")
+      this.#iconClose = this.querySelector("[data-role='icon-close']")
+      this.#panel = this.querySelector("[data-role='panel']")
+
+      if (!(this.#toggle instanceof HTMLButtonElement)) return
+      if (!(this.#panel instanceof HTMLElement)) return
+
+      this.#toggle.addEventListener("click", this.#onToggle)
+      this.#panel.querySelectorAll("[data-role='link']").forEach((link) => {
+        link.addEventListener("click", this.#onLinkClick)
+      })
+      document.addEventListener("mousedown", this.#onOutsidePointer)
+      document.addEventListener("keydown", this.#onKeyDown)
+    }
+
+    disconnectedCallback() {
+      this.#toggle?.removeEventListener("click", this.#onToggle)
+      this.#panel?.querySelectorAll("[data-role='link']").forEach((link) => {
+        link.removeEventListener("click", this.#onLinkClick)
+      })
+      document.removeEventListener("mousedown", this.#onOutsidePointer)
+      document.removeEventListener("keydown", this.#onKeyDown)
+    }
+
+    #setOpen = (open: boolean) => {
+      if (!this.#toggle || !this.#panel) return
+      this.#open = open
+      this.#toggle.setAttribute("aria-expanded", String(open))
+      this.#toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu")
+      this.#iconOpen?.classList.toggle("hidden", open)
+      this.#iconClose?.classList.toggle("hidden", !open)
+      this.#panel.classList.toggle("hidden", !open)
+    }
+
+    #onToggle = () => this.#setOpen(!this.#open)
+    #onLinkClick = () => this.#setOpen(false)
+
+    #onOutsidePointer = (event: MouseEvent) => {
+      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
+        this.#setOpen(false)
+      }
+    }
+
+    #onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && this.#open) this.#setOpen(false)
+    }
+  }
+
+  if (!customElements.get("effect-days-mobile-menu")) {
+    customElements.define("effect-days-mobile-menu", EffectDaysMobileMenuElement)
+  }
+</script>

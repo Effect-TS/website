@@ -1,0 +1,20 @@
+---
+/**
+ * The four corner-bracket marks drawn inside a `relative` tile. When the tile
+ * is a `group`, the brackets light up on hover; on a static tile the hover
+ * rule simply never fires. `dim` is the quieter tone for the empty sponsor
+ * slot.
+ */
+interface Props {
+  readonly tone?: "default" | "dim" | undefined
+}
+
+const { tone = "default" } = Astro.props
+const border = tone === "dim" ? "border-zinc-800" : "border-zinc-700"
+const base = "absolute h-3 w-3 transition-colors duration-200 group-hover:border-white"
+---
+
+<span class:list={[base, border, "top-0 left-0 border-t border-l"]}></span>
+<span class:list={[base, border, "top-0 right-0 border-t border-r"]}></span>
+<span class:list={[base, border, "bottom-0 left-0 border-b border-l"]}></span>
+<span class:list={[base, border, "right-0 bottom-0 border-r border-b"]}></span>

@@ -1,0 +1,29 @@
+---
+/**
+ * Section eyebrow + title, with an optional subtitle passed as the default
+ * slot (so it can carry inline markup like a `<br>`). Callers that place links
+ * beside the header wrap this in their own grid and drop the subtitle.
+ */
+interface Props {
+  readonly eyebrow: string
+  readonly title: string
+  readonly class?: string | undefined
+}
+
+const { eyebrow, title, class: className } = Astro.props
+const hasSubtitle = Astro.slots.has("default")
+---
+
+<div class:list={[className]}>
+  <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+    {"// "}{eyebrow}
+  </p>
+  <h2 class="leading-tighter text-2xl font-bold text-white md:text-3xl">{title}</h2>
+  {
+    hasSubtitle && (
+      <p class="mt-4 text-lg text-zinc-400">
+        <slot />
+      </p>
+    )
+  }
+</div>

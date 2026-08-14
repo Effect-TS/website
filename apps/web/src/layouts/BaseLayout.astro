@@ -148,6 +148,16 @@ const canonicalUrl = new URL(pagePathname, Astro.site)
       }}
       {...description ? { description } : undefined}
     />
+
+    {/* Hide the announcement banner before first paint for a visitor who
+        dismissed it, so it never flashes. Shown by default otherwise. */}
+    <script is:inline>
+      try {
+        if (localStorage.getItem("effect-days-2026-banner-dismissed")) {
+          document.documentElement.classList.add("announcement-dismissed")
+        }
+      } catch (_) {}
+    </script>
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased">
     <SkipLink />

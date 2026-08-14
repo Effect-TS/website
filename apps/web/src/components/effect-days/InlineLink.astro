@@ -1,0 +1,26 @@
+---
+import type { HTMLAttributes } from "astro/types"
+import { cn } from "@/lib/utils"
+
+/**
+ * Inline link inside body copy: underlined on a dark background, the underline
+ * fading on hover. External `http(s)` targets open in a new tab; `mailto:`,
+ * `tel:` and in-site links stay in place.
+ */
+interface Props extends HTMLAttributes<"a"> {
+  readonly href: string
+}
+
+const { class: className, href, ...props } = Astro.props
+const isExternal = href.startsWith("http")
+---
+
+<a
+  href={href}
+  class={cn(
+    "text-zinc-200 no-underline underline decoration-zinc-400 underline-offset-4 transition-colors duration-200 hover:text-white hover:decoration-transparent",
+    className,
+  )}
+  {...isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {}}
+  {...props}><slot /></a
+>

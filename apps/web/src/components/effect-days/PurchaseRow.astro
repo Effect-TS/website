@@ -1,0 +1,35 @@
+---
+import { ArrowUpRight } from "@lucide/astro"
+
+/**
+ * A full-width purchase row inside a ticket card: the payer label, the struck
+ * regular price, and the early-bird price, with a trailing arrow that marks
+ * the row as leaving for Stripe.
+ */
+interface Props {
+  readonly href: string
+  readonly label: string
+  readonly regular: string
+  readonly earlyBird: string
+  readonly ariaLabel: string
+}
+
+const { href, label, regular, earlyBird, ariaLabel } = Astro.props
+---
+
+<a
+  href={href}
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label={ariaLabel}
+  class="inline-flex w-full cursor-pointer items-center justify-between gap-2 rounded-md inset-ring inset-ring-zinc-500 bg-zinc-900/50 px-4 py-4 text-base font-medium text-white transition-all hover:bg-zinc-800 hover:inset-ring-zinc-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:px-6"
+>
+  <span class="flex items-baseline gap-2">
+    {label}
+    {/* The separator sits back from the words it divides. */}
+    <span class="text-zinc-600" aria-hidden="true">·</span>
+    <span class="text-sm text-zinc-400 line-through">{regular}</span>
+    <span class="text-base font-semibold">{earlyBird}</span>
+  </span>
+  <ArrowUpRight class="shrink-0 text-zinc-400" aria-hidden="true" />
+</a>

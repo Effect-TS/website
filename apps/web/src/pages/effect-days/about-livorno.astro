@@ -1,0 +1,520 @@
+---
+import { Image } from "astro:assets"
+import { ArrowUpRight, Clock, Download, LifeBuoy, MapPin, Palette, Sun } from "@lucide/astro"
+import EffectDaysLayout from "@/layouts/EffectDaysLayout.astro"
+import SectionDivider from "@/components/layout/SectionDivider.astro"
+import Section from "@/components/effect-days/Section.astro"
+import SectionHeader from "@/components/effect-days/SectionHeader.astro"
+import Card from "@/components/effect-days/Card.astro"
+import CentreLine from "@/components/effect-days/CentreLine.astro"
+import InlineLink from "@/components/effect-days/InlineLink.astro"
+import BackToEffectDays from "@/components/effect-days/BackToEffectDays.astro"
+import EnjoyEffectDaysCTA from "@/components/effect-days/EnjoyEffectDaysCTA.astro"
+
+import livorno1 from "@/assets/effect-days/livorno-1.avif"
+import livorno6 from "@/assets/effect-days/livorno-6.avif"
+import livornoAcquario from "@/assets/effect-days/livorno-acquario.avif"
+import livornoFortezza from "@/assets/effect-days/livorno-fortezza.avif"
+import livornoLungomare from "@/assets/effect-days/livorno-lungomare.avif"
+import livornoMercato from "@/assets/effect-days/livorno-mercato.avif"
+import livornoTerrazza from "@/assets/effect-days/livorno-terrazza.avif"
+import livornoVeneziaNuova from "@/assets/effect-days/livorno-venezia-nuova.avif"
+import eatCacciucco from "@/assets/effect-days/eat-cacciucco.avif"
+import eatCecina from "@/assets/effect-days/eat-cecina.webp"
+import eatCinqueECinque from "@/assets/effect-days/eat-cinque-e-cinque.avif"
+import eatFratiFritti from "@/assets/effect-days/eat-frati-fritti.avif"
+import eatPonce from "@/assets/effect-days/eat-ponce.avif"
+import eatTriglie from "@/assets/effect-days/eat-triglie.avif"
+
+const NAV_ANCHORS = [
+  { href: "#airports", label: "Nearest airports" },
+  { href: "#transport", label: "Local transport" },
+  { href: "#tips", label: "Practical tips" },
+  { href: "#see", label: "What to see" },
+  { href: "#do", label: "Things to do" },
+  { href: "#eat", label: "What to eat" },
+]
+
+/* Shared scale for the distance tracks, slightly past Rome so its marker
+   stays inside the card. */
+const DISTANCE_SCALE_KM = 320
+
+const AIRPORTS: Array<{
+  name: string
+  distance: string
+  km: number
+  intro: string
+  train: string
+  car: string
+  bus?: string
+}> = [
+  {
+    name: "Pisa · PSA",
+    distance: "~20 km from Livorno",
+    km: 20,
+    intro: "The closest airport.",
+    train:
+      "Take the Pisamover shuttle from Pisa Airport to Pisa Centrale, then a direct train to Livorno Centrale.",
+    car: "Around 20-25 minutes by taxi or private car.",
+  },
+  {
+    name: "Florence · FLR",
+    distance: "~90 km from Livorno",
+    km: 90,
+    intro: "A good range of European flights.",
+    train:
+      "Take the shuttle bus or tram to Florence SMN Station, then a train to Livorno Centrale. Total journey time is about 2 hours.",
+    car: "Around 1.5 hours by taxi or private car.",
+  },
+  {
+    name: "Bologna · BLQ",
+    distance: "~180 km from Livorno",
+    km: 180,
+    intro: "Well-connected to major European cities.",
+    train:
+      "The Marconi Express takes you to Bologna Centrale, then a train to Florence SMN, then a train to Livorno Centrale. All in ~2.5 hours.",
+    car: "Around 2 hours by taxi or private car.",
+  },
+  {
+    name: "Rome · FCO",
+    distance: "~300 km from Livorno",
+    km: 300,
+    intro: "Widest choice of international flights.",
+    train:
+      "Take the Leonardo Express to Roma Termini, then a direct train to Livorno Centrale along the coast. Total journey time is about 3.5 hours.",
+    car: "Around 3.5 hours by taxi or private car.",
+    bus: `FlixBus runs direct buses to Livorno in about 4 hours.`,
+  },
+]
+
+const SIGHTS = [
+  {
+    title: "Terrazza Mascagni",
+    description:
+      "One of the most iconic spots in Livorno, Terrazza Mascagni is a beautiful seafront promenade offering breathtaking views of the Tyrrhenian Sea. A perfect place for a leisurely stroll, especially at sunset.",
+    image: livornoTerrazza,
+    mapQuery: "Terrazza+Mascagni+Livorno",
+  },
+  {
+    title: "Old & New Fortress",
+    description:
+      "Explore Livorno's history at the Old Fortress, a massive fortification dating back to the 16th century. The fortress offers panoramic views of the city and the harbor.",
+    image: livornoFortezza,
+    mapQuery: "Fortezza+Vecchia+Livorno",
+  },
+  {
+    title: "The New Venice District",
+    description:
+      "Livorno's picturesque canal district, often compared to Venice, is lined with charming bridges, historic buildings, and inviting cafes.",
+    image: livornoVeneziaNuova,
+    mapQuery: "Venezia+Nuova+Livorno",
+  },
+  {
+    title: "Mercato Centrale",
+    description:
+      "One of the largest indoor markets in Europe. Here you can find fresh produce, seafood, meats, and local specialties. A great place to experience the local culture and cuisine.",
+    image: livornoMercato,
+    mapQuery: "Mercato+delle+Vettovaglie+Livorno",
+  },
+  {
+    title: "Livorno Aquarium",
+    description:
+      "A family-friendly destination featuring a wide variety of marine species, including sharks, sea turtles, and jellyfish. An educational and enjoyable experience for all ages.",
+    image: livornoAcquario,
+    mapQuery: "Acquario+di+Livorno",
+  },
+  {
+    title: "Lungomare",
+    description:
+      "Perfect for a relaxing walk or bike ride, the Lungomare offers access points to various beaches, rocky coves, and natural rock pools.",
+    image: livornoLungomare,
+    mapQuery: "Lungomare+di+Livorno",
+  },
+]
+
+const FOOD = [
+  {
+    title: "Cacciucco",
+    description:
+      "Livorno's signature dish, Cacciucco, is a hearty fish stew made with a variety of seafood, tomatoes, garlic, and red wine. A must-try for seafood lovers!",
+    image: eatCacciucco,
+  },
+  {
+    title: "Cecina",
+    description:
+      "This savory chickpea flatbread is a popular street food in Livorno. Enjoy it on its own or inside a sandwich with fillings like grilled eggplant.",
+    image: eatCecina,
+  },
+  {
+    title: "Ponce alla Livornese",
+    description:
+      "A strong coffee-based drink with rum and lemon zest, Ponce Livornese is perfect for warming up after a day of exploring. A traditional Livornese beverage with a unique kick.",
+    image: eatPonce,
+  },
+  {
+    title: "Frati Fritti",
+    description:
+      "A type of sweet, deep-fried doughnut, Frati Fritti are soft and fluffy, often sprinkled with sugar. A local favorite for breakfast or as a sweet treat throughout the day.",
+    image: eatFratiFritti,
+  },
+  {
+    title: "Livorno street food",
+    description:
+      'A reflection of its coastal charm and diverse cultural influences, the street markets offer an authentic taste of Tuscan flavors such as the "5 e 5" sandwich and seafood delicacies like fried calamari and baccalà.',
+    image: eatCinqueECinque,
+  },
+  {
+    title: "Fresh seafood",
+    description:
+      "From red mullet fish (triglie alla livornese) to calamari and mussels, you'll find a wide range of delicious options at local restaurants and trattorias.",
+    image: eatTriglie,
+  },
+]
+
+const ACTIVITIES = [
+  {
+    title: "Boat tour",
+    icon: LifeBuoy,
+    tag: "On the water",
+    description:
+      "Take a boat tour through the Venezia Nuova district's canals. A relaxing way to see the city's landmarks.",
+  },
+  {
+    title: "Beach day",
+    icon: Sun,
+    tag: "By the sea",
+    description:
+      "Enjoy a day by the sea at one of Livorno's beaches. Relax and soak up the Mediterranean sun.",
+  },
+  {
+    title: "Arts & museums",
+    icon: Palette,
+    tag: "In the city",
+    description:
+      "The Museo Civico Giovanni Fattori hosts works from the Macchiaioli movement, alongside smaller galleries and cultural centers worth exploring.",
+  },
+  {
+    title: "Day trips",
+    icon: MapPin,
+    tag: "Beyond Livorno",
+    description:
+      "Pisa & Florence are perfect for day trips. If you have more time, you can visit Elba Island, known for its crystal-clear waters and picturesque villages.",
+  },
+] as const
+
+const mapLink = (query: string) => `https://www.google.com/maps/search/?api=1&query=${query}`
+
+const anchorButtonClass =
+  "inline-flex items-center justify-center gap-2 rounded-md inset-ring inset-ring-zinc-700 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:inset-ring-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+---
+
+<EffectDaysLayout
+  title="About Livorno - Effect Days"
+  description="Plan your trip to Effect Days in Livorno: airports, local transport, practical tips, and what to see, eat, and do in the city."
+  activePath="/effect-days/about-livorno"
+>
+  <section class="relative w-full pt-16 pb-16 md:pt-24 md:pb-24">
+    <div class="absolute inset-y-0 right-0 z-10 hidden w-1/2 overflow-hidden lg:block">
+      <Image
+        src={livorno6}
+        alt="Canal-side buildings and boats in Livorno's Venezia Nuova district"
+        class="h-full w-full object-cover"
+      />
+      {/* Blend into the dark page */}
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-950 via-transparent to-transparent"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent"
+      >
+      </div>
+      <p
+        class="absolute bottom-3 left-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase"
+      >
+        {"// "}Venezia Nuova · Livorno
+      </p>
+    </div>
+
+    <div class="relative mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div>
+          <BackToEffectDays iconSize={12} class="gap-1.5" />
+          <h1 class="mt-6 leading-[1.1] text-3xl font-bold tracking-tight text-white md:text-4xl">
+            Welcome to Livorno!
+          </h1>
+
+          <div class="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {
+              NAV_ANCHORS.map((anchor) => (
+                <a href={anchor.href} class={anchorButtonClass}>
+                  {anchor.label}
+                </a>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* Post-hero content — center dashed deco line scoped to this area */}
+  <div class="relative">
+    <CentreLine />
+
+    {/* Content layer — positioned above the deco line */}
+    <div class="relative z-10">
+      <SectionDivider />
+
+      <Section id="airports">
+        <SectionHeader eyebrow="Getting Here" title="The nearest airports" />
+
+        <div class="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
+          {
+            [AIRPORTS.slice(0, 2), AIRPORTS.slice(2)].map((pair) => (
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {pair.map((airport) => (
+                  <Card>
+                    <p class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                      {airport.distance}
+                    </p>
+                    {/* Distance track — marker position on a scale shared by all
+                        cards */}
+                    <div class="relative mt-3 h-2" aria-hidden="true">
+                      <div
+                        class="absolute top-1/2 right-0 left-0 -translate-y-1/2 text-zinc-700"
+                        style="height: 1px; background-image: repeating-linear-gradient(to right, currentColor 0px, currentColor 2px, transparent 2px, transparent 4px)"
+                      />
+                      <div class="absolute top-1/2 left-0 h-2 w-px -translate-y-1/2 bg-zinc-600" />
+                      <div
+                        class="absolute top-1/2 h-2 w-2 -translate-y-1/2 bg-white"
+                        style={`left: calc(${(airport.km / DISTANCE_SCALE_KM) * 100}% - 4px)`}
+                      />
+                    </div>
+                    <h3 class="mt-4 text-lg font-semibold text-white">{airport.name}</h3>
+                    <p class="mt-1 text-sm leading-normal text-zinc-400">{airport.intro}</p>
+                    <div class="mt-6 border-t border-dashed border-zinc-800 pt-4">
+                      <h4 class="text-base font-semibold text-white">By train</h4>
+                      <p class="mt-1 text-sm leading-normal text-zinc-400">{airport.train}</p>
+                    </div>
+                    <div class="mt-4">
+                      <h4 class="text-base font-semibold text-white">By car</h4>
+                      <p class="mt-1 text-sm leading-normal text-zinc-400">{airport.car}</p>
+                    </div>
+                    {airport.bus && (
+                      <div class="mt-4">
+                        <h4 class="text-base font-semibold text-white">By bus</h4>
+                        <p class="mt-1 text-sm leading-normal text-zinc-400">
+                          <InlineLink href="https://www.flixbus.com/bus-routes/bus-rome-fiumicino-airport-livorno">
+                            FlixBus
+                          </InlineLink>{" "}
+                          runs direct buses to Livorno in about 4 hours.
+                        </p>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            ))
+          }
+        </div>
+      </Section>
+
+      <SectionDivider />
+
+      <Section id="transport">
+        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div>
+            <SectionHeader eyebrow="Local Transportation" title="Moving around Livorno" />
+
+            <div class="mt-12 max-w-md divide-y divide-zinc-800/50">
+              <div class="py-6 first:pt-0">
+                <h3 class="text-lg font-semibold text-white">By taxi</h3>
+                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                  Call CoTaLi at{" "}
+                  <InlineLink href="tel:+390586883377">+39 586 88 33 77</InlineLink>{" "}
+                  or AsTaLa at{" "}
+                  <InlineLink href="tel:+390586882020">+39 586 88 20 20</InlineLink>. Uber is not
+                  available in Italy.
+                </p>
+              </div>
+              <div class="py-6">
+                <h3 class="text-lg font-semibold text-white">By bus</h3>
+                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                  Check the{" "}
+                  <InlineLink href="https://www.at-bus.it/en/travel/lines-and-timetables/livorno">
+                    local bus schedule
+                  </InlineLink>{" "}
+                  for exact timings.
+                </p>
+              </div>
+              <div class="py-6 last:pb-0">
+                <h3 class="text-lg font-semibold text-white">Bike rentals</h3>
+                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                  Livorno is a bike-friendly city, with rentals and cycling paths along the seafront
+                  and city center.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-hidden">
+            <Image
+              src={livorno1}
+              alt="Boats on a canal in Livorno's Venezia Nuova district"
+              class="h-full min-h-64 w-full object-cover"
+            />
+          </div>
+        </div>
+      </Section>
+
+      <SectionDivider />
+
+      <Section id="tips">
+        <SectionHeader eyebrow="Practical Tips" title="Before you travel" />
+
+        <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Card>
+            <div class="flex items-center justify-between">
+              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
+                <Sun size={16} class="text-zinc-200" aria-hidden="true" />
+              </div>
+              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                10-13°C
+              </span>
+            </div>
+            <h3 class="mt-6 text-lg font-semibold text-white">December weather</h3>
+            <p class="mt-1 text-sm leading-normal text-zinc-400">
+              Livorno winters are mild: daytime temperatures around 10-13°C (50-55°F), with sunny
+              spells between occasional rain showers. A warm jacket and an umbrella are all you
+              need.
+            </p>
+          </Card>
+          <Card>
+            <div class="flex items-center justify-between">
+              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
+                <Clock size={16} class="text-zinc-200" aria-hidden="true" />
+              </div>
+              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                Trenitalia
+              </span>
+            </div>
+            <h3 class="mt-6 text-lg font-semibold text-white">Check train schedules</h3>
+            <p class="mt-1 text-sm leading-normal text-zinc-400">
+              Use the{" "}
+              <InlineLink href="https://www.trenitalia.com/en.html">
+                Trenitalia website
+              </InlineLink>{" "}
+              or app to check train schedules and book tickets. Make sure to check in before boarding
+              the train.
+            </p>
+          </Card>
+          <Card>
+            <div class="flex items-center justify-between">
+              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
+                <Download size={16} class="text-zinc-200" aria-hidden="true" />
+              </div>
+              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                at bus · Tabnet
+              </span>
+            </div>
+            <h3 class="mt-6 text-lg font-semibold text-white">Local transport apps</h3>
+            <p class="mt-1 text-sm leading-normal text-zinc-400">
+              Consider downloading apps like{" "}
+              <InlineLink href="https://www.at-bus.it/en">at bus</InlineLink> or{" "}
+              <InlineLink href="https://www.tabnet.it/">Tabnet</InlineLink> for real-time updates on local
+              public transport and easy ticket purchasing.
+            </p>
+          </Card>
+        </div>
+      </Section>
+
+      <SectionDivider />
+
+      <Section id="see">
+        <SectionHeader eyebrow="What to See" title="Sights worth your time" />
+
+        <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {
+            SIGHTS.map((sight) => (
+              <div class="flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950">
+                <Image src={sight.image} alt={sight.title} class="aspect-3/2 w-full object-cover" />
+                <div class="flex flex-1 flex-col p-6">
+                  <h3 class="text-lg font-semibold text-white">{sight.title}</h3>
+                  <p class="mt-1 text-sm leading-normal text-zinc-400">{sight.description}</p>
+                  <a
+                    href={mapLink(sight.mapQuery)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-4 inline-flex items-center gap-1.5 pt-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+                  >
+                    View on map
+                    <ArrowUpRight size={12} aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </Section>
+
+      <SectionDivider />
+
+      <Section id="do">
+        <SectionHeader eyebrow="Things to Do" title="Make a trip of it" />
+
+        <div class="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
+          {
+            [ACTIVITIES.slice(0, 2), ACTIVITIES.slice(2)].map((pair) => (
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {pair.map((activity) => {
+                  const ActivityIcon = activity.icon
+                  return (
+                    <Card>
+                      <div class="flex items-center justify-between">
+                        <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
+                          <ActivityIcon size={16} class="text-zinc-200" aria-hidden="true" />
+                        </div>
+                        <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                          {activity.tag}
+                        </span>
+                      </div>
+                      <h3 class="mt-6 text-lg font-semibold text-white">{activity.title}</h3>
+                      <p class="mt-1 text-sm leading-normal text-zinc-400">
+                        {activity.description}
+                      </p>
+                    </Card>
+                  )
+                })}
+              </div>
+            ))
+          }
+        </div>
+      </Section>
+
+      <SectionDivider />
+
+      <Section id="eat">
+        <SectionHeader eyebrow="What to Eat" title="Taste of Livorno" />
+
+        <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {
+            FOOD.map((dish) => (
+              <div class="flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950">
+                <Image src={dish.image} alt={dish.title} class="aspect-3/2 w-full object-cover" />
+                <div class="flex flex-1 flex-col p-6">
+                  <h3 class="text-lg font-semibold text-white">{dish.title}</h3>
+                  <p class="mt-1 text-sm leading-normal text-zinc-400">{dish.description}</p>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </Section>
+
+      <SectionDivider />
+
+      <EnjoyEffectDaysCTA ticketsHref="/effect-days#tickets" arrow="right" />
+    </div>
+  </div>
+</EffectDaysLayout>

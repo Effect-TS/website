@@ -1,0 +1,43 @@
+---
+import EffectDaysLayout from "@/layouts/EffectDaysLayout.astro"
+import BackToEffectDays from "@/components/effect-days/BackToEffectDays.astro"
+
+/**
+ * Shared chrome for the legal pages (Code of Conduct, Refund Policy): the
+ * plain dark layout, the back link, the "// Legal" eyebrow and heading, and
+ * the narrow reading column. The clauses are passed as the slot.
+ */
+interface Props {
+  readonly title: string
+  readonly description?: string | undefined
+  readonly heading: string
+  readonly lastUpdated?: string | undefined
+}
+
+const { title, description, heading, lastUpdated } = Astro.props
+---
+
+<EffectDaysLayout title={title} description={description} dither={false} rails={false}>
+  <section class="relative pt-32 pb-16 md:pt-40 md:pb-20">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <BackToEffectDays class="mb-6" />
+      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+        {"// "}Legal
+      </p>
+      <h1 class="leading-tighter text-3xl font-bold tracking-tight text-white md:text-4xl">
+        {heading}
+      </h1>
+      {
+        lastUpdated && (
+          <p class="mt-4 max-w-2xl text-sm text-zinc-400">Last updated: {lastUpdated}</p>
+        )
+      }
+    </div>
+  </section>
+
+  <section class="pb-24 md:pb-32">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="max-w-3xl space-y-12"><slot /></div>
+    </div>
+  </section>
+</EffectDaysLayout>

@@ -1,0 +1,107 @@
+---
+import { Ticket } from "@lucide/astro"
+import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
+import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
+import SocialLink from "@/components/SocialLink.astro"
+import EffectDaysMobileMenu from "@/components/effect-days/EffectDaysMobileMenu.astro"
+import { cn } from "@/lib/utils"
+
+/**
+ * Navbar for the Effect Days sub-site. Same chrome as the main site nav (the
+ * `Navigation.astro` sticky bar), but with event-scoped links and a single
+ * ticket CTA. The bar is a plain static wrapper; the only interactive part —
+ * the mobile menu — is its own component.
+ */
+interface Props {
+  readonly activePath?: string | undefined
+}
+
+const { activePath } = Astro.props
+
+/* The event home, offered on its own so `/effect-days/*` pages have a way back. */
+const EVENT_HOME = { href: "/effect-days", label: "Effect Days" }
+
+const EVENT_LINKS = [
+  { href: "/effect-days#program", label: "Program" },
+  { href: "/effect-days#venue", label: "Venue" },
+  { href: "/effect-days/about-livorno", label: "About Livorno" },
+  { href: "/effect-days#faq", label: "FAQ" },
+]
+
+/* Anchors never mark active; the event home matches exactly so it does not
+   light up on every /effect-days/* child page. */
+const isActive = (href: string): boolean => {
+  if (href.includes("#")) return false
+  if (href === EVENT_HOME.href) return activePath === EVENT_HOME.href
+  return Boolean(activePath?.startsWith(href))
+}
+
+const navItemClass = (href: string) =>
+  cn(
+    "text-sm font-medium text-zinc-400 no-underline transition-colors hover:text-white",
+    isActive(href) && "text-white",
+  )
+
+const bannerHref = activePath === EVENT_HOME.href ? "/effect-days#tickets" : EVENT_HOME.href
+---
+
+<div class="sticky top-0 z-100 w-full will-change-transform">
+  <AnnouncementBanner href={bannerHref} />
+
+  <div
+    class="w-full border-b border-zinc-200 bg-zinc-50/85 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/85"
+  >
+    <header class="relative mx-auto w-full max-w-352 px-4">
+      <nav class="flex h-16 items-center">
+        <NavigationLogo />
+
+        {
+          /* Sub-site lockup: the logo returns to the main Effect site, the label
+          beside it returns to the event home. Below sm the mobile menu carries
+          the same link. */
+        }
+        <div class="ml-8 hidden items-center gap-4 sm:flex">
+          <a
+            href={EVENT_HOME.href}
+            class={navItemClass(EVENT_HOME.href)}
+            aria-current={isActive(EVENT_HOME.href) ? "page" : undefined}
+          >
+            {EVENT_HOME.label}
+          </a>
+          {/* Divider goes only where the section links do — below lg it would trail off alone. */}
+          <div class="hidden h-4.5 w-px bg-zinc-700 lg:block" aria-hidden="true"></div>
+        </div>
+
+        <div class="ml-4 hidden items-center gap-6 lg:flex">
+          {
+            EVENT_LINKS.map((link) => (
+              <a
+                href={link.href}
+                class={navItemClass(link.href)}
+                aria-current={isActive(link.href) ? "page" : undefined}
+              >
+                {link.label}
+              </a>
+            ))
+          }
+        </div>
+
+        <div class="ml-auto flex items-center gap-4">
+          <a
+            href="/effect-days#tickets"
+            class="inline-flex items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <Ticket size={16} aria-hidden="true" />
+            Get tickets
+          </a>
+          <div class="hidden h-4.5 w-px bg-zinc-700 sm:block" aria-hidden="true"></div>
+          <div class="hidden items-center gap-4 sm:flex">
+            <SocialLink variant="github" class="text-zinc-400 hover:text-white" />
+            <SocialLink variant="discord" class="text-zinc-400 hover:text-white" />
+          </div>
+          <EffectDaysMobileMenu links={[EVENT_HOME, ...EVENT_LINKS]} activePath={activePath} />
+        </div>
+      </nav>
+    </header>
+  </div>
+</div>
