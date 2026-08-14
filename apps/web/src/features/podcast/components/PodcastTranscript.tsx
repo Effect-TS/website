@@ -301,7 +301,10 @@ export function PodcastTranscript() {
                 const isActive = cue === activeTranscriptCue
 
                 return (
-                  <li key={cue.id} className="list-none">
+                  <li
+                    key={cue.id}
+                    className="list-none [content-visibility:auto] [contain-intrinsic-size:auto_44px]"
+                  >
                     <button
                       ref={(element) => setCueElement(cue.id, element)}
                       type="button"

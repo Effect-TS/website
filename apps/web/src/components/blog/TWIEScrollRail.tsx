@@ -104,7 +104,7 @@ export function TWIEScrollRail({
         <div
           ref={scrollRef}
           onScroll={updateScrollState}
-          className="flex gap-3 overflow-x-auto py-1 pb-2"
+          className="flex gap-3 overflow-x-auto py-1 pb-2 [overscroll-behavior-x:contain]"
           style={{ scrollbarWidth: "none" }}
         >
           {posts.map((post) => (

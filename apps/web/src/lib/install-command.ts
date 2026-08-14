@@ -13,11 +13,11 @@ export const PACKAGE_MANAGERS: ReadonlyArray<PackageManager> = [
 const INSTALL_COMMAND_BY_PACKAGE_MANAGER: Readonly<
   Record<PackageManager, string>
 > = {
-  bun: "bun add effect",
-  npm: "npm install effect",
-  pnpm: "pnpm add effect",
-  yarn: "yarn add effect",
-  deno: "deno add npm:effect",
+  bun: "bun add effect@rc",
+  npm: "npm install effect@rc",
+  pnpm: "pnpm add effect@rc",
+  yarn: "yarn add effect@rc",
+  deno: "deno add npm:effect@rc",
 }
 
 export const getInstallCommand = (packageManager: PackageManager): string => {
