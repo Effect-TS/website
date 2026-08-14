@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css"
+import "remixicon/fonts/remixicon.css"
 
 import { Font } from "astro:assets"
 import { SEO } from "astro-seo"
@@ -46,10 +47,17 @@ const canonicalUrl = new URL(pagePathname, Astro.site)
     <Font cssVariable="--font-inter" preload />
     <Font cssVariable="--font-jetbrains-mono" preload />
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
-      rel="stylesheet"
-    />
+    {/* Critical paint styles: dark bg + font before the bundle loads, else cold loads flash unstyled. */}
+    <style is:inline>
+      html {
+        background: oklch(1 0 0);
+        font-family: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
+      }
+      html.dark {
+        background: oklch(0.141 0.005 285.823);
+        color-scheme: dark;
+      }
+    </style>
 
     {
       PUBLIC_POSTHOG_KEY && (
