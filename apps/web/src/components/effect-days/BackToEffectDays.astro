@@ -1,0 +1,26 @@
+---
+import { ArrowLeft } from "@lucide/astro"
+import { cn } from "@/lib/utils"
+
+/**
+ * "Back to Effect Days" link for the sub-pages. The legal pages use the
+ * default size; About Livorno passes a smaller icon and tighter gap.
+ */
+interface Props {
+  readonly class?: string | undefined
+  readonly iconSize?: number | undefined
+}
+
+const { class: className, iconSize = 16 } = Astro.props
+---
+
+<a
+  href="/effect-days"
+  class={cn(
+    "inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white",
+    className,
+  )}
+>
+  <ArrowLeft size={iconSize} aria-hidden="true" />
+  Back to Effect Days
+</a>

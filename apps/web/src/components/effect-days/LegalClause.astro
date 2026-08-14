@@ -1,0 +1,18 @@
+---
+/**
+ * One numbered clause on the legal pages: a heading plus its body copy. Pass
+ * plain text as `body` for the common single-paragraph clause, or use the slot
+ * when a clause needs several paragraphs or an inline link.
+ */
+interface Props {
+  readonly title: string
+  readonly body?: string | undefined
+}
+
+const { title, body } = Astro.props
+---
+
+<div class="space-y-3">
+  <h2 class="leading-tighter text-xl font-semibold text-white">{title}</h2>
+  {body ? <p class="text-base leading-relaxed text-zinc-400">{body}</p> : <slot />}
+</div>

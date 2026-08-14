@@ -1,0 +1,78 @@
+---
+import { ArrowRight, ArrowUp } from "@lucide/astro"
+import CornerBrackets from "@/components/effect-days/CornerBrackets.astro"
+import SaveToCalendar from "@/components/effect-days/SaveToCalendar.astro"
+
+/**
+ * The "Enjoy Effect Days" closing CTA.
+ *
+ * Rendered on both the Effect Days page and About Livorno. It is one component
+ * so a change lands on both — the pages differ only in where the ticket button
+ * points.
+ *
+ * Callers still place their own section divider above it.
+ */
+
+interface Props {
+  readonly ticketsHref?: string | undefined
+  /** Arrow points up when the tickets are further up the same page, right when
+   *  the button leaves for another one. */
+  readonly arrow?: "up" | "right" | undefined
+}
+
+const { ticketsHref = "#tickets", arrow = "up" } = Astro.props
+const ArrowIcon = arrow === "up" ? ArrowUp : ArrowRight
+---
+
+<section class="relative overflow-hidden py-24 md:py-32">
+  {/* Single horizontal line — sits on the CTA heading's first-line baseline. */}
+  <div
+    class="pointer-events-none absolute inset-0 hidden md:block"
+    aria-hidden="true"
+    style="background-image: linear-gradient(to bottom, rgba(63, 63, 70, 0.8) 1px, transparent 1px); background-size: 100% 1px; background-position: 0px 210px; background-repeat: no-repeat"
+  >
+  </div>
+  <div
+    class="pointer-events-none absolute inset-0"
+    aria-hidden="true"
+    style="background: linear-gradient(to bottom, #09090b 0%, transparent 25%, transparent 75%, #09090b 100%)"
+  >
+  </div>
+
+  <div class="relative mx-auto w-full max-w-295 px-4">
+    <div class="grid grid-cols-1 items-center gap-6 md:grid-cols-12 md:gap-x-6 md:gap-y-8">
+      <div class="text-center md:col-span-6 md:mt-2 md:pr-4 md:text-left">
+        <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          {"// "}Dec 9–11, 2026 · Livorno, Italy
+        </p>
+        <h2 class="leading-tighter text-2xl font-bold text-white md:text-3xl">Enjoy Effect Days</h2>
+        <p class="mt-4 max-w-md text-lg text-zinc-400">
+          Three days with the people building Effect{" "}
+          <br class="hidden lg:inline" />
+          and the people building with it.
+        </p>
+      </div>
+
+      <div class="md:col-span-6 md:col-start-7 md:mt-[9px] md:self-start">
+        <div
+          class="relative mx-auto flex max-w-xs flex-col items-center gap-3 px-6 py-6 md:max-w-[23rem]"
+        >
+          <CornerBrackets />
+
+          <a
+            href={ticketsHref}
+            class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-6 py-3 text-base font-medium text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Get tickets
+            <ArrowIcon size={16} aria-hidden="true" />
+          </a>
+          {
+            /* Fallback for anyone who reached the end without buying — the date
+              is the next best thing to take away. */
+          }
+          <SaveToCalendar fullWidth />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

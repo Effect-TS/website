@@ -1,0 +1,177 @@
+---
+import { Calendar, ChevronDown, Download, ExternalLink } from "@lucide/astro"
+
+/**
+ * "Save to calendar" control for the Effect Days pages.
+ *
+ * Web calendars each need their own handoff — a prefilled compose URL — while
+ * everyone else opens the .ics in `public/`, which Apple Calendar, desktop
+ * Outlook, Thunderbird and Fastmail all read natively. Three clicks either way;
+ * there is no browser API that adds an event without a handoff.
+ *
+ * Event details live here and in `public/effect-days-2026.ics` — keep them in
+ * step if the dates or venue move.
+ */
+
+interface Props {
+  readonly fullWidth?: boolean | undefined
+}
+
+const { fullWidth = false } = Astro.props
+
+/** All-day, 9–11 Dec. The end date is exclusive in every format used here. */
+const START = "20261209"
+const END = "20261212"
+const TITLE = "Effect Days 2026"
+const LOCATION = "Palazzo Pancaldi, Viale Italia 56, 57127 Livorno LI, Italy"
+const DETAILS =
+  "Three days of workshops, talks, and community for Effect and TypeScript engineers.\n\nhttps://effect.website/effect-days"
+
+/** 20261209 → 2026-12-09, the form the Outlook deep links expect. */
+const iso = (d: string) => `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
+
+// `dates` keeps its literal slash — that is the form Google documents, and
+// URLSearchParams would escape it to %2F.
+const GOOGLE_URL =
+  "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+  `&dates=${START}/${END}` +
+  `&text=${encodeURIComponent(TITLE)}` +
+  `&details=${encodeURIComponent(DETAILS)}` +
+  `&location=${encodeURIComponent(LOCATION)}`
+
+/** outlook.live.com serves personal accounts, outlook.office.com work ones;
+ *  the compose path and params are otherwise identical. */
+const outlookUrl = (host: string) =>
+  `https://${host}/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent` +
+  "&allday=true" +
+  `&startdt=${iso(START)}` +
+  `&enddt=${iso(END)}` +
+  `&subject=${encodeURIComponent(TITLE)}` +
+  `&body=${encodeURIComponent(DETAILS)}` +
+  `&location=${encodeURIComponent(LOCATION)}`
+
+const MENU = [
+  { label: "Google Calendar", href: GOOGLE_URL },
+  { label: "Outlook.com", href: outlookUrl("outlook.live.com") },
+  { label: "Microsoft 365", href: outlookUrl("outlook.office.com") },
+]
+
+const itemClass =
+  "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 no-underline transition-colors hover:bg-zinc-800 hover:text-white"
+---
+
+<effect-save-to-calendar
+  class:list={["relative block", fullWidth ? "w-full" : "w-full sm:inline-block sm:w-auto"]}
+>
+  {
+    /* py-3.5 puts back the 4px that the smaller line-height gives up, so the
+      button stays 48px tall and level with the "Get tickets" button beside it. */
+  }
+  <button
+    type="button"
+    data-role="menu-button"
+    aria-haspopup="menu"
+    aria-expanded="false"
+    class:list={[
+      "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md inset-ring inset-ring-zinc-700 bg-zinc-900/50 px-6 py-3.5 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:inset-ring-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+      fullWidth ? "w-full" : "w-full sm:w-auto",
+    ]}
+  >
+    <Calendar size={18} aria-hidden="true" />
+    Save to calendar
+    <ChevronDown
+      data-role="chevron"
+      class="text-base text-zinc-500 transition-transform duration-200"
+      aria-hidden="true"
+    />
+  </button>
+
+  <div
+    data-role="menu"
+    class="absolute top-full left-0 z-20 mt-2 hidden w-full overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 shadow-xl"
+  >
+    {
+      MENU.map((item) => (
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-role="menu-link"
+          class={itemClass}
+        >
+          <ExternalLink size={16} class="shrink-0 text-zinc-500" aria-hidden="true" />
+          {item.label}
+        </a>
+      ))
+    }
+    {
+      /* No `download` attribute on purpose: it forces a file save, whereas plain
+        navigation lets Safari and iOS hand text/calendar straight to the
+        Calendar app. Chrome downloads it either way. */
+    }
+    <a href="/effect-days-2026.ics" data-role="menu-link" class={itemClass}>
+      <Download size={16} class="shrink-0 text-zinc-500" aria-hidden="true" />
+      Apple, other (.ics)
+    </a>
+  </div>
+</effect-save-to-calendar>
+
+<script>
+  class EffectSaveToCalendarElement extends HTMLElement {
+    #button: HTMLButtonElement | null = null
+    #chevron: SVGElement | null = null
+    #menu: HTMLDivElement | null = null
+    #open = false
+
+    connectedCallback() {
+      this.#button = this.querySelector("[data-role='menu-button']")
+      this.#chevron = this.querySelector("[data-role='chevron']")
+      this.#menu = this.querySelector("[data-role='menu']")
+
+      if (!(this.#button instanceof HTMLButtonElement)) return
+      if (!(this.#chevron instanceof SVGElement)) return
+      if (!(this.#menu instanceof HTMLDivElement)) return
+
+      this.#button.addEventListener("click", this.#onToggle)
+      this.#menu.querySelectorAll("[data-role='menu-link']").forEach((link) => {
+        link.addEventListener("click", this.#onLinkClick)
+      })
+      document.addEventListener("mousedown", this.#onOutsidePointer)
+      document.addEventListener("keydown", this.#onKeyDown)
+    }
+
+    disconnectedCallback() {
+      this.#button?.removeEventListener("click", this.#onToggle)
+      this.#menu?.querySelectorAll("[data-role='menu-link']").forEach((link) => {
+        link.removeEventListener("click", this.#onLinkClick)
+      })
+      document.removeEventListener("mousedown", this.#onOutsidePointer)
+      document.removeEventListener("keydown", this.#onKeyDown)
+    }
+
+    #setOpen = (open: boolean) => {
+      if (!this.#button || !this.#chevron || !this.#menu) return
+      this.#open = open
+      this.#button.setAttribute("aria-expanded", String(open))
+      this.#chevron.classList.toggle("rotate-180", open)
+      this.#menu.classList.toggle("hidden", !open)
+    }
+
+    #onToggle = () => this.#setOpen(!this.#open)
+    #onLinkClick = () => this.#setOpen(false)
+
+    #onOutsidePointer = (event: MouseEvent) => {
+      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
+        this.#setOpen(false)
+      }
+    }
+
+    #onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && this.#open) this.#setOpen(false)
+    }
+  }
+
+  if (!customElements.get("effect-save-to-calendar")) {
+    customElements.define("effect-save-to-calendar", EffectSaveToCalendarElement)
+  }
+</script>

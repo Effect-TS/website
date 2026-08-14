@@ -1,0 +1,74 @@
+---
+import CentreLine from "@/components/effect-days/CentreLine.astro"
+import DitheredOverlay from "@/components/DitheredOverlay.astro"
+import EffectDaysNavigation from "@/components/effect-days/EffectDaysNavigation.astro"
+import Footer from "@/components/Footer.astro"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+
+/**
+ * Page chrome for the Effect Days sub-site: the event navigation (instead of
+ * the main site one), the dark stage with its vertical border rails, and the
+ * regular footer. Legal pages drop the decorations via `rails`/`dither`.
+ */
+
+interface Props {
+  readonly title?: string | undefined
+  readonly description?: string | undefined
+  readonly activePath?: string | undefined
+  /** Vertical border lines at the container edges (lg+). */
+  readonly rails?: boolean | undefined
+  /** Dithered background overlay. */
+  readonly dither?: boolean | undefined
+  /** Dashed centre line running the full page height, behind the content. */
+  readonly centreLine?: boolean | undefined
+}
+
+const {
+  title,
+  description,
+  activePath,
+  rails = true,
+  dither = true,
+  centreLine = false,
+} = Astro.props
+---
+
+<BaseLayout
+  {...title ? { title } : undefined}
+  {...description ? { description } : undefined}
+  forceDark
+>
+  <div class="relative min-h-screen bg-zinc-950 text-white antialiased">
+    {dither && <DitheredOverlay />}
+
+    <EffectDaysNavigation activePath={activePath} />
+
+    {
+      /* Vertical border lines container — behind content, so full-bleed images
+        cover them. */
+    }
+    {
+      rails && (
+        <div
+          class="pointer-events-none absolute top-0 right-0 bottom-0 left-0 z-0 hidden lg:block"
+          aria-hidden="true"
+        >
+          <div class="relative mx-auto h-full w-full max-w-295">
+            <div class="absolute top-0 bottom-0 left-0 w-px bg-zinc-800" />
+            <div class="absolute top-0 right-0 bottom-0 w-px bg-zinc-800" />
+          </div>
+        </div>
+      )
+    }
+
+    {/* Centre vertical line — dashed, behind content. */}
+    {centreLine && <CentreLine />}
+
+    <main id={PAGE_TITLE_ID} class="relative z-10 w-full">
+      <slot />
+    </main>
+
+    <Footer {...activePath ? { activePath } : {}} />
+  </div>
+</BaseLayout>

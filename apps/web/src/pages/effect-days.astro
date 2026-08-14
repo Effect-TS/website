@@ -1,0 +1,784 @@
+---
+import { Image } from "astro:assets"
+import { ArrowUp, ArrowUpRight, Check, ChevronDown, ListVideo, Ticket } from "@lucide/astro"
+import EffectDaysLayout from "@/layouts/EffectDaysLayout.astro"
+import SectionDivider from "@/components/layout/SectionDivider.astro"
+import Section from "@/components/effect-days/Section.astro"
+import SectionHeader from "@/components/effect-days/SectionHeader.astro"
+import Card from "@/components/effect-days/Card.astro"
+import CornerBrackets from "@/components/effect-days/CornerBrackets.astro"
+import PurchaseRow from "@/components/effect-days/PurchaseRow.astro"
+import InlineLink from "@/components/effect-days/InlineLink.astro"
+import EnjoyEffectDaysCTA from "@/components/effect-days/EnjoyEffectDaysCTA.astro"
+import SaveToCalendar from "@/components/effect-days/SaveToCalendar.astro"
+
+import ed242 from "@/assets/effect-days/ed-24-2.png"
+import ed252 from "@/assets/effect-days/ed-25-2.png"
+import ed253 from "@/assets/effect-days/ed-25-3.png"
+import pancaldiExterior from "@/assets/effect-days/pancaldi-exterior.avif"
+import pancaldiHall from "@/assets/effect-days/pancaldi-hall.avif"
+import livorno1 from "@/assets/effect-days/livorno-1.avif"
+import livorno6 from "@/assets/effect-days/livorno-6.avif"
+import livorno7 from "@/assets/effect-days/livorno-7.avif"
+import EffectfulWhite from "@/assets/effect-days/Effectful-white.svg"
+import ziverge from "@/assets/effect-days/ziverge.svg"
+
+const PROGRAM = [
+  {
+    step: "01",
+    day: "Wed",
+    date: "Dec 9",
+    title: "Effect Workshop",
+    description: "Full-day sessions led by Effect experts.",
+  },
+  {
+    step: "02",
+    day: "Thu",
+    date: "Dec 10",
+    title: "Effect Conference",
+    description: "Engaging talks, afterparty & swags!",
+  },
+  {
+    step: "03",
+    day: "Fri",
+    date: "Dec 11",
+    title: "Community Day",
+    description: "More learning, networking, and fun!",
+  },
+]
+
+/* Early bird runs first. Set to false once regular pricing starts, which also
+   restores the group-discount note under the passes. */
+const EARLY_BIRD_ON_SALE = true
+
+/* Early bird sells first; the regular price is shown struck through beside it. */
+const PASSES = [
+  {
+    name: "Workshop, Conference & Community Pass",
+    days: [
+      { date: "Dec 9", name: "Workshop Day", included: true },
+      { date: "Dec 10", name: "Conference Day", included: true },
+      { date: "Dec 11", name: "Community Day", included: true },
+    ],
+    featured: true,
+    pricing: {
+      self: {
+        earlyBird: "€349",
+        regular: "€449",
+        url: "https://book.stripe.com/dRm6oH1Ncf6z9eJgF39oc0P",
+      },
+      business: {
+        earlyBird: "€549",
+        regular: "€649",
+        url: "https://book.stripe.com/9B68wPgI6bUnbmRagF9oc0N",
+      },
+    },
+  },
+  {
+    name: "Conference & Community Pass",
+    days: [
+      { date: "Dec 9", name: "Workshop Day", included: false },
+      { date: "Dec 10", name: "Conference Day", included: true },
+      { date: "Dec 11", name: "Community Day", included: true },
+    ],
+    featured: false,
+    pricing: {
+      self: {
+        earlyBird: "€249",
+        regular: "€299",
+        url: "https://book.stripe.com/7sY00j77wbUnfD760p9oc0K",
+      },
+      business: {
+        earlyBird: "€399",
+        regular: "€449",
+        url: "https://book.stripe.com/bJedR94ZobUnduZ3Sh9oc0O",
+      },
+    },
+  },
+]
+
+/* Both sponsors are main sponsors, so the cards carry no tier label. The
+   pages run dark, so the marks come in their dark-on-dark variants. */
+const SPONSORS = [
+  {
+    name: "Effectful",
+    logo: EffectfulWhite,
+    /* Effectful's wordmark is short and heavy, so it runs taller than
+       Ziverge's wider lockup for the two to read at the same size. */
+    logoHeight: "h-12",
+    websiteUrl: "https://effectful.co/",
+  },
+  {
+    name: "Ziverge",
+    logo: ziverge,
+    logoHeight: "h-8",
+    websiteUrl: "https://www.ziverge.com/",
+  },
+]
+
+const EDITIONS = [
+  {
+    year: "2024",
+    location: "Vienna, Austria",
+    dates: "Feb 22-24",
+    status: "past",
+    note: "Where the Effect community gathered for the first time: 15 talks, 2 workshops.",
+    playlistUrl: "https://www.youtube.com/playlist?list=PLDf3uQLaK2B_XZ8k3gD8R1k4-LBz8JmHP",
+    image: ed242,
+    tint: true,
+  },
+  {
+    year: "2025",
+    location: "Livorno, Italy",
+    dates: "Mar 19-21",
+    status: "past",
+    note: "Advanced use cases and real production stories: 19 talks, 2 workshops.",
+    playlistUrl: "https://www.youtube.com/playlist?list=PLDf3uQLaK2B9vHzUNyvOSvoMv61LW7792",
+    image: ed253,
+    tint: true,
+  },
+  {
+    year: "2026",
+    location: "Livorno, Italy",
+    dates: "Dec 9-11",
+    status: "next",
+    note: "The 3rd edition. Back to the Tuscan coast, and you're invited.",
+    playlistUrl: null,
+    image: null,
+    tint: false,
+  },
+] as const
+
+const MAP_QUERY = "https://www.google.com/maps/search/?api=1&query=Palazzo+Pancaldi+Livorno"
+
+/* Answers are plain HTML — the inline links inside them are styled by the
+   `.faq-answer` rule in the scoped stylesheet below. */
+const FAQS = [
+  {
+    question: "1. What is Effect Days?",
+    html: `Effect Days is a non-profit event dedicated to <a href="https://effect.website" target="_blank" rel="noopener noreferrer">Effect</a>, an open-source software library that offers an ecosystem of tools for building production-grade applications in TypeScript.`,
+  },
+  {
+    question: "2. When and where is Effect Days taking place?",
+    html: `Effect Days will take place on December 9-11, 2026 at <a href="${MAP_QUERY}" target="_blank" rel="noopener noreferrer">Palazzo Pancaldi</a>, Viale Italia, 56, 57127 Livorno LI, Italy.`,
+  },
+  {
+    question: "3. What is the schedule of the conference?",
+    html: `The conference schedule will be shared as we get closer to the event.`,
+  },
+  {
+    question: "4. Will the Effect Days conference be recorded?",
+    html: `The conference talks will be recorded and published on the <a href="https://www.youtube.com/@effect-ts" target="_blank" rel="noopener noreferrer">Effect YouTube channel</a> a few weeks later. In the meantime you can subscribe to our YouTube, follow <a href="https://x.com/EffectTS_" target="_blank" rel="noopener noreferrer">Effect on X (Twitter)</a>, or <a href="https://discord.gg/effect-ts" target="_blank" rel="noopener noreferrer">join the community</a> to stay updated.`,
+  },
+  {
+    question: "5. What is the Community Day?",
+    html: `Effect Days isn't just about talks, it's about real connections. The Community Day on December 11th is a full day dedicated to deeper discussions, networking, and community activities.`,
+  },
+  {
+    question: "6. Can I get a refund for my ticket?",
+    html: `Please refer to our <a href="/effect-days/refund-policy">Refund Policy</a> for more details.`,
+  },
+  {
+    question: "7. How do I get to Livorno?",
+    html: `The closest airport is Pisa (PSA), about 30 minutes away by train or car. Florence (FLR) is roughly 90 minutes away. Livorno Centrale station has direct rail connections to both. See <a href="/effect-days/about-livorno#airports">the nearest airports</a> for details.`,
+  },
+  {
+    question: "8. Is there a Code of Conduct?",
+    html: `Yes. Effect Days is dedicated to providing a harassment-free experience for everyone. Please read our <a href="/effect-days/code-of-conduct">Code of Conduct</a>.`,
+  },
+]
+
+/* FAQs are split down the middle so each column opens independently. */
+const FAQ_COLUMNS = [
+  FAQS.slice(0, Math.ceil(FAQS.length / 2)),
+  FAQS.slice(Math.ceil(FAQS.length / 2)),
+]
+---
+
+<EffectDaysLayout
+  title="Effect Days Livorno - December 9-11, 2026"
+  description="Effect Days returns to Livorno, Italy on December 9-11, 2026. Three days of workshops, talks, and community with the Effect ecosystem."
+  activePath="/effect-days"
+  centreLine
+>
+  <section class="relative w-full pt-16 pb-14 md:pt-24 md:pb-24 lg:pt-40 lg:pb-40">
+    <div class="absolute inset-y-0 right-0 z-10 hidden w-1/2 overflow-hidden lg:block">
+      <Image
+        src={ed252}
+        alt="The Effect community at Effect Days 2025 in Livorno"
+        class="h-full w-full object-cover"
+      />
+      {/* Blend into the dark page */}
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-950 via-transparent to-transparent"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent"
+      >
+      </div>
+      <p
+        class="absolute bottom-3 left-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase"
+      >
+        {"// "}Effect Days 2025 · Livorno
+      </p>
+    </div>
+
+    <div class="relative mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
+        <div>
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            {"// "}Livorno, Italy · Dec 9–11, 2026
+          </p>
+          <h1 class="leading-[1.1] text-4xl font-bold tracking-tight text-white md:text-5xl">
+            Effect Days
+          </h1>
+          <p class="mt-4 max-w-md text-lg text-zinc-400">
+            For Effect and TypeScript engineers: three days of workshops, talks, and community.
+          </p>
+
+          <div class="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start">
+            <a
+              href="#tickets"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-6 py-3 text-base font-medium text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
+            >
+              <Ticket size={18} aria-hidden="true" />
+              Get tickets
+            </a>
+            <SaveToCalendar />
+          </div>
+        </div>
+
+        {
+          /* Below lg the absolute panel can't apply, so the same image runs in
+            flow here instead of vanishing */
+        }
+        <div class="relative overflow-hidden lg:hidden">
+          <Image
+            src={ed252}
+            alt="The Effect community at Effect Days 2025 in Livorno"
+            class="aspect-16/9 w-full object-cover"
+          />
+          <div
+            class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950 via-transparent to-transparent"
+          >
+          </div>
+          <p
+            class="absolute bottom-3 left-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase"
+          >
+            {"// "}Effect Days 2025 · Livorno
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <SectionDivider />
+
+  <Section id="program">
+    <SectionHeader eyebrow="The Program" title="The Effect Days experience">
+      A community-driven, non-profit event celebrating <br class="hidden md:inline" />
+      the Effect ecosystem.
+    </SectionHeader>
+
+    <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+      {
+        PROGRAM.map((step) => (
+          <Card>
+            <div class="flex items-center justify-between">
+              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600 font-mono text-sm font-medium text-white">
+                {step.step}
+              </div>
+              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                {step.day} · {step.date}
+              </span>
+            </div>
+            <h3 class="mt-6 text-lg font-semibold text-white">{step.title}</h3>
+            <p class="mt-1 text-sm leading-normal text-zinc-400">{step.description}</p>
+          </Card>
+        ))
+      }
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="venue">
+    <div class="grid grid-cols-1 gap-4 md:gap-8 lg:grid-cols-2 lg:items-baseline-last">
+      <SectionHeader eyebrow="The Venue" title="Palazzo Pancaldi, Livorno">
+        A beautiful seaside location in the Tuscan riviera, where you can enjoy good food and the
+        coastal views.
+      </SectionHeader>
+      <div class="flex flex-wrap items-center gap-x-8 gap-y-3 lg:justify-end">
+        <a
+          href="/effect-days/about-livorno"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+        >
+          About Livorno
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </a>
+        <a
+          href={MAP_QUERY}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+        >
+          View on map
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+      <div class="overflow-hidden">
+        <Image
+          src={pancaldiExterior}
+          alt="Palazzo Pancaldi on the Livorno seafront"
+          class="aspect-4/3 w-full object-cover lg:aspect-auto lg:h-full"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <Image
+          src={pancaldiHall}
+          alt="The conference hall at Palazzo Pancaldi"
+          class="aspect-4/3 w-full object-cover"
+        />
+        <Image
+          src={livorno7}
+          alt="Livorno's harborfront seen from the water"
+          class="aspect-4/3 w-full object-cover"
+        />
+        <Image
+          src={livorno1}
+          alt="Boats on a canal in Livorno's Venezia Nuova district"
+          class="aspect-4/3 w-full object-cover"
+        />
+        <Image
+          src={livorno6}
+          alt="Canal-side buildings and boats in Livorno"
+          class="aspect-4/3 w-full object-cover"
+        />
+      </div>
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="tickets">
+    <SectionHeader eyebrow="Only 100 tickets" title="Choose your pass" />
+
+    <div class="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
+      {
+        PASSES.map((pass) => (
+          <Card
+            class={
+              pass.featured
+                ? "flex flex-col border-zinc-600 p-8"
+                : "flex flex-col border-zinc-800 p-8"
+            }
+          >
+            {/* Day count comes from the pass itself, so it stays true if a day
+                is ever added or dropped. The tier rides in the same chip and
+                drops out with the early bird, leaving just "3-day pass". */}
+            <span class="self-start border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              {EARLY_BIRD_ON_SALE ? "Early bird " : ""}
+              {pass.days.filter((day) => day.included).length}-day pass
+            </span>
+            <h3 class="mt-4 text-lg font-semibold text-white">{pass.name}</h3>
+
+            {/* Day checklist, mono style. The marker is the same ticked box the
+                editions timeline uses, minus the opaque fill that only exists
+                there to mask the connector line. */}
+            <div class="mt-6 space-y-3 font-mono text-sm">
+              {pass.days.map((day) => (
+                <div class="flex items-center gap-3">
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center border border-zinc-600">
+                    {day.included && <Check size={10} class="text-white" aria-hidden="true" />}
+                  </span>
+                  <span class:list={day.included ? "text-zinc-200" : "text-zinc-500"}>
+                    {day.date}
+                    <span class="px-1.5 text-zinc-600" aria-hidden="true">
+                      ·
+                    </span>
+                    {day.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div class="mt-6 border-t border-dashed border-zinc-700" />
+
+            <div class="mt-6 space-y-3">
+              <PurchaseRow
+                href={pass.pricing.self.url}
+                label="Buy self-pay"
+                regular={pass.pricing.self.regular}
+                earlyBird={pass.pricing.self.earlyBird}
+                ariaLabel={`Buy the ${pass.name}, self-pay, ${pass.pricing.self.earlyBird} early bird, reduced from ${pass.pricing.self.regular}`}
+              />
+              {/* Keeps the asterisk so the invoicing note below still has
+                  something to point at. */}
+              <PurchaseRow
+                href={pass.pricing.business.url}
+                label="Buy business*"
+                regular={pass.pricing.business.regular}
+                earlyBird={pass.pricing.business.earlyBird}
+                ariaLabel={`Buy the ${pass.name}, business, ${pass.pricing.business.earlyBird} early bird, reduced from ${pass.pricing.business.regular}`}
+              />
+            </div>
+          </Card>
+        ))
+      }
+    </div>
+
+    {
+      /* One stacked run rather than two columns — the asterisk note used to sit
+        under the left card only, which read as belonging to that pass even
+        though both cards carry the marker. */
+    }
+    <div class="mt-4">
+      <p class="text-sm leading-normal text-zinc-400">*Suitable for invoicing.</p>
+      <p class="text-sm leading-normal text-zinc-400">
+        Selecting a pass takes you to Stripe to complete your purchase.
+      </p>
+      {
+        /* Group discounts are off the page while early bird is on sale — flip
+          EARLY_BIRD_ON_SALE to bring this back. */
+      }
+      {
+        !EARLY_BIRD_ON_SALE && (
+          <p class="text-sm leading-relaxed text-zinc-400">
+            Group of 4+?{" "}
+            <InlineLink href="mailto:contact@effectful.co?subject=Effect Days Livorno - Group Tickets">
+              Ask about business discounts
+            </InlineLink>
+            .
+          </p>
+        )
+      }
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="past-editions">
+    <SectionHeader eyebrow="3rd Edition" title="The journey continues" />
+
+    <div class="relative mt-12">
+      {
+        /* Timeline line (desktop) — fades out past the last node, so the
+          trailing run reads as the journey continuing rather than an
+          unterminated rule */
+      }
+      <div
+        class="absolute top-3.5 right-0 left-8 hidden text-zinc-700 md:block"
+        style="height: 1px; background-image: repeating-linear-gradient(to right, currentColor 0px, currentColor 4px, transparent 4px, transparent 8px); mask-image: linear-gradient(to right, #000 0%, #000 93%, transparent 100%); -webkit-mask-image: linear-gradient(to right, #000 0%, #000 93%, transparent 100%)"
+        aria-hidden="true"
+      >
+      </div>
+      {
+        /* Two across in mobile landscape (2024 beside 2025, 2026 starting the
+          next row), one column in portrait, all three in a row from md where
+          the dashed timeline connects them. */
+      }
+      <div class="grid grid-cols-1 gap-12 sm:grid-cols-2 sm:gap-4 md:grid-cols-3">
+        {
+          EDITIONS.map((edition) => (
+            <div
+              class:list={[
+                "relative",
+                edition.status === "next" ? "sm:col-span-2 md:col-span-1" : "",
+              ]}
+            >
+              {/* Timeline node — labels carry an opaque background so the dashed
+                  line reads as a connector between nodes, not a rule struck
+                  through the text */}
+              <div class="relative z-10 mb-6 flex items-center">
+                <span
+                  class:list={[
+                    "flex h-4 w-4 shrink-0 items-center justify-center border",
+                    edition.status === "next"
+                      ? "border-zinc-300 bg-zinc-700"
+                      : "border-zinc-600 bg-zinc-950",
+                  ]}
+                >
+                  {/* Past editions are ticked off; the next one stays an empty
+                      marker */}
+                  {edition.status === "past" && (
+                    <Check size={10} class="text-white" aria-hidden="true" />
+                  )}
+                </span>
+                {/* Never wraps — a second line here would push the next
+                    edition's card below the other two. */}
+                <h3 class="bg-zinc-950 px-3 text-lg font-semibold whitespace-nowrap text-white">
+                  Effect Days {edition.year}
+                </h3>
+                {/* Title plus badge does not fit a third of the md grid, so the
+                    badge waits for lg rather than wrapping the row. */}
+                {edition.status === "next" && (
+                  <span class="hidden shrink-0 border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider whitespace-nowrap text-zinc-400 uppercase lg:inline-block">
+                    Next stop
+                  </span>
+                )}
+              </div>
+
+              <div
+                class:list={[
+                  "flex flex-col overflow-hidden border bg-zinc-950",
+                  edition.status === "next" ? "border-zinc-600" : "border-zinc-800",
+                ]}
+              >
+                {edition.image ? (
+                  <div class="relative isolate aspect-21/9 overflow-hidden">
+                    <Image
+                      src={edition.image}
+                      alt={`Effect Days ${edition.year}`}
+                      width={edition.image.width}
+                      height={edition.image.height}
+                      class:list={["h-full w-full object-cover", edition.tint ? "grayscale" : ""]}
+                    />
+                    {/* Duotone — grayscale underneath, hue and saturation from
+                        this layer, matching the pre-tinted photos */}
+                    {edition.tint && (
+                      <div class="pointer-events-none absolute inset-0 bg-[#5b5fc7] mix-blend-color" />
+                    )}
+                    <div class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950 via-zinc-950/10 to-transparent" />
+                  </div>
+                ) : (
+                  <div class="flex aspect-21/9 items-center justify-center border-b border-zinc-800">
+                    <span class="font-mono text-sm text-zinc-200">
+                      Dec 9–11, 2026
+                      <span class="animate-[terminal-blink_1s_step-end_infinite]">{" ▊"}</span>
+                    </span>
+                  </div>
+                )}
+                <div class="flex flex-1 flex-col p-6">
+                  <div class="flex items-baseline justify-between gap-3">
+                    <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                      {edition.location}
+                    </span>
+                    <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                      {edition.dates}
+                    </span>
+                  </div>
+                  <p class="mt-4 text-sm leading-normal text-zinc-400">{edition.note}</p>
+                  {edition.playlistUrl ? (
+                    <a
+                      href={edition.playlistUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+                    >
+                      <ListVideo size={16} aria-hidden="true" />
+                      Full playlist
+                      <ArrowUpRight size={12} aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <a
+                      href="#tickets"
+                      class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+                    >
+                      Be part of it
+                      <ArrowUp size={12} aria-hidden="true" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="sponsors">
+    {
+      /* Title in the left half, the blurb in the right. Stacked on mobile the
+        columns close up to gap-0, so the subtitle's own mt-4 sets the spacing
+        instead of the grid. The sponsorship CTA is the last tile in the grid
+        below rather than a link sitting up here. */
+    }
+    <div class="grid grid-cols-1 gap-0 md:grid-cols-2 md:items-baseline-last md:gap-8">
+      <SectionHeader eyebrow="Sponsors" title="Made possible by" />
+      <p class="mt-4 text-lg text-zinc-400 md:mt-0">
+        Effect Days is a non-profit event, run with the support of the companies backing the
+        ecosystem.
+      </p>
+    </div>
+
+    {
+      /* Corner-bracket tiles — the logo is the link, and the open slot closes
+        the row so the grid reads full rather than short two sponsors. Two
+        across from sm (mobile landscape keeps the marks on one row), three
+        once there is desktop width for the slot. Each tile is opaque so the
+        page's centre dashed line stops behind it rather than crossing a logo. */
+    }
+    <div class="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+      {
+        SPONSORS.map((sponsor) => (
+          <a
+            href={sponsor.websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${sponsor.name} — visit website`}
+            class="group relative flex items-center justify-center bg-zinc-950 px-6 py-12"
+          >
+            <CornerBrackets />
+            <img
+              src={sponsor.logo.src}
+              alt={sponsor.name}
+              width={sponsor.logo.width}
+              height={sponsor.logo.height}
+              class={`${sponsor.logoHeight} w-auto max-w-full object-contain`}
+            />
+          </a>
+        ))
+      }
+
+      {
+        /* Open slot. At sm there are two columns and three tiles, so it spans the
+          full second row instead of leaving a hole. */
+      }
+      <a
+        href="mailto:contact@effectful.co?subject=Effect Days Livorno - Sponsorship"
+        class="group relative flex flex-col items-center justify-center gap-2 bg-zinc-950 px-6 py-12 sm:col-span-2 lg:col-span-1"
+      >
+        <CornerBrackets tone="dim" />
+
+        {
+          /* An empty logo slot, sized to the marks beside it, with the caret from
+            the 2026 edition card blinking inside — it reads as waiting for a
+            name to be typed in. */
+        }
+        <span
+          class="flex h-12 w-48 items-center justify-center border border-dashed border-zinc-700 transition-colors duration-200 group-hover:border-zinc-500"
+        >
+          <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+            Your logo here
+            <span class="animate-[terminal-blink_1s_step-end_infinite]">{" ▊"}</span>
+          </span>
+        </span>
+        <span
+          class="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors duration-200 group-hover:text-white"
+        >
+          Become a sponsor
+          {/* mailto — leaves the page, so up-right */}
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </span>
+      </a>
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="faq">
+    <SectionHeader eyebrow="FAQ" title="Frequently Asked Questions" />
+
+    {/* Two independent columns — opening one never reflows the other */}
+    <div class="mt-12 grid grid-cols-1 items-start gap-x-4 md:grid-cols-2 md:gap-x-8">
+      {
+        FAQ_COLUMNS.map((column) => (
+          <div>
+            {column.map((faq) => (
+              <div class="border-b border-zinc-800" data-faq-row>
+                <h3>
+                  <button
+                    type="button"
+                    data-faq-toggle
+                    aria-expanded="false"
+                    class="group flex w-full cursor-pointer items-center justify-between gap-4 py-6 text-left"
+                  >
+                    <span class="text-base font-semibold text-white">{faq.question}</span>
+                    <ChevronDown
+                      data-faq-chevron
+                      size={16}
+                      class="shrink-0 text-zinc-500 transition-transform duration-200 group-hover:text-zinc-300"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </h3>
+                <div class="faq-panel grid grid-rows-[0fr] opacity-0 transition-all duration-300 ease-out">
+                  <div class="overflow-hidden">
+                    <div
+                      class="faq-answer pb-6 text-base leading-relaxed text-zinc-400"
+                      set:html={faq.html}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <EnjoyEffectDaysCTA />
+</EffectDaysLayout>
+
+<style is:global>
+  /* must be global — Astro scopes @keyframes names in scoped blocks */
+  @keyframes terminal-blink {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+</style>
+
+<style>
+  .faq-panel.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  [data-faq-toggle][aria-expanded="true"] [data-faq-chevron] {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-faq-toggle][aria-expanded="true"] [data-faq-chevron] {
+      transform: none;
+    }
+  }
+
+  /* FAQ answers arrive via set:html, so their inline links are styled here
+     rather than with utility classes. Matches the sub-site's inline-link look:
+     underlined zinc, the underline fading to reveal white text on hover. */
+  .faq-answer :global(a) {
+    color: var(--color-zinc-200);
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-zinc-400);
+    text-underline-offset: 4px;
+    transition:
+      color 200ms,
+      text-decoration-color 200ms;
+  }
+
+  .faq-answer :global(a:hover) {
+    color: #fff;
+    text-decoration-color: transparent;
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-faq-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const isOpen = button.getAttribute("aria-expanded") === "true"
+      button.setAttribute("aria-expanded", String(!isOpen))
+      button
+        .closest("[data-faq-row]")
+        ?.querySelector<HTMLElement>(".faq-panel")
+        ?.classList.toggle("is-open", !isOpen)
+    })
+  })
+</script>

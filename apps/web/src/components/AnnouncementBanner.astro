@@ -1,0 +1,108 @@
+---
+import { ArrowRight, X } from "@lucide/astro"
+
+// Dismissible site-wide banner sharing the navbar's sticky wrapper. Shown by
+// default; hidden before first paint for a visitor who dismissed it via the
+// head script in BaseLayout (both keyed off the localStorage key below).
+interface Props {
+  readonly href?: string | undefined
+}
+
+const { href = "/effect-days" } = Astro.props
+---
+
+<effect-days-announcement
+  data-announcement
+  class="group relative flex h-10 items-center justify-center border-b border-zinc-700/60 bg-zinc-900 px-12 text-zinc-100"
+>
+  <span
+    aria-hidden="true"
+    class="announcement-sweep pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.9)_50%,transparent_100%)] opacity-0"
+  ></span>
+
+  <a
+    href={href}
+    aria-label="Effect Days 2026, December 9–11: get early bird tickets"
+    class="absolute inset-0"></a>
+
+  <div class="pointer-events-none flex min-w-0 items-center gap-2 text-sm">
+    <span class="truncate">
+      <span class="font-medium text-zinc-100">Effect Days 2026</span>
+      <span aria-hidden="true" class="hidden px-2 text-zinc-600 sm:inline">·</span>
+      <span class="hidden text-zinc-400 sm:inline">Dec 9–11</span>
+    </span>
+    <span aria-hidden="true" class="shrink-0 text-zinc-600">·</span>
+    <span class="flex shrink-0 items-center gap-1.5 font-medium text-white">
+      Early bird tickets
+      <ArrowRight
+        size={16}
+        class="transition-transform group-hover:translate-x-0.5"
+        aria-hidden="true"
+      />
+    </span>
+  </div>
+
+  <button
+    type="button"
+    data-role="dismiss"
+    aria-label="Dismiss announcement"
+    class="absolute top-1/2 right-3 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+  >
+    <X size={16} aria-hidden="true" />
+  </button>
+</effect-days-announcement>
+
+<style is:global>
+  :root.announcement-dismissed [data-announcement] {
+    display: none;
+  }
+
+  @keyframes announcement-sweep {
+    0% {
+      transform: scaleX(0);
+      opacity: 0;
+    }
+    45% {
+      opacity: 1;
+    }
+    100% {
+      transform: scaleX(1);
+      opacity: 0;
+    }
+  }
+  [data-announcement]:has(a:hover) .announcement-sweep {
+    animation: announcement-sweep 1600ms ease-in-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-announcement]:has(a:hover) .announcement-sweep {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  const STORAGE_KEY = "effect-days-2026-banner-dismissed"
+
+  class EffectDaysAnnouncementElement extends HTMLElement {
+    #dismiss = () => {
+      document.documentElement.classList.add("announcement-dismissed")
+      try {
+        localStorage.setItem(STORAGE_KEY, "1")
+      } catch {
+        /* Private mode or storage disabled — the banner returns next visit. */
+      }
+    }
+
+    connectedCallback() {
+      this.querySelector("[data-role='dismiss']")?.addEventListener("click", this.#dismiss)
+    }
+
+    disconnectedCallback() {
+      this.querySelector("[data-role='dismiss']")?.removeEventListener("click", this.#dismiss)
+    }
+  }
+
+  if (!customElements.get("effect-days-announcement")) {
+    customElements.define("effect-days-announcement", EffectDaysAnnouncementElement)
+  }
+</script>
