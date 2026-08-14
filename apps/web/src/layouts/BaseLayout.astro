@@ -44,6 +44,11 @@ const canonicalUrl = new URL(pagePathname, Astro.site)
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
 
+    {/* Read before first paint so Firefox tints its initial canvas and skips the
+       white flash on dark pages (bug 1488384). Forced-dark pages pin dark; the
+       rest follow the OS so the light default paints light. */}
+    <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />
+
     <Font cssVariable="--font-inter" preload />
     <Font cssVariable="--font-jetbrains-mono" preload />
 
