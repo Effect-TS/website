@@ -517,10 +517,11 @@ const devToolsV4 = makeFile(
   "DevTools.ts",
   `import { NodeSocket } from "@effect/platform-node"
 import { DevTools } from "effect/unstable/devtools"
-import { Layer } from "effect"
+import { Layer, Logger } from "effect"
 
 export const DevToolsLayer = DevTools.layerSocket.pipe(
-  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
+  Layer.provide(NodeSocket.layerNet({ port: 34437 })),
+  Layer.provideMerge(Logger.layer([Logger.consolePretty(), Logger.tracerLogger]))
 )
 `,
 )
