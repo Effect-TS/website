@@ -44,15 +44,13 @@ const canonicalUrl = new URL(pagePathname, Astro.site)
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
 
-    {/* Read before first paint so Firefox tints its initial canvas and skips the
-       white flash on dark pages (bug 1488384). Forced-dark pages pin dark; the
-       rest follow the OS so the light default paints light. */}
+    {/* Tint Firefox's initial canvas before first paint (bug 1488384). */}
     <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />
 
     <Font cssVariable="--font-inter" preload />
     <Font cssVariable="--font-jetbrains-mono" preload />
 
-    {/* Critical paint styles: dark bg + font before the bundle loads, else cold loads flash unstyled. */}
+    {/* Critical paint styles applied before the bundle loads. */}
     <style is:inline>
       html {
         background: oklch(1 0 0);
@@ -61,6 +59,9 @@ const canonicalUrl = new URL(pagePathname, Astro.site)
       html.dark {
         background: oklch(0.141 0.005 285.823);
         color-scheme: dark;
+      }
+      [data-skip-link] {
+        transform: translateY(-200%);
       }
     </style>
 
