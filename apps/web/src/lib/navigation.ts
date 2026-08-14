@@ -38,6 +38,7 @@ export type NavigationActiveSlug =
   | "docs"
   | "playground"
   | "community"
+  | "effect-days"
 
 export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
   {
@@ -85,6 +86,14 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     kind: "internal",
     label: "Community",
     href: "/community-hub",
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
+  {
+    id: "effect-days",
+    kind: "internal",
+    label: "Effect Days",
+    href: "/effect-days",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
