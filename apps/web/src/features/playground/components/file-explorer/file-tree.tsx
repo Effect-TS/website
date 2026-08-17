@@ -24,7 +24,7 @@ export function FileTree({
   return (
     <div className="text-sm">
       {directories.map((node) => {
-        const fullPath = `${path}/${node.name}`
+        const fullPath = path === "" ? node.name : `${path}/${node.name}`
         return (
           <DirectoryNode
             key={fullPath}
@@ -35,7 +35,7 @@ export function FileTree({
         )
       })}
       {files.map((node) => {
-        const fullPath = `${path}/${node.name}`
+        const fullPath = path === "" ? node.name : `${path}/${node.name}`
         return (
           <FileNode
             key={fullPath}

@@ -27,6 +27,12 @@ import {
   Workspace,
 } from "../domain/workspace"
 import * as DevToolsSchemaCompat from "./devtools/schema"
+import {
+  FileSync,
+  type FileSync as FileSyncState,
+  type FilesystemRead,
+  type ModelSnapshot,
+} from "./file-sync"
 import { Loader } from "./loader"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
@@ -159,34 +165,6 @@ export class WebContainer extends Context.Service<WebContainer>()(
 
       /**
        * Attempts to read the content of the file at the specified path on
-       * the WebContainer's file system and then set's the content of the
-       * corresponding Monaco editor model to the read contents.
-       *
-       * Will return a `FileNotFoundError` if a file could not be found at the
-       * specified path.
-       */
-      function readFile(path: string) {
-        return readFileString(path).pipe(
-          Effect.bindTo("content"),
-          Effect.bind("model", () => getModel(path)),
-          Effect.tap(({ content, model }) =>
-            Effect.sync(() => {
-              if (model.getValue() !== content) {
-                model.setValue(content)
-              }
-            }),
-          ),
-          Effect.map(({ model }) => model),
-          Effect.tapCause(Effect.logError),
-          Effect.annotateLogs({
-            service: "WebContainer",
-            method: "readFile",
-          }),
-        )
-      }
-
-      /**
-       * Attempts to read the content of the file at the specified path on
        * the WebContainer's file system.
        *
        * Will return a `FileNotFoundError` if a file could not be found at the
@@ -244,16 +222,6 @@ export class WebContainer extends Context.Service<WebContainer>()(
             service: "WebContainer",
             method: "writeFile",
           }),
-        )
-      }
-
-      /**
-       * Updates an existing file without recreating it if it was removed outside
-       * the editor.
-       */
-      function updateFile(path: string, content: string) {
-        return readFileString(path).pipe(
-          Effect.andThen(writeFileString(path, content)),
         )
       }
 
@@ -406,7 +374,101 @@ export class WebContainer extends Context.Service<WebContainer>()(
         workspace: Workspace,
       ) {
         const mutationLock = yield* Semaphore.make(1)
-        const localWrites = new Map<string, string>()
+        const fileSyncs = new Map<string, FileSyncState>()
+
+        function initializeFileSync(path: string, content: string) {
+          if (fileSyncs.has(path)) {
+            return
+          }
+          const model = monaco.editor.getModel(monaco.Uri.file(path))
+          fileSyncs.set(
+            path,
+            FileSync.make({
+              content,
+              modelVersion: model?.getVersionId() ?? 0,
+            }),
+          )
+        }
+
+        for (const [node, path] of workspace.filePaths) {
+          if (node._tag === "File") {
+            initializeFileSync(
+              workspace.relativePath(path),
+              node.initialContent,
+            )
+          }
+        }
+
+        function modelChanged(path: string, model: ModelSnapshot) {
+          const sync = fileSyncs.get(path)
+          if (sync === undefined) {
+            fileSyncs.set(path, FileSync.make(model))
+          } else {
+            sync.modelChanged(model)
+          }
+        }
+
+        function persistModel(path: string) {
+          return Effect.suspend(() => {
+            const sync = fileSyncs.get(path)
+            if (sync === undefined) {
+              return Effect.die(
+                new Error(
+                  `Cannot persist Monaco model because no file synchronization state exists for "${path}"`,
+                ),
+              )
+            }
+            const write = sync.captureWrite()
+            if (write === undefined) {
+              return Effect.void
+            }
+            return mutationLock.withPermit(
+              Effect.suspend(() => {
+                if (!sync.isCurrentWrite(write)) {
+                  return Effect.void
+                }
+                return readFileString(path).pipe(
+                  Effect.flatMap(() =>
+                    Effect.suspend(() =>
+                      sync.isCurrentWrite(write)
+                        ? writeFileString(path, write.content).pipe(
+                            Effect.as(true),
+                          )
+                        : Effect.succeed(false),
+                    ),
+                  ),
+                  Effect.tap((written) =>
+                    written
+                      ? Effect.sync(() => {
+                          sync.writeCompleted(write)
+                        })
+                      : Effect.void,
+                  ),
+                  Effect.tapError(() =>
+                    Effect.sync(() => sync.writeFailed(write)),
+                  ),
+                )
+              }),
+            )
+          })
+        }
+
+        function flushModels() {
+          return Effect.forEach(
+            Array.from(fileSyncs.keys()),
+            (path) => {
+              const model = monaco.editor.getModel(monaco.Uri.file(path))
+              if (model !== null) {
+                modelChanged(path, {
+                  content: model.getValue(),
+                  modelVersion: model.getVersionId(),
+                })
+              }
+              return persistModel(path)
+            },
+            { concurrency: 1, discard: true },
+          )
+        }
         /**
          * Spawns the specified `command` into a `jsh` shell and returns the
          * associated `WebContainerProcess`.
@@ -494,6 +556,9 @@ export class WebContainer extends Context.Service<WebContainer>()(
             yield* fileType === "File"
               ? writeFile(workspace.relativePath(newPath), "", "typescript")
               : mkdir(workspace.relativePath(newPath))
+            if (fileType === "File") {
+              initializeFileSync(workspace.relativePath(newPath), "")
+            }
             const node =
               fileType === "File"
                 ? makeFile(fileName, "", true)
@@ -553,6 +618,25 @@ export class WebContainer extends Context.Service<WebContainer>()(
               workspace.relativePath(oldPath),
               workspace.relativePath(newPath),
             )
+            const oldFullPath = workspace.relativePath(oldPath)
+            const newFullPath = workspace.relativePath(newPath)
+            for (const [path, sync] of Array.from(fileSyncs)) {
+              if (path === oldFullPath || path.startsWith(`${oldFullPath}/`)) {
+                const renamedPath = `${newFullPath}${path.slice(oldFullPath.length)}`
+                sync.invalidate()
+                const model = monaco.editor.getModel(
+                  monaco.Uri.file(renamedPath),
+                )
+                if (model !== null) {
+                  sync.modelChanged({
+                    content: model.getValue(),
+                    modelVersion: model.getVersionId(),
+                  })
+                }
+                fileSyncs.delete(path)
+                fileSyncs.set(renamedPath, sync)
+              }
+            }
             registry.set(workspaceRef, newWorkspace)
             return newNode
           },
@@ -572,7 +656,24 @@ export class WebContainer extends Context.Service<WebContainer>()(
             const workspace: Workspace = registry.get(workspaceRef)
             const newWorkspace = workspace.removeNode(typedNode)
             const path: string = Option.getOrThrow(workspace.pathTo(typedNode))
-            yield* removeFile(workspace.relativePath(path))
+            const fullPath = workspace.relativePath(path)
+            for (const [syncPath, sync] of fileSyncs) {
+              if (
+                syncPath === fullPath ||
+                syncPath.startsWith(`${fullPath}/`)
+              ) {
+                sync.invalidate()
+              }
+            }
+            yield* removeFile(fullPath)
+            for (const syncPath of fileSyncs.keys()) {
+              if (
+                syncPath === fullPath ||
+                syncPath.startsWith(`${fullPath}/`)
+              ) {
+                fileSyncs.delete(syncPath)
+              }
+            }
             registry.set(workspaceRef, newWorkspace)
           },
           Effect.tapCause(Effect.logError),
@@ -593,6 +694,10 @@ export class WebContainer extends Context.Service<WebContainer>()(
         const reconcileWorkspace = mutationLock.withPermit(
           Effect.gen(function* () {
             const current = registry.get(workspaceRef)
+            const filesystemReads = new Map<string, FilesystemRead>()
+            for (const [path, sync] of fileSyncs) {
+              filesystemReads.set(path, sync.beginFilesystemRead())
+            }
             let scanned = yield* scanWorkspace(container, current)
             const restoredProtectedNodes = yield* restoreProtectedNodes(
               container,
@@ -621,27 +726,34 @@ export class WebContainer extends Context.Service<WebContainer>()(
               if (content === undefined) {
                 continue
               }
+              const sync = fileSyncs.get(fullPath)
+              initializeFileSync(fullPath, content)
               if (currentFiles.get(path) !== node) {
-                const localContent = localWrites.get(fullPath)
-                if (localContent === content) {
-                  localWrites.delete(fullPath)
-                  const model = yield* getModel(fullPath).pipe(Effect.option)
-                  if (
-                    Option.isNone(model) ||
-                    model.value.getValue() === content
-                  ) {
-                    yield* loadModel(
-                      fullPath,
-                      content,
-                      node.language ?? languageFromPath(path),
-                    )
-                  }
-                } else {
-                  localWrites.delete(fullPath)
+                if (sync === undefined) {
                   yield* loadModel(
                     fullPath,
                     content,
                     node.language ?? languageFromPath(path),
+                  )
+                  continue
+                }
+                const read = filesystemReads.get(fullPath)
+                if (read === undefined) {
+                  continue
+                }
+                const result = sync.completeFilesystemRead(read, content)
+                if (result._tag === "ApplyExternal") {
+                  yield* loadModel(
+                    fullPath,
+                    result.content,
+                    node.language ?? languageFromPath(path),
+                  )
+                  const model = yield* getModel(fullPath)
+                  yield* Effect.sync(() =>
+                    sync.externalApplied({
+                      content: model.getValue(),
+                      modelVersion: model.getVersionId(),
+                    }),
                   )
                 }
               }
@@ -651,7 +763,8 @@ export class WebContainer extends Context.Service<WebContainer>()(
               if (node._tag === "File") {
                 const fullPath = current.relativePath(path)
                 if (!nextFiles.has(fullPath)) {
-                  localWrites.delete(fullPath)
+                  fileSyncs.get(fullPath)?.invalidate()
+                  fileSyncs.delete(fullPath)
                   yield* getModel(fullPath).pipe(
                     Effect.tap((model) => Effect.sync(() => model.dispose())),
                     Effect.catchTag("FileNotFoundError", () => Effect.void),
@@ -695,7 +808,9 @@ export class WebContainer extends Context.Service<WebContainer>()(
           mutationLock.withPermit(
             Effect.gen(function* () {
               const current = registry.get(workspaceRef)
-              localWrites.clear()
+              for (const sync of fileSyncs.values()) {
+                sync.invalidate()
+              }
               const entries = yield* readDirectory(workspace.name)
               yield* Effect.forEach(
                 entries,
@@ -725,12 +840,24 @@ export class WebContainer extends Context.Service<WebContainer>()(
                     node.initialContent,
                     node.language ?? languageFromPath(path),
                   )
+                  const model = yield* getModel(fullPath)
+                  const snapshot = {
+                    content: model.getValue(),
+                    modelVersion: model.getVersionId(),
+                  }
+                  const sync = fileSyncs.get(fullPath)
+                  if (sync === undefined) {
+                    fileSyncs.set(fullPath, FileSync.make(snapshot))
+                  } else {
+                    sync.reset(snapshot)
+                  }
                 }
               }
               for (const [node, path] of current.filePaths) {
                 if (node._tag === "File") {
                   const fullPath = current.relativePath(path)
                   if (!nextFiles.has(fullPath)) {
+                    fileSyncs.delete(fullPath)
                     yield* getModel(fullPath).pipe(
                       Effect.tap((model) => Effect.sync(() => model.dispose())),
                       Effect.catchTag("FileNotFoundError", () => Effect.void),
@@ -743,17 +870,13 @@ export class WebContainer extends Context.Service<WebContainer>()(
           )
 
         return {
+          flushModels,
+          getModel,
+          modelChanged,
+          persistModel,
           workspace: workspaceRef,
           spawn: spawnInWorkspace,
           run: runInWorkspace,
-          writeFile: (path: string, content: string, _language: string) =>
-            mutationLock.withPermit(
-              updateFile(path, content).pipe(
-                Effect.tap(() =>
-                  Effect.sync(() => localWrites.set(path, content)),
-                ),
-              ),
-            ),
           createFile: (...args: Parameters<typeof create>) =>
             mutationLock.withPermit(create(...args)),
           renameFile: (...args: Parameters<typeof rename>) =>
@@ -801,7 +924,6 @@ export class WebContainer extends Context.Service<WebContainer>()(
         createWorkspaceHandle,
         devTools: Stream.fromPubSub(devToolsEvents),
         run,
-        readFile,
         readFileString,
         readDirectory,
         renameFile,

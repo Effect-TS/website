@@ -109,6 +109,10 @@ export default defineConfig({
       },
 
       test: "vp test",
+      "test:e2e": {
+        command: "vp exec playwright test",
+        cache: false,
+      },
     },
   },
 })
