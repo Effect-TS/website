@@ -21,7 +21,7 @@ and provide concrete evidence for a focused correction.
 
 ## What you will build
 
-The example is a coding agent adding `POST /orders/import` to a familiar
+The example is a coding agent adding `POST /orders/import` to a local
 `node:http` server. The first implementation works for the supplied file, but
 the development checks report three diagnostics: messages that identify
 concrete mistakes. The same evidence then defines one focused correction before
@@ -39,18 +39,7 @@ The finished backend has these observable results:
 The HTTP server remains ordinary TypeScript. Only the order import uses Effect,
 so the diagnostic and correction loop remains easy to inspect.
 
-## Where this tutorial fits
-
-The table identifies the parts of the shared order-processing system covered by this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture) for the full system.
-
-| Part               | Area                  | Role in this tutorial                                             |
-| ------------------ | --------------------- | ----------------------------------------------------------------- |
-| HTTP routes        | HTTP boundary         | Run Import orders only after the development checks pass          |
-| Import orders      | Application operation | Expose structural mistakes through precise types                  |
-| Order domain model | Shared contract       | Validate imported records                                         |
-| Development tools  | Development time      | Report TypeScript and Effect mistakes before the application runs |
-
-### Development and request flow
+## Development and request flow
 
 ```mermaid
 sequenceDiagram

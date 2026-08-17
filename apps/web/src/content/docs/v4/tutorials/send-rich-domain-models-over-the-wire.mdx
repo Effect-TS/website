@@ -49,18 +49,7 @@ Preserving that round trip is highly desirable. It means the receiving client
 recovers the same kind of value that the server encoded, rather than a similar
 object assembled by unrelated conversion code.
 
-## Where this tutorial fits
-
-The table identifies the parts of the shared order-processing system covered by this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture) for the full system.
-
-| Part               | Area            | Role in this tutorial                                            |
-| ------------------ | --------------- | ---------------------------------------------------------------- |
-| Owned client       | API client      | Share the Schema and use its derived JSON representation         |
-| External client    | API client      | Consume a fixed JSON contract                                    |
-| HTTP routes        | HTTP boundary   | Encode the response for its intended client                      |
-| Order domain model | Shared contract | Define rich values and their derived or explicit representations |
-
-### Request flow
+## Request flow
 
 ```mermaid
 sequenceDiagram
@@ -123,7 +112,7 @@ export interface AcceptedOrder {
   readonly status: "accepted"
 }
 
-// This fixture stands in for the order-processing work used in other tutorials.
+// This fixture supplies a predictable accepted order for the tutorial.
 export const placeOrder = (): AcceptedOrder => ({
   orderId: new OrderId("ord_2026_0001"),
   acceptedAt: new Date("2026-08-09T10:00:00.000Z"),

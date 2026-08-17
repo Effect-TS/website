@@ -33,18 +33,7 @@ endpoint behaves as follows:
 | Line and shipping providers are both slow | One 500 ms deadline cancels all unfinished work and returns `504`                 |
 | The client disconnects first              | All unfinished work is cancelled and no response is written                       |
 
-## Where this tutorial fits
-
-The table identifies the parts of the shared order-processing system covered by this tutorial. See the [complete architecture](/docs/v4/tutorials/introduction#architecture) for the full system.
-
-| Part        | Area                  | Role in this tutorial                                                   |
-| ----------- | --------------------- | ----------------------------------------------------------------------- |
-| HTTP routes | HTTP boundary         | Run Quote order and forward client cancellation                         |
-| Quote order | Application operation | Coordinate pricing and shipping with bounded concurrency and a deadline |
-| Catalog     | Backend service       | Price order lines independently while preserving their result order     |
-| Shipping    | Backend service       | Quote delivery concurrently with catalog work                           |
-
-### Request flow
+## Request flow
 
 ```mermaid
 sequenceDiagram
