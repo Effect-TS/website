@@ -142,6 +142,10 @@ const config = defineConfig({
       status: 307,
       destination: "/docs/v4/onboarding/whats-in-it-for-me",
     },
+    "/docs/v4/tutorials": {
+      status: 307,
+      destination: "/docs/v4/tutorials/handle-failures-without-guessing",
+    },
     "/docs/api": {
       status: 307,
       destination: "/docs/v4/api",
