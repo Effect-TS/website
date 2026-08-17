@@ -4,6 +4,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Queue from "effect/Queue"
 import * as Stream from "effect/Stream"
+import type { ModelSnapshot } from "./file-sync"
 import { ChromeDevTools, Dracula } from "./monaco/themes"
 
 type MonacoApi = typeof import("@effect/monaco-editor")
@@ -168,9 +169,15 @@ export class Monaco extends Context.Service<Monaco>()("app/Monaco", {
          * A stream of changes made to the content of the editor's currently
          * loaded model.
          */
-        const content = Stream.callback<string>((queue) => {
+        const content = Stream.callback<ModelSnapshot>((queue) => {
           const disposable = editor.onDidChangeModelContent(() => {
-            Queue.offerUnsafe(queue, editor.getValue())
+            const model = editor.getModel()
+            if (model !== null) {
+              Queue.offerUnsafe(queue, {
+                content: model.getValue(),
+                modelVersion: model.getVersionId(),
+              })
+            }
           })
           return Effect.addFinalizer(() =>
             Effect.sync(() => disposable.dispose()),

@@ -88,6 +88,11 @@ export const switchVersionAtom = Atom.fnSync((version: EffectVersion, get) => {
   get.set(versionOverrideAtom, Option.some(version))
 })
 
+type AutoSaveHandle = Pick<
+  AtomWorkspaceHandle,
+  "flushModels" | "initialWorkspace" | "workspaceAtom"
+>
+
 export function makeAutoSaveAtom(options: {
   readonly runtime: typeof autoSaveRuntime
   readonly versionOverrideAtom: Atom.Atom<Option.Option<EffectVersion>>
@@ -96,39 +101,47 @@ export function makeAutoSaveAtom(options: {
     Option.Option<Workspace>
   >
 }) {
-  return Atom.family((handle: AtomWorkspaceHandle) =>
+  return Atom.family((handle: AutoSaveHandle) =>
     options.runtime.atom(
       Effect.fnUntraced(function* (get) {
-        const workspace = get(handle.workspaceAtom)
         const container = yield* WebContainer
         const compression = yield* WorkspaceCompression
-        yield* compression.snapshot(workspace, container.readFileString).pipe(
-          Effect.map((snapshot) => {
-            const unchanged =
-              snapshot.isUnchangedFrom(
-                makeDefaultWorkspace(snapshot.effectVersion),
-              ) || snapshot.isUnchangedFrom(handle.initialWorkspace)
+        yield* Effect.suspend(() => {
+          return handle.flushModels().pipe(
+            Effect.andThen(
+              Effect.suspend(() => {
+                const workspace = get(handle.workspaceAtom)
+                return compression.snapshot(workspace, container.readFileString)
+              }),
+            ),
+            Effect.map((snapshot) => {
+              const unchanged =
+                snapshot.isUnchangedFrom(
+                  makeDefaultWorkspace(snapshot.effectVersion),
+                ) || snapshot.isUnchangedFrom(handle.initialWorkspace)
 
-            // After a version switch this loop keeps ticking for the outgoing
-            // handle until it unmounts; saving then would resurrect the old
-            // workspace on the next load.
-            // A user can edit package.json after mounting, so identify the
-            // outgoing handle by its immutable initial version.
-            const stale = get
-              .once(options.versionOverrideAtom)
-              .pipe(
-                Option.exists(
-                  (version) =>
-                    version !== handle.initialWorkspace.effectVersion,
-                ),
-              )
+              // After a version switch this loop keeps ticking for the outgoing
+              // handle until it unmounts; saving then would resurrect the old
+              // workspace on the next load.
+              // A user can edit package.json after mounting, so identify the
+              // outgoing handle by its immutable initial version.
+              const stale = get
+                .once(options.versionOverrideAtom)
+                .pipe(
+                  Option.exists(
+                    (version) =>
+                      version !== handle.initialWorkspace.effectVersion,
+                  ),
+                )
 
-            if (unchanged || stale) {
-              return
-            }
+              if (unchanged || stale) {
+                return
+              }
 
-            get.set(options.autoSaveWorkspaceAtom, Option.some(snapshot))
-          }),
+              get.set(options.autoSaveWorkspaceAtom, Option.some(snapshot))
+            }),
+          )
+        }).pipe(
           Effect.andThen(Effect.sleep("2 seconds")),
           Effect.forever,
           Effect.forkScoped,

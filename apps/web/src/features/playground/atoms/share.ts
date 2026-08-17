@@ -24,7 +24,6 @@ export const shareAtom = Atom.family((handle: AtomWorkspaceHandle) => {
   const atom = editorAtom(handle)
   return runtime.fn<void>()(
     Effect.fnUntraced(function* (_, get) {
-      const workspace = get(handle.workspaceAtom)
       const editor = yield* get.result(atom.editor)
       const container = yield* WebContainer
       const compression = yield* WorkspaceCompression
@@ -32,6 +31,8 @@ export const shareAtom = Atom.family((handle: AtomWorkspaceHandle) => {
       const client = yield* ShortenClient
 
       yield* editor.save
+      yield* handle.flushModels()
+      const workspace = get(handle.workspaceAtom)
 
       const compressed = yield* compression.compress(
         workspace,
