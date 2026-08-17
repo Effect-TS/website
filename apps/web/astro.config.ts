@@ -3,7 +3,6 @@ import react from "@astrojs/react"
 // import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
-import icon from "astro-icon"
 import { rehypeHeadingIds, unified } from "@astrojs/markdown-remark"
 import {
   defineConfig,
@@ -93,7 +92,7 @@ const config = defineConfig({
     },
   },
 
-  integrations: [expressiveCode(), react(), mdx(), icon()],
+  integrations: [expressiveCode(), react(), mdx()],
 
   fonts: [
     {

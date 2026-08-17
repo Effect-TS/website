@@ -59,21 +59,38 @@ export default defineConfig({
     tasks: {
       "api-reference:generate": "vp exec api-reference generate",
 
+      "icons:generate": [
+        "vp exec icon-generator generate",
+        "fa7-brands:github",
+        "fa7-brands:discord",
+        "fa7-brands:x-twitter",
+        "fa7-brands:youtube",
+        "fa7-brands:linkedin",
+        "fa7-brands:bluesky",
+        "fa7-brands:spotify",
+        "fa7-brands:npm",
+        "--output apps/web/src/assets/icons",
+      ].join(" "),
+
       "astro:sync": {
         command: "vp -C apps/web exec astro sync",
         cache: false,
       },
 
-      build: "vp -C apps/web exec astro build",
+      build: {
+        command: "vp -C apps/web exec astro build",
+        dependsOn: ["icons:generate"],
+      },
 
       check: {
         command: ["vp check", "vp -C apps/web exec astro check"],
-        dependsOn: ["astro:sync"],
+        dependsOn: ["astro:sync", "icons:generate"],
       },
 
       "dev:web": {
         command: "vp -C apps/web exec astro dev",
         cache: false,
+        dependsOn: ["icons:generate"],
       },
 
       fmt: ["vp fmt --check", 'prettier --check "**/*.astro"'],
