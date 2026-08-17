@@ -10,6 +10,8 @@ import Eyebrow from "@/components/ui/Eyebrow.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
 
+export const prerender = true
+
 export async function getStaticPaths() {
   const posts = await getCollection("blog")
   return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))

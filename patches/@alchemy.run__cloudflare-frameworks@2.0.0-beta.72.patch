@@ -1,0 +1,104 @@
+diff --git a/dist/astro/source.d.ts b/dist/astro/source.d.ts
+index e9284b796ac6f7d240f70e0c51c0f4b578177f7c..344e7d95664a8c6455a8552882b4ed9954c5f692 100644
+--- a/dist/astro/source.d.ts
++++ b/dist/astro/source.d.ts
+@@ -186,6 +186,11 @@ export interface AstroSourceOptions {
+      * @default true
+      */
+     readonly sessionDevKV?: boolean;
++    /**
++     * Runtime used to prerender static pages.
++     * @default "workerd"
++     */
++    readonly prerenderEnvironment?: "workerd" | "node";
+     /**
+      * JSON-serializable subset of Astro config merged into the in-memory
+      * `AstroInlineConfig`. The project's `astro.config.*` file loads
+@@ -232,6 +237,7 @@ export interface AstroBuildChildConfig {
+     readonly sessionKVBindingName: string | undefined;
+     readonly sessions: boolean | undefined;
+     readonly sessionDevKV: boolean | undefined;
++    readonly prerenderEnvironment: "workerd" | "node" | undefined;
+     readonly astro: AstroSourceOptions["astro"];
+ }
+ export declare const buildInChild: (config: AstroBuildChildConfig) => Effect.Effect<FrameworkCore.BuildOutput, FrameworkCore.FrameworkError, FileSystem.FileSystem | Path.Path>;
+diff --git a/dist/astro/source.js b/dist/astro/source.js
+index 214cbf48f145d927dbfb28ef4b5750b65c1f131e..4d6a00a4223169241853439bb3eecfcb160f5a70 100644
+--- a/dist/astro/source.js
++++ b/dist/astro/source.js
+@@ -363,7 +363,8 @@ const buildInChild = (config) => Effect.gen(function* () {
+ 			},
+ 			sessionKVBindingName: config.sessionKVBindingName,
+ 			sessions: config.sessions,
+-			sessionDevKV: config.sessionDevKV
++			sessionDevKV: config.sessionDevKV,
++			prerenderEnvironment: config.prerenderEnvironment
+ 		}),
+ 		astro: config.astro
+ 	})))).build({ root: config.rootDir });
+@@ -377,7 +378,8 @@ const makeAstroSourceProvider = (options) => {
+ 			worker: vite,
+ 			sessionKVBindingName: options.sessionKVBindingName,
+ 			sessions: options.sessions,
+-			sessionDevKV: options.sessionDevKV
++			sessionDevKV: options.sessionDevKV,
++			prerenderEnvironment: options.prerenderEnvironment
+ 		}),
+ 		astro: options.astro
+ 	})));
+@@ -398,6 +400,7 @@ const makeAstroSourceProvider = (options) => {
+ 					sessionKVBindingName: options.sessionKVBindingName,
+ 					sessions: options.sessions,
+ 					sessionDevKV: options.sessionDevKV,
++					prerenderEnvironment: options.prerenderEnvironment,
+ 					astro: options.astro
+ 				}
+ 			}).pipe(Effect.mapError((error) => failWith("Astro build failed")(error.cause ?? error)));
+diff --git a/src/astro/source.ts b/src/astro/source.ts
+index 6d5e5b5aa556df078414fb100b5acf18eb72d4fa..ccaed1c77d872ff8e9b298f06dd5b4a468e86c35 100644
+--- a/src/astro/source.ts
++++ b/src/astro/source.ts
+@@ -222,6 +222,11 @@ export interface AstroSourceOptions {
+    * @default true
+    */
+   readonly sessionDevKV?: boolean;
++  /**
++   * Runtime used to prerender static pages.
++   * @default "workerd"
++   */
++  readonly prerenderEnvironment?: "workerd" | "node";
+   /**
+    * JSON-serializable subset of Astro config merged into the in-memory
+    * `AstroInlineConfig`. The project's `astro.config.*` file loads
+@@ -836,6 +841,7 @@ export interface AstroBuildChildConfig {
+   readonly sessionKVBindingName: string | undefined;
+   readonly sessions: boolean | undefined;
+   readonly sessionDevKV: boolean | undefined;
++  readonly prerenderEnvironment: "workerd" | "node" | undefined;
+   readonly astro: AstroSourceOptions["astro"];
+ }
+ 
+@@ -860,6 +866,7 @@ export const buildInChild = (config: AstroBuildChildConfig) =>
+             sessionKVBindingName: config.sessionKVBindingName,
+             sessions: config.sessions,
+             sessionDevKV: config.sessionDevKV,
++            prerenderEnvironment: config.prerenderEnvironment,
+           }),
+           astro: config.astro,
+         }),
+@@ -889,6 +896,7 @@ const makeAstroSourceProvider = (
+             sessionKVBindingName: options.sessionKVBindingName,
+             sessions: options.sessions,
+             sessionDevKV: options.sessionDevKV,
++            prerenderEnvironment: options.prerenderEnvironment,
+           }),
+           astro: options.astro,
+         }),
+@@ -914,6 +922,7 @@ const makeAstroSourceProvider = (
+             sessionKVBindingName: options.sessionKVBindingName,
+             sessions: options.sessions,
+             sessionDevKV: options.sessionDevKV,
++            prerenderEnvironment: options.prerenderEnvironment,
+             astro: options.astro,
+           } satisfies AstroBuildChildConfig,
+         }).pipe(

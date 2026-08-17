@@ -1,6 +1,6 @@
 import mdx from "@astrojs/mdx"
 import react from "@astrojs/react"
-import vercel from "@astrojs/vercel"
+// import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import icon from "astro-icon"
@@ -24,7 +24,7 @@ const FontsourceProvider = fontProviders.fontsource()
 const config = defineConfig({
   site: "https://effect.website",
 
-  adapter: vercel(),
+  // adapter: vercel(),
 
   trailingSlash: "never",
 
@@ -55,6 +55,7 @@ const config = defineConfig({
     ],
     envDir: fileURLToPath(new URL("../../", import.meta.url)),
     resolve: {
+      dedupe: ["react", "react-dom"],
       alias: {
         "@/": fileURLToPath(new URL("./src/", import.meta.url)),
         "@astrojs/starlight/components": fileURLToPath(

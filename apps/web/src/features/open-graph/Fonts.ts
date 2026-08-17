@@ -3,20 +3,9 @@ import {
   fontData,
   type FontData,
 } from "astro:assets"
-import { Cache, Context, Effect, Exit, Layer } from "effect"
-import * as HttpClient from "effect/unstable/http/HttpClient"
-import type { OgFont } from "@/services/OpenGraph"
-import { OgFontError } from "./Model"
-
-export interface OgFontsService {
-  readonly load: (
-    requestUrl: URL,
-  ) => Effect.Effect<ReadonlyArray<OgFont>, OgFontError>
-}
-
-export class OgFonts extends Context.Service<OgFonts, OgFontsService>()(
-  "website/OgFonts",
-) {}
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Fonts from "@website/open-graph/Fonts"
 
 interface OgFontDefinition {
   readonly cssVariable: "--font-og-inter" | "--font-og-jetbrains-mono"
@@ -47,7 +36,8 @@ const definitions = [
 
 const findFontPath = (
   definition: OgFontDefinition,
-): Effect.Effect<string, OgFontError> => {
+  assetOrigin: URL,
+): Effect.Effect<string, Fonts.FontResolveError> => {
   const variants: ReadonlyArray<FontData> = fontData[definition.cssVariable]
   const variant = variants.find(
     (candidate) =>
@@ -59,69 +49,30 @@ const findFontPath = (
 
   return source === undefined
     ? Effect.fail(
-        new OgFontError({
-          font: `${definition.name} ${definition.weight}`,
-          cause:
-            "Astro did not emit the required normal latin WOFF variant. Check astro.config.ts.",
+        new Fonts.FontResolveError({
+          assetOrigin,
+          cause: `Astro did not emit ${definition.name} ${definition.weight} as a normal latin WOFF font. Check astro.config.ts.`,
         }),
       )
     : Effect.succeed(source.url)
 }
 
-export const layer = Layer.effect(
-  OgFonts,
-  Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
-
-    const loadFont = (definition: OgFontDefinition, origin: string) =>
+export const layer = Layer.succeed(Fonts.FontCatalog, {
+  resolve: Effect.fn("AstroFontCatalog.resolve")(function* (assetOrigin: URL) {
+    return yield* Effect.forEach(definitions, (definition) =>
       Effect.gen(function* () {
-        const font = `${definition.name} ${definition.weight}`
-        const path = yield* findFontPath(definition)
+        const path = yield* findFontPath(definition, assetOrigin)
         const url = yield* Effect.try({
-          try: () => experimental_getFontFileURL(path, new URL(origin)),
-          catch: (cause) => new OgFontError({ font, cause }),
+          try: () => experimental_getFontFileURL(path, assetOrigin),
+          catch: (cause) => new Fonts.FontResolveError({ assetOrigin, cause }),
         })
-        const response = yield* client
-          .get(url)
-          .pipe(Effect.mapError((cause) => new OgFontError({ font, cause })))
-        if (response.status < 200 || response.status >= 300) {
-          return yield* new OgFontError({
-            font,
-            cause: `Font request returned HTTP ${response.status}`,
-          })
-        }
-        const data = yield* response.arrayBuffer.pipe(
-          Effect.mapError((cause) => new OgFontError({ font, cause })),
-        )
         return {
+          url,
           name: definition.name,
           style: "normal",
-          data,
           weight: definition.weight,
-        } satisfies OgFont
-      }).pipe(
-        Effect.withSpan("og.font.load", {
-          attributes: { font: definition.name, weight: definition.weight },
-        }),
-      )
-
-    const cache = yield* Cache.makeWith(
-      (origin: string) =>
-        Effect.forEach(
-          definitions,
-          (definition) => loadFont(definition, origin),
-          {
-            concurrency: "unbounded",
-          },
-        ),
-      {
-        capacity: 4,
-        timeToLive: (exit) => (Exit.isSuccess(exit) ? "1 day" : "0 millis"),
-      },
+        } satisfies Fonts.FontSource
+      }),
     )
-
-    return {
-      load: (requestUrl: URL) => Cache.get(cache, requestUrl.origin),
-    } as const
   }),
-)
+})

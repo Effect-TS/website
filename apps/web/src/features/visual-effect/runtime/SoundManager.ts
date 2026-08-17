@@ -11,7 +11,7 @@ import {
 import {
   prefersReducedMotionAtom,
   soundPreferenceAtom,
-} from "@/features/visual-effect/state/atoms"
+} from "@/features/visual-effect/state/sound-atoms"
 
 const PENTATONIC_SCALE = ["C", "D", "E", "G", "A"] as const
 const BASE_OCTAVE = 3

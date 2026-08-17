@@ -6,14 +6,15 @@ import {
   layer as openGraphLayer,
   route as openGraphRoute,
 } from "@/features/open-graph/Http"
+import { layer as astroFontCatalogLayer } from "@/features/open-graph/Fonts"
 
-// On-demand server endpoint: slugs derive from arbitrary page pathnames
-// (see BaseLayout.getOgImagePath), so the route cannot be enumerated at build
-// time. Run it as a Vercel serverless function instead of a static asset.
+// Slugs derive from arbitrary page pathnames, so this route must render in the
+// Cloudflare Worker instead of being enumerated at build time.
 export const prerender = false
 
 const AppLayer = HttpRouter.layer.pipe(
   Layer.provideMerge(openGraphRoute.pipe(Layer.provide(openGraphLayer))),
+  Layer.provide(astroFontCatalogLayer),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(HttpServer.layerServices),
 )

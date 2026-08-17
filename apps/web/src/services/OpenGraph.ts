@@ -1,6 +1,4 @@
 import type { CSSProperties } from "react"
-import { Resvg } from "@resvg/resvg-js"
-import satori, { type SatoriOptions } from "satori"
 import {
   OPENGRAPH_IMAGE_HEIGHT,
   OPENGRAPH_IMAGE_WIDTH,
@@ -18,85 +16,18 @@ export interface ApiReferenceOgTemplateProps {
   readonly title: string
 }
 
-export type OgFont = NonNullable<SatoriOptions["fonts"]>[number]
+export const createDocsOgNode = (props: OgTemplateProps) =>
+  createDocsTemplate(prepareContentProps(props), docsBgDataUri)
 
-export interface OgAssets {
-  readonly fonts: ReadonlyArray<OgFont>
-  readonly docsBgDataUri: string
-  readonly blogBgDataUri: string
-}
-
-// ---------------------------------------------------------------------------
-// Assets
-// ---------------------------------------------------------------------------
-
-export function createOgAssets(fonts: ReadonlyArray<OgFont>): OgAssets {
-  return {
-    fonts,
-    docsBgDataUri,
-    blogBgDataUri,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Render — stateless functions that take pre-loaded assets.
-// ---------------------------------------------------------------------------
-
-const renderPng = (svg: string): Uint8Array => {
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: "width", value: OPENGRAPH_IMAGE_WIDTH },
+export const createApiReferenceOgNode = (props: ApiReferenceOgTemplateProps) =>
+  createApiReferenceTemplate({
+    bgDataUri: docsBgDataUri,
+    eyebrow: safeText(props.eyebrow),
+    title: safeText(props.title),
   })
-  return new Uint8Array(resvg.render().asPng())
-}
 
-export async function renderDocsOg(
-  props: OgTemplateProps,
-  assets: OgAssets,
-): Promise<Uint8Array> {
-  const svg = await satori(
-    createDocsTemplate(prepareContentProps(props), assets.docsBgDataUri),
-    {
-      width: OPENGRAPH_IMAGE_WIDTH,
-      height: OPENGRAPH_IMAGE_HEIGHT,
-      fonts: assets.fonts as SatoriOptions["fonts"],
-    },
-  )
-  return renderPng(svg)
-}
-
-export async function renderApiReferenceOg(
-  props: ApiReferenceOgTemplateProps,
-  assets: OgAssets,
-): Promise<Uint8Array> {
-  const svg = await satori(
-    createApiReferenceTemplate({
-      bgDataUri: assets.docsBgDataUri,
-      eyebrow: safeText(props.eyebrow),
-      title: safeText(props.title),
-    }),
-    {
-      width: OPENGRAPH_IMAGE_WIDTH,
-      height: OPENGRAPH_IMAGE_HEIGHT,
-      fonts: assets.fonts as SatoriOptions["fonts"],
-    },
-  )
-  return renderPng(svg)
-}
-
-export async function renderBlogOg(
-  props: OgTemplateProps,
-  assets: OgAssets,
-): Promise<Uint8Array> {
-  const svg = await satori(
-    createBlogTemplate(prepareContentProps(props), assets.blogBgDataUri),
-    {
-      width: OPENGRAPH_IMAGE_WIDTH,
-      height: OPENGRAPH_IMAGE_HEIGHT,
-      fonts: assets.fonts as SatoriOptions["fonts"],
-    },
-  )
-  return renderPng(svg)
-}
+export const createBlogOgNode = (props: OgTemplateProps) =>
+  createBlogTemplate(prepareContentProps(props), blogBgDataUri)
 
 // ---------------------------------------------------------------------------
 // OgNode (plain JS objects consumed by Satori — no React needed)

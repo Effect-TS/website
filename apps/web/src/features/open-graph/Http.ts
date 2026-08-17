@@ -1,16 +1,15 @@
 import { Effect, Layer } from "effect"
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
+import type { OpenGraphError } from "@website/open-graph/OpenGraph"
 import { OpenGraph, layer as openGraphLayer } from "./Application"
-import { OgContentError, OgFontError, OgNotFound, OgRenderError } from "./Model"
+import { OgContentError, OgNotFound } from "./Model"
 
 const notFound = HttpServerResponse.text("Not Found", { status: 404 })
 const internalError = HttpServerResponse.text("Unable to generate image", {
   status: 500,
 })
 
-const reportInternalError = (
-  error: OgContentError | OgFontError | OgRenderError,
-) =>
+const reportInternalError = (error: OgContentError | OpenGraphError) =>
   Effect.logError("Open Graph request failed", error).pipe(
     Effect.as(internalError),
   )
@@ -38,8 +37,7 @@ export const route = HttpRouter.add(
     Effect.catchTag("OgNotFound", () => Effect.succeed(notFound)),
     Effect.catchTags({
       OgContentError: reportInternalError,
-      OgFontError: reportInternalError,
-      OgRenderError: reportInternalError,
+      OpenGraphError: reportInternalError,
     }),
   ),
 )
