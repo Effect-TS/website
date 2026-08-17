@@ -1,12 +1,14 @@
-import { Context, Effect, Layer } from "effect"
+import * as Context from "effect/Context"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as OpenGraph from "@website/open-graph/OpenGraph"
 import {
-  createOgAssets,
-  renderApiReferenceOg,
-  renderBlogOg,
-  renderDocsOg,
+  createApiReferenceOgNode,
+  createBlogOgNode,
+  createDocsOgNode,
 } from "@/services/OpenGraph"
-import { OgFonts, layer as fontsLayer } from "./Fonts"
-import { OgFontError, OgRenderError, type OgCard } from "./Model"
+import { OPENGRAPH_IMAGE_HEIGHT, OPENGRAPH_IMAGE_WIDTH } from "@/lib/open-graph"
+import type { OgCard } from "./Model"
 
 export type DynamicOgCard = Exclude<OgCard, { readonly _tag: "Static" }>
 
@@ -14,7 +16,7 @@ export interface OgRendererService {
   readonly render: (
     card: DynamicOgCard,
     requestUrl: URL,
-  ) => Effect.Effect<Uint8Array, OgFontError | OgRenderError>
+  ) => Effect.Effect<Uint8Array, OpenGraph.OpenGraphError>
 }
 
 export class OgRenderer extends Context.Service<
@@ -25,28 +27,34 @@ export class OgRenderer extends Context.Service<
 export const layer = Layer.effect(
   OgRenderer,
   Effect.gen(function* () {
-    const fonts = yield* OgFonts
+    const openGraph = yield* OpenGraph.OpenGraph
 
     const render = Effect.fn("OgRenderer.render")(function* (
       card: DynamicOgCard,
       requestUrl: URL,
     ) {
-      const assets = createOgAssets(yield* fonts.load(requestUrl))
-      return yield* Effect.tryPromise({
-        try: () => {
-          switch (card._tag) {
-            case "ApiReference":
-              return renderApiReferenceOg(card.props, assets)
-            case "Blog":
-              return renderBlogOg(card.props, assets)
-            case "Docs":
-              return renderDocsOg(card.props, assets)
-          }
+      const node = (() => {
+        switch (card._tag) {
+          case "ApiReference":
+            return createApiReferenceOgNode(card.props)
+          case "Blog":
+            return createBlogOgNode(card.props)
+          case "Docs":
+            return createDocsOgNode(card.props)
+        }
+      })()
+
+      return yield* openGraph.render({
+        node,
+        assetOrigin: requestUrl,
+        width: OPENGRAPH_IMAGE_WIDTH,
+        height: OPENGRAPH_IMAGE_HEIGHT,
+        resvg: {
+          fitTo: { mode: "width", value: OPENGRAPH_IMAGE_WIDTH },
         },
-        catch: (cause) => new OgRenderError({ template: card._tag, cause }),
       })
     })
 
-    return { render } as const
+    return { render }
   }),
-).pipe(Layer.provide(fontsLayer))
+).pipe(Layer.provide(OpenGraph.layer))

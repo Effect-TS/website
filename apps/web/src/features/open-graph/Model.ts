@@ -21,13 +21,3 @@ export class OgContentError extends Data.TaggedError("OgContentError")<{
   readonly slug: string
   readonly cause: unknown
 }> {}
-
-export class OgFontError extends Data.TaggedError("OgFontError")<{
-  readonly font: string
-  readonly cause: unknown
-}> {}
-
-export class OgRenderError extends Data.TaggedError("OgRenderError")<{
-  readonly template: OgCard["_tag"]
-  readonly cause: unknown
-}> {}

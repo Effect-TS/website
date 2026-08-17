@@ -700,7 +700,7 @@ export class WebContainer extends Context.Service<WebContainer>()(
               yield* Effect.forEach(
                 entries,
                 (entry) =>
-                  entry.name === "node_modules"
+                  isIgnoredWorkspacePath(entry.name)
                     ? Effect.void
                     : Effect.promise(() =>
                         container.fs.rm(`${workspace.name}/${entry.name}`, {
