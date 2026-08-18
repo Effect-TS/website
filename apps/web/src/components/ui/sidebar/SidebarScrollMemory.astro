@@ -1,0 +1,76 @@
+---
+/**
+ * Remembers the documentation sidebar rail's scroll position across full-page
+ * navigations and reveals the active entry on a cold load — so following a link
+ * never dumps the reader back at the top of a long tree.
+ *
+ * Docs and the API Reference share one scrolling rail (owned by `DocShell`) but
+ * render different trees, so each variant passes its own `storageKey` to keep
+ * their saved offsets apart. It targets the rail via `data-doc-sidebar-rail`,
+ * set by `DocShell`.
+ *
+ * The script is intentionally `is:inline`: it must set `scrollTop` before the
+ * first paint to avoid a visible jump, which a bundled (deferred) module script
+ * cannot guarantee. `define:vars` injects `storageKey` as a leading `const`.
+ */
+interface Props {
+  readonly storageKey: string
+}
+
+const { storageKey } = Astro.props
+---
+
+<script is:inline define:vars={{ storageKey }}>
+  ;(() => {
+    const rail = document.querySelector("[data-doc-sidebar-rail]")
+    if (rail === null) {
+      return
+    }
+
+    const persist = () => {
+      sessionStorage.setItem(storageKey, String(rail.scrollTop))
+    }
+
+    // Restore the offset saved on the previous page of this session.
+    const saved = sessionStorage.getItem(storageKey)
+    if (saved !== null) {
+      rail.scrollTop = Number.parseInt(saved, 10)
+    }
+
+    // Match on href so the version switcher's own aria-current="page" link is
+    // ignored and we target the actual current-page entry.
+    const active = rail.querySelector('a[aria-current="page"][href="' + location.pathname + '"]')
+    if (active !== null) {
+      const railBox = rail.getBoundingClientRect()
+      const itemBox = active.getBoundingClientRect()
+      const offScreen = itemBox.top < railBox.top || itemBox.bottom > railBox.bottom
+
+      // Center the active entry when nothing was restored or the restore left it
+      // out of view: a fresh visit, a version switch, or a stale saved offset
+      // from a differently shaped tree.
+      if (saved === null || offScreen) {
+        const delta = itemBox.top - railBox.top - rail.clientHeight / 2 + active.clientHeight / 2
+        rail.scrollTop += delta
+      }
+    }
+
+    // Save on scroll, throttled to one write per animation frame.
+    let frame = 0
+    rail.addEventListener(
+      "scroll",
+      () => {
+        if (frame !== 0) {
+          return
+        }
+        frame = requestAnimationFrame(() => {
+          frame = 0
+          persist()
+        })
+      },
+      { passive: true },
+    )
+
+    // pagehide covers link navigation and bfcache unload alike.
+    window.addEventListener("pagehide", persist)
+  })()
+</script>

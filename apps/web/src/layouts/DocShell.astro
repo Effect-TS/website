@@ -1,6 +1,7 @@
 ---
 import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
+import SidebarScrollMemory from "@/components/ui/sidebar/SidebarScrollMemory.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import type { NavigationActiveSlug } from "@/lib/navigation"
@@ -48,7 +49,7 @@ const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 p
       {
         hasSidebar && (
           <aside class="hidden border-r border-border lg:block">
-            <div data-doc-rail class={railClass}>
+            <div data-doc-sidebar-rail class={railClass}>
               <slot name="sidebar" />
             </div>
           </aside>
@@ -62,7 +63,7 @@ const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 p
       {
         hasToc && (
           <aside class="hidden border-l border-border xl:block">
-            <div data-doc-rail class={railClass}>
+            <div class={railClass}>
               <slot name="toc" />
             </div>
           </aside>
@@ -72,4 +73,6 @@ const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 p
 
     <Footer />
   </div>
+
+  {hasSidebar && <SidebarScrollMemory storageKey={`docShellSidebarScroll:${activeSlug}`} />}
 </BaseLayout>

@@ -100,7 +100,6 @@ const sidebarSections = sections.map((section) => ({
           href: moduleHref(candidate.data.modulePath),
           label: sidebarModuleName(candidate.data.modulePath, group),
           active,
-          data: { "data-current-module": active ? "" : undefined },
         }
       }),
   })),
@@ -178,7 +177,7 @@ const tocItems = apiModule.groups.map((group) => ({
     modules={mobileModules}
   />
 
-  <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar data-module-sidebar>
+  <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
     {
       showVersionSwitch && (
         <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
@@ -282,28 +281,3 @@ const tocItems = apiModule.groups.map((group) => ({
 
   {tocItems.length > 0 && <TableOfContents slot="toc" items={tocItems} />}
 </DocShell>
-
-<script>
-  const moduleSidebar = document.querySelector<HTMLElement>("[data-module-sidebar]")
-  const currentModuleLink = moduleSidebar?.querySelector<HTMLElement>("[data-current-module]")
-
-  if (moduleSidebar !== null && currentModuleLink !== undefined && currentModuleLink !== null) {
-    const details = currentModuleLink.closest("details")
-    if (details instanceof HTMLDetailsElement) details.open = true
-
-    // DocShell owns the scrolling rail; use it rather than the navigation
-    // element so the active module is centered after the shared layout change.
-    const sidebarScroller = moduleSidebar.closest<HTMLElement>("[data-doc-rail]") ?? moduleSidebar
-
-    requestAnimationFrame(() => {
-      const sidebarBounds = sidebarScroller.getBoundingClientRect()
-      const linkBounds = currentModuleLink.getBoundingClientRect()
-      const isVisible =
-        linkBounds.top >= sidebarBounds.top && linkBounds.bottom <= sidebarBounds.bottom
-      if (isVisible) return
-
-      sidebarScroller.scrollTop +=
-        linkBounds.top - sidebarBounds.top - (sidebarScroller.clientHeight - linkBounds.height) / 2
-    })
-  }
-</script>
