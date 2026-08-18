@@ -22,6 +22,15 @@ import livorno6 from "@/assets/effect-days/livorno-6.avif"
 import livorno7 from "@/assets/effect-days/livorno-7.avif"
 import EffectfulWhite from "@/assets/effect-days/Effectful-white.svg"
 import ziverge from "@/assets/effect-days/ziverge.svg"
+import TwitterLogo from "@/assets/logos/twitter/Twitter.svg"
+import dillonMulroy from "@/assets/effect-days/dillon-mulroy.png"
+import kitLangton from "@/assets/effect-days/kit-langton.png"
+import rhysSullivan from "@/assets/effect-days/rhys-sullivan.png"
+import leonie from "@/assets/effect-days/leonie.jpg"
+import kyleMistele from "@/assets/effect-days/kyle-mistele.png"
+import adamRankin from "@/assets/effect-days/adam-rankin.png"
+import samGoodwin from "@/assets/effect-days/sam-goodwin.png"
+import devinJameson from "@/assets/effect-days/devin-jameson.jpg"
 
 const PROGRAM = [
   {
@@ -44,6 +53,65 @@ const PROGRAM = [
     date: "Dec 11",
     title: "Community Day",
     description: "More learning, networking, and fun!",
+  },
+]
+
+const SPEAKERS = [
+  {
+    name: "Dillon Mulroy",
+    role: "Principal Engineer",
+    company: "Cloudflare",
+    photo: dillonMulroy,
+    x: "dillon_mulroy",
+  },
+  {
+    name: "Kit Langton",
+    role: "+9,000x Developer",
+    company: "OpenCode",
+    photo: kitLangton,
+    x: "kitlangton",
+  },
+  {
+    name: "Rhys Sullivan",
+    role: "Founder",
+    company: "Executor",
+    photo: rhysSullivan,
+    x: "RhysSullivan",
+  },
+  {
+    name: "Leonie Gräßel",
+    role: "Founder",
+    company: "Novelcrafter",
+    photo: leonie,
+    x: "spaceemotion",
+  },
+  {
+    name: "Kyle Mistele",
+    role: "CTO",
+    company: "HumanLayer",
+    photo: kyleMistele,
+    x: "0xblacklight",
+  },
+  {
+    name: "Adam Rankin",
+    role: "CTO",
+    company: "Warp",
+    photo: adamRankin,
+    x: "rankintweets",
+  },
+  {
+    name: "Sam Goodwin",
+    role: "Founder",
+    company: "Alchemy",
+    photo: samGoodwin,
+    x: "samgoodwin89",
+  },
+  {
+    name: "Devin Jameson",
+    role: "Creator",
+    company: "Foldkit",
+    photo: devinJameson,
+    x: "devinjameson",
   },
 ]
 
@@ -296,6 +364,53 @@ const FAQ_COLUMNS = [
             <h3 class="mt-6 text-lg font-semibold text-white">{step.title}</h3>
             <p class="mt-1 text-sm leading-normal text-zinc-400">{step.description}</p>
           </Card>
+        ))
+      }
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="speakers">
+    <div class="grid grid-cols-1 gap-0 md:grid-cols-2 md:items-baseline-last md:gap-8">
+      <SectionHeader eyebrow="Speakers" title="Who you'll hear from" />
+      <p class="mt-4 text-lg text-zinc-400 md:mt-0">
+        Engineers building on Effect in production, from the teams behind the tools you use. More
+        speakers to be announced.
+      </p>
+    </div>
+
+    <div
+      class="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[repeat(2,1fr)_0px_repeat(2,1fr)] lg:[&>*:nth-child(4n+1)]:col-start-1 lg:[&>*:nth-child(4n+2)]:col-start-2 lg:[&>*:nth-child(4n+3)]:col-start-4 lg:[&>*:nth-child(4n)]:col-start-5"
+    >
+      {
+        SPEAKERS.map((speaker) => (
+          <div class="flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950">
+            <Image
+              src={speaker.photo}
+              alt={speaker.name}
+              class="aspect-4/5 w-full border-b border-zinc-800 object-cover opacity-80"
+            />
+            <div class="flex flex-1 flex-col p-4">
+              <h3 class="text-lg font-semibold text-white">{speaker.name}</h3>
+              <div class="flex items-center justify-between gap-2">
+                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                  {speaker.role} · {speaker.company}
+                </p>
+                {speaker.x && (
+                  <a
+                    href={`https://x.com/${speaker.x}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${speaker.name} on X`}
+                    class="mt-1 shrink-0 text-zinc-400 transition-colors hover:text-white"
+                  >
+                    <TwitterLogo width={16} height={16} class="size-4" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
         ))
       }
     </div>
