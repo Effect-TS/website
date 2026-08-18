@@ -1,9 +1,11 @@
 import mdx from "@astrojs/mdx"
+import { unified } from "@astrojs/markdown-remark"
 import react from "@astrojs/react"
 import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import icon from "astro-icon"
+import astroMermaid from "astro-mermaid"
 import {
   defineConfig,
   envField,
@@ -27,6 +29,10 @@ const config = defineConfig({
   trailingSlash: "never",
 
   compressHTML: true,
+
+  markdown: {
+    processor: unified(),
+  },
 
   build: {
     concurrency: 2,
@@ -84,7 +90,13 @@ const config = defineConfig({
     },
   },
 
-  integrations: [expressiveCode(), react(), mdx(), icon()],
+  integrations: [
+    astroMermaid({ autoTheme: true, enableLog: false }),
+    expressiveCode(),
+    react(),
+    mdx(),
+    icon(),
+  ],
 
   fonts: [
     {
