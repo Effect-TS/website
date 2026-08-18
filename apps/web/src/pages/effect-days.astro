@@ -31,6 +31,8 @@ import kyleMistele from "@/assets/effect-days/kyle-mistele.png"
 import adamRankin from "@/assets/effect-days/adam-rankin.png"
 import samGoodwin from "@/assets/effect-days/sam-goodwin.png"
 import devinJameson from "@/assets/effect-days/devin-jameson.jpg"
+import betalyra from "@/assets/effect-days/betalyra-dark.svg"
+import novelcrafter from "@/assets/effect-days/novelcrafter.svg"
 
 const PROGRAM = [
   {
@@ -165,24 +167,51 @@ const PASSES = [
   },
 ]
 
-/* Both sponsors are main sponsors, so the cards carry no tier label. The
-   pages run dark, so the marks come in their dark-on-dark variants. */
 const SPONSORS = [
   {
     name: "Effectful",
+    top: true,
+    tier: "Main sponsor",
     logo: EffectfulWhite,
-    /* Effectful's wordmark is short and heavy, so it runs taller than
-       Ziverge's wider lockup for the two to read at the same size. */
     logoHeight: "h-12",
+    logoBox: "h-12",
+    tileClass: "py-12 gap-4",
     websiteUrl: "https://effectful.co/",
   },
   {
     name: "Ziverge",
+    top: true,
+    tier: "Main sponsor",
     logo: ziverge,
     logoHeight: "h-8",
+    logoBox: "h-12",
+    tileClass: "py-12 gap-4",
     websiteUrl: "https://www.ziverge.com/",
   },
+  {
+    name: "Betalyra",
+    top: false,
+    tier: "Partner",
+    logo: betalyra,
+    logoHeight: "h-12",
+    logoBox: "h-12",
+    tileClass: "py-7 gap-4",
+    websiteUrl: "https://betalyra.com/",
+  },
+  {
+    name: "Novelcrafter",
+    top: false,
+    tier: "Community",
+    logo: novelcrafter,
+    logoHeight: "h-8",
+    logoBox: "h-12",
+    tileClass: "py-7 gap-4",
+    websiteUrl: "https://www.novelcrafter.com/",
+  },
 ]
+
+const TOP_SPONSORS = SPONSORS.filter((sponsor) => sponsor.top)
+const SUPPORTING_SPONSORS = SPONSORS.filter((sponsor) => !sponsor.top)
 
 const EDITIONS = [
   {
@@ -710,12 +739,6 @@ const FAQ_COLUMNS = [
   <SectionDivider />
 
   <Section id="sponsors">
-    {
-      /* Title in the left half, the blurb in the right. Stacked on mobile the
-        columns close up to gap-0, so the subtitle's own mt-4 sets the spacing
-        instead of the grid. The sponsorship CTA is the last tile in the grid
-        below rather than a link sitting up here. */
-    }
     <div class="grid grid-cols-1 gap-0 md:grid-cols-2 md:items-baseline-last md:gap-8">
       <SectionHeader eyebrow="Sponsors" title="Made possible by" />
       <p class="mt-4 text-lg text-zinc-400 md:mt-0">
@@ -724,63 +747,82 @@ const FAQ_COLUMNS = [
       </p>
     </div>
 
-    {
-      /* Corner-bracket tiles — the logo is the link, and the open slot closes
-        the row so the grid reads full rather than short two sponsors. Two
-        across from sm (mobile landscape keeps the marks on one row), three
-        once there is desktop width for the slot. Each tile is opaque so the
-        page's centre dashed line stops behind it rather than crossing a logo. */
-    }
-    <div class="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+    <div class="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-8">
       {
-        SPONSORS.map((sponsor) => (
+        TOP_SPONSORS.map((sponsor) => (
           <a
             href={sponsor.websiteUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`${sponsor.name} — visit website`}
-            class="group relative flex items-center justify-center bg-zinc-950 px-6 py-12"
+            class:list={[
+              "group relative flex flex-col items-center justify-center bg-zinc-950 px-6",
+              sponsor.tileClass,
+            ]}
           >
             <CornerBrackets />
-            <img
-              src={sponsor.logo.src}
-              alt={sponsor.name}
-              width={sponsor.logo.width}
-              height={sponsor.logo.height}
-              class={`${sponsor.logoHeight} w-auto max-w-full object-contain`}
-            />
+            <span class:list={["flex items-center justify-center", sponsor.logoBox]}>
+              <img
+                src={sponsor.logo.src}
+                alt={sponsor.name}
+                width={sponsor.logo.width}
+                height={sponsor.logo.height}
+                class={`${sponsor.logoHeight} w-auto max-w-full object-contain`}
+              />
+            </span>
+            <span class="border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              {sponsor.tier}
+            </span>
+          </a>
+        ))
+      }
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {
+        SUPPORTING_SPONSORS.map((sponsor) => (
+          <a
+            href={sponsor.websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${sponsor.name} — visit website`}
+            class:list={[
+              "group relative flex flex-col items-center justify-center bg-zinc-950 px-6",
+              sponsor.tileClass,
+            ]}
+          >
+            <CornerBrackets />
+            <span class:list={["flex items-center justify-center", sponsor.logoBox]}>
+              <img
+                src={sponsor.logo.src}
+                alt={sponsor.name}
+                width={sponsor.logo.width}
+                height={sponsor.logo.height}
+                class={`${sponsor.logoHeight} w-auto max-w-full object-contain`}
+              />
+            </span>
+            <span class="border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              {sponsor.tier}
+            </span>
           </a>
         ))
       }
 
-      {
-        /* Open slot. At sm there are two columns and three tiles, so it spans the
-          full second row instead of leaving a hole. */
-      }
       <a
         href="mailto:contact@effectful.co?subject=Effect Days Livorno - Sponsorship"
-        class="group relative flex flex-col items-center justify-center gap-2 bg-zinc-950 px-6 py-12 sm:col-span-2 lg:col-span-1"
+        class="group relative col-span-2 flex flex-col items-center justify-center gap-2 bg-zinc-950 px-6 py-7 sm:col-span-1"
       >
         <CornerBrackets tone="dim" />
-
-        {
-          /* An empty logo slot, sized to the marks beside it, with the caret from
-            the 2026 edition card blinking inside — it reads as waiting for a
-            name to be typed in. */
-        }
-        <span
-          class="flex h-12 w-48 items-center justify-center border border-dashed border-zinc-700 transition-colors duration-200 group-hover:border-zinc-500"
-        >
+        <span class="flex h-7 w-44 max-w-full items-center justify-center">
           <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
             Your logo here
             <span class="animate-[terminal-blink_1s_step-end_infinite]">{" ▊"}</span>
           </span>
         </span>
         <span
-          class="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors duration-200 group-hover:text-white"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors duration-200 group-hover:text-white"
         >
           Become a sponsor
-          {/* mailto — leaves the page, so up-right */}
           <ArrowUpRight size={12} aria-hidden="true" />
         </span>
       </a>
