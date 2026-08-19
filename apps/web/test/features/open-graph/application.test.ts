@@ -30,18 +30,6 @@ const runGenerate = (
   }).pipe(Effect.provide(layer))
 }
 
-test("returns static images without invoking the renderer", async () => {
-  const expected = Uint8Array.from([1, 2, 3])
-  const result = await Effect.runPromise(
-    runGenerate(
-      () => Effect.succeed({ _tag: "Static", bytes: expected }),
-      () => Effect.die("The renderer should not be invoked"),
-    ),
-  )
-
-  assert.deepEqual(result, expected)
-})
-
 test("delegates dynamic cards to the renderer", async () => {
   const expected = Uint8Array.from([4, 5, 6])
   const card = {

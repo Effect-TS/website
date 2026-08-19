@@ -2,6 +2,15 @@ import * as Alchemy from "alchemy"
 import * as Cloudflare from "alchemy/Cloudflare"
 import * as Effect from "effect/Effect"
 
+export const Website = Cloudflare.Website.Astro("WebsiteWorker", {
+  rootDir: "./apps/web",
+  astro: { output: "static" },
+  sessionKVBindingName: false,
+  prerenderEnvironment: "node",
+})
+
+export type WebsiteEnv = Cloudflare.InferEnv<typeof Website>
+
 export default Alchemy.Stack(
   "EffectWebsite",
   {
@@ -9,11 +18,7 @@ export default Alchemy.Stack(
     state: Cloudflare.state(),
   },
   Effect.gen(function* () {
-    const website = yield* Cloudflare.Website.Astro("WebsiteWorker", {
-      rootDir: "./apps/web",
-      sessionKVBindingName: false,
-      prerenderEnvironment: "node",
-    })
+    const website = yield* Website
 
     return {
       websiteUrl: website.url,

@@ -14,9 +14,7 @@ export class OpenGraph extends Context.Service<OpenGraph>()(
         requestUrl: URL,
       ) {
         const card = yield* content.resolve(slug)
-        return card._tag === "Static"
-          ? card.bytes
-          : yield* renderer.render(card, requestUrl)
+        return yield* renderer.render(card, requestUrl)
       })
 
       return { generate } as const
