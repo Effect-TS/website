@@ -1,4 +1,9 @@
-import type { ApiReferenceOgTemplateProps } from "@/services/OpenGraph"
+import type { OpenGraphContent } from "@/features/open-graph/model"
+
+type ApiReferenceTemplateProps = Extract<
+  OpenGraphContent,
+  { _tag: "Api" }
+>["props"]
 
 export interface ApiReferenceOpenGraphEntry {
   readonly modulePath: string
@@ -12,7 +17,7 @@ export interface ApiReferenceOpenGraphEntry {
 export interface ApiReferenceOpenGraphCard {
   readonly description: string
   readonly revision: string
-  readonly template: ApiReferenceOgTemplateProps
+  readonly template: ApiReferenceTemplateProps
 }
 
 export function resolveApiReferenceOpenGraph(

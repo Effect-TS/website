@@ -11,7 +11,7 @@ import {
 } from "astro/config"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
-import { openGraphMetadataPlugin } from "./src/features/open-graph/metadata-plugin"
+import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
