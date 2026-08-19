@@ -10,11 +10,9 @@ import {
 import { OPENGRAPH_IMAGE_HEIGHT, OPENGRAPH_IMAGE_WIDTH } from "@/lib/open-graph"
 import type { OgCard } from "./Model"
 
-export type DynamicOgCard = Exclude<OgCard, { readonly _tag: "Static" }>
-
 export interface OgRendererService {
   readonly render: (
-    card: DynamicOgCard,
+    card: OgCard,
     requestUrl: URL,
   ) => Effect.Effect<Uint8Array, OpenGraph.OpenGraphError>
 }
@@ -30,7 +28,7 @@ export const layer = Layer.effect(
     const openGraph = yield* OpenGraph.OpenGraph
 
     const render = Effect.fn("OgRenderer.render")(function* (
-      card: DynamicOgCard,
+      card: OgCard,
       requestUrl: URL,
     ) {
       const node = (() => {

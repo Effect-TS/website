@@ -5,7 +5,6 @@ import type {
 } from "@/services/OpenGraph"
 
 export type OgCard =
-  | { readonly _tag: "Static"; readonly bytes: Uint8Array }
   | { readonly _tag: "Docs"; readonly props: OgTemplateProps }
   | { readonly _tag: "Blog"; readonly props: OgTemplateProps }
   | {
@@ -15,9 +14,4 @@ export type OgCard =
 
 export class OgNotFound extends Data.TaggedError("OgNotFound")<{
   readonly slug: string
-}> {}
-
-export class OgContentError extends Data.TaggedError("OgContentError")<{
-  readonly slug: string
-  readonly cause: unknown
 }> {}

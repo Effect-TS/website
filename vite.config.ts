@@ -42,6 +42,12 @@ export default defineConfig({
                 import.meta.url,
               ),
             ),
+            "virtual:open-graph-metadata": fileURLToPath(
+              new URL(
+                "./apps/web/test/stubs/open-graph-metadata.ts",
+                import.meta.url,
+              ),
+            ),
           },
         },
         test: {
