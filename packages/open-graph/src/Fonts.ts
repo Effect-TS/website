@@ -5,7 +5,6 @@ import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
-import * as HttpClient from "effect/unstable/http/HttpClient"
 
 export interface FontSource {
   readonly url: string | URL
@@ -34,6 +33,15 @@ export class FontCatalog extends Context.Service<
   }
 >()("@website/open-graph/Fonts/Catalog") {}
 
+export class FontLoader extends Context.Service<
+  FontLoader,
+  {
+    readonly load: (
+      source: FontSource,
+    ) => Effect.Effect<ArrayBuffer, FontLoadError>
+  }
+>()("@website/open-graph/Fonts/Loader") {}
+
 export class Fonts extends Context.Service<
   Fonts,
   {
@@ -47,21 +55,13 @@ export const layer = Layer.effect(
   Fonts,
   Effect.gen(function* () {
     const catalog = yield* FontCatalog
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const loader = yield* FontLoader
 
-    const loadFont = Effect.fnUntraced(
-      function* (source: FontSource) {
-        const response = yield* client.get(source.url)
-        const data = yield* response.arrayBuffer
-        const { url: _, ...metadata } = source
-        return { ...metadata, data } satisfies Font
-      },
-      (effect, source) =>
-        Effect.mapError(
-          effect,
-          (cause) => new FontLoadError({ source, cause }),
-        ),
-    )
+    const loadFont = Effect.fnUntraced(function* (source: FontSource) {
+      const data = yield* loader.load(source)
+      const { url: _, ...metadata } = source
+      return { ...metadata, data } satisfies Font
+    })
 
     const cache = yield* Cache.makeWith(
       (origin: string) =>

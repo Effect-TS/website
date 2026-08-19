@@ -1,7 +1,8 @@
 import type { Plugin } from "vite"
 import * as Doctest from "@effect/doctest/Plugin"
 import { stripTypeScriptTypes } from "node:module"
-import { defineConfig } from "vite-plus"
+// oxlint-disable-next-line vite-plus/prefer-vite-plus-imports -- doctest uses the workspace Vite plugin types, not Vite+'s bundled type identity
+import { defineConfig } from "vitest/config"
 
 // Doctest's extracted snippet modules keep the .mdx extension of their source
 // file (e.g. "batching.mdx?effect-doctest=snippet&index=5"), so Vite's
