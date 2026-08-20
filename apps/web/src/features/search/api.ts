@@ -1,24 +1,8 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as Schema from "effect/Schema"
-import {
-  HttpApi,
-  HttpApiBuilder,
-  HttpApiEndpoint,
-  HttpApiGroup,
-} from "effect/unstable/httpapi"
-import { SearchError, SearchResult } from "./domain"
+import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { SearchApi } from "./contract"
 import { Search } from "./service"
-
-class SearchApiGroup extends HttpApiGroup.make("search").add(
-  HttpApiEndpoint.get("search", "/api/search", {
-    query: { query: Schema.String },
-    success: Schema.Array(SearchResult),
-    error: [SearchError],
-  }),
-) {}
-
-class SearchApi extends HttpApi.make("searchApi").add(SearchApiGroup) {}
 
 const SearchHandlers = HttpApiBuilder.group(
   SearchApi,

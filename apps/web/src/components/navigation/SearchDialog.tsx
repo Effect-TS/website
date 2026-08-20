@@ -5,11 +5,12 @@ import {
   useAtomValue,
 } from "@effect/atom-react"
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
-import * as Data from "effect/Data"
-import * as Effect from "effect/Effect"
+import * as Cause from "effect/Cause"
 import { constVoid } from "effect/Function"
 import * as Option from "effect/Option"
+import * as Result from "effect/Result"
 import * as Schema from "effect/Schema"
+import { HttpClientError } from "effect/unstable/http"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import {
@@ -46,7 +47,9 @@ import {
   type SearchFailureReason,
   type SearchOpenSource,
 } from "@/features/search/analytics"
+import { SearchClient } from "@/features/search/client"
 import {
+  type SearchError,
   SearchResult,
   type ApiReferenceSearchResult,
   type BlogSearchResult,
@@ -161,83 +164,63 @@ type SearchResultsView =
   | { readonly _tag: "Grouped" }
   | { readonly _tag: "Section"; readonly section: SearchResult["kind"] }
 
-class SearchError extends Data.TaggedError("SearchError")<{
-  readonly cause: unknown
+const searchFailure = (
+  cause: Cause.Cause<SearchError>,
+): {
   readonly reason: SearchFailureReason
   readonly httpStatus?: number
-}> {}
+} => {
+  const error = Option.getOrElse(Cause.findErrorOption(cause), () =>
+    Result.getOrElse(Cause.findDefect(cause), () => undefined),
+  )
 
-const decodeSearchResults = Schema.decodeUnknownEffect(
-  Schema.Array(SearchResult),
-)
-
-const searchRequestAtom = Atom.make((get) => {
-  const query = get(debouncedSearchQueryAtom)
-  if (query.trim().length === 0) {
-    return Effect.succeed<ReadonlyArray<SearchResult>>([])
+  if (Cause.isTimeoutError(error)) return { reason: "timeout" }
+  if (HttpClientError.isHttpClientError(error)) {
+    if (error.reason._tag === "StatusCodeError") {
+      return { reason: "http", httpStatus: error.reason.response.status }
+    }
+    if (
+      error.reason._tag === "TransportError" &&
+      Cause.isTimeoutError(error.reason.cause)
+    ) {
+      return { reason: "timeout" }
+    }
+    return {
+      reason:
+        error.reason._tag === "TransportError" ? "network" : "invalid_response",
+    }
   }
+  if (Schema.isSchemaError(error)) return { reason: "invalid_response" }
 
-  get.set(addRecentSearchAtom, {
-    query,
-    version: get(selectedVersionAtom),
+  return { reason: "http", httpStatus: 500 }
+}
+
+const searchRequestAtom = Atom.family((query: string) => {
+  const requestAtom = SearchClient.query("search", "search", {
+    query: { query },
   })
+  let startedAt: number | undefined
 
-  const url = `/api/search?query=${encodeURIComponent(query)}`
-
-  return Effect.gen(function* () {
-    const startedAt = performance.now()
-    return yield* Effect.gen(function* () {
-      const response = yield* Effect.tryPromise({
-        try: (signal) => fetch(url, { signal }),
-        catch: (cause) => new SearchError({ cause, reason: "network" }),
-      }).pipe(
-        Effect.timeout("5 seconds"),
-        Effect.catchTag(
-          "TimeoutError",
-          (cause) => new SearchError({ cause, reason: "timeout" }),
-        ),
-      )
-
-      if (!response.ok) {
-        return yield* new SearchError({
-          cause: new Error(`Search request failed: ${response.status}`),
-          reason: "http",
-          httpStatus: response.status,
-        })
+  return Atom.transform(requestAtom, (get) => {
+    const result = get(requestAtom)
+    if (result.waiting) {
+      startedAt ??= performance.now()
+    } else if (startedAt !== undefined) {
+      const duration = performance.now() - startedAt
+      startedAt = undefined
+      if (AsyncResult.isSuccess(result)) {
+        SearchAnalytics.requestComplete(query, duration, result.value)
+      } else if (AsyncResult.isFailure(result)) {
+        const failure = searchFailure(result.cause)
+        SearchAnalytics.requestFail(
+          query,
+          duration,
+          failure.reason,
+          failure.httpStatus,
+        )
       }
-
-      const data = yield* Effect.tryPromise({
-        try: () => response.json(),
-        catch: (cause) =>
-          new SearchError({ cause, reason: "invalid_response" }),
-      })
-
-      return yield* decodeSearchResults(data).pipe(
-        Effect.mapError(
-          (cause) => new SearchError({ cause, reason: "invalid_response" }),
-        ),
-      )
-    }).pipe(
-      Effect.tap((results) =>
-        Effect.sync(() =>
-          SearchAnalytics.requestComplete(
-            query,
-            performance.now() - startedAt,
-            results,
-          ),
-        ),
-      ),
-      Effect.tapError((error) =>
-        Effect.sync(() =>
-          SearchAnalytics.requestFail(
-            query,
-            performance.now() - startedAt,
-            error.reason,
-            error.httpStatus,
-          ),
-        ),
-      ),
-    )
+    }
+    return result
   })
 })
 
@@ -274,7 +257,12 @@ export const allSearchResultsAtom = Atom.make((get) => {
     return AsyncResult.initial<ReadonlyArray<SearchResult>, SearchError>()
   }
 
-  return get(searchRequestAtom)
+  get.set(addRecentSearchAtom, {
+    query,
+    version: get(selectedVersionAtom),
+  })
+
+  return get(searchRequestAtom(query))
 })
 
 const versionResultsAtom = Atom.make((get) => {
