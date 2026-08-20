@@ -1,0 +1,152 @@
+---
+pagefind: false
+title: This Week in Effect - 132
+excerpt: "Effect v4 RC lands new Match.fn selectors, RPC stream backpressure, and Schema reference policies. Foldkit ships server-side rendering. Effect gets a shoutout in this week's This Week in React newsletter."
+date: 2026-08-21
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Release Candidate](https://www.effect.website/blog/releases/effect/40-rc)! 🚀
+- [Effect AI SDK](https://github.com/Effect-TS/effect/releases/tag/%40effect%2Fai%400.27.0) Release.
+- Durable workflows in TypeScript with [`@effect/workflow`](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/unstable/workflow) - currently in alpha.
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days).
+
+## Technology
+
+### Effect v4 RC updates.
+
+The team continued the codebase audit this week, while also landing several new APIs and meaningful improvements across tracing, RPC, Schema, and AI modules.
+
+- **New APIs**: Added `Match.fn` selector matchers for more ergonomic pattern matching, added standalone dual `Optic` functions, restored `Effect.head` which had been inadvertently removed, and added RPC HTTP stream backpressure to prevent unbounded memory growth under slow consumers.
+
+- **Schema**: Added configurable schema reference policies, fixed projection of checks and annotations through artificial JSON encodings, and added a protocol adapter for the latest MCP specification revision.
+
+- **Tracing performance**: Improved tracing performance in span creation and HTTP tracer middleware, shared tracer hex ID generation across spans, and documented the public random hex contract.
+
+- **RPC**: Made server notifications first-class RPC messages, and added HTTP stream backpressure.
+
+- **AI providers**: Preserved encoded AI tool parameters for manual resolution, and fixed `Deferred` clearing resumes before resuming waiters on completion.
+
+- **SQL**: Propagated failed transaction begin as a typed error, and fixed `NodeStream` zero `maxBytes` handling.
+
+- **Runtime & core**: Merged resource usage and finalizer failures, preserved `Context` accessor with loose object spread, fixed `Effect.fromOption` inline inference, normalized unbounded `PubSub` replay capacities, and respected zero Node socket open timeouts.
+
+- **Schedule**: Added support for refinements in `Schedule.while`.
+
+- **Graph**: Fixed edge mutability and A\* heuristics.
+
+- **Internals**: Used `Context.mapUnsafe` in fewer call sites for better performance.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [**Effect v4 Beta updates**](https://effect.website/blog/tags/effect-v4-beta-recaps/).
+
+## Community Events
+
+- Grab your ticket for the Effect Days 2026 ✨ Join us in Italy on December 9–11 for three days with the people building Effect and the people building with it.
+
+  <Tweet id="2088742174355583055" />
+
+- The first [Effect Warsaw](https://luma.com/29fn6spj) meetup is scheduled on September 15!
+
+  <Tweet id="2086778100180824403" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Adoption Partner
+
+Save your seat for the first [Effect Training Workshop](https://www.eventbrite.com/e/ziverge-effect-ts-workshop-tickets-1993621741295?aff=oddtdtcreator) by John De Goes!
+
+<Tweet id="2084222033424982343" />
+
+## Community Highlights
+
+- Effect mentioned in the latest **This Week in React** newsletter
+
+  <Tweet id="2089001003295150164" />
+
+- [**Making an LLM Request in Effect TS**](https://www.jxsh.io/making-an-llm-request-in-effect-ts/) blog post by Josh Pitzalis.
+
+- Server-side Rendering just landed in **Foldkit**. Read more in the latest [blog post](https://foldkit.dev/blog/foldkit-has-server-rendering) by Devin Jameson.
+
+  <Tweet id="2089777736562925680" />
+
+- A gentle reminder from Giulio💯
+
+  <Tweet id="2090409195807903924" />
+
+- 🤍
+
+  <Tweet id="2090092865481277646" />
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 42 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/wK6vW_Xfbhs?si=UkOgmj1BKPuL37qC"
+  title="Effect Office Hours 42 🔥"
+/>
+
+- PR review: Merging external events into Prompt.custom
+
+<YouTube
+  id="https://www.youtube.com/embed/5aff67su8Mk?si=93iUrIHZFnNK9AQY"
+  title="PR review: Merging external events into Prompt.custom"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+New this week: **Superwall** is hiring a Global Remote Support Engineer (US time zones preferred).
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
