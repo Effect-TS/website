@@ -2,7 +2,7 @@ import { assert, test } from "vite-plus/test"
 import {
   addRecentSearch,
   normalizeRecentSearch,
-} from "../../../src/services/search/preferences.ts"
+} from "../../../src/features/search/preferences.ts"
 import { docsVersionFromPathname } from "../../../src/lib/versions.ts"
 
 test("selects the search version from the current docs path", () => {

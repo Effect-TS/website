@@ -1,6 +1,6 @@
 import * as Schema from "effect/Schema"
 import { assert, test } from "vite-plus/test"
-import { StoreSearchResponse } from "../../../src/services/search/domain.ts"
+import { StoreSearchResponse } from "../../../src/features/search/domain.ts"
 
 test("decodes search results with unclassified file metadata", () => {
   const response = Schema.decodeUnknownSync(StoreSearchResponse)({
