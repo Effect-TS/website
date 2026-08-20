@@ -1,4 +1,4 @@
-name: Vercel Production Deployment
+name: Production Deployment
 
 on:
   workflow_dispatch:
@@ -38,8 +38,12 @@ jobs:
           website-ref: ${{ github.sha }}
           api-reference-snapshot: ${{ inputs.api_reference_snapshot || '' }}
           mixedbread-scope: ${{ inputs.mixedbread_scope || 'markdown' }}
-          mxbai-api-key: ${{ secrets.MXBAI_API_KEY }}
+          mxbai-admin-api-key: ${{ secrets.MXBAI_ADMIN_API_KEY }}
+          mxbai-search-api-key: ${{ secrets.MXBAI_SEARCH_API_KEY }}
           mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          kv-rest-api-url: ${{ secrets.KV_REST_API_URL }}
+          kv-rest-api-token: ${{ secrets.KV_REST_API_TOKEN }}
+          public-posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          public-posthog-api-host: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
