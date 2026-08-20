@@ -6,7 +6,7 @@ import {
   HttpClientError,
 } from "effect/unstable/http"
 import * as AtomHttpApi from "effect/unstable/reactivity/AtomHttpApi"
-import { SearchApi } from "./contract"
+import { SearchApi } from "./api"
 
 export class SearchClient extends AtomHttpApi.Service<SearchClient>()(
   "effect/website/SearchClient",

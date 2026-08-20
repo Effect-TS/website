@@ -4,7 +4,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Atom from "effect/unstable/reactivity/Atom"
-import { ShortenClient } from "@/services/shorten/client"
+import { ShortenClient } from "@/features/playground/services/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import {
   defaultVersion,
@@ -182,7 +182,7 @@ const fromHash = Effect.fnUntraced(
 
     const client = yield* ShortenClient
     const compressed = yield* client
-      .retrieve({ hash: hash.value })
+      .retrieve({ params: { hash: hash.value } })
       .pipe(Effect.flatMap(Effect.fromOption))
     const compression = yield* WorkspaceCompression
     return Option.some(yield* compression.decompress(compressed))
