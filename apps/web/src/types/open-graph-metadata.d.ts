@@ -2,7 +2,7 @@ declare module "virtual:open-graph-metadata" {
   import type { OpenGraphContent } from "@/features/open-graph/model"
 
   type ApiProps = Extract<OpenGraphContent, { _tag: "Api" }>["props"]
-  type BlogProps = Extract<OpenGraphContent, { _tag: "Docs" }>["props"]
+  type BlogProps = Extract<OpenGraphContent, { _tag: "Blog" }>["props"]
   type DocsProps = Extract<OpenGraphContent, { _tag: "Docs" }>["props"]
 
   const metadata: {

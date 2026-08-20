@@ -1,58 +1,75 @@
-import { readFile } from "node:fs/promises"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as FileSystem from "effect/FileSystem"
+import * as Schema from "effect/Schema"
+import { fileURLToPath } from "node:url"
 import { parse } from "devalue"
 import type { Plugin } from "vite"
 
 const moduleId = "virtual:open-graph-metadata"
 const resolvedModuleId = `\0${moduleId}`
 
-interface ContentEntry {
-  readonly id: string
-  readonly data: Readonly<Record<string, unknown>>
+class OpenGraphMetadataPluginError extends Data.TaggedError(
+  "OpenGraphMetadataPluginError",
+)<{
+  readonly detail: string
+  readonly cause: unknown
+}> {
+  override get message(): string {
+    return this.detail
+  }
 }
 
-const readEntry = (collection: string, value: unknown): ContentEntry => {
-  if (typeof value !== "object" || value === null) {
-    throw new Error(
-      `Open Graph metadata entry in ${collection} is not an object`,
-    )
-  }
-  const id = Reflect.get(value, "id")
-  const data = Reflect.get(value, "data")
-  if (typeof id !== "string" || typeof data !== "object" || data === null) {
-    throw new Error(
-      `Open Graph metadata entry in ${collection} is missing its id or data`,
-    )
-  }
-  return { id, data }
-}
+const ContentStore = Schema.ReadonlyMap(Schema.String, Schema.Unknown)
 
-const readString = (
+const DocsCollection = Schema.ReadonlyMap(
+  Schema.String,
+  Schema.Struct({
+    id: Schema.String,
+    data: Schema.Struct({ title: Schema.String }),
+  }),
+)
+
+const BlogCollection = Schema.ReadonlyMap(
+  Schema.String,
+  Schema.Struct({
+    id: Schema.String,
+    data: Schema.Struct({
+      title: Schema.String,
+      excerpt: Schema.String,
+    }),
+  }),
+)
+
+const ApiReferenceCollection = Schema.ReadonlyMap(
+  Schema.String,
+  Schema.Struct({
+    id: Schema.String,
+    data: Schema.Struct({
+      version: Schema.String,
+      packageSlug: Schema.String,
+      packageName: Schema.String,
+      modulePath: Schema.String,
+    }),
+  }),
+)
+
+const decodeCollection = <S extends Schema.Top>(
+  store: ReadonlyMap<string, unknown>,
   collection: string,
-  entry: ContentEntry,
-  field: string,
-): string => {
-  const value = entry.data[field]
-  if (typeof value !== "string") {
-    throw new Error(
-      `Open Graph metadata entry ${collection}/${entry.id} is missing ${field}`,
-    )
-  }
-  return value
-}
-
-const readCollection = (
-  store: unknown,
-  collection: string,
-): ReadonlyArray<ContentEntry> => {
-  if (!(store instanceof Map)) {
-    throw new Error("Astro content store is not a map")
-  }
-  const entries: unknown = store.get(collection)
-  if (!(entries instanceof Map)) {
-    throw new Error(`Astro content store is missing ${collection}`)
-  }
-  return Array.from(entries.values(), (entry) => readEntry(collection, entry))
-}
+  schema: S,
+) =>
+  Schema.decodeUnknownEffect(schema)(store.get(collection)).pipe(
+    Effect.mapError(
+      (cause) =>
+        new OpenGraphMetadataPluginError({
+          detail: `Astro content store contains invalid ${collection} metadata`,
+          cause,
+        }),
+    ),
+  )
 
 const readCategory = (entryId: string): string | undefined => {
   const segments = entryId.split("/")
@@ -61,45 +78,64 @@ const readCategory = (entryId: string): string | undefined => {
     : undefined
 }
 
-export const openGraphMetadataPlugin = (): Plugin => ({
-  name: "open-graph-metadata",
-  resolveId(id) {
-    return id === moduleId ? resolvedModuleId : undefined
-  },
-  async load(id) {
-    if (id !== resolvedModuleId) return undefined
-
-    const storePath = new URL(
-      "../../../.astro/data-store.json",
-      import.meta.url,
+const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
+  function* (storePath: string) {
+    const fs = yield* FileSystem.FileSystem
+    const serialized = yield* fs.readFileString(storePath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new OpenGraphMetadataPluginError({
+            detail: `Unable to read Astro content store at ${storePath}`,
+            cause,
+          }),
+      ),
     )
-    this.addWatchFile(storePath.pathname)
-    const store: unknown = parse(await readFile(storePath, "utf8"))
+    const parsed: unknown = yield* Effect.try({
+      try: () => parse(serialized),
+      catch: (cause) =>
+        new OpenGraphMetadataPluginError({
+          detail: `Unable to parse Astro content store at ${storePath}`,
+          cause,
+        }),
+    })
+    const store = yield* Schema.decodeUnknownEffect(ContentStore)(parsed).pipe(
+      Effect.mapError(
+        (cause) =>
+          new OpenGraphMetadataPluginError({
+            detail: "Astro content store is not a map",
+            cause,
+          }),
+      ),
+    )
+    const docsEntries = yield* decodeCollection(store, "docs", DocsCollection)
+    const blogEntries = yield* decodeCollection(store, "blog", BlogCollection)
+    const apiReferenceEntries = yield* decodeCollection(
+      store,
+      "apiReference",
+      ApiReferenceCollection,
+    )
 
     const docs = Object.fromEntries(
-      readCollection(store, "docs").map((entry) => [
+      Array.from(docsEntries.values(), (entry) => [
         entry.id,
         {
-          title: readString("docs", entry, "title"),
+          title: entry.data.title,
           subtitle: readCategory(entry.id),
         },
       ]),
     )
     const blog = Object.fromEntries(
-      readCollection(store, "blog").map((entry) => [
+      Array.from(blogEntries.values(), (entry) => [
         entry.id,
         {
-          title: readString("blog", entry, "title"),
-          subtitle: readString("blog", entry, "excerpt"),
+          title: entry.data.title,
+          subtitle: entry.data.excerpt,
         },
       ]),
     )
     const apiReference = Object.fromEntries(
-      readCollection(store, "apiReference").flatMap((entry) => {
-        const version = readString("apiReference", entry, "version")
-        const packageSlug = readString("apiReference", entry, "packageSlug")
-        const packageName = readString("apiReference", entry, "packageName")
-        const modulePath = readString("apiReference", entry, "modulePath")
+      Array.from(apiReferenceEntries.values()).flatMap((entry) => {
+        const { modulePath, packageName, packageSlug, version } = entry.data
         const moduleName = modulePath.split("/").at(-1) ?? modulePath
         return [
           [
@@ -119,5 +155,22 @@ export const openGraphMetadataPlugin = (): Plugin => ({
     )
 
     return `export default ${JSON.stringify({ apiReference, blog, docs })}`
+  },
+)
+
+export const openGraphMetadataPlugin = (): Plugin => ({
+  name: "open-graph-metadata",
+  resolveId(id) {
+    return id === moduleId ? resolvedModuleId : undefined
+  },
+  async load(id) {
+    if (id !== resolvedModuleId) return undefined
+    const storeUrl = new URL("../../../.astro/data-store.json", import.meta.url)
+    const storePath = fileURLToPath(storeUrl)
+    this.addWatchFile(storePath)
+    return loadMetadata(storePath).pipe(
+      Effect.provide(NodeFileSystem.layer),
+      NodeRuntime.runMain,
+    )
   },
 })
