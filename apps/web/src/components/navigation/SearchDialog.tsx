@@ -45,19 +45,19 @@ import {
   SearchAnalytics,
   type SearchFailureReason,
   type SearchOpenSource,
-} from "@/services/search/analytics"
+} from "@/features/search/analytics"
 import {
   SearchResult,
   type ApiReferenceSearchResult,
   type BlogSearchResult,
   type DocumentationSearchResult,
-} from "@/services/search/domain"
+} from "@/features/search/domain"
 import {
   addRecentSearch,
   type RecentSearch,
   RecentSearches as RecentSearchHistory,
   normalizeRecentSearch,
-} from "@/services/search/preferences"
+} from "@/features/search/preferences"
 import {
   DOCS_VERSIONS,
   defaultDocsVersion,

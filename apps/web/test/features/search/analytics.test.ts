@@ -1,5 +1,5 @@
 import { assert, test } from "vite-plus/test"
-import { SearchAnalytics } from "../../../src/services/search/analytics.ts"
+import { SearchAnalytics } from "../../../src/features/search/analytics.ts"
 
 type Property = boolean | number | string
 

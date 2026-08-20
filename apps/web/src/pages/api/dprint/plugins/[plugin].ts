@@ -68,6 +68,19 @@ const HttpLayer = HttpRouter.layer.pipe(
   Layer.provide(HttpServer.layerServices),
 )
 
-const { handler } = HttpRouter.toWebHandler(HttpLayer)
+const { dispose, handler } = HttpRouter.toWebHandler(HttpLayer)
+
+function cleanup() {
+  dispose().then(
+    () => {
+      process.exit(0)
+    },
+    () => {
+      process.exit(1)
+    },
+  )
+}
+
+process.on("SIGINT", cleanup)
 
 export const GET: APIRoute = ({ request }) => handler(request)
