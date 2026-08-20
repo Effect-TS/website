@@ -1,5 +1,4 @@
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
-import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as FileSystem from "effect/FileSystem"
@@ -168,9 +167,8 @@ export const openGraphMetadataPlugin = (): Plugin => ({
     const storeUrl = new URL("../../../.astro/data-store.json", import.meta.url)
     const storePath = fileURLToPath(storeUrl)
     this.addWatchFile(storePath)
-    return loadMetadata(storePath).pipe(
-      Effect.provide(NodeFileSystem.layer),
-      NodeRuntime.runMain,
+    return Effect.runPromise(
+      loadMetadata(storePath).pipe(Effect.provide(NodeFileSystem.layer)),
     )
   },
 })
