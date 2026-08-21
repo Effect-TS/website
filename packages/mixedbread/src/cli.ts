@@ -12,6 +12,7 @@ import * as Command from "effect/unstable/cli/Command"
 import * as Flag from "effect/unstable/cli/Flag"
 import { Help } from "effect/unstable/cli/GlobalFlag"
 import { Mixedbread } from "./Mixedbread.ts"
+import * as Preview from "./Preview.ts"
 import { SearchChanges } from "./SearchChanges.ts"
 
 const pullRequest = Flag.integer("pr").pipe(
@@ -88,9 +89,23 @@ const searchChangesCommand = Command.make("search-changes", {
   Command.provide(SearchChanges.layer),
 )
 
+const previewStageCommand = Command.make("preview-stage", {
+  pullRequest,
+}).pipe(
+  Command.withDescription("Compute a validated Alchemy preview stage"),
+  Command.withHandler(({ pullRequest }) =>
+    Preview.stage(pullRequest).pipe(Effect.flatMap(Console.log)),
+  ),
+)
+
 const indexCommand = Command.make("mixedbread").pipe(
   Command.withDescription("Manage Mixedbread documentation search stores"),
-  Command.withSubcommands([syncCommand, deleteCommand, searchChangesCommand]),
+  Command.withSubcommands([
+    syncCommand,
+    deleteCommand,
+    searchChangesCommand,
+    previewStageCommand,
+  ]),
 )
 
 const program = Command.run(indexCommand, { version: "0.0.0" })
