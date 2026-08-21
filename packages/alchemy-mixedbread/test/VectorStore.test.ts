@@ -153,6 +153,14 @@ test("creates once, recovers from state, and deletes idempotently", async () => 
 
         assert.equal(first.id, second.id)
         assert.equal(fake.creates(), 1)
+        assert.deepEqual(first.metadata, {
+          ...props.metadata,
+          alchemy: {
+            stack: "EffectWebsite",
+            stage: "pr-123",
+            resource: "PreviewSearchStore",
+          },
+        })
 
         yield* provider.delete({
           id: "PreviewSearchStore",
