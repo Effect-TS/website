@@ -78,17 +78,17 @@ const withOwnership = (
   ownership: Ownership,
 ): Record<string, unknown> => ({
   ...metadata,
-  _alchemy: ownership,
+  alchemy: ownership,
 })
 
 const hasOwnership = (metadata: unknown, ownership: Ownership): boolean => {
-  if (!isRecord(metadata) || !isRecord(metadata._alchemy)) {
+  if (!isRecord(metadata) || !isRecord(metadata.alchemy)) {
     return false
   }
   return (
-    metadata._alchemy.stack === ownership.stack &&
-    metadata._alchemy.stage === ownership.stage &&
-    metadata._alchemy.resource === ownership.resource
+    metadata.alchemy.stack === ownership.stack &&
+    metadata.alchemy.stage === ownership.stage &&
+    metadata.alchemy.resource === ownership.resource
   )
 }
 
@@ -100,7 +100,7 @@ const hasLegacyOwnership = (
     desired === undefined ||
     Object.keys(desired).length === 0 ||
     !isRecord(metadata) ||
-    "_alchemy" in metadata
+    "alchemy" in metadata
   ) {
     return false
   }
