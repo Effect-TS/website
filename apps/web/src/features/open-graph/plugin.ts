@@ -157,18 +157,29 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
   },
 )
 
-export const openGraphMetadataPlugin = (): Plugin => ({
-  name: "open-graph-metadata",
-  resolveId(id) {
-    return id === moduleId ? resolvedModuleId : undefined
-  },
-  async load(id) {
-    if (id !== resolvedModuleId) return undefined
-    const storeUrl = new URL("../../../.astro/data-store.json", import.meta.url)
-    const storePath = fileURLToPath(storeUrl)
-    this.addWatchFile(storePath)
-    return Effect.runPromise(
-      loadMetadata(storePath).pipe(Effect.provide(NodeFileSystem.layer)),
-    )
-  },
-})
+export const openGraphMetadataPlugin = (): Plugin => {
+  let storeUrl = new URL(
+    "../../../node_modules/.astro/data-store.json",
+    import.meta.url,
+  )
+
+  return {
+    name: "open-graph-metadata",
+    config(_, { command }) {
+      if (command === "serve") {
+        storeUrl = new URL("../../../.astro/data-store.json", import.meta.url)
+      }
+    },
+    resolveId(id) {
+      return id === moduleId ? resolvedModuleId : undefined
+    },
+    async load(id) {
+      if (id !== resolvedModuleId) return undefined
+      const storePath = fileURLToPath(storeUrl)
+      this.addWatchFile(storePath)
+      return Effect.runPromise(
+        loadMetadata(storePath).pipe(Effect.provide(NodeFileSystem.layer)),
+      )
+    },
+  }
+}
