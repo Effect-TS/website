@@ -27,6 +27,10 @@ inputs:
   cloudflare-api-token:
     description: Cloudflare API token
     required: true
+  cloudflare-traffic-mode:
+    description: Cloudflare production traffic mode
+    required: false
+    default: workers-dev
   kv-rest-api-url:
     description: Upstash REST API URL
     required: true
@@ -98,6 +102,7 @@ runs:
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
         MXBAI_API_KEY: ${{ inputs.mxbai-search-api-key }}
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
         KV_REST_API_URL: ${{ inputs.kv-rest-api-url }}

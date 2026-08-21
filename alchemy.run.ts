@@ -10,12 +10,30 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import type * as Redacted from "effect/Redacted"
+import * as Schema from "effect/Schema"
+
+const TrafficMode = Schema.Literals([
+  "workers-dev",
+  "routes",
+  "bridge",
+  "custom-domains",
+])
 
 const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
   Cloudflare.Website.Astro(
     "WebsiteWorker",
     Effect.gen(function* () {
       const stage = yield* Alchemy.Stage
+      const trafficMode =
+        stage === "prod"
+          ? yield* Config.schema(TrafficMode, "CLOUDFLARE_TRAFFIC_MODE").pipe(
+              Config.withDefault("workers-dev"),
+              Effect.orDie,
+            )
+          : "workers-dev"
+      const domainEnabled =
+        trafficMode === "bridge" || trafficMode === "custom-domains"
+      const routeEnabled = trafficMode === "routes" || trafficMode === "bridge"
 
       return {
         rootDir: "./apps/web",
@@ -36,10 +54,20 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
         assets: { htmlHandling: "drop-trailing-slash" as const },
         ...(stage === "prod"
           ? {
-              domain: {
-                name: "effect.website",
-                redirects: ["www.effect.website"],
-              },
+              domain: domainEnabled
+                ? {
+                    name: "effect.website",
+                    redirects: ["www.effect.website"],
+                  }
+                : null,
+              routes: routeEnabled
+                ? [
+                    {
+                      pattern: "effect.website/*",
+                      zoneName: "effect.website",
+                    },
+                  ]
+                : [],
             }
           : {}),
         workersDev: true,

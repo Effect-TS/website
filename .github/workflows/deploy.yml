@@ -17,6 +17,11 @@ on:
         required: false
         default: markdown
         type: string
+      cloudflare-traffic-mode:
+        description: Cloudflare production traffic mode
+        required: false
+        default: workers-dev
+        type: string
     secrets:
       MXBAI_ADMIN_API_KEY:
         required: true
@@ -57,6 +62,7 @@ jobs:
           mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-traffic-mode: ${{ inputs.cloudflare-traffic-mode }}
           kv-rest-api-url: ${{ secrets.KV_REST_API_URL }}
           kv-rest-api-token: ${{ secrets.KV_REST_API_TOKEN }}
           public-posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}
