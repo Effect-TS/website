@@ -106,29 +106,12 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "published=$published" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout Effect v3
+      - name: Prepare API reference
         if: steps.snapshot.outputs.published != 'true'
-        uses: actions/checkout@v6
+        uses: ./.github/actions/prepare-api-reference
         with:
-          repository: Effect-TS/effect
-          ref: ${{ steps.snapshot.outputs.v3 }}
-          path: .effect-source-v3
-          fetch-depth: 1
-
-      - name: Checkout Effect v4
-        if: steps.snapshot.outputs.published != 'true'
-        uses: actions/checkout@v6
-        with:
-          repository: Effect-TS/effect
-          ref: ${{ steps.snapshot.outputs.v4 }}
-          path: .effect-source-v4
-          fetch-depth: 1
-
-      - name: Generate API reference
-        if: steps.snapshot.outputs.published != 'true'
-        run: |
-          vp run api-reference:generate --version v3 --repo .effect-source-v3
-          vp run api-reference:generate --version v4 --repo .effect-source-v4
+          v3-revision: ${{ steps.snapshot.outputs.v3 }}
+          v4-revision: ${{ steps.snapshot.outputs.v4 }}
 
       - name: Package API reference snapshot
         if: steps.snapshot.outputs.published != 'true'

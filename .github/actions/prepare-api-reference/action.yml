@@ -1,0 +1,52 @@
+name: Prepare API reference
+description: Check out Effect v3 and v4 and generate their API reference data.
+
+inputs:
+  cache:
+    description: Restore and save generated API reference data
+    required: false
+    default: "false"
+  v3-revision:
+    description: Effect v3 Git revision
+    required: false
+    default: v3
+  v4-revision:
+    description: Effect v4 Git revision
+    required: false
+    default: main
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout Effect v3
+      id: checkout-v3
+      uses: actions/checkout@v6
+      with:
+        repository: Effect-TS/effect
+        ref: ${{ inputs.v3-revision }}
+        path: .effect-source-v3
+        fetch-depth: 1
+
+    - name: Checkout Effect v4
+      id: checkout-v4
+      uses: actions/checkout@v6
+      with:
+        repository: Effect-TS/effect
+        ref: ${{ inputs.v4-revision }}
+        path: .effect-source-v4
+        fetch-depth: 1
+
+    - name: Restore API reference cache
+      if: inputs.cache == 'true'
+      id: cache
+      uses: actions/cache@v5
+      with:
+        path: apps/web/.data/api-reference
+        key: api-reference-v2-${{ runner.os }}-v3-${{ steps.checkout-v3.outputs.commit }}-v4-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/generate.mjs', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+
+    - name: Generate API reference
+      if: inputs.cache != 'true' || steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        vp run api-reference:generate --version v3 --repo .effect-source-v3
+        vp run api-reference:generate --version v4 --repo .effect-source-v4
