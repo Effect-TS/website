@@ -24,41 +24,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+
       - name: Detect search index changes
         id: search-changes
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          changed=false
-
-          while IFS= read -r file; do
-            case "$file" in
-              apps/web/src/content/docs/*|\
-              apps/web/src/content/blog/*|\
-              apps/web/src/content.config.ts|\
-              packages/domain/*|\
-              packages/api-reference/*|\
-              packages/mixedbread/*|\
-              packages/alchemy-mixedbread/*|\
-              apps/web/src/features/api-reference/*|\
-              apps/web/src/features/search/domain.ts|\
-              apps/web/package.json|\
-              packages/mixedbread/package.json|\
-              package.json|\
-              pnpm-lock.yaml|\
-              alchemy.run.ts|\
-              .github/workflows/preview.yml)
-                changed=true
-                break
-                ;;
-            esac
-          done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-
+          changed=$(vp exec mixedbread search-changes --base "$BASE_SHA" --head "$HEAD_SHA")
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
-
-      - name: Install dependencies
-        uses: ./.github/actions/setup
 
       - name: Checkout Effect v3
         uses: actions/checkout@v6
