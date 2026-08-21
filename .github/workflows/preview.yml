@@ -42,7 +42,9 @@ jobs:
           cache: true
 
       - name: Deploy Cloudflare preview
-        run: vp exec alchemy deploy --stage "pr-${PULL_REQUEST}" --yes
+        run: |
+          stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
+          vp exec alchemy deploy --stage "$stage" --yes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -76,22 +78,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
 
-      - name: Install Vite+
-        uses: voidzero-dev/setup-vp@v1.17.0
-        with:
-          node-manager: false
-
       - name: Install dependencies
         uses: ./.github/actions/setup
 
       - name: Destroy Cloudflare preview
         run: |
-          stage="pr-${PR_NUMBER}"
-          if [[ ! "$stage" =~ ^pr-[1-9][0-9]*$ ]]; then
-            echo "::error::Refusing to destroy invalid preview stage: $stage"
-            exit 1
-          fi
-
+          stage=$(vp exec mixedbread preview-stage --pr "$PR_NUMBER")
           vp exec alchemy destroy --stage "$stage" --yes
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
