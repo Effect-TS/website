@@ -22,12 +22,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  resolve-snapshot:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     outputs:
       snapshot_tag: ${{ steps.snapshot.outputs.tag }}
+      snapshot_id: ${{ steps.snapshot.outputs.id }}
+      generator: ${{ steps.snapshot.outputs.generator }}
+      published: ${{ steps.snapshot.outputs.published }}
+      v3_revision: ${{ steps.snapshot.outputs.v3 }}
+      v4_revision: ${{ steps.snapshot.outputs.v4 }}
     steps:
       - uses: actions/checkout@v6
 
@@ -53,20 +56,30 @@ jobs:
             --v3 "$V3_REVISION" \
             --v4 "$V4_REVISION" >> "$GITHUB_OUTPUT"
 
+  publish-snapshot:
+    needs: resolve-snapshot
+    if: needs.resolve-snapshot.outputs.published != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+
       - name: Prepare API reference
-        if: steps.snapshot.outputs.published != 'true'
         uses: ./.github/actions/prepare-api-reference
         with:
-          v3-revision: ${{ steps.snapshot.outputs.v3 }}
-          v4-revision: ${{ steps.snapshot.outputs.v4 }}
+          v3-revision: ${{ needs.resolve-snapshot.outputs.v3_revision }}
+          v4-revision: ${{ needs.resolve-snapshot.outputs.v4_revision }}
 
       - name: Package API reference snapshot
-        if: steps.snapshot.outputs.published != 'true'
         env:
-          GENERATOR_HASH: ${{ steps.snapshot.outputs.generator }}
-          SNAPSHOT_ID: ${{ steps.snapshot.outputs.id }}
-          V3_REVISION: ${{ steps.snapshot.outputs.v3 }}
-          V4_REVISION: ${{ steps.snapshot.outputs.v4 }}
+          GENERATOR_HASH: ${{ needs.resolve-snapshot.outputs.generator }}
+          SNAPSHOT_ID: ${{ needs.resolve-snapshot.outputs.snapshot_id }}
+          V3_REVISION: ${{ needs.resolve-snapshot.outputs.v3_revision }}
+          V4_REVISION: ${{ needs.resolve-snapshot.outputs.v4_revision }}
         run: |
           vp exec api-reference snapshot package \
             --data apps/web/.data/api-reference \
@@ -78,13 +91,12 @@ jobs:
             --expected-id "$SNAPSHOT_ID"
 
       - name: Publish API reference snapshot
-        if: steps.snapshot.outputs.published != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          V3_REVISION: ${{ steps.snapshot.outputs.v3 }}
-          V4_REVISION: ${{ steps.snapshot.outputs.v4 }}
-          GENERATOR_HASH: ${{ steps.snapshot.outputs.generator }}
-          SNAPSHOT_ID: ${{ steps.snapshot.outputs.id }}
+          V3_REVISION: ${{ needs.resolve-snapshot.outputs.v3_revision }}
+          V4_REVISION: ${{ needs.resolve-snapshot.outputs.v4_revision }}
+          GENERATOR_HASH: ${{ needs.resolve-snapshot.outputs.generator }}
+          SNAPSHOT_ID: ${{ needs.resolve-snapshot.outputs.snapshot_id }}
         run: |
           vp exec api-reference snapshot publish \
             --repository "$GITHUB_REPOSITORY" \
@@ -94,11 +106,12 @@ jobs:
             --generator "$GENERATOR_HASH" \
             --expected-id "$SNAPSHOT_ID"
 
-  deploy:
-    needs: publish
+  deploy-production:
+    needs: [resolve-snapshot, publish-snapshot]
+    if: always() && needs.resolve-snapshot.result == 'success' && (needs.publish-snapshot.result == 'success' || needs.publish-snapshot.result == 'skipped')
     uses: ./.github/workflows/deploy.yml
     with:
       website-ref: ${{ github.sha }}
-      api-reference-snapshot: ${{ needs.publish.outputs.snapshot_tag }}
+      api-reference-snapshot: ${{ needs.resolve-snapshot.outputs.snapshot_tag }}
       mixedbread-scope: api-reference
     secrets: inherit
