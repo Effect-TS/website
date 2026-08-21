@@ -1,14 +1,19 @@
-import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import type { ExampleDefinition } from "@/features/visual-effect/model/example-definition"
-import {
-  SoundPreference,
-  type SoundSettings,
-} from "@/features/visual-effect/model/sound"
+import type { SoundSettings } from "@/features/visual-effect/model/sound"
 import { SoundManager } from "@/features/visual-effect/runtime/SoundManager"
 import { VisualEffectManager } from "@/features/visual-effect/runtime/VisualEffectManager"
+import {
+  prefersReducedMotionAtom,
+  soundPreferenceAtom,
+} from "@/features/visual-effect/state/sound-atoms"
+
+export {
+  prefersReducedMotionAtom,
+  soundPreferenceAtom,
+} from "@/features/visual-effect/state/sound-atoms"
 
 // =============================================================================
 // Visual Effect Atom Runtime
@@ -81,15 +86,6 @@ export const unlockSoundAtom = visualEffectsRuntime.fn<void>()(
   { concurrent: true },
 )
 
-const kvsRuntime = Atom.runtime(BrowserKeyValueStore.layerLocalStorage)
-
-export const soundPreferenceAtom = Atom.kvs({
-  runtime: kvsRuntime,
-  key: "effect-website:visual-effect:sound-preference",
-  schema: SoundPreference,
-  defaultValue: () => "system" as const,
-}).pipe(Atom.withLabel("visual-effects:sound-preference"))
-
 export const soundUnlockedAtom = Atom.make(false).pipe(
   Atom.withLabel("visual-effects:sound-unlocked"),
 )
@@ -115,26 +111,3 @@ export const soundEnabledAtom = Atom.make((get) => {
   }
   return !prefersReducedMotion
 }).pipe(Atom.withLabel("visual-effects:sound-enabled"), Atom.keepAlive)
-
-// =============================================================================
-// Prefers Reduced Motion
-// =============================================================================
-
-export const prefersReducedMotionAtom = Atom.make((get) => {
-  if (typeof window === "undefined") {
-    return false
-  }
-
-  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
-
-  const syncReducedMotion = () => {
-    get.setSelf(mediaQuery.matches)
-  }
-
-  window.addEventListener("change", syncReducedMotion)
-  get.addFinalizer(() =>
-    window.removeEventListener("change", syncReducedMotion),
-  )
-
-  return mediaQuery.matches
-})

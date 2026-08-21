@@ -1,0 +1,69 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      website-ref:
+        description: Website Git revision to deploy
+        required: true
+        type: string
+      api-reference-snapshot:
+        description: Exact API reference snapshot tag; latest published snapshot when omitted
+        required: false
+        default: ""
+        type: string
+      mixedbread-scope:
+        description: Mixedbread content scope to synchronize
+        required: false
+        default: markdown
+        type: string
+      cloudflare-traffic-mode:
+        description: Cloudflare production traffic mode
+        required: false
+        default: workers-dev
+        type: string
+    secrets:
+      MXBAI_ADMIN_API_KEY:
+        required: true
+      MXBAI_SEARCH_API_KEY:
+        required: true
+      MXBAI_VECTOR_STORE_ID:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      KV_REST_API_URL:
+        required: true
+      KV_REST_API_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.website-ref }}
+
+      - uses: ./.github/actions/deploy
+        with:
+          website-ref: ${{ inputs.website-ref }}
+          api-reference-snapshot: ${{ inputs.api-reference-snapshot }}
+          mixedbread-scope: ${{ inputs.mixedbread-scope }}
+          mxbai-admin-api-key: ${{ secrets.MXBAI_ADMIN_API_KEY }}
+          mxbai-search-api-key: ${{ secrets.MXBAI_SEARCH_API_KEY }}
+          mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-traffic-mode: ${{ inputs.cloudflare-traffic-mode }}
+          kv-rest-api-url: ${{ secrets.KV_REST_API_URL }}
+          kv-rest-api-token: ${{ secrets.KV_REST_API_TOKEN }}
+          public-posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          public-posthog-api-host: ${{ vars.PUBLIC_POSTHOG_API_HOST }}

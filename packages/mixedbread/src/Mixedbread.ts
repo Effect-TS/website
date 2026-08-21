@@ -67,14 +67,13 @@ export class Mixedbread extends Context.Service<
   }
 >()("Mixedbread", {
   make: Effect.gen(function* () {
-    const apiKey = yield* Config.redacted("MXBAI_API_KEY")
-    const productionStoreId = yield* Config.option(
+    const apiKey = yield* Config.redacted("MXBAI_ADMIN_API_KEY")
+    const configuredStoreId = yield* Config.option(
       Config.redacted("MXBAI_VECTOR_STORE_ID"),
     )
     const storePrefix = yield* Config.string("MXBAI_PREVIEW_STORE_PREFIX").pipe(
       Config.withDefault("effect-website-pr-"),
     )
-    const outputPath = yield* Config.option(Config.string("GITHUB_OUTPUT"))
     const branch = yield* Config.string("GITHUB_HEAD_REF").pipe(
       Config.orElse(() => Config.string("GITHUB_REF_NAME")),
       Config.withDefault("unknown"),
@@ -248,13 +247,7 @@ export class Mixedbread extends Context.Service<
       })
 
       if (options.kind === "preview") {
-        yield* stores.refreshPreview(store, options)
-      }
-
-      if (Option.isSome(outputPath)) {
-        yield* Effect.orDie(
-          fs.writeFileString(outputPath.value, `store_id=${store.id}\n`),
-        )
+        yield* stores.recordPreviewSync(store, options)
       }
 
       yield* Effect.log(
@@ -265,7 +258,7 @@ export class Mixedbread extends Context.Service<
     const deleteStore = stores.deletePreview
 
     const syncProduction = (revision: string, scope: SyncScope = "all") =>
-      Option.match(productionStoreId, {
+      Option.match(configuredStoreId, {
         onNone: () =>
           Effect.fail(
             new InvalidStoreError({

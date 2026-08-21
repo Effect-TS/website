@@ -6,7 +6,7 @@ import * as Schedule from "effect/Schedule"
 import * as Stream from "effect/Stream"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import type { AtomWorkspaceHandle } from "./workspace"
-import { File, FullPath } from "../domain/workspace"
+import { FullPath } from "../domain/workspace"
 import { Loader } from "../services/loader"
 import { Monaco } from "../services/monaco"
 import { Toaster } from "../services/toaster"
@@ -43,44 +43,50 @@ export const editorAtom = Atom.family((handle: AtomWorkspaceHandle) => {
 
       const save = Effect.suspend(() => {
         const workspace = get.once(handle.workspaceAtom)
-        const file = get.once(handle.selectedFile)
-        const path = workspace.fullPathTo(file)
-        return Option.match(path, {
+        const path = get.once(handle.selectedPath)
+        return Option.match(workspace.findFile(path), {
           onNone: () => Effect.void,
-          onSome: (path) =>
-            handle.writeFile(path, editor.editor.getValue(), "typescript"),
+          onSome: () => {
+            const model = editor.editor.getModel()
+            if (model === null) {
+              return Effect.void
+            }
+            const fullPath = FullPath(workspace.relativePath(path))
+            handle.modelChanged(fullPath, {
+              content: model.getValue(),
+              modelVersion: model.getVersionId(),
+            })
+            return handle.persistModel(fullPath)
+          },
         })
       })
 
-      function sync(fullPath: FullPath, file: File) {
-        return Stream.fromEffect(handle.readFile(fullPath)).pipe(
+      function sync(fullPath: FullPath) {
+        return Stream.fromEffect(handle.getModel(fullPath)).pipe(
           Stream.tap((model) => editor.loadModel(model)),
-          Stream.switchMap(() => editor.content.pipe(Stream.drop(1))),
-          Stream.debounce("2 seconds"),
-          Stream.tap((content) =>
-            handle.writeFile(fullPath, content, file.language ?? "typescript"),
+          Stream.switchMap(() => editor.content),
+          Stream.tap((model) =>
+            Effect.sync(() => handle.modelChanged(fullPath, model)),
           ),
+          Stream.debounce("2 seconds"),
+          Stream.tap(() => handle.persistModel(fullPath)),
           Stream.ensuring(
-            Effect.suspend(() => {
-              const content = editor.editor.getValue()
-              if (content.trim().length === 0) {
-                return Effect.void
-              }
-              return handle
-                .writeFile(fullPath, content, file.language ?? "typescript")
-                .pipe(Effect.catchTag("FileNotFoundError", () => Effect.void))
-            }),
+            handle
+              .persistModel(fullPath)
+              .pipe(Effect.catchTag("FileNotFoundError", () => Effect.void)),
           ),
         )
       }
 
       yield* loader.withIndicator("Configuring editor")(Effect.void)
-      yield* get.stream(handle.selectedFile).pipe(
-        Stream.bindTo("file"),
-        Stream.bindEffect("fullPath", ({ file }) =>
-          Effect.fromOption(get.once(handle.workspace).fullPathTo(file)),
-        ),
-        Stream.switchMap(({ file, fullPath }) => sync(fullPath, file)),
+      yield* get.stream(handle.selectedPath).pipe(
+        Stream.mapEffect((path) => {
+          const workspace = get.once(handle.workspace)
+          return Effect.fromOption(workspace.findFile(path)).pipe(
+            Effect.map(() => FullPath(workspace.relativePath(path))),
+          )
+        }),
+        Stream.switchMap(sync),
         Stream.runDrain,
         Effect.retry(Schedule.spaced("200 millis")),
         Effect.forkScoped,
@@ -125,8 +131,8 @@ function setupGoToDefinition(
           )
           return false
         },
-        onSome: ([file]) => {
-          get.set(handle.selectedFile, file)
+        onSome: () => {
+          get.set(handle.selectedPath, workspacePath)
           return true
         },
       })

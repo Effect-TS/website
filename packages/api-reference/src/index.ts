@@ -1,4 +1,6 @@
 export * as ApiReference from "./ApiReference.ts"
 export * as ApiReferenceDataset from "./ApiReferenceDataset.ts"
 export * as CodeSnippet from "./CodeSnippet.ts"
+export * as Generate from "./Generate.ts"
 export * as Reflection from "./Reflection.ts"
+export * as Snapshot from "./Snapshot.ts"

@@ -12,21 +12,39 @@ inputs:
   website-ref:
     description: Website Git revision associated with the deployment
     required: true
-  mxbai-api-key:
-    description: Mixedbread API key
+  mxbai-admin-api-key:
+    description: Mixedbread production synchronization API key
+    required: true
+  mxbai-search-api-key:
+    description: Mixedbread read-only Worker search API key
     required: true
   mxbai-vector-store-id:
     description: Mixedbread vector store ID
     required: true
-  vercel-org-id:
-    description: Vercel organization ID
+  cloudflare-account-id:
+    description: Cloudflare account ID
     required: true
-  vercel-project-id:
-    description: Vercel project ID
+  cloudflare-api-token:
+    description: Cloudflare API token
     required: true
-  vercel-token:
-    description: Vercel authentication token
+  cloudflare-traffic-mode:
+    description: Cloudflare production traffic mode
+    required: false
+    default: workers-dev
+  kv-rest-api-url:
+    description: Upstash REST API URL
     required: true
+  kv-rest-api-token:
+    description: Upstash REST API token
+    required: true
+  public-posthog-key:
+    description: Public PostHog project key
+    required: false
+    default: ""
+  public-posthog-api-host:
+    description: Public PostHog API host
+    required: false
+    default: https://us.i.posthog.com
 
 runs:
   using: composite
@@ -41,21 +59,9 @@ runs:
         GH_TOKEN: ${{ github.token }}
         REQUESTED_SNAPSHOT: ${{ inputs.api-reference-snapshot }}
       run: |
-        snapshot="$REQUESTED_SNAPSHOT"
-        if [[ -z "$snapshot" ]]; then
-          snapshot=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | startswith("api-reference-")))] | sort_by(.published_at) | last | (.tag_name // "")')
-        fi
-
-        if [[ ! "$snapshot" =~ ^api-reference-[a-f0-9]{64}$ ]]; then
-          echo "::error::No valid published API reference snapshot is available. Publish one with the API reference workflow before deploying."
-          exit 1
-        fi
-
-        release=$(gh release view "$snapshot" --json isDraft,isPrerelease)
-        if [[ "$(jq -r '.isDraft or .isPrerelease' <<<"$release")" == "true" ]]; then
-          echo "::error::API reference snapshot must be a published, non-prerelease release: $snapshot"
-          exit 1
-        fi
+        snapshot=$(vp exec api-reference snapshot resolve \
+          --repository "$GITHUB_REPOSITORY" \
+          --tag "$REQUESTED_SNAPSHOT")
         echo "tag=$snapshot" >> "$GITHUB_OUTPUT"
 
     - name: Restore API reference snapshot
@@ -90,38 +96,34 @@ runs:
           exit 1
         fi
 
-    - name: Pull Vercel Environment Information
+    - name: Deploy website to Cloudflare
       shell: bash
-      run: pnpm exec vercel pull --cwd apps/web --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts
+      run: vp exec alchemy deploy --stage prod --yes
       env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
-
-    - name: Build Project Artifacts
-      shell: bash
-      run: pnpm exec vercel build --cwd apps/web --prod --token="${{ inputs.vercel-token }}"
-      env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+        MXBAI_API_KEY: ${{ inputs.mxbai-search-api-key }}
+        MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
+        KV_REST_API_URL: ${{ inputs.kv-rest-api-url }}
+        KV_REST_API_TOKEN: ${{ inputs.kv-rest-api-token }}
+        PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
+        PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_SHA: ${{ inputs.website-ref }}
 
     - name: Verify generated API reference links
       shell: bash
-      run: node apps/web/scripts/verify-api-reference-links.mjs
-
-    - name: Patch trailing-slash redirect into build output
-      shell: bash
-      run: node apps/web/scripts/patch-vercel-trailing-slash.mjs
-
-    - name: Deploy Project Artifacts to Vercel
-      shell: bash
-      run: pnpm exec vercel deploy apps/web --prebuilt --archive=tgz --prod --token="${{ inputs.vercel-token }}" --scope=effect-ts
-      env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
+      run: |
+        if [[ -d apps/web/dist/client/docs ]]; then
+          node apps/web/scripts/verify-api-reference-links.mjs apps/web/dist/client
+        else
+          echo "Alchemy reused the unchanged deployment; no local build output to verify."
+        fi
 
     - name: Synchronize Mixedbread production store
       shell: bash
       run: vp exec mixedbread sync --scope "${{ inputs.mixedbread-scope }}" --sha "${{ inputs.website-ref }}"
       env:
-        MXBAI_API_KEY: ${{ inputs.mxbai-api-key }}
+        MXBAI_ADMIN_API_KEY: ${{ inputs.mxbai-admin-api-key }}
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}

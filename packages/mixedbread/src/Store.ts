@@ -16,7 +16,7 @@ export const StoreMetadata = Schema.Struct({
   lifecycle: Schema.Literal("pull-request-preview"),
   pullRequest: Schema.Int,
   repository: Schema.NonEmptyString,
-  revision: Schema.String,
+  revision: Schema.optional(Schema.String),
 })
 export type StoreMetadata = typeof StoreMetadata.Type
 export type StoreMetadataEncoded = typeof StoreMetadata.Encoded
@@ -33,7 +33,7 @@ export interface StoreClient {
   readonly listFiles: (
     storeId: string,
   ) => Stream.Stream<MixedbreadClient.Stores.StoreFile, UnknownError>
-  readonly refreshPreview: (
+  readonly recordPreviewSync: (
     store: MixedbreadClient.Store,
     options: PreviewSyncOptions,
   ) => Effect.Effect<void, UnknownError>
@@ -48,6 +48,8 @@ export function makeStoreClient(options: {
   readonly storePrefix: string
 }): StoreClient {
   const { client, repository, storePrefix } = options
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
   const decodeMetadata = Schema.decodeUnknownEffect(StoreMetadata)
   const storeName = (pullRequest: number): string =>
     `${storePrefix}${pullRequest}`
@@ -114,54 +116,32 @@ export function makeStoreClient(options: {
     ).pipe(Stream.run(Sink.find((store) => store.name === name)))
   })
 
-  const create = Effect.fn("Store.create")(function* (
-    sync: PreviewSyncOptions,
-  ) {
-    const store = yield* Effect.tryPromise({
-      try: () =>
-        client.stores.create({
-          name: storeName(sync.pullRequest),
-          description: `Effect website search preview for PR ${sync.pullRequest}`,
-          expires_after: { anchor: "last_active_at", days: 7 },
-          metadata: metadata(sync),
-          config: {
-            contextualization: {
-              with_file_context: true,
-              with_metadata: ["file_path"],
-            },
-          },
-        }),
-      catch: (cause) => new UnknownError({ cause }),
-    })
-    yield* Effect.log(`Created Mixedbread preview store: ${store.id}`)
-    return store
-  })
-
   const resolve: StoreClient["resolve"] = Effect.fn("Store.resolve")(
     function* (sync) {
-      if (sync.kind === "production") {
-        return yield* Effect.tryPromise({
-          try: () => client.stores.retrieve(sync.storeId),
-          catch: (cause) => new UnknownError({ cause }),
-        })
+      const store = yield* Effect.tryPromise({
+        try: () => client.stores.retrieve(sync.storeId),
+        catch: (cause) => new UnknownError({ cause }),
+      })
+      if (sync.kind === "preview") {
+        if (store.name !== storeName(sync.pullRequest)) {
+          return yield* new InvalidStoreError({
+            message: `Refusing to synchronize store ${store.name}: expected preview store ${storeName(sync.pullRequest)}`,
+          })
+        }
+        yield* validate(store, sync.pullRequest)
       }
-      const store = yield* find(storeName(sync.pullRequest)).pipe(
-        Effect.flatMap(Effect.fromOption),
-        Effect.catchTag("NoSuchElementError", () => create(sync)),
-      )
-      yield* validate(store, sync.pullRequest)
       return store
     },
   )
 
-  const refreshPreview: StoreClient["refreshPreview"] = Effect.fn(
-    "Store.refreshPreview",
+  const recordPreviewSync: StoreClient["recordPreviewSync"] = Effect.fn(
+    "Store.recordPreviewSync",
   )(function* (store, sync) {
+    const currentMetadata = isRecord(store.metadata) ? store.metadata : {}
     yield* Effect.tryPromise({
       try: () =>
         client.stores.update(store.id, {
-          expires_after: { anchor: "last_active_at", days: 7 },
-          metadata: metadata(sync),
+          metadata: { ...currentMetadata, ...metadata(sync) },
         }),
       catch: (cause) => new UnknownError({ cause }),
     })
@@ -184,5 +164,5 @@ export function makeStoreClient(options: {
     yield* Effect.log(`Deleted preview store: ${store.value.id}`)
   })
 
-  return { deletePreview, listFiles, refreshPreview, resolve }
+  return { deletePreview, listFiles, recordPreviewSync, resolve }
 }

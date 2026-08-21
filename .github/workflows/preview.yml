@@ -1,4 +1,4 @@
-name: GitHub Actions Vercel Preview Deployment
+name: Preview Deployment
 
 on:
   pull_request:
@@ -17,11 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+
+      - name: Install dependencies
+        uses: ./.github/actions/setup
 
       - name: Detect search index changes
         id: search-changes
@@ -29,106 +33,40 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          changed=false
-
-          while IFS= read -r file; do
-            case "$file" in
-              apps/web/src/content/docs/*|\
-              apps/web/src/content/blog/*|\
-              apps/web/src/content.config.ts|\
-              packages/domain/*|\
-              packages/api-reference/*|\
-              packages/mixedbread/*|\
-              apps/web/src/features/api-reference/*|\
-              apps/web/src/services/search/domain.ts|\
-              apps/web/package.json|\
-              packages/mixedbread/package.json|\
-              package.json|\
-              pnpm-lock.yaml|\
-              .github/workflows/preview.yml)
-                changed=true
-                break
-                ;;
-            esac
-          done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-
+          changed=$(vp exec mixedbread search-changes --base "$BASE_SHA" --head "$HEAD_SHA")
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies
-        uses: ./.github/actions/setup
-
-      - name: Checkout Effect v3
-        uses: actions/checkout@v6
+      - name: Prepare API reference
+        uses: ./.github/actions/prepare-api-reference
         with:
-          repository: Effect-TS/effect
-          ref: adf8a89decd1552b692710bf218ada12671af2ef
-          path: .effect-source-v3
-          fetch-depth: 1
+          cache: true
 
-      - name: Checkout Effect v4
-        uses: actions/checkout@v6
-        with:
-          repository: Effect-TS/effect
-          ref: 52838418db2e04db6aaed2fa01b280f2aad4032a
-          path: .effect-source-v4
-          fetch-depth: 1
-
-      - name: Resolve Effect revisions
-        id: effect-revisions
+      - name: Deploy Cloudflare preview
         run: |
-          echo "v3=$(git -C .effect-source-v3 rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "v4=$(git -C .effect-source-v4 rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore API reference cache
-        id: api-reference-cache
-        uses: actions/cache@v5
-        with:
-          path: apps/web/.data/api-reference
-          key: api-reference-v2-${{ runner.os }}-v3-${{ steps.effect-revisions.outputs.v3 }}-v4-${{ steps.effect-revisions.outputs.v4 }}-${{ hashFiles('packages/api-reference/src/generate.mjs', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
-
-      - name: Generate API reference
-        if: steps.api-reference-cache.outputs.cache-hit != 'true'
-        run: |
-          vp run api-reference:generate --version v3 --repo .effect-source-v3
-          vp run api-reference:generate --version v4 --repo .effect-source-v4
-
-      - name: Synchronize Mixedbread preview store
-        if: steps.search-changes.outputs.changed == 'true'
-        id: mixedbread
-        run: vp exec mixedbread sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
+          stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
+          vp exec alchemy deploy --stage "$stage" --yes
         env:
-          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
-
-      - name: Pull Vercel Environment Information
-        run: pnpm exec vercel pull --cwd apps/web --yes --environment=preview --git-branch="${{ github.head_ref }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build Project Artifacts
-        run: pnpm exec vercel build --cwd apps/web --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+          MXBAI_API_KEY: ${{ secrets.MXBAI_SEARCH_API_KEY }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          MXBAI_PREVIEW_STORE_ENABLED: ${{ steps.search-changes.outputs.changed }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          PUBLIC_POSTHOG_API_HOST: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify generated API reference links
-        run: node apps/web/scripts/verify-api-reference-links.mjs
-
-      - name: Patch trailing-slash redirect into build output
-        run: node apps/web/scripts/patch-vercel-trailing-slash.mjs
-
-      - name: Deploy Project Artifacts to Vercel
         run: |
-          if [[ -z "$SEARCH_STORE_ID" ]]; then
-            echo "::error::No Mixedbread search store is available for this preview"
-            exit 1
+          if [[ -d apps/web/dist/client/docs ]]; then
+            node apps/web/scripts/verify-api-reference-links.mjs apps/web/dist/client
+          else
+            echo "Alchemy reused the unchanged deployment; no local build output to verify."
           fi
-
-          pnpm exec vercel deploy apps/web --prebuilt --archive=tgz --env="MXBAI_VECTOR_STORE_ID=${SEARCH_STORE_ID}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
-        env:
-          SEARCH_STORE_ID: ${{ steps.mixedbread.outputs.store_id || secrets.MXBAI_VECTOR_STORE_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
   cleanup:
     if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
@@ -140,15 +78,26 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
 
-      - name: Install Vite+
-        uses: voidzero-dev/setup-vp@v1.17.0
-        with:
-          node-manager: false
-
       - name: Install dependencies
         uses: ./.github/actions/setup
 
+      - name: Destroy Cloudflare preview
+        run: |
+          stage=$(vp exec mixedbread preview-stage --pr "$PR_NUMBER")
+          vp exec alchemy destroy --stage "$stage" --yes
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+          MXBAI_API_KEY: ${{ secrets.MXBAI_SEARCH_API_KEY }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Delete Mixedbread preview store
+        if: always()
         run: vp exec mixedbread delete-preview --pr "${{ github.event.pull_request.number }}"
         env:
-          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}

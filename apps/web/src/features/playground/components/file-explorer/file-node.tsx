@@ -52,30 +52,30 @@ export declare namespace FileNode {
 export function FileNode({
   depth,
   node,
-  path: _path,
+  path,
   className,
   onClick,
   ...props
 }: FileNode.Props) {
   const handle = useWorkspaceHandle()
   const state = useExplorerState()
-  const [selectedFile, setSelectedFile] = useAtom(handle.selectedFile)
+  const [selectedPath, setSelectedPath] = useAtom(handle.selectedPath)
   const [showControls, setShowControls] = useState(false)
   const rename = useRename()
   const isEditing = useMemo(
     () => state._tag === "Editing" && Equal.equals(state.node, node),
     [state, node],
   )
-  const isSelected = Equal.equals(selectedFile, node)
+  const isSelected = selectedPath === path
 
   const handleClick = useCallback<FileNode.OnClick>(
     (event, node) => {
       if (node._tag === "File") {
-        setSelectedFile(node)
+        setSelectedPath(path)
       }
       onClick?.(event, node)
     },
-    [onClick, setSelectedFile],
+    [onClick, path, setSelectedPath],
   )
 
   return isEditing ? (

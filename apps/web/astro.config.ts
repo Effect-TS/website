@@ -1,9 +1,8 @@
 import mdx from "@astrojs/mdx"
 import react from "@astrojs/react"
-import vercel from "@astrojs/vercel"
+// import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
-import icon from "astro-icon"
 import {
   defineConfig,
   envField,
@@ -12,6 +11,7 @@ import {
 } from "astro/config"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
+import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
@@ -22,7 +22,7 @@ const FontsourceProvider = fontProviders.fontsource()
 const config = defineConfig({
   site: "https://effect.website",
 
-  adapter: vercel(),
+  // adapter: vercel(),
 
   trailingSlash: "never",
 
@@ -37,9 +37,13 @@ const config = defineConfig({
   },
 
   vite: {
+    optimizeDeps: {
+      entries: ["src/features/playground/index.tsx"],
+    },
     plugins: [
       tailwindcss(),
       svgr(),
+      openGraphMetadataPlugin(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
         features: "all",
@@ -47,6 +51,7 @@ const config = defineConfig({
     ],
     envDir: fileURLToPath(new URL("../../", import.meta.url)),
     resolve: {
+      dedupe: ["react", "react-dom"],
       alias: {
         "@/": fileURLToPath(new URL("./src/", import.meta.url)),
         "@astrojs/starlight/components": fileURLToPath(
@@ -84,7 +89,7 @@ const config = defineConfig({
     },
   },
 
-  integrations: [expressiveCode(), react(), mdx(), icon()],
+  integrations: [expressiveCode(), react(), mdx()],
 
   fonts: [
     {
@@ -159,18 +164,6 @@ const config = defineConfig({
     "/docs/api": {
       status: 307,
       destination: "/docs/v4/api",
-    },
-    "/docs/api/[version]": {
-      status: 308,
-      destination: "/docs/[version]/api",
-    },
-    "/docs/api/[version]/[package]": {
-      status: 308,
-      destination: "/docs/[version]/api/[package]",
-    },
-    "/docs/api/[version]/[package]/[...module]": {
-      status: 308,
-      destination: "/docs/[version]/api/[package]/[...module]",
     },
   },
 })

@@ -1,7 +1,9 @@
 ---
 import { Image } from "astro:assets"
 import { ArrowDown, ArrowRight, ArrowUpRight, Presentation, Users } from "@lucide/astro"
-import { Icon } from "astro-icon/components"
+import DiscordLogo from "@/assets/icons/fa7-brands/discord.svg"
+import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
+import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import GridBackground from "@/components/GridBackground.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
 
@@ -97,7 +99,7 @@ const TALK_IDEAS: { label: string; href?: string }[] = [
 
 const CHANNELS = [
   {
-    icon: "fa7-brands:discord",
+    icon: DiscordLogo,
     color: "#5865F2",
     title: "A thriving Discord community",
     description: "Effect developers sharing questions, patterns, and production stories every day.",
@@ -105,7 +107,7 @@ const CHANNELS = [
     linkLabel: "discord.gg/effect-ts",
   },
   {
-    icon: "fa7-brands:x-twitter",
+    icon: TwitterLogo,
     color: "#FFFFFF",
     title: "Follow Effect on X",
     description: "News, releases, and Effect takes straight from the source.",
@@ -113,7 +115,7 @@ const CHANNELS = [
     linkLabel: "@EffectTS_",
   },
   {
-    icon: "fa7-brands:youtube",
+    icon: YouTubeLogo,
     color: "#FF0000",
     title: "Effect on YouTube",
     description: "Talks, workshops, and office hours livestreams.",
@@ -408,33 +410,37 @@ const CHANNELS = [
 
         <ul class="flex flex-col gap-3 lg:col-span-6">
           {
-            CHANNELS.map((channel) => (
-              <li>
-                <a
-                  href={channel.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="group relative flex gap-4 overflow-hidden rounded-md border border-zinc-700 bg-[#0C0C0E] p-6 transition-colors hover:border-zinc-500"
-                >
-                  <div class="flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-md bg-zinc-800">
-                    <Icon
-                      name={channel.icon}
-                      class="text-2xl"
-                      style={`color: ${channel.color}`}
+            CHANNELS.map((channel) => {
+              const ChannelIcon = channel.icon
+              return (
+                <li>
+                  <a
+                    href={channel.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="group relative flex gap-4 overflow-hidden rounded-md border border-zinc-700 bg-[#0C0C0E] p-6 transition-colors hover:border-zinc-500"
+                  >
+                    <div class="flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-md bg-zinc-800">
+                      <ChannelIcon
+                        class="size-6"
+                        style={`color: ${channel.color}`}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div class="flex flex-col">
+                      <h3 class="text-base font-semibold text-white">{channel.title}</h3>
+                      <p class="mt-1 text-sm leading-relaxed text-zinc-400">
+                        {channel.description}
+                      </p>
+                    </div>
+                    <ArrowUpRight
+                      class="ml-auto size-4 shrink-0 self-start text-zinc-600 transition-colors group-hover:text-white"
                       aria-hidden="true"
                     />
-                  </div>
-                  <div class="flex flex-col">
-                    <h3 class="text-base font-semibold text-white">{channel.title}</h3>
-                    <p class="mt-1 text-sm leading-relaxed text-zinc-400">{channel.description}</p>
-                  </div>
-                  <ArrowUpRight
-                    class="ml-auto size-4 shrink-0 self-start text-zinc-600 transition-colors group-hover:text-white"
-                    aria-hidden="true"
-                  />
-                </a>
-              </li>
-            ))
+                  </a>
+                </li>
+              )
+            })
           }
         </ul>
       </div>

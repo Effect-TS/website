@@ -18,6 +18,7 @@ export interface PreviewSyncOptions {
   readonly kind: "preview"
   readonly pullRequest: number
   readonly revision: string
+  readonly storeId: string
 }
 
 export interface ProductionSyncOptions {
