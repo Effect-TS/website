@@ -6,6 +6,14 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
+import * as Schema from "effect/Schema"
+
+const TrafficMode = Schema.Literals([
+  "workers-dev",
+  "routes",
+  "bridge",
+  "custom-domains",
+])
 
 export default Alchemy.Stack(
   "EffectWebsiteGitHub",
@@ -15,6 +23,11 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const { accountId } = yield* yield* Cloudflare.CloudflareEnvironment
+    const trafficMode = yield* Config.string("CLOUDFLARE_TRAFFIC_MODE").pipe(
+      Config.withDefault("workers-dev"),
+      Effect.flatMap(Schema.decodeUnknownEffect(TrafficMode)),
+      Effect.orDie,
+    )
 
     const apiToken = yield* Cloudflare.ApiToken.AccountApiToken("ci-token", {
       name: "effect-website-ci",
@@ -74,6 +87,11 @@ export default Alchemy.Stack(
         name: "CLOUDFLARE_ACCOUNT_ID",
         value: Redacted.make(accountId),
       }),
+      GitHub.Variable("cloudflare-traffic-mode", {
+        ...repository,
+        name: "CLOUDFLARE_TRAFFIC_MODE",
+        value: trafficMode,
+      }),
       ...Object.entries(applicationSecrets).map(([name, value]) =>
         GitHub.Secret(name.toLowerCase().replaceAll("_", "-"), {
           ...repository,
@@ -108,6 +126,7 @@ export default Alchemy.Stack(
     return {
       apiTokenName: apiToken.name,
       repository: `${repository.owner}/${repository.repository}`,
+      trafficMode,
     }
   }),
 )
