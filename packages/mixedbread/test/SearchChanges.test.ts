@@ -9,7 +9,7 @@ test("detects search index source changes", () => {
     "apps/web/src/features/api-reference/model.ts",
     "apps/web/src/features/search/domain.ts",
     "packages/domain/src/ApiReference.ts",
-    "packages/api-reference/src/generate.mjs",
+    "packages/api-reference/src/Generate.ts",
     "packages/mixedbread/src/Mixedbread.ts",
     "packages/alchemy-mixedbread/src/VectorStore.ts",
     "apps/web/package.json",
