@@ -12,10 +12,10 @@ import { Help } from "effect/unstable/cli/GlobalFlag"
 import { Mixedbread } from "./Mixedbread.ts"
 
 if (
-  process.env.MXBAI_API_KEY === undefined &&
+  process.env.MXBAI_ADMIN_API_KEY === undefined &&
   process.argv.some((argument) => argument === "--help" || argument === "-h")
 ) {
-  process.env.MXBAI_API_KEY = "help"
+  process.env.MXBAI_ADMIN_API_KEY = "help"
 }
 
 const pullRequest = Flag.integer("pr").pipe(
@@ -43,12 +43,22 @@ const syncCommand = Command.make("sync", { pullRequest, revision, scope }).pipe(
           mixedbread.syncProduction(revision, scope),
         ),
       onSome: (pullRequest) =>
-        Mixedbread.use((mixedbread) =>
-          mixedbread.syncStore(
-            { kind: "preview", pullRequest, revision },
-            scope,
-          ),
-        ),
+        Effect.gen(function* () {
+          const storeId = process.env.MXBAI_VECTOR_STORE_ID
+          if (storeId === undefined) {
+            return yield* Effect.fail(
+              new Error(
+                "MXBAI_VECTOR_STORE_ID is required when synchronizing a preview",
+              ),
+            )
+          }
+          yield* Mixedbread.use((mixedbread) =>
+            mixedbread.syncStore(
+              { kind: "preview", pullRequest, revision, storeId },
+              scope,
+            ),
+          )
+        }),
     }),
   ),
 )

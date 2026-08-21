@@ -40,12 +40,14 @@ jobs:
               packages/domain/*|\
               packages/api-reference/*|\
               packages/mixedbread/*|\
+              packages/alchemy-mixedbread/*|\
               apps/web/src/features/api-reference/*|\
               apps/web/src/features/search/domain.ts|\
               apps/web/package.json|\
               packages/mixedbread/package.json|\
               package.json|\
               pnpm-lock.yaml|\
+              alchemy.run.ts|\
               .github/workflows/preview.yml)
                 changed=true
                 break
@@ -93,26 +95,15 @@ jobs:
           vp run api-reference:generate --version v3 --repo .effect-source-v3
           vp run api-reference:generate --version v4 --repo .effect-source-v4
 
-      - name: Synchronize Mixedbread preview store
-        if: steps.search-changes.outputs.changed == 'true'
-        id: mixedbread
-        run: vp exec mixedbread sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
-        env:
-          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
-
       - name: Deploy Cloudflare preview
-        run: |
-          if [[ -z "$MXBAI_VECTOR_STORE_ID" ]]; then
-            echo "::error::No Mixedbread search store is available for this preview"
-            exit 1
-          fi
-
-          vp exec alchemy deploy --stage "pr-${PULL_REQUEST}" --yes
+        run: vp exec alchemy deploy --stage "pr-${PULL_REQUEST}" --yes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
           MXBAI_API_KEY: ${{ secrets.MXBAI_SEARCH_API_KEY }}
-          MXBAI_VECTOR_STORE_ID: ${{ steps.mixedbread.outputs.store_id || secrets.MXBAI_VECTOR_STORE_ID }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          MXBAI_PREVIEW_STORE_ENABLED: ${{ steps.search-changes.outputs.changed }}
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
@@ -160,6 +151,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
           MXBAI_API_KEY: ${{ secrets.MXBAI_SEARCH_API_KEY }}
           MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -170,4 +162,4 @@ jobs:
         if: always()
         run: vp exec mixedbread delete-preview --pr "${{ github.event.pull_request.number }}"
         env:
-          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
