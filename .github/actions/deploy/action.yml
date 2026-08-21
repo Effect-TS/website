@@ -55,21 +55,9 @@ runs:
         GH_TOKEN: ${{ github.token }}
         REQUESTED_SNAPSHOT: ${{ inputs.api-reference-snapshot }}
       run: |
-        snapshot="$REQUESTED_SNAPSHOT"
-        if [[ -z "$snapshot" ]]; then
-          snapshot=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | startswith("api-reference-")))] | sort_by(.published_at) | last | (.tag_name // "")')
-        fi
-
-        if [[ ! "$snapshot" =~ ^api-reference-[a-f0-9]{64}$ ]]; then
-          echo "::error::No valid published API reference snapshot is available. Publish one with the API reference workflow before deploying."
-          exit 1
-        fi
-
-        release=$(gh release view "$snapshot" --json isDraft,isPrerelease)
-        if [[ "$(jq -r '.isDraft or .isPrerelease' <<<"$release")" == "true" ]]; then
-          echo "::error::API reference snapshot must be a published, non-prerelease release: $snapshot"
-          exit 1
-        fi
+        snapshot=$(vp exec api-reference snapshot resolve \
+          --repository "$GITHUB_REPOSITORY" \
+          --tag "$REQUESTED_SNAPSHOT")
         echo "tag=$snapshot" >> "$GITHUB_OUTPUT"
 
     - name: Restore API reference snapshot

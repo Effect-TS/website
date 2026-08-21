@@ -17,10 +17,16 @@ import {
   Comment,
   CommentTag,
   MinimalSourceFile,
+  type ProjectReflection,
   ReflectionKind,
   normalizePath,
 } from "typedoc"
 import TypeScript from "typescript"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Predicate from "effect/Predicate"
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../../..")
@@ -39,152 +45,192 @@ const excludedModuleExports = new Map([
   ["@effect/ai-openai", new Set(["./Generated"])],
   ["@effect/ai-openrouter", new Set(["./Generated"])],
 ])
-const argumentKeys = new Map([
-  ["--repo", "repository"],
-  ["--out", "output"],
-  ["--package", "package"],
-  ["--version", "version"],
-])
-
-const options = parseArguments(process.argv.slice(2))
-if (options.version === undefined || !/^v\d+$/.test(options.version)) {
-  throw new Error("--version must be a major-version channel such as v3 or v4")
-}
-const repositoryDirectory = resolve(
-  websiteDirectory,
-  options.repository ?? "../effect",
-)
-const outputDirectory = resolve(
-  websiteDirectory,
-  options.output ?? join("apps/web/.data/api-reference", options.version),
-)
-
-assertDirectory(repositoryDirectory, "Effect repository")
-assertSafeOutputDirectory(outputDirectory)
-
-const packagesDirectory = join(repositoryDirectory, "packages")
-assertDirectory(packagesDirectory, "Effect packages directory")
-
-const packages = discoverPackages(packagesDirectory)
-  .filter(
-    ({ manifest }) =>
-      manifest.private !== true && manifest.exports !== undefined,
-  )
-  .filter(
-    ({ manifest }) =>
-      options.package === undefined || manifest.name === options.package,
-  )
-  .sort((left, right) =>
-    compareStrings(left.manifest.name, right.manifest.name),
-  )
-
-if (packages.length === 0) {
-  const suffix =
-    options.package === undefined
-      ? ""
-      : ` matching ${JSON.stringify(options.package)}`
-  throw new Error(
-    `No public packages with export maps were found${suffix} in ${packagesDirectory}`,
-  )
+export interface GenerateOptions {
+  readonly version: string
+  readonly repository?: string | undefined
+  readonly output?: string | undefined
+  readonly package?: string | undefined
 }
 
-prepareOutputDirectory(outputDirectory)
+interface PackageManifest {
+  readonly name: string
+  readonly version: string
+  readonly private: unknown
+  readonly exports: unknown
+  readonly description: unknown
+}
 
-const revision = readRevision(repositoryDirectory)
-const packageManifests = []
+interface PackageInfo {
+  readonly directory: string
+  readonly manifest: PackageManifest
+}
 
-for (const packageInfo of packages) {
-  const discoveredModules = discoverModules(
-    packageInfo.directory,
-    packageInfo.manifest.exports,
-  )
-  const excludedExports =
-    excludedModuleExports.get(packageInfo.manifest.name) ?? new Set()
-  const slowModules = discoveredModules.filter(({ exportPath }) =>
-    excludedExports.has(exportPath),
-  )
-  const internalModules = discoveredModules.filter(isInternalModule)
-  const includedModules = discoveredModules
-    .filter(({ exportPath }) => !excludedExports.has(exportPath))
-    .filter((module) => !isInternalModule(module))
-  if (includedModules.length === 0) {
-    continue
-  }
-  if (includedModules.some(({ outputPath }) => outputPath === "manifest")) {
+interface ModuleInfo {
+  readonly exportPath: string
+  readonly outputPath: string
+  readonly source: string
+}
+
+interface GeneratedModule {
+  readonly export: string
+  readonly source: string
+  readonly json: string
+  readonly sha256: string
+  readonly barrel: string | undefined
+}
+
+interface JsDocTag {
+  readonly tag: string
+  readonly content: string
+}
+
+export async function generate(options: GenerateOptions): Promise<void> {
+  if (!/^v\d+$/.test(options.version)) {
     throw new Error(
-      `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest`,
+      "--version must be a major-version channel such as v3 or v4",
+    )
+  }
+  const repositoryDirectory = resolve(
+    websiteDirectory,
+    options.repository ?? "../effect",
+  )
+  const outputDirectory = resolve(
+    websiteDirectory,
+    options.output ?? join("apps/web/.data/api-reference", options.version),
+  )
+
+  assertDirectory(repositoryDirectory, "Effect repository")
+  assertSafeOutputDirectory(outputDirectory, repositoryDirectory)
+
+  const packagesDirectory = join(repositoryDirectory, "packages")
+  assertDirectory(packagesDirectory, "Effect packages directory")
+
+  const packages = discoverPackages(packagesDirectory)
+    .filter(
+      ({ manifest }) =>
+        manifest.private !== true && manifest.exports !== undefined,
+    )
+    .filter(
+      ({ manifest }) =>
+        options.package === undefined || manifest.name === options.package,
+    )
+    .sort((left, right) =>
+      compareStrings(left.manifest.name, right.manifest.name),
+    )
+
+  if (packages.length === 0) {
+    const suffix =
+      options.package === undefined
+        ? ""
+        : ` matching ${JSON.stringify(options.package)}`
+    throw new Error(
+      `No public packages with export maps were found${suffix} in ${packagesDirectory}`,
     )
   }
 
-  const barrels = includedModules.filter(isBarrelModule)
-  const modules = includedModules.filter((module) => !isBarrelModule(module))
+  prepareOutputDirectory(outputDirectory)
 
-  console.log(
-    `Generating ${packageInfo.manifest.name} (${modules.length} modules, ${barrels.length} barrels excluded, ${internalModules.length} internal modules excluded, ${slowModules.length} slow modules excluded)`,
-  )
-  const generatedModules =
-    modules.length === 0
-      ? []
-      : await generatePackage(
-          packageInfo,
-          modules,
-          barrels,
-          repositoryDirectory,
+  const revision = readRevision(repositoryDirectory)
+  const packageManifests = []
+
+  for (const packageInfo of packages) {
+    const discoveredModules = discoverModules(
+      packageInfo.directory,
+      packageInfo.manifest.exports,
+    )
+    const excludedExports =
+      excludedModuleExports.get(packageInfo.manifest.name) ?? new Set()
+    const slowModules = discoveredModules.filter(({ exportPath }) =>
+      excludedExports.has(exportPath),
+    )
+    const internalModules = discoveredModules.filter(isInternalModule)
+    const includedModules = discoveredModules
+      .filter(({ exportPath }) => !excludedExports.has(exportPath))
+      .filter((module) => !isInternalModule(module))
+    if (includedModules.length === 0) {
+      continue
+    }
+    if (includedModules.some(({ outputPath }) => outputPath === "manifest")) {
+      throw new Error(
+        `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest`,
+      )
+    }
+
+    const barrels = includedModules.filter(isBarrelModule)
+    const modules = includedModules.filter((module) => !isBarrelModule(module))
+
+    console.log(
+      `Generating ${packageInfo.manifest.name} (${modules.length} modules, ${barrels.length} barrels excluded, ${internalModules.length} internal modules excluded, ${slowModules.length} slow modules excluded)`,
+    )
+    const generatedModules =
+      modules.length === 0
+        ? []
+        : await generatePackage(
+            packageInfo,
+            modules,
+            barrels,
+            repositoryDirectory,
+            outputDirectory,
+            revision,
+          )
+    const packageOutputDirectory = packageOutputPath(
+      outputDirectory,
+      packageInfo.manifest.name,
+    )
+    const packageManifest = {
+      schemaVersion: 3,
+      channel: options.version,
+      name: packageInfo.manifest.name,
+      version: packageInfo.manifest.version,
+      revision,
+      description:
+        typeof packageInfo.manifest.description === "string"
+          ? packageInfo.manifest.description
+          : packageInfo.manifest.name,
+      npmUrl: `https://www.npmjs.com/package/${packageInfo.manifest.name}`,
+      sourceUrl: `https://github.com/Effect-TS/effect/tree/${revision}/${toPosixPath(relative(repositoryDirectory, packageInfo.directory))}`,
+      barrels: barrels.map((barrel) => ({
+        export: barrel.exportPath,
+        source: toPosixPath(relative(packageInfo.directory, barrel.source)),
+      })),
+      modules: generatedModules,
+    }
+
+    writeJson(join(packageOutputDirectory, "manifest.json"), packageManifest)
+    packageManifests.push({
+      name: packageInfo.manifest.name,
+      version: packageInfo.manifest.version,
+      manifest: toPosixPath(
+        relative(
           outputDirectory,
-        )
-  const packageOutputDirectory = packageOutputPath(
-    outputDirectory,
-    packageInfo.manifest.name,
-  )
-  const packageManifest = {
-    schemaVersion: 3,
-    channel: options.version,
-    name: packageInfo.manifest.name,
-    version: packageInfo.manifest.version,
-    revision,
-    description:
-      typeof packageInfo.manifest.description === "string"
-        ? packageInfo.manifest.description
-        : packageInfo.manifest.name,
-    npmUrl: `https://www.npmjs.com/package/${packageInfo.manifest.name}`,
-    sourceUrl: `https://github.com/Effect-TS/effect/tree/${revision}/${toPosixPath(relative(repositoryDirectory, packageInfo.directory))}`,
-    barrels: barrels.map((barrel) => ({
-      export: barrel.exportPath,
-      source: toPosixPath(relative(packageInfo.directory, barrel.source)),
-    })),
-    modules: generatedModules,
+          join(packageOutputDirectory, "manifest.json"),
+        ),
+      ),
+    })
   }
 
-  writeJson(join(packageOutputDirectory, "manifest.json"), packageManifest)
-  packageManifests.push({
-    name: packageInfo.manifest.name,
-    version: packageInfo.manifest.version,
-    manifest: toPosixPath(
-      relative(outputDirectory, join(packageOutputDirectory, "manifest.json")),
-    ),
+  writeJson(join(outputDirectory, "manifest.json"), {
+    datasetSchemaVersion: 1,
+    channel: options.version,
+    typedocVersion: Application.VERSION,
+    typedocSchemaVersion: "2.0",
+    revision,
+    packages: packageManifests,
   })
+
+  console.log(
+    `Generated ${packageManifests.length} packages in ${outputDirectory}`,
+  )
 }
 
-writeJson(join(outputDirectory, "manifest.json"), {
-  datasetSchemaVersion: 1,
-  channel: options.version,
-  typedocVersion: Application.VERSION,
-  typedocSchemaVersion: "2.0",
-  revision,
-  packages: packageManifests,
-})
-
-console.log(
-  `Generated ${packageManifests.length} packages in ${outputDirectory}`,
-)
-
 async function generatePackage(
-  packageInfo,
-  modules,
-  barrels,
-  repository,
-  output,
-) {
+  packageInfo: PackageInfo,
+  modules: ReadonlyArray<ModuleInfo>,
+  barrels: ReadonlyArray<ModuleInfo>,
+  repository: string,
+  output: string,
+  revision: string,
+): Promise<Array<GeneratedModule>> {
   const tsconfig = join(packageInfo.directory, "tsconfig.json")
   accessSync(tsconfig, constants.R_OK)
 
@@ -226,7 +272,7 @@ async function generatePackage(
     ]),
   )
   const packageDirectory = packageOutputPath(output, packageInfo.manifest.name)
-  const generated = []
+  const generated: Array<GeneratedModule> = []
 
   for (const module of modules) {
     const entryPoint = entryPointsBySource.get(resolve(module.source))
@@ -260,7 +306,11 @@ async function generatePackage(
   return generated
 }
 
-function attachLeadingModuleComment(app, project, sourcePath) {
+function attachLeadingModuleComment(
+  app: Application,
+  project: ProjectReflection,
+  sourcePath: string,
+): void {
   // Effect uses untagged leading JSDoc for module docs, while TypeDoc requires an explicit file tag.
   const moduleReflection = project.children?.find(
     (reflection) => reflection.kind === ReflectionKind.Module,
@@ -283,7 +333,7 @@ function attachLeadingModuleComment(app, project, sourcePath) {
     return
   }
 
-  const parseMarkdown = (text) =>
+  const parseMarkdown = (text: string) =>
     app.converter.parseRawComment(
       new MinimalSourceFile(text, normalizePath(sourcePath)),
       project.files,
@@ -292,20 +342,29 @@ function attachLeadingModuleComment(app, project, sourcePath) {
     parseMarkdown(parsed.summary),
     parsed.tags
       .filter(({ tag }) => tag !== "@module" && tag !== "@packageDocumentation")
-      .map(({ tag, content }) => new CommentTag(tag, parseMarkdown(content))),
+      .map(
+        ({ tag, content }) =>
+          new CommentTag(`@${tag.slice(1)}`, parseMarkdown(content)),
+      ),
   )
   comment.sourcePath = normalizePath(sourcePath)
   moduleReflection.comment = comment
   app.converter.resolveLinks(comment, moduleReflection)
 }
 
-function splitJsDocComment(comment) {
+function splitJsDocComment(comment: string): {
+  readonly summary: string
+  readonly tags: ReadonlyArray<JsDocTag>
+} {
   const lines = comment
     .split("\n")
     .map((line) => line.replace(/^\s*\* ?/, "").replace(/\s+$/, ""))
-  const summary = []
-  const tags = []
-  let currentTag
+  const summary: Array<string> = []
+  const tags: Array<{ readonly tag: string; readonly lines: Array<string> }> =
+    []
+  let currentTag:
+    | { readonly tag: string; readonly lines: Array<string> }
+    | undefined
   let fenced = false
 
   for (const line of lines) {
@@ -334,8 +393,8 @@ function splitJsDocComment(comment) {
   }
 }
 
-function discoverPackages(directory) {
-  const packages = []
+function discoverPackages(directory: string): Array<PackageInfo> {
+  const packages: Array<PackageInfo> = []
 
   for (const entry of sortedDirectoryEntries(directory)) {
     if (!entry.isDirectory() || ignoredDirectoryNames.has(entry.name)) {
@@ -347,12 +406,29 @@ function discoverPackages(directory) {
 
     try {
       const manifest = readJson(manifestPath)
-      if (typeof manifest.name === "string") {
-        packages.push({ directory: childDirectory, manifest })
+      if (
+        Predicate.isObject(manifest) &&
+        typeof manifest.name === "string" &&
+        typeof manifest.version === "string"
+      ) {
+        packages.push({
+          directory: childDirectory,
+          manifest: {
+            name: manifest.name,
+            version: manifest.version,
+            private: manifest.private,
+            exports: manifest.exports,
+            description: manifest.description,
+          },
+        })
         continue
       }
     } catch (error) {
-      if (error?.code !== "ENOENT") {
+      if (
+        !Predicate.isObject(error) ||
+        !("code" in error) ||
+        error.code !== "ENOENT"
+      ) {
         throw error
       }
     }
@@ -363,7 +439,10 @@ function discoverPackages(directory) {
   return packages
 }
 
-function discoverModules(packageDirectory, exportsField) {
+function discoverModules(
+  packageDirectory: string,
+  exportsField: unknown,
+): Array<ModuleInfo> {
   const exportEntries = normalizeExportEntries(exportsField)
   const blockedExports = exportEntries
     .filter(([, target]) => target === null)
@@ -374,7 +453,7 @@ function discoverModules(packageDirectory, exportsField) {
       relative: `./${toPosixPath(relative(packageDirectory, path))}`,
     }))
     .filter(({ relative: path }) => isTypeScriptSource(path))
-  const modules = new Map()
+  const modules = new Map<string, ModuleInfo>()
 
   for (const [exportPattern, target] of exportEntries) {
     if (target === null) {
@@ -412,7 +491,12 @@ function discoverModules(packageDirectory, exportsField) {
   )
 }
 
-function addModule(modules, blockedExports, exportPath, source) {
+function addModule(
+  modules: Map<string, ModuleInfo>,
+  blockedExports: ReadonlyArray<string>,
+  exportPath: string,
+  source: string,
+): void {
   if (blockedExports.some((pattern) => patternMatches(pattern, exportPath))) {
     return
   }
@@ -443,7 +527,7 @@ function addModule(modules, blockedExports, exportPath, source) {
   modules.set(outputPath, { exportPath, outputPath, source })
 }
 
-function isBarrelModule(module) {
+function isBarrelModule(module: ModuleInfo): boolean {
   const source = readFileSync(module.source, "utf8")
   if (source.includes("@barrel:")) {
     return true
@@ -465,11 +549,14 @@ function isBarrelModule(module) {
   )
 }
 
-function isInternalModule(module) {
+function isInternalModule(module: ModuleInfo): boolean {
   return module.exportPath.replace(/^\.\//, "").split("/").includes("internal")
 }
 
-function nearestBarrel(exportPath, barrels) {
+function nearestBarrel(
+  exportPath: string,
+  barrels: ReadonlyArray<ModuleInfo>,
+): ModuleInfo | undefined {
   return barrels
     .filter(
       (barrel) =>
@@ -479,18 +566,20 @@ function nearestBarrel(exportPath, barrels) {
     .sort((left, right) => right.exportPath.length - left.exportPath.length)[0]
 }
 
-function normalizeExportEntries(exportsField) {
+function normalizeExportEntries(
+  exportsField: unknown,
+): Array<readonly [string, unknown]> {
   if (
     typeof exportsField === "string" ||
     exportsField === null ||
     Array.isArray(exportsField) ||
-    (isObject(exportsField) &&
+    (Predicate.isObject(exportsField) &&
       Object.keys(exportsField).every((key) => !key.startsWith(".")))
   ) {
     return [[".", exportsField]]
   }
 
-  if (!isObject(exportsField)) {
+  if (!Predicate.isObject(exportsField)) {
     return []
   }
 
@@ -499,21 +588,21 @@ function normalizeExportEntries(exportsField) {
   )
 }
 
-function sourceTargets(target) {
+function sourceTargets(target: unknown): Array<string> {
   if (typeof target === "string") {
     return isTypeScriptSource(target) ? [target] : []
   }
   if (Array.isArray(target)) {
     return target.flatMap(sourceTargets)
   }
-  if (isObject(target)) {
+  if (Predicate.isObject(target)) {
     return Object.values(target).flatMap(sourceTargets)
   }
   return []
 }
 
-function listFiles(directory) {
-  const files = []
+function listFiles(directory: string): Array<string> {
+  const files: Array<string> = []
 
   for (const entry of sortedDirectoryEntries(directory)) {
     if (ignoredDirectoryNames.has(entry.name)) {
@@ -531,7 +620,7 @@ function listFiles(directory) {
   return files
 }
 
-function patternMatcher(pattern) {
+function patternMatcher(pattern: string): RegExp {
   const parts = pattern.split("*")
   if (parts.length !== 2) {
     throw new Error(
@@ -541,55 +630,22 @@ function patternMatcher(pattern) {
   return new RegExp(`^${escapeRegExp(parts[0])}(.*)${escapeRegExp(parts[1])}$`)
 }
 
-function patternMatches(pattern, value) {
+function patternMatches(pattern: string, value: string): boolean {
   return pattern.includes("*")
     ? patternMatcher(pattern).test(value)
     : pattern === value
 }
 
-function parseArguments(arguments_) {
-  const parsed = {}
-
-  for (let index = 0; index < arguments_.length; index += 1) {
-    const argument = arguments_[index]
-    if (argument === "--") {
-      continue
-    }
-    if (argument === "--help") {
-      console.log(`Usage: api-reference generate [options]
-
-Options:
-  --repo <path>       Effect repository (default: ../effect)
-  --out <path>        Output directory (default: apps/web/.data/api-reference/<version>)
-  --package <name>    Generate only one npm package
-  --version <name>    Documentation channel, such as v3 or v4
-  --help              Show this help`)
-      process.exit(0)
-    }
-
-    const key = argumentKeys.get(argument)
-    if (key === undefined) {
-      throw new Error(`Unknown argument: ${argument}`)
-    }
-
-    const value = arguments_[index + 1]
-    if (value === undefined || value.startsWith("--")) {
-      throw new Error(`Missing value for ${argument}`)
-    }
-    parsed[key] = value
-    index += 1
-  }
-
-  return parsed
-}
-
-function assertDirectory(path, label) {
+function assertDirectory(path: string, label: string): void {
   if (!statSync(path, { throwIfNoEntry: false })?.isDirectory()) {
     throw new Error(`${label} does not exist or is not a directory: ${path}`)
   }
 }
 
-function assertSafeOutputDirectory(path) {
+function assertSafeOutputDirectory(
+  path: string,
+  repositoryDirectory: string,
+): void {
   if (
     !isAbsolute(path) ||
     path === resolve(path, sep) ||
@@ -600,7 +656,7 @@ function assertSafeOutputDirectory(path) {
   }
 }
 
-function prepareOutputDirectory(path) {
+function prepareOutputDirectory(path: string): void {
   const status = statSync(path, { throwIfNoEntry: false })
   if (status !== undefined) {
     if (!status.isDirectory()) {
@@ -618,7 +674,7 @@ function prepareOutputDirectory(path) {
   writeFileSync(join(path, outputMarker), "")
 }
 
-function packageOutputPath(output, packageName) {
+function packageOutputPath(output: string, packageName: string): string {
   const parts = packageName.split("/")
   if (parts.some((part) => part === "" || part === "." || part === "..")) {
     throw new Error(
@@ -628,7 +684,7 @@ function packageOutputPath(output, packageName) {
   return join(output, ...parts)
 }
 
-function readRevision(repository) {
+function readRevision(repository: string): string {
   try {
     return execFileSync("git", ["rev-parse", "HEAD"], {
       cwd: repository,
@@ -641,45 +697,70 @@ function readRevision(repository) {
   }
 }
 
-function readJson(path) {
+function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"))
 }
 
-function writeJson(path, value) {
+function writeJson(path: string, value: unknown): void {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`)
 }
 
-function hashFile(path) {
+function hashFile(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex")
 }
 
-function sortedDirectoryEntries(directory) {
+function sortedDirectoryEntries(directory: string) {
   return readdirSync(directory, { withFileTypes: true }).sort((left, right) =>
     compareStrings(left.name, right.name),
   )
 }
 
-function isFile(path) {
+function isFile(path: string): boolean {
   return statSync(path, { throwIfNoEntry: false })?.isFile() === true
 }
 
-function isTypeScriptSource(path) {
+function isTypeScriptSource(path: string): boolean {
   return /(?<!\.d)\.(?:[cm]?ts|tsx)$/.test(path)
 }
 
-function isObject(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function toPosixPath(path) {
+function toPosixPath(path: string): string {
   return path.split(sep).join("/")
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
-function compareStrings(left, right) {
+function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0
+}
+
+export class GenerateError extends Data.TaggedError("GenerateError")<{
+  readonly message: string
+  readonly cause: unknown
+}> {}
+
+export class Generate extends Context.Service<
+  Generate,
+  {
+    readonly run: (
+      options: GenerateOptions,
+    ) => Effect.Effect<void, GenerateError>
+  }
+>()("@website/api-reference/Generate", {
+  make: Effect.succeed({
+    run: Effect.fn("Generate.run")(function* (options: GenerateOptions) {
+      yield* Effect.tryPromise({
+        try: () => generate(options),
+        catch: (cause) =>
+          new GenerateError({
+            message: `Unable to generate API reference data for ${options.version}`,
+            cause,
+          }),
+      })
+    }),
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
 }
