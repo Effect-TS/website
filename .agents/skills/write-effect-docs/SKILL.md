@@ -135,6 +135,10 @@ methods such as `.pipe(...)`; a qualified-name scan does not find them reliably.
 - State when ordinary TypeScript can produce the same behavior. Demonstrate
   Effect's actual advantage without misrepresenting the alternative.
 - Give each code fence a short, meaningful title.
+- Present an inferred function type as an ambient TypeScript declaration such
+  as `declare function placeOrder(...): ...`. Use `declare const` for an
+  inferred value. Do not show a bare function signature or bare Effect type
+  disconnected from the symbol it describes.
 - Separate adjacent code fences with a brief transition so they do not render
   as one block.
 - Add code comments sparingly. Explain only non-obvious decisions, boundaries,

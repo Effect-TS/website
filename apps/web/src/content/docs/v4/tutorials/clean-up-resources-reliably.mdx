@@ -1,6 +1,6 @@
 ---
 title: Clean up resources reliably
-description: Tie acquired resources to one lifetime so cleanup runs after success, failure, or cancellation.
+description: Attach cleanup to resource use so it runs after success, failure, or interruption.
 diataxis: tutorial
 sidebar:
   order: 3
@@ -11,748 +11,220 @@ import {
   EffectStrength,
 } from "@astrojs/starlight/components"
 
-<EffectStrength title="Cleanup follows the resource lifetime">
+<EffectStrength title="Cleanup is part of the computation">
 
-With Effect, a `Scope` owns the lifetime of an operation. A finalizer is a
-cleanup operation registered in that Scope. `Effect.acquireRelease` registers
-one after a resource is acquired successfully.
+`try`/`finally` protects one block of code, but every caller must preserve the
+same acquire, use, and release discipline.
 
-Closing the Scope after success, failure, or cancellation runs every registered
-finalizer, including cleanup for resources acquired before later work failed.
+Effect can describe those three phases as one operation. Cleanup then follows
+the operation through success, failure, and cancellation.
 
 </EffectStrength>
 
 ## What you will build
 
-The example isolates the resource-owning part of a `POST /orders` operation. It
-checks out a database connection, acquires an inventory lock, and stores the
-order. A small HTTP harness supplies an Order ID that the application has
-already generated, so the tutorial can focus on resource cleanup. Each step
-makes that cleanup more reliable until the endpoint behaves as follows:
-
-| Request outcome        | HTTP result | Resource behavior                               |
-| ---------------------- | ----------- | ----------------------------------------------- |
-| Order is stored        | `201`       | Lock released, then connection released         |
-| Lock acquisition fails | `500`       | The connection already acquired is released     |
-| Client disconnects     | No response | Storage is cancelled, then both resources close |
-
-The HTTP server will remain ordinary TypeScript. Effect will manage only the
-part of the request that acquires, uses, and releases resources.
-
-## Request flow
-
-```mermaid
-sequenceDiagram
-  participant Order as Place order
-  participant Inventory
-  participant Repository as Order repository
-
-  Order->>Repository: Acquire database connection
-  Repository-->>Order: Connection
-  Order->>Inventory: Acquire inventory lock
-  Inventory-->>Order: Lock
-  Order->>Repository: Store accepted order
-  Repository-->>Order: Storage result
-  Note over Order,Repository: Scope closes after success, failure, or cancellation
-  Order->>Inventory: Release lock
-  Order->>Repository: Release connection
-```
+You will store a report through a simulated database connection. Writing the
+report fails on purpose, which makes cleanup easy to observe. The Promise-free
+fixture keeps the example focused on the resource lifetime rather than on
+database or HTTP code.
 
 ## Project setup
 
-The project uses two files:
+The project uses one file:
 
-| File         | Role                                                                        |
-| ------------ | --------------------------------------------------------------------------- |
-| `fixture.ts` | Fixed fixture that provides the HTTP server, database, and inventory.       |
-| `server.ts`  | Contains the resource-management code that the tutorial gradually improves. |
+| File      | Role                                                        |
+| --------- | ----------------------------------------------------------- |
+| `main.ts` | Contains the connection simulation and the code you change. |
 
-`fixture.ts` does not change. It exports:
+Run each version with:
 
-- `startServer`, which reads the incoming JSON, sends the HTTP response, and
-  gives the order handler an `AbortSignal` when the client disconnects;
-- `checkoutDatabase` and `releaseDatabase`, which simulate the lifetime of a
-  database connection;
-- `acquireInventoryLock` and `releaseInventoryLock`, which simulate the
-  lifetime of an inventory lock;
-- `storeOrder`, which simulates the storage operation.
-
-An `AbortSignal` is a standard cancellation value. It notifies asynchronous work
-when the caller asks it to stop.
-
-Two `orderId` values select predictable behavior:
-
-- `order-lock-fails` makes inventory lock acquisition fail;
-- `order-slow` makes storage take 1.5 seconds.
-
-```ts title="fixture.ts"
-// This fixed fixture does not change during the tutorial.
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
-
-export interface StoreOrderInput {
-  readonly orderId: string
-}
-
-export interface StoredOrder {
-  readonly orderId: string
-  readonly status: "stored"
-}
-
-export interface DatabaseConnection {
-  readonly id: string
-  [Symbol.dispose](): void
-}
-
-export interface InventoryLock {
-  readonly id: string
-  [Symbol.dispose](): void
-}
-
-export const startServer = (
-  placeOrder: (
-    input: StoreOrderInput,
-    signal: AbortSignal,
-  ) => Promise<StoredOrder>,
-): void => {
-  const server = createServer(async (request, response) => {
-    const sendJson = (status: number, body: unknown): void => {
-      response.writeHead(status, { "content-type": "application/json" })
-      response.end(JSON.stringify(body))
-    }
-
-    if (request.method !== "POST" || request.url !== "/orders") {
-      sendJson(404, { error: "NotFound" })
-      return
-    }
-
-    // Turn a premature client disconnect into a signal for the order handler.
-    const controller = new AbortController()
-    response.once("close", () => {
-      if (!response.writableEnded) controller.abort()
-    })
-
-    try {
-      let body = ""
-      for await (const chunk of request) body += chunk
-      const order = await placeOrder(
-        JSON.parse(body) as StoreOrderInput,
-        controller.signal,
-      )
-      sendJson(201, order)
-    } catch {
-      if (controller.signal.aborted) return
-      console.error("request failed")
-      sendJson(500, { error: "OrderFailed" })
-    }
-  })
-
-  server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-}
-
-export const checkoutDatabase = async (
-  orderId: string,
-): Promise<DatabaseConnection> => {
-  const connection: DatabaseConnection = {
-    id: `db-${orderId}`,
-    [Symbol.dispose]() {
-      releaseDatabase(this)
-    },
-  }
-  console.log(`checked out ${connection.id}`)
-  return connection
-}
-
-export const acquireInventoryLock = async (
-  connection: DatabaseConnection,
-  orderId: string,
-): Promise<InventoryLock> => {
-  if (orderId === "order-lock-fails") {
-    console.log(`inventory lock unavailable for ${orderId}`)
-    throw new Error("controlled lock failure")
-  }
-  const lock: InventoryLock = {
-    id: `lock-${orderId}`,
-    [Symbol.dispose]() {
-      releaseInventoryLock(connection, this)
-    },
-  }
-  console.log(`acquired ${lock.id} using ${connection.id}`)
-  return lock
-}
-
-export const releaseInventoryLock = (
-  connection: DatabaseConnection,
-  lock: InventoryLock,
-): void => {
-  console.log(`released ${lock.id} using ${connection.id}`)
-}
-
-export const releaseDatabase = (connection: DatabaseConnection): void => {
-  console.log(`released ${connection.id}`)
-}
-
-export const storeOrder = async (
-  connection: DatabaseConnection,
-  lock: InventoryLock,
-  orderId: string,
-  { signal }: { readonly signal?: AbortSignal } = {},
-): Promise<StoredOrder> => {
-  console.log(
-    `store started for ${orderId} using ${connection.id} and ${lock.id}`,
-  )
-
-  signal?.addEventListener("abort", () => console.log("store aborted"), {
-    once: true,
-  })
-
-  // Passing the signal makes the simulated storage delay cancellable.
-  await sleep(orderId === "order-slow" ? 1_500 : 80, undefined, { signal })
-
-  console.log(`stored ${orderId}`)
-  return { orderId, status: "stored" }
-}
+```sh title="Run the example"
+node main.ts
 ```
 
-The two resource handles implement JavaScript's standard `Symbol.dispose`
-protocol. A `using` declaration can therefore register their cleanup as soon
-as each acquisition succeeds. The explicit release functions expose the same
-cleanup operations to Effect later in the tutorial.
+## Keep acquisition and release together
 
-Run the server with `--watch`. This option reloads `server.ts` after each saved
-edit, so the same process can remain running throughout the tutorial:
+### 1. Start with `try`/`finally`
 
-```sh title="Watched server"
-node --watch server.ts
-```
+The starting implementation is correct. It releases the connection even when
+`write` throws:
 
-## Tie cleanup to the lifetime of the work
+```ts title="main.ts"
+interface Connection {
+  readonly write: (report: string) => void
+}
 
-### 1. Find the gap around `finally`
+const openConnection = (): Connection => {
+  console.log("connection acquired")
+  return {
+    write: (report) => {
+      console.log(`writing ${report}`)
+      throw new Error("disk full")
+    },
+  }
+}
 
-The initial `server.ts` uses conventional `async`/`await`. It acquires both
-resources before entering the `try` block that releases them:
+const closeConnection = (_connection: Connection): void => {
+  console.log("connection released")
+}
 
-```ts title="server.ts"
-import {
-  acquireInventoryLock,
-  checkoutDatabase,
-  releaseDatabase,
-  releaseInventoryLock,
-  startServer,
-  storeOrder,
-  type StoreOrderInput,
-} from "./fixture.ts"
-
-const placeOrder = async (input: StoreOrderInput) => {
-  const connection = await checkoutDatabase(input.orderId)
-  const lock = await acquireInventoryLock(connection, input.orderId)
-
-  // Cleanup begins only after both acquisitions succeed.
+const storeReport = (report: string): void => {
+  const connection = openConnection()
   try {
-    return await storeOrder(connection, lock, input.orderId)
+    connection.write(report)
   } finally {
-    releaseInventoryLock(connection, lock)
-    releaseDatabase(connection)
+    closeConnection(connection)
   }
 }
 
-startServer(placeOrder)
+try {
+  storeReport("quarterly-report")
+} catch {
+  console.log("write failed")
+}
 ```
 
-In a second terminal pane, this request stores an order:
+The release happens before the failure reaches the caller:
 
-```sh title="Store an order"
-curl -i -sS http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{"orderId":"order-ok"}'
+```text title="Output"
+connection acquired
+writing quarterly-report
+connection released
+write failed
 ```
 
-The endpoint returns:
+The pain point is not a bug in this function. It is the repeated invariant:
+every new use of a connection must put the correct release in the correct
+`finally` block.
 
-```text title="Expected response"
-HTTP/1.1 201 Created
-...
-
-{"orderId":"order-ok","status":"stored"}
-```
-
-The server log shows both resources closing in reverse acquisition order:
-
-```text title="Expected server log"
-checked out db-order-ok
-acquired lock-order-ok using db-order-ok
-store started for order-ok using db-order-ok and lock-order-ok
-stored order-ok
-released lock-order-ok using db-order-ok
-released db-order-ok
-```
-
-Now ask the fixture to reject the second acquisition:
-
-```sh title="Fail while acquiring the lock"
-curl -i -sS http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{"orderId":"order-lock-fails"}'
-```
-
-The response is `500`:
-
-```text title="Expected response"
-HTTP/1.1 500 Internal Server Error
-...
-
-{"error":"OrderFailed"}
-```
-
-The connection was checked out, but its release message is missing:
-
-```text title="Expected server log"
-checked out db-order-lock-fails
-inventory lock unavailable for order-lock-fails
-request failed
-```
-
-The inner `try` begins only after both `await` expressions succeed. When lock
-acquisition rejects, control never enters that `try`, so its `finally` cannot
-release the connection acquired one line earlier.
-
-<TutorialCheckpoint
-  number={1}
-  total={6}
-  title="A failed acquisition leaks the connection"
->
-  A stored order returns `201` and releases both resources. A lock acquisition
-  failure returns `500` without releasing the database connection.
+<TutorialCheckpoint number={1} total={3} title="The manual lifetime is correct">
+  `try`/`finally` releases the connection after the failed write, but that
+  guarantee belongs only to this call site.
 </TutorialCheckpoint>
 
-### 2. Let `using` track successful acquisitions
+### 2. Describe the three phases
 
-The fixture resources implement `Symbol.dispose`, so JavaScript can register
-their cleanup with `using` as soon as each acquisition succeeds:
+Turn acquisition, use, and release into separate Effect values before combining
+them:
 
-```ts title="server.ts" ins={9-14}
-import {
-  acquireInventoryLock,
-  checkoutDatabase,
-  startServer,
-  storeOrder,
-  type StoreOrderInput,
-} from "./fixture.ts"
+```ts title="main.ts" ins={1,19-29}
+import { Effect } from "effect"
 
-const placeOrder = async (input: StoreOrderInput) => {
-  // Each successful declaration registers its disposer immediately.
-  using connection = await checkoutDatabase(input.orderId)
-  using lock = await acquireInventoryLock(connection, input.orderId)
-  return await storeOrder(connection, lock, input.orderId)
+interface Connection {
+  readonly write: (report: string) => void
 }
 
-startServer(placeOrder)
+const openConnection = (): Connection => {
+  console.log("connection acquired")
+  return {
+    write: (report) => {
+      console.log(`writing ${report}`)
+      throw new Error("disk full")
+    },
+  }
+}
+
+const closeConnection = (_connection: Connection): void => {
+  console.log("connection released")
+}
+
+const acquire = Effect.sync(openConnection)
+
+const use = (connection: Connection) =>
+  Effect.try({
+    try: () => connection.write("quarterly-report"),
+    catch: () => "WriteFailed" as const,
+  })
+
+const release = (connection: Connection) =>
+  Effect.sync(() => closeConnection(connection))
 ```
 
-`using` calls each resource's `Symbol.dispose` method when control leaves the
-function. Registrations happen one at a time: if checkout succeeds and lock
-acquisition fails, only the connection disposer has been registered. Multiple
-registered disposers run in reverse order.
+An Effect is a value that describes work without performing it. `Effect.sync`
+defers synchronous code that is expected not to fail. If that code throws
+unexpectedly, Effect treats it as a defect, which means a bug rather than an
+expected failure.
 
-Wait for the watched server to reload, then send `order-lock-fails` again. The
-response remains `500`, but the server now releases the connection:
+`Effect.try` also defers synchronous code, but its `catch` function translates a
+thrown value into the expected error channel. Here, `use(connection)` has
+`"WriteFailed"` in that channel.
 
-```text title="Expected server log"
-checked out db-order-lock-fails
-inventory lock unavailable for order-lock-fails
-released db-order-lock-fails
-request failed
-```
-
-The acquisition gap is closed without mutable resource variables, conditional
-cleanup branches, or a manually maintained release order.
+Nothing has run yet. The three values describe the lifetime phases, but they do
+not yet say that release belongs to acquisition.
 
 <TutorialCheckpoint
   number={2}
-  total={6}
-  title="Partial acquisition now cleans up"
+  total={3}
+  title="Each lifetime phase is explicit"
 >
-  A lock acquisition failure still returns `500`. The `using` declaration
-  releases the connection that was acquired before it.
+  Acquisition, use, and release are lazy Effect values. The failed write is an
+  expected `"WriteFailed"` value rather than an unknown thrown value.
 </TutorialCheckpoint>
 
-### 3. Disconnect while both resources are in use
+### 3. Join the phases into one lifetime
 
-`using` cleans up when the async function exits, but closing an HTTP connection
-does not make that happen. Ask `curl` to disconnect while the controlled
-storage operation is still running:
+`Effect.acquireUseRelease` connects the three descriptions. Add the program and
+run it:
 
-```sh title="Disconnect during slow storage"
-curl --max-time 0.2 -sS http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{"orderId":"order-slow"}'
+```ts title="main.ts" ins={32,34-38}
+import { Effect } from "effect"
+
+interface Connection {
+  readonly write: (report: string) => void
+}
+
+const openConnection = (): Connection => {
+  console.log("connection acquired")
+  return {
+    write: (report) => {
+      console.log(`writing ${report}`)
+      throw new Error("disk full")
+    },
+  }
+}
+
+const closeConnection = (_connection: Connection): void => {
+  console.log("connection released")
+}
+
+const acquire = Effect.sync(openConnection)
+
+const use = (connection: Connection) =>
+  Effect.try({
+    try: () => connection.write("quarterly-report"),
+    catch: () => "WriteFailed" as const,
+  })
+
+const release = (connection: Connection) =>
+  Effect.sync(() => closeConnection(connection))
+
+const program = Effect.acquireUseRelease(acquire, use, release)
+
+try {
+  await Effect.runPromise(program)
+} catch {
+  console.log("write failed")
+}
 ```
 
-`curl` reports that its deadline was reached. At that moment, the server has
-logged only the active work:
+`Effect.acquireUseRelease` runs `acquire`, passes the connection to `use`, and
+runs `release` after use finishes. Release runs whether use succeeds, fails, or
+is interrupted. Interruption is Effect's term for cancelling a running
+computation. If acquisition itself fails, there is no resource to release.
 
-```text title="Log when the client disconnects"
-checked out db-order-slow
-acquired lock-order-slow using db-order-slow
-store started for order-slow using db-order-slow and lock-order-slow
-```
-
-About 1.5 seconds after the request began, storage finishes, the function
-returns, and `using` eventually releases both resources:
-
-```text title="Later server log"
-stored order-slow
-released lock-order-slow using db-order-slow
-released db-order-slow
-```
-
-No JavaScript control flow left the function when the client disappeared. The
-slow Promise kept running, so the `using` declarations had no reason to dispose
-their resources early. They guarantee cleanup when the function exits, but do
-not give the work the same lifetime as the HTTP request.
+`Effect.runPromise` starts the complete lifetime. It rejects here because the
+expected `"WriteFailed"` value was not recovered, but release runs first. The
+output is the same as the `try`/`finally` version.
 
 <TutorialCheckpoint
   number={3}
-  total={6}
-  title="A disconnect does not end the operation"
+  total={3}
+  title="Cleanup travels with the operation"
 >
-  The client receives no response, but storage continues for about 1.5 seconds.
-  Both resources remain in use until that Promise finishes.
+  The connection is released before the failure reaches the caller. Future
+  callers run one operation instead of rebuilding the cleanup discipline.
 </TutorialCheckpoint>
 
-### 4. Describe the `using` workflow with Effect
-
-Before changing cleanup again, move the same Promise workflow into Effect while
-keeping its `using` declarations. This introduces the Effect mental model
-without changing the endpoint's behavior.
-
-The complete current `server.ts` is:
-
-```ts title="server.ts" ins={1,10-17,19}
-import { Effect } from "effect"
-import {
-  acquireInventoryLock,
-  checkoutDatabase,
-  startServer,
-  storeOrder,
-  type StoreOrderInput,
-} from "./fixture.ts"
-
-// Calling placeOrder describes the work without running it.
-const placeOrder = (input: StoreOrderInput) =>
-  Effect.tryPromise(async (signal) => {
-    // Cleanup still follows the lifetime of this Promise callback.
-    using connection = await checkoutDatabase(input.orderId)
-    using lock = await acquireInventoryLock(connection, input.orderId)
-    return await storeOrder(connection, lock, input.orderId, { signal })
-  })
-
-startServer((input) => Effect.runPromise(placeOrder(input)))
-```
-
-Calling `placeOrder` now creates an Effect: a value that describes a
-computation. It does not check out a connection, acquire a lock, or store an
-order yet. Transforming the Effect would still only produce another
-description.
-
-`Effect.tryPromise` adapts a function
-that creates a Promise. Effect calls the function only when the computation
-runs. A resolved Promise becomes a success, while a synchronous throw or
-rejected Promise enters the error channel. Effect also supplies an
-`AbortSignal`, which the workflow passes to `storeOrder`.
-
-In Effect, cancelling a running computation is called interruption. It is
-separate from the expected failures recorded in the error channel.
-
-TypeScript infers this type for `placeOrder(input)`:
-
-```ts
-Effect.Effect<StoredOrder, Cause.UnknownError>
-```
-
-This display explains the inferred type. Do not paste it into `server.ts`.
-
-`Effect.Effect` is the type of an Effect
-value. Here, `StoredOrder` is the value produced when the complete Promise
-workflow succeeds. `Cause.UnknownError` describes how that workflow can fail.
-
-Effect calls the second type parameter its error channel. A rejected checkout,
-lock acquisition, or storage operation enters this channel instead of
-producing a `StoredOrder`.
-
-`Cause.UnknownError` is
-Effect's built-in wrapper for an unclassified Promise rejection. Its `cause`
-property preserves the original rejected value. We keep the tutorial's
-existing HTTP decision, so the `catch` inside `startServer` still returns
-`500`.
-
-At the existing async HTTP boundary,
-`Effect.runPromise` runs the described
-computation and returns a Promise. It resolves with the `StoredOrder` on
-success. If the Effect does not succeed, the Promise rejects and `startServer`
-handles it.
-
-Wait for the server to reload, then send `order-ok` and
-`order-lock-fails`. Their status codes, bodies, and cleanup logs remain the same
-as the previous checkpoint. This step changed where the Promise workflow is
-described, not its cleanup policy.
-
-<TutorialCheckpoint
-  number={4}
-  total={6}
-  title="Effect now describes the Promise workflow"
->
-  `placeOrder` is a lazy Effect value. `Effect.runPromise` runs it from the HTTP
-  handler, while `using` still closes the resources when the Promise callback
-  exits.
-</TutorialCheckpoint>
-
-### 5. Give the resources one lifetime
-
-The workflow is now an Effect, but cleanup still belongs to the lexical
-`using` block inside its Promise callback. Replace that block so every
-successful acquisition registers a finalizer in one shared Scope:
-
-Effect interruption could also make this particular `using` block exit after
-the Promise observes its signal. Moving the lifetime into a Scope goes further:
-it makes finalizers part of the Effect itself and works with APIs that expose
-separate acquisition and release operations.
-
-```ts title="server.ts" ins={5-6,9,13-40}
-import { Effect } from "effect"
-import {
-  acquireInventoryLock,
-  checkoutDatabase,
-  releaseDatabase,
-  releaseInventoryLock,
-  startServer,
-  storeOrder,
-  type DatabaseConnection,
-  type StoreOrderInput,
-} from "./fixture.ts"
-
-// Register cleanup as soon as each acquisition succeeds.
-const databaseConnection = (orderId: string) =>
-  Effect.acquireRelease(
-    Effect.tryPromise(() => checkoutDatabase(orderId)),
-    (connection) => Effect.sync(() => releaseDatabase(connection)),
-  )
-
-const inventoryLock = (connection: DatabaseConnection, orderId: string) =>
-  Effect.acquireRelease(
-    Effect.tryPromise(() => acquireInventoryLock(connection, orderId)),
-    (lock) => Effect.sync(() => releaseInventoryLock(connection, lock)),
-  )
-
-// Calling placeOrder describes the work without running it.
-const placeOrder = (input: StoreOrderInput) =>
-  databaseConnection(input.orderId).pipe(
-    Effect.flatMap((connection) =>
-      inventoryLock(connection, input.orderId).pipe(
-        Effect.flatMap((lock) =>
-          Effect.tryPromise((signal) =>
-            storeOrder(connection, lock, input.orderId, { signal }),
-          ),
-        ),
-      ),
-    ),
-  )
-
-startServer((input) => Effect.runPromise(Effect.scoped(placeOrder(input))))
-```
-
-`using` requires a resource that implements the disposal protocol and releases
-it when control leaves the surrounding block. `Effect.acquireRelease` can also
-adapt APIs that expose separate acquisition and release functions, as this
-step does. Its cleanup follows the Scope rather than a JavaScript block.
-
-The success and error types remain `StoredOrder` and `Cause.UnknownError`.
-Resource acquisition adds a third part to the inferred type of
-`placeOrder(input)`:
-
-```ts
-Effect.Effect<StoredOrder, Cause.UnknownError, Scope.Scope>
-```
-
-This display explains the inferred type. Do not paste it into `server.ts`.
-
-`Scope.Scope` represents a lifetime
-in which resources can register cleanup work. The `Scope.Scope` requirement in
-the inferred type means `placeOrder` must run inside such a lifetime.
-
-Each resource now describes its own acquisition and release with
-`Effect.acquireRelease`. It runs
-the acquisition inside the current Scope. If acquisition succeeds, it
-immediately registers the release function as a finalizer. If acquisition
-fails, no finalizer is registered for that resource. When the Scope closes,
-finalizers run in reverse registration order after success, failure, or
-interruption.
-
-The distinction matters for `order-lock-fails`: checkout succeeds and registers
-the connection finalizer. Lock acquisition fails before it can register a lock
-finalizer. Scope closure therefore releases exactly the connection that exists.
-
-`Effect.sync` defers synchronous work until
-the Effect runs. Here, it prevents the release functions from running while we
-are only constructing the resource descriptions. Their `void` return becomes
-each finalizer's successful value.
-
-The `.pipe(...)` method passes an Effect
-description through transformations from top to bottom. It does not run the
-described work.
-
-`Effect.flatMap` sequences a dependent
-Effect. The first call receives the acquired database connection and describes
-lock acquisition. The second receives that lock and describes storage. If an
-earlier step fails, later steps are skipped and the Scope closes every resource
-already acquired.
-
-The HTTP handler supplies the required lifetime with
-`Effect.scoped`. It creates the Scope
-required by `placeOrder`, runs the complete workflow in it, and closes the
-Scope before returning. Closing it runs all registered finalizers and removes
-`Scope.Scope` from the Effect's requirements.
-
-Wait for the server to reload. Send `order-ok` and `order-lock-fails` again. The
-first request returns `201` and closes the lock before the connection. The
-second returns `500` and releases only its connection before `request failed`.
-The cleanup matches the `using` version, but its lifetime is now represented by
-the Scope required in the Effect type instead of a lexical block.
-
-<TutorialCheckpoint
-  number={5}
-  total={6}
-  title="One Scope closes every acquired resource"
->
-  Success closes both resources in reverse order. A failed second acquisition
-  closes only the connection that was acquired first.
-</TutorialCheckpoint>
-
-### 6. Interrupt the Scope when the client disconnects
-
-The resource lifetime is now explicit, but `server.ts` ignores the
-`AbortSignal` supplied by `startServer`. Pass that signal to the running
-computation so a disconnected client can stop it:
-
-```ts title="server.ts" ins={40-43}
-import { Effect } from "effect"
-import {
-  acquireInventoryLock,
-  checkoutDatabase,
-  releaseDatabase,
-  releaseInventoryLock,
-  startServer,
-  storeOrder,
-  type DatabaseConnection,
-  type StoreOrderInput,
-} from "./fixture.ts"
-
-// Register cleanup as soon as each acquisition succeeds.
-const databaseConnection = (orderId: string) =>
-  Effect.acquireRelease(
-    Effect.tryPromise(() => checkoutDatabase(orderId)),
-    (connection) => Effect.sync(() => releaseDatabase(connection)),
-  )
-
-const inventoryLock = (connection: DatabaseConnection, orderId: string) =>
-  Effect.acquireRelease(
-    Effect.tryPromise(() => acquireInventoryLock(connection, orderId)),
-    (lock) => Effect.sync(() => releaseInventoryLock(connection, lock)),
-  )
-
-// Calling placeOrder describes the work without running it.
-const placeOrder = (input: StoreOrderInput) =>
-  databaseConnection(input.orderId).pipe(
-    Effect.flatMap((connection) =>
-      inventoryLock(connection, input.orderId).pipe(
-        Effect.flatMap((lock) =>
-          Effect.tryPromise((signal) =>
-            storeOrder(connection, lock, input.orderId, { signal }),
-          ),
-        ),
-      ),
-    ),
-  )
-
-// Let a disconnected client interrupt the complete scoped workflow.
-startServer((input, signal) =>
-  Effect.runPromise(Effect.scoped(placeOrder(input)), { signal }),
-)
-```
-
-As shown in `fixture.ts`, `startServer` creates the signal when a client closes
-its connection before receiving a response. A normally completed response does
-not abort it.
-
-The optional `signal` accepted by
-`Effect.runPromise` connects an
-external `AbortSignal` to the running computation. When the client disconnects,
-the signal interrupts the complete scoped workflow. The returned Promise
-rejects after the Scope's finalizers have finished, and `startServer` writes
-nothing because the response is already gone.
-
-This interruption is not an expected failure in the error channel, so the
-disconnect does not become a `Cause.UnknownError` or a `500` response.
-
-The `AbortSignal` supplied to the callback by
-`Effect.tryPromise` is also aborted
-when the Effect is interrupted. The storage fixture passes it to the
-Promise-based timer, so slow storage stops instead of continuing for 1.5
-seconds.
-
-Wait for the server to reload, then repeat the slow request:
-
-```sh title="Disconnect from the scoped request"
-curl --max-time 0.2 -sS http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{"orderId":"order-slow"}'
-```
-
-`curl` again reports that its deadline was reached and receives no response.
-This time, cleanup follows immediately:
-
-```text title="Expected server log"
-checked out db-order-slow
-acquired lock-order-slow using db-order-slow
-store started for order-slow using db-order-slow and lock-order-slow
-store aborted
-released lock-order-slow using db-order-slow
-released db-order-slow
-```
-
-There is no `stored order-slow` or `request failed` message. The external
-signal interrupts the complete operation, `Effect.tryPromise` carries that
-interruption into the Promise API, and Scope closure runs both finalizers before
-`Effect.runPromise` rejects.
-
-<TutorialCheckpoint
-  number={6}
-  total={6}
-  title="Client cancellation closes the Scope"
->
-  A disconnected client stops slow storage immediately. The lock is released,
-  the connection is released, and the server does not attempt a response or
-  continue storing the order.
-</TutorialCheckpoint>
-
-## Keep cleanup beside acquisition
-
-`databaseConnection` and `inventoryLock` each own one acquisition and one
-finalizer. `placeOrder` only describes how to use their successful values.
-`Effect.scoped` owns their shared lifetime, while the HTTP boundary decides when
-an abandoned request should interrupt that lifetime.
-
-If another scoped resource is added later, it can register its finalizer at the
-new acquisition site. The existing failure and cancellation paths do not need
-another cleanup branch.
-
-`using` remains concise when a JavaScript block is the complete resource
-lifetime and the resource implements the disposal protocol. An Effect Scope
-also supports APIs with separate acquire and release operations, arbitrary
-finalizers, and interruption of the work that is still using those resources.
-
-## Related tutorials
-
-- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
-- [Keep concurrent work under control](/docs/v4/tutorials/keep-concurrent-work-under-control)
+The strength is not shorter syntax for `finally`. It is making the resource
+lifetime one composable value, so cleanup cannot be separated from the work it
+protects.

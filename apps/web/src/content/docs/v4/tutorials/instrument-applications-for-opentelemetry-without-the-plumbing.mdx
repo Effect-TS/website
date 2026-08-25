@@ -1,6 +1,6 @@
 ---
 title: Instrument applications for OpenTelemetry without the plumbing
-description: Record the timing and relationships of operations without passing tracing data or starting and stopping each record manually.
+description: Build a parent-child span tree from the structure of an Effect computation instead of passing tracing context manually.
 diataxis: tutorial
 sidebar:
   order: 7
@@ -11,185 +11,48 @@ import {
   EffectStrength,
 } from "@astrojs/starlight/components"
 
-<EffectStrength title="Tracing follows the application structure">
+<EffectStrength title="Tracing follows the computation structure">
 
-Effect provides tracing tools that follow the lifetime and structure of a
-computation. Each span keeps the correct parent even when operations run
-together, fail, or are cancelled, without passing tracing data through every
-function.
+Manual tracing requires every operation to start and stop a span and to pass
+the correct parent context to the next operation.
+
+Effect spans inherit their parent from the computation that contains them. The
+same span tree can then be exported to OpenTelemetry without tracing parameters
+in the application functions.
 
 </EffectStrength>
 
 ## What you will build
 
-The example is a local `POST /orders` endpoint that calls pricing, inventory,
-shipping, payment, and storage providers. It starts with three log messages
-that show only when groups of operations finish. Each step adds more timing
-information until the server prints this graphical waterfall after every
-order:
+A checkout reserves inventory and then authorizes payment. Its ordinary logs
+show that both operations ran, but not that they belong to one checkout. You
+will first describe the sequence with Effect, then add a root span, and finally
+give each operation a child span.
 
-```text title="Finished trace shape"
-Trace waterfall (one block is about 20 ms)
-http.post.orders    |████████████|
-  pricing.calculate |████        |
-  inventory.reserve |███████     |
-  shipping.quote    |█████       |
-  payment.authorize |       ███  |
-  orders.insert     |          ██|
-attributes
-  order.customer_id = "customer-123"
-  order.quantity = 2
-```
+The final local trace is:
 
-The exact number of blocks may vary slightly with machine load. Their positions
-still reveal the important structure:
-
-- pricing, inventory, and shipping overlap;
-- inventory is the slowest of those three operations;
-- payment waits for all three;
-- storage waits for payment.
-
-Everything runs in one Node.js process. The provider calls use predictable
-simulations, and the trace collector and waterfall renderer work locally. The
-tutorial therefore needs no public network, credentials, external tracing
-service, or dashboard.
-
-## Request flow
-
-```mermaid
-sequenceDiagram
-  participant Client
-  participant HTTP as HTTP routes
-  participant Order as Place order
-  participant Services as Backend services
-  participant Tracing
-
-  Client->>HTTP: POST /orders
-  HTTP->>Order: Run traced operation
-  Order->>Services: Run traced provider calls
-  Services-->>Order: Provider results
-  Order-->>HTTP: Accepted order
-  HTTP-->>Client: HTTP response
-  Note over HTTP,Tracing: Each named operation records a parent or child span
+```text title="Finished trace"
+checkout
+  inventory.reserve
+  payment.authorize
 ```
 
 ## Project setup
 
 The project uses two files:
 
-| File         | Role                                                                                   |
-| ------------ | -------------------------------------------------------------------------------------- |
-| `fixture.ts` | Fixed fixture that provides the HTTP server, providers, trace collector, and renderer. |
-| `server.ts`  | Contains the order-processing code that the tutorial gradually improves.               |
+| File         | Role                                                            |
+| ------------ | --------------------------------------------------------------- |
+| `tracing.ts` | Fixed local tracer that prints the span tree. It never changes. |
+| `main.ts`    | Contains the checkout code that you change.                     |
 
-The fixture exports:
+The tutorial uses a small in-memory tracer so the result is visible without an
+account or collector:
 
-- `startServer`, which exposes the order handler as `POST /orders`;
-- five Promise-based provider functions with fixed delays:
-  - pricing takes about 80 milliseconds;
-  - inventory takes about 140 milliseconds;
-  - shipping takes about 100 milliseconds;
-  - payment takes about 60 milliseconds;
-  - storage takes about 40 milliseconds;
-- `localTracer`, which records spans in memory;
-- `renderLatestTrace`, which turns those spans into the timing waterfall.
-
-An `AbortSignal` is a standard cancellation value. Each provider accepts one so
-the caller can stop its pending timer.
-
-`fixture.ts` contains this complete code:
-
-```ts title="fixture.ts"
-// This fixed fixture does not change during the tutorial.
-import { createServer } from "node:http"
-import { setTimeout as sleep } from "node:timers/promises"
+```ts title="tracing.ts"
+// This fixed local tracer does not change during the tutorial.
 import { Option, Tracer } from "effect"
 
-export interface PlaceOrderRequest {
-  readonly customerId: string
-  readonly quantity: number
-  readonly paymentToken: string
-  readonly postalCode: string
-}
-
-// Keep HTTP parsing and response writing outside server.ts.
-export const startServer = (
-  placeOrder: (input: PlaceOrderRequest) => Promise<unknown>,
-): void => {
-  const server = createServer(async (request, response) => {
-    const sendJson = (status: number, body: unknown): void => {
-      response.writeHead(status, { "content-type": "application/json" })
-      response.end(JSON.stringify(body))
-    }
-
-    if (request.method !== "POST" || request.url !== "/orders") {
-      sendJson(404, { error: "NotFound" })
-      return
-    }
-
-    try {
-      let body = ""
-      for await (const chunk of request) body += chunk
-      const order = await placeOrder(JSON.parse(body) as PlaceOrderRequest)
-      sendJson(201, order)
-    } catch (error) {
-      console.error(error)
-      sendJson(500, { error: "InternalServerError" })
-    }
-  })
-
-  server.listen(3000, () => console.log("Listening on http://localhost:3000"))
-}
-
-interface ProviderOptions {
-  readonly signal?: AbortSignal
-}
-
-// Fixed delays make the timing relationships repeatable.
-export const calculatePrice = async (
-  quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(80, undefined, { signal })
-  return quantity * 1_250
-}
-
-export const reserveInventory = async (
-  quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(140, undefined, { signal })
-  return `reservation-${quantity}`
-}
-
-export const quoteShipping = async (
-  postalCode: string,
-  _quantity: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(100, undefined, { signal })
-  return postalCode === "00100" ? 600 : 750
-}
-
-export const authorizePayment = async (
-  _token: string,
-  _amountCents: number,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(60, undefined, { signal })
-  return "primary-pay"
-}
-
-export const insertOrder = async (
-  customerId: string,
-  _reservationId: string,
-  { signal }: ProviderOptions = {},
-) => {
-  await sleep(40, undefined, { signal })
-  return `order-${customerId}`
-}
-
-// Store spans in memory so the waterfall can be rendered locally.
 const recordedSpans: Array<Tracer.NativeSpan> = []
 
 export const localTracer = Tracer.make({
@@ -200,745 +63,241 @@ export const localTracer = Tracer.make({
   },
 })
 
-export const renderLatestTrace = (): string => {
-  const spans = recordedSpans.splice(0)
-  const root = spans.find((span) => Option.isNone(span.parent))
-
-  if (root === undefined || !("endTime" in root.status)) {
-    return "Trace waterfall unavailable"
-  }
-
-  const quantum = 20_000_000n
-  const toColumn = (nanoseconds: bigint): number =>
-    Number((nanoseconds + quantum / 2n) / quantum)
-  const columns = Math.max(
-    1,
-    toColumn(root.status.endTime - root.status.startTime),
-  )
-
-  const depthOf = (span: Tracer.NativeSpan): number => {
-    let depth = 0
-    let parent = Option.getOrUndefined(span.parent)
-
-    while (parent instanceof Tracer.NativeSpan) {
-      depth += 1
-      parent = Option.getOrUndefined(parent.parent)
-    }
-
-    return depth
-  }
-
-  const completed = spans.flatMap((span) =>
-    "endTime" in span.status ? [{ span, status: span.status }] : [],
-  )
-  const labels = completed.map(
-    ({ span }) => `${"  ".repeat(depthOf(span))}${span.name}`,
-  )
-  const labelWidth = Math.max(...labels.map((label) => label.length))
-  const lines = completed.map(({ span, status }, index) => {
-    const offset = toColumn(status.startTime - root.status.startTime)
-    const available = Math.max(1, columns - offset)
-    const length = Math.min(
-      available,
-      Math.max(1, toColumn(status.endTime - status.startTime)),
-    )
-    const bar = `${" ".repeat(offset)}${"█".repeat(length)}`.padEnd(columns)
-    return `${labels[index]!.padEnd(labelWidth)} |${bar}|`
-  })
-
-  const attributes = [...root.attributes.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `  ${key} = ${JSON.stringify(value)}`)
-
-  return [
-    "Trace waterfall (one block is about 20 ms)",
-    ...lines,
-    ...(attributes.length > 0 ? ["attributes", ...attributes] : []),
-  ].join("\n")
-}
+export const printTrace = (): string =>
+  recordedSpans
+    .splice(0)
+    .map((span) => {
+      const parent = Option.getOrUndefined(span.parent)
+      const indentation = parent instanceof Tracer.NativeSpan ? "  " : ""
+      return `${indentation}${span.name}`
+    })
+    .join("\n")
 ```
 
-The tracing section at the end of the fixture is ready-made plumbing.
-`Tracer.make` creates the local collector,
-and each `Tracer.NativeSpan` stores one
-operation's timing, parent, and named details called attributes. A span may or
-may not have a parent, so `Option.isNone` and
-`Option.getOrUndefined` inspect that
-value without exposing its internal representation. The tutorial interacts
-with this plumbing only through `localTracer` and `renderLatestTrace`.
+`Tracer.make` creates the local collector. `Tracer.NativeSpan` stores the name
+and parent of each span, while `Option.getOrUndefined` reads the optional parent
+for display. Application code will interact only with `localTracer` and
+`printTrace`.
 
-Run the server with `--watch`. This option reloads `server.ts` after each saved
-edit, so the same process can remain running throughout the tutorial:
+Run each complete version with:
 
-```sh title="Watched server"
-node --watch server.ts
+```sh title="Run the example"
+node main.ts
 ```
 
-## Turn operations into connected traces
+## Turn a sequence into a trace tree
 
-### 1. See what logs leave out
+### 1. See what ordinary logs leave out
 
-The initial `server.ts` uses conventional `async`/`await`. Its fixed provider
-delays make the timing relationships repeatable, but the application logs do
-not reveal those relationships:
+The starting checkout uses two Promise-based provider simulations:
 
-```ts title="server.ts"
-import {
-  authorizePayment,
-  calculatePrice,
-  insertOrder,
-  quoteShipping,
-  reserveInventory,
-  startServer,
-  type PlaceOrderRequest,
-} from "./fixture.ts"
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
 
-const placeOrder = async (input: PlaceOrderRequest) => {
-  // Pricing, inventory, and shipping do not depend on one another.
-  const [subtotalCents, reservationId, shippingCents] = await Promise.all([
-    calculatePrice(input.quantity),
-    reserveInventory(input.quantity),
-    quoteShipping(input.postalCode, input.quantity),
-  ])
-  console.log("planning finished")
-
-  // Payment starts after planning; storage starts after payment.
-  const paymentProvider = await authorizePayment(
-    input.paymentToken,
-    subtotalCents + shippingCents,
-  )
-  console.log("payment finished")
-
-  const orderId = await insertOrder(input.customerId, reservationId)
-  console.log("storage finished")
-
-  return {
-    orderId,
-    status: "accepted",
-    totalCents: subtotalCents + shippingCents,
-    paymentProvider,
-  }
+const reserveInventory = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
 }
 
-startServer(placeOrder)
+const authorizePayment = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const checkout = async (): Promise<void> => {
+  await reserveInventory()
+  await authorizePayment()
+}
+
+await checkout()
 ```
 
-An order can be sent from a second terminal pane:
+The output proves that both operations completed:
 
-```sh title="Place an order"
-curl -i -sS http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{"customerId":"customer-123","quantity":2,"paymentToken":"tok_approved","postalCode":"00100"}'
+```text title="Output"
+inventory reserved
+payment authorized
 ```
 
-The response is:
+It does not identify the enclosing checkout. Adding that relationship manually
+would require trace state to enter these function signatures or another
+context-propagation mechanism.
 
-```text title="Expected response"
-HTTP/1.1 201 Created
-...
-
-{"orderId":"order-customer-123","status":"accepted","totalCents":3100,"paymentProvider":"primary-pay"}
-```
-
-The server prints only:
-
-```text title="Expected application logs"
-planning finished
-payment finished
-storage finished
-```
-
-These lines confirm order, but not duration. They also hide that pricing,
-inventory, and shipping ran at the same time. Adding timestamps by hand would
-still leave us to reconstruct their relationships. We need a timed record for
-each operation.
-
-<TutorialCheckpoint number={1} total={5} title="The timing gap is reproducible">
-  `POST /orders` returns `201`, while the three application log lines reveal
-  neither overlap nor the slowest planning operation.
+<TutorialCheckpoint
+  number={1}
+  total={4}
+  title="The work is visible but its structure is not"
+>
+  Two logs show two completed operations. Nothing in them records that both
+  operations belong to the same checkout.
 </TutorialCheckpoint>
 
-### 2. Describe the same order processing with Effect
+### 2. Describe the same sequence with Effect
 
-The complete current `server.ts` keeps the same response, delays, and log lines.
-Only the way it describes and runs the provider calls changes:
+Adapt each provider Promise and combine them in the same order. Do not add
+tracing yet:
 
-```ts title="server.ts" ins={1,12,14-51,54}
+```ts title="main.ts" ins={2,4,9,14-26}
+import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
-import {
-  authorizePayment,
-  calculatePrice,
-  insertOrder,
-  quoteShipping,
-  reserveInventory,
-  startServer,
-  type PlaceOrderRequest,
-} from "./fixture.ts"
 
-const placeOrder = (input: PlaceOrderRequest) =>
-  // Pricing, inventory, and shipping do not depend on one another.
-  Effect.all(
-    [
-      Effect.tryPromise((signal) => calculatePrice(input.quantity, { signal })),
-      Effect.tryPromise((signal) =>
-        reserveInventory(input.quantity, { signal }),
-      ),
-      Effect.tryPromise((signal) =>
-        quoteShipping(input.postalCode, input.quantity, { signal }),
-      ),
-    ],
-    { concurrency: "unbounded" },
-  ).pipe(
-    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-      console.log("planning finished")
-      // Payment starts after planning; storage starts after payment.
-      return Effect.tryPromise((signal) =>
-        authorizePayment(input.paymentToken, subtotalCents + shippingCents, {
-          signal,
-        }),
-      ).pipe(
-        Effect.flatMap((paymentProvider) => {
-          console.log("payment finished")
-          return Effect.tryPromise((signal) =>
-            insertOrder(input.customerId, reservationId, { signal }),
-          ).pipe(
-            Effect.map((orderId) => {
-              console.log("storage finished")
-              return {
-                orderId,
-                status: "accepted",
-                totalCents: subtotalCents + shippingCents,
-                paymentProvider,
-              }
-            }),
-          )
-        }),
-      )
-    }),
-  )
+const reserveInventorySdk = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
 
-startServer((input) => Effect.runPromise(placeOrder(input)))
+const authorizePaymentSdk = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const reserveInventory = Effect.tryPromise({
+  try: reserveInventorySdk,
+  catch: () => "ProviderUnavailable" as const,
+})
+
+const authorizePayment = Effect.tryPromise({
+  try: authorizePaymentSdk,
+  catch: () => "ProviderUnavailable" as const,
+})
+
+const checkout = Effect.flatMap(reserveInventory, () => authorizePayment)
+
+await Effect.runPromise(checkout)
 ```
 
-The first `Effect.tryPromise` call creates an Effect value. An Effect is a value
-that describes a computation. Creating it, combining it with other Effects, or
-passing it through `pipe` does not call a provider. The providers run only when
-the request handler reaches `Effect.runPromise`.
+An Effect is a value that describes work without running it. Its type records
+the success value and expected error channel. `Effect.tryPromise` turns each
+provider call into such a value; a rejection becomes
+`"ProviderUnavailable"`.
 
-TypeScript infers this explanatory type for `placeOrder(input)`:
-
-```ts title="Inferred type, not code to paste"
-Effect.Effect<
-  {
-    orderId: string
-    status: string
-    totalCents: number
-    paymentProvider: string
-  },
-  Cause.UnknownError
->
-```
-
-The first type argument is the successful order value. The second is the error
-channel, which describes expected ways the computation can fail. Here, an
-unclassified rejected Promise becomes `Cause.UnknownError`. Interruption is
-cancellation of a running computation and is separate from that error channel.
-An unexpected bug is called a defect and is also separate from an expected
-failure.
-
-`Effect.Effect` is the type of an Effect
-description. Here, its success type is the order object and its
-error type is
-`Cause.UnknownError`.
-`Cause.UnknownError` is Effect's built-in wrapper for an unclassified Promise
-rejection, and its `cause` property preserves the original rejected value.
-
-`Effect.tryPromise` adapts a function
-that creates a Promise. It does not call that function until the Effect runs. A
-resolved Promise becomes a success, and a rejection enters the error channel.
-Effect supplies an `AbortSignal`, which this code forwards to every local
-provider so interruption can cancel its timer.
-
-`Effect.all` combines several Effects and
-returns their success values in the same order. With
-`concurrency: "unbounded"`, the three planning Effects can run at the same time
-instead of waiting for one another.
-
-The `.pipe(...)` method passes the
-combined description through transformations from top to bottom. It does not
-run the computation.
-
-`Effect.flatMap` uses a successful value
-to choose the next Effect. Payment is described only after all three planning
-values exist, and storage is described only after payment succeeds.
-`Effect.map` transforms only the success value
-and leaves the error channel unchanged. Here, it turns the stored order id into
-the HTTP response object.
-
-Finally, `Effect.runPromise` runs the
-complete description and returns a Promise. `startServer` expects the order
-handler to return a Promise, so the callback at the bottom uses
-`Effect.runPromise` to connect the Effect computation to that existing
-interface. The Promise resolves with the order when the Effect succeeds and
-rejects if the Effect does not succeed.
-
-After `node --watch` reloads, the same request still returns `201` and prints
-the same three application log lines. The observable result has not changed.
+`Effect.flatMap` sequences the two descriptions. Payment starts only after
+inventory succeeds. `Effect.runPromise` runs the completed checkout at the
+program boundary. The output is unchanged.
 
 <TutorialCheckpoint
   number={2}
-  total={5}
-  title="The endpoint behavior is unchanged"
+  total={4}
+  title="The sequence is one computation"
 >
-  The three planning providers still run concurrently, followed by payment and
-  storage, and the approved order still returns `201`.
+  Inventory and payment now belong to one lazy Effect, but no spans have been
+  added and the console still shows only the original logs.
 </TutorialCheckpoint>
 
-### 3. Record the whole request as one span
+### 3. Add the checkout span
 
-The spans form a trace: a tree containing one root span and its children. Each
-span has a name, start and end times, and optional parent. Attributes are named
-details attached to a span.
+Wrap the combined operation in one root span and run it with the local tracer:
 
-The project fixture already provides `localTracer`, which records spans in
-memory, and `renderLatestTrace`, which turns them into 20 millisecond timing
-blocks. The next `server.ts` imports those two values and defines a traced
-function for the complete HTTP operation:
-
-```ts title="server.ts" ins={6,8,56-70}
+```ts title="main.ts" ins={3,25-30}
+import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
-import {
-  authorizePayment,
-  calculatePrice,
-  insertOrder,
-  localTracer,
-  quoteShipping,
-  renderLatestTrace,
-  reserveInventory,
-  startServer,
-  type PlaceOrderRequest,
-} from "./fixture.ts"
+import { localTracer, printTrace } from "./tracing.ts"
 
-const placeOrder = (input: PlaceOrderRequest) =>
-  // Pricing, inventory, and shipping do not depend on one another.
-  Effect.all(
-    [
-      Effect.tryPromise((signal) => calculatePrice(input.quantity, { signal })),
-      Effect.tryPromise((signal) =>
-        reserveInventory(input.quantity, { signal }),
-      ),
-      Effect.tryPromise((signal) =>
-        quoteShipping(input.postalCode, input.quantity, { signal }),
-      ),
-    ],
-    { concurrency: "unbounded" },
-  ).pipe(
-    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-      console.log("planning finished")
-      // Payment starts after planning; storage starts after payment.
-      return Effect.tryPromise((signal) =>
-        authorizePayment(input.paymentToken, subtotalCents + shippingCents, {
-          signal,
-        }),
-      ).pipe(
-        Effect.flatMap((paymentProvider) => {
-          console.log("payment finished")
-          return Effect.tryPromise((signal) =>
-            insertOrder(input.customerId, reservationId, { signal }),
-          ).pipe(
-            Effect.map((orderId) => {
-              console.log("storage finished")
-              return {
-                orderId,
-                status: "accepted",
-                totalCents: subtotalCents + shippingCents,
-                paymentProvider,
-              }
-            }),
-          )
-        }),
-      )
-    }),
-  )
+const reserveInventorySdk = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
 
-// Each execution gets one root span named after the HTTP operation.
-const handleOrder = Effect.fn("http.post.orders", {
-  root: true,
-  kind: "server",
-})(function* (input: PlaceOrderRequest) {
-  return yield* placeOrder(input)
+const authorizePaymentSdk = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const reserveInventory = Effect.tryPromise({
+  try: reserveInventorySdk,
+  catch: () => "ProviderUnavailable" as const,
 })
 
-startServer(async (input) => {
-  const order = await Effect.runPromise(
-    handleOrder(input).pipe(Effect.withTracer(localTracer)),
-  )
-  console.log(renderLatestTrace())
-  return order
+const authorizePayment = Effect.tryPromise({
+  try: authorizePaymentSdk,
+  catch: () => "ProviderUnavailable" as const,
 })
+
+const checkout = Effect.flatMap(reserveInventory, () => authorizePayment).pipe(
+  Effect.withSpan("checkout"),
+)
+
+await Effect.runPromise(Effect.withTracer(checkout, localTracer))
+console.log(printTrace())
 ```
 
-`Effect.fn` creates a reusable function whose
-body describes Effect operations. Calling `handleOrder` does not execute the
-body; it returns an Effect. The `function*` body lets the function sequence
-Effect operations with `yield*`, so `yield* placeOrder(input)` waits for the
-described order processing when the complete Effect runs.
+`Effect.withSpan` wraps an existing Effect in a named span. The span starts when
+the checkout runs and ends when it succeeds, fails, or is interrupted.
+Interruption is Effect's term for cancellation of running work.
 
-Giving `Effect.fn` the name `http.post.orders` makes every execution of that
-function a span. Effect opens the span when the returned Effect starts and
-closes it after success, failure, interruption, or a defect. `root: true`
-starts a new trace, and `kind: "server"` identifies request-handling work.
+`Effect.withTracer` selects the tracer used for this run. In production, an
+OpenTelemetry integration can export the same spans instead of collecting them
+in memory.
 
-`Effect.withTracer` runs this Effect
-using `localTracer`. Every span created while this computation runs is sent to
-that tracer. `placeOrder` does not need a tracer parameter and does not import
-the tracing setup.
+The trace currently contains only its root:
 
-After the watched server reloads, the same order prints one timing bar after
-the three existing log lines:
-
-```text title="Expected trace shape"
-Trace waterfall (one block is about 20 ms)
-http.post.orders |████████████|
+```text title="Trace output"
+checkout
 ```
-
-The root lasts for the complete sequence of provider calls. Its exact length
-may differ by a block, but one bar still cannot show which planning operation
-dominates. That missing detail gives the next change its purpose.
 
 <TutorialCheckpoint
   number={3}
-  total={5}
-  title="The complete request has a timing bar"
+  total={4}
+  title="The complete checkout has a lifetime"
 >
-  Every successful order now ends with a local waterfall containing one
-  `http.post.orders` root bar. No trace leaves the Node.js process.
+  One span now measures the enclosing computation, but the two provider calls
+  are not yet visible inside it.
 </TutorialCheckpoint>
 
-### 4. Give each operation its own traced function
+### 4. Name the child operations
 
-The root tells us total request time. The next version defines one named
-`Effect.fn` for each provider operation. Every execution of those functions
-gets a child span that explains part of the total. The three functions inside
-`Effect.all` remain concurrent. Payment and storage remain sequential because
-their `flatMap` callbacks cannot produce the next Effect until the previous
-success exists.
+Give each provider Effect its own span:
 
-```ts title="server.ts" ins={14-52,58-60,67-70,73} collapse={1-12,89-103}
+```ts title="main.ts" ins={18,23}
+import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
-import {
-  authorizePayment,
-  calculatePrice,
-  insertOrder,
-  localTracer,
-  quoteShipping,
-  renderLatestTrace,
-  reserveInventory,
-  startServer,
-  type PlaceOrderRequest,
-} from "./fixture.ts"
+import { localTracer, printTrace } from "./tracing.ts"
 
-const calculatePriceEffect = Effect.fn("pricing.calculate")(function* (
-  quantity: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    calculatePrice(quantity, { signal }),
-  )
-})
+const reserveInventorySdk = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
 
-const reserveInventoryEffect = Effect.fn("inventory.reserve")(function* (
-  quantity: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    reserveInventory(quantity, { signal }),
-  )
-})
+const authorizePaymentSdk = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
 
-const quoteShippingEffect = Effect.fn("shipping.quote")(function* (
-  postalCode: string,
-  quantity: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    quoteShipping(postalCode, quantity, { signal }),
-  )
-})
+const reserveInventory = Effect.tryPromise({
+  try: reserveInventorySdk,
+  catch: () => "ProviderUnavailable" as const,
+}).pipe(Effect.withSpan("inventory.reserve"))
 
-const authorizePaymentEffect = Effect.fn("payment.authorize")(function* (
-  token: string,
-  amountCents: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    authorizePayment(token, amountCents, { signal }),
-  )
-})
+const authorizePayment = Effect.tryPromise({
+  try: authorizePaymentSdk,
+  catch: () => "ProviderUnavailable" as const,
+}).pipe(Effect.withSpan("payment.authorize"))
 
-const insertOrderEffect = Effect.fn("orders.insert")(function* (
-  customerId: string,
-  reservationId: string,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    insertOrder(customerId, reservationId, { signal }),
-  )
-})
+const checkout = Effect.flatMap(reserveInventory, () => authorizePayment).pipe(
+  Effect.withSpan("checkout"),
+)
 
-const placeOrder = (input: PlaceOrderRequest) =>
-  // Pricing, inventory, and shipping do not depend on one another.
-  Effect.all(
-    [
-      calculatePriceEffect(input.quantity),
-      reserveInventoryEffect(input.quantity),
-      quoteShippingEffect(input.postalCode, input.quantity),
-    ],
-    { concurrency: "unbounded" },
-  ).pipe(
-    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-      console.log("planning finished")
-      // Payment starts after planning; storage starts after payment.
-      return authorizePaymentEffect(
-        input.paymentToken,
-        subtotalCents + shippingCents,
-      ).pipe(
-        Effect.flatMap((paymentProvider) => {
-          console.log("payment finished")
-          return insertOrderEffect(input.customerId, reservationId).pipe(
-            Effect.map((orderId) => {
-              console.log("storage finished")
-              return {
-                orderId,
-                status: "accepted",
-                totalCents: subtotalCents + shippingCents,
-                paymentProvider,
-              }
-            }),
-          )
-        }),
-      )
-    }),
-  )
-
-// Each execution gets one root span named after the HTTP operation.
-const handleOrder = Effect.fn("http.post.orders", {
-  root: true,
-  kind: "server",
-})(function* (input: PlaceOrderRequest) {
-  return yield* placeOrder(input)
-})
-
-startServer(async (input) => {
-  const order = await Effect.runPromise(
-    handleOrder(input).pipe(Effect.withTracer(localTracer)),
-  )
-  console.log(renderLatestTrace())
-  return order
-})
+await Effect.runPromise(Effect.withTracer(checkout, localTracer))
+console.log(printTrace())
 ```
 
-Each provider adapter now uses the named form of `Effect.fn`. It still adapts
-the same Promise with `Effect.tryPromise`, but Effect also opens a span when the
-returned Effect runs and closes it when that operation ends. The operation's
-code does not need to create, pass, or close a span manually.
+`Effect.withSpan` reads the current span when the wrapped operation runs. Both
+provider spans therefore inherit `checkout` as their parent without receiving a
+tracing argument.
 
-Because the root span is active while `placeOrder` runs, Effect automatically
-records the five provider spans as its children. Concurrent children keep that
-same parent even though no tracing context is passed to the functions.
+The local tracer prints:
 
-After the reload, the same order still returns `201`. The trace now has this
-shape:
-
-```text title="Expected waterfall shape"
-Trace waterfall (one block is about 20 ms)
-http.post.orders     |████████████|
-  pricing.calculate  |████        |
-  inventory.reserve  |███████     |
-  shipping.quote     |█████       |
-  payment.authorize  |       ███  |
-  orders.insert      |          ██|
+```text title="Trace output"
+checkout
+  inventory.reserve
+  payment.authorize
 ```
 
-The bars show four timing relationships:
-
-- pricing, inventory, and shipping begin together because `Effect.all` runs
-  them concurrently;
-- inventory is the slowest planning operation because its bar extends farthest;
-- payment begins near inventory's end, after every planning result is ready;
-- storage begins after payment finishes.
-
-The planning stage takes roughly the duration of inventory, not the sum of all
-three children. The waterfall makes that concurrency and slowest operation
-visible without requiring timestamps to be compared by hand.
-
-<TutorialCheckpoint
-  number={4}
-  total={5}
-  title="The overlap and slowest operation are visible"
->
-  The waterfall contains five child bars. Three overlap at the start;
-  `inventory.reserve` is the longest of them; payment and storage follow in
-  sequence.
+<TutorialCheckpoint number={4} total={4} title="The trace mirrors the program">
+  The checkout is the root and both provider operations are children. No
+  function accepts or forwards tracing context.
 </TutorialCheckpoint>
 
-### 5. Attach the request context you will search for
-
-Names and bars explain structure, but an operator also needs to know which
-request produced a trace. The final version adds the customer id and quantity
-to the active root span before `placeOrder` runs. It keeps the payment token out
-of the trace because credentials and secrets do not belong in span attributes.
-
-```ts title="server.ts" ins={94-99} collapse={1-88,101-108}
-import { Effect } from "effect"
-import {
-  authorizePayment,
-  calculatePrice,
-  insertOrder,
-  localTracer,
-  quoteShipping,
-  renderLatestTrace,
-  reserveInventory,
-  startServer,
-  type PlaceOrderRequest,
-} from "./fixture.ts"
-
-const calculatePriceEffect = Effect.fn("pricing.calculate")(function* (
-  quantity: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    calculatePrice(quantity, { signal }),
-  )
-})
-
-const reserveInventoryEffect = Effect.fn("inventory.reserve")(function* (
-  quantity: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    reserveInventory(quantity, { signal }),
-  )
-})
-
-const quoteShippingEffect = Effect.fn("shipping.quote")(function* (
-  postalCode: string,
-  quantity: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    quoteShipping(postalCode, quantity, { signal }),
-  )
-})
-
-const authorizePaymentEffect = Effect.fn("payment.authorize")(function* (
-  token: string,
-  amountCents: number,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    authorizePayment(token, amountCents, { signal }),
-  )
-})
-
-const insertOrderEffect = Effect.fn("orders.insert")(function* (
-  customerId: string,
-  reservationId: string,
-) {
-  return yield* Effect.tryPromise((signal) =>
-    insertOrder(customerId, reservationId, { signal }),
-  )
-})
-
-const placeOrder = (input: PlaceOrderRequest) =>
-  // Pricing, inventory, and shipping do not depend on one another.
-  Effect.all(
-    [
-      calculatePriceEffect(input.quantity),
-      reserveInventoryEffect(input.quantity),
-      quoteShippingEffect(input.postalCode, input.quantity),
-    ],
-    { concurrency: "unbounded" },
-  ).pipe(
-    Effect.flatMap(([subtotalCents, reservationId, shippingCents]) => {
-      console.log("planning finished")
-      // Payment starts after planning; storage starts after payment.
-      return authorizePaymentEffect(
-        input.paymentToken,
-        subtotalCents + shippingCents,
-      ).pipe(
-        Effect.flatMap((paymentProvider) => {
-          console.log("payment finished")
-          return insertOrderEffect(input.customerId, reservationId).pipe(
-            Effect.map((orderId) => {
-              console.log("storage finished")
-              return {
-                orderId,
-                status: "accepted",
-                totalCents: subtotalCents + shippingCents,
-                paymentProvider,
-              }
-            }),
-          )
-        }),
-      )
-    }),
-  )
-
-// Each execution gets one root span named after the HTTP operation.
-const handleOrder = Effect.fn("http.post.orders", {
-  root: true,
-  kind: "server",
-})(function* (input: PlaceOrderRequest) {
-  // Add request context, but do not record the payment token.
-  yield* Effect.annotateCurrentSpan({
-    "order.customer_id": input.customerId,
-    "order.quantity": input.quantity,
-  })
-  return yield* placeOrder(input)
-})
-
-startServer(async (input) => {
-  const order = await Effect.runPromise(
-    handleOrder(input).pipe(Effect.withTracer(localTracer)),
-  )
-  console.log(renderLatestTrace())
-  return order
-})
-```
-
-`Effect.annotateCurrentSpan`
-describes adding one or more attributes to the span active when this Effect
-runs. Here, the root is already active, so the customer id and quantity are
-attached to `http.post.orders` before the provider calls begin.
-
-For the same request, the bars keep the same shape and the renderer adds the two
-sorted attributes below them:
-
-```text title="Expected request attributes"
-attributes
-  order.customer_id = "customer-123"
-  order.quantity = 2
-```
-
-The trace now answers both kinds of question. Its bars explain where the request
-spent time; its attributes identify the request that produced those bars. In a
-production exporter, the same span names and attributes can be sent to a trace
-backend, while the order-processing code remains independent of that
-destination.
-
-<TutorialCheckpoint
-  number={5}
-  total={5}
-  title="The waterfall carries request context"
->
-  The final trace shows the concurrent and sequential timing bars, then records
-  `order.customer_id` and `order.quantity` on the root span.
-</TutorialCheckpoint>
-
-## Read the finished trace
-
-The final waterfall gives one compact explanation of the request:
-
-- the root bar measures the complete `POST /orders` request;
-- three child bars prove that planning work overlapped;
-- `inventory.reserve` identifies the slowest planning operation;
-- the later offsets prove that payment and storage ran sequentially;
-- root attributes connect the timing to one order without recording its payment
-  token.
-
-## Related tutorials
-
-- [Keep concurrent work under control](/docs/v4/tutorials/keep-concurrent-work-under-control)
-- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+The strength is structural tracing: composing Effects also composes their span
+relationships. OpenTelemetry receives a tree that follows the application code
+instead of a second tree assembled by hand.

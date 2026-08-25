@@ -12,7 +12,7 @@ when a concrete MDX pattern is needed.
 
 - [Establish the reader and outcome](#establish-the-reader-and-outcome)
 - [Build a strength-led progression](#build-a-strength-led-progression)
-- [Use a realistic controlled backend](#use-a-realistic-controlled-backend)
+- [Use the smallest executable scenario](#use-the-smallest-executable-scenario)
 - [Prefer coherent scenarios](#prefer-coherent-scenarios)
 - [Keep editorial reuse invisible](#keep-editorial-reuse-invisible)
 - [Structure project setup consistently](#structure-project-setup-consistently)
@@ -31,6 +31,11 @@ when a concrete MDX pattern is needed.
 - Organize the entire tutorial around a recognizable Effect strength. Treat the
   scenario, code, and Effect APIs as means for experiencing that strength, not
   as subjects for a feature tour.
+- Give an introductory tutorial one pain point and one primary Effect strength.
+  Remove secondary policies, failure modes, infrastructure, and API tours that
+  do not make that specific strength easier to experience.
+- Keep a small concept budget. Prefer no more than one new Effect concept in a
+  step and introduce only the APIs needed to reach the promised outcome.
 - Name the tutorial after the positive outcome Effect provides. Do not name it
   after an API, feature, or scenario-specific task.
 - Begin with exactly one `EffectStrength`. Give it a short, positive title
@@ -43,16 +48,15 @@ when a concrete MDX pattern is needed.
 - Introduce the concrete scenario immediately after the strength card. Keep
   scenario-specific actors and details outside the card.
 - Use `## What you will build` to state the observable behavior of the finished
-  backend. Use a compact table when several cases must be distinguished.
+  program. Use a compact table when several cases must be distinguished.
 - Keep the tutorial learning-oriented and guided. Do not turn it into an
   explanation page, reference page, or menu of alternatives.
 
 ## Build a strength-led progression
 
-1. Start with a small working backend in conventional TypeScript. Prefer one
-   local HTTP server and one endpoint. Make the baseline realistic and
-   competent: use the documented APIs, error types, and ordinary handling
-   available to the reader.
+1. Start with a small working program in conventional TypeScript. Make the
+   baseline realistic and competent: use the documented APIs, error types, and
+   ordinary handling available to the reader.
 2. Keep the starter familiar and short. Inline one-use types and helpers when a
    name adds ceremony rather than clarity.
 3. Immediately show what can go wrong.
@@ -64,6 +68,10 @@ when a concrete MDX pattern is needed.
    checkpoint.
 7. Preserve one linear project state. Every code block and checkpoint must
    describe the same current version of the project.
+
+Build the Effect solution through two to four small transformations. Do not
+jump directly from the ordinary baseline to the final implementation merely to
+shorten the page. Reduce incidental code and secondary behavior instead.
 
 Introduce the numbered progression with a specific H2 that names the
 transformation the reader is about to follow. Keep its position and heading
@@ -86,11 +94,16 @@ Allow a tutorial to be long when necessary, but keep each step small. Avoid
 problem cannot be taught clearly with fewer concepts. Mention and defer a
 valuable capability when its setup would obscure the lesson.
 
-## Use a realistic controlled backend
+## Use the smallest executable scenario
 
-- Build a real local backend rather than isolated expressions.
-- Represent external providers with deterministic Promise-based fixtures.
-  Model latency, rejection, outage, recovery, and cancellation without public
+- Prefer one small `main.ts` program for an introductory tutorial. Use an HTTP
+  backend only when the request boundary is necessary to experience the pain
+  point or the Effect strength.
+- Keep the scenario realistic enough to make the consequence observable, but
+  remove transport, parsing, configuration, and domain detail that the lesson
+  does not use.
+- Represent external providers with deterministic local functions or fixtures.
+  Model only the behavior required by the current lesson, without public
   internet access, credentials, Docker, or another process.
 - Keep fixture setup out of the lesson. Supply it ready-made and label it as
   tutorial fixture code.
@@ -165,10 +178,11 @@ mechanically.
 - Make the tutorial understandable by reading alone. Creating files, starting
   the server, and sending requests must not be prerequisites for understanding.
 - Do not describe setup, commands, sections, or verification as “optional.”
-- When offering local execution, use `node --watch server.ts`, explain
-  `--watch`, and tell the reader to keep the process running.
-- Say “open a second terminal pane” for verification commands. Do not tell the
-  reader to restart a watched server between edits.
+- Run a one-shot introductory program with `node main.ts`. When the tutorial
+  genuinely needs a server, use `node --watch server.ts`, explain `--watch`,
+  and tell the reader to keep the process running.
+- For a running server, say “open a second terminal pane” for verification
+  commands. Do not tell the reader to restart a watched server between edits.
 
 ## Present complete project states
 
@@ -225,6 +239,12 @@ In addition to the general documentation checks:
 - Confirm that every complete code snapshot type-checks and runs after copying.
 - Keep stateful tutorial code fences out of runtime doctests and validate the
   materialized project separately.
+- Run a runtime doctest only when the selected page or directory contains a
+  fence marked with `import.meta.vitest`. From the repository root, use
+  `pnpm doctest:file -- <page-or-directory>`; both exact file paths and
+  directory filters are supported. If the selection has no marked fences,
+  Vitest reports that it found no test files; this does not validate or reject
+  the tutorial snapshots.
 - Verify every claimed HTTP status, body, log line, attempt count, timeout, and
   cancellation result.
 - Inspect inserted-line highlights, collapsed ranges, copy behavior, code-fence
