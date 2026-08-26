@@ -2,7 +2,7 @@
 import { ExternalLink, Link as LinkIcon } from "@lucide/astro"
 import { Code } from "astro-expressive-code/components"
 
-import type { ApiDeclaration } from "./ApiReference"
+import { API_JSDOC_CLASS, type ApiDeclaration } from "./ApiReference"
 import ApiCodeExample from "./ApiCodeExample.astro"
 
 interface Props {
@@ -55,13 +55,16 @@ const { declaration } = Astro.props
 
   {
     declaration.commentHtml && (
-      <div class="prose prose-effect mt-2 max-w-none" set:html={declaration.commentHtml} />
+      <div
+        class:list={[API_JSDOC_CLASS, "prose prose-effect mt-2 max-w-none"]}
+        set:html={declaration.commentHtml}
+      />
     )
   }
 
   {
     declaration.signature && (
-      <div class="not-prose mt-3">
+      <div class="not-prose mt-4">
         <h4 class="mb-1.5 text-base font-semibold text-foreground">Signature</h4>
         <Code
           code={declaration.signature}
