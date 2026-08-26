@@ -6,6 +6,7 @@ import { Icon } from "astro-icon/components"
 
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
+import ApiCodeExample from "@/features/api-reference/ApiCodeExample.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
@@ -45,10 +46,16 @@ const packageEntries = allEntries
 const moduleHref = (modulePath: string) =>
   `/docs/${entry.data.version}/api/${entry.data.packageSlug}/${modulePath}`
 const packageModulePaths = new Set(packageEntries.map((candidate) => candidate.data.modulePath))
+const resolveSymbolHref = ApiReference.createReflectionSymbolResolver(
+  allEntries
+    .filter((candidate) => candidate.data.version === entry.data.version)
+    .map((candidate) => candidate.data),
+)
 const apiModule = ApiReference.ApiReference.moduleView(reflection, {
   moduleHref: (modulePath) =>
     packageModulePaths.has(modulePath) ? moduleHref(modulePath) : undefined,
   modulePath: entry.data.modulePath,
+  resolveSymbolHref,
 })
 const versionLinks = DOCS_VERSIONS.map(({ value: version, label }) => {
   const exact = allEntries.find(
@@ -232,7 +239,23 @@ const tocItems = apiModule.groups.map((group) => ({
 
     <header class="mb-8 lg:mb-12">
       <h1 class="mb-4! font-mono md:mb-6!">{moduleName}</h1>
-      {apiModule.commentHtml && <div class="mb-6" set:html={apiModule.commentHtml} />}
+      {
+        apiModule.commentHtml && (
+          <div
+            class:list={[ApiReference.API_JSDOC_CLASS, "mb-6"]}
+            set:html={apiModule.commentHtml}
+          />
+        )
+      }
+      {
+        apiModule.examples.length > 0 && (
+          <div class="mb-6 space-y-6 not-prose">
+            {apiModule.examples.map((example) => (
+              <ApiCodeExample example={example} />
+            ))}
+          </div>
+        )
+      }
       <div
         class="not-prose flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-muted-foreground"
       >

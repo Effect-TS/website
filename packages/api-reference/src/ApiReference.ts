@@ -45,6 +45,7 @@ export interface ApiModule {
   commentHtml: string | undefined
   commentMarkdown: string | undefined
   declarationCount: number
+  examples: ReadonlyArray<ApiCodeExample>
   groups: ReadonlyArray<ApiDeclarationGroup>
   since: string | undefined
   sourceUrl: string | undefined
@@ -53,10 +54,14 @@ export interface ApiModule {
 export interface ApiReferenceOptions {
   moduleHref?: (modulePath: string) => string | undefined
   modulePath?: string
+  resolveSymbolHref?: (
+    target: Readonly<JSONOutput.ReflectionSymbolId>,
+  ) => string | undefined
 }
 
 interface ApiReferenceRenderOptions extends ApiReferenceOptions {
   declarationAnchors: ReadonlySet<string>
+  reflectionHrefs: ReadonlyMap<number, string>
 }
 
 export const ApiReference = {
@@ -83,20 +88,26 @@ function moduleView(
         : anchor
     }),
   )
+  const reflectionHrefs = reflectionHrefIndex(
+    reflection,
+    moduleReflection,
+    children,
+    childAnchorCounts,
+    options,
+  )
   const renderOptions: ApiReferenceRenderOptions = {
     ...options,
     declarationAnchors,
+    reflectionHrefs,
   }
-  const examples = codeExamples(reflection)
-  const examplesByOwner = Map.groupBy(examples, (example) => example.ownerId)
   const declarationCandidates = children.map((child) => {
     const comment = declarationComment(child)
     return {
       anchor: declarationAnchor(child.name),
       category: blockTagText(comment?.blockTags, "@category") ?? "Other",
       commentHtml: commentHtml(comment, renderOptions),
-      commentMarkdown: commentMarkdown(comment),
-      examples: examplesByOwner.get(child.id) ?? [],
+      commentMarkdown: commentMarkdown(comment, renderOptions),
+      examples: declarationExamples(child),
       id: child.id,
       kind: child.kind,
       name: child.name,
@@ -144,13 +155,61 @@ function moduleView(
 
   return {
     commentHtml: commentHtml(moduleReflection?.comment, renderOptions),
-    commentMarkdown: commentMarkdown(moduleReflection?.comment),
+    commentMarkdown: commentMarkdown(moduleReflection?.comment, renderOptions),
     declarationCount: declarations.length,
+    examples:
+      moduleReflection === undefined
+        ? []
+        : retargetExamples(
+            reflectionExamples(moduleReflection),
+            moduleReflection,
+          ),
     groups: sortedGroups,
     since: versions.toSorted(compareVersions)[0],
     sourceUrl: declarations.find(
       (declaration) => declaration.sourceUrl !== undefined,
     )?.sourceUrl,
+  }
+}
+
+function reflectionHrefIndex(
+  reflection: TypeDocProjectReflection,
+  moduleReflection: JSONOutput.DeclarationReflection | undefined,
+  declarations: ReadonlyArray<JSONOutput.DeclarationReflection>,
+  anchorCounts: ReadonlyMap<
+    string,
+    ReadonlyArray<JSONOutput.DeclarationReflection>
+  >,
+  options: ApiReferenceOptions,
+): ReadonlyMap<number, string> {
+  const hrefs = new Map<number, string>()
+  const moduleHref =
+    options.modulePath === undefined
+      ? undefined
+      : options.moduleHref?.(options.modulePath)
+  if (moduleHref === undefined) return hrefs
+
+  hrefs.set(reflection.id, moduleHref)
+  if (moduleReflection !== undefined) hrefs.set(moduleReflection.id, moduleHref)
+  for (const declaration of declarations) {
+    const baseAnchor = declarationAnchor(declaration.name)
+    const anchor =
+      (anchorCounts.get(baseAnchor)?.length ?? 0) > 1
+        ? `${baseAnchor}-${reflectionKindName(declaration.kind)}`
+        : baseAnchor
+    indexReflectionHref(declaration, `${moduleHref}#${anchor}`, hrefs)
+  }
+  return hrefs
+}
+
+function indexReflectionHref(
+  reflection: JSONOutput.SomeReflection,
+  href: string,
+  hrefs: Map<number, string>,
+): void {
+  hrefs.set(reflection.id, href)
+  for (const child of reflectionChildren(reflection)) {
+    indexReflectionHref(child, href, hrefs)
   }
 }
 
@@ -221,21 +280,13 @@ function commentHtml(
   value: JSONOutput.Comment | undefined,
   options: ApiReferenceRenderOptions,
 ): string | undefined {
-  const markdown = commentMarkdown(value)
-  if (markdown === undefined) return undefined
-  const blocks = [renderMarkdown(markdown, options)]
-  const see = value?.blockTags
-    ?.filter((tag) => tag.tag === "@see")
-    .map((tag) => commentPartsMarkdown(tag.content).trim())
-    .filter(Boolean)
-  if (see !== undefined && see.length > 0) {
-    blocks.push(
-      "<h4>See</h4>",
-      renderMarkdown(
-        see.map((item) => (/^-\s/.test(item) ? item : `- ${item}`)).join("\n"),
-        options,
-      ),
-    )
+  if (value === undefined) return undefined
+  const markdown = commentMarkdown(value, options, false)
+  const blocks =
+    markdown === undefined ? [] : [renderMarkdown(markdown, options)]
+  const see = seeMarkdown(value, options)
+  if (see !== undefined) {
+    blocks.push("<h4>See</h4>", renderMarkdown(see, options))
   }
   return blocks.length > 0 ? blocks.join("") : undefined
 }
@@ -311,29 +362,138 @@ function removeEmptyTableRows(markdown: string): string {
 
 function commentMarkdown(
   value: JSONOutput.Comment | undefined,
+  options: ApiReferenceRenderOptions,
+  includeSee = true,
 ): string | undefined {
   if (value === undefined) return undefined
-  const markdown = commentPartsMarkdown(value.summary)
-  const withoutExample = markdown
-    .replace(/\n\n\*\*Example\*\*[\s\S]*$/, "")
-    .trim()
-  return withoutExample.length > 0 ? withoutExample : undefined
+  const blocks = [commentPartsMarkdown(value.summary, options).trim()]
+  const see = includeSee ? seeMarkdown(value, options) : undefined
+  if (see !== undefined) blocks.push("#### See", see)
+  const markdown = blocks.filter(Boolean).join("\n\n")
+  return markdown.length > 0 ? markdown : undefined
+}
+
+function seeMarkdown(
+  value: JSONOutput.Comment,
+  options: ApiReferenceRenderOptions,
+): string | undefined {
+  const items = value.blockTags
+    ?.filter((tag) => tag.tag === "@see")
+    .map((tag) => commentPartsMarkdown(tag.content, options).trim())
+    .filter(Boolean)
+  return items === undefined || items.length === 0
+    ? undefined
+    : items.map((item) => (/^-\s/.test(item) ? item : `- ${item}`)).join("\n")
 }
 
 function commentPartsMarkdown(
   parts: ReadonlyArray<JSONOutput.CommentDisplayPart>,
+  options: ApiReferenceRenderOptions,
 ): string {
-  return parts
-    .flatMap((part) => {
-      if (part.kind === "code" && parseFencedCode(part.text) !== undefined)
-        return []
-      if (part.kind !== "inline-tag") return [part.text]
-      const referenceText = part.tsLinkText ?? part.text
-      return parseModuleReference(referenceText) === undefined
-        ? [part.text]
-        : [referenceText]
-    })
-    .join("")
+  let markdown = ""
+  for (const part of parts) {
+    if (part.kind === "code" && parseFencedCode(part.text) !== undefined) {
+      markdown = markdown.replace(
+        /(?:^|\n\n)\*\*Example\*\*(?:\s*\([^)]+\))?\s*$/,
+        "",
+      )
+      continue
+    }
+    markdown +=
+      part.kind === "inline-tag" ? inlineTagMarkdown(part, options) : part.text
+  }
+  return markdown
+}
+
+function inlineTagMarkdown(
+  part: JSONOutput.InlineTagDisplayPart,
+  options: ApiReferenceRenderOptions,
+): string {
+  const label = part.tsLinkText ?? part.text
+  if (parseModuleReference(label) !== undefined) return label
+  if (
+    part.tag !== "@link" &&
+    part.tag !== "@linkcode" &&
+    part.tag !== "@linkplain"
+  ) {
+    return part.text
+  }
+
+  const codeLabel = markdownCodeLabel(label)
+  const renderedLabel =
+    part.tag === "@linkcode" || codeLabel !== undefined
+      ? inlineCode(codeLabel ?? label)
+      : escapeMarkdownText(label)
+  const href = inlineTagHref(part.target, options)
+  return href === undefined
+    ? renderedLabel
+    : `[${renderedLabel}](<${href.replaceAll(">", "%3E")}>)`
+}
+
+function markdownCodeLabel(value: string): string | undefined {
+  const delimiter = /^`+/.exec(value)?.[0]
+  const closingDelimiter = /`+$/.exec(value)?.[0]
+  if (
+    delimiter === undefined ||
+    closingDelimiter !== delimiter ||
+    value.length < delimiter.length * 2
+  ) {
+    return undefined
+  }
+  let label = value.slice(delimiter.length, -delimiter.length)
+  if (label.startsWith(" ") && label.endsWith(" ") && /\S/.test(label)) {
+    label = label.slice(1, -1)
+  }
+  return label
+}
+
+function inlineTagHref(
+  target: JSONOutput.InlineTagDisplayPart["target"],
+  options: ApiReferenceRenderOptions,
+): string | undefined {
+  if (target === undefined) return undefined
+  if (typeof target === "number") return options.reflectionHrefs.get(target)
+  if (typeof target === "string") return safeLinkHref(target)
+  return options.resolveSymbolHref?.(target)
+}
+
+function safeLinkHref(value: string): string | undefined {
+  if (
+    value.includes("\\") ||
+    Array.from(value).some((character) => character.charCodeAt(0) <= 32)
+  ) {
+    return undefined
+  }
+  if (
+    value.startsWith("/") ||
+    value.startsWith("./") ||
+    value.startsWith("../") ||
+    value.startsWith("#")
+  ) {
+    return value.startsWith("//") ? undefined : value
+  }
+  try {
+    const url = new URL(value)
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? value
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function escapeMarkdownText(value: string): string {
+  return value.replace(/[\\`*{}[\]()#+\-.!_|<>]/g, "\\$&")
+}
+
+function inlineCode(value: string): string {
+  const longestRun = Math.max(
+    0,
+    ...Array.from(value.matchAll(/`+/g), (match) => match[0].length),
+  )
+  const delimiter = "`".repeat(longestRun + 1)
+  const padding = /^\s|\s$|^`|`$/.test(value) ? " " : ""
+  return `${delimiter}${padding}${value}${padding}${delimiter}`
 }
 
 function parseModuleReference(value: string):
@@ -593,6 +753,51 @@ function codeExamples(
   return examples
 }
 
+function declarationExamples(
+  declaration: JSONOutput.DeclarationReflection,
+): ReadonlyArray<ApiCodeExample> {
+  const reflections: Array<JSONOutput.SomeReflection> = [declaration]
+  if (declaration.signatures !== undefined) {
+    reflections.push(...declaration.signatures)
+  }
+  if (declaration.getSignature !== undefined) {
+    reflections.push(declaration.getSignature)
+  }
+  if (declaration.setSignature !== undefined) {
+    reflections.push(declaration.setSignature)
+  }
+
+  const examples = retargetExamples(
+    reflections.flatMap(reflectionExamples),
+    declaration,
+  )
+  const unique = new Map<string, ApiCodeExample>()
+  for (const example of examples) {
+    const key = JSON.stringify([
+      example.language,
+      example.source,
+      example.title,
+    ])
+    if (!unique.has(key)) unique.set(key, example)
+  }
+  return [...unique.values()]
+}
+
+function retargetExamples(
+  examples: ReadonlyArray<ApiCodeExample>,
+  owner: JSONOutput.DeclarationReflection,
+): ReadonlyArray<ApiCodeExample> {
+  const ownerSince = blockTagText(owner.comment?.blockTags, "@since")
+  const ownerSourceUrl = firstSourceUrl(owner.sources)
+  return examples.map((example) => ({
+    ...example,
+    ownerId: owner.id,
+    ownerName: owner.name,
+    since: example.since ?? ownerSince,
+    sourceUrl: example.sourceUrl ?? ownerSourceUrl,
+  }))
+}
+
 function visitReflection(
   reflection: JSONOutput.SomeReflection,
   examples: Array<ApiCodeExample>,
@@ -688,7 +893,7 @@ function reflectionExamples(
             ownerName: reflection.name,
             since,
             sourceUrl,
-            title: undefined,
+            title: tag.name,
           })
         }
       }
@@ -706,7 +911,8 @@ function parseFencedCode(
     return undefined
   }
 
-  const language = normalizeLanguage((match[1] ?? "").trim())
+  const info = (match[1] ?? "").trim()
+  const language = normalizeLanguage(info.split(/\s+/, 1)[0] ?? "")
   const source = match[2]
   return language === undefined || source === undefined
     ? undefined
@@ -718,13 +924,18 @@ function normalizeLanguage(
 ): ApiCodeExample["language"] | undefined {
   switch (value) {
     case "bash":
+    case "sh":
+    case "shell":
+      return "bash"
     case "json":
       return value
     case "js":
+    case "jsx":
     case "javascript":
       return "javascript"
     case "":
     case "ts":
+    case "tsx":
     case "typescript":
       return "typescript"
     default:

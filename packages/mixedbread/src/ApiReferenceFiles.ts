@@ -11,6 +11,7 @@ import {
 } from "@website/api-reference/ApiReference"
 import { loadApiReferenceDataset } from "@website/api-reference/ApiReferenceDataset"
 import { loadReflection } from "@website/api-reference/Reflection"
+import { createReflectionSymbolResolver } from "@website/api-reference/ReflectionSymbolResolver"
 
 export interface LocalFile {
   readonly externalId: string
@@ -36,7 +37,6 @@ export const generateApiReferenceFiles = Effect.fn(
       cause: new Error(`No API reference dataset found in ${apiReferenceDir}`),
     })
   }
-
   const packageFiles = yield* Effect.forEach(
     Map.groupBy(
       entries,
@@ -49,6 +49,13 @@ export const generateApiReferenceFiles = Effect.fn(
           cause: new Error("Empty API package group"),
         })
       }
+      const resolveSymbolHref = createReflectionSymbolResolver(
+        entries
+          .filter(
+            (candidate) => candidate.data.version === packageEntry.data.version,
+          )
+          .map((candidate) => candidate.data),
+      )
       const nestedChunks = yield* Effect.forEach(
         packageEntries,
         Effect.fnUntraced(function* (entry) {
@@ -60,7 +67,19 @@ export const generateApiReferenceFiles = Effect.fn(
             catch: (cause) => new UnknownError({ cause }),
           })
           const moduleView = yield* Effect.try({
-            try: () => ApiReference.moduleView(reflection),
+            try: () =>
+              ApiReference.moduleView(reflection, {
+                moduleHref: (modulePath) => {
+                  const target = packageEntries.find(
+                    (candidate) => candidate.data.modulePath === modulePath,
+                  )
+                  return target === undefined
+                    ? undefined
+                    : `/docs/${target.data.version}/api/${target.data.packageSlug}/${target.data.modulePath}`
+                },
+                modulePath: entry.data.modulePath,
+                resolveSymbolHref,
+              }),
             catch: (cause) => new UnknownError({ cause }),
           })
           const declarations = moduleView.groups.flatMap(
