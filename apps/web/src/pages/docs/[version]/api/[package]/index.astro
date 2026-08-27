@@ -9,6 +9,7 @@ import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.as
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
+import { DOCS_VERSIONS } from "@/lib/versions"
 
 interface StaticPathEntry {
   readonly params: {
@@ -105,10 +106,10 @@ const sidebarSections = sections.map((section) => ({
     }
   }),
 }))
-const mobileVersions = [...availableVersions].toSorted().map((candidate) => ({
-  href: `/docs/${candidate}/api/${pkg.slug}`,
-  label: candidate,
-  selected: candidate === version,
+const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: `/docs/${value}/api/${pkg.slug}`,
+  label,
+  selected: value === version,
 }))
 const mobilePackages = Array.from(
   Map.groupBy(
