@@ -158,11 +158,19 @@ const config = defineConfig({
     },
     "/docs/v3/guides": {
       status: 307,
-      destination: "/docs/v3/getting-started/introduction",
+      destination: "/docs/v3/getting-started",
     },
     "/docs/v4/guides": {
       status: 307,
-      destination: "/docs/v4/getting-started/introduction",
+      destination: "/docs/v4/getting-started",
+    },
+    "/docs/v3/getting-started/introduction": {
+      status: 308,
+      destination: "/docs/v3/getting-started",
+    },
+    "/docs/v4/getting-started/introduction": {
+      status: 308,
+      destination: "/docs/v4/getting-started",
     },
     "/docs/api": {
       status: 307,
