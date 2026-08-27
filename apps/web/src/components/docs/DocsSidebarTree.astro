@@ -1,31 +1,16 @@
 ---
 import type { CollectionEntry } from "astro:content"
 
+import type { DocsSidebarItem } from "@/lib/docs-sections"
 import SidebarGroup from "@/components/ui/sidebar/SidebarGroup.astro"
 import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
 
 /**
- * Documentation sidebar navigation tree. Rendered identically in the mobile
- * disclosure and the desktop rail — one source, no duplication. It composes the
- * shared sidebar primitives (`SidebarLink`, `SidebarGroup`), the same ones the
- * API Reference sidebar uses, so both trees stay in visual lockstep. Active
- * state is expressed with `aria-current` + Tailwind `aria-[current=page]:`
- * variants (handled inside `SidebarLink`), so styling stays in the markup — no
- * custom CSS class, no JS class toggling.
+ * Documentation sidebar tree — one source for the mobile disclosure and the
+ * desktop rail. Active state is `aria-current` driven (handled in `SidebarLink`).
  */
-interface SidebarGroupData {
-  readonly dir: string
-  readonly label: string
-  readonly entries: ReadonlyArray<CollectionEntry<"docs">>
-  readonly isOpen: boolean
-}
-
-type SidebarItem =
-  | { readonly kind: "entry"; readonly entry: CollectionEntry<"docs"> }
-  | { readonly kind: "group"; readonly group: SidebarGroupData }
-
 interface Props {
-  readonly items: ReadonlyArray<SidebarItem>
+  readonly items: ReadonlyArray<DocsSidebarItem>
   readonly currentId: string
 }
 
@@ -48,10 +33,10 @@ const entryHref = (e: CollectionEntry<"docs">): string => `/docs/${e.id.replace(
             {entryLabel(item.entry)}
           </SidebarLink>
         </li>
-      ) : (
+      ) : item.kind === "group" ? (
         <li class="mb-1 last:mb-0">
-          <SidebarGroup label={item.group.label} open={item.group.isOpen}>
-            {item.group.entries.map((e) => (
+          <SidebarGroup label={item.label} open={item.open}>
+            {item.entries.map((e) => (
               <li>
                 <SidebarLink
                   href={entryHref(e)}
@@ -59,6 +44,18 @@ const entryHref = (e: CollectionEntry<"docs">): string => `/docs/${e.id.replace(
                   class="py-1.5 pl-3 text-sm"
                 >
                   {entryLabel(e)}
+                </SidebarLink>
+              </li>
+            ))}
+          </SidebarGroup>
+        </li>
+      ) : (
+        <li class="mb-1 last:mb-0">
+          <SidebarGroup label={item.label} open>
+            {item.links.map((link) => (
+              <li>
+                <SidebarLink href={link.href} class="py-1.5 pl-3 text-sm">
+                  {link.label}
                 </SidebarLink>
               </li>
             ))}

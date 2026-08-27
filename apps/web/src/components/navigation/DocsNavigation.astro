@@ -5,11 +5,10 @@ import NavigationDesktopActions from "@/components/navigation/NavigationDesktopA
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import { cn } from "@/lib/utils"
 import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
-
-type DocsSection = "docs" | "guides" | "api"
+import type { DocsNavSection } from "@/lib/docs-sections"
 
 interface Props {
-  readonly section: DocsSection
+  readonly section: DocsNavSection
   readonly version?: string | undefined
 }
 
@@ -17,9 +16,9 @@ const { section, version = defaultDocsVersion } = Astro.props
 
 const DOCS_HOME = { href: `/docs/${version}`, label: "Docs" }
 
-const SECTION_LINKS: ReadonlyArray<{ key: DocsSection; label: string; href: string }> = [
-  { key: "docs", label: "Onboarding", href: `/docs/${version}` },
-  { key: "guides", label: "Guides", href: `/docs/${version}` },
+const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: string }> = [
+  { key: "onboarding", label: "Onboarding", href: `/docs/${version}` },
+  { key: "guides", label: "Guides", href: `/docs/${version}/guides` },
   { key: "api", label: "Reference", href: `/docs/${version}/api` },
 ]
 

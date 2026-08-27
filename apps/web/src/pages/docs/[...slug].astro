@@ -1,116 +1,40 @@
 ---
-import type { CollectionEntry } from "astro:content"
-import { getCollection, getEntry, render } from "astro:content"
+import { getCollection, render } from "astro:content"
 
 import { ChevronDown, Menu } from "@lucide/astro"
 
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import DocShell from "@/layouts/DocShell.astro"
+import { buildDocsSidebar } from "@/lib/docs-sections"
 
 export async function getStaticPaths() {
   const entries = await getCollection("docs")
   return entries.map((entry) => ({
     params: { slug: entry.id.replace(/\/index$/, "") },
-    props: { entry, entries },
+    props: { entry },
   }))
 }
 
-const { entry, entries } = Astro.props
+const { entry } = Astro.props
 const { Content, headings } = await render(entry)
 
-const currentId = entry.id
-const currentVersion = currentId.split("/")[0]
-const currentLabel = entryLabel(entry)
-
+const currentVersion = entry.id.split("/")[0]
 if (currentVersion === undefined) {
   throw new Error("Unable to generate sidebar entry without document version")
 }
 
-const sidebarEntry = await getEntry("docsSidebar", currentVersion)
-const groupConfig: Record<string, number> = sidebarEntry?.data ?? {}
+const { section, items } = await buildDocsSidebar(currentVersion, entry.id)
+const currentLabel = entry.data.sidebar?.label ?? entry.data.title
 
-function entryLabel(e: CollectionEntry<"docs">): string {
-  return e.data.sidebar?.label ?? e.data.title
-}
-
-function entryOrder(e: CollectionEntry<"docs">): number {
-  return e.data.sidebar?.order ?? Infinity
-}
-
-interface SidebarGroup {
-  dir: string
-  label: string
-  entries: CollectionEntry<"docs">[]
-  isOpen: boolean
-}
-
-type SidebarItem =
-  { kind: "entry"; entry: CollectionEntry<"docs"> } | { kind: "group"; group: SidebarGroup }
-
-function groupOrder(g: SidebarGroup): number {
-  const configuredOrder = groupConfig[g.dir]
-  if (configuredOrder !== undefined) {
-    return configuredOrder
-  }
-  const min = Math.min(...g.entries.map(entryOrder).filter(isFinite))
-  return isFinite(min) ? min : Infinity
-}
-
-function sortByOrderLabel<T>(items: T[], order: (t: T) => number, label: (t: T) => string): T[] {
-  return [...items].sort((a, b) => {
-    const diff = order(a) - order(b)
-    return diff !== 0 ? diff : label(a).localeCompare(label(b))
-  })
-}
-
-// Build sidebar for current version
-const roots: CollectionEntry<"docs">[] = []
-const groupMap = new Map<string, CollectionEntry<"docs">[]>()
-
-for (const e of entries.filter((e) => e.id.startsWith(`${currentVersion}/`))) {
-  const parts = e.id.slice(currentVersion.length + 1).split("/")
-  if (parts.length === 1) {
-    roots.push(e)
-  } else {
-    const dir = parts[0]
-    if (dir !== undefined) {
-      const entries = groupMap.get(dir)
-      if (entries !== undefined) {
-        entries.push(e)
-      } else {
-        groupMap.set(dir, [e])
-      }
-    }
-  }
-}
-
-const groups: SidebarGroup[] = [...groupMap.entries()].map(([dir, es]) => ({
-  dir,
-  label: dir
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" "),
-  entries: sortByOrderLabel(es, entryOrder, entryLabel),
-  isOpen: es.some((e) => e.id === currentId),
-}))
-
-const sidebarItems = sortByOrderLabel<SidebarItem>(
-  [
-    ...roots.map((e) => ({ kind: "entry" as const, entry: e })),
-    ...groups.map((g) => ({ kind: "group" as const, group: g })),
-  ],
-  (item) => (item.kind === "entry" ? entryOrder(item.entry) : groupOrder(item.group)),
-  (item) => (item.kind === "entry" ? entryLabel(item.entry) : item.group.label),
-)
-
-const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
-const tocItems = tocHeadings.map((heading) => ({
-  id: heading.slug,
-  label: heading.text,
-  indent: heading.depth === 3,
-  class: "text-sm leading-snug",
-}))
+const tocItems = headings
+  .filter((heading) => heading.depth >= 2 && heading.depth <= 3)
+  .map((heading) => ({
+    id: heading.slug,
+    label: heading.text,
+    indent: heading.depth === 3,
+    class: "text-sm leading-snug",
+  }))
 ---
 
 <DocShell
@@ -118,6 +42,7 @@ const tocItems = tocHeadings.map((heading) => ({
   description={entry.data.description}
   activeSlug="docs"
   version={currentVersion}
+  section={section}
 >
   <!-- Mobile docs menu -->
   <div
@@ -140,14 +65,14 @@ const tocItems = tocHeadings.map((heading) => ({
         aria-label="Documentation navigation"
         class="max-h-[60vh] overflow-y-auto border-t border-border px-6 py-4"
       >
-        <DocsSidebarTree items={sidebarItems} currentId={currentId} />
+        <DocsSidebarTree items={items} currentId={entry.id} />
       </nav>
     </details>
   </div>
 
   <!-- Desktop sidebar -->
   <nav slot="sidebar" aria-label="Documentation navigation">
-    <DocsSidebarTree items={sidebarItems} currentId={currentId} />
+    <DocsSidebarTree items={items} currentId={entry.id} />
   </nav>
 
   <!-- Main content -->
