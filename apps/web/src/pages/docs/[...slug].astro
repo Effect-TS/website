@@ -6,9 +6,7 @@ import { ChevronDown, Menu } from "@lucide/astro"
 
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
-import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import DocShell from "@/layouts/DocShell.astro"
-import { DOCS_VERSIONS } from "@/lib/versions"
 
 export async function getStaticPaths() {
   const entries = await getCollection("docs")
@@ -149,13 +147,6 @@ const tocItems = tocHeadings.map((heading) => ({
 
   <!-- Desktop sidebar -->
   <nav slot="sidebar" aria-label="Documentation navigation">
-    <VersionSwitch
-      versions={DOCS_VERSIONS.map(({ value, label }) => ({
-        href: `/docs/${value}`,
-        label,
-        active: currentVersion === value,
-      }))}
-    />
     <DocsSidebarTree items={sidebarItems} currentId={currentId} />
   </nav>
 

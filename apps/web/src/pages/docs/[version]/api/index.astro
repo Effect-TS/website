@@ -6,7 +6,6 @@ import { Search } from "@lucide/astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { DOCS_VERSIONS } from "@/lib/versions"
@@ -167,11 +166,6 @@ const sidebarGroups = Array.from(groupedPackages)
     const nameOrder = left.name.localeCompare(right.name)
     return leftOrder - rightOrder || nameOrder
   })
-const sidebarVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api`,
-  label,
-  active: value === version,
-}))
 const sidebarSections = [
   {
     groups: sidebarGroups.map((group) => ({
@@ -216,8 +210,6 @@ const mobilePackages = [
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
-    <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
-
     <a
       href={`/docs/${version}/api`}
       aria-current="page"
