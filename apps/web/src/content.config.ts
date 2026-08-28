@@ -100,6 +100,16 @@ const docsSidebar = defineCollection({
   schema: z.record(z.string(), z.number()),
 })
 
+const docsOnboarding = defineCollection({
+  loader: file("./src/content/docs/onboarding-groups.json"),
+  schema: z.array(
+    z.object({
+      label: z.string(),
+      items: z.array(reference("docs")),
+    }),
+  ),
+})
+
 const docs = defineCollection({
   loader: glob({
     base: "./src/content/docs",
@@ -132,6 +142,7 @@ export const collections = {
   apiReference,
   docs,
   docsSidebar,
+  docsOnboarding,
   blog,
   blogAuthors,
   blogTags,

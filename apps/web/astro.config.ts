@@ -146,15 +146,39 @@ const config = defineConfig({
     },
     "/docs": {
       status: 307,
-      destination: "/docs/v4/getting-started/introduction",
+      destination: "/docs/v4/onboarding",
     },
     "/docs/v3": {
       status: 307,
-      destination: "/docs/v3/getting-started/introduction",
+      destination: "/docs/v3/onboarding",
     },
     "/docs/v4": {
       status: 307,
-      destination: "/docs/v4/getting-started/introduction",
+      destination: "/docs/v4/onboarding",
+    },
+    "/docs/v3/guides": {
+      status: 307,
+      destination: "/docs/v3/getting-started",
+    },
+    "/docs/v4/guides": {
+      status: 307,
+      destination: "/docs/v4/getting-started",
+    },
+    "/docs/v3/getting-started/introduction": {
+      status: 308,
+      destination: "/docs/v3/getting-started",
+    },
+    "/docs/v4/getting-started/introduction": {
+      status: 308,
+      destination: "/docs/v4/getting-started",
+    },
+    "/docs/v3/getting-started/control-flow": {
+      status: 308,
+      destination: "/docs/v3/code-style/control-flow",
+    },
+    "/docs/v4/getting-started/control-flow": {
+      status: 308,
+      destination: "/docs/v4/code-style/control-flow",
     },
     "/docs/api": {
       status: 307,
