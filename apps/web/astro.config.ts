@@ -172,6 +172,14 @@ const config = defineConfig({
       status: 308,
       destination: "/docs/v4/getting-started",
     },
+    "/docs/v3/getting-started/control-flow": {
+      status: 308,
+      destination: "/docs/v3/code-style/control-flow",
+    },
+    "/docs/v4/getting-started/control-flow": {
+      status: 308,
+      destination: "/docs/v4/code-style/control-flow",
+    },
     "/docs/api": {
       status: 307,
       destination: "/docs/v4/api",
