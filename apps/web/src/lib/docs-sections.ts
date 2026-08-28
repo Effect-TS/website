@@ -7,11 +7,6 @@ import {
 
 export type DocsNavSection = "onboarding" | "guides" | "api"
 
-export interface DocsSidebarLink {
-  readonly href: string
-  readonly label: string
-}
-
 export type DocsSidebarItem =
   | { readonly kind: "entry"; readonly entry: CollectionEntry<"docs"> }
   | {
@@ -19,11 +14,6 @@ export type DocsSidebarItem =
       readonly label: string
       readonly open: boolean
       readonly entries: ReadonlyArray<CollectionEntry<"docs">>
-    }
-  | {
-      readonly kind: "links"
-      readonly label: string
-      readonly links: ReadonlyArray<DocsSidebarLink>
     }
 
 const entryLabel = (entry: CollectionEntry<"docs">): string =>
@@ -102,18 +92,8 @@ async function guidesItems(
     .map((r) => r.item)
 }
 
-const nextSteps = (version: string): DocsSidebarItem => ({
-  kind: "links",
-  label: "Next Steps",
-  links: [
-    { href: `/docs/${version}/guides`, label: "Guides" },
-    { href: `/docs/${version}/api`, label: "API Reference" },
-    { href: "/play", label: "Playground" },
-  ],
-})
-
-// The full sidebar for a docs page: onboarding groups + Next Steps, or the
-// directory-derived guides tree.
+// The full sidebar for a docs page: onboarding groups, or the directory-derived
+// guides tree.
 export async function buildDocsSidebar(
   version: string,
   currentId: string,
@@ -141,5 +121,5 @@ export async function buildDocsSidebar(
       }
     }),
   )
-  return { section: "onboarding", items: [...groups, nextSteps(version)] }
+  return { section: "onboarding", items: groups }
 }

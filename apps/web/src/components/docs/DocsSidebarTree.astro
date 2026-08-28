@@ -33,7 +33,7 @@ const entryHref = (e: CollectionEntry<"docs">): string => `/docs/${e.id.replace(
             {entryLabel(item.entry)}
           </SidebarLink>
         </li>
-      ) : item.kind === "group" ? (
+      ) : (
         <li class="mb-1 last:mb-0">
           <SidebarGroup label={item.label} open={item.open}>
             {item.entries.map((e) => (
@@ -44,18 +44,6 @@ const entryHref = (e: CollectionEntry<"docs">): string => `/docs/${e.id.replace(
                   class="py-1.5 pl-3 text-sm"
                 >
                   {entryLabel(e)}
-                </SidebarLink>
-              </li>
-            ))}
-          </SidebarGroup>
-        </li>
-      ) : (
-        <li class="mb-1 last:mb-0">
-          <SidebarGroup label={item.label} open>
-            {item.links.map((link) => (
-              <li>
-                <SidebarLink href={link.href} class="py-1.5 pl-3 text-sm">
-                  {link.label}
                 </SidebarLink>
               </li>
             ))}
