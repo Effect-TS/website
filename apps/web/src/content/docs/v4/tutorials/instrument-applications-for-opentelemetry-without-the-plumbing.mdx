@@ -1,0 +1,306 @@
+---
+title: Instrument applications for OpenTelemetry without the plumbing
+description: Build a parent-child span tree from the structure of an Effect computation instead of passing tracing context manually.
+diataxis: tutorial
+sidebar:
+  order: 7
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="Tracing follows the computation structure">
+
+Manual tracing requires every operation to start and stop a span and to pass
+the correct parent context to the next operation.
+
+Effect spans inherit their parent from the computation that contains them. The
+same span tree can then be exported to OpenTelemetry without tracing parameters
+in the application functions.
+
+</EffectStrength>
+
+## What you will build
+
+A checkout reserves inventory and then authorizes payment. Its ordinary logs
+show that both operations ran, but not that they belong to one checkout. You
+will first describe the sequence with Effect, then add a root span, and finally
+give each operation a child span.
+
+The final local trace is:
+
+```text title="Finished trace"
+checkout
+  inventory.reserve
+  payment.authorize
+```
+
+## What you will learn
+
+By the end, you will know the basic Effect pattern for tracing structured work:
+
+- describe a sequence as one Effect computation;
+- attach spans with `Effect.withSpan`;
+- provide a tracer with `Effect.withTracer` so parent-child relationships follow
+  the computation structure.
+
+## Project setup
+
+The project uses two files:
+
+| File         | Role                                                            |
+| ------------ | --------------------------------------------------------------- |
+| `tracing.ts` | Fixed local tracer that prints the span tree. It never changes. |
+| `main.ts`    | Contains the checkout code that you change.                     |
+
+The tutorial uses a small in-memory tracer so the result is visible without an
+account or collector:
+
+```ts title="tracing.ts"
+// This fixed local tracer does not change during the tutorial.
+import { Option, Tracer } from "effect"
+
+const recordedSpans: Array<Tracer.NativeSpan> = []
+
+export const localTracer = Tracer.make({
+  span(options) {
+    const span = new Tracer.NativeSpan(options)
+    recordedSpans.push(span)
+    return span
+  },
+})
+
+export const printTrace = (): string =>
+  recordedSpans
+    .splice(0)
+    .map((span) => {
+      const parent = Option.getOrUndefined(span.parent)
+      const indentation = parent instanceof Tracer.NativeSpan ? "  " : ""
+      return `${indentation}${span.name}`
+    })
+    .join("\n")
+```
+
+`Tracer.make` creates the local collector. `Tracer.NativeSpan` stores the name
+and parent of each span, while `Option.getOrUndefined` reads the optional parent
+for display. Application code will interact only with `localTracer` and
+`printTrace`.
+
+## Turn a sequence into a trace tree
+
+### 1. See what ordinary logs leave out
+
+The starting checkout uses two Promise-based provider simulations:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+
+const reserveInventory = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
+
+const authorizePayment = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const checkout = async (): Promise<void> => {
+  await reserveInventory()
+  await authorizePayment()
+}
+
+await checkout()
+```
+
+The output proves that both operations completed:
+
+```text title="Output"
+inventory reserved
+payment authorized
+```
+
+It does not identify the enclosing checkout. Adding that relationship manually
+would require trace state to enter these function signatures or another
+context-propagation mechanism.
+
+<TutorialCheckpoint
+  number={1}
+  total={4}
+  title="The work is visible but its structure is not"
+>
+  Two logs show two completed operations. Nothing in them records that both
+  operations belong to the same checkout.
+</TutorialCheckpoint>
+
+### 2. Describe the same sequence with Effect
+
+Adapt each provider Promise and combine them in the same order. Do not add
+tracing yet:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+
+const reserveInventorySdk = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
+
+const authorizePaymentSdk = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const reserveInventory = Effect.tryPromise({
+  try: reserveInventorySdk,
+  catch: () => "ProviderUnavailable" as const,
+})
+
+const authorizePayment = Effect.tryPromise({
+  try: authorizePaymentSdk,
+  catch: () => "ProviderUnavailable" as const,
+})
+
+const checkout = Effect.flatMap(reserveInventory, () => authorizePayment)
+
+await Effect.runPromise(checkout)
+```
+
+An Effect is a value that describes work without running it. Its type records
+the success value and expected error channel. `Effect.tryPromise` turns each
+provider call into such a value; a rejection becomes
+`"ProviderUnavailable"`.
+
+`Effect.flatMap` sequences the two descriptions. Payment starts only after
+inventory succeeds. `Effect.runPromise` runs the completed checkout at the
+program boundary. The output is unchanged.
+
+<TutorialCheckpoint
+  number={2}
+  total={4}
+  title="The sequence is one computation"
+>
+  Inventory and payment now belong to one lazy Effect, but no spans have been
+  added and the console still shows only the original logs.
+</TutorialCheckpoint>
+
+### 3. Add the checkout span
+
+Wrap the combined operation in one root span and run it with the local tracer:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+import { localTracer, printTrace } from "./tracing.ts"
+
+const reserveInventorySdk = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
+
+const authorizePaymentSdk = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const reserveInventory = Effect.tryPromise({
+  try: reserveInventorySdk,
+  catch: () => "ProviderUnavailable" as const,
+})
+
+const authorizePayment = Effect.tryPromise({
+  try: authorizePaymentSdk,
+  catch: () => "ProviderUnavailable" as const,
+})
+
+const checkout = Effect.flatMap(reserveInventory, () => authorizePayment).pipe(
+  Effect.withSpan("checkout"),
+)
+
+await Effect.runPromise(Effect.withTracer(checkout, localTracer))
+console.log(printTrace())
+```
+
+`Effect.withSpan` wraps an existing Effect in a named span. The span starts when
+the checkout runs and ends when it succeeds, fails, or is interrupted.
+Interruption is Effect's term for cancellation of running work.
+
+`Effect.withTracer` selects the tracer used for this run. In production, an
+OpenTelemetry integration can export the same spans instead of collecting them
+in memory.
+
+The trace currently contains only its root:
+
+```text title="Trace output"
+checkout
+```
+
+<TutorialCheckpoint
+  number={3}
+  total={4}
+  title="The complete checkout has a lifetime"
+>
+  One span now measures the enclosing computation, but the two provider calls
+  are not yet visible inside it.
+</TutorialCheckpoint>
+
+### 4. Name the child operations
+
+Give each provider Effect its own span:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+import { localTracer, printTrace } from "./tracing.ts"
+
+const reserveInventorySdk = async (): Promise<void> => {
+  await sleep(40)
+  console.log("inventory reserved")
+}
+
+const authorizePaymentSdk = async (): Promise<void> => {
+  await sleep(30)
+  console.log("payment authorized")
+}
+
+const reserveInventory = Effect.tryPromise({
+  try: reserveInventorySdk,
+  catch: () => "ProviderUnavailable" as const,
+}).pipe(Effect.withSpan("inventory.reserve"))
+
+const authorizePayment = Effect.tryPromise({
+  try: authorizePaymentSdk,
+  catch: () => "ProviderUnavailable" as const,
+}).pipe(Effect.withSpan("payment.authorize"))
+
+const checkout = Effect.flatMap(reserveInventory, () => authorizePayment).pipe(
+  Effect.withSpan("checkout"),
+)
+
+await Effect.runPromise(Effect.withTracer(checkout, localTracer))
+console.log(printTrace())
+```
+
+`Effect.withSpan` reads the current span when the wrapped operation runs. Both
+provider spans therefore inherit `checkout` as their parent without receiving a
+tracing argument.
+
+The local tracer prints:
+
+```text title="Trace output"
+checkout
+  inventory.reserve
+  payment.authorize
+```
+
+<TutorialCheckpoint number={4} total={4} title="The trace mirrors the program">
+  The checkout is the root and both provider operations are children. No
+  function accepts or forwards tracing context.
+</TutorialCheckpoint>
+
+The strength is structural tracing: composing Effects also composes their span
+relationships. OpenTelemetry receives a tree that follows the application code
+instead of a second tree assembled by hand.

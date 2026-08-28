@@ -1,0 +1,271 @@
+---
+title: Keep dependencies explicit without manual wiring
+description: Record a service requirement in an Effect type and provide its implementation once at the application boundary.
+diataxis: tutorial
+sidebar:
+  order: 5
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="Requirements stay visible without parameter threading">
+
+Function parameters make a direct dependency visible, but intermediate
+functions must keep receiving and forwarding it even when they do not use it.
+
+An Effect can record a service requirement in its type. The application
+provides the implementation at the boundary instead of threading it through
+the call chain.
+
+</EffectStrength>
+
+## What you will build
+
+You will register a user and send a welcome email. The first version passes an
+email service through every function. You will first describe the work with
+Effect, then replace the parameter with a typed service requirement, and
+finally provide a console implementation in one place.
+
+## What you will learn
+
+By the end, you will know the basic Effect pattern for services:
+
+- describe effectful work with a service requirement;
+- replace manual parameter forwarding with `Context.Service`;
+- provide the implementation once with `Effect.provideService`.
+
+## Project setup
+
+The project uses one file:
+
+| File      | Role                                                    |
+| --------- | ------------------------------------------------------- |
+| `main.ts` | Contains the registration flow and the code you change. |
+
+## Move wiring to the application boundary
+
+### 1. Start with explicit parameters
+
+The ordinary TypeScript version is direct and correct:
+
+```ts title="main.ts"
+interface Email {
+  readonly send: (message: string) => Promise<void>
+}
+
+interface User {
+  readonly id: string
+  readonly name: string
+}
+
+const ConsoleEmail: Email = {
+  send: async (message) => console.log(`email: ${message}`),
+}
+
+const sendWelcome = async (user: User, email: Email): Promise<void> => {
+  await email.send(`Welcome, ${user.name}`)
+}
+
+const registerUser = async (name: string, email: Email): Promise<User> => {
+  const user = { id: "user-1", name }
+  await sendWelcome(user, email)
+  return user
+}
+
+console.log(await registerUser("Ada", ConsoleEmail))
+```
+
+The output is:
+
+```text title="Output"
+email: Welcome, Ada
+{ id: 'user-1', name: 'Ada' }
+```
+
+The `email` parameter is useful in `sendWelcome`, but `registerUser` only
+forwards it. A longer call chain repeats the same plumbing at every level.
+
+<TutorialCheckpoint
+  number={1}
+  total={4}
+  title="The dependency is explicit but manually forwarded"
+>
+  The program works and its direct dependency is visible. The caller must pass
+  the email implementation through the registration flow.
+</TutorialCheckpoint>
+
+### 2. Describe the registration with Effect
+
+Keep the parameter for now. Change only the service methods and registration
+flow from Promises to Effects:
+
+```ts title="main.ts"
+import { Effect } from "effect"
+
+interface Email {
+  readonly send: (message: string) => Effect.Effect<void>
+}
+
+interface User {
+  readonly id: string
+  readonly name: string
+}
+
+const ConsoleEmail: Email = {
+  send: (message) => Effect.sync(() => console.log(`email: ${message}`)),
+}
+
+const sendWelcome = (user: User, email: Email) =>
+  email.send(`Welcome, ${user.name}`)
+
+const registerUser = (name: string, email: Email) => {
+  const user = { id: "user-1", name }
+  return Effect.map(sendWelcome(user, email), () => user)
+}
+
+console.log(await Effect.runPromise(registerUser("Ada", ConsoleEmail)))
+```
+
+An Effect is a value that describes a computation. Creating or transforming it
+does not send the email. The success type records the produced value, the error
+channel records expected failures, and a third type argument can record service
+requirements.
+
+`Effect.sync` defers the non-throwing console operation. An unexpected throw
+would be a defect, meaning a bug rather than an expected failure. `Effect.map`
+transforms the successful `void` from the email into the registered `User`
+without changing errors or requirements.
+
+`Effect.runPromise` runs the complete description at the program boundary. The
+output is unchanged, and the `email` parameter is still present.
+
+<TutorialCheckpoint
+  number={2}
+  total={4}
+  title="The work is an Effect but the wiring is unchanged"
+>
+  Registration now returns an Effect and still receives the email implementation
+  as an ordinary parameter.
+</TutorialCheckpoint>
+
+### 3. Turn the parameter into a requirement
+
+Create a service key and read the matching implementation inside
+`sendWelcome`:
+
+```ts title="main.ts"
+import { Context, Effect } from "effect"
+
+interface Email {
+  readonly send: (message: string) => Effect.Effect<void>
+}
+
+const Email = Context.Service<Email>("tutorial/Email")
+
+interface User {
+  readonly id: string
+  readonly name: string
+}
+
+const ConsoleEmail: Email = {
+  send: (message) => Effect.sync(() => console.log(`email: ${message}`)),
+}
+
+const sendWelcome = (user: User) =>
+  Email.use((email) => email.send(`Welcome, ${user.name}`))
+
+const registerUser = (name: string) => {
+  const user = { id: "user-1", name }
+  return Effect.map(sendWelcome(user), () => user)
+}
+
+const registration = registerUser("Ada")
+```
+
+`Context.Service` creates a typed key that connects the `Email` contract to one
+runtime implementation. Its string is a stable identity, not a global lookup
+name.
+
+`Email.use` describes reading the implementation associated with that key and
+passing it to the callback. It does not run the callback immediately. The
+inferred type of `registration` is:
+
+```ts title="Inferred type, not code to copy"
+declare const registration: Effect.Effect<User, never, Email>
+```
+
+The third type argument says that registration requires `Email`. The parameter
+has disappeared, but the dependency has not become hidden.
+
+<TutorialCheckpoint
+  number={3}
+  total={4}
+  title="The requirement travels in the type"
+>
+  Intermediate functions no longer forward an email parameter. The Effect type
+  still prevents the program from running until an `Email` is supplied.
+</TutorialCheckpoint>
+
+### 4. Supply the implementation once
+
+Provide `ConsoleEmail` immediately before running the application:
+
+```ts title="main.ts"
+import { Context, Effect } from "effect"
+
+interface Email {
+  readonly send: (message: string) => Effect.Effect<void>
+}
+
+const Email = Context.Service<Email>("tutorial/Email")
+
+interface User {
+  readonly id: string
+  readonly name: string
+}
+
+const ConsoleEmail: Email = {
+  send: (message) => Effect.sync(() => console.log(`email: ${message}`)),
+}
+
+const sendWelcome = (user: User) =>
+  Email.use((email) => email.send(`Welcome, ${user.name}`))
+
+const registerUser = (name: string) => {
+  const user = { id: "user-1", name }
+  return Effect.map(sendWelcome(user), () => user)
+}
+
+const registration = registerUser("Ada")
+
+const program = Effect.provideService(registration, Email, ConsoleEmail)
+
+console.log(await Effect.runPromise(program))
+```
+
+`Effect.provideService` supplies an implementation for one service key and
+removes that requirement from the resulting Effect. Changing the email
+implementation now changes one value at the application boundary, not every
+function call.
+
+The output remains:
+
+```text title="Output"
+email: Welcome, Ada
+{ id: 'user-1', name: 'Ada' }
+```
+
+<TutorialCheckpoint
+  number={4}
+  total={4}
+  title="Selection happens at one boundary"
+>
+  Registration declares what it needs. The application chooses the console
+  implementation once, then runs an Effect with no remaining requirements.
+</TutorialCheckpoint>
+
+The strength is not dependency injection by itself. It is keeping requirements
+visible while removing parameter forwarding from the business flow.

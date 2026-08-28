@@ -1,0 +1,232 @@
+---
+title: Clean up resources reliably
+description: Attach cleanup to resource use so it runs after success, failure, or interruption.
+diataxis: tutorial
+sidebar:
+  order: 3
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="Cleanup is part of the computation">
+
+`try`/`finally` protects one block of code, but every caller must preserve the
+same acquire, use, and release discipline.
+
+Effect can describe those three phases as one operation. Cleanup then follows
+the operation through success, failure, and cancellation.
+
+</EffectStrength>
+
+## What you will build
+
+You will store a report through a simulated database connection. Writing the
+report fails on purpose, which makes cleanup easy to observe. The Promise-free
+fixture keeps the example focused on the resource lifetime rather than on
+database or HTTP code.
+
+## What you will learn
+
+By the end, you will know the basic Effect pattern for resource lifetimes:
+
+- describe acquire, use, and release as Effects;
+- join the three phases with `Effect.acquireUseRelease`;
+- keep cleanup attached to the operation through success, failure, and
+  interruption.
+
+## Project setup
+
+The project uses one file:
+
+| File      | Role                                                        |
+| --------- | ----------------------------------------------------------- |
+| `main.ts` | Contains the connection simulation and the code you change. |
+
+## Keep acquisition and release together
+
+### 1. Start with `try`/`finally`
+
+The starting implementation is correct. It releases the connection even when
+`write` throws:
+
+```ts title="main.ts"
+interface Connection {
+  readonly write: (report: string) => void
+}
+
+const openConnection = (): Connection => {
+  console.log("connection acquired")
+  return {
+    write: (report) => {
+      console.log(`writing ${report}`)
+      throw new Error("disk full")
+    },
+  }
+}
+
+const closeConnection = (_connection: Connection): void => {
+  console.log("connection released")
+}
+
+const storeReport = (report: string): void => {
+  const connection = openConnection()
+  try {
+    connection.write(report)
+  } finally {
+    closeConnection(connection)
+  }
+}
+
+try {
+  storeReport("quarterly-report")
+} catch {
+  console.log("write failed")
+}
+```
+
+The release happens before the failure reaches the caller:
+
+```text title="Output"
+connection acquired
+writing quarterly-report
+connection released
+write failed
+```
+
+The pain point is not a bug in this function. It is the repeated invariant:
+every new use of a connection must put the correct release in the correct
+`finally` block.
+
+<TutorialCheckpoint number={1} total={3} title="The manual lifetime is correct">
+  `try`/`finally` releases the connection after the failed write, but that
+  guarantee belongs only to this call site.
+</TutorialCheckpoint>
+
+### 2. Describe the three phases
+
+Turn acquisition, use, and release into separate Effect values before combining
+them:
+
+```ts title="main.ts"
+import { Effect } from "effect"
+
+interface Connection {
+  readonly write: (report: string) => void
+}
+
+const openConnection = (): Connection => {
+  console.log("connection acquired")
+  return {
+    write: (report) => {
+      console.log(`writing ${report}`)
+      throw new Error("disk full")
+    },
+  }
+}
+
+const closeConnection = (_connection: Connection): void => {
+  console.log("connection released")
+}
+
+const acquire = Effect.sync(openConnection)
+
+const use = (connection: Connection) =>
+  Effect.try({
+    try: () => connection.write("quarterly-report"),
+    catch: () => "WriteFailed" as const,
+  })
+
+const release = (connection: Connection) =>
+  Effect.sync(() => closeConnection(connection))
+```
+
+An Effect is a value that describes work without performing it. `Effect.sync`
+defers synchronous code that is expected not to fail. If that code throws
+unexpectedly, Effect treats it as a defect, which means a bug rather than an
+expected failure.
+
+`Effect.try` also defers synchronous code, but its `catch` function translates a
+thrown value into the expected error channel. Here, `use(connection)` has
+`"WriteFailed"` in that channel.
+
+Nothing has run yet. The three values describe the lifetime phases, but they do
+not yet say that release belongs to acquisition.
+
+<TutorialCheckpoint
+  number={2}
+  total={3}
+  title="Each lifetime phase is explicit"
+>
+  Acquisition, use, and release are lazy Effect values. The failed write is an
+  expected `"WriteFailed"` value rather than an unknown thrown value.
+</TutorialCheckpoint>
+
+### 3. Join the phases into one lifetime
+
+`Effect.acquireUseRelease` connects the three descriptions. Add the program:
+
+```ts title="main.ts"
+import { Effect } from "effect"
+
+interface Connection {
+  readonly write: (report: string) => void
+}
+
+const openConnection = (): Connection => {
+  console.log("connection acquired")
+  return {
+    write: (report) => {
+      console.log(`writing ${report}`)
+      throw new Error("disk full")
+    },
+  }
+}
+
+const closeConnection = (_connection: Connection): void => {
+  console.log("connection released")
+}
+
+const acquire = Effect.sync(openConnection)
+
+const use = (connection: Connection) =>
+  Effect.try({
+    try: () => connection.write("quarterly-report"),
+    catch: () => "WriteFailed" as const,
+  })
+
+const release = (connection: Connection) =>
+  Effect.sync(() => closeConnection(connection))
+
+const program = Effect.acquireUseRelease(acquire, use, release)
+
+try {
+  await Effect.runPromise(program)
+} catch {
+  console.log("write failed")
+}
+```
+
+`Effect.acquireUseRelease` runs `acquire`, passes the connection to `use`, and
+runs `release` after use finishes. Release runs whether use succeeds, fails, or
+is interrupted. Interruption is Effect's term for cancelling a running
+computation. If acquisition itself fails, there is no resource to release.
+
+`Effect.runPromise` starts the complete lifetime. It rejects here because the
+expected `"WriteFailed"` value was not recovered, but release runs first. The
+output is the same as the `try`/`finally` version.
+
+<TutorialCheckpoint
+  number={3}
+  total={3}
+  title="Cleanup travels with the operation"
+>
+  The connection is released before the failure reaches the caller. Future
+  callers run one operation instead of rebuilding the cleanup discipline.
+</TutorialCheckpoint>
+
+The strength is not shorter syntax for `finally`. It is making the resource
+lifetime one composable value, so cleanup cannot be separated from the work it
+protects.

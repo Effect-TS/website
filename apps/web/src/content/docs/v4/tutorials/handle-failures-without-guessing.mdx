@@ -1,0 +1,393 @@
+---
+title: Handle failures without guessing
+description: Keep expected payment failures visible in the type instead of recovering them from unknown Promise rejections.
+diataxis: tutorial
+sidebar:
+  order: 1
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="Expected failures stay visible in the type">
+
+A Promise returned by a payment SDK describes only success. Its rejections reach
+`catch` as `unknown`, so callers must recover the possible failures from
+documentation or conventions.
+
+An Effect keeps the success value and the expected failures in its type. The
+caller can see the complete contract before running the operation.
+
+</EffectStrength>
+
+## What you will build
+
+You will place an order through a small simulated payment SDK. The SDK can
+authorize a payment, decline it, or be unavailable. The starting `placeOrder`
+handles those cases correctly, but the SDK Promise type hides them. You will
+move the same failure information into an Effect and then handle it explicitly
+at the program boundary.
+
+A checkpoint marks each result in the progression.
+
+## What you will learn
+
+By the end, you will know the basic Effect pattern for expected failures:
+
+- adapt a Promise API with `Effect.tryPromise`;
+- turn unknown rejections into tagged errors;
+- handle every visible tag before running the program, leaving `never` in the
+  error channel.
+
+## Project setup
+
+The project uses one file:
+
+| File      | Role                                                     |
+| --------- | -------------------------------------------------------- |
+| `main.ts` | Contains the payment simulation and the code you change. |
+
+## Make the failure contract visible
+
+### 1. Start with a Promise that handles the provider errors
+
+The SDK documents two error classes. The example uses sandbox payment tokens so
+each provider result is reproducible:
+
+```ts title="main.ts"
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "pm_card_visa" | "pm_card_declined" | "pm_provider_timeout"
+
+class ProviderDeclined extends Error {}
+class ProviderUnavailable extends Error {}
+
+interface PaymentAuthorization {
+  readonly authorizationId: string
+}
+
+const authorizePayment = async (
+  paymentToken: PaymentToken,
+): Promise<PaymentAuthorization> => {
+  if (paymentToken === "pm_card_declined") throw new ProviderDeclined()
+  if (paymentToken === "pm_provider_timeout") throw new ProviderUnavailable()
+  return { authorizationId: "pauth_123" }
+}
+
+interface PlaceOrderRequest {
+  readonly paymentToken: PaymentToken
+}
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+  readonly authorizationId: string
+}
+
+const placeOrder = async (request: PlaceOrderRequest) => {
+  try {
+    const authorization = await authorizePayment(request.paymentToken)
+
+    return {
+      orderId: "order_123",
+      status: "accepted" as const,
+      authorizationId: authorization.authorizationId,
+    }
+  } catch (cause) {
+    // Promise rejections reach catch as unknown values.
+    if (cause instanceof ProviderDeclined) {
+      return {
+        status: "rejected" as const,
+        reason: "PaymentDeclined" as const,
+      }
+    }
+    if (cause instanceof ProviderUnavailable) {
+      return {
+        status: "rejected" as const,
+        reason: "PaymentProviderUnavailable" as const,
+      }
+    }
+    return {
+      status: "rejected" as const,
+      reason: "UnexpectedFailure" as const,
+    }
+  }
+}
+
+console.log(await placeOrder({ paymentToken: "pm_card_declined" }))
+```
+
+The result is correct:
+
+```text title="Output"
+{ status: 'rejected', reason: 'PaymentDeclined' }
+```
+
+The limitation is in the type of `authorizePayment`:
+
+```ts title="Inferred type, not code to copy"
+declare function authorizePayment(
+  paymentToken: PaymentToken,
+): Promise<PaymentAuthorization>
+```
+
+It says nothing about the two documented failures. `placeOrder` must recover
+them from `unknown` and remember to keep the fallback.
+
+<TutorialCheckpoint
+  number={1}
+  total={3}
+  title="The behavior is correct but the contract is incomplete"
+>
+  `placeOrder` handles every provider result, but the SDK Promise type describes
+  only the payment authorization.
+</TutorialCheckpoint>
+
+### 2. Move the provider failures into the Effect type
+
+First, give each rejection an idiomatic Effect error. `Data.TaggedError`
+creates a typed error class and adds a readonly `_tag` field with the supplied
+name. Effect uses that standard field to distinguish failures without exposing
+the SDK classes to the caller.
+
+Then replace the `try` / `catch` inside `placeOrder` with `Effect.tryPromise`:
+
+```ts title="main.ts" ins={1,21-27,39-60}
+import { Data, Effect } from "effect"
+
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "pm_card_visa" | "pm_card_declined" | "pm_provider_timeout"
+
+class ProviderDeclined extends Error {}
+class ProviderUnavailable extends Error {}
+
+interface PaymentAuthorization {
+  readonly authorizationId: string
+}
+
+const authorizePayment = async (
+  paymentToken: PaymentToken,
+): Promise<PaymentAuthorization> => {
+  if (paymentToken === "pm_card_declined") throw new ProviderDeclined()
+  if (paymentToken === "pm_provider_timeout") throw new ProviderUnavailable()
+  return { authorizationId: "pauth_123" }
+}
+
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
+class PaymentProviderUnavailable extends Data.TaggedError(
+  "PaymentProviderUnavailable",
+) {}
+class UnexpectedFailure extends Data.TaggedError("UnexpectedFailure")<{
+  readonly cause: unknown
+}> {}
+
+interface PlaceOrderRequest {
+  readonly paymentToken: PaymentToken
+}
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+  readonly authorizationId: string
+}
+
+const placeOrder = (request: PlaceOrderRequest) =>
+  Effect.tryPromise({
+    try: async (): Promise<AcceptedOrder> => {
+      const authorization = await authorizePayment(request.paymentToken)
+
+      return {
+        orderId: "order_123",
+        status: "accepted",
+        authorizationId: authorization.authorizationId,
+      }
+    },
+    // Translate SDK-specific errors into the application contract.
+    catch: (cause) => {
+      if (cause instanceof ProviderDeclined) {
+        return new PaymentDeclined()
+      }
+      if (cause instanceof ProviderUnavailable) {
+        return new PaymentProviderUnavailable()
+      }
+      return new UnexpectedFailure({ cause })
+    },
+  })
+```
+
+Each `Data.TaggedError` instance is an `Error` with a typed `_tag`.
+`UnexpectedFailure` also preserves the original rejection in its `cause` field.
+
+`Effect.tryPromise` adapts the Promise-producing SDK without calling it yet.
+When the resulting Effect runs, a resolved Promise becomes a success and the
+inline `catch` translates a rejection into one of the payment failure classes.
+
+An Effect is a value that describes a computation. Creating it does not run the
+SDK call. The first type argument is the success value; the second is the
+expected failure, called the error channel. The inferred type of `placeOrder` is
+now:
+
+```ts title="Inferred type, not code to copy"
+declare function placeOrder(
+  request: PlaceOrderRequest,
+): Effect.Effect<
+  AcceptedOrder,
+  PaymentDeclined | PaymentProviderUnavailable | UnexpectedFailure
+>
+```
+
+The editor can now show every expected payment failure without inspecting the
+implementation or SDK documentation. You did not write a separate union type:
+TypeScript inferred the union from the values returned by `catch`.
+
+<TutorialCheckpoint
+  number={2}
+  total={3}
+  title="The type contains the missing information"
+>
+  `placeOrder` is now a description. Its type exposes both the accepted order
+  and the inferred union of payment failures.
+</TutorialCheckpoint>
+
+### 3. Handle both channels before running
+
+Keep `placeOrder` focused on placing the order. Add `handleOrder` at the
+program boundary to turn every visible payment failure into a rejection
+response:
+
+```ts title="main.ts" ins={62-84}
+import { Data, Effect } from "effect"
+
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "pm_card_visa" | "pm_card_declined" | "pm_provider_timeout"
+
+class ProviderDeclined extends Error {}
+class ProviderUnavailable extends Error {}
+
+interface PaymentAuthorization {
+  readonly authorizationId: string
+}
+
+const authorizePayment = async (
+  paymentToken: PaymentToken,
+): Promise<PaymentAuthorization> => {
+  if (paymentToken === "pm_card_declined") throw new ProviderDeclined()
+  if (paymentToken === "pm_provider_timeout") throw new ProviderUnavailable()
+  return { authorizationId: "pauth_123" }
+}
+
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined") {}
+class PaymentProviderUnavailable extends Data.TaggedError(
+  "PaymentProviderUnavailable",
+) {}
+class UnexpectedFailure extends Data.TaggedError("UnexpectedFailure")<{
+  readonly cause: unknown
+}> {}
+
+interface PlaceOrderRequest {
+  readonly paymentToken: PaymentToken
+}
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+  readonly authorizationId: string
+}
+
+const placeOrder = (request: PlaceOrderRequest) =>
+  Effect.tryPromise({
+    try: async (): Promise<AcceptedOrder> => {
+      const authorization = await authorizePayment(request.paymentToken)
+
+      return {
+        orderId: "order_123",
+        status: "accepted",
+        authorizationId: authorization.authorizationId,
+      }
+    },
+    // Translate SDK-specific errors into the application contract.
+    catch: (cause) => {
+      if (cause instanceof ProviderDeclined) {
+        return new PaymentDeclined()
+      }
+      if (cause instanceof ProviderUnavailable) {
+        return new PaymentProviderUnavailable()
+      }
+      return new UnexpectedFailure({ cause })
+    },
+  })
+
+const handleOrder = (request: PlaceOrderRequest) =>
+  // Each key matches one inferred failure _tag.
+  Effect.catchTags(placeOrder(request), {
+    PaymentDeclined: () =>
+      Effect.succeed({
+        status: "rejected" as const,
+        reason: "PaymentDeclined" as const,
+      }),
+    PaymentProviderUnavailable: () =>
+      Effect.succeed({
+        status: "rejected" as const,
+        reason: "PaymentProviderUnavailable" as const,
+      }),
+    UnexpectedFailure: () =>
+      Effect.succeed({
+        status: "rejected" as const,
+        reason: "UnexpectedFailure" as const,
+      }),
+  })
+
+console.log(
+  await Effect.runPromise(handleOrder({ paymentToken: "pm_card_declined" })),
+)
+```
+
+`Effect.catchTags` reads the `_tag` field and passes each error to its matching
+handler. Every handler returns an Effect. Here `Effect.succeed` describes an
+already available rejection response without performing a side effect. Because
+the table handles every inferred payment failure, no expected failure remains in
+the error channel; an accepted order passes through unchanged.
+
+The inferred type of `handleOrder` shows that result:
+
+```ts title="Inferred type, not code to copy"
+declare function handleOrder(
+  request: PlaceOrderRequest,
+): Effect.Effect<
+  | AcceptedOrder
+  | { status: "rejected"; reason: "PaymentDeclined" }
+  | { status: "rejected"; reason: "PaymentProviderUnavailable" }
+  | { status: "rejected"; reason: "UnexpectedFailure" },
+  never
+>
+```
+
+`never` means no expected failure remains in the error channel. The payment
+failures have all been turned into ordinary success values before the program
+runs.
+
+`Effect.runPromise` runs the completed computation at the edge of the program.
+It can run an Effect that still has expected failures, but then the returned
+Promise may reject. Here the `never` error channel tells you that these payment
+failures have already been handled, so the returned Promise resolves with
+either the accepted order or one of the handled rejection responses.
+
+The output remains:
+
+```text title="Output"
+{ status: 'rejected', reason: 'PaymentDeclined' }
+```
+
+<TutorialCheckpoint
+  number={3}
+  total={3}
+  title="The boundary handles the contract it can see"
+>
+  The runtime behavior is unchanged, but the possible failures travel with
+  `placeOrder` until `handleOrder` handles them deliberately.
+</TutorialCheckpoint>
+
+The strength is not that Effect can catch a rejected Promise. Ordinary
+TypeScript already did that correctly. Effect keeps the failure contract
+attached to the computation while the program is built and combined.

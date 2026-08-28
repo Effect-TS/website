@@ -1,0 +1,231 @@
+---
+title: Send rich domain models over the wire
+description: Use one Schema to validate a domain model and derive the JSON representation that reconstructs it.
+diataxis: tutorial
+sidebar:
+  order: 4
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="One Schema connects domain values and JSON">
+
+JSON supports strings, numbers, booleans, arrays, objects, and `null`. An
+application often needs richer values, such as `Date`, on both sides of a
+boundary.
+
+Effect Schema can describe the domain value once, derive its JSON
+representation, validate incoming data, and reconstruct the rich value.
+
+</EffectStrength>
+
+## What you will build
+
+You will send an invoice containing a JavaScript `Date` through a JSON
+round-trip. Ordinary `JSON.stringify` turns the date into a string and
+`JSON.parse` cannot know how to rebuild it. The finished Schema codec performs
+both directions from one model definition.
+
+## What you will learn
+
+By the end, you will know the basic Effect Schema pattern for JSON boundaries:
+
+- describe a rich domain value with `Schema.Struct`;
+- derive a JSON codec from the same Schema;
+- encode and decode boundary data without duplicating the model.
+
+## Project setup
+
+The project uses one file:
+
+| File      | Role                                                |
+| --------- | --------------------------------------------------- |
+| `main.ts` | Contains the invoice model and the code you change. |
+
+## Preserve the model across JSON
+
+### 1. Observe what JSON loses
+
+Start with an ordinary TypeScript value:
+
+```ts title="main.ts"
+interface Invoice {
+  readonly id: string
+  readonly issuedAt: Date
+}
+
+const invoice: Invoice = {
+  id: "invoice-1",
+  issuedAt: new Date("2026-08-20T10:00:00.000Z"),
+}
+
+const json = JSON.stringify(invoice)
+const restored = JSON.parse(json) as Invoice
+
+console.log(json)
+console.log(restored.issuedAt instanceof Date)
+```
+
+The cast changes only TypeScript's opinion. It does not change the parsed
+value:
+
+```text title="Output"
+{"id":"invoice-1","issuedAt":"2026-08-20T10:00:00.000Z"}
+false
+```
+
+The sender relied on `Date`'s built-in JSON behavior, while the receiver trusted
+an unchecked cast. The two sides have no shared runtime contract.
+
+<TutorialCheckpoint
+  number={1}
+  total={4}
+  title="The type and runtime value disagree"
+>
+  TypeScript says `issuedAt` is a `Date`, but the value returned by `JSON.parse`
+  is still a string.
+</TutorialCheckpoint>
+
+### 2. Describe the domain value with Schema
+
+Replace the interface with a Schema:
+
+```ts title="main.ts"
+import { Schema } from "effect"
+
+const Invoice = Schema.Struct({
+  id: Schema.String,
+  issuedAt: Schema.Date,
+})
+
+type Invoice = typeof Invoice.Type
+
+const invoice: Invoice = {
+  id: "invoice-1",
+  issuedAt: new Date("2026-08-20T10:00:00.000Z"),
+}
+
+console.log(invoice.issuedAt instanceof Date)
+```
+
+A Schema is an immutable value that describes which runtime values are valid.
+Creating it does not inspect or convert data. `Schema.String` accepts a string,
+`Schema.Date` accepts a valid JavaScript `Date`, and `Schema.Struct` combines
+those fields into one object model.
+
+`typeof Invoice.Type` derives the TypeScript type from the same definition. The
+model no longer has a separate interface that can drift away from its runtime
+checks.
+
+<TutorialCheckpoint
+  number={2}
+  total={4}
+  title="One definition owns the domain model"
+>
+  The Schema and the TypeScript type now describe the same invoice containing a
+  real `Date`.
+</TutorialCheckpoint>
+
+### 3. Derive the JSON representation
+
+Ask Schema for a JSON codec, then use its encoder before calling
+`JSON.stringify`:
+
+```ts title="main.ts"
+import { Schema } from "effect"
+
+const Invoice = Schema.Struct({
+  id: Schema.String,
+  issuedAt: Schema.Date,
+})
+
+const InvoiceJson = Schema.toCodecJson(Invoice)
+
+type Invoice = typeof Invoice.Type
+
+const invoice: Invoice = {
+  id: "invoice-1",
+  issuedAt: new Date("2026-08-20T10:00:00.000Z"),
+}
+
+const encodeInvoice = Schema.encodeUnknownSync(InvoiceJson)
+const json = JSON.stringify(encodeInvoice(invoice))
+console.log(json)
+```
+
+`Schema.toCodecJson` derives a codec with two directions. Encoding turns the
+domain value into JSON-safe data; decoding will perform the reverse operation.
+For `Schema.Date`, the JSON representation is an ISO date string.
+
+`Schema.encodeUnknownSync` creates a synchronous encoder. Calling it first
+checks that the input satisfies `Invoice`, then returns the JSON-safe object. It
+throws a Schema error if the application tries to encode an invalid value.
+
+The JSON remains familiar:
+
+```text title="Output"
+{"id":"invoice-1","issuedAt":"2026-08-20T10:00:00.000Z"}
+```
+
+<TutorialCheckpoint
+  number={3}
+  total={4}
+  title="The JSON format comes from the model"
+>
+  Schema validates the invoice and encodes its `Date` as an ISO string without a
+  handwritten serializer.
+</TutorialCheckpoint>
+
+### 4. Reconstruct the domain value
+
+Use the other direction of the same codec after `JSON.parse`:
+
+```ts title="main.ts"
+import { Schema } from "effect"
+
+const Invoice = Schema.Struct({
+  id: Schema.String,
+  issuedAt: Schema.Date,
+})
+
+const InvoiceJson = Schema.toCodecJson(Invoice)
+
+type Invoice = typeof Invoice.Type
+
+const invoice: Invoice = {
+  id: "invoice-1",
+  issuedAt: new Date("2026-08-20T10:00:00.000Z"),
+}
+
+const encodeInvoice = Schema.encodeUnknownSync(InvoiceJson)
+const json = JSON.stringify(encodeInvoice(invoice))
+
+const decodeInvoice = Schema.decodeUnknownSync(InvoiceJson)
+const restored = decodeInvoice(JSON.parse(json))
+console.log(restored.issuedAt instanceof Date)
+```
+
+`Schema.decodeUnknownSync` validates an unknown value against the JSON side of
+the codec and reconstructs its domain side. Invalid JSON data causes a Schema
+error instead of entering the application behind a cast.
+
+The final output is:
+
+```text title="Output"
+true
+```
+
+<TutorialCheckpoint
+  number={4}
+  total={4}
+  title="The round-trip preserves the rich value"
+>
+  The receiver validates the JSON and recovers a real JavaScript `Date` from the
+  same Schema the sender used to encode it.
+</TutorialCheckpoint>
+
+The strength is not custom date parsing. One model definition now owns the
+TypeScript type, runtime validation, JSON encoding, and JSON decoding.

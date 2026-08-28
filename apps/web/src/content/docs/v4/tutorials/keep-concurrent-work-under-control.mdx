@@ -1,0 +1,253 @@
+---
+title: Keep concurrent work under control
+description: Limit concurrent provider calls with one policy while preserving the input order of their results.
+diataxis: tutorial
+sidebar:
+  order: 2
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="Concurrency policy belongs to the computation">
+
+`Promise.all` starts every Promise it receives. Adding a safe concurrency limit
+requires a queue or another coordination mechanism.
+
+`Effect.forEach` keeps the work, its concurrency limit, and its result ordering
+in one computation.
+
+</EffectStrength>
+
+## What you will build
+
+You will request five prices from a simulated catalog provider. Each request
+logs how many lookups are active. The Promise version reaches five concurrent
+lookups; the finished Effect version never exceeds two and still returns prices
+in the original product order.
+
+## What you will learn
+
+By the end, you will know the basic Effect pattern for bounded concurrency:
+
+- describe one provider call with `Effect.tryPromise`;
+- run many calls with `Effect.forEach`;
+- set `concurrency` on the group so the limit and result ordering stay together.
+
+## Project setup
+
+The project uses one file:
+
+| File      | Role                                                     |
+| --------- | -------------------------------------------------------- |
+| `main.ts` | Contains the catalog simulation and the code you change. |
+
+## Put a limit around the whole group
+
+### 1. Observe unbounded Promise concurrency
+
+The provider uses fixed delays so calls finish in a different order from the
+input. The `finally` block keeps the activity count correct even if a lookup
+rejects:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+
+const products = ["coffee", "tea", "cocoa", "cookies", "jam"]
+const delays = new Map([
+  ["coffee", 100],
+  ["tea", 80],
+  ["cocoa", 60],
+  ["cookies", 40],
+  ["jam", 20],
+])
+
+let active = 0
+let maxActive = 0
+
+const lookupPrice = async (product: string) => {
+  active += 1
+  maxActive = Math.max(maxActive, active)
+  console.log(`start ${product}, active=${active}`)
+
+  try {
+    await sleep(delays.get(product) ?? 10)
+    return `${product}: EUR 12.50`
+  } finally {
+    active -= 1
+  }
+}
+
+const prices = await Promise.all(products.map(lookupPrice))
+console.log(prices)
+console.log(`maximum active lookups: ${maxActive}`)
+```
+
+All five `start` lines appear before the first lookup finishes. The final lines
+show that `Promise.all` preserves input order but starts every request:
+
+```text title="Relevant output"
+[
+  'coffee: EUR 12.50',
+  'tea: EUR 12.50',
+  'cocoa: EUR 12.50',
+  'cookies: EUR 12.50',
+  'jam: EUR 12.50'
+]
+maximum active lookups: 5
+```
+
+The Promise code is reasonable. Its missing capability is a place to express
+the provider's concurrency limit.
+
+<TutorialCheckpoint
+  number={1}
+  total={3}
+  title="The result order is stable but the load is unbounded"
+>
+  The five results follow the input order, while all five provider calls run at
+  the same time.
+</TutorialCheckpoint>
+
+### 2. Give Effect control of each lookup
+
+Adapt each provider Promise, then combine the resulting Effects. Keep
+concurrency unbounded for this step so only the representation changes:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+
+const products = ["coffee", "tea", "cocoa", "cookies", "jam"]
+const delays = new Map([
+  ["coffee", 100],
+  ["tea", 80],
+  ["cocoa", 60],
+  ["cookies", 40],
+  ["jam", 20],
+])
+
+let active = 0
+let maxActive = 0
+
+const lookupPrice = async (product: string) => {
+  active += 1
+  maxActive = Math.max(maxActive, active)
+  console.log(`start ${product}, active=${active}`)
+
+  try {
+    await sleep(delays.get(product) ?? 10)
+    return `${product}: EUR 12.50`
+  } finally {
+    active -= 1
+  }
+}
+
+const quoteProducts = Effect.forEach(
+  products,
+  (product) =>
+    Effect.tryPromise({
+      try: () => lookupPrice(product),
+      catch: () => "CatalogUnavailable" as const,
+    }),
+  { concurrency: "unbounded" },
+)
+
+const prices = await Effect.runPromise(quoteProducts)
+console.log(prices)
+console.log(`maximum active lookups: ${maxActive}`)
+```
+
+`Effect.tryPromise` describes one provider call without starting it. A resolved
+Promise becomes the success value; a rejection becomes the
+`"CatalogUnavailable"` value in the error channel.
+
+`Effect.forEach` applies that function to every product and returns one Effect
+for the whole group. The `"unbounded"` option intentionally reproduces the
+current behavior. The success value is an array in input order, even though the
+lookups finish in another order.
+
+`Effect.runPromise` starts the complete group at the edge of the program. The
+output still reports `maximum active lookups: 5`. The behavior has not improved
+yet, but Effect now controls when every lookup starts.
+
+<TutorialCheckpoint
+  number={2}
+  total={3}
+  title="Effect owns the concurrent group"
+>
+  The output is unchanged. Each provider call is now part of one Effect whose
+  concurrency policy can be changed in one place.
+</TutorialCheckpoint>
+
+### 3. Set the provider limit
+
+Change the concurrency option from `"unbounded"` to `2`:
+
+```ts title="main.ts"
+import { setTimeout as sleep } from "node:timers/promises"
+import { Effect } from "effect"
+
+const products = ["coffee", "tea", "cocoa", "cookies", "jam"]
+const delays = new Map([
+  ["coffee", 100],
+  ["tea", 80],
+  ["cocoa", 60],
+  ["cookies", 40],
+  ["jam", 20],
+])
+
+let active = 0
+let maxActive = 0
+
+const lookupPrice = async (product: string) => {
+  active += 1
+  maxActive = Math.max(maxActive, active)
+  console.log(`start ${product}, active=${active}`)
+
+  try {
+    await sleep(delays.get(product) ?? 10)
+    return `${product}: EUR 12.50`
+  } finally {
+    active -= 1
+  }
+}
+
+const quoteProducts = Effect.forEach(
+  products,
+  (product) =>
+    Effect.tryPromise({
+      try: () => lookupPrice(product),
+      catch: () => "CatalogUnavailable" as const,
+    }),
+  { concurrency: 2 },
+)
+
+const prices = await Effect.runPromise(quoteProducts)
+console.log(prices)
+console.log(`maximum active lookups: ${maxActive}`)
+```
+
+The numeric `concurrency` value is the maximum number of item Effects allowed
+to run together. It does not change the order of the collected results.
+
+The final output keeps the same price array and ends with:
+
+```text title="Relevant output"
+maximum active lookups: 2
+```
+
+<TutorialCheckpoint
+  number={3}
+  total={3}
+  title="The policy is explicit and observable"
+>
+  At most two lookups run at once, while the result array still follows the
+  original product order.
+</TutorialCheckpoint>
+
+The strength is the combination: the operation describes both what should run
+and how much of it may run at once. There is no separate queue to keep in sync
+with the business code.

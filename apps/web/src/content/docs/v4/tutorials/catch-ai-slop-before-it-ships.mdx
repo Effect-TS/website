@@ -1,0 +1,228 @@
+---
+title: Catch AI slop before it ships
+description: Use Effect's types and diagnostics to turn a plausible generated change into two concrete corrections.
+diataxis: tutorial
+sidebar:
+  order: 6
+---
+
+import {
+  TutorialCheckpoint,
+  EffectStrength,
+} from "@astrojs/starlight/components"
+
+<EffectStrength title="Types and tools expose hidden mistakes">
+
+AI-generated code can produce the expected happy-path output while lying about
+failure or creating work that never runs.
+
+Effect's precise computation type and Effect-aware diagnostics turn those
+plausible mistakes into specific evidence a developer can correct.
+
+</EffectStrength>
+
+## What you will build
+
+A coding agent has generated a small program that reads `message.txt`. The file
+is present, so the program prints its contents. Two mistakes remain hidden:
+
+- the declared type says the file read cannot fail;
+- a log Effect is created but never run.
+
+You will reproduce the change, inspect two diagnostics, and correct one finding
+at a time.
+
+## What you will learn
+
+By the end, you will know the basic Effect pattern for checking generated code:
+
+- read an Effect type to spot an impossible error claim;
+- use Effect-aware diagnostics to find work that is created but never run;
+- fix one concrete finding at a time and verify the program still behaves the
+  same.
+
+## Project setup
+
+The project uses these files:
+
+| File             | Role                                                      |
+| ---------------- | --------------------------------------------------------- |
+| `main.ts`        | Contains the generated code and the corrections you make. |
+| `message.txt`    | Fixed input containing `hello from the file`.             |
+| `.oxlintrc.json` | Enables the recommended Effect diagnostics.               |
+| `package.json`   | Records the local diagnostic command.                     |
+
+Add the command-line diagnostics to the project where Effect is already
+installed:
+
+```sh title="Install the diagnostics"
+npm install --save-dev typescript@latest @types/node@latest @effect/tsgo oxlint oxlint-tsgolint
+npx effect-tsgo patch --oxlint
+npm pkg set scripts.prepare="effect-tsgo patch --oxlint"
+npm pkg set scripts.lint="oxlint ."
+```
+
+The `prepare` script reapplies the Effect patch after future installs. Configure
+the recommended rules with:
+
+```json title=".oxlintrc.json"
+{
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"]
+}
+```
+
+Create the fixed input:
+
+```text title="message.txt"
+hello from the file
+```
+
+## Turn generated code into an evidence loop
+
+### 1. Reproduce the plausible change
+
+The generated program describes a file read and a log operation, then runs only
+the read:
+
+```ts title="main.ts"
+import { readFile } from "node:fs/promises"
+import { Effect } from "effect"
+
+const messageFile = new URL("./message.txt", import.meta.url)
+
+const readMessage: Effect.Effect<string, never> = Effect.tryPromise(() =>
+  readFile(messageFile, "utf8"),
+)
+
+Effect.log("Reading message")
+
+console.log(await Effect.runPromise(readMessage))
+```
+
+An Effect is a value that describes a computation. Creating one does not read a
+file or emit a log. Its first type argument is the success value and its second
+is the expected error channel. `never` claims that no expected failure exists.
+
+`Effect.tryPromise` adapts a Promise-producing function lazily. A resolution
+becomes success, while a rejection enters the error channel. `Effect.log`
+describes a log operation, but this code discards that value. `Effect.runPromise`
+runs only `readMessage`.
+
+It appears to work:
+
+```text title="Output"
+hello from the file
+```
+
+The missing log and false error type do not affect this successful input.
+
+<TutorialCheckpoint
+  number={1}
+  total={4}
+  title="The happy path is not enough evidence"
+>
+  The program prints the file, but that output does not prove its Effect
+  descriptions are complete or truthful.
+</TutorialCheckpoint>
+
+### 2. Ask the tools for specific findings
+
+Run the configured check:
+
+```sh title="Check the generated code"
+npm run lint
+```
+
+The command reports two Effect rules:
+
+| Rule                              | Evidence                                             |
+| --------------------------------- | ---------------------------------------------------- |
+| `effecttsgo/missing-effect-error` | The file read can fail but its type says `never`.    |
+| `effecttsgo/floating-effect`      | The log Effect is created and immediately discarded. |
+
+These findings are narrower than a request to “improve” the generated code.
+Each points to one observable mismatch.
+
+<TutorialCheckpoint
+  number={2}
+  total={4}
+  title="The mistakes have names and locations"
+>
+  The successful runtime result remains, while the diagnostics identify one
+  false contract and one operation that never runs.
+</TutorialCheckpoint>
+
+### 3. Preserve the inferred file failure
+
+Remove the false annotation and let Effect retain the failure inferred from the
+Promise:
+
+```ts title="main.ts"
+import { readFile } from "node:fs/promises"
+import { Effect } from "effect"
+
+const messageFile = new URL("./message.txt", import.meta.url)
+
+const readMessage = Effect.tryPromise(() => readFile(messageFile, "utf8"))
+
+Effect.log("Reading message")
+
+console.log(await Effect.runPromise(readMessage))
+```
+
+The inferred type is now honest:
+
+```ts title="Inferred type, not code to copy"
+declare const readMessage: Effect.Effect<string, Cause.UnknownError>
+```
+
+`Cause.UnknownError` is Effect's built-in wrapper for a rejected or thrown value
+that has not been classified. Its `cause` field preserves the original value.
+Deleting `message.txt` can now fail in the error channel instead of contradicting
+the declared type.
+
+Run `npm run lint` again. The missing-error finding is gone; the floating log
+remains. Fixing one diagnostic at a time makes the effect of each change clear.
+
+<TutorialCheckpoint
+  number={3}
+  total={4}
+  title="The error channel tells the truth"
+>
+  `readMessage` now exposes its possible file failure. One independent finding
+  remains for the discarded log.
+</TutorialCheckpoint>
+
+### 4. Put the log in the program that runs
+
+Sequence the log before the file read, then run the combined Effect:
+
+```ts title="main.ts"
+import { readFile } from "node:fs/promises"
+import { Effect } from "effect"
+
+const messageFile = new URL("./message.txt", import.meta.url)
+
+const readMessage = Effect.tryPromise(() => readFile(messageFile, "utf8"))
+
+const program = Effect.flatMap(Effect.log("Reading message"), () => readMessage)
+
+console.log(await Effect.runPromise(program))
+```
+
+`Effect.flatMap` sequences dependent Effect values. It runs the callback only
+after the log succeeds, then continues with `readMessage`. Both operations are
+now part of the value passed to `Effect.runPromise`.
+
+`npm run lint` now exits without findings. The program emits an Effect log
+containing `Reading message`, followed by the file contents.
+
+<TutorialCheckpoint number={4} total={4} title="The evidence loop closes">
+  Both diagnostics are resolved, the log runs, and the successful file output
+  remains unchanged.
+</TutorialCheckpoint>
+
+The strength is the feedback loop: generated code produces a result, Effect's
+types and tools expose what that result cannot prove, and each correction is
+small enough to verify.
