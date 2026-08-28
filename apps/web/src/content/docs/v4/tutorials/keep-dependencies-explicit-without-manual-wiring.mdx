@@ -29,6 +29,14 @@ email service through every function. You will first describe the work with
 Effect, then replace the parameter with a typed service requirement, and
 finally provide a console implementation in one place.
 
+## What you will learn
+
+By the end, you will know the basic Effect pattern for services:
+
+- describe effectful work with a service requirement;
+- replace manual parameter forwarding with `Context.Service`;
+- provide the implementation once with `Effect.provideService`.
+
 ## Project setup
 
 The project uses one file:
@@ -36,12 +44,6 @@ The project uses one file:
 | File      | Role                                                    |
 | --------- | ------------------------------------------------------- |
 | `main.ts` | Contains the registration flow and the code you change. |
-
-Run each complete version with:
-
-```sh title="Run the example"
-node main.ts
-```
 
 ## Move wiring to the application boundary
 
@@ -100,7 +102,7 @@ forwards it. A longer call chain repeats the same plumbing at every level.
 Keep the parameter for now. Change only the service methods and registration
 flow from Promises to Effects:
 
-```ts title="main.ts" ins={1,4,13,16-24}
+```ts title="main.ts"
 import { Effect } from "effect"
 
 interface Email {
@@ -154,7 +156,7 @@ output is unchanged, and the `email` parameter is still present.
 Create a service key and read the matching implementation inside
 `sendWelcome`:
 
-```ts title="main.ts" ins={1,7,18-26}
+```ts title="main.ts"
 import { Context, Effect } from "effect"
 
 interface Email {
@@ -211,7 +213,7 @@ has disappeared, but the dependency has not become hidden.
 
 Provide `ConsoleEmail` immediately before running the application:
 
-```ts title="main.ts" ins={28,30}
+```ts title="main.ts"
 import { Context, Effect } from "effect"
 
 interface Email {

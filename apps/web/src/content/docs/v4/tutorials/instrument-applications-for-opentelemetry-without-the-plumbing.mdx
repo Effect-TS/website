@@ -37,6 +37,15 @@ checkout
   payment.authorize
 ```
 
+## What you will learn
+
+By the end, you will know the basic Effect pattern for tracing structured work:
+
+- describe a sequence as one Effect computation;
+- attach spans with `Effect.withSpan`;
+- provide a tracer with `Effect.withTracer` so parent-child relationships follow
+  the computation structure.
+
 ## Project setup
 
 The project uses two files:
@@ -78,12 +87,6 @@ export const printTrace = (): string =>
 and parent of each span, while `Option.getOrUndefined` reads the optional parent
 for display. Application code will interact only with `localTracer` and
 `printTrace`.
-
-Run each complete version with:
-
-```sh title="Run the example"
-node main.ts
-```
 
 ## Turn a sequence into a trace tree
 
@@ -137,7 +140,7 @@ context-propagation mechanism.
 Adapt each provider Promise and combine them in the same order. Do not add
 tracing yet:
 
-```ts title="main.ts" ins={2,4,9,14-26}
+```ts title="main.ts"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
 
@@ -188,7 +191,7 @@ program boundary. The output is unchanged.
 
 Wrap the combined operation in one root span and run it with the local tracer:
 
-```ts title="main.ts" ins={3,25-30}
+```ts title="main.ts"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
 import { localTracer, printTrace } from "./tracing.ts"
@@ -248,7 +251,7 @@ checkout
 
 Give each provider Effect its own span:
 
-```ts title="main.ts" ins={18,23}
+```ts title="main.ts"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
 import { localTracer, printTrace } from "./tracing.ts"

@@ -28,6 +28,14 @@ logs how many lookups are active. The Promise version reaches five concurrent
 lookups; the finished Effect version never exceeds two and still returns prices
 in the original product order.
 
+## What you will learn
+
+By the end, you will know the basic Effect pattern for bounded concurrency:
+
+- describe one provider call with `Effect.tryPromise`;
+- run many calls with `Effect.forEach`;
+- set `concurrency` on the group so the limit and result ordering stay together.
+
 ## Project setup
 
 The project uses one file:
@@ -35,12 +43,6 @@ The project uses one file:
 | File      | Role                                                     |
 | --------- | -------------------------------------------------------- |
 | `main.ts` | Contains the catalog simulation and the code you change. |
-
-Run each version with:
-
-```sh title="Run the example"
-node main.ts
-```
 
 ## Put a limit around the whole group
 
@@ -114,7 +116,7 @@ the provider's concurrency limit.
 Adapt each provider Promise, then combine the resulting Effects. Keep
 concurrency unbounded for this step so only the representation changes:
 
-```ts title="main.ts" ins={2,29-38}
+```ts title="main.ts"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
 
@@ -184,7 +186,7 @@ yet, but Effect now controls when every lookup starts.
 
 Change the concurrency option from `"unbounded"` to `2`:
 
-```ts title="main.ts" ins={36}
+```ts title="main.ts"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect } from "effect"
 

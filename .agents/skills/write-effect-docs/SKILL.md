@@ -126,9 +126,8 @@ methods such as `.pipe(...)`; a qualified-name scan does not find them reliably.
 
 - Verify every snippet against the installed package rather than remembered
   APIs.
-- Keep comparisons honest. Show the strongest reasonable implementation a
-  competent TypeScript developer would write with the APIs and information
-  already available.
+- Keep comparisons honest. Show the strongest reasonable TypeScript
+  implementation with the APIs and information already available.
 - Never omit documented errors, standard type narrowing, validation, cleanup,
   cancellation, or other ordinary handling merely to manufacture a problem
   for Effect to solve.

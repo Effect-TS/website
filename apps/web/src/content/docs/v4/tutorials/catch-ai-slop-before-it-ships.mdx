@@ -32,6 +32,15 @@ is present, so the program prints its contents. Two mistakes remain hidden:
 You will reproduce the change, inspect two diagnostics, and correct one finding
 at a time.
 
+## What you will learn
+
+By the end, you will know the basic Effect pattern for checking generated code:
+
+- read an Effect type to spot an impossible error claim;
+- use Effect-aware diagnostics to find work that is created but never run;
+- fix one concrete finding at a time and verify the program still behaves the
+  same.
+
 ## Project setup
 
 The project uses these files:
@@ -100,12 +109,6 @@ becomes success, while a rejection enters the error channel. `Effect.log`
 describes a log operation, but this code discards that value. `Effect.runPromise`
 runs only `readMessage`.
 
-Run the generated code:
-
-```sh title="Run the generated code"
-node main.ts
-```
-
 It appears to work:
 
 ```text title="Output"
@@ -155,7 +158,7 @@ Each points to one observable mismatch.
 Remove the false annotation and let Effect retain the failure inferred from the
 Promise:
 
-```ts title="main.ts" ins={6-8}
+```ts title="main.ts"
 import { readFile } from "node:fs/promises"
 import { Effect } from "effect"
 
@@ -195,7 +198,7 @@ remains. Fixing one diagnostic at a time makes the effect of each change clear.
 
 Sequence the log before the file read, then run the combined Effect:
 
-```ts title="main.ts" ins={8,10}
+```ts title="main.ts"
 import { readFile } from "node:fs/promises"
 import { Effect } from "effect"
 
@@ -212,8 +215,8 @@ console.log(await Effect.runPromise(program))
 after the log succeeds, then continues with `readMessage`. Both operations are
 now part of the value passed to `Effect.runPromise`.
 
-`npm run lint` now exits without findings. Running `node main.ts` emits an Effect
-log containing `Reading message`, followed by the file contents.
+`npm run lint` now exits without findings. The program emits an Effect log
+containing `Reading message`, followed by the file contents.
 
 <TutorialCheckpoint number={4} total={4} title="The evidence loop closes">
   Both diagnostics are resolved, the log runs, and the successful file output

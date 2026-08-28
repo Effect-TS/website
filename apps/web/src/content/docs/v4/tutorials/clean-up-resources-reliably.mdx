@@ -28,6 +28,15 @@ report fails on purpose, which makes cleanup easy to observe. The Promise-free
 fixture keeps the example focused on the resource lifetime rather than on
 database or HTTP code.
 
+## What you will learn
+
+By the end, you will know the basic Effect pattern for resource lifetimes:
+
+- describe acquire, use, and release as Effects;
+- join the three phases with `Effect.acquireUseRelease`;
+- keep cleanup attached to the operation through success, failure, and
+  interruption.
+
 ## Project setup
 
 The project uses one file:
@@ -35,12 +44,6 @@ The project uses one file:
 | File      | Role                                                        |
 | --------- | ----------------------------------------------------------- |
 | `main.ts` | Contains the connection simulation and the code you change. |
-
-Run each version with:
-
-```sh title="Run the example"
-node main.ts
-```
 
 ## Keep acquisition and release together
 
@@ -107,7 +110,7 @@ every new use of a connection must put the correct release in the correct
 Turn acquisition, use, and release into separate Effect values before combining
 them:
 
-```ts title="main.ts" ins={1,19-29}
+```ts title="main.ts"
 import { Effect } from "effect"
 
 interface Connection {
@@ -163,10 +166,9 @@ not yet say that release belongs to acquisition.
 
 ### 3. Join the phases into one lifetime
 
-`Effect.acquireUseRelease` connects the three descriptions. Add the program and
-run it:
+`Effect.acquireUseRelease` connects the three descriptions. Add the program:
 
-```ts title="main.ts" ins={32,34-38}
+```ts title="main.ts"
 import { Effect } from "effect"
 
 interface Connection {

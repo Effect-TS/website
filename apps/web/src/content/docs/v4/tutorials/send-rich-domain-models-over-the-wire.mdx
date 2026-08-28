@@ -29,6 +29,14 @@ round-trip. Ordinary `JSON.stringify` turns the date into a string and
 `JSON.parse` cannot know how to rebuild it. The finished Schema codec performs
 both directions from one model definition.
 
+## What you will learn
+
+By the end, you will know the basic Effect Schema pattern for JSON boundaries:
+
+- describe a rich domain value with `Schema.Struct`;
+- derive a JSON codec from the same Schema;
+- encode and decode boundary data without duplicating the model.
+
 ## Project setup
 
 The project uses one file:
@@ -36,12 +44,6 @@ The project uses one file:
 | File      | Role                                                |
 | --------- | --------------------------------------------------- |
 | `main.ts` | Contains the invoice model and the code you change. |
-
-Run each version with:
-
-```sh title="Run the example"
-node main.ts
-```
 
 ## Preserve the model across JSON
 
@@ -91,7 +93,7 @@ an unchecked cast. The two sides have no shared runtime contract.
 
 Replace the interface with a Schema:
 
-```ts title="main.ts" ins={1,3-6}
+```ts title="main.ts"
 import { Schema } from "effect"
 
 const Invoice = Schema.Struct({
@@ -132,7 +134,7 @@ checks.
 Ask Schema for a JSON codec, then use its encoder before calling
 `JSON.stringify`:
 
-```ts title="main.ts" ins={8,15-17}
+```ts title="main.ts"
 import { Schema } from "effect"
 
 const Invoice = Schema.Struct({
@@ -181,7 +183,7 @@ The JSON remains familiar:
 
 Use the other direction of the same codec after `JSON.parse`:
 
-```ts title="main.ts" ins={18-20}
+```ts title="main.ts"
 import { Schema } from "effect"
 
 const Invoice = Schema.Struct({

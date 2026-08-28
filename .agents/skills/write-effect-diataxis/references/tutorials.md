@@ -39,10 +39,10 @@ when a concrete MDX pattern is needed.
 - Name the tutorial after the positive outcome Effect provides. Do not name it
   after an API, feature, or scenario-specific task.
 - Begin with exactly one `EffectStrength`. Give it a short, positive title
-  that names the capability Effect provides. Describe what Effect makes
-  possible and the concrete benefit for the reader before explaining the
-  ordinary limitation that makes the capability valuable. Do not remove the
-  motivating problem merely to keep the framing positive.
+  that names the capability Effect provides. In the card body, state the
+  ordinary limitation first, then show how Effect removes it and what that
+  makes possible for the reader. Keep the title strength-led so the card does
+  not read as a complaint about the baseline.
 - Keep this terminology strict: the strength is the capability; the tutorial
   title is the positive outcome the reader will learn to achieve.
 - Introduce the concrete scenario immediately after the strength card. Keep
@@ -55,7 +55,7 @@ when a concrete MDX pattern is needed.
 ## Build a strength-led progression
 
 1. Start with a small working program in conventional TypeScript. Make the
-   baseline realistic and competent: use the documented APIs, error types, and
+   baseline realistic and complete: use the documented APIs, error types, and
    ordinary handling available to the reader.
 2. Keep the starter familiar and short. Inline one-use types and helpers when a
    name adds ceremony rather than clarity.
@@ -84,10 +84,10 @@ demonstrate the resulting behavior. Remove or relocate sections that mainly
 showcase an API without advancing that journey.
 
 Never weaken the baseline to make Effect look better. Before presenting a
-limitation, ask whether a competent TypeScript developer could address it with
-the information already available. If so, show that reasonable solution and
-teach the actual remaining advantage of Effect, such as making the contract
-visible in the type or expressing policies without manual coordination.
+limitation, ask whether ordinary TypeScript could address it with the
+information already available. If so, show that reasonable solution and teach
+the actual remaining advantage of Effect, such as making the contract visible
+in the type or expressing policies without manual coordination.
 
 Allow a tutorial to be long when necessary, but keep each step small. Avoid
 `Effect.gen`, `Schedule`, Layers, and other new abstractions unless the current
@@ -166,7 +166,8 @@ mechanically.
 - Do not teach generic project initialization.
 - Use `npm` inside standalone tutorial projects. Continue using `pnpm` and
   `vp run` for repository work.
-- Put starter files and the local run loop in `## Project setup`.
+- Put starter files in `## Project setup`. Include a local run loop only when
+  it has non-obvious arguments, options, inputs, or multiple processes.
 - Begin with the same `File` / `Role` table. State which files change and which
   remain fixed in the table rather than repeating it in prose.
 - Describe fixed fixtures next, then present the watched-server command after
@@ -178,9 +179,9 @@ mechanically.
 - Make the tutorial understandable by reading alone. Creating files, starting
   the server, and sending requests must not be prerequisites for understanding.
 - Do not describe setup, commands, sections, or verification as “optional.”
-- Run a one-shot introductory program with `node main.ts`. When the tutorial
-  genuinely needs a server, use `node --watch server.ts`, explain `--watch`,
-  and tell the reader to keep the process running.
+- Do not teach the reader how to run a one-file `main.ts` program. When the
+  tutorial genuinely needs a server, give only the command and details needed
+  to coordinate the example.
 - For a running server, say “open a second terminal pane” for verification
   commands. Do not tell the reader to restart a watched server between edits.
 
