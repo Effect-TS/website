@@ -1,0 +1,184 @@
+---
+pagefind: false
+title: This Week in Effect - 133
+excerpt: "Effect v4 RC's core package now has zero external dependencies, with a native PostgreSQL protocol client and reworked native Schema Arbitraries. Early Bird tickets for Effect Days close on September 1st."
+date: 2026-08-28
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Release Candidate](https://www.effect.website/blog/releases/effect/40-rc) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+### Effect v4 RC updates.
+
+The team kept up the pace on the RC hardening effort this week, while also landing a major overhaul of Schema's Arbitrary generation and a native PostgreSQL protocol client. With this week's improvements, Effect v4 core package has no external dependencies. 🚀
+
+<Tweet id="2092430414837407896" />- **Native Arbitraries**: Reworked Schema's
+Arbitrary generation and shrinking with a native implementation, replacing the
+previous approach for more predictable and efficient property-based test data
+generation.
+
+- **Native PostgreSQL client**: Replaced the `pg` dependency with a native `PgProtocol` client in `@effect/sql-pg`, reducing external dependencies and improving control over the connection lifecycle.
+
+- **WebSocket support**: Added WebSocket client support across runtimes (Node, Bun, Deno, browser), and fixed the Node platform writing HTTP responses onto already-upgraded WebSocket connections.
+
+- **Schema**: Added partial matching to `Schema.TaggedUnion`, optimized synchronous schema parsing for better performance, and fixed `Schema` class equivalence derivation.
+
+- **Breaking changes**: Removed built-in MessagePack support and the MIME dependency from `@effect/platform-node`, continuing the RC-cycle trend of trimming the dependency surface. Standardized `Config` constructor naming for consistency across the module.
+
+- **Cluster**: Bounded teardown interrupt classification, ensured transient routing states are never surfaced for persisted messages, and defaulted TCP cluster serialization to `SchemaBinary`.
+
+- **AI & streaming tools**: Executed streaming tool handlers eagerly, supporting interruption and synthesized results instead of buffering the full response.
+
+- **CLI**: Added context-based CLI prompt themes for more customizable interactive prompts.
+
+- **Bug fixes**: Fixed readonly SQLite transactions, restored the `Effect.timeout` error message, aligned type IDs with module paths, normalized collection count handling, preserved response part assignability after narrowing, fixed chunked multipart parsing after file parts, aligned PGlite `listen` behavior with PostgreSQL, terminated `Stream.fromEventListener` after one item when `once: true` is set, and fixed `tagsExhaustive` inference for `Effect.fn` handlers.
+
+- **Documentation**: Recommended `Effect.fnUntraced` in the AI guide, and documented `Match` and RPC migration changes for teams upgrading from v3.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [**Effect v4 Beta updates**](https://effect.website/blog/tags/effect-v4-beta-recaps/).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Fix use of Schema.NonEmptyArrayEnsure with strings](https://github.com/Effect-TS/effect/pull/7170) (Bug Fix)
+
+### Effect Platform
+
+- [Fix(platform-node): prevent writing the HTTP response onto an upgraded WebSocket connection](https://github.com/Effect-TS/effect/pull/7457) (Bug Fix)
+
+## Community Events
+
+- Join Effect Days in Italy on December 9–11, 2026 for three days with the people building Effect and the people building with it. Early Bird tickets close on September 1st.
+
+  <Tweet id="2088742174355583055" />
+
+- The first [Effect Warsaw](https://luma.com/29fn6spj) meetup is scheduled on September 15!
+
+  <Tweet id="2086778100180824403" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Adoption Partner
+
+Save your seat for the first [Effect Training Workshop](https://www.eventbrite.com/e/ziverge-effect-ts-workshop-tickets-1993621741295?aff=oddtdtcreator) by John De Goes!
+
+<Tweet id="2084222033424982343" />
+
+## Community Highlights
+
+- Effect v4 core package now has no external dependencies!
+
+  <Tweet id="2092435159396254115" />
+
+  <Tweet id="2092441062170079450" />
+
+- Till the day when the regular api will just be Effect -- cit. Michael Arnaldi.
+
+  <Tweet id="2092006419562115463" />
+
+- [effect-mq](https://github.com/TeamWarp/effect-mq) - Background jobs for Effect. By Adam Rankin.
+
+  <Tweet id="2092409678286197218" />
+
+- No more excuses!
+
+  <Tweet id="2092862659473330398" />
+
+- 👀
+
+  <Tweet id="2091903633143058523" />
+
+- [effect-isles](https://effect-isles.grok.me/) 😍
+
+  <Tweet id="2091171396135399668" />
+
+- [Josh Pitzalis](https://www.jxsh.io/) is rewriting all the Python exercises in Anthropic's Claude certification program in Effect. Check out his [blog](https://www.jxsh.io/blog/) to stay updated on the latest exercises added.
+
+- [Branded Types and Connascence of Execution](https://www.dearlordylord.com/blog/branded-types-connascence-of-execution/) blog post by _Igor Loskutov_.
+
+- [awesome-effect](https://github.com/Marve10s/awesome-effect) - a curated list of libraries, tools, apps, and learning material for Effect. By Ibrahim Elkamali.
+
+- [dotheyplaytoday](https://github.com/jackbisceglia/dotheyplaytoday) - a sports notification app built with Effect and Solid that tells you when your team plays today. By Jack Bisceglia.
+
+- [procdeck](https://github.com/kondaurovDev/procdeck) - run your whole dev stack with one command, with every process as a real terminal pane in the browser, assigned ports, and a live view of the traffic between your services. By Aleksandr Kondaurov.
+
+- [effect-temporal](https://github.com/TeamSpringbird/effect-temporal) - author durable workflows with Effect's schemas, typed errors, and composition, and run them on Temporal's retries, timers, signals, and history. By Springbird.
+
+- [shipwright](https://github.com/piotr-m-jurek/shipwright) - an AI agent, built with Effect HttpApi, that turns messy project inputs into a human-readable Project Brief and a coding-agent-ready Implementation PRD. By Piotr Małecki-Jurek.
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 43 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/msBY5f0H0aM?si=RKm6zFDNit6xGM9l"
+  title="Effect Office Hours 43 🔥"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+New this week:
+
+- **Evalucar** is hiring a Hands-on Tech Lead (Remote · France preferred).
+
+- **Springbird** is looking for Software Engineers (Remote · US preferred).
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
