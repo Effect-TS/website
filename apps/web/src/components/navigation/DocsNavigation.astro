@@ -1,0 +1,198 @@
+---
+import { Menu, X } from "@lucide/astro"
+import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
+import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
+import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
+import { SearchDialog } from "@/components/navigation/SearchDialog"
+import { cn } from "@/lib/utils"
+import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
+import type { DocsNavSection } from "@/lib/docs-sections"
+
+interface Props {
+  readonly section: DocsNavSection
+  readonly version?: string | undefined
+}
+
+const { section, version = defaultDocsVersion } = Astro.props
+
+const DOCS_HOME = { href: `/docs/${version}`, label: "Docs" }
+
+const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: string }> = [
+  { key: "onboarding", label: "Onboarding", href: `/docs/${version}` },
+  { key: "guides", label: "Guides", href: `/docs/${version}/guides` },
+  { key: "api", label: "Reference", href: `/docs/${version}/api` },
+]
+
+const navItemClass = (active: boolean) =>
+  cn(
+    "text-sm font-medium text-zinc-500 no-underline transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white",
+    active && "text-zinc-900 dark:text-white",
+  )
+---
+
+<div class="sticky top-0 z-100 w-full">
+  <AnnouncementBanner />
+
+  <div
+    class="w-full border-b border-zinc-200 bg-zinc-50/85 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/85"
+  >
+    <header class="relative mx-auto w-full max-w-352 px-4">
+      <nav class="flex h-16 items-center">
+        <NavigationLogo />
+
+        <div class="ml-8 hidden items-center gap-4 sm:flex">
+          <a
+            href={DOCS_HOME.href}
+            class="text-sm font-medium text-zinc-900 no-underline dark:text-white"
+          >
+            {DOCS_HOME.label}
+          </a>
+          <div class="hidden h-4.5 w-px bg-zinc-300 md:block dark:bg-zinc-700" aria-hidden="true">
+          </div>
+        </div>
+
+        <div class="ml-4 hidden items-center gap-6 md:flex">
+          {
+            SECTION_LINKS.map((link) => (
+              <a
+                href={link.href}
+                class={navItemClass(link.key === section)}
+                aria-current={link.key === section ? "page" : undefined}
+              >
+                {link.label}
+              </a>
+            ))
+          }
+        </div>
+
+        <div
+          class="ml-6 hidden shrink-0 gap-1 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          {
+            DOCS_VERSIONS.map(({ value, label }) => (
+              <a
+                href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
+                aria-label={`Effect ${label} documentation`}
+                aria-current={version === value ? "page" : undefined}
+                class:list={[
+                  "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
+                  version === value
+                    ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
+                ]}
+              >
+                {label}
+              </a>
+            ))
+          }
+        </div>
+
+        <docs-mobile-menu class="ml-auto flex items-center md:hidden">
+          <button
+            type="button"
+            data-role="toggle"
+            aria-label="Open menu"
+            aria-expanded="false"
+            aria-controls="docs-mobile-panel"
+            class="-mr-2 flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
+          >
+            <Menu data-role="icon-open" class="h-6 w-6" aria-hidden="true" />
+            <X data-role="icon-close" class="hidden h-6 w-6" aria-hidden="true" />
+          </button>
+
+          <div
+            id="docs-mobile-panel"
+            data-role="panel"
+            class="fixed inset-x-0 top-full z-90 hidden border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <ul class="mx-auto w-full max-w-352 px-4 py-3">
+              {
+                SECTION_LINKS.map((link) => (
+                  <li>
+                    <a
+                      href={link.href}
+                      data-role="link"
+                      aria-current={link.key === section ? "page" : undefined}
+                      class={cn("block py-3", navItemClass(link.key === section))}
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </docs-mobile-menu>
+
+        <div class="ml-auto hidden items-center gap-4.5 md:flex">
+          <NavigationDesktopActions showThemeToggle />
+        </div>
+      </nav>
+    </header>
+  </div>
+</div>
+
+<SearchDialog client:load version={version} />
+
+<script>
+  class DocsMobileMenuElement extends HTMLElement {
+    #toggle: HTMLButtonElement | null = null
+    #iconOpen: SVGElement | null = null
+    #iconClose: SVGElement | null = null
+    #panel: HTMLElement | null = null
+    #open = false
+
+    connectedCallback() {
+      this.#toggle = this.querySelector("[data-role='toggle']")
+      this.#iconOpen = this.querySelector("[data-role='icon-open']")
+      this.#iconClose = this.querySelector("[data-role='icon-close']")
+      this.#panel = this.querySelector("[data-role='panel']")
+
+      if (!(this.#toggle instanceof HTMLButtonElement)) return
+      if (!(this.#panel instanceof HTMLElement)) return
+
+      this.#toggle.addEventListener("click", this.#onToggle)
+      this.#panel.querySelectorAll("[data-role='link']").forEach((link) => {
+        link.addEventListener("click", this.#onLinkClick)
+      })
+      document.addEventListener("mousedown", this.#onOutsidePointer)
+      document.addEventListener("keydown", this.#onKeyDown)
+    }
+
+    disconnectedCallback() {
+      this.#toggle?.removeEventListener("click", this.#onToggle)
+      this.#panel?.querySelectorAll("[data-role='link']").forEach((link) => {
+        link.removeEventListener("click", this.#onLinkClick)
+      })
+      document.removeEventListener("mousedown", this.#onOutsidePointer)
+      document.removeEventListener("keydown", this.#onKeyDown)
+    }
+
+    #setOpen = (open: boolean) => {
+      if (!this.#toggle || !this.#panel) return
+      this.#open = open
+      this.#toggle.setAttribute("aria-expanded", String(open))
+      this.#toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu")
+      this.#iconOpen?.classList.toggle("hidden", open)
+      this.#iconClose?.classList.toggle("hidden", !open)
+      this.#panel.classList.toggle("hidden", !open)
+    }
+
+    #onToggle = () => this.#setOpen(!this.#open)
+    #onLinkClick = () => this.#setOpen(false)
+
+    #onOutsidePointer = (event: MouseEvent) => {
+      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
+        this.#setOpen(false)
+      }
+    }
+
+    #onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && this.#open) this.#setOpen(false)
+    }
+  }
+
+  if (!customElements.get("docs-mobile-menu")) {
+    customElements.define("docs-mobile-menu", DocsMobileMenuElement)
+  }
+</script>

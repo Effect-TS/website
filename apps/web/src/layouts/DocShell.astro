@@ -1,9 +1,10 @@
 ---
+import DocsNavigation from "@/components/navigation/DocsNavigation.astro"
 import Footer from "@/components/Footer.astro"
-import Navigation from "@/components/navigation/Navigation.astro"
 import SidebarScrollMemory from "@/components/ui/sidebar/SidebarScrollMemory.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import type { DocsNavSection } from "@/lib/docs-sections"
 import type { NavigationActiveSlug } from "@/lib/navigation"
 
 /**
@@ -22,9 +23,12 @@ interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly ogImageVersion?: string | undefined
   readonly version?: string | undefined
+  readonly section?: DocsNavSection | undefined
 }
 
-const { title, description, activeSlug = "docs", ogImageVersion, version } = Astro.props
+const { title, description, activeSlug = "docs", ogImageVersion, version, section } = Astro.props
+
+const navSection: DocsNavSection = section ?? (activeSlug === "api" ? "api" : "guides")
 
 const hasSidebar = Astro.slots.has("sidebar")
 const hasToc = Astro.slots.has("toc")
@@ -32,7 +36,7 @@ const hasToc = Astro.slots.has("toc")
 const gridCols = hasToc
   ? "lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_240px]"
   : "lg:grid-cols-[240px_1fr]"
-const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
+const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-4 py-8"
 ---
 
 <BaseLayout
@@ -40,7 +44,7 @@ const railClass = "sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 p
   {...description ? { description } : undefined}
   {...ogImageVersion ? { ogImageVersion } : undefined}
 >
-  <Navigation activeSlug={activeSlug} version={version} />
+  <DocsNavigation section={navSection} version={version} />
 
   <div class="relative w-full">
     <slot name="mobile-nav" />

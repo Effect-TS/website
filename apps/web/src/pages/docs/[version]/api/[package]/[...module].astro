@@ -10,7 +10,6 @@ import ApiCodeExample from "@/features/api-reference/ApiCodeExample.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { DOCS_VERSIONS } from "@/lib/versions"
@@ -89,11 +88,6 @@ const sections = [
   { label: undefined, groups: stableGroups },
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
-const sidebarVersions = versionLinks.map(({ href, version: candidate, label }) => ({
-  href: href ?? "",
-  label,
-  active: candidate === entry.data.version,
-}))
 const sidebarSections = sections.map((section) => ({
   label: section.label,
   groups: section.groups.map(([group, groupModules]) => ({
@@ -185,12 +179,6 @@ const tocItems = apiModule.groups.map((group) => ({
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
-    {
-      showVersionSwitch && (
-        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
-      )
-    }
-
     <header class="mb-4">
       <a
         href={`/docs/${entry.data.version}/api`}

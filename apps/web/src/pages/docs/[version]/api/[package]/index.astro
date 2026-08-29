@@ -7,7 +7,6 @@ import { Icon } from "astro-icon/components"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { DOCS_VERSIONS } from "@/lib/versions"
@@ -75,13 +74,6 @@ const openGraph = resolveApiReferenceOpenGraph(
   modules.map((module) => module.data),
 )
 
-const availableVersions = new Set(
-  collection
-    .filter((module) => module.data.packageName === pkg.name)
-    .map((module) => module.data.version),
-)
-const showVersionSwitch = availableVersions.has("v3") && availableVersions.has("v4")
-
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
   if (pkg.name === "effect" && parts[0] === "unstable") {
@@ -98,11 +90,6 @@ const sections = [
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
 const sidebarGroupCount = sections.reduce((count, section) => count + section.groups.length, 0)
-const sidebarVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api/${pkg.slug}`,
-  label,
-  active: value === version,
-}))
 const sidebarSections = sections.map((section) => ({
   label: section.label,
   groups: section.groups.map(([group, groupModules]) => {
@@ -119,10 +106,10 @@ const sidebarSections = sections.map((section) => ({
     }
   }),
 }))
-const mobileVersions = [...availableVersions].toSorted().map((candidate) => ({
-  href: `/docs/${candidate}/api/${pkg.slug}`,
-  label: candidate,
-  selected: candidate === version,
+const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: `/docs/${value}/api/${pkg.slug}`,
+  label,
+  selected: value === version,
 }))
 const mobilePackages = Array.from(
   Map.groupBy(
@@ -183,12 +170,6 @@ function moduleName(modulePath: string, group: string): string {
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
-    {
-      showVersionSwitch && (
-        <VersionSwitch versions={sidebarVersions} aria-label="API reference version" />
-      )
-    }
-
     <header class="mb-4">
       <a
         href={`/docs/${version}/api`}
