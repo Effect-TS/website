@@ -4,6 +4,7 @@ import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import icon from "astro-icon"
+import { rehypeHeadingIds, unified } from "@astrojs/markdown-remark"
 import {
   defineConfig,
   envField,
@@ -15,6 +16,7 @@ import svgr from "vite-plugin-svgr"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
+import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 
 const FontsourceProvider = fontProviders.fontsource()
 
@@ -27,6 +29,12 @@ const config = defineConfig({
   trailingSlash: "never",
 
   compressHTML: true,
+
+  markdown: {
+    processor: unified({
+      rehypePlugins: [rehypeHeadingIds, rehypeHeadingLinks],
+    }),
+  },
 
   build: {
     concurrency: 2,

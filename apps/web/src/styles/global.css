@@ -146,6 +146,66 @@ html {
     letter-spacing: -0.025em;
   }
 
+  .prose-effect
+    :where(h1, h2, h3, h4, h5, h6)[id]:not(:where([class~="not-prose"] *)) {
+    position: relative;
+  }
+
+  .prose-effect :where(.heading-permalink):not(:where([class~="not-prose"] *)) {
+    display: inline-flex;
+    width: 0.75em;
+    height: 0.75em;
+    margin-inline-end: 0.35em;
+    color: var(--subtle-foreground);
+    vertical-align: 0.05em;
+    text-decoration: none;
+    opacity: 1;
+    transition:
+      color 150ms,
+      opacity 150ms;
+  }
+
+  .prose-effect
+    :where(.heading-permalink):not(:where([class~="not-prose"] *)):hover,
+  .prose-effect
+    :where(.heading-permalink):not(
+      :where([class~="not-prose"] *)
+    ):focus-visible {
+    color: var(--foreground);
+  }
+
+  .prose-effect
+    :where(.heading-permalink > svg):not(:where([class~="not-prose"] *)) {
+    width: 100%;
+    height: 100%;
+  }
+
+  @media (hover: hover) {
+    .prose-effect
+      :where(.heading-permalink):not(:where([class~="not-prose"] *)) {
+      opacity: 0;
+    }
+
+    .prose-effect
+      :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)):hover
+      > .heading-permalink,
+    .prose-effect
+      :where(.heading-permalink):not(
+        :where([class~="not-prose"] *)
+      ):focus-visible {
+      opacity: 1;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .prose-effect
+      :where(.heading-permalink):not(:where([class~="not-prose"] *)) {
+      position: absolute;
+      top: 0.2em;
+      inset-inline-end: 100%;
+    }
+  }
+
   /* Blog uses an editorial reading treatment on top of `.prose-effect`: literal
      reading sizes (not the project's oversized text-2xl/xl/lg tokens above, which
      are tuned for marketing/hero copy) and wider vertical rhythm. Defined once
