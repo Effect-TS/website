@@ -48,8 +48,8 @@ export const validateExample = defineExample({
        |const vibes = checkVibes(password)
        |
        |const result = Effect.validate(
-       |  [iceCream, battery, popsicle, toad, lollipop],
-       |  performLick
+       |  [length, complexity, vibes],
+       |  identity
        |)`,
     ),
   },
