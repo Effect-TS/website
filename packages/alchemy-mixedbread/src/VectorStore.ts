@@ -161,21 +161,28 @@ export const VectorStoreProvider = Provider.effect(
             deleteFirst: news.name === output.name,
           } as const
         }
-        if (!deepEqual(olds, news)) return { action: "update" as const }
-
-        // Unchanged inputs do not prove the store still exists: preview stores
-        // carry an `expiresAfter` and delete themselves, so a stage that sat
-        // idle past the TTL still holds a live-looking id in state. Noop-ing
-        // here would leave that dead id to 404 in a later sync, so confirm the
-        // store first and fall through to `reconcile`, which recreates it.
+        // Neither unchanged inputs nor a recorded id prove the store still
+        // exists: preview stores carry an `expiresAfter` and delete themselves,
+        // so a stage that sat idle past the TTL still holds a live-looking id.
+        // `reconcile` recreates a missing store, but the replacement gets a NEW
+        // id, so the provider-level `stables` above would be a lie here —
+        // alchemy resolves stable attributes straight from previous state and
+        // would hand dependents the dead id before `reconcile` ever runs.
+        // An empty `stables` overrides it and makes them wait for the real
+        // output. This check has to precede the input comparison, so it still
+        // applies when the props changed too.
         if (output !== undefined) {
           const store = yield* client
             .retrieveStore(output.id)
             .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
-          if (store === undefined) return { action: "update" as const }
+          if (store === undefined) {
+            return { action: "update", stables: [] } as const
+          }
         }
 
-        return { action: "noop" as const }
+        return deepEqual(olds, news)
+          ? { action: "noop" as const }
+          : { action: "update" as const }
       }),
       read: Effect.fn(function* ({ id, olds, output }) {
         const stack = yield* Stack

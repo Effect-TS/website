@@ -281,7 +281,24 @@ test("recreates a preview store that expired while the inputs stayed the same", 
         // to 404 on a store that no longer exists.
         fake.stores.delete(created.id)
 
-        assert.deepEqual(yield* provider.diff!(unchanged), { action: "update" })
+        // `stables` must be empty: the recreated store gets a new id, and
+        // alchemy resolves declared-stable attributes from previous state
+        // without waiting for reconcile, so a non-empty list here hands
+        // dependents the dead id.
+        assert.deepEqual(yield* provider.diff!(unchanged), {
+          action: "update",
+          stables: [],
+        })
+
+        // Same when the props changed too — the existence check must not sit
+        // behind the input comparison.
+        assert.deepEqual(
+          yield* provider.diff!({
+            ...unchanged,
+            news: { ...props, description: "changed" },
+          }),
+          { action: "update", stables: [] },
+        )
 
         const recreated = yield* provider.reconcile({
           id: "PreviewSearchStore",
