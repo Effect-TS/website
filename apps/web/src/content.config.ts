@@ -105,6 +105,7 @@ const docsOnboarding = defineCollection({
   schema: z.array(
     z.object({
       label: z.string(),
+      isOpenByDefault: z.boolean().optional(),
       items: z.array(reference("docs")),
     }),
   ),
