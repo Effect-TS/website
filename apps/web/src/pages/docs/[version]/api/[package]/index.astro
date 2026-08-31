@@ -8,8 +8,14 @@ import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
+import {
+  apiReferenceDigests,
+  packageIndexKey,
+  packageMetadataDigest,
+  versionIndexDigest,
+} from "@/features/api-reference/cache-key"
 import DocShell from "@/layouts/DocShell.astro"
+import { cacheKey } from "@/lib/cache-key"
 import { DOCS_VERSIONS } from "@/lib/versions"
 
 interface StaticPathEntry {
@@ -17,6 +23,7 @@ interface StaticPathEntry {
     readonly version: string
     readonly package: string
   }
+  cacheKey?: string
   readonly props: {
     readonly pkg: {
       readonly name: string
@@ -65,6 +72,19 @@ export const getStaticPaths = (async () => {
     }
   }
 
+  const digests = apiReferenceDigests(entries)
+  for (const path of paths.values()) {
+    const { version, package: packageSlug } = path.params
+    path.cacheKey = cacheKey(
+      // Module list and package identity.
+      digests.packageIndex.get(packageIndexKey(version, packageSlug)),
+      // The remaining package metadata this page renders.
+      packageMetadataDigest(path.props.modules[0]!.data),
+      // The mobile package switcher spans the whole version.
+      versionIndexDigest(entries, version),
+    )
+  }
+
   return [...paths.values()]
 }) satisfies GetStaticPaths
 
@@ -72,10 +92,6 @@ const collection = await getCollection("apiReference")
 const { modules, pkg, version } = Astro.props
 
 const displayName = pkg.name.replace("@effect/", "")
-const openGraph = resolveApiReferenceOpenGraph(
-  `docs/${version}/api/${pkg.slug}`,
-  modules.map((module) => module.data),
-)
 
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
@@ -160,7 +176,7 @@ function moduleName(modulePath: string, group: string): string {
 <DocShell
   title={`${pkg.name} API Reference | Effect`}
   description={pkg.description}
-  ogImageVersion={openGraph?.revision}
+  ogImageVersion={packageMetadataDigest(modules[0]!.data)}
   activeSlug="api"
   version={version}
 >

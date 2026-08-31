@@ -41,6 +41,15 @@ jobs:
         with:
           cache: true
 
+      - name: Restore Astro incremental build cache
+        uses: actions/cache/restore@v5
+        with:
+          path: apps/web/.astro-cache
+          key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          restore-keys: |
+            astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-
+            astro-incremental-${{ runner.os }}-main-
+
       - name: Deploy Cloudflare preview
         run: |
           stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
@@ -67,6 +76,13 @@ jobs:
           else
             echo "Alchemy reused the unchanged deployment; no local build output to verify."
           fi
+
+      - name: Save Astro incremental build cache
+        if: always() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+        uses: actions/cache/save@v5
+        with:
+          path: apps/web/.astro-cache
+          key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
   cleanup:
     if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'

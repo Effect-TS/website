@@ -6,6 +6,36 @@
 - If pnpm reports `Recreating node_modules` or starts an automatic install before a script, interrupt it immediately. Run `pnpm install --frozen-lockfile` outside the sandbox, then retry the original command outside the sandbox.
 - Use `pnpm` for package management and `vp run` for project tasks.
 
+## Incremental static builds
+
+The site builds with Astro's experimental `incrementalBuild`, so a prerendered
+page is only re-rendered when its `cacheKey` or its route's module dependency
+hash changes. Things to know when touching a prerendered route:
+
+- **`build.concurrency` must stay at 1.** Astro disables the cache above 1.
+- **A new cross-entry read needs a new `cacheKey` fragment.** Under-keying is
+  silent — the page keeps its stale HTML with no error. If a page starts
+  rendering data about _other_ entries (a sibling's title, a sidebar, a
+  referenced collection, a file read off disk), fold that into its key. See
+  `apps/web/src/lib/cache-key.ts` and
+  `apps/web/src/features/api-reference/cache-key.ts`.
+- **`getStaticPaths` only sees imports.** Astro extracts it into its own chunk,
+  so it cannot reference other frontmatter declarations — put shared helpers in
+  an imported module.
+- **`prerenderEnvironment: "node"`** (patched into
+  `@alchemy.run/cloudflare-frameworks`) is a correctness precondition: an
+  out-of-process workerd prerenderer cannot populate Astro's content and image
+  collectors.
+
+To force a full rebuild, delete the cache — `astro build --force` is
+unreachable because alchemy invokes the build itself:
+
+```bash
+rm -rf apps/web/.astro-cache
+```
+
+In CI, run the Production Deployment workflow with `force_full_build: true`.
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web

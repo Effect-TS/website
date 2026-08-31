@@ -22,6 +22,11 @@ on:
         required: false
         default: workers-dev
         type: string
+      force-full-build:
+        description: Discard the Astro incremental build cache and re-render every page
+        required: false
+        default: false
+        type: boolean
     secrets:
       MXBAI_ADMIN_API_KEY:
         required: true
@@ -63,6 +68,7 @@ jobs:
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-traffic-mode: ${{ inputs.cloudflare-traffic-mode }}
+          force-full-build: ${{ inputs.force-full-build }}
           kv-rest-api-url: ${{ secrets.KV_REST_API_URL }}
           kv-rest-api-token: ${{ secrets.KV_REST_API_TOKEN }}
           public-posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}

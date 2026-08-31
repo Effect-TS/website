@@ -37,10 +37,16 @@ const config = defineConfig({
   },
 
   build: {
-    concurrency: 2,
+    // Astro disables the incremental build cache entirely when concurrency > 1.
+    concurrency: 1,
   },
 
+  // Kept out of `node_modules` so CI can restore/save it without caching the
+  // whole dependency tree. Also holds the content layer and image caches.
+  cacheDir: "./.astro-cache",
+
   experimental: {
+    incrementalBuild: true,
     svgOptimizer: svgoOptimizer(),
   },
 

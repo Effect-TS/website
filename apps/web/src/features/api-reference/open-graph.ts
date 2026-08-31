@@ -10,13 +10,11 @@ export interface ApiReferenceOpenGraphEntry {
   readonly packageDescription: string
   readonly packageName: string
   readonly packageSlug: string
-  readonly revision: string
   readonly version: string
 }
 
 export interface ApiReferenceOpenGraphCard {
   readonly description: string
-  readonly revision: string
   readonly template: ApiReferenceTemplateProps
 }
 
@@ -36,7 +34,6 @@ export function resolveApiReferenceOpenGraph(
   if (packageSlug === undefined) {
     return {
       description: `Browse the Effect ${version} API reference by package and module.`,
-      revision: firstVersionEntry.revision,
       template: {
         eyebrow: "Effect Docs",
         title: "API Reference",
@@ -53,7 +50,6 @@ export function resolveApiReferenceOpenGraph(
   if (moduleSegments.length === 0) {
     return {
       description: firstPackageEntry.packageDescription,
-      revision: firstPackageEntry.revision,
       template: {
         eyebrow: "API Reference",
         title: firstPackageEntry.packageName,
@@ -75,7 +71,6 @@ export function resolveApiReferenceOpenGraph(
 
   return {
     description,
-    revision: moduleEntry.revision,
     template: {
       eyebrow: "API Reference",
       title: moduleName,

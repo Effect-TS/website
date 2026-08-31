@@ -7,7 +7,6 @@ import {
 const entries = [
   {
     version: "v4",
-    revision: "revision-v4",
     packageName: "effect",
     packageSlug: "effect",
     packageDescription: "The Effect core package.",
@@ -15,7 +14,6 @@ const entries = [
   },
   {
     version: "v4",
-    revision: "revision-v4",
     packageName: "effect",
     packageSlug: "effect",
     packageDescription: "The Effect core package.",
@@ -23,7 +21,6 @@ const entries = [
   },
   {
     version: "v3",
-    revision: "revision-v3",
     packageName: "@effect/platform-node",
     packageSlug: "platform-node",
     packageDescription: "Node.js integrations for Effect.",
@@ -34,7 +31,6 @@ const entries = [
 test("resolves a version index", () => {
   assert.deepEqual(resolveApiReferenceOpenGraph("docs/v4/api", entries), {
     description: "Browse the Effect v4 API reference by package and module.",
-    revision: "revision-v4",
     template: {
       eyebrow: "Effect Docs",
       title: "API Reference",
@@ -47,7 +43,6 @@ test("resolves a scoped package index", () => {
     resolveApiReferenceOpenGraph("docs/v3/api/platform-node", entries),
     {
       description: "Node.js integrations for Effect.",
-      revision: "revision-v3",
       template: {
         eyebrow: "API Reference",
         title: "@effect/platform-node",
@@ -64,7 +59,6 @@ test("resolves a nested module", () => {
     ),
     {
       description: "Unstable HttpClient API reference for effect.",
-      revision: "revision-v4",
       template: {
         eyebrow: "API Reference",
         title: "HttpClient",

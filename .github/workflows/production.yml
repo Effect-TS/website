@@ -16,6 +16,11 @@ on:
           - markdown
           - api-reference
           - all
+      force_full_build:
+        description: Discard the Astro incremental build cache and re-render every page
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
@@ -31,4 +36,5 @@ jobs:
       api-reference-snapshot: ${{ inputs.api_reference_snapshot || '' }}
       mixedbread-scope: ${{ inputs.mixedbread_scope || 'markdown' }}
       cloudflare-traffic-mode: ${{ vars.CLOUDFLARE_TRAFFIC_MODE || 'workers-dev' }}
+      force-full-build: ${{ inputs.force_full_build || false }}
     secrets: inherit

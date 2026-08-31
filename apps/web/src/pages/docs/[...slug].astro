@@ -1,20 +1,55 @@
 ---
-import { getCollection, render } from "astro:content"
+import { getCollection, getEntry, render } from "astro:content"
 
 import { ChevronDown, Menu } from "@lucide/astro"
 
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import DocShell from "@/layouts/DocShell.astro"
+import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
 import { buildDocsSidebar } from "@/lib/docs-sections"
 
 export const prerender = true
 
 export async function getStaticPaths() {
+  // Declared inside getStaticPaths: Astro extracts this export into its own
+  // chunk, so it can only reach imports, not other frontmatter declarations.
+  const docVersion = (id: string): string => id.split("/")[0] ?? ""
+
   const entries = await getCollection("docs")
+
+  // Every page renders its version's whole sidebar, so a page goes stale when a
+  // sibling's label or order changes, or when either config file changes — none
+  // of which touch the page's own digest. The `file()` loader sets no digest,
+  // so hash the config data itself.
+  const sidebarDigests = new Map<string, string>()
+  for (const version of new Set(entries.map((entry) => docVersion(entry.id)))) {
+    const [sidebar, onboarding] = await Promise.all([
+      getEntry("docsSidebar", version),
+      getEntry("docsOnboarding", version),
+    ])
+    sidebarDigests.set(
+      version,
+      digest({
+        sidebar: sidebar?.data ?? null,
+        onboarding: onboarding?.data ?? null,
+        entries: sortedRows(
+          entries
+            .filter((entry) => docVersion(entry.id) === version)
+            .map((entry) => [
+              entry.id,
+              entry.data.sidebar?.label ?? entry.data.title,
+              entry.data.sidebar?.order ?? null,
+            ]),
+        ),
+      }),
+    )
+  }
+
   return entries.map((entry) => ({
     params: { slug: entry.id.replace(/\/index$/, "") },
     props: { entry },
+    cacheKey: cacheKey(entry.digest, sidebarDigests.get(docVersion(entry.id))),
   }))
 }
 

@@ -31,6 +31,10 @@ inputs:
     description: Cloudflare production traffic mode
     required: false
     default: workers-dev
+  force-full-build:
+    description: Discard the Astro incremental build cache and re-render every page
+    required: false
+    default: "false"
   kv-rest-api-url:
     description: Upstash REST API URL
     required: true
@@ -96,6 +100,23 @@ runs:
           exit 1
         fi
 
+    - name: Restore Astro incremental build cache
+      if: inputs.force-full-build != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: apps/web/.astro-cache
+        key: astro-incremental-${{ runner.os }}-main-${{ github.sha }}
+        restore-keys: |
+          astro-incremental-${{ runner.os }}-main-
+
+    # `astro build --force` is unreachable here: alchemy invokes the build via
+    # buildInChild with a fixed inline config and exposes no force flag, so
+    # discarding the cache directory is the escape hatch.
+    - name: Discard Astro incremental build cache
+      if: inputs.force-full-build == 'true'
+      shell: bash
+      run: rm -rf apps/web/.astro-cache
+
     - name: Deploy website to Cloudflare
       shell: bash
       run: vp exec alchemy deploy --stage prod --yes
@@ -120,6 +141,13 @@ runs:
         else
           echo "Alchemy reused the unchanged deployment; no local build output to verify."
         fi
+
+    - name: Save Astro incremental build cache
+      if: always() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+      uses: actions/cache/save@v5
+      with:
+        path: apps/web/.astro-cache
+        key: astro-incremental-${{ runner.os }}-main-${{ github.sha }}
 
     - name: Synchronize Mixedbread production store
       shell: bash
