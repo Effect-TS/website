@@ -157,19 +157,31 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
   },
 )
 
-export const openGraphMetadataPlugin = (): Plugin => ({
+export interface OpenGraphMetadataPluginOptions {
+  /**
+   * Astro's resolved `cacheDir`, where the content layer writes
+   * `data-store.json` during a build. Passed in from `astro.config.ts` rather
+   * than hardcoded: the default is `node_modules/.astro/`, but the config
+   * relocates it so CI can cache it, and a stale hardcoded path fails only on
+   * a clean checkout.
+   */
+  readonly cacheDir: URL
+}
+
+export const openGraphMetadataPlugin = (
+  options: OpenGraphMetadataPluginOptions,
+): Plugin => ({
   name: "open-graph-metadata",
   resolveId(id) {
     return id === moduleId ? resolvedModuleId : undefined
   },
   async load(id) {
     if (id !== resolvedModuleId) return undefined
-    const storeUrl = new URL(
+    // Dev keeps its own copy under `.astro/` and never consults `cacheDir`.
+    const storeUrl =
       this.environment.mode === "build"
-        ? "../../../node_modules/.astro/data-store.json"
-        : "../../../.astro/data-store.json",
-      import.meta.url,
-    )
+        ? new URL("data-store.json", options.cacheDir)
+        : new URL("../../../.astro/data-store.json", import.meta.url)
     const storePath = fileURLToPath(storeUrl)
     this.addWatchFile(storePath)
     return Effect.runPromise(

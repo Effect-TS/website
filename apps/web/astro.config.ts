@@ -20,6 +20,12 @@ import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 
 const FontsourceProvider = fontProviders.fontsource()
 
+// Astro's content layer writes `data-store.json` here during a build, and
+// `openGraphMetadataPlugin` reads it back. Kept out of `node_modules` so CI can
+// restore/save it without caching the whole dependency tree; shared with the
+// plugin so the two cannot drift.
+const cacheDir = new URL("./.astro-cache/", import.meta.url)
+
 // https://astro.build/config
 const config = defineConfig({
   site: "https://effect.website",
@@ -41,9 +47,7 @@ const config = defineConfig({
     concurrency: 1,
   },
 
-  // Kept out of `node_modules` so CI can restore/save it without caching the
-  // whole dependency tree. Also holds the content layer and image caches.
-  cacheDir: "./.astro-cache",
+  cacheDir: fileURLToPath(cacheDir),
 
   experimental: {
     incrementalBuild: true,
@@ -57,7 +61,7 @@ const config = defineConfig({
     plugins: [
       tailwindcss(),
       svgr(),
-      openGraphMetadataPlugin(),
+      openGraphMetadataPlugin({ cacheDir }),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
         features: "all",
