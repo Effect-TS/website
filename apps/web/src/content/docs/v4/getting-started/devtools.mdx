@@ -345,7 +345,125 @@ export default defineConfig({
 
 ## Vite Plus
 
-Vite Plus provides an internally bundled version of Oxlint and Oxlint-TSGoLint, following the install procedure for Oxlint will work as well as is for Vite Plus monorepos.
+Vite Plus provides an internally bundled version of Oxlint and Oxlint-TSGoLint.
+
+Be sure to have installed the Effect TypeScript-Go integration:
+
+<Tabs syncKey="package-manager">
+
+   <TabItem label="npm" icon="seti:npm">
+
+```sh showLineNumbers=false
+npm install @effect/tsgo --save-dev
+```
+
+   </TabItem>
+
+   <TabItem label="pnpm" icon="pnpm">
+
+```sh showLineNumbers=false
+pnpm add -D @effect/tsgo
+```
+
+   </TabItem>
+
+   <TabItem label="Yarn" icon="seti:yarn">
+
+```sh showLineNumbers=false
+yarn add --dev @effect/tsgo
+```
+
+   </TabItem>
+
+   <TabItem label="Bun" icon="bun">
+
+```sh showLineNumbers=false
+bun add --dev @effect/tsgo
+```
+
+   </TabItem>
+
+   </Tabs>
+
+Update the scripts section of your `package.json` to include the following:
+
+```json title="package.json"
+{
+  "scripts": {
+    "prepare": "effect-tsgo patch --oxlint"
+  }
+}
+```
+
+This will patch Vite Plus bundled Oxlint to use the Effect TypeScript-Go integration after any package installation. To avoid patching TypeScript, you can use the `--no-typescript` flag: `effect-tsgo patch --no-typescript --oxlint`. This will patch Vite Plus's Oxlint to use the Effect TypeScript-Go integration without patching TypeScript.
+
+When you have the Effect LSP enabled as well, we recommend setting `diagnostics` to `false` in the LSP plugin settings so that Effect diagnostics are reported only by Vite Plus's Oxlint and do not appear twice:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": false
+      }
+    ]
+  }
+}
+```
+
+Run your package manager's install command to install the dependencies and execute the prepare script that patches Oxlint.
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```sh showLineNumbers=false
+npm install
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```sh showLineNumbers=false
+pnpm install
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="seti:yarn">
+
+```sh showLineNumbers=false
+yarn install
+```
+
+</TabItem>
+
+<TabItem label="Bun" icon="bun">
+
+```sh showLineNumbers=false
+bun install
+```
+
+</TabItem>
+
+</Tabs>
+
+You can now enable Effect's rule in your Vite Plus config file by extending the recommended preset for example.
+
+```ts
+import { defineConfig } from "vite-plus"
+import { recommended } from "@effect/tsgo/oxlint-presets" // <- add import to recommended settings
+
+export default defineConfig({
+  lint: {
+    extends: [recommended], // <- add extends recommended ones
+    // ...
+  },
+  // ...
+})
+```
 
 ## VS Code / Cursor Extension
 
