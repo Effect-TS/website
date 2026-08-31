@@ -21,16 +21,22 @@ export class OgFonts extends Context.Service<OgFonts, OgFontsService>()(
 interface OgFontDefinition {
   readonly cssVariable: "--font-og-inter" | "--font-og-jetbrains-mono"
   readonly name: "Inter" | "JetBrains Mono"
-  readonly weight: 400 | 700
+  readonly weight: 400 | 500 | 600 | 700
 }
 
 const definitions = [
   { cssVariable: "--font-og-inter", name: "Inter", weight: 400 },
+  { cssVariable: "--font-og-inter", name: "Inter", weight: 600 },
   { cssVariable: "--font-og-inter", name: "Inter", weight: 700 },
   {
     cssVariable: "--font-og-jetbrains-mono",
     name: "JetBrains Mono",
     weight: 400,
+  },
+  {
+    cssVariable: "--font-og-jetbrains-mono",
+    name: "JetBrains Mono",
+    weight: 500,
   },
   {
     cssVariable: "--font-og-jetbrains-mono",

@@ -106,7 +106,7 @@ const config = defineConfig({
     {
       provider: FontsourceProvider,
       name: "Inter",
-      weights: ["400", "700"],
+      weights: ["400", "600", "700"],
       styles: ["normal"],
       formats: ["woff"],
       cssVariable: "--font-og-inter",
@@ -124,7 +124,7 @@ const config = defineConfig({
     {
       provider: FontsourceProvider,
       name: "JetBrains Mono",
-      weights: ["400", "700"],
+      weights: ["400", "500", "700"],
       styles: ["normal"],
       formats: ["woff"],
       display: "swap",
