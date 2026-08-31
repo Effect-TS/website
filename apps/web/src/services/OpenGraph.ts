@@ -144,28 +144,6 @@ const prepareContentProps = (props: OgTemplateProps): OgTemplateProps => {
   return sanitizeTemplateProps(props)
 }
 
-const getTitleFontSize = (title: string): string => {
-  const length = title.length
-
-  if (length <= 32) {
-    return "66px"
-  }
-
-  if (length <= 52) {
-    return "58px"
-  }
-
-  if (length <= 72) {
-    return "52px"
-  }
-
-  return "46px"
-}
-
-const getTitleMaxWidth = (title: string): string => {
-  return title.length <= 52 ? "920px" : "860px"
-}
-
 // ---------------------------------------------------------------------------
 // Blog OG typography spec — structured source of truth for the three text
 // elements of the blog OG card. This is the design spec verbatim (not a
@@ -266,8 +244,8 @@ if (BLOG_TITLE_FONT_SIZE_STEPS[0] !== BLOG_OG_TYPOGRAPHY.title.fontSize) {
   )
 }
 
-// Separate from getTitleFontSize (docs) on purpose — docs and blog use
-// different base sizes and maxWidths.
+// Blog keeps its own title-sizing logic — docs and blog use different base
+// sizes and maxWidths.
 const getBlogTitleFontSize = (title: string): string => {
   const stepIndex = BLOG_TITLE_LENGTH_THRESHOLDS.findIndex(
     (max) => title.length <= max,
@@ -287,26 +265,32 @@ const createNode = (type: string, props: OgNodeProps): OgNode => {
   }
 }
 
+// Docs OG layout — top-anchored per the docs design spec. The Effect wordmark,
+// frame, and bottom-right "DOCS" badge are baked into docs/base.png, so this
+// draws only the eyebrow (category) and title over it.
+//   - Text block top: 320px matches the spec's eyebrow offset from the top edge.
+//   - Eyebrow letterSpacing "0.01em" renders the spec's "1%" tracking (1% of
+//     the 22px eyebrow ≈ 0.01em).
+//   - Title letterSpacing "-0.02em" is not in the spec; kept for parity with
+//     the blog and api-reference titles, which all tighten display type.
+//   - Title fontSize is a fixed 76px per spec (not length-stepped like blog),
+//     so a title past ~2 lines can crowd the baked badge.
 const createDocsOgTemplate = ({
   title,
   subtitle,
   bgDataUri,
 }: OgTemplateProps & { readonly bgDataUri: string }): OgNode => {
-  const titleFontSize = getTitleFontSize(title)
-  const titleMaxWidth = getTitleMaxWidth(title)
-  const titleLineHeight = title.length > 64 ? 1.14 : 1.08
-
   const textChildren: Array<OgNode> = []
 
   if (subtitle !== undefined) {
     textChildren.push(
       createNode("div", {
         style: {
-          fontSize: "19px",
-          color: "#7a7a84",
-          fontWeight: 400,
-          marginBottom: "16px",
-          letterSpacing: "-0.01em",
+          fontSize: "22px",
+          color: "#a1a1aa",
+          fontWeight: 500,
+          marginBottom: "40px",
+          letterSpacing: "0.01em",
           fontFamily: "JetBrains Mono",
           textTransform: "uppercase",
           display: "flex",
@@ -319,11 +303,11 @@ const createDocsOgTemplate = ({
   textChildren.push(
     createNode("div", {
       style: {
-        fontSize: titleFontSize,
-        fontWeight: 700,
+        fontSize: "76px",
+        fontWeight: 600,
         color: "#ffffff",
-        lineHeight: titleLineHeight,
-        maxWidth: titleMaxWidth,
+        lineHeight: 1.1,
+        maxWidth: "1040px",
         letterSpacing: "-0.02em",
         display: "flex",
       },
@@ -350,10 +334,9 @@ const createDocsOgTemplate = ({
           position: "absolute",
           left: "80px",
           right: "80px",
-          bottom: "126px",
+          top: "320px",
           display: "flex",
           flexDirection: "column",
-          maxWidth: "900px",
         },
         children: textChildren,
       }),

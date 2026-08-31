@@ -116,7 +116,9 @@ export async function buildDocsSidebar(
       return {
         kind: "group",
         label: group.label,
-        open: entries.some((e) => e.id === currentId),
+        open:
+          (group.isOpenByDefault ?? false) ||
+          entries.some((e) => e.id === currentId),
         entries,
       }
     }),

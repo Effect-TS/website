@@ -50,14 +50,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     surfaces: ["desktop", "mobile"],
   },
   {
-    id: "api",
-    kind: "internal",
-    label: "API",
-    href: "/docs/v4/api",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
     id: "playground",
     kind: "internal",
     label: "Play",
@@ -149,8 +141,6 @@ export const applyVersionToLinks = (
     if (link.kind !== "internal") return link
     if (link.id === "docs")
       return { ...link, href: `/docs/${version}` as `/${string}` }
-    if (link.id === "api")
-      return { ...link, href: `/docs/${version}/api` as `/${string}` }
     return link
   })
 }
