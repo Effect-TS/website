@@ -244,3 +244,59 @@ test("recovers a legacy preview store with matching metadata", async () => {
     ),
   )
 })
+
+test("recreates a preview store that expired while the inputs stayed the same", async () => {
+  const fake = makeClient()
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      Effect.gen(function* () {
+        const provider = yield* VectorStore.Provider
+        const created = yield* provider.reconcile({
+          id: "PreviewSearchStore",
+          fqn: "PreviewSearchStore",
+          instanceId: "instance-1",
+          news: props,
+          olds: undefined,
+          output: undefined,
+          session,
+          bindings: [],
+        })
+
+        const unchanged = {
+          id: "PreviewSearchStore",
+          fqn: "PreviewSearchStore",
+          instanceId: "instance-1",
+          olds: props,
+          news: props,
+          oldBindings: [],
+          newBindings: [],
+          output: created,
+        }
+
+        assert.deepEqual(yield* provider.diff!(unchanged), { action: "noop" })
+
+        // The store's `expiresAfter` deletes it out from under us; state still
+        // holds its id, so an input-only diff would noop and leave a later sync
+        // to 404 on a store that no longer exists.
+        fake.stores.delete(created.id)
+
+        assert.deepEqual(yield* provider.diff!(unchanged), { action: "update" })
+
+        const recreated = yield* provider.reconcile({
+          id: "PreviewSearchStore",
+          fqn: "PreviewSearchStore",
+          instanceId: "instance-1",
+          news: props,
+          olds: props,
+          output: created,
+          session,
+          bindings: [],
+        })
+
+        assert.notEqual(recreated.id, created.id)
+        assert.equal(fake.creates(), 2)
+      }),
+    ),
+  )
+})

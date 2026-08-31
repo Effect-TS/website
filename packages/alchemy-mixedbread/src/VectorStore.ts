@@ -150,22 +150,33 @@ export const VectorStoreProvider = Provider.effect(
         client
           .listStores()
           .pipe(Effect.map((stores) => stores.map(toAttributes))),
-      diff: ({ olds, news, output }) =>
-        Effect.sync(() => {
-          if (!isResolved(news)) return undefined
-          if (
-            output !== undefined &&
-            (news.name !== output.name || !deepEqual(news.config, olds.config))
-          ) {
-            return {
-              action: "replace",
-              deleteFirst: news.name === output.name,
-            } as const
-          }
-          return deepEqual(olds, news)
-            ? { action: "noop" as const }
-            : { action: "update" as const }
-        }),
+      diff: Effect.fn(function* ({ olds, news, output }) {
+        if (!isResolved(news)) return undefined
+        if (
+          output !== undefined &&
+          (news.name !== output.name || !deepEqual(news.config, olds.config))
+        ) {
+          return {
+            action: "replace",
+            deleteFirst: news.name === output.name,
+          } as const
+        }
+        if (!deepEqual(olds, news)) return { action: "update" as const }
+
+        // Unchanged inputs do not prove the store still exists: preview stores
+        // carry an `expiresAfter` and delete themselves, so a stage that sat
+        // idle past the TTL still holds a live-looking id in state. Noop-ing
+        // here would leave that dead id to 404 in a later sync, so confirm the
+        // store first and fall through to `reconcile`, which recreates it.
+        if (output !== undefined) {
+          const store = yield* client
+            .retrieveStore(output.id)
+            .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+          if (store === undefined) return { action: "update" as const }
+        }
+
+        return { action: "noop" as const }
+      }),
       read: Effect.fn(function* ({ id, olds, output }) {
         const stack = yield* Stack
         const stage = yield* Stage
