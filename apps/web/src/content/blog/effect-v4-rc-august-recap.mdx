@@ -1,0 +1,200 @@
+---
+pagefind: false
+title: "Effect v4 RC: August 2026 Updates"
+excerpt: "Effect v4 Release Candidate announcement. Zero external dependencies in the core package. A native PostgreSQL client, pull-based Sockets, native Schema Arbitraries, and more."
+date: 2026-08-31
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - effect-v4-updates
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+August was the month Effect v4 crossed the final threshold before stable.
+
+On August 12th, we announced the Effect v4 [Release Candidate](https://effect.website/blog/releases/effect/40-rc), and the Effect v4 core package now has zero external dependencies.
+
+## What landed in August
+
+### Effect v4 Release Candidate
+
+After months of beta releases, real-world usage, and a deep audit of the entire codebase, Effect is ready for 4. No broad breaking changes are planned for the RC cycle, any change that does land will be narrow in scope, clearly communicated, and accompanied by a migration path.
+
+The RC is an invitation to migrate real applications and validate against production workloads. If you find anything that should stop the stable release, **we want to know now**.
+
+```bash
+npm install effect@rc
+```
+
+Read the full [RC announcement](https://effect.website/blog/releases/effect/40-rc) for context, migration guidance, and what comes next.
+
+### Zero External Dependencies in Core
+
+The `effect` core package has no external dependencies. This is the result of a sustained effort throughout the RC cycle to internalize or eliminate third-party dependencies, including replacing `pg` with a native `PgProtocol` client, removing MessagePack and the MIME dependency from `@effect/platform-node`, and migrating `NodeRedis` from `ioredis` to `redis` (node-redis).
+
+Effect already replaces 50+ common packages (observability, HTTP, CLI, database drivers, dependency injection), and doing so with no external surface area of its own makes it uniquely resilient to supply chain attacks.
+
+### Native PostgreSQL Client
+
+Replaced the `pg` dependency in `@effect/sql-pg` with a native `PgProtocol` client, reducing external dependencies and giving the team full control over the connection lifecycle. PGlite `listen` behavior was also aligned with standard PostgreSQL semantics.
+
+### Pull-based Sockets
+
+The `Socket` API was reworked around a pull-based reader with end-to-end backpressure:
+
+- reconnects are now as simple as `Effect.retry`
+- the WebSocket client interface is unified across runtimes (Node, Bun, Deno, browser) with typed handshake headers
+- fixed the Node platform writing HTTP responses onto already-upgraded WebSocket connections.
+
+### Native Schema Arbitraries
+
+Schema's Arbitrary generation and shrinking were reworked with a native implementation, replacing the previous approach for more predictable and efficient property-based test data generation, with no external dependency.
+
+### Schema
+
+**New APIs** - added partial matching to `Schema.TaggedUnion`, configurable schema reference policies, and a protocol adapter for the latest MCP specification revision.
+
+**Performance** - optimized synchronous schema parsing. Fixed projection of checks and annotations through artificial JSON encodings. Fixed `Schema` class equivalence derivation.
+
+### Match
+
+Added `Match.fn` selector matchers for more ergonomic pattern matching without boilerplate.
+
+### RPC
+
+- Made server notifications first-class RPC messages.
+- Added HTTP stream backpressure to prevent unbounded memory growth under slow consumers.
+
+### Tracing
+
+- Improved tracing performance in span creation and HTTP tracer middleware.
+- Shared tracer hex ID generation across spans.
+- Documented the public random hex contract.
+- Fixed log annotations overwriting active span correlation identifiers.
+- Fixed disabled tracer timing still recording span end times.
+
+### AI & Streaming Tools
+
+Streaming tool handlers are now executed eagerly, supporting interruption and synthesized results instead of buffering the full response. Other fixes and improvements:
+
+- preserved encoded AI tool parameters for manual resolution
+- fixed `Deferred` clearing resumes before resuming waiters on completion
+- corrected max output tokens for Claude Opus 4.6, 4.7, 4.8 and Sonnet 4.6
+- fixed OpenRouter emitting cumulative tool-parameter prefixes as deltas
+- fixed OpenRouter reasoning-end metadata casing
+- fixed OpenRouter streamed citation end offsets overwriting start offsets
+- fixed OpenAI telemetry response attributes using the request namespace type
+- fixed batched encrypted event records reusing per-record randomization metadata
+- fixed unknown MCP cancellation suppressing a later reused request ID.
+
+### MCP
+
+- Fixed MCP conformance issues and added a test suite.
+- Emitted MCP tool output schemas.
+- Added a protocol adapter for the latest MCP specification revision.
+
+### Cluster & Durable Execution
+
+- Fixed a cluster shutdown hang from abandoned requests.
+- Fixed defecting execution-plan observers replacing outcomes and leaving events unpaired.
+- Fixed `TxPubSub` subscriber release interrupting after hub shutdown.
+- Fixed SQL `findById` resolvers invoking `NonEmpty` callbacks with empty batches.
+- Fixed SQL resolvers executing empty batches.
+- Used migrations for SQL persisted queues.
+- Added integration coverage for entity shutdown, replay, workflow owner-loss, and cluster transport failure scenarios.
+- Bounded teardown interrupt classification.
+- Ensured transient routing states are never surfaced for persisted messages.
+- Defaulted TCP cluster serialization to `SchemaBinary`.
+
+### SQL
+
+- Added D1 batch support.
+- Ran SQL persistence cleanup in bounded batches to avoid lock contention.
+- Fixed `TMap.remove`/`removeAll` clearing entire buckets on hash collision.
+- Fixed readonly SQLite transactions.
+- Propagated failed transaction begin as a typed error.
+- Fixed `NodeStream` zero `maxBytes` handling.
+
+### Platform & Runtime
+
+- Fixed Bun and Deno `fileWebResponse` ignoring range options.
+- Fixed closing an older Bun server not properly tearing down.
+- Fixed client-server-client `FormData` round-trip.
+- Fixed `rcRef` leaking resources acquired before acquisition failure.
+- Fixed `scopedRef.set` orphaning a replacement when old cleanup defects.
+- Fixed buffered worker send failures escaping the `WorkerError` channel.
+- Fixed `fiber.joinAll` erasing input fiber error types.
+- Fixed `NodeTerminal` readline staying alive between prompts.
+- Restored `Effect.timeout` error message.
+- Aligned type IDs with module paths.
+- Normalized collection count handling.
+
+### Effect Core
+
+- Restored `Effect.head`, which had been inadvertently removed.
+- Merged resource usage and finalizer failures.
+- Preserved `Context` accessor with loose object spread.
+- Fixed `Effect.fromOption` inline inference.
+- Normalized unbounded `PubSub` replay capacities.
+- Respected zero Node socket open timeouts.
+
+### Schedule
+
+Added support for refinements in `Schedule.while`.
+
+### Graph
+
+Fixed edge mutability and A\* heuristics.
+
+### CLI
+
+- Added context-based CLI prompt themes for more customizable interactive prompts.
+- Fixed quotes escaping in generated shell completion descriptions.
+
+### Optics
+
+Added standalone dual `Optic` functions.
+
+### Tooling
+
+Effect LSP rules are now available as custom, type-aware OXLint rules, with support for vite-plus. Effect's API reference documentation for both v3 and v4 is now available directly on the Effect website, with an improved search experience.
+
+A [skill for Effect v3 to v4 migration](https://www.skills.sh/effect-ts/skills/effect-v3-to-v4) is now available on skills.sh, enabling near-fully automated migrations with a coding agent.
+
+### Documentation
+
+- Recommended `Effect.fnUntraced` in the AI guide.
+- Documented `Match` and RPC migration changes for teams upgrading from v3.
+- Added `SQL`, `HttpApi` testing, and CLI schema coverage to the AI docs.
+- Fixed `KeyValueStore` file backend docs.
+
+---
+
+## Keep up with the Effect v4 RC
+
+If you missed the earlier updates, the [July recap](https://effect.website/blog/effect-v4beta-july-recap/), the [June recap](https://effect.website/blog/effect-v4beta-june-recap/), and the [February–May recap](https://effect.website/blog/effect-v4beta-launch-to-may-recap/) cover the full beta period.
+
+For week-by-week updates, follow the [This Week in Effect](https://www.effect.website/blog?category=this-week-in-effect#blog-grid) series.
+
+---
+
+To try the Effect v4 RC:
+
+<Tabs syncKey="package-manager">
+  <TabItem label="npm" icon="seti:npm">
+    `npm install effect@rc`
+  </TabItem>
+  <TabItem label="pnpm" icon="pnpm">
+    `pnpm add effect@rc`
+  </TabItem>
+  <TabItem label="Yarn" icon="yarn">
+    `yarn add effect@rc`
+  </TabItem>
+  <TabItem label="Bun" icon="bun">
+    `bun add effect@rc`
+  </TabItem>
+</Tabs>
+
+Happy Effecting. 🚀
