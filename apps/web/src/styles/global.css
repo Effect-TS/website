@@ -540,7 +540,13 @@ html.announcement-dismissed {
 }
 
 :root {
-  --nav-height: 5.5rem;
+  /* AnnouncementBanner (h-10) stacked above the navbar (h-16), both pinned in
+     one `sticky top-0` wrapper. Rails pinned below it can't read those heights
+     in CSS, so they offset by this. Collapses to the navbar when dismissed. */
+  --sticky-header-height: 6.5rem;
+}
+:root.announcement-dismissed {
+  --sticky-header-height: 4rem;
 }
 
 body {
