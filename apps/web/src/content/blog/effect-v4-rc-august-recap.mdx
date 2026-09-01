@@ -30,6 +30,15 @@ npm install effect@rc
 
 Read the full [RC announcement](https://effect.website/blog/releases/effect/40-rc) for context, migration guidance, and what comes next.
 
+### Upcoming breaking changes
+
+- MessagePack encoding and RPC serialization were removed. Migrate schema-aware encoding, decoding, and RPC framing to `effect/unstable/encoding/SchemaBinary`.
+- The `Mime` module moved from `@effect/platform-node` to `effect/unstable/http/Mime`, which now provides the built-in MIME registry without the external `mime` dependency.
+- `Config`'s built-in constructors now use PascalCase, such as `Config.String` and `Config.Number`, and `Config.mapOrFail` is now `Config.mapEffect`. Update existing call sites to the new names.
+- Effect no longer re-exports `fast-check`, and the `Schema.toArbitrary` and `effect/testing/FastCheck` APIs were removed. Use `effect/unstable/arbitrary/Arbitrary.schema` for Schema-derived generation, or depend on `fast-check` directly for its other APIs.
+- The native PostgreSQL client removed `PgClient.fromPool` and `PgClient.layerFromPool`. Pass connection settings to `PgClient.make` or `PgClient.layer` instead of wrapping a `pg` pool.
+- The pull-based `Socket` API removed `run`, `runString`, `runRaw`, and the send queue. Acquire `socket.reader` in a scope, use `socket.writer` for writes, and wrap the scoped read loop in `Effect.retry` to reconnect.
+
 ### Zero External Dependencies in Core
 
 The `effect` core package has no external dependencies. This is the result of a sustained effort throughout the RC cycle to internalize or eliminate third-party dependencies, including replacing `pg` with a native `PgProtocol` client, removing MessagePack and the MIME dependency from `@effect/platform-node`, and migrating `NodeRedis` from `ioredis` to `redis` (node-redis).
@@ -77,7 +86,7 @@ Added `Match.fn` selector matchers for more ergonomic pattern matching without b
 
 ### AI & Streaming Tools
 
-Streaming tool handlers are now executed eagerly, supporting interruption and synthesized results instead of buffering the full response. Other fixes and improvements:
+Automatic tool resolution is now interruption-safe when a language model response ends incomplete. Streaming tool handlers still execute eagerly, but only after the stream advances past their tool call; unresolved calls receive synthesized interruption results. Other fixes and improvements:
 
 - preserved encoded AI tool parameters for manual resolution
 - fixed `Deferred` clearing resumes before resuming waiters on completion
@@ -99,46 +108,49 @@ Streaming tool handlers are now executed eagerly, supporting interruption and sy
 
 - Fixed a cluster shutdown hang from abandoned requests.
 - Fixed defecting execution-plan observers replacing outcomes and leaving events unpaired.
-- Fixed `TxPubSub` subscriber release interrupting after hub shutdown.
-- Fixed SQL `findById` resolvers invoking `NonEmpty` callbacks with empty batches.
-- Fixed SQL resolvers executing empty batches.
-- Used migrations for SQL persisted queues.
 - Added integration coverage for entity shutdown, replay, workflow owner-loss, and cluster transport failure scenarios.
 - Bounded teardown interrupt classification.
 - Ensured transient routing states are never surfaced for persisted messages.
 - Defaulted TCP cluster serialization to `SchemaBinary`.
 
+### STM & Transactions
+
+- Fixed `TxPubSub` subscriber release interrupting after hub shutdown.
+- Fixed `TMap.remove`/`removeAll` clearing entire buckets on hash collision.
+
 ### SQL
 
 - Added D1 batch support.
 - Ran SQL persistence cleanup in bounded batches to avoid lock contention.
-- Fixed `TMap.remove`/`removeAll` clearing entire buckets on hash collision.
+- Fixed `findById` resolvers invoking `NonEmpty` callbacks with empty batches.
+- Prevented SQL resolvers from executing empty batches.
+- Used migrations for SQL persisted queues.
 - Fixed readonly SQLite transactions.
 - Propagated failed transaction begin as a typed error.
-- Fixed `NodeStream` zero `maxBytes` handling.
 
 ### Platform & Runtime
 
 - Fixed Bun and Deno `fileWebResponse` ignoring range options.
 - Fixed closing an older Bun server not properly tearing down.
 - Fixed client-server-client `FormData` round-trip.
+- Fixed `NodeStream` handling of a zero `maxBytes` limit.
 - Fixed `rcRef` leaking resources acquired before acquisition failure.
 - Fixed `scopedRef.set` orphaning a replacement when old cleanup defects.
 - Fixed buffered worker send failures escaping the `WorkerError` channel.
 - Fixed `fiber.joinAll` erasing input fiber error types.
 - Fixed `NodeTerminal` readline staying alive between prompts.
+- Made a zero-duration Node socket `openTimeout` fail immediately with a socket open timeout.
 - Restored `Effect.timeout` error message.
 - Aligned type IDs with module paths.
-- Normalized collection count handling.
 
 ### Effect Core
 
 - Restored `Effect.head`, which had been inadvertently removed.
-- Merged resource usage and finalizer failures.
-- Preserved `Context` accessor with loose object spread.
+- Normalized numeric collection counts across `Array`, `Chunk`, `Iterable`, and `String`; `TupleOf` now falls back to `Array` for positive fractional lengths.
+- Merged effect and finalizer failures during cleanup, preserving other failures alongside `Cause.Done`.
+- Preserved the `Context.mapUnsafe` accessor when code is compiled with loose object spread transforms.
 - Fixed `Effect.fromOption` inline inference.
 - Normalized unbounded `PubSub` replay capacities.
-- Respected zero Node socket open timeouts.
 
 ### Schedule
 
