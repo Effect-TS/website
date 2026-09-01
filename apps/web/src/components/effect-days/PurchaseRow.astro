@@ -2,19 +2,17 @@
 import { ArrowUpRight } from "@lucide/astro"
 
 /**
- * A full-width purchase row inside a ticket card: the payer label, the struck
- * regular price, and the early-bird price, with a trailing arrow that marks
- * the row as leaving for Stripe.
+ * A full-width purchase row inside a ticket card: the payer label, the price,
+ * and a trailing arrow that marks the row as leaving for Stripe.
  */
 interface Props {
   readonly href: string
   readonly label: string
-  readonly regular: string
-  readonly earlyBird: string
+  readonly price: string
   readonly ariaLabel: string
 }
 
-const { href, label, regular, earlyBird, ariaLabel } = Astro.props
+const { href, label, price, ariaLabel } = Astro.props
 ---
 
 <a
@@ -28,8 +26,7 @@ const { href, label, regular, earlyBird, ariaLabel } = Astro.props
     {label}
     {/* The separator sits back from the words it divides. */}
     <span class="text-zinc-600" aria-hidden="true">·</span>
-    <span class="text-sm text-zinc-400 line-through">{regular}</span>
-    <span class="text-base font-semibold">{earlyBird}</span>
+    <span class="text-base font-semibold">{price}</span>
   </span>
   <ArrowUpRight class="shrink-0 text-zinc-400" aria-hidden="true" />
 </a>

@@ -117,11 +117,6 @@ const SPEAKERS = [
   },
 ]
 
-/* Early bird runs first. Set to false once regular pricing starts, which also
-   restores the group-discount note under the passes. */
-const EARLY_BIRD_ON_SALE = true
-
-/* Early bird sells first; the regular price is shown struck through beside it. */
 const PASSES = [
   {
     name: "Workshop, Conference & Community Pass",
@@ -133,14 +128,12 @@ const PASSES = [
     featured: true,
     pricing: {
       self: {
-        earlyBird: "€349",
-        regular: "€449",
-        url: "https://book.stripe.com/dRm6oH1Ncf6z9eJgF39oc0P",
+        price: "€449",
+        url: "https://book.stripe.com/bJe00j4Zo3nR62x3Sh9oc0Q",
       },
       business: {
-        earlyBird: "€549",
-        regular: "€649",
-        url: "https://book.stripe.com/9B68wPgI6bUnbmRagF9oc0N",
+        price: "€649",
+        url: "https://buy.stripe.com/cNi14nbnM2jN3Up4Wl9oc0S",
       },
     },
   },
@@ -154,14 +147,12 @@ const PASSES = [
     featured: false,
     pricing: {
       self: {
-        earlyBird: "€249",
-        regular: "€299",
-        url: "https://book.stripe.com/7sY00j77wbUnfD760p9oc0K",
+        price: "€299",
+        url: "https://book.stripe.com/3cIcN5ezY7E72Ql0G59oc0D",
       },
       business: {
-        earlyBird: "€399",
-        regular: "€449",
-        url: "https://book.stripe.com/bJedR94ZobUnduZ3Sh9oc0O",
+        price: "€449",
+        url: "https://book.stripe.com/aFadR9dvU4rV0IdgF39oc0T",
       },
     },
   },
@@ -523,10 +514,8 @@ const FAQ_COLUMNS = [
             }
           >
             {/* Day count comes from the pass itself, so it stays true if a day
-                is ever added or dropped. The tier rides in the same chip and
-                drops out with the early bird, leaving just "3-day pass". */}
+                is ever added or dropped. */}
             <span class="self-start border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
-              {EARLY_BIRD_ON_SALE ? "Early bird " : ""}
               {pass.days.filter((day) => day.included).length}-day pass
             </span>
             <h3 class="mt-4 text-lg font-semibold text-white">{pass.name}</h3>
@@ -557,18 +546,14 @@ const FAQ_COLUMNS = [
               <PurchaseRow
                 href={pass.pricing.self.url}
                 label="Buy self-pay"
-                regular={pass.pricing.self.regular}
-                earlyBird={pass.pricing.self.earlyBird}
-                ariaLabel={`Buy the ${pass.name}, self-pay, ${pass.pricing.self.earlyBird} early bird, reduced from ${pass.pricing.self.regular}`}
+                price={pass.pricing.self.price}
+                ariaLabel={`Buy the ${pass.name}, self-pay, ${pass.pricing.self.price}`}
               />
-              {/* Keeps the asterisk so the invoicing note below still has
-                  something to point at. */}
               <PurchaseRow
                 href={pass.pricing.business.url}
                 label="Buy business*"
-                regular={pass.pricing.business.regular}
-                earlyBird={pass.pricing.business.earlyBird}
-                ariaLabel={`Buy the ${pass.name}, business, ${pass.pricing.business.earlyBird} early bird, reduced from ${pass.pricing.business.regular}`}
+                price={pass.pricing.business.price}
+                ariaLabel={`Buy the ${pass.name}, business, ${pass.pricing.business.price}`}
               />
             </div>
           </Card>
@@ -586,21 +571,13 @@ const FAQ_COLUMNS = [
       <p class="text-sm leading-normal text-zinc-400">
         Selecting a pass takes you to Stripe to complete your purchase.
       </p>
-      {
-        /* Group discounts are off the page while early bird is on sale — flip
-          EARLY_BIRD_ON_SALE to bring this back. */
-      }
-      {
-        !EARLY_BIRD_ON_SALE && (
-          <p class="text-sm leading-relaxed text-zinc-400">
-            Group of 4+?{" "}
-            <InlineLink href="mailto:contact@effectful.co?subject=Effect Days Livorno - Group Tickets">
-              Ask about business discounts
-            </InlineLink>
-            .
-          </p>
-        )
-      }
+      <p class="text-sm leading-relaxed text-zinc-400">
+        Group of 4+?{" "}
+        <InlineLink
+          href="mailto:contact@effectful.co?subject=Effect%20Days%20Livorno%20-%20Group%20Tickets"
+          >Ask about business discounts</InlineLink
+        >.
+      </p>
     </div>
   </Section>
 
