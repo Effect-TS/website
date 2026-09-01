@@ -32,9 +32,12 @@ Read the full [RC announcement](https://effect.website/blog/releases/effect/40-r
 
 ### Upcoming breaking changes
 
-- Applications using the removed built-in MessagePack support now need to supply their own MessagePack integration.
-- `@effect/platform-node` no longer includes the MIME dependency. Add a MIME implementation directly if your application relied on it.
+- MessagePack encoding and RPC serialization were removed. Migrate schema-aware encoding, decoding, and RPC framing to `effect/unstable/encoding/SchemaBinary`.
+- The `Mime` module moved from `@effect/platform-node` to `effect/unstable/http/Mime`, which now provides the built-in MIME registry without the external `mime` dependency.
 - `Config`'s built-in constructors now use PascalCase, such as `Config.String` and `Config.Number`, and `Config.mapOrFail` is now `Config.mapEffect`. Update existing call sites to the new names.
+- Effect no longer re-exports `fast-check`, and the `Schema.toArbitrary` and `effect/testing/FastCheck` APIs were removed. Use `effect/unstable/arbitrary/Arbitrary.schema` for Schema-derived generation, or depend on `fast-check` directly for its other APIs.
+- The native PostgreSQL client removed `PgClient.fromPool` and `PgClient.layerFromPool`. Pass connection settings to `PgClient.make` or `PgClient.layer` instead of wrapping a `pg` pool.
+- The pull-based `Socket` API removed `run`, `runString`, `runRaw`, and the send queue. Acquire `socket.reader` in a scope, use `socket.writer` for writes, and wrap the scoped read loop in `Effect.retry` to reconnect.
 
 ### Zero External Dependencies in Core
 
