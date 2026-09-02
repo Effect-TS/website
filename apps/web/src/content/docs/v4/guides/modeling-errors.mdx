@@ -1,0 +1,938 @@
+---
+title: Modeling Errors with Effect
+description: Model each failure as a value with Effect, from typed errors to incremental adoption.
+sidebar:
+  order: 1
+---
+
+import { Aside, Tabs, TabItem, Steps } from "@astrojs/starlight/components"
+
+You write `try/catch` code every day and it works. This guide is not about
+syntax. It is about a question your code cannot answer today: when you call a
+function, what can fail? You will learn to model each failure as clearly as you
+model the result. The examples use Effect, but the approach helps you even if you
+never adopt it.
+
+## Prerequisites
+
+This guide assumes you know TypeScript and `async`/`await`, but it assumes no
+prior Effect experience. The four pages below cover the small amount of Effect
+you need before you start:
+
+- [The Effect Type](/docs/v4/getting-started/the-effect-type/) explains the three
+  type parameters of an `Effect`.
+- [Creating Effects](/docs/v4/getting-started/creating-effects/) shows how to
+  build one.
+- [Using Generators](/docs/v4/getting-started/using-generators/) introduces
+  `Effect.gen` and `yield*`.
+- [Running Effects](/docs/v4/getting-started/running-effects/) covers
+  `Effect.runPromise` and the related functions.
+
+Three ideas from those pages are enough to read every sample here:
+`Effect.gen(function* () { ... })` runs a generator that reads like an `async`
+function, `yield*` runs one `Effect` and returns its success value the way
+`await` returns a resolved value, and `Effect.runPromise(program)` runs the
+finished program at the edge of your application and returns a `Promise`.
+
+## The example
+
+Throughout the guide we use one operation: load a user profile from an HTTP API,
+validate the response, and save it. That single operation can fail five ways. The
+network drops, the body fails to parse, the profile is missing, the server denies
+access, or the save conflicts with an existing record. Keep those five in mind,
+because making them visible is the whole point.
+
+## 1. The problem
+
+> How does this code tell me what can go wrong?
+
+Here is the version most of us write. It looks fine.
+
+**Example** (The Try/Catch Version)
+
+```ts twoslash
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+// The signature promises a Profile. It says nothing about failure.
+async function loadProfile(id: string): Promise<Profile> {
+  const response = await fetch(`/api/profiles/${id}`)
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`)
+  }
+  const data = await response.json()
+  return data as Profile
+}
+```
+
+The return type says `Promise<Profile>`. The function can reject with a network
+error, throw while parsing JSON, or return a 404, a 403, or a 409, yet the type
+mentions none of them, and the compiler does not warn you. A caller reads
+`Promise<Profile>` and prepares for a `Profile`.
+
+So the caller writes the only thing available:
+
+**Example** (One Catch, Every Failure)
+
+```ts twoslash
+// @errors: 18046
+declare function loadProfile(id: string): Promise<{ readonly name: string }>
+
+async function displayName(id: string): Promise<string> {
+  try {
+    return (await loadProfile(id)).name
+  } catch (error) {
+    // A 404, a network drop, and a bug all land here, and you cannot tell them apart.
+    return error.message
+  }
+}
+```
+
+Two problems compound here. A single `catch` block absorbs every failure into one
+branch, so the "profile not found" case also swallows parse errors and unrelated
+bugs. And because `error` has type `unknown`, the common shortcut is to lie
+again with `as Error`. A third
+problem is waiting to happen: when someone adds a new `throw` inside `loadProfile`
+later, no signature changes, every caller still compiles, and the bug reaches
+production.
+
+<Aside type="note" title="Checkpoint">
+  Pick any function in your code that returns a `Promise`. You can now list the
+  failures it can raise that its type does not mention.
+</Aside>
+
+This guide fixes that. To learn why Effect exists, read [Why
+Effect?](/docs/v4/getting-started/why-effect/).
+
+## 2. Every function is a boundary
+
+Before more code, adopt one rule: every function is a boundary between two
+parties. On one side is the callee, the function you write. On the other is the
+caller, whoever invokes it. A boundary is a contract, and the contract has three
+clauses, not two: what the function needs, what it returns on success, and how it
+can fail. Most of us write the first two and skip the third. Section 1 shows the
+cost.
+
+The third clause answers a design question you face at every function: which
+failures belong here? A failure belongs on the boundary when the caller could
+reasonably act on it. "The profile does not exist" qualifies, because a caller
+might show an empty state, try another id, or prompt the user to sign up. "The id
+was negative" does not, because a caller that passed a negative id has already
+made a mistake and has nothing to recover. The first is a domain failure the
+contract must publish. The second is a broken contract, a bug, and it stays off
+the failure list entirely. And the judgment is per boundary: what one function
+publishes, its caller may refuse to publish in turn. Section 4 makes the split
+concrete.
+
+### The callee reports, the caller decides
+
+Split the work by party. The callee reports: it enumerates
+what can fail and attaches the data a decision needs. The caller decides: it
+recovers, translates, escalates, or treats the failure as a bug. The callee must
+not decide for the caller, because it cannot see the caller's context. A JSON
+parser buried in your stack cannot know whether a malformed body should retry,
+fall back to a cache, or abort a checkout. Only the caller knows.
+
+This is inversion of control applied to failure. A thrown exception seizes
+control: it unwinds the stack in search of a handler, and the decision about what
+the failure means ends up far from where the failure arose, often reached by
+accident. Returning the failure as a value inverts that. The callee describes the
+failure and hands it back, and the caller keeps control and decides its fate.
+Everything that follows is that single move, made precise and checked by the
+compiler. None of it is unique to Effect. Effect only makes the contract
+impossible to forget.
+
+<Aside type="note" title="Checkpoint">
+  You can now take a function you wrote recently and decide, failure by failure,
+  whether it belongs in that function's contract. Judge each failure at its own
+  boundary: the same failure can be published at one boundary and kept out at
+  another.
+</Aside>
+
+## 3. Model failures as values
+
+> What if failures were values I return, not exceptions I throw?
+
+The idea is simple: return the failure instead of throwing it. In
+`Effect<Success, Error, Requirements>`, this guide works on the middle slot:
+`Effect.tryPromise` wraps a `Promise` and puts its rejection there as a value
+you choose. The next example rewrites `loadProfile`. The two tabs show the same
+thing in two styles, so use whichever reads better to you.
+
+**Example** (Failures on the Type)
+
+<Tabs syncKey="effect-style">
+  <TabItem label="Effect.gen">
+
+```ts twoslash
+import { Data, Effect } from "effect"
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause: unknown
+}> {}
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+//      ┌─── Effect<Profile, NetworkError>
+//      ▼
+const loadProfile = (id: string) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () => fetch(`/api/profiles/${id}`),
+      catch: (cause) => new NetworkError({ cause }),
+    })
+    const data = yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: (cause) => new NetworkError({ cause }),
+    })
+    return data as Profile
+  })
+```
+
+  </TabItem>
+  <TabItem label="pipe">
+
+```ts twoslash
+import { Data, Effect, pipe } from "effect"
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause: unknown
+}> {}
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+//      ┌─── Effect<Profile, NetworkError>
+//      ▼
+const loadProfile = (id: string) =>
+  pipe(
+    Effect.tryPromise({
+      try: () => fetch(`/api/profiles/${id}`),
+      catch: (cause) => new NetworkError({ cause }),
+    }),
+    Effect.flatMap((response) =>
+      Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause) => new NetworkError({ cause }),
+      }),
+    ),
+    Effect.map((data) => data as Profile),
+  )
+```
+
+  </TabItem>
+</Tabs>
+
+The failure now lives in the type: `Effect<Profile, NetworkError>`. A caller sees
+that a network failure is possible before writing a single line.
+
+> What can fail here? Can I name each failure?
+
+`NetworkError` alone is too coarse. Our example fails five different ways, and a
+caller that shows "profile not found" needs to tell that case apart from a parse
+error. So we list the failures as a closed, named set. `Data.TaggedError` gives
+each one its own class, with a `_tag` and whatever data the recovery will need.
+By Effect convention, the class name ends in `Error` and the `_tag` matches it,
+as in `ProfileNotFoundErrorError` with tag `"ProfileNotFoundErrorError"`.
+
+**Example** (Naming Each Failure)
+
+```ts twoslash import.meta.vitest name="naming-each-failure-1"
+import { Data, Effect } from "effect"
+
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly raw: unknown
+}> {}
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+const decodeProfile = (raw: unknown): Effect.Effect<Profile, ParseError> =>
+  typeof raw === "object" &&
+  raw !== null &&
+  "id" in raw &&
+  "name" in raw &&
+  "email" in raw
+    ? Effect.succeed(raw as Profile)
+    : Effect.fail(new ParseError({ raw }))
+
+const valid = { id: "1", name: "Alice", email: "alice@example.com" }
+
+Effect.runSync(decodeProfile(valid)).name // => "Alice"
+Effect.runSync(Effect.flip(decodeProfile({})))._tag // => "ParseError"
+```
+
+The full example needs five such classes, one per failure:
+
+```ts twoslash
+import { Data } from "effect"
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause: unknown
+}> {}
+
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly raw: unknown
+}> {}
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+
+class ConflictError extends Data.TaggedError("ConflictError")<{
+  readonly id: string
+}> {}
+```
+
+<Aside type="tip" title="Error as data">
+  A failure should carry what the caller needs to decide, not just a message
+  string. Put the status, the id, or the field on the error so the recovery has
+  something to act on.
+</Aside>
+
+> Who guarantees I handle every failure? Me, or the compiler?
+
+Because the failure type is part of the signature, "did I handle everything?"
+becomes a question the compiler can answer. In the next example a boundary
+function accepts only fully-handled programs, so its parameter fixes the failure
+type to `never`.
+
+**Example** (The Compiler Counts Your Failures)
+
+```ts twoslash
+// @errors: 2379
+import { Data, Effect } from "effect"
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+
+declare const loadProfile: (
+  id: string,
+) => Effect.Effect<string, ProfileNotFoundError | ForbiddenError>
+
+// This boundary accepts only programs whose failure type is never.
+declare const render: (program: Effect.Effect<string, never>) => void
+
+render(
+  loadProfile("1").pipe(
+    Effect.catchTag("ProfileNotFoundError", (error) =>
+      Effect.succeed(`unknown (${error.id})`),
+    ),
+    // ForbiddenError is still unhandled, so the failure type is ForbiddenError, not never.
+  ),
+)
+```
+
+`Effect.catchTag` handled `ProfileNotFoundError` and removed it from the failure type,
+but `ForbiddenError` is still there. The program no longer fits a boundary that demands
+`never`, so the build fails. Add a handler for `ForbiddenError` and it compiles again.
+You never had to remember the full list, because the compiler kept count for you.
+
+<Aside type="tip" title="The failure surface is a contract">
+  Add a new failure to a published type and every caller that does not handle it
+  stops compiling. The compiler carries the change out to all of them.
+</Aside>
+
+<Aside type="note" title="Checkpoint">
+  You can now write `loadProfile` so its type names all five failures. From that
+  point on, the compiler, not your memory, tells you when a caller misses one.
+</Aside>
+
+To learn every recovery function, read [Expected
+Errors](/docs/v4/error-management/expected-errors/) and
+[Matching](/docs/v4/error-management/matching/).
+
+## 4. Decide each failure
+
+> Is this failure part of my domain, or is it a bug?
+
+Section 2 sorted the failures: domain failures the caller can act on, and bugs.
+Effect keeps the two apart: typed failures stay in the failure type, while bugs
+become defects. You raise a defect with `Effect.die`. A defect stays off the
+type and stops the fiber, though a boundary can still catch it.
+
+**Example** (Domain Failure vs. Bug)
+
+```ts twoslash import.meta.vitest name="domain-failure-versus-bug-1"
+import { Cause, Data, Effect, Exit } from "effect"
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+
+const loadProfile = (id: number) =>
+  id < 0
+    ? // A negative id is impossible by contract, so this is a bug.
+      Effect.die(new Error(`id must be non-negative, got ${id}`))
+    : // A missing profile is a normal result the caller decides on.
+      Effect.fail(new ProfileNotFoundError({ id: String(id) }))
+
+// The bug comes back as a Die reason that carries the defect itself.
+const bug = Effect.runSyncExit(loadProfile(-1))
+Exit.isFailure(bug) && Cause.prettyErrors(bug.cause)[0]?.message // => "id must be non-negative, got -1"
+
+// The domain failure comes back as a Fail reason that carries the typed error.
+const missing = Effect.runSyncExit(loadProfile(3))
+Exit.isFailure(missing) &&
+  missing.cause.reasons.find(Cause.isFailReason)?.error.id // => "3"
+```
+
+The reverse also happens: a typed failure can be unrecoverable in a particular
+place. `Effect.orDie` turns a typed failure into a defect and drops it from the
+type. Reach for it for two reasons. The failure may be impossible by the
+surrounding contract, so its appearance can only mean a broken invariant. Or
+the failure may be real, but this boundary declines to publish it.
+
+**Example** (Promoting a Failure to a Defect)
+
+```ts twoslash import.meta.vitest name="promoting-a-failure-to-a-defect-1"
+import { Cause, Data, Effect, Exit } from "effect"
+
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly raw: unknown
+}> {}
+
+// The server contract guarantees a valid body, so a ParseError is a bug.
+// orDie drops it from the failure type.
+const decoded: Effect.Effect<string, never> = Effect.fail(
+  new ParseError({ raw: null }),
+).pipe(Effect.orDie)
+
+// The ParseError did not vanish: it comes back as the defect itself.
+const exit = Effect.runSyncExit(decoded)
+Exit.isFailure(exit) &&
+  exit.cause.reasons.find(Cause.isDieReason)?.defect instanceof ParseError // => true
+```
+
+The second reason deserves its own example. A repository calls infrastructure
+that fails with `DatabaseError`. The error is real, and the repository could
+handle it, but its own callers should not need to know a database exists. The
+repository keeps `DatabaseError` out of its contract and lets it die at its
+edge:
+
+**Example** (A Boundary Declines to Publish a Failure)
+
+```ts twoslash import.meta.vitest name="boundary-declines-to-publish-1"
+import { Cause, Data, Effect, Exit } from "effect"
+
+class DatabaseError extends Data.TaggedError("DatabaseError")<{
+  readonly cause: unknown
+}> {}
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+// Infrastructure reports DatabaseError and does not decide what it means.
+const queryProfile = (id: string): Effect.Effect<Profile, DatabaseError> =>
+  Effect.fail(new DatabaseError({ cause: "connection reset" }))
+
+// The repository is a boundary. DatabaseError is real, but this boundary does
+// not publish it, so callers above see a defect instead.
+const findProfile = (id: string): Effect.Effect<Profile> =>
+  Effect.orDie(queryProfile(id))
+
+// The defect is the DatabaseError itself, data intact, for whoever inspects it.
+const exit = Effect.runSyncExit(findProfile("1"))
+Exit.isFailure(exit) &&
+  exit.cause.reasons.find(Cause.isDieReason)?.defect instanceof DatabaseError // => true
+```
+
+<Aside type="note" title="Recoverability is a decision, not a property">
+  The same error can be recoverable in one place and fatal in another. The
+  caller decides at the boundary, and the error itself does not carry that
+  choice.
+</Aside>
+
+> When I combine operations, what is the total failure surface, and where do I resolve it?
+
+You rarely run a single step. You fetch, then validate, then save, and as you
+combine them the failure type grows into the union of every step's failures.
+Effect computes that union for you, so you never thread it by hand.
+
+**Example** (The Failure Surface Is the Union)
+
+<Tabs syncKey="effect-style">
+  <TabItem label="Effect.gen">
+
+```ts twoslash
+import { Data, Effect } from "effect"
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause: unknown
+}> {}
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly raw: unknown
+}> {}
+class ConflictError extends Data.TaggedError("ConflictError")<{
+  readonly id: string
+}> {}
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+declare const fetchRaw: (
+  id: string,
+) => Effect.Effect<
+  unknown,
+  NetworkError | ProfileNotFoundError | ForbiddenError
+>
+declare const decodeProfile: (
+  raw: unknown,
+) => Effect.Effect<Profile, ParseError>
+declare const saveProfile: (
+  profile: Profile,
+) => Effect.Effect<string, ConflictError>
+
+//      ┌─── Effect<string, NetworkError | ProfileNotFoundError | ForbiddenError | ParseError | ConflictError>
+//      ▼
+const persistProfile = (id: string) =>
+  Effect.gen(function* () {
+    const raw = yield* fetchRaw(id)
+    const profile = yield* decodeProfile(raw)
+    return yield* saveProfile(profile)
+  })
+```
+
+  </TabItem>
+  <TabItem label="pipe">
+
+```ts twoslash
+import { Data, Effect, pipe } from "effect"
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause: unknown
+}> {}
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly raw: unknown
+}> {}
+class ConflictError extends Data.TaggedError("ConflictError")<{
+  readonly id: string
+}> {}
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+declare const fetchRaw: (
+  id: string,
+) => Effect.Effect<
+  unknown,
+  NetworkError | ProfileNotFoundError | ForbiddenError
+>
+declare const decodeProfile: (
+  raw: unknown,
+) => Effect.Effect<Profile, ParseError>
+declare const saveProfile: (
+  profile: Profile,
+) => Effect.Effect<string, ConflictError>
+
+//      ┌─── Effect<string, NetworkError | ProfileNotFoundError | ForbiddenError | ParseError | ConflictError>
+//      ▼
+const persistProfile = (id: string) =>
+  pipe(fetchRaw(id), Effect.flatMap(decodeProfile), Effect.flatMap(saveProfile))
+```
+
+  </TabItem>
+</Tabs>
+
+Composition also short-circuits: the first failure stops the sequence, just like
+an early `throw`, while the type still records everything that could have
+happened. The next example wires the steps to an in-memory API so you can run it,
+then resolves every failure at one boundary where the type collapses to `never`.
+
+**Example** (Describe, Then Resolve at the Boundary)
+
+```ts twoslash import.meta.vitest name="describe-then-resolve-1"
+import { Data, Effect } from "effect"
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly raw: unknown
+}> {}
+class ConflictError extends Data.TaggedError("ConflictError")<{
+  readonly id: string
+}> {}
+
+// An in-memory API and store. A real HTTP client adds NetworkError to the fetch.
+const api: Record<string, unknown> = {
+  "1": { id: "1", name: "Alice", email: "alice@example.com" },
+  "2": { name: "Bob" }, // invalid: no id, no email
+}
+const forbidden = new Set(["3"])
+const saved = new Set<string>()
+
+const fetchRaw = (
+  id: string,
+): Effect.Effect<unknown, ProfileNotFoundError | ForbiddenError> =>
+  forbidden.has(id)
+    ? Effect.fail(new ForbiddenError({ id }))
+    : id in api
+      ? Effect.succeed(api[id])
+      : Effect.fail(new ProfileNotFoundError({ id }))
+
+const decodeProfile = (raw: unknown): Effect.Effect<Profile, ParseError> =>
+  typeof raw === "object" &&
+  raw !== null &&
+  "id" in raw &&
+  "name" in raw &&
+  "email" in raw
+    ? Effect.succeed(raw as Profile)
+    : Effect.fail(new ParseError({ raw }))
+
+const saveProfile = (profile: Profile): Effect.Effect<string, ConflictError> =>
+  saved.has(profile.id)
+    ? Effect.fail(new ConflictError({ id: profile.id }))
+    : Effect.sync(() => {
+        saved.add(profile.id)
+        return profile.id
+      })
+
+// Describe the operation. Its failure type is the union of every step.
+const persistProfile = (
+  id: string,
+): Effect.Effect<
+  string,
+  ProfileNotFoundError | ForbiddenError | ParseError | ConflictError
+> =>
+  Effect.gen(function* () {
+    const raw = yield* fetchRaw(id)
+    const profile = yield* decodeProfile(raw)
+    return yield* saveProfile(profile)
+  })
+
+// Resolve every failure at the boundary, so the failure type becomes never.
+const describe = (id: string): Effect.Effect<string> =>
+  persistProfile(id).pipe(
+    Effect.catchTags({
+      ProfileNotFoundError: (error) =>
+        Effect.succeed(`No profile for ${error.id}`),
+      ForbiddenError: (error) =>
+        Effect.succeed(`Access denied for ${error.id}`),
+      ParseError: () => Effect.succeed("Malformed profile from the server"),
+      ConflictError: (error) =>
+        Effect.succeed(`Profile ${error.id} already saved`),
+    }),
+  )
+
+await Effect.runPromise(describe("1")) // => "1"
+await Effect.runPromise(describe("1")) // => "Profile 1 already saved"
+await Effect.runPromise(describe("2")) // => "Malformed profile from the server"
+await Effect.runPromise(describe("3")) // => "Access denied for 3"
+await Effect.runPromise(describe("9")) // => "No profile for 9"
+```
+
+Notice the shape. Each step describes its failure where the failure occurs, and a
+single place at the edge decides what to do with all of them. `Effect.catchTags`
+handles each tag, and because it covers the whole union the result has the failure
+type `never`: a program that cannot fail in a way you forgot.
+
+<Aside type="note" title="Describe failure, then handle it">
+  Constructing a failure is not the same as deciding its fate. Effect values are
+  lazy, so the two can live in different places.
+</Aside>
+
+> How much of the failure surface should cross the boundary?
+
+A wide union names every failure, but it is not always the contract you want to publish.
+Five top-level tags escaping a module are five things every caller must learn.
+Sometimes the right boundary is a single error with a private breakdown inside it.
+
+Which operator a caller needs follows from that choice. Take a checkout that
+charges a card. The charge can fail two ways: the card was declined, or the
+gateway timed out. If callers branch on each failure, publish the two as peers
+and match each tag with `Effect.catchTag`:
+
+**Example** (Peers: Match Each Tag)
+
+```ts twoslash import.meta.vitest name="catch-tag-peers-1"
+import { Data, Effect } from "effect"
+
+class CardDeclinedError extends Data.TaggedError("CardDeclinedError")<{
+  readonly issuerMessage: string
+}> {}
+class GatewayTimeoutError extends Data.TaggedError("GatewayTimeoutError")<{
+  readonly afterMs: number
+}> {}
+
+const charge = (
+  amountUsd: number,
+): Effect.Effect<string, CardDeclinedError | GatewayTimeoutError> =>
+  Effect.fail(new CardDeclinedError({ issuerMessage: "insufficient funds" }))
+
+const checkout = charge(49).pipe(
+  Effect.catchTag("CardDeclinedError", (error) =>
+    Effect.succeed(`Card declined: ${error.issuerMessage}`),
+  ),
+  Effect.catchTag("GatewayTimeoutError", () =>
+    Effect.succeed("The gateway timed out, try again"),
+  ),
+)
+
+Effect.runSync(checkout) // => "Card declined: insufficient funds"
+```
+
+If callers mostly treat the charge as one failure, publish one parent error with
+the cause inside it. The checkout screen still needs the declined-card case, so
+it matches the reason with `Effect.catchReason`. The parent stays in the failure
+type for the reasons you did not handle, so everyone else catches the parent
+once and never learns the reasons:
+
+**Example** (One Parent: Match a Reason)
+
+```ts twoslash import.meta.vitest name="catch-reason-nested-1"
+import { Data, Effect } from "effect"
+
+class CardDeclinedError extends Data.TaggedError("CardDeclinedError")<{
+  readonly issuerMessage: string
+}> {}
+class GatewayTimeoutError extends Data.TaggedError("GatewayTimeoutError")<{
+  readonly afterMs: number
+}> {}
+
+// One error crosses the boundary. Its cause is a closed set of reasons.
+class PaymentFailedError extends Data.TaggedError("PaymentFailedError")<{
+  readonly reason: CardDeclinedError | GatewayTimeoutError
+}> {}
+
+const charge = (amountUsd: number): Effect.Effect<string, PaymentFailedError> =>
+  Effect.fail(
+    new PaymentFailedError({
+      reason: new CardDeclinedError({ issuerMessage: "insufficient funds" }),
+    }),
+  )
+
+// The handler receives the unwrapped CardDeclinedError. PaymentFailedError stays in the
+// failure type for the GatewayTimeoutError reason, so the next catch still sees it.
+const checkout = charge(49).pipe(
+  Effect.catchReason("PaymentFailedError", "CardDeclinedError", (reason) =>
+    Effect.succeed(`Card declined: ${reason.issuerMessage}`),
+  ),
+  Effect.catchTag("PaymentFailedError", () =>
+    Effect.succeed("Payment failed, try again"),
+  ),
+)
+
+Effect.runSync(checkout) // => "Card declined: insufficient funds"
+```
+
+The two operators map to the two shapes. `Effect.catchTag` matches a top-level
+tag, so it fits a flat union of peers. Use `Effect.catchReason` when you need
+more granular handling of one parent error: the handler receives the nested
+cause, and `Effect.catchReasons` handles several reasons in one call. Choose by
+how much the caller on the other side needs to see.
+
+<Aside type="note" title="Checkpoint">
+  You can now place every failure in your own code: `Effect.fail` for domain
+  failures that belong in the contract, `Effect.die` for bugs, `Effect.orDie`
+  for real failures your boundary declines to publish. At the edge, one handler
+  resolves whatever remains.
+</Aside>
+
+For the full reference, read [Two Error
+Types](/docs/v4/error-management/two-error-types/) and [Error Channel
+Operations](/docs/v4/error-management/error-channel-operations/). Retries and
+timeouts also work on the failure type, so when you are ready, see
+[Retrying](/docs/v4/error-management/retrying/) and [Timing
+Out](/docs/v4/error-management/timing-out/).
+
+## 5. Why not a plain Result type?
+
+> Do I even need Effect for this?
+
+A `Result` type, a value that holds either a success or a typed error, already
+gives you the core idea of this guide without a new runtime. It is a step up
+from `try/catch`, and if it is all you adopt you are still better off. But it
+has limits.
+
+```ts twoslash
+type Result<A, E> =
+  | { readonly ok: true; readonly value: A }
+  | { readonly ok: false; readonly error: E }
+
+declare function fetchRaw(id: string): Promise<Result<unknown, "NetworkError">>
+declare function decode(
+  raw: unknown,
+): Result<{ readonly id: string }, "ParseError">
+
+// You unwrap each step by hand and thread the error union by hand.
+async function load(
+  id: string,
+): Promise<Result<{ readonly id: string }, "NetworkError" | "ParseError">> {
+  const fetched = await fetchRaw(id)
+  if (!fetched.ok) return fetched
+  const decoded = decode(fetched.value)
+  if (!decoded.ok) return decoded
+  return decoded
+}
+```
+
+A `Result` makes failures visible as values. It does not give you:
+
+- **Composition:** every step is a manual `if (!ok) return`, whereas Effect
+  threads the union and short-circuits for you.
+- **The defect split:** a `Result` has a single bucket, while Effect separates
+  domain failures from bugs so a broken invariant cannot pose as a normal result.
+- **The third type parameter:** requirements, interruption, resource safety,
+  retries, and timeouts all ride along on the same value, whereas a `Result`
+  covers failure and nothing more.
+
+<Aside type="note" title="Checkpoint">
+  You can now decide for your own code whether a plain `Result` is enough, or
+  whether composition, the defect split, or requirements push you to Effect.
+</Aside>
+
+Effect keeps the core of the `Result` idea, that failure is a value in the type,
+and makes it compose. If you take only one idea from this guide, take that one.
+
+## 6. Adopt Effect without a rewrite
+
+> How do I introduce this into code I already have, with no rewrite?
+
+Don't convert the whole application. Wrap a single seam and leave everything
+around it alone. This is the strangler pattern. `Effect.tryPromise`
+turns an existing async function into an `Effect`, and `Effect.runPromise` turns
+it back into a `Promise` for callers that still expect one.
+
+**Example** (Wrap One Seam)
+
+```ts twoslash
+import { Data, Effect } from "effect"
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause: unknown
+}> {}
+
+// Your existing function, unchanged.
+declare function loadProfile(id: string): Promise<Profile>
+
+// One Effect wrapper around it. The rest of the code stays imperative.
+const loadProfileEffect = (id: string) =>
+  Effect.tryPromise({
+    try: () => loadProfile(id),
+    catch: (cause) => new NetworkError({ cause }),
+  })
+
+// Back to a Promise for a caller that still expects one.
+const asPromise = (id: string) => Effect.runPromise(loadProfileEffect(id))
+```
+
+Inside the wrapper you get typed failures and composition, and outside it nothing
+has changed. Add one wrapper at a time and the typed core grows outward.
+
+<Aside type="note" title="Checkpoint">
+  You can now try this on your own code: wrap one function with
+  `Effect.tryPromise`, run it with `Effect.runPromise`, and no caller changes.
+</Aside>
+
+## 7. Bring your team across
+
+If you are weighing this for a team, here is a rollout that tends not to stall.
+
+<Steps>
+
+1. **Start where it hurts most.** Pick the flow that already causes incidents,
+   such as a payment call, an auth check, or a flaky integration, and wrap that
+   first rather than the small utilities.
+
+2. **Work at the boundaries.** Wrap with `Effect.tryPromise` and run with
+   `Effect.runPromise`. The typed core grows from the inside while the imperative
+   shell shrinks, with no big-bang branch.
+
+3. **Standardize the error taxonomy.** Collect the domain's `Data.TaggedError`
+   classes in one module and give each one the data its recovery needs. This
+   taxonomy outlasts any single service.
+
+4. **Make the failure type a review rule.** For every new operation, ask two
+   questions: is each failure named, and is each one a domain failure or a defect?
+   The compiler enforces the rest.
+
+</Steps>
+
+There is a cost: generators and `pipe` are a new idiom, "defect" and "failure"
+are new vocabulary, and during the transition your boundaries need adapters in
+both directions. In return, the answer to "What can fail here?" is in the
+signature, where the whole team can read it.
+
+## Recap
+
+These rules hold even if you close this page and never install Effect. Effect
+enforces them, but they stand without it.
+
+- **Treat every function as a boundary.** Its failure list is part of the
+  contract, alongside its parameters and its result.
+- **The callee reports, the caller decides.** A function names what can fail, and
+  whoever calls it chooses to recover, translate, escalate, or treat it as a bug.
+- **Put every failure in the signature.** A caller who cannot see a failure cannot
+  handle it.
+- **Name each failure and give it data.** A tag with data beats a message string,
+  because recovery acts on data.
+- **Make "everything handled" checkable.** Exhaustiveness is the compiler's job,
+  not your memory's.
+- **Decide recoverable versus bug at each call site.** The decision depends on the
+  caller's context, not on the error itself.
+
+This guide sets a few APIs aside, among them error accumulation, sandboxing, and
+parallel failures, and the [Error
+Management](/docs/v4/error-management/expected-errors/) section covers them. For a
+side-by-side comparison with other approaches, the v3 docs weigh Effect against
+[neverthrow](/docs/v3/additional-resources/effect-vs-neverthrow/),
+[fp-ts](/docs/v3/additional-resources/effect-vs-fp-ts/), and
+[Promises](/docs/v3/additional-resources/effect-vs-promise/).
