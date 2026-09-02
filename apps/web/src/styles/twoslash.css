@@ -1,0 +1,81 @@
+/* Anchor the absolutely-positioned twoslash popup to the code block: the
+   popup script appends `.twoslash-popup-container` to `.expressive-code` and
+   floating-ui computes coordinates relative to the offset parent, which
+   without `position: relative` is a distant page wrapper far below. */
+.expressive-code {
+  position: relative;
+}
+
+/* The popup script positions the popup with floating-ui while it is still
+   hidden, and a `display: none` element has no offsetParent — floating-ui
+   then falls back to page coordinates and the popup lands far below the
+   hovered line. Keep the popup rendered and hide it with `visibility`
+   instead, keyed off the `aria-hidden` attribute the script toggles. */
+.expressive-code .twoslash-popup-container {
+  display: block !important;
+  visibility: hidden;
+  --ec-twoSlash-brdCol: var(--ec-gtrFg);
+}
+
+/* While hidden the popup still sits inside the code line (its containing
+   block is the relative `.twoslash-hover` span), where its natural size
+   creates a permanent scrollable overflow on `pre`. Zero-size it until the
+   script reveals it; when shown, the size middleware's inline `max-*` and
+   the plugin's `width: max-content` take over again. */
+.expressive-code .twoslash-popup-container:not([aria-hidden="false"]) {
+  max-width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden;
+}
+
+.expressive-code .twoslash-popup-container[aria-hidden="false"] {
+  visibility: visible;
+}
+
+.expressive-code
+  .twoslash-popup-container
+  .twoslash-popup-docs
+  .expressive-code
+  pre {
+  border: var(--ec-brdWd) solid var(--ec-brdCol) !important;
+}
+
+.expressive-code .twoslash-popup-container .twoslash-popup-docs .ec-line {
+  line-height: var(--ec-codeLineHt);
+}
+
+.expressive-code .twoslash-popup-container .twoslash-popup-docs code {
+  line-height: normal;
+}
+
+/* Render a line-marker label as a full-width accent bar on its own row above
+   the line, instead of EC's default tab that overlaps a long label onto the code. */
+.expressive-code .ec-line.tm-label {
+  margin-block-start: 1lh;
+}
+.expressive-code .ec-line.tm-label::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 1lh;
+  background: var(--ec-tm-markBrdCol);
+}
+.expressive-code .ec-line.tm-label.ins::before {
+  background: var(--ec-tm-insBrdCol);
+}
+.expressive-code .ec-line.tm-label.del::before {
+  background: var(--ec-tm-delBrdCol);
+}
+/* Lift the label text into the bar, aligned with the code start and optically
+   centred. `!important` beats EC's equal-specificity rule. */
+.expressive-code .ec-line.tm-label .code::before {
+  top: auto;
+  bottom: 100%;
+  padding-inline-start: calc(
+    var(--ec-codePadInl) - var(--ecGtrBrdWd)
+  ) !important;
+  transform: translateY(0.85px);
+  background: transparent !important;
+}
