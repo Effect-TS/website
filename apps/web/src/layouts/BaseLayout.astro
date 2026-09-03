@@ -38,7 +38,12 @@ const getOgImagePath = () => {
 
 const ogImagePath = getOgImagePath()
 const ogImageUrl = new URL(ogImagePath, Astro.url.origin)
-if (ogImageVersion !== undefined) ogImageUrl.searchParams.set("v", ogImageVersion)
+ogImageUrl.searchParams.set(
+  "v",
+  ogImageVersion === undefined
+    ? PUBLIC_WEBSITE_REVISION
+    : `${PUBLIC_WEBSITE_REVISION}.${ogImageVersion}`,
+)
 
 const pagePathname = Astro.url.pathname.replace(/\/$/, "")
 const canonicalUrl = new URL(pagePathname, Astro.site)

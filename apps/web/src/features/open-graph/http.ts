@@ -3,6 +3,7 @@ import * as Layer from "effect/Layer"
 import * as HttpRouter from "effect/unstable/http/HttpRouter"
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse"
 import type { OpenGraphError } from "@website/open-graph/OpenGraph"
+import { cacheControl } from "./cache-control"
 import * as OpenGraphGenerator from "./generator"
 import { MetadataNotFound } from "./model"
 
@@ -42,7 +43,7 @@ export const layer = Effect.gen(function* () {
         return HttpServerResponse.uint8Array(bytes, {
           contentType: "image/png",
           headers: {
-            "cache-control": "public, max-age=31536000, immutable",
+            "cache-control": cacheControl(url),
           },
         })
       },
