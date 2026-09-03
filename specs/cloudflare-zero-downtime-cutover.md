@@ -1,388 +1,442 @@
-# Cloudflare Zero-Downtime Cutover
+# Cloudflare migration plan
 
-## Objective
+Last reviewed: 2026-09-01
 
-Move production traffic for `effect.website` and `www.effect.website` from
-Vercel to the Cloudflare Worker without a DNS propagation window or an
-unserved hostname.
+## Goal
 
-This runbook uses a Cloudflare Worker Route as a temporary traffic bridge.
-The existing Vercel records remain available until the Worker has served
-production traffic successfully. The final state uses Worker Custom Domains
-managed by Alchemy.
+Move `effect.website` and `www.effect.website` from Vercel to the Cloudflare
+Worker managed by Alchemy. Keep Vercel available as a rollback origin until the
+Cloudflare deployment has been stable for 48 hours.
 
-## Current State
-
-Observed on 2026-08-21:
-
-- The registrar is Name.com.
-- The authoritative nameservers are already Cloudflare:
-  `ben.ns.cloudflare.com` and `mary.ns.cloudflare.com`.
-- DNSSEC is disabled.
-- The apex resolves to Vercel.
-- `www.effect.website` is a CNAME to `cname.vercel-dns.com`.
-- The apex redirects to `www` at Vercel.
-- The generated canonical and Open Graph URLs use `https://effect.website`.
-- `_dmarc.effect.website` exists and is unrelated to the website cutover.
-
-No registrar or nameserver change is required. Only the website records and
-Cloudflare traffic configuration change.
-
-## Desired State
+The final state is:
 
 - `effect.website` is the canonical hostname and serves `WebsiteWorker`.
-- `www.effect.website` returns a permanent redirect to the matching apex URL,
-  preserving the path and query string.
-- Cloudflare manages DNS and certificates for both hostnames through Worker
-  Custom Domains.
-- Vercel is no longer an origin or rollback dependency.
-- DNSSEC may be enabled separately after the migration is stable.
+- `www.effect.website` permanently redirects to the same apex path and query.
+- Cloudflare manages both hostnames, certificates, and DNS records through
+  Worker Custom Domains.
+- GitHub Actions deploys production and pull request previews through Alchemy.
+- Vercel has no domains, credentials, integration, configuration, or package
+  dependencies left in this project.
 
-Changing the canonical host from the current Vercel behavior is intentional.
-If `www` must remain canonical, reverse `name` and `redirects` in every example
-before starting.
+## Readiness decision
 
-## Safety Invariants
+Do not move production traffic yet.
 
-1. Never remove the Vercel DNS targets before a proxied Worker Route is
-   serving the apex.
-2. Never remove the temporary Worker Route before both Custom Domains and
-   their certificates are active.
-3. Keep the Vercel project and domain attachments until the rollback window
-   has ended.
-4. Export the Cloudflare zone before changing records. Restore records from
-   that export, not from IP addresses returned by `dig`.
-5. Do not alter mail, verification, DMARC, delegated subdomain, or unrelated
-   records.
-6. Make one traffic-mode transition per successful deployment.
+The Cloudflare preview works, and the branch has the main pieces needed for a
+safe migration. The remaining release gates are concrete:
 
-## Required Code Changes
+- Reconcile the local branch with `origin/chore/cloudflare` and current `main`.
+  The reviewed checkout is 40 commits ahead and 33 behind its remote branch.
+- Deploy the reconciled revision to the production `workers.dev` stage. The
+  preview tested during this review was built from `4a1fef5`, not local HEAD.
+- Fix and certify the Cloudflare CI token policy.
+- Add deployment preflight and post-deployment HTTP checks.
+- Add enough production monitoring to detect a bad cutover and name the person
+  responsible for rollback.
+- Fix deployment invalidation for forced builds and public PostHog variables.
+- Run a clean production build and compare it with an incremental build.
+- Protect production deployments from unrelated pushes during the cutover and
+  provide a tested rollback path to an immutable source revision.
 
-### 1. Add Explicit Traffic Modes
+Rate limits, preview cleanup, and stronger deployment controls should also be
+completed before the migration branch is considered finished. They do not need
+to block the first route-based traffic test if the team accepts the risk.
 
-Add `CLOUDFLARE_TRAFFIC_MODE` to `alchemy.run.ts` with these accepted values:
+## Verified state
 
-| Mode             | Custom Domains | Apex Worker Route | Purpose                                                   |
-| ---------------- | -------------- | ----------------- | --------------------------------------------------------- |
-| `workers-dev`    | Detached       | Removed           | Build and verify without production traffic               |
-| `routes`         | Detached       | Attached          | Move traffic from Vercel to the Worker                    |
-| `bridge`         | Attached       | Attached          | Provision Custom Domains while the Route protects traffic |
-| `custom-domains` | Attached       | Removed           | Final state                                               |
+### Production on 2026-09-01
 
-Reject any other value. Default production deployments to `workers-dev` until
-the cutover is complete. Preview stages must continue to omit production
-domains and routes.
+- Name.com is the registrar.
+- Cloudflare is already authoritative through `ben.ns.cloudflare.com` and
+  `mary.ns.cloudflare.com`. No nameserver migration is needed.
+- The apex resolves to Vercel addresses and returns a Vercel `308` redirect to
+  `https://www.effect.website/`.
+- `www.effect.website` is a CNAME to `cname.vercel-dns.com` and is served by
+  Vercel.
+- `CLOUDFLARE_TRAFFIC_MODE` is `workers-dev`, so production traffic remains on
+  Vercel by design.
+- GitHub still stores `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and
+  `VERCEL_PROJECT_ID`.
+- An active GitHub ruleset protects `main` with pull requests, linear history,
+  and required `Format`, `Lint`, and `Types` checks. Organization administrators
+  and one repository role can bypass it.
+- The GitHub `Production` environments have no protection rules.
 
-The production Worker props should be equivalent to:
+Do not copy the observed Vercel IP addresses into a rollback procedure. Export
+the Cloudflare zone and record the exact DNS definitions before changing them.
 
-```ts
-const domainEnabled =
-  trafficMode === "bridge" || trafficMode === "custom-domains"
-const routeEnabled = trafficMode === "routes" || trafficMode === "bridge"
+### Cloudflare implementation
 
-const productionTraffic =
-  stage === "prod"
-    ? {
-        domain: domainEnabled
-          ? {
-              name: "effect.website",
-              redirects: ["www.effect.website"],
-            }
-          : null,
-        routes: routeEnabled
-          ? [
-              {
-                pattern: "effect.website/*",
-                zoneName: "effect.website",
-              },
-            ]
-          : [],
-      }
-    : {}
-```
+The branch already provides:
 
-Spread `productionTraffic` into the existing Astro Worker props.
+- An Astro Worker deployed by Alchemy in `alchemy.run.ts`.
+- Cloudflare-hosted Alchemy state.
+- Pull request Workers with PR comments and cleanup on PR close.
+- Four production traffic modes: `workers-dev`, `routes`, `bridge`, and
+  `custom-domains`.
+- Explicit domain detachment and route removal for deterministic rollback.
+- Runtime bindings for Mixedbread search and Upstash playground links.
+- Worker replacements for the Vercel dprint and PostHog rewrites.
+- Cloudflare `_headers` rules for Monaco workers.
+- Production and preview incremental build caches.
+- API reference snapshot verification and Mixedbread synchronization.
 
-The explicit `null` and empty array are important. In Alchemy, an omitted
-`domain` leaves live domain attachments unmanaged; it does not detach them.
-Explicit values make rollback from `bridge` to `routes` deterministic.
+The reviewed preview returned the expected responses for the home page,
+documentation redirects, `/play`, an Open Graph image, and a custom 404. This
+is useful evidence, but it is not a production acceptance test.
 
-### 2. Pass the Mode Through Deployment Workflows
+## Findings to resolve
 
-Use a repository variable named `CLOUDFLARE_TRAFFIC_MODE`. Do not use a
-secret; the value is not sensitive.
+### Cutover blockers
 
-Update the deployment chain so the value reaches the Alchemy process:
+1. **The existing redirect order would loop.** Production currently redirects
+   apex to `www`. Reverse that behavior in Vercel first so the apex serves the
+   site and `www` redirects to apex. Otherwise a cached `www` to apex redirect
+   can loop after a Vercel rollback.
+2. **The CI token is too broad and may lack Zone Read.** `stacks/github.ts`
+   grants write access across all zones in the account and includes broad
+   account permissions. Restrict zone permissions to `effect.website`, add the
+   read permissions Alchemy needs, and remove unrelated permissions.
+3. **A successful deployment does not prove the site is healthy.** The workflow
+   has no deployed HTTP checks for the Worker URL, apex, `www`, certificates,
+   redirects, or dynamic routes.
+4. **Local validation runs after deployment.** API reference link verification
+   can fail after the new Worker is already live. Either run an equivalent
+   pre-deployment build check or make the post-deployment failure trigger the
+   documented rollback.
+5. **`force_full_build` may not force an Alchemy rebuild.** It deletes Astro's
+   cache, but Alchemy can skip the build when its source memo is unchanged.
+6. **PostHog variable changes may not rebuild generated HTML.** Include
+   `PUBLIC_POSTHOG_KEY` and `PUBLIC_POSTHOG_API_HOST` in deployment
+   invalidation.
+7. **Monitoring is not defined.** Default Worker invocation logs are present,
+   but there are no synthetic checks, server error alerts, dependency alerts,
+   or agreed rollback thresholds.
+8. **The infrastructure toolchain is a patched beta.** Alchemy and its
+   Cloudflare framework package are pinned to `2.0.0-beta.72` with local patches
+   required for Node prerendering. Freeze these versions through cutover and
+   prove a clean install and build on the reconciled commit.
+9. **The current workflow cannot select a known-good revision.** Add and test a
+   protected rollback workflow that accepts an immutable commit and an explicit
+   traffic mode.
+10. **Unrelated pushes can change production during cutover.** Production
+    deploys on every main-branch push, the active ruleset has bypass actors, and
+    the Production environments have no protection rules. Add a protected
+    production environment and a cutover deployment lock before proxying either
+    hostname.
+11. **There is no read-only production build gate.** `vp run build` cannot build
+    server-rendered routes because Alchemy injects the Cloudflare adapter, while
+    `alchemy plan` does not run the build. Add an adapter-backed predeployment
+    build check or validate an isolated nonproduction deployment before the
+    production deployment can run.
 
-1. `.github/workflows/production.yml`
-2. `.github/workflows/deploy.yml`
-3. `.github/actions/deploy/action.yml`
+### Risks to address before final teardown
 
-The composite deployment action should pass:
+- `workersDev: true` leaves a permanent alternate origin that can bypass
+  zone-level controls. Disable it after the rollback window unless there is a
+  documented reason to keep it.
+- Search, playground shortening, dynamic Open Graph generation, dprint proxying,
+  and PostHog proxying have no repository-managed rate limits or abuse rules.
+- Preview cleanup only runs when GitHub delivers the PR close event. Add a
+  scheduled job that removes Cloudflare stages for closed PRs.
+- Same-repository PR builds receive production-capable credentials. Use a
+  GitHub environment, least-privilege preview credentials, and trusted-branch
+  controls where Alchemy permits them.
+- Saving an incremental cache with `if: always()` can preserve partial output
+  after a failed build. Save build caches only after a successful build.
+- There is no CI comparison between clean and incremental static output. A
+  missing Astro cache key silently leaves stale HTML.
+- Playwright reuses any process listening on port `1337` without checking that
+  it is this website, and its tests rely on Vite-only `/@id/` imports that do not
+  work against a deployed preview.
 
-```yaml
-env:
-  CLOUDFLARE_TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
-```
+## Required code work
 
-to `vp exec alchemy deploy --stage prod --yes`.
+Complete these changes before setting the traffic mode to `routes`:
 
-The reusable workflow input should be a string with a safe default of
-`workers-dev`. The production caller should supply:
+- [ ] Rebase or merge current `main` and reconcile the remote branch.
+- [ ] Update `stacks/github.ts` with a least-privilege, zone-scoped token.
+- [ ] Document how and when the GitHub bootstrap stack is applied.
+- [ ] Validate and log `CLOUDFLARE_TRAFFIC_MODE` before invoking Alchemy.
+- [ ] Add smoke checks after every production deployment.
+- [ ] Make a smoke-check failure fail the deployment and print the exact
+      rollback command or workflow action.
+- [ ] Make `force_full_build` change Alchemy's build input, not only Astro's
+      local cache state.
+- [ ] Include public build-time variables in Alchemy's memo or resource inputs.
+- [ ] Prevent failed builds from writing incremental cache entries.
+- [ ] Run `vp check`, `vp test`, and the production build path from a clean
+      checkout.
+- [ ] Compare representative HTML from a clean build and an incremental build.
+- [ ] Add a production-shaped build check that cannot modify the live Worker.
+- [ ] Make the E2E server use an isolated port and verify its identity before
+      reusing it.
+- [ ] Confirm the ruleset's required check names match the current workflows.
+- [ ] Add protection rules to the production environment.
+- [ ] Prevent unrelated main-branch and API-reference deployments while a
+      cutover phase is running.
+- [ ] Add and test a protected rollback deployment that accepts an immutable
+      source commit and explicit traffic mode.
 
-```yaml
-cloudflare-traffic-mode: ${{ vars.CLOUDFLARE_TRAFFIC_MODE || 'workers-dev' }}
-```
+Complete these changes before deleting Vercel:
 
-The publish workflow also calls the reusable deployment workflow. It must use
-the same repository variable so API-reference publishing cannot accidentally
-deploy a different traffic mode.
+- [ ] Decide whether Worker logs need Logpush, a Tail Worker, or external error
+      reporting, then configure the chosen alerts.
+- [ ] Decide whether to disable the stable production `workers.dev` hostname.
 
-### 3. Add a Deployment Preflight
+## Cloudflare preparation
 
-Before invoking Alchemy in production, validate that the mode is exactly one
-of the four supported values. `alchemy.run.ts` remains the authoritative
-validation boundary; a workflow check should only improve the error message.
+Assign one cutover operator and one reviewer. Record the start time, each mode
+change, validation result, and rollback decision in the deployment issue.
 
-Log the selected mode, but never log Cloudflare credentials.
+- [ ] Confirm the `effect.website` zone is Active in the account named by
+      `CLOUDFLARE_ACCOUNT_ID`.
+- [ ] Export the complete DNS zone.
+- [ ] Record the apex and `www` Vercel records and their proxy state.
+- [ ] Confirm mail, DKIM, DMARC, verification, CAA, SRV, and delegated records
+      will not change.
+- [ ] Confirm Universal SSL covers the apex and `www`.
+- [ ] Confirm no other Worker, Pages project, redirect, transform, or origin rule
+      owns either hostname.
+- [ ] Confirm the zone has an available Single Redirect rule within its quota.
+- [ ] Inspect the API token policy in Cloudflare. A successful preview proves
+      Workers Script access only.
+- [ ] Exercise Route, Custom Domain, redirect, HTTPS, and cleanup permissions on
+      disposable hostnames.
+- [ ] Record current Vercel latency, error rate, search success rate, and key
+      page checks as the rollback baseline.
+- [ ] Keep the Vercel project and both domains active.
 
-### 4. Add Post-Deployment HTTP Checks
+The deployment token should have only the account and zone permissions required
+by the resources in `alchemy.run.ts`. Expected permissions include Workers
+Scripts Edit, Zone Read, Workers Routes Edit, and the permissions required for
+redirect management. Custom Domains use the Workers API rather than a separate
+Custom Domain permission. DNS Edit is needed only if Alchemy or the cutover
+process changes DNS through the API.
 
-For `routes`, `bridge`, and `custom-domains`, check:
+## Acceptance checks
 
-```sh
-curl --fail --silent --show-error https://effect.website/
-curl --fail --silent --show-error --head https://www.effect.website/
-```
+Automate these where possible. Run them against the production `workers.dev`
+URL first, then against the public hostnames after every traffic change.
 
-The check should verify that the apex response is no longer from Vercel. In
-`bridge` and `custom-domains`, it should also verify that `www` redirects to
-the apex while preserving a test path and query string.
+### HTTP and routing
 
-Do not enable these production-host checks in `workers-dev`; that mode is
-expected to leave production on Vercel.
+- [ ] Home page returns `200`.
+- [ ] `/docs` reaches the expected documentation landing page.
+- [ ] A trailing-slash URL redirects once to its non-trailing form.
+- [ ] A known legacy URL reaches its expected destination.
+- [ ] A missing URL returns the custom `404` with status `404`.
+- [ ] `www` redirects to apex with the status expected for the current phase.
+      Use `302` during the rollback window and `301` after Phase 6.
+- [ ] The `www` redirect preserves a test path and query string.
+- [ ] Apex responses have Cloudflare headers and no `server: Vercel` or
+      `x-vercel-id` header.
+- [ ] Canonical and Open Graph URLs use `https://effect.website`.
 
-## Cloudflare Token Requirements
+### Application behavior
 
-`CLOUDFLARE_API_TOKEN` must be scoped to the configured account and the
-`effect.website` zone. It needs:
+- [ ] Search returns results with the production read-only key.
+- [ ] Playground shortening can write and read a disposable test value.
+- [ ] `/play` and Monaco worker assets return the required COEP and COOP headers.
+- [ ] A dprint plugin downloads through the Worker proxy.
+- [ ] PostHog requests use `/ingest` and reach the correct upstream without a
+      redirect or CORS error.
+- [ ] Static and generated Open Graph images render.
+- [ ] Current API reference pages load and contain no unresolved module links.
+- [ ] RSS, sitemap, robots, fonts, JavaScript, and CSS load.
 
-- Account: **Workers Scripts Edit**
-- Zone: **Zone Read**
-- Zone: **Workers Routes Edit**
-- Zone: **Single Redirect Edit** (called **Dynamic URL Redirects Write** in
-  some Cloudflare API permission listings)
+### Operations
 
-DNS changes in this runbook are manual dashboard operations. If they are
-automated, also grant:
+- [ ] TLS is valid from at least two networks.
+- [ ] Worker exceptions, CPU time, latency, and 5xx responses remain within the
+      agreed Vercel baseline.
+- [ ] Mixedbread and Upstash errors remain within baseline.
+- [ ] The deployment records the Worker version and source commit.
+- [ ] The operator has tested deployment of an immutable known-good commit.
+- [ ] The operator can execute both application and traffic rollback procedures.
 
-- Zone: **DNS Edit**
+## Cutover procedure
 
-Avoid granting access to unrelated accounts or zones.
+Make one traffic change at a time. Stop after any failed check.
 
-### Current Token Assessment
+### Phase 0: align Vercel with the final canonical host
 
-The repository has a `CLOUDFLARE_API_TOKEN` secret, and successful preview
-deployments prove that it is active and can deploy Worker scripts to the
-configured account. That does not prove the permissions needed for this
-cutover. Preview deployments do not read the production zone, attach Worker
-Routes or Custom Domains, or edit Single Redirect rules.
+1. In Vercel, make `effect.website` the primary production domain.
+2. Confirm that the apex serves the site without redirecting.
+3. Confirm that `www` redirects to the same apex path and query.
+4. Confirm that canonical and Open Graph URLs remain on the apex.
 
-The secret is not available in the local development environment, and GitHub
-does not allow stored Actions secrets to be read back. Its policy therefore
-cannot be inspected from this checkout.
+Treat this canonical change as forward-only once public requests have received
+the new redirect. Restoring the previous apex to `www` redirect can loop for
+clients that cached the new `www` to apex redirect. If validation fails, keep
+the apex canonical and fix the Vercel domain configuration before continuing.
+If the team cannot accept that constraint, stop and arrange a temporary redirect
+or an intermediate Vercel state in which both hostnames serve content.
 
-Status: **not yet certified for the production cutover**. Confirm its
-Cloudflare policy or complete the disposable end-to-end test below before
-starting Phase 0.
+### Phase 1: prove the production Worker
 
-### Definitive Token Verification
+1. Merge the required code work.
+2. Set the repository variable `CLOUDFLARE_TRAFFIC_MODE=workers-dev`.
+3. Deploy the exact production revision with the production secrets and API
+   reference snapshot.
+4. Run the full acceptance checklist against the production `workers.dev` URL.
+5. Confirm that production still comes from Vercel.
 
-GitHub Actions secrets are write-only, so `gh secret list` proves only that a
-secret exists. Preview deployment proves Workers script access, but does not
-exercise production Routes, Custom Domains, zone lookup, or redirect rules.
+Rollback is not needed in this phase because the Worker has no production
+traffic. Fix the deployment and repeat the phase.
 
-Before cutover, inspect the token in Cloudflare under **My Profile > API
-Tokens** and compare its permissions and resource scope with the list above.
+### Phase 2: proxy the existing Vercel records
 
-For an end-to-end permission test, use disposable hostnames in a nonproduction
-Alchemy stage:
+1. Confirm Cloudflare SSL mode is Full or Full (strict), as supported by the
+   Vercel origin.
+2. Change the existing apex Vercel record to Proxied in Cloudflare.
+3. Do not change its DNS target. Verify the apex still serves Vercel correctly.
+4. Change the existing `www` Vercel record to Proxied.
+5. Do not change its DNS target. Verify `www` still redirects to apex.
+6. Confirm that Cloudflare proxying has not changed application behavior.
 
-1. Deploy a disposable Worker.
-2. Attach a Route on a proxied disposable hostname.
-3. Attach a Custom Domain on a second disposable hostname.
-4. Create a redirect from a third disposable hostname.
-5. Verify HTTPS.
-6. Destroy the stage and verify all temporary records, routes, domains, rules,
-   and certificates are removed or accounted for.
+Rollback one hostname at a time by returning it to its recorded DNS-only state.
 
-This is stronger than read-only API checks because Cloudflare separates read
-and edit permissions.
-
-## Cloudflare Dashboard Preparation
-
-Complete these steps before changing `CLOUDFLARE_TRAFFIC_MODE`:
-
-1. Confirm the `effect.website` zone is **Active** in the same account as
-   `CLOUDFLARE_ACCOUNT_ID`.
-2. Export the complete DNS zone.
-3. Record the exact apex and `www` Vercel record definitions and proxy status.
-4. Review all records for mail, DKIM, DMARC, verification, CAA, SRV, and
-   delegated subdomains.
-5. Confirm Universal SSL is active and covers `effect.website` and
-   `www.effect.website`.
-6. Confirm no other Worker owns either hostname.
-7. Confirm the account plan supports a zone-level Single Redirect.
-8. Keep the Vercel project and both domain attachments active.
-
-## Cutover Runbook
-
-### Phase 0: Deploy Without Production Traffic
-
-1. Set `CLOUDFLARE_TRAFFIC_MODE=workers-dev`.
-2. Deploy production.
-3. Verify the production Worker at its `workers.dev` URL.
-4. Exercise navigation, redirects, API reference pages, search, assets, Open
-   Graph images, and error pages.
-5. Stop if the Worker is not healthy.
-
-Production remains entirely on Vercel in this phase.
-
-### Phase 1: Put Cloudflare In Front Of Vercel
-
-1. Confirm Universal SSL is active.
-2. Change the existing apex and `www` Vercel records to **Proxied**.
-3. Do not change their targets.
-4. Verify both hostnames still behave exactly as they did on Vercel.
-5. Confirm responses now traverse Cloudflare and still reach Vercel.
-
-This changes the network path but not the application origin. If it fails,
-return the records to **DNS only**.
-
-### Phase 2: Prepare The Canonical Redirect
-
-Create a temporary Cloudflare Single Redirect:
-
-- Match: `www.effect.website/*`
-- Target: the equivalent `https://effect.website/*`
-- Status: permanent redirect
-- Preserve path: yes
-- Preserve query string: yes
-
-The redirect executes before the origin or Worker Route. Verify it before
-moving apex traffic.
-
-### Phase 3: Move Apex Traffic To The Worker Route
+### Phase 3: move the apex to the Worker Route
 
 1. Set `CLOUDFLARE_TRAFFIC_MODE=routes`.
 2. Deploy production.
-3. Verify Alchemy attached `effect.website/*` to `WebsiteWorker`.
-4. Verify apex requests are served by Cloudflare, not Vercel.
-5. Verify the temporary `www` redirect.
-6. Monitor errors, search, and application telemetry.
+3. Confirm that Alchemy attached `effect.website/*` to `WebsiteWorker`.
+4. Run the acceptance checks against the apex.
+5. Confirm that the apex no longer redirects to `www` and has no Vercel headers.
+6. Confirm that Vercel still handles the `www` to apex redirect.
+7. Keep this mode for at least 48 hours. Monitor the agreed checks and compare
+   them with the Vercel baseline.
 
-No DNS target changes occur in this phase. The proxied Vercel apex record is
-still present as a rollback origin, but the Worker Route runs first.
+The proxied Vercel apex record remains underneath the Worker Route as a
+rollback origin. To roll back, set the mode to `workers-dev` and deploy. The
+route is removed and Vercel resumes serving the apex. Because Phase 0 made the
+apex canonical in Vercel, cached `www` redirects remain valid after rollback.
 
-Rollback: set the mode to `workers-dev` and deploy. The Route is removed and
-the proxied records resume forwarding to Vercel.
+### Phase 4: remove Vercel as the DNS origin
 
-### Phase 4: Remove Vercel As The Hidden Origin
+Only start this phase after the 48-hour route soak. This ends the simple Vercel
+rollback window.
 
-After the Route has been stable:
-
-1. Replace the apex Vercel target with a proxied placeholder `A` record to
+1. Create a temporary Cloudflare Single Redirect with the filter expression
+   `http.host eq "www.effect.website"`.
+2. Use status `302` and the dynamic target
+   `concat("https://effect.website", http.request.uri.path)`.
+3. Preserve the query string and test both HTTP and HTTPS with a path and query.
+4. Replace the apex Vercel target with a proxied placeholder A record to
    `192.0.2.0`.
-2. Replace the `www` Vercel CNAME with a proxied placeholder `A` record to
+5. Replace the `www` Vercel CNAME with a proxied placeholder A record to
    `192.0.2.0`.
-3. Verify the Worker Route and redirect still serve both hostnames.
+6. Verify that the Worker Route and temporary redirect still serve both hosts.
+7. Confirm that neither placeholder can be reached directly.
 
-The placeholder records are safe only while proxied. Requests must never be
-allowed to reach the placeholder address.
+The placeholder records are temporary. They are safe only while proxied and
+while the Worker Route or redirect owns every request.
 
-Using `A` placeholders also removes the `www` CNAME that would prevent a
-Worker Custom Domain attachment.
+An emergency Vercel rollback is still possible here. Restore the exported
+Vercel records while the Worker Route stays active. Verify the records are
+proxied, disable the temporary redirect so Vercel handles `www`, then set the
+mode to `workers-dev` and deploy.
 
-Rollback: restore the exact exported Vercel records, keep them proxied, set
-the mode to `workers-dev`, and deploy.
-
-### Phase 5: Attach Custom Domains Behind The Route
+### Phase 5: attach Custom Domains behind the route
 
 1. Set `CLOUDFLARE_TRAFFIC_MODE=bridge`.
 2. Deploy production.
-3. Confirm both Custom Domains are attached to `WebsiteWorker`.
-4. Confirm Cloudflare created their managed DNS records.
-5. Wait for both certificates to report **Active**.
-6. Confirm Alchemy created its managed `www` redirect rule.
-7. Verify apex HTTPS and the `www` redirect from multiple networks.
+3. Confirm that both Custom Domains are attached to `WebsiteWorker`.
+4. Confirm that Cloudflare created the managed DNS records.
+5. Wait for both certificates to become Active.
+6. Confirm that the Alchemy-managed `www` redirect exists.
+7. Keep the temporary redirect and apex Worker Route in place while checking
+   the Custom Domains.
+8. Do not claim that this phase tests apex Custom Domain traffic. The Worker
+   Route takes precedence and still handles apex requests.
 
-The existing Worker Route remains active throughout this phase. If Custom
-Domain reconciliation fails, traffic continues through the Route.
+Before cutover, prove Custom Domain attachment and detachment on a disposable
+hostname, including the resulting DNS records. If provisioning fails here,
+leave the live Worker Route in place and deploy a corrected `bridge` state.
+Do not detach domains until the operator has confirmed a proxied DNS record will
+remain or be recreated for the route.
 
-Rollback: set the mode back to `routes` and deploy. Explicit `domain: null`
-detaches partial Custom Domains while retaining the Route.
+### Phase 6: remove temporary routing
 
-### Phase 6: Remove The Bridge
+1. Disable the temporary dashboard-created `www` redirect.
+2. Immediately verify the Alchemy-managed `www` redirect.
+3. Set `CLOUDFLARE_TRAFFIC_MODE=custom-domains`.
+4. Deploy production.
+5. Confirm that the apex Worker Route was removed.
+6. Run the full acceptance checklist from multiple networks.
+7. Monitor for at least 48 hours.
 
-1. Remove the temporary dashboard-created redirect after confirming the
-   Alchemy-managed redirect is active.
-2. Set `CLOUDFLARE_TRAFFIC_MODE=custom-domains`.
-3. Deploy production.
-4. Confirm the Worker Route was removed.
-5. Confirm the Custom Domains continue serving traffic.
-6. Monitor for at least 48 hours.
+This is the first phase that sends apex traffic through the Custom Domain rather
+than the Worker Route. For a routing rollback, set the mode to `bridge` and
+deploy. This adds the route without detaching either Custom Domain. For an
+application rollback, deploy the immutable last known-good source revision.
 
-Rollback: set the mode to `bridge` and deploy. This restores the Route without
-removing the Custom Domains.
+Do not improvise a full Vercel rollback from `custom-domains`. Detaching Custom
+Domains can remove their managed DNS records before a Route can receive traffic.
+Use only the Vercel rollback procedure proven with disposable hostnames, or
+schedule a maintenance window to restore the exported records.
 
-## Validation Checklist
+## Vercel teardown
 
-Run from multiple resolvers and networks:
+Start only after the 48-hour Custom Domain observation period and explicit
+approval from the cutover owner.
 
-```sh
-dig effect.website A @1.1.1.1
-dig www.effect.website A @1.1.1.1
-curl -I https://effect.website/
-curl -I "https://www.effect.website/docs/?cutover=1"
-```
+### External cleanup
 
-Confirm:
+- [ ] Remove `effect.website` and `www.effect.website` from the Vercel project.
+- [ ] Disable Vercel production and preview deployments for this repository.
+- [ ] Remove the Vercel GitHub integration or project connection.
+- [ ] Remove stale Vercel deployment checks from repository rules and external
+      automation.
+- [ ] Remove obsolete Vercel deployments according to the retention policy.
+- [ ] Delete `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` from GitHub
+      after confirming that no other automation uses them.
+- [ ] Confirm that DNS has no Vercel targets and Cloudflare Custom Domains own
+      both website records.
 
-- Cloudflare is still authoritative.
-- Both hostnames return valid Cloudflare certificates.
-- Apex responses do not contain Vercel response headers.
-- `www` redirects to `https://effect.website/docs/?cutover=1`.
-- Redirect status, path, and query behavior are correct.
-- Documentation, API reference, search, assets, Open Graph images, 404s, and
-  legacy redirects work.
-- Cloudflare Worker errors and application telemetry remain healthy.
+### Repository cleanup
 
-## Final Cleanup
+- [ ] Delete `apps/web/vercel.json` after testing its Cloudflare replacements.
+- [ ] Delete `apps/web/scripts/patch-vercel-trailing-slash.mjs`.
+- [ ] Change the default `.vercel/output/static` path in
+      `verify-api-reference-links.mjs` to the Cloudflare build output or require
+      the path argument.
+- [ ] Remove the commented Vercel adapter import and configuration from
+      `apps/web/astro.config.ts`.
+- [ ] Remove the `.vercel` watcher and gitignore entries.
+- [ ] Remove `vercel` and `@astrojs/vercel` from the package manifests.
+- [ ] Regenerate `pnpm-lock.yaml` with `pnpm` and verify that unneeded Vercel
+      transitive packages disappear.
+- [ ] Update the privacy policy to name Cloudflare instead of Vercel and change
+      its last-updated date.
+- [ ] Replace the transitional traffic modes with a fixed Custom Domain setup
+      after the team no longer needs Vercel rollback.
+- [ ] Mark this runbook complete and record the final Worker version, commit,
+      DNS export, and completion date.
 
-After the rollback window:
+Editorial references to Vercel, company logos, podcast assets, and third-party
+`vercel.app` links are content, not hosting dependencies. Do not remove them as
+part of the infrastructure cleanup.
 
-1. Remove `effect.website` and `www.effect.website` from the Vercel project.
-2. Remove obsolete Vercel deployments and integrations.
-3. Remove `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` only after
-   confirming no other repository automation uses them.
-4. Keep `CLOUDFLARE_TRAFFIC_MODE=custom-domains` as an explicit repository
-   variable.
-5. Keep the transitional modes in code for one rollback window, then decide
-   whether to simplify the configuration to Custom Domains only.
-6. Consider enabling Cloudflare DNSSEC as a separate change. Publish the new
-   Cloudflare DS record through Name.com only after the zone is stable.
+## Later work
+
+Treat these as separate changes after hosting is stable:
+
+- Enable DNSSEC in Cloudflare, then publish the DS record through Name.com.
+- Add HSTS, CSP, `X-Content-Type-Options`, `Referrer-Policy`, and frame policy
+  after testing them against the playground and embedded content.
+- Review Open Graph cache versioning so changed images do not remain immutable
+  at an unchanged URL.
+- Review the playground short-link collision behavior before increasing public
+  traffic or retention.
+- Pin secret-bearing GitHub Actions to commit SHAs.
 
 ## References
 
-- Cloudflare Worker Custom Domains:
-  https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
-- Cloudflare Worker Routes:
-  https://developers.cloudflare.com/workers/configuration/routing/routes/
-- Cloudflare Single Redirects:
-  https://developers.cloudflare.com/rules/url-forwarding/single-redirects/
-- Cloudflare Universal SSL:
-  https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/enable-universal-ssl/
-- Cloudflare API token permissions:
-  https://developers.cloudflare.com/fundamentals/api/reference/permissions/
-- Removing a domain from Vercel:
-  https://vercel.com/docs/domains/working-with-domains/remove-a-domain
+- [Cloudflare Worker Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+- [Cloudflare Worker Routes](https://developers.cloudflare.com/workers/configuration/routing/routes/)
+- [Cloudflare Single Redirects](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/)
+- [Cloudflare Universal SSL](https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/enable-universal-ssl/)
+- [Cloudflare API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/)
+- [Remove a domain from Vercel](https://vercel.com/docs/domains/working-with-domains/remove-a-domain)
