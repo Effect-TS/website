@@ -5,87 +5,21 @@ sidebar:
   order: 1
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+import { Aside, TabItem, Tabs } from "@astrojs/starlight/components"
 
 Thrown errors work, but they leave a question unanswered: **when you call a
 function, what can fail?** This tutorial is about that question, not about
 syntax. It shows how to model each failure as clearly as the result. The
 examples use Effect, and the thinking applies wherever a return type can carry
-failures.
+failures. You need TypeScript and `async`/`await`; Effect you meet where the
+samples first need it.
 
-## Prerequisites
+## 1. The problem
 
-This tutorial assumes you know TypeScript and `async`/`await`. No Effect
-experience is needed. The next section introduces everything the samples build
-on.
+> How does this code tell me what can go wrong?
 
-### The `Effect` type
-
-An `Effect<Success, Error>` is a description of a program
-that succeeds with a `Success` or fails with an `Error`.
-
-Nothing runs when you build the description. Work happens only when you execute
-it, which is why a failure can be described in one place and decided in another.
-
-The simplest description wraps a plain value with `Effect.succeed`:
-
-```ts
-import { Effect } from "effect"
-
-//                             ┌─── Success channel
-//                             │       ┌─── Error channel
-//                             ▼       ▼
-const program: Effect.Effect<string, Error> = Effect.succeed("Hello")
-```
-
-`Effect` is both the module you import and the type it exports, which is why the
-type is written `Effect.Effect`. Nothing ever travels the error channel of
-`Effect.succeed`, because it cannot fail; the `Error` here only illustrates
-where the failure type sits.
-
-### `Effect.gen` composes steps
-
-It takes a _generator function_, written `function* () {}` with a `*`. You do
-not need to learn generators in depth: read `Effect.gen` as this tutorial's
-`async`, `yield*` as its `await`, and the `*` as the marker that a function is
-allowed to use `yield*`. So `yield*` runs one `Effect` and returns its success
-value the way `await` returns a resolved value:
-
-```ts twoslash
-import { Effect } from "effect"
-
-const fetchName = Effect.succeed("Alice")
-
-const greeting = Effect.gen(function* () {
-  const name = yield* fetchName
-  return `Hello, ${name}`
-})
-```
-
-**`Effect.runPromise` executes at the edge.** It runs the description and
-returns a `Promise`:
-
-```ts collapse={3-8}
-import { Effect } from "effect"
-
-const fetchName = Effect.succeed("Alice")
-
-const greeting = Effect.gen(function* () {
-  const name = yield* fetchName
-  return `Hello, ${name}`
-})
-
-const result: Promise<string> = Effect.runPromise(greeting)
-```
-
-A few samples check results with `Effect.runSync`, the
-synchronous sibling of `Effect.runPromise`. The failure-handling sections add
-more operators, each introduced where it is needed.
-
-### The example
-
-The tutorial uses one operation throughout: load a user profile from an HTTP API,
-validate the response, and save it. That operation can fail five ways:
+The tutorial uses one operation throughout: load a user profile from an HTTP
+API, validate the response, and save it. That operation can fail five ways:
 
 - The network drops.
 - The body fails to parse.
@@ -93,16 +27,12 @@ validate the response, and save it. That operation can fail five ways:
 - The server denies access.
 - The save conflicts with an existing record.
 
-Keep those five in mind, because making them visible is the whole point.
+Keep those five in mind, because making them visible is the whole point. Here
+is a common version of the load step: four named error classes, a shape check,
+and a `try` around each `await`.
 
-## 1. The problem
-
-> How does this code tell me what can go wrong?
-
-Here is a common version: four named error classes, a shape check, and a
-`try` around each `await`.
-
-**Example** (The Try/Catch Version)
+<Tabs>
+<TabItem label="Example (The Try/Catch Version)">
 
 ```ts twoslash collapse={7-26}
 interface Profile {
@@ -171,6 +101,9 @@ function isProfile(body: unknown): body is Profile {
 }
 ```
 
+</TabItem>
+</Tabs>
+
 It looks fine: `fetch` rejects only when the request never completes, so a 404
 or 403 arrives as a normal response, which is why the code checks `response.ok`
 by hand. The return type says `Promise<Profile>`, but the function can fail four
@@ -191,7 +124,8 @@ reads `Promise<Profile>` and prepares for a `Profile`. The error classes exist,
 but nothing in the type says so. A caller who wants to handle the missing
 profile has to read the source:
 
-**Example** (Handle One, Rethrow the Rest)
+<Tabs>
+<TabItem label="Example (Handle One, Rethrow the Rest)">
 
 ```ts twoslash collapse={1-64}
 interface Profile {
@@ -274,6 +208,9 @@ async function displayName(id: string): Promise<string> {
 }
 ```
 
+</TabItem>
+</Tabs>
+
 The compiler passed all of it, but we have three problems:
 
 - The types never change: `Promise<Profile>` carries none of the four classes,
@@ -311,7 +248,8 @@ TypeScript has no syntax to state the third clause.
 
 Here is `loadProfile`, written as pseudo-code, with its real contract spelled out:
 
-**Example** (The Three Clauses of `loadProfile`)
+<Tabs>
+<TabItem label="Example (The Three Clauses of loadProfile)">
 
 ```ts
 // Pseudo-code: TypeScript has no syntax for the third clause.
@@ -323,6 +261,9 @@ function loadProfile(id: string): Promise<Profile>
 //          NetworkError          the request never completed
 //          ParseError            the body is not a profile
 ```
+
+</TabItem>
+</Tabs>
 
 Writing the third clause forces a question at every boundary: **which failures
 belong in the contract?** A failure belongs when the caller could reasonably
@@ -357,7 +298,8 @@ nearest `catch`, and that handler decides what the failure means, wherever it
 sits. The return type keeps saying `Promise<Profile>` the whole time, which is
 how failures go missing from types.
 
-The next section restores the division by returning failures as values.
+Section 3 restores the division by returning failures as values, once a short
+Effect primer is out of the way.
 
 <Aside type="note" title="Checkpoint">
   Pick a function you wrote recently. Write its three clauses, then go failure
@@ -365,6 +307,73 @@ The next section restores the division by returning failures as values.
   own boundary: the same failure can be published at one boundary and kept out
   at another.
 </Aside>
+
+## Meet Effect
+
+The rest of the tutorial builds on three pieces of Effect.
+
+### The `Effect` type
+
+An `Effect<Success, Error>` is a description of a program
+that succeeds with a `Success` or fails with an `Error`.
+
+Nothing runs when you build the description. Work happens only when you execute
+it, which is why a failure can be described in one place and decided in another.
+
+The simplest description wraps a plain value with `Effect.succeed`:
+
+```ts
+import { Effect } from "effect"
+
+//                             ┌─── Success channel
+//                             │       ┌─── Error channel
+//                             ▼       ▼
+const program: Effect.Effect<string, Error> = Effect.succeed("Hello")
+```
+
+`Effect` is both the module you import and the type it exports, which is why the
+type is written `Effect.Effect`. Nothing ever travels the error channel of
+`Effect.succeed`, because it cannot fail; the `Error` here only illustrates
+where the failure type sits.
+
+### `Effect.gen` composes steps
+
+It takes a _generator function_, written `function* () {}` with a `*`. You do
+not need to learn generators in depth: read `Effect.gen` as this tutorial's
+`async`, `yield*` as its `await`, and the `*` as the marker that a function is
+allowed to use `yield*`. So `yield*` runs one `Effect` and returns its success
+value the way `await` returns a resolved value:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const fetchName = Effect.succeed("Alice")
+
+const greeting = Effect.gen(function* () {
+  const name = yield* fetchName
+  return `Hello, ${name}`
+})
+```
+
+**`Effect.runPromise` executes at the edge.** It runs the description and
+returns a `Promise`:
+
+```ts collapse={3-8}
+import { Effect } from "effect"
+
+const fetchName = Effect.succeed("Alice")
+
+const greeting = Effect.gen(function* () {
+  const name = yield* fetchName
+  return `Hello, ${name}`
+})
+
+const result: Promise<string> = Effect.runPromise(greeting)
+```
+
+A few samples check results with `Effect.runSync`, the
+synchronous sibling of `Effect.runPromise`. The failure-handling sections add
+more operators, each introduced where it is needed.
 
 ## 3. Model failures as values
 
@@ -409,7 +418,8 @@ can log, inspect or act on.
 The second piece is the conversion. For example `Effect.tryPromise`: it wraps a `Promise` and puts its rejection in the error channel, as a value you choose. Here is `loadProfile`
 rewritten:
 
-**Example** (Failures on the Type)
+<Tabs>
+<TabItem label="Example (Failures on the Type)">
 
 ```ts twoslash collapse={3-5,7-11}
 import { Data, Effect } from "effect"
@@ -439,6 +449,9 @@ const loadProfile = (id: string) =>
     return data as Profile
   })
 ```
+
+</TabItem>
+</Tabs>
 
 The failure now lives in the type: `Effect<Profile, NetworkError>`. A caller sees that a network failure is possible before writing a single line.
 
@@ -486,7 +499,8 @@ Every failure now has a name and a function can return them as a value.
 
 Here is `loadProfile` with the 404 and 403 checks restored, the parse failure mapped to `ParseError`, and the shape check done by `decodeProfile`:
 
-**Example** (All Four Failures on the Type)
+<Tabs>
+<TabItem label="Example (All Four Failures on the Type)">
 
 ```ts twoslash collapse={3-20,22-33}
 import { Data, Effect } from "effect"
@@ -554,6 +568,9 @@ const loadProfile = (id: string) =>
   })
 ```
 
+</TabItem>
+</Tabs>
+
 <Aside type="note" title="Failing inside a generator">
   A `Data.TaggedError` is itself a failing `Effect`. Inside `Effect.gen`,
   `yield* new ProfileNotFoundError({id})` fails the effect with that error, so
@@ -598,7 +615,8 @@ becomes a question the compiler can answer.
 
 The next example hands `loadProfile` to a boundary that accepts only fully-handled programs: the boundary's parameter fixes the failure type to `never`.
 
-**Example** (The Compiler Counts Your Failures)
+<Tabs>
+<TabItem label="Example (The Compiler Counts Your Failures)">
 
 ```ts twoslash collapse={3-8}
 // @errors: 2345
@@ -638,6 +656,9 @@ render(
 )
 ```
 
+</TabItem>
+</Tabs>
+
 `ProfileNotFoundError` is handled, so it is gone from the type. `ForbiddenError`
 is still there, and the program no longer fits a boundary that demands `never`,
 so the build fails. Add a handler for `ForbiddenError` and it compiles again.
@@ -661,7 +682,8 @@ raise a defect by passing the failure to `Effect.die`.
 For instance, the server must echo back the id it was asked for, and a mismatch
 is a broken contract no caller can repair:
 
-**Example** (Raise a Defect Directly)
+<Tabs>
+<TabItem label="Example (Raise a Defect Directly)">
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -687,6 +709,9 @@ const loadChecked = (id: string) =>
   })
 ```
 
+</TabItem>
+</Tabs>
+
 The reverse also happens: a typed failure can be unrecoverable in a particular
 place. `Effect.orDie` turns a typed failure into a defect and drops it from the
 type. You can reach for it for two reasons:
@@ -699,7 +724,8 @@ The samples below run the effect with `Effect.runSyncExit`, which returns an
 `Exit`: a report of how the program ended. A defect surfaces in the report as a
 `Die` reason, and the reason carries the original error.
 
-**Example** (Promoting a Failure to a Defect)
+<Tabs>
+<TabItem label="Example (Promoting a Failure to a Defect)">
 
 ```ts twoslash import.meta.vitest name="promoting-a-failure-to-a-defect-1" collapse={3-24}
 import { Cause, Data, Effect, Exit } from "effect"
@@ -742,13 +768,17 @@ const defect = Exit.isFailure(exit)
 defect instanceof ParseError // => true
 ```
 
+</TabItem>
+</Tabs>
+
 The second reason deserves its own example. A repository calls infrastructure
 that fails with `DatabaseError`. The error is real, and the repository could
 handle it, but its own callers should not need to know a database exists. The
 repository keeps `DatabaseError` out of its contract and lets it die at its
 edge:
 
-**Example** (A Boundary Declines to Publish a Failure)
+<Tabs>
+<TabItem label="Example (A Boundary Declines to Publish a Failure)">
 
 ```ts twoslash import.meta.vitest name="boundary-declines-to-publish-1" collapse={7-11}
 import { Cause, Data, Effect, Exit } from "effect"
@@ -783,6 +813,9 @@ const defect = Exit.isFailure(exit)
 defect instanceof DatabaseError // => true
 ```
 
+</TabItem>
+</Tabs>
+
 <Aside type="note" title="Checkpoint">
   You can now write `loadProfile` so its type names all four failures it can
   raise. From that point on, the compiler, not your memory, tells you when a
@@ -798,7 +831,8 @@ You rarely run a single step. You fetch, then validate, then save, and as you
 combine them the failure type grows into the union of every step's failures.
 Effect computes that union for you, so you never thread it by hand.
 
-**Example** (The Failure Surface Is the Union)
+<Tabs>
+<TabItem label="Example (The Failure Surface Is the Union)">
 
 ```ts twoslash collapse={3-17,48-59} ins={70-77}
 import { Data, Effect } from "effect"
@@ -880,13 +914,17 @@ const persistProfile = (id: string) =>
   })
 ```
 
+</TabItem>
+</Tabs>
+
 Composition also short-circuits: the first failure stops the sequence, just like
 an early `throw`, while the type still records everything that could have
 happened.
 
 The next example reuses everything above, collapsed, and resolves every failure at one boundary function: `describe`. There the type collapses to `never`:
 
-**Example** (Describe, Then Resolve at the Boundary)
+<Tabs>
+<TabItem label="Example (Describe, Then Resolve at the Boundary)">
 
 ```ts twoslash import.meta.vitest name="describe-then-resolve-1" collapse={3-77} ins={79-94}
 import { Data, Effect } from "effect"
@@ -993,6 +1031,9 @@ await Effect.runPromise(describe("down")) // => "The network is unreachable"
 await Effect.runPromise(describe("9")) // => "No profile for 9"
 ```
 
+</TabItem>
+</Tabs>
+
 Notice the shape. Each step describes its failure where the failure occurs, and **a
 single place at the edge decides what to do with all of them**.
 
@@ -1018,7 +1059,8 @@ each as its own error and match it with `Effect.catchTag`. Loading a profile
 fails two ways the caller acts on, the profile is missing or access is denied,
 so each is its own error:
 
-**Example** (Peers: Match Each Tag)
+<Tabs>
+<TabItem label="Example (Peers: Match Each Tag)">
 
 ```ts twoslash import.meta.vitest name="catch-tag-peers-1"
 import { Data, Effect } from "effect"
@@ -1049,6 +1091,9 @@ const displayName = Effect.gen(function* () {
 Effect.runSync(displayName) // => "No profile for 9"
 ```
 
+</TabItem>
+</Tabs>
+
 **One parent:** When the caller treats a failed request as one failure, publish
 a single parent error and put the specific cause in a `readonly reason` field,
 typed as a closed union of tagged reasons. That `reason` field is the convention
@@ -1058,7 +1103,8 @@ act on the specific reason. A reason you do not match keeps the parent error in
 the failure type, so a later `catchTag` still catches it. Callers who do not act
 on the breakdown catch the parent once and never learn the reasons:
 
-**Example** (One Parent: Match a Reason)
+<Tabs>
+<TabItem label="Example (One Parent: Match a Reason)">
 
 ```ts twoslash import.meta.vitest name="catch-reason-nested-1" collapse={3-8}
 import { Data, Effect } from "effect"
@@ -1097,6 +1143,9 @@ const displayName = Effect.gen(function* () {
 
 Effect.runSync(displayName) // => "No profile for 9"
 ```
+
+</TabItem>
+</Tabs>
 
 When a caller needs several reasons at once, `Effect.catchReasons` matches them
 in a single call.
