@@ -2,7 +2,6 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Check, Monitor, Moon, Sun } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import {
-  isDarkAtom,
   selectThemeAtom,
   themeAtom,
   type Theme,
@@ -23,7 +22,6 @@ export default function ThemeToggle({
   const menuRef = useRef<HTMLDivElement>(null)
 
   const theme = useAtomValue(themeAtom)
-  const isDark = useAtomValue(isDarkAtom)
   const selectTheme = useAtomSet(selectThemeAtom)
 
   // Close menu on outside click or Escape
@@ -55,11 +53,8 @@ export default function ThemeToggle({
         aria-label="Change theme"
         className={`flex items-center justify-center transition-colors ${className}`}
       >
-        {isDark ? (
-          <Moon size={20} aria-hidden="true" />
-        ) : (
-          <Sun size={20} aria-hidden="true" />
-        )}
+        <Sun size={20} className="dark:hidden" aria-hidden="true" />
+        <Moon size={20} className="hidden dark:block" aria-hidden="true" />
       </button>
 
       {open && (
