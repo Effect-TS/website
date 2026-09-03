@@ -27,9 +27,6 @@ safe migration. The remaining release gates are concrete:
 
 - Deploy the reconciled revision to the production `workers.dev` stage. The
   verified PR preview is not the production stage.
-- Provision isolated Cloudflare, Mixedbread, and Upstash preview resources, then
-  apply the bootstrap stack to migrate secrets into the `Preview` and
-  `Production` environments.
 - Add enough production monitoring to detect a bad cutover and name the person
   responsible for rollback.
 - Immediately after merging with administrator bypass, update the `main` ruleset
@@ -140,11 +137,9 @@ No code review findings remain open.
 - [x] Production deployment detects live Cloudflare traffic ownership before
       changing resources and rejects transitions that would detach Custom
       Domains. Application rollback within the current topology remains safe.
-- [x] PR deployment uses the trusted default-branch workflow, a dedicated
-      `Preview` environment, and preview-only Cloudflare, Mixedbread, and Upstash
-      credentials. Production credentials live in the `main`-restricted
-      `Production` environment. The bootstrap stack rejects production resource
-      identities reused for previews.
+- [x] PR deployment runs only for same-repository PRs authored by an `OWNER`,
+      `MEMBER`, or `COLLABORATOR`. The team intentionally retained the
+      `pull_request` trigger and existing deployment credentials.
 - [x] PR cleanup supplies the trusted base revision required to evaluate and
       destroy its Alchemy stage.
 - [x] Legacy `/docs/api/v4` paths redirect permanently to their `/docs/v4/api`
@@ -166,8 +161,9 @@ No code review findings remain open.
   and PostHog proxying have no repository-managed rate limits or abuse rules.
 - Preview cleanup only runs when GitHub delivers the PR close event. Add a
   scheduled job that removes Cloudflare stages for closed PRs.
-- PR code can consume preview-account quotas or expose preview credentials.
-  Apply spend limits and rate limits to the isolated preview resources.
+- Trusted collaborator PR code receives production-capable deployment
+  credentials. This is an accepted tradeoff for automatic previews; a
+  compromised collaborator account can expose or misuse those credentials.
 - Production deploys automatically on every `main` push. The environment is
   restricted to `main`, but has no reviewer gate and permits administrator
   bypass. Pause unrelated pushes while a cutover phase is running.

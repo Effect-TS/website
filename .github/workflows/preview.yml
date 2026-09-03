@@ -1,7 +1,7 @@
 name: Preview Deployment
 
 on:
-  pull_request_target:
+  pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, closed]
 
@@ -13,9 +13,8 @@ permissions: {}
 
 jobs:
   deploy:
-    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
-    environment: Preview
     permissions:
       contents: read
       pull-requests: write
@@ -63,14 +62,14 @@ jobs:
           stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
           vp exec alchemy deploy --stage "$stage" --yes
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PREVIEW_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
-          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_SEARCH_API_KEY }}
-          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_PREVIEW_VECTOR_STORE_ID }}
+          MXBAI_API_KEY: ${{ secrets.MXBAI_SEARCH_API_KEY }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
           MXBAI_PREVIEW_STORE_ENABLED: ${{ steps.search-changes.outputs.changed }}
-          KV_REST_API_URL: ${{ secrets.KV_PREVIEW_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.KV_PREVIEW_REST_API_TOKEN }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
           PUBLIC_POSTHOG_API_HOST: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
           PUBLIC_WEBSITE_REVISION: ${{ github.event.pull_request.head.sha }}
@@ -94,9 +93,8 @@ jobs:
           key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
   cleanup:
-    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
-    environment: Preview
     permissions:
       contents: read
     steps:
@@ -113,13 +111,13 @@ jobs:
           vp exec alchemy destroy --stage "$stage" --yes
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PREVIEW_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
-          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_SEARCH_API_KEY }}
-          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_PREVIEW_VECTOR_STORE_ID }}
-          KV_REST_API_URL: ${{ secrets.KV_PREVIEW_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.KV_PREVIEW_REST_API_TOKEN }}
+          MXBAI_API_KEY: ${{ secrets.MXBAI_SEARCH_API_KEY }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           WEBSITE_REVISION: ${{ github.event.pull_request.base.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
