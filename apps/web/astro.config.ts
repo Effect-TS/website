@@ -104,6 +104,12 @@ const config = defineConfig({
         optional: true,
         default: "https://us.i.posthog.com",
       }),
+      PUBLIC_WEBSITE_REVISION: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "local",
+      }),
     },
   },
 

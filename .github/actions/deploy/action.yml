@@ -49,10 +49,28 @@ inputs:
     description: Public PostHog API host
     required: false
     default: https://us.i.posthog.com
+  synchronize-mixedbread:
+    description: Synchronize the Mixedbread production store after deployment
+    required: false
+    default: "true"
 
 runs:
   using: composite
   steps:
+    - name: Validate production traffic mode
+      shell: bash
+      env:
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+      run: |
+        case "$TRAFFIC_MODE" in
+          workers-dev|routes|bridge|custom-domains) ;;
+          *)
+            echo "::error::Invalid Cloudflare traffic mode '$TRAFFIC_MODE'. Expected workers-dev, routes, bridge, or custom-domains."
+            exit 1
+            ;;
+        esac
+        echo "Deploying with Cloudflare traffic mode: $TRAFFIC_MODE"
+
     - name: Install dependencies
       uses: ./.github/actions/setup
 
@@ -105,21 +123,46 @@ runs:
       uses: actions/cache/restore@v5
       with:
         path: apps/web/.astro-cache
-        key: astro-incremental-${{ runner.os }}-main-${{ github.sha }}
+        key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
         restore-keys: |
           astro-incremental-${{ runner.os }}-main-
 
-    # `astro build --force` is unreachable here: alchemy invokes the build via
-    # buildInChild with a fixed inline config and exposes no force flag, so
-    # discarding the cache directory is the escape hatch.
+    # Alchemy's --force re-runs the resource, while deleting this directory
+    # forces Astro to re-render every prerendered page during that build.
     - name: Discard Astro incremental build cache
       if: inputs.force-full-build == 'true'
       shell: bash
       run: rm -rf apps/web/.astro-cache
 
-    - name: Deploy website to Cloudflare
+    - name: Write public build inputs
       shell: bash
-      run: vp exec alchemy deploy --stage prod --yes
+      run: node apps/web/scripts/write-alchemy-build-input.mjs
+      env:
+        PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
+        PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        PUBLIC_WEBSITE_REVISION: ${{ inputs.website-ref }}
+
+    - name: Deploy website to Cloudflare
+      id: deploy
+      shell: bash
+      run: |
+        set -o pipefail
+        log="$RUNNER_TEMP/alchemy-deploy.log"
+        args=(deploy --stage prod --yes)
+        if [[ "$FORCE_FULL_BUILD" == "true" ]]; then
+          args+=(--force)
+        fi
+        vp exec alchemy "${args[@]}" | tee "$log"
+
+        mapfile -t deployment_outputs < <(
+          node apps/web/scripts/read-alchemy-deployment.mjs "$log"
+        )
+        if [[ "${#deployment_outputs[@]}" != "2" ]]; then
+          echo "::error::Could not read the Worker name and URL from Alchemy output."
+          exit 1
+        fi
+        echo "website-url=${deployment_outputs[0]}" >> "$GITHUB_OUTPUT"
+        echo "worker-name=${deployment_outputs[1]}" >> "$GITHUB_OUTPUT"
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
@@ -130,8 +173,33 @@ runs:
         KV_REST_API_TOKEN: ${{ inputs.kv-rest-api-token }}
         PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
         PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        PUBLIC_WEBSITE_REVISION: ${{ inputs.website-ref }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_SHA: ${{ inputs.website-ref }}
+        FORCE_FULL_BUILD: ${{ inputs.force-full-build }}
+
+    - name: Verify deployed website
+      shell: bash
+      env:
+        DEPLOYED_URL: ${{ steps.deploy.outputs.website-url }}
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+        WEBSITE_REF: ${{ inputs.website-ref }}
+      run: |
+        if [[ "$TRAFFIC_MODE" == "workers-dev" ]]; then
+          target="$DEPLOYED_URL"
+        else
+          target="https://effect.website"
+        fi
+        node apps/web/scripts/verify-cloudflare-deployment.mjs "$target" "$TRAFFIC_MODE" "$WEBSITE_REF"
+
+    - name: Verify Cloudflare traffic configuration
+      shell: bash
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+        WORKER_NAME: ${{ steps.deploy.outputs.worker-name }}
+      run: node apps/web/scripts/verify-cloudflare-traffic.mjs "$WORKER_NAME" "$TRAFFIC_MODE"
 
     - name: Verify generated API reference links
       shell: bash
@@ -143,15 +211,24 @@ runs:
         fi
 
     - name: Save Astro incremental build cache
-      if: always() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+      if: success() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
       uses: actions/cache/save@v5
       with:
         path: apps/web/.astro-cache
-        key: astro-incremental-${{ runner.os }}-main-${{ github.sha }}
+        key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
 
     - name: Synchronize Mixedbread production store
+      if: inputs.synchronize-mixedbread == 'true'
       shell: bash
       run: vp exec mixedbread sync --scope "${{ inputs.mixedbread-scope }}" --sha "${{ inputs.website-ref }}"
       env:
         MXBAI_ADMIN_API_KEY: ${{ inputs.mxbai-admin-api-key }}
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
+
+    - name: Print rollback instructions
+      if: failure()
+      shell: bash
+      env:
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+      run: |
+        echo "::error::Deployment validation failed in traffic mode '$TRAFFIC_MODE'. Run the protected Rollback Production workflow with the recorded known-good commit, API snapshot, and previous traffic mode."

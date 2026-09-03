@@ -3,7 +3,11 @@ import "../styles/global.css"
 
 import { Font } from "astro:assets"
 import { SEO } from "astro-seo"
-import { PUBLIC_POSTHOG_API_HOST, PUBLIC_POSTHOG_KEY } from "astro:env/client"
+import {
+  PUBLIC_POSTHOG_API_HOST,
+  PUBLIC_POSTHOG_KEY,
+  PUBLIC_WEBSITE_REVISION,
+} from "astro:env/client"
 
 import SkipLink from "@/components/SkipLink.astro"
 import {
@@ -51,6 +55,7 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    <meta name="effect-website-revision" content={PUBLIC_WEBSITE_REVISION} />
 
     {/* Tint Firefox's initial canvas before first paint (bug 1488384). */}
     <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />

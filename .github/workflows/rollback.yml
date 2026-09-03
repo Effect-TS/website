@@ -1,0 +1,37 @@
+name: Rollback Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      website_ref:
+        description: Full commit SHA of the known-good main-branch revision
+        required: true
+        type: string
+      api_reference_snapshot:
+        description: Exact known-good API reference snapshot tag
+        required: true
+        type: string
+      cloudflare_traffic_mode:
+        description: Traffic mode to restore
+        required: true
+        default: workers-dev
+        type: choice
+        options:
+          - workers-dev
+          - routes
+          - bridge
+          - custom-domains
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    uses: Effect-TS/website/.github/workflows/deploy.yml@main
+    with:
+      website-ref: ${{ inputs.website_ref }}
+      api-reference-snapshot: ${{ inputs.api_reference_snapshot }}
+      cloudflare-traffic-mode: ${{ inputs.cloudflare_traffic_mode }}
+      force-full-build: true
+      synchronize-mixedbread: false
+    secrets: inherit

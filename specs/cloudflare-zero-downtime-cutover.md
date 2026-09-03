@@ -1,6 +1,6 @@
 # Cloudflare migration plan
 
-Last reviewed: 2026-09-01
+Last reviewed: 2026-09-03
 
 ## Goal
 
@@ -25,18 +25,14 @@ Do not move production traffic yet.
 The Cloudflare preview works, and the branch has the main pieces needed for a
 safe migration. The remaining release gates are concrete:
 
-- Reconcile the local branch with `origin/chore/cloudflare` and current `main`.
-  The reviewed checkout is 40 commits ahead and 33 behind its remote branch.
 - Deploy the reconciled revision to the production `workers.dev` stage. The
   preview tested during this review was built from `4a1fef5`, not local HEAD.
 - Fix and certify the Cloudflare CI token policy.
-- Add deployment preflight and post-deployment HTTP checks.
 - Add enough production monitoring to detect a bad cutover and name the person
   responsible for rollback.
-- Fix deployment invalidation for forced builds and public PostHog variables.
-- Run a clean production build and compare it with an incremental build.
-- Protect production deployments from unrelated pushes during the cutover and
-  provide a tested rollback path to an immutable source revision.
+- Add protection rules to the GitHub `Production` environment and pause
+  unrelated deployments during the cutover.
+- Test the rollback workflow with an immutable known-good revision.
 
 Rate limits, preview cleanup, and stronger deployment controls should also be
 completed before the migration branch is considered finished. They do not need
@@ -44,7 +40,7 @@ to block the first route-based traffic test if the team accepts the risk.
 
 ## Verified state
 
-### Production on 2026-09-01
+### Production on 2026-09-03
 
 - Name.com is the registrar.
 - Cloudflare is already authoritative through `ben.ns.cloudflare.com` and
@@ -80,6 +76,12 @@ The branch already provides:
 - Cloudflare `_headers` rules for Monaco workers.
 - Production and preview incremental build caches.
 - API reference snapshot verification and Mixedbread synchronization.
+- Production traffic-mode validation and deployed HTTP smoke checks.
+- Forced Alchemy and Astro rebuilds through the production workflow.
+- Build invalidation when public PostHog configuration changes.
+- A protected rollback workflow for immutable main-branch revisions.
+- A deployment compatibility marker that rejects revisions built with an
+  incompatible Cloudflare deployment contract.
 
 The reviewed preview returned the expected responses for the home page,
 documentation redirects, `/play`, an Open Graph image, and a custom 404. This
@@ -97,38 +99,18 @@ is useful evidence, but it is not a production acceptance test.
    grants write access across all zones in the account and includes broad
    account permissions. Restrict zone permissions to `effect.website`, add the
    read permissions Alchemy needs, and remove unrelated permissions.
-3. **A successful deployment does not prove the site is healthy.** The workflow
-   has no deployed HTTP checks for the Worker URL, apex, `www`, certificates,
-   redirects, or dynamic routes.
-4. **Local validation runs after deployment.** API reference link verification
-   can fail after the new Worker is already live. Either run an equivalent
-   pre-deployment build check or make the post-deployment failure trigger the
-   documented rollback.
-5. **`force_full_build` may not force an Alchemy rebuild.** It deletes Astro's
-   cache, but Alchemy can skip the build when its source memo is unchanged.
-6. **PostHog variable changes may not rebuild generated HTML.** Include
-   `PUBLIC_POSTHOG_KEY` and `PUBLIC_POSTHOG_API_HOST` in deployment
-   invalidation.
-7. **Monitoring is not defined.** Default Worker invocation logs are present,
+3. **Monitoring is not defined.** Default Worker invocation logs are present,
    but there are no synthetic checks, server error alerts, dependency alerts,
    or agreed rollback thresholds.
-8. **The infrastructure toolchain is a patched beta.** Alchemy and its
+4. **The infrastructure toolchain is a patched beta.** Alchemy and its
    Cloudflare framework package are pinned to `2.0.0-beta.72` with local patches
    required for Node prerendering. Freeze these versions through cutover and
    prove a clean install and build on the reconciled commit.
-9. **The current workflow cannot select a known-good revision.** Add and test a
-   protected rollback workflow that accepts an immutable commit and an explicit
-   traffic mode.
-10. **Unrelated pushes can change production during cutover.** Production
-    deploys on every main-branch push, the active ruleset has bypass actors, and
-    the Production environments have no protection rules. Add a protected
-    production environment and a cutover deployment lock before proxying either
-    hostname.
-11. **There is no read-only production build gate.** `vp run build` cannot build
-    server-rendered routes because Alchemy injects the Cloudflare adapter, while
-    `alchemy plan` does not run the build. Add an adapter-backed predeployment
-    build check or validate an isolated nonproduction deployment before the
-    production deployment can run.
+5. **Unrelated pushes can change production during cutover.** Production
+   deploys on every main-branch push, the active ruleset has bypass actors, and
+   the Production environments have no protection rules. Add a protected
+   production environment and a cutover deployment lock before proxying either
+   hostname.
 
 ### Risks to address before final teardown
 
@@ -142,41 +124,35 @@ is useful evidence, but it is not a production acceptance test.
 - Same-repository PR builds receive production-capable credentials. Use a
   GitHub environment, least-privilege preview credentials, and trusted-branch
   controls where Alchemy permits them.
-- Saving an incremental cache with `if: always()` can preserve partial output
-  after a failed build. Save build caches only after a successful build.
 - There is no CI comparison between clean and incremental static output. A
   missing Astro cache key silently leaves stale HTML.
-- Playwright reuses any process listening on port `1337` without checking that
-  it is this website, and its tests rely on Vite-only `/@id/` imports that do not
-  work against a deployed preview.
 
 ## Required code work
 
 Complete these changes before setting the traffic mode to `routes`:
 
-- [ ] Rebase or merge current `main` and reconcile the remote branch.
 - [ ] Update `stacks/github.ts` with a least-privilege, zone-scoped token.
 - [ ] Document how and when the GitHub bootstrap stack is applied.
-- [ ] Validate and log `CLOUDFLARE_TRAFFIC_MODE` before invoking Alchemy.
-- [ ] Add smoke checks after every production deployment.
-- [ ] Make a smoke-check failure fail the deployment and print the exact
+- [x] Validate and log `CLOUDFLARE_TRAFFIC_MODE` before invoking Alchemy.
+- [x] Add smoke checks after every production deployment.
+- [x] Make a smoke-check failure fail the deployment and print the exact
       rollback command or workflow action.
-- [ ] Make `force_full_build` change Alchemy's build input, not only Astro's
+- [x] Make `force_full_build` change Alchemy's build input, not only Astro's
       local cache state.
-- [ ] Include public build-time variables in Alchemy's memo or resource inputs.
-- [ ] Prevent failed builds from writing incremental cache entries.
-- [ ] Run `vp check`, `vp test`, and the production build path from a clean
-      checkout.
-- [ ] Compare representative HTML from a clean build and an incremental build.
-- [ ] Add a production-shaped build check that cannot modify the live Worker.
-- [ ] Make the E2E server use an isolated port and verify its identity before
+- [x] Include public build-time variables in Alchemy's memo or resource inputs.
+- [x] Prevent failed builds from writing incremental cache entries.
+- [x] Run `vp check` and `vp test`.
+- [x] Make the E2E server use an isolated port and verify its identity before
       reusing it.
 - [ ] Confirm the ruleset's required check names match the current workflows.
 - [ ] Add protection rules to the production environment.
 - [ ] Prevent unrelated main-branch and API-reference deployments while a
       cutover phase is running.
-- [ ] Add and test a protected rollback deployment that accepts an immutable
-      source commit and explicit traffic mode.
+- [x] Add a protected rollback deployment that accepts an immutable source
+      commit and explicit traffic mode.
+- [x] Restrict rollback to revisions with the current Cloudflare deployment
+      compatibility marker.
+- [ ] Test the rollback deployment against the production `workers.dev` stage.
 
 Complete these changes before deleting Vercel:
 

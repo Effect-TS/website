@@ -39,6 +39,7 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
         rootDir: "./apps/web",
         memo: {
           include: [
+            ".alchemy-build-input.json",
             ".data/api-reference/**",
             "src/**",
             "public/**",
@@ -71,6 +72,7 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
             }
           : {}),
         workersDev: true,
+        dev: { port: 14337, strictPort: true },
         cache: {
           enabled: true,
           crossVersionCache: true,
@@ -175,6 +177,7 @@ export default Alchemy.Stack(
     })
 
     return {
+      workerName: website.workerName,
       websiteUrl: website.url,
     }
   }),

@@ -50,6 +50,13 @@ jobs:
             astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-
             astro-incremental-${{ runner.os }}-main-
 
+      - name: Write public build inputs
+        run: node apps/web/scripts/write-alchemy-build-input.mjs
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          PUBLIC_POSTHOG_API_HOST: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
+          PUBLIC_WEBSITE_REVISION: ${{ github.event.pull_request.head.sha }}
+
       - name: Deploy Cloudflare preview
         run: |
           stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
@@ -65,6 +72,7 @@ jobs:
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
           PUBLIC_POSTHOG_API_HOST: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
+          PUBLIC_WEBSITE_REVISION: ${{ github.event.pull_request.head.sha }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
           GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,7 +86,7 @@ jobs:
           fi
 
       - name: Save Astro incremental build cache
-        if: always() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+        if: success() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
         uses: actions/cache/save@v5
         with:
           path: apps/web/.astro-cache
