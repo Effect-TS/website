@@ -172,8 +172,9 @@ It looks fine. The return type says `Promise<Profile>`, but the function can fai
 | 403          | the code throws `ForbiddenError`                                               |
 
 None of them appear in the type, and the compiler does not warn you. A caller
-reads `Promise<Profile>` and prepares for a `Profile` even if the errors classes exist,
-but nothing says so. A caller who wants to handle the missing profile has to read the source:
+reads `Promise<Profile>` and prepares for a `Profile`. The error classes exist,
+but nothing in the type says so. A caller who wants to handle the missing
+profile has to read the source:
 
 **Example** (Handle One, Rethrow the Rest)
 
@@ -264,7 +265,8 @@ The compiler passed all of it, but we have three problems:
   callers.
 - `error` is `unknown`: the compiler cannot see which classes `loadProfile`
   throws. `error instanceof ForbiddenError` compiles even if `loadProfile`
-  never throws it. Forgetting one it does throw passes the build.
+  never throws it. Forgetting a class that `loadProfile` does throw passes the
+  build.
 - When someone adds a new `throw` inside `loadProfile` later, no signature
   changes, every caller still compiles, and the failure reaches production.
 
@@ -279,7 +281,7 @@ Before more code, adopt one rule: **every function is a boundary between two
 parties**. On one side is the callee, the function being called. On the other is
 the caller, whoever invokes it.
 
-The boundary is a contract, and the contract not two but three clauses:
+The boundary is a contract with three clauses:
 
 - what the function needs
 - what it returns on success
@@ -289,9 +291,9 @@ A typical signature declares the first two and leaves out the third.
 
 In the previous example the type shows a `Profile` and hides the four failures.
 
-TypeScript has no syntax for show how a piece of code can fail.
+TypeScript has no syntax to state the third clause.
 
-Here is `loadProfile`, wrote as pseudo-code, with its real contract spelled out:
+Here is `loadProfile`, written as pseudo-code, with its real contract spelled out:
 
 **Example** (The Three Clauses of `loadProfile`)
 
@@ -339,7 +341,7 @@ nearest `catch`, and that handler decides what the failure means, wherever it
 sits. The return type keeps saying `Promise<Profile>` the whole time, which is
 how failures go missing from types.
 
-In the next section we are going to learn how to restore the division returning the failures as values.
+The next section restores the division by returning failures as values.
 
 <Aside type="note" title="Checkpoint">
   Pick a function you wrote recently. Write its three clauses, then go failure
@@ -543,19 +545,19 @@ Handling an error means removing it from the union:
 - **Failing adds a member.** Each `Effect.fail` in a function contributes its
   error to that function's failure type.
 - **Handling removes a member.** `Effect.catchTag("ForbiddenError", ...)` takes
-  `ForbiddenError` out of the failure type. The tag on each class tells the
+  `ForbiddenError` out of the failure channel. The tag on each class tells the
   members apart, so inside the handler `error` is a `ForbiddenError` and
   `error.id` compiles.
 
-Remove the last member and the failure type becomes `never`, so
-`Effect<string, never>` describes a program with nothing left to handle, so it never fails.
+Remove the last member and the failure type becomes `never`:
+`Effect<string, never>` describes a program with nothing left to handle.
 
 > Who guarantees I handle every failure? Me, or the compiler?
 
 Because the failure type is part of the signature, "did I handle everything?"
 becomes a question the compiler can answer.
 
-The next example backs `loadProfile` accepts only fully-handled programs: the boundary's parameter fixes the failure type to `never`.
+The next example hands `loadProfile` to a boundary that accepts only fully-handled programs: the boundary's parameter fixes the failure type to `never`.
 
 **Example** (The Compiler Counts Your Failures)
 
@@ -600,28 +602,22 @@ render(
 `ProfileNotFoundError` is handled, so it is gone from the type. `ForbiddenError`
 is still there, and the program no longer fits a boundary that demands `never`,
 so the build fails. Add a handler for `ForbiddenError` and it compiles again.
-You never had to remember the full list, **because the compiler keep count for you**.
+You never had to remember the full list, **because the compiler keeps count for you**.
 
 <Aside type="tip" title="The failure surface is a contract">
   Add a new failure to a published type and every caller that does not handle it
   stops compiling. The compiler carries the change out to all of them.
 </Aside>
 
-<Aside type="note" title="Checkpoint">
-  You can now write `loadProfile` so its type names all four failures it can
-  raise. From that point on, the compiler, not your memory, tells you when a
-  caller misses one.
-</Aside>
-
-## 4. Decide each failure
+### Raise the rest as defects
 
 > Is this failure part of my domain, or outside the contract?
 
-A missing profile is a domain failure the caller can act on. A negative id is a
-failure the caller cannot act on. Effect keeps the two apart in code. Typed
-failures stay in the failure type. The rest become defects: they stay off the
-type, and raising one interrupts the running program, though a boundary can
-still catch it. You raise a defect by passing the failure to `Effect.die`.
+Section 2 sorted a boundary's failures: an Error when the contract publishes
+it, a Defect when not. Effect keeps the two apart in code. Typed failures stay
+in the failure type. A failure outside the contract becomes a defect: raising
+one interrupts the running program, though a boundary can still catch it. You
+raise a defect by passing the failure to `Effect.die`.
 
 The reverse also happens: a typed failure can be unrecoverable in a particular
 place. `Effect.orDie` turns a typed failure into a defect and drops it from the
@@ -717,13 +713,14 @@ const defect = Exit.isFailure(exit)
 defect instanceof DatabaseError // => true
 ```
 
-<Aside type="note" title="Recoverability is a decision, not a property">
-  The same error can be recoverable in one place and fatal in another. The
-  caller decides at the boundary, and the error itself does not carry that
-  choice.
+<Aside type="note" title="Checkpoint">
+  You can now write `loadProfile` so its type names all four failures it can
+  raise. From that point on, the compiler, not your memory, tells you when a
+  caller misses one. You can also decide a failure is outside the contract and
+  raise it as a defect.
 </Aside>
 
-## 5. Combine operations
+## 4. Combine operations
 
 > When I combine operations, what is the total failure surface, and where do I resolve it?
 
@@ -928,13 +925,15 @@ await Effect.runPromise(describe("9")) // => "No profile for 9"
 Notice the shape. Each step describes its failure where the failure occurs, and **a
 single place at the edge decides what to do with all of them**.
 
-`Effect.catchTags` takes one handler per tag. The handlers cover all five failures, so the result
-has the failure type `never`: a program with nothing left to handle.
+`Effect.catchTags` takes one handler per tag. The handlers cover all five
+failures, so the result has the failure type `never`.
 
 <Aside type="note" title="Describe failure, then handle it">
   Constructing a failure is not the same as deciding its fate. Effect values are
   lazy, so the two can live in different places.
 </Aside>
+
+### Shape the failure surface
 
 > How much of the failure surface should cross the boundary?
 
@@ -942,86 +941,86 @@ A wide union names every failure, but it is not always the contract you want to 
 Five top-level tags escaping a module are five things every caller must learn.
 Sometimes the right boundary is a single error with a private breakdown inside it.
 
-Which operator a caller needs follows from that choice. Take a checkout that
-charges a card. The charge can fail two ways: the card was declined, or the
-gateway timed out. If callers branch on each failure, publish the two as peers
-and match each tag with `Effect.catchTag`:
+Which operator a caller needs follows from that choice. Take loading a profile.
+The request can fail two ways the caller acts on: the profile is missing, or
+access is denied. If callers branch on each, publish the two as peers and match
+each tag with `Effect.catchTag`:
 
 **Example** (Peers: Match Each Tag)
 
 ```ts twoslash import.meta.vitest name="catch-tag-peers-1"
 import { Data, Effect } from "effect"
 
-class CardDeclinedError extends Data.TaggedError("CardDeclinedError")<{
-  readonly issuerMessage: string
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
 }> {}
-class GatewayTimeoutError extends Data.TaggedError("GatewayTimeoutError")<{
-  readonly afterMs: number
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
 }> {}
 
-const charge = (
-  amountUsd: number,
-): Effect.Effect<string, CardDeclinedError | GatewayTimeoutError> =>
-  Effect.fail(new CardDeclinedError({ issuerMessage: "insufficient funds" }))
+const loadProfile = (
+  id: string,
+): Effect.Effect<string, ProfileNotFoundError | ForbiddenError> =>
+  Effect.fail(new ProfileNotFoundError({ id }))
 
-const checkout = Effect.gen(function* () {
-  return yield* charge(49).pipe(
-    Effect.catchTag("CardDeclinedError", (error) =>
-      Effect.succeed(`Card declined: ${error.issuerMessage}`),
+const displayName = Effect.gen(function* () {
+  return yield* loadProfile("9").pipe(
+    Effect.catchTag("ProfileNotFoundError", (error) =>
+      Effect.succeed(`No profile for ${error.id}`),
     ),
-    Effect.catchTag("GatewayTimeoutError", () =>
-      Effect.succeed("The gateway timed out, try again"),
+    Effect.catchTag("ForbiddenError", (error) =>
+      Effect.succeed(`Access denied for ${error.id}`),
     ),
   )
 })
 
-Effect.runSync(checkout) // => "Card declined: insufficient funds"
+Effect.runSync(displayName) // => "No profile for 9"
 ```
 
-If callers mostly treat the charge as one failure, publish one parent error with
-the cause inside it. The checkout screen still needs the declined-card case, so
-it matches the reason with `Effect.catchReason`. The parent error stays in the failure
-type for the reasons you did not handle, so everyone else catches the parent
-once and never learns the reasons:
+If callers mostly treat a failed request as one failure, publish one parent
+error with the cause inside it. The profile screen still needs the
+missing-profile case, so it matches the reason with `Effect.catchReason`. The
+parent error stays in the failure type for the reasons you did not handle, so
+everyone else catches the parent once and never learns the reasons:
 
 **Example** (One Parent: Match a Reason)
 
 ```ts twoslash import.meta.vitest name="catch-reason-nested-1" collapse={3-8}
 import { Data, Effect } from "effect"
 
-class CardDeclinedError extends Data.TaggedError("CardDeclinedError")<{
-  readonly issuerMessage: string
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
 }> {}
-class GatewayTimeoutError extends Data.TaggedError("GatewayTimeoutError")<{
-  readonly afterMs: number
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
 }> {}
 
 // One error crosses the boundary. Its cause is a closed set of reasons.
-class PaymentFailedError extends Data.TaggedError("PaymentFailedError")<{
-  readonly reason: CardDeclinedError | GatewayTimeoutError
+class RequestError extends Data.TaggedError("RequestError")<{
+  readonly reason: ProfileNotFoundError | ForbiddenError
 }> {}
 
-const charge = (amountUsd: number): Effect.Effect<string, PaymentFailedError> =>
+const loadProfile = (id: string): Effect.Effect<string, RequestError> =>
   Effect.fail(
-    new PaymentFailedError({
-      reason: new CardDeclinedError({ issuerMessage: "insufficient funds" }),
+    new RequestError({
+      reason: new ProfileNotFoundError({ id }),
     }),
   )
 
-// The handler receives the unwrapped CardDeclinedError. PaymentFailedError stays in the
-// failure type for the GatewayTimeoutError reason, so the next catch still sees it.
-const checkout = Effect.gen(function* () {
-  return yield* charge(49).pipe(
-    Effect.catchReason("PaymentFailedError", "CardDeclinedError", (reason) =>
-      Effect.succeed(`Card declined: ${reason.issuerMessage}`),
+// The handler receives the unwrapped ProfileNotFoundError. RequestError stays in the
+// failure type for the ForbiddenError reason, so the next catch still sees it.
+const displayName = Effect.gen(function* () {
+  return yield* loadProfile("9").pipe(
+    Effect.catchReason("RequestError", "ProfileNotFoundError", (reason) =>
+      Effect.succeed(`No profile for ${reason.id}`),
     ),
-    Effect.catchTag("PaymentFailedError", () =>
-      Effect.succeed("Payment failed, try again"),
+    Effect.catchTag("RequestError", () =>
+      Effect.succeed("The request failed, try again"),
     ),
   )
 })
 
-Effect.runSync(checkout) // => "Card declined: insufficient funds"
+Effect.runSync(displayName) // => "No profile for 9"
 ```
 
 When a caller needs several reasons at once, `Effect.catchReasons` matches them
@@ -1036,10 +1035,8 @@ Choose the operator by how much the caller on the other side needs to see:
 | `Effect.catchReasons` | several reasons in one call                                                        |
 
 <Aside type="note" title="Checkpoint">
-  You can now place every failure in your own code: `Effect.fail` for domain
-  failures that belong in the contract, `Effect.die` for failures the contract
-  rules out, `Effect.orDie` for real failures your boundary declines to publish.
-  At the edge, one handler resolves whatever remains.
+  You can now combine operations into one program and resolve every failure at
+  the edge, where one handler covers whatever remains.
 </Aside>
 
 ## Recap
