@@ -38,9 +38,18 @@ import { Effect } from "effect"
 const program: Effect.Effect<string, Error> = Effect.succeed("Hello")
 ```
 
+`Effect` is both the module you import and the type it exports, which is why the
+type is written `Effect.Effect`. Nothing ever travels the error channel of
+`Effect.succeed`, because it cannot fail; the `Error` here only illustrates
+where the failure type sits.
+
 ### `Effect.gen` composes steps
 
-It reads like an `async` function, and `yield*` runs one `Effect` and returns its success value the way `await` returns a resolved value:
+It takes a _generator function_, written `function* () {}` with a `*`. You do
+not need to learn generators in depth: read `Effect.gen` as this tutorial's
+`async`, `yield*` as its `await`, and the `*` as the marker that a function is
+allowed to use `yield*`. So `yield*` runs one `Effect` and returns its success
+value the way `await` returns a resolved value:
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -162,7 +171,10 @@ function isProfile(body: unknown): body is Profile {
 }
 ```
 
-It looks fine. The return type says `Promise<Profile>`, but the function can fail four ways:
+It looks fine: `fetch` rejects only when the request never completes, so a 404
+or 403 arrives as a normal response, which is why the code checks `response.ok`
+by hand. The return type says `Promise<Profile>`, but the function can fail four
+ways:
 
 | Failure      | Where it happens                                                               |
 | ------------ | ------------------------------------------------------------------------------ |
@@ -170,6 +182,9 @@ It looks fine. The return type says `Promise<Profile>`, but the function can fai
 | Parse error  | `response.json()` throws or `isProfile` fails, so the code throws `ParseError` |
 | 404          | the code throws `ProfileNotFoundError`                                         |
 | 403          | the code throws `ForbiddenError`                                               |
+
+These four come from loading; the fifth failure named earlier, a save conflict,
+joins in section 4 when the save step is added.
 
 None of them appear in the type, and the compiler does not warn you. A caller
 reads `Promise<Profile>` and prepares for a `Profile`. The error classes exist,
@@ -246,7 +261,8 @@ function isProfile(body: unknown): body is Profile {
 
 async function displayName(id: string): Promise<string> {
   try {
-    return await loadProfile(id).then((profile) => profile.name)
+    const profile = await loadProfile(id)
+    return profile.name.trim() || profile.email
   } catch (error) {
     if (error instanceof ProfileNotFoundError) {
       return "Unknown user"
@@ -314,7 +330,7 @@ act on it. "The profile does not exist" belongs too, because a caller might show
 an empty state, try another id, or prompt the user to sign up. Passing a negative id does not, because a caller that passed a negative id has already made a
 mistake and has nothing to recover.
 
-On this boundary, the first is a domain failure and the second is what Effect models as a **Defect**.
+On this boundary, the missing profile is an **Error**, one the contract publishes, and the negative id is what Effect models as a **Defect**.
 
 | Kind   | Description                                                                                  |
 | ------ | -------------------------------------------------------------------------------------------- |
@@ -357,6 +373,18 @@ The next section restores the division by returning failures as values.
 The failure is ordinary data: the call always comes back, and the failure arrives through the return
 type, so the caller cannot miss it. Everything becomes explicit and checked by the compiler.
 
+That is what `Effect<Success, Error>` already is: a value that is either a
+success or a failure. In plain TypeScript, the same idea would look like this:
+
+```ts
+type Loaded =
+  | { readonly ok: true; readonly profile: Profile }
+  | { readonly ok: false; readonly error: ProfileNotFoundError }
+```
+
+The caller must read `.ok` before it can reach `.profile`, so the failure is on
+the type and cannot be missed.
+
 Return the failure instead of throwing it. Two pieces make that work:
 
 - a failure value to return
@@ -365,7 +393,7 @@ Return the failure instead of throwing it. Two pieces make that work:
 The first piece is a failure value. It should name itself and carry the
 data a caller will need.
 
-Effect's convention is a class that extends `Data.TaggedError`, the name ends in `Error` and matches the tag, as in `ProfileNotFoundError` with tag `"ProfileNotFoundError"`.
+Effect's convention is a class that extends `Data.TaggedError`, the name ends in `Error` and matches the tag, as in `ProfileNotFoundError` with tag `"ProfileNotFoundError"`. The string you pass is the **tag**: Effect stores it as a `_tag` field on every instance and reads it at runtime to tell one failure from another.
 
 ```ts twoslash
 import { Data } from "effect"
@@ -505,11 +533,15 @@ const loadProfile = (id: string) =>
     })
 
     if (!response.ok) {
-      return yield* Effect.fail(
-        response.status === 404
-          ? new ProfileNotFoundError({ id })
-          : new ForbiddenError({ id }),
-      )
+      if (response.status === 404) {
+        return yield* new ProfileNotFoundError({ id })
+      }
+      if (response.status === 403) {
+        return yield* new ForbiddenError({ id })
+      }
+      return yield* new NetworkError({
+        cause: `Request failed: ${response.status}`,
+      })
     }
 
     const data = yield* Effect.tryPromise({
@@ -521,6 +553,13 @@ const loadProfile = (id: string) =>
     return yield* decodeProfile(data)
   })
 ```
+
+<Aside type="note" title="Failing inside a generator">
+  A `Data.TaggedError` is itself a failing `Effect`. Inside `Effect.gen`,
+  `yield* new ProfileNotFoundError({id})` fails the effect with that error, so
+  no `Effect.fail` wrapper is needed. Use `Effect.fail` only where you need an
+  `Effect` value outside a generator, such as a ternary that returns one.
+</Aside>
 
 The type now names all four failures from the section-1 table:
 
@@ -619,6 +658,35 @@ in the failure type. A failure outside the contract becomes a defect: raising
 one interrupts the running program, though a boundary can still catch it. You
 raise a defect by passing the failure to `Effect.die`.
 
+For instance, the server must echo back the id it was asked for, and a mismatch
+is a broken contract no caller can repair:
+
+**Example** (Raise a Defect Directly)
+
+```ts twoslash
+import { Effect } from "effect"
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+declare const loadProfile: (id: string) => Effect.Effect<Profile>
+
+const loadChecked = (id: string) =>
+  Effect.gen(function* () {
+    const profile = yield* loadProfile(id)
+    // Outside the contract: raise a defect and stop.
+    if (profile.id !== id) {
+      return yield* Effect.die(
+        new Error(`server returned ${profile.id} for ${id}`),
+      )
+    }
+    return profile
+  })
+```
+
 The reverse also happens: a typed failure can be unrecoverable in a particular
 place. `Effect.orDie` turns a typed failure into a defect and drops it from the
 type. You can reach for it for two reasons:
@@ -700,7 +768,9 @@ const queryProfile = (id: string): Effect.Effect<Profile, DatabaseError> =>
   Effect.fail(new DatabaseError({ cause: "connection reset" }))
 
 // The repository is a boundary. DatabaseError is real, but this boundary does
-// not publish it, so callers above see a defect instead.
+// not publish it, so callers above see a defect instead. The empty error
+// channel below (Effect<Profile> means Effect<Profile, never>) is orDie having
+// removed it.
 const findProfile = (id: string): Effect.Effect<Profile> =>
   Effect.orDie(queryProfile(id))
 
@@ -915,6 +985,7 @@ const describe = (id: string): Effect.Effect<string> =>
   })
 
 await Effect.runPromise(describe("1")) // => "1"
+// The store still holds "1" from the call above, so this one conflicts.
 await Effect.runPromise(describe("1")) // => "Profile 1 already saved"
 await Effect.runPromise(describe("2")) // => "Malformed profile from the server"
 await Effect.runPromise(describe("3")) // => "Access denied for 3"
@@ -937,14 +1008,15 @@ failures, so the result has the failure type `never`.
 
 > How much of the failure surface should cross the boundary?
 
-A wide union names every failure, but it is not always the contract you want to publish.
-Five top-level tags escaping a module are five things every caller must learn.
-Sometimes the right boundary is a single error with a private breakdown inside it.
+A boundary can publish its failures two ways: as a flat union of separate
+errors, or as one parent error that holds the specific cause inside it. Which
+one you pick depends only on how much the caller needs to see, and each comes
+with its own catch operator.
 
-Which operator a caller needs follows from that choice. Take loading a profile.
-The request can fail two ways the caller acts on: the profile is missing, or
-access is denied. If callers branch on each, publish the two as peers and match
-each tag with `Effect.catchTag`:
+**Separate errors:** When the caller acts on each failure differently, publish
+each as its own error and match it with `Effect.catchTag`. Loading a profile
+fails two ways the caller acts on, the profile is missing or access is denied,
+so each is its own error:
 
 **Example** (Peers: Match Each Tag)
 
@@ -977,11 +1049,14 @@ const displayName = Effect.gen(function* () {
 Effect.runSync(displayName) // => "No profile for 9"
 ```
 
-If callers mostly treat a failed request as one failure, publish one parent
-error with the cause inside it. The profile screen still needs the
-missing-profile case, so it matches the reason with `Effect.catchReason`. The
-parent error stays in the failure type for the reasons you did not handle, so
-everyone else catches the parent once and never learns the reasons:
+**One parent:** When the caller treats a failed request as one failure, publish
+a single parent error and put the specific cause in a `readonly reason` field,
+typed as a closed union of tagged reasons. That `reason` field is the convention
+`Effect.catchReason` follows: it matches the parent's `_tag`, then the
+`reason`'s `_tag`, and hands the handler the unwrapped child so the caller can
+act on the specific reason. A reason you do not match keeps the parent error in
+the failure type, so a later `catchTag` still catches it. Callers who do not act
+on the breakdown catch the parent once and never learn the reasons:
 
 **Example** (One Parent: Match a Reason)
 
