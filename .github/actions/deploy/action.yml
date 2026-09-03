@@ -71,6 +71,14 @@ runs:
         esac
         echo "Deploying with Cloudflare traffic mode: $TRAFFIC_MODE"
 
+    - name: Validate production traffic transition
+      shell: bash
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+      run: node apps/web/scripts/validate-cloudflare-traffic-transition.mjs "$TRAFFIC_MODE"
+
     - name: Install dependencies
       uses: ./.github/actions/setup
 
@@ -232,3 +240,4 @@ runs:
         TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
       run: |
         echo "::error::Deployment validation failed in traffic mode '$TRAFFIC_MODE'. Run the protected Rollback Production workflow with the recorded known-good commit, API snapshot, and previous traffic mode."
+        echo "::error::A rollback that removes Custom Domains requires the runbook's manual Vercel rollback procedure."
