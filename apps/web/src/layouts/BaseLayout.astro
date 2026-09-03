@@ -35,6 +35,12 @@ if (ogImageVersion !== undefined) ogImageUrl.searchParams.set("v", ogImageVersio
 
 const pagePathname = Astro.url.pathname.replace(/\/$/, "")
 const canonicalUrl = new URL(pagePathname, Astro.site)
+
+// v4 docs pages are also served as markdown at `<url>.md` (see
+// `pages/docs/[version]/[...markdown].ts`); API reference pages are not.
+const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
+  ? `${pagePathname}.md`
+  : undefined
 ---
 
 <!doctype html>
@@ -157,7 +163,12 @@ const canonicalUrl = new URL(pagePathname, Astro.site)
         ...(description ? { description } : undefined),
       }}
       extend={{
-        link: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
+        link: [
+          { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+          ...(markdownHref
+            ? [{ rel: "alternate", type: "text/markdown", href: markdownHref, title: "Markdown" }]
+            : []),
+        ],
       }}
       {...description ? { description } : undefined}
     />
