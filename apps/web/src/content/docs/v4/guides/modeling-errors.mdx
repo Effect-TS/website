@@ -8,11 +8,12 @@ sidebar:
 import { Aside, TabItem, Tabs } from "@astrojs/starlight/components"
 
 Thrown errors work, but they leave a question unanswered: **when you call a
-function, what can fail?** This tutorial is about that question, not about
-syntax. It shows how to model each failure as clearly as the result. The
-examples use Effect, and the thinking applies wherever a return type can carry
-failures. You need TypeScript and `async`/`await`; Effect you meet where the
-samples first need it.
+function, what can fail?** This tutorial is about that question. It shows how
+to model each failure as clearly as the result. The examples use Effect, and
+the thinking applies wherever a return type can carry failures. You need
+TypeScript and `async`/`await`. A short primer covers the Effect basics before
+the modeling starts, and each failure operator arrives where the samples first
+need it.
 
 ## 1. The problem
 
@@ -116,7 +117,7 @@ ways:
 | 404          | the code throws `ProfileNotFoundError`                                         |
 | 403          | the code throws `ForbiddenError`                                               |
 
-These four come from loading; the fifth failure named earlier, a save conflict,
+These four come from loading. The fifth failure named earlier, a save conflict,
 joins in section 4 when the save step is added.
 
 None of them appear in the type, and the compiler does not warn you. A caller
@@ -333,7 +334,7 @@ const program: Effect.Effect<string, Error> = Effect.succeed("Hello")
 
 `Effect` is both the module you import and the type it exports, which is why the
 type is written `Effect.Effect`. Nothing ever travels the error channel of
-`Effect.succeed`, because it cannot fail; the `Error` here only illustrates
+`Effect.succeed`, because it cannot fail. The `Error` here only illustrates
 where the failure type sits.
 
 ### `Effect.gen` composes steps
@@ -355,8 +356,9 @@ const greeting = Effect.gen(function* () {
 })
 ```
 
-**`Effect.runPromise` executes at the edge.** It runs the description and
-returns a `Promise`:
+### `Effect.runPromise` executes at the edge
+
+It runs the description and returns a `Promise`:
 
 ```ts collapse={3-8}
 import { Effect } from "effect"
@@ -380,7 +382,8 @@ more operators, each introduced where it is needed.
 > What if failures were values I return, not exceptions I throw?
 
 The failure is ordinary data: the call always comes back, and the failure arrives through the return
-type, so the caller cannot miss it. Everything becomes explicit and checked by the compiler.
+type, so the caller cannot miss it. Every failure you publish becomes explicit
+and checked by the compiler.
 
 That is what `Effect<Success, Error>` already is: a value that is either a
 success or a failure. In plain TypeScript, the same idea would look like this:
@@ -399,10 +402,10 @@ Return the failure instead of throwing it. Two pieces make that work:
 - a failure value to return
 - a way to convert code that throws into code that returns
 
-The first piece is a failure value. It should name itself and carry the
+The first piece is a failure value. It names what failed and carries the
 data a caller will need.
 
-Effect's convention is a class that extends `Data.TaggedError`, the name ends in `Error` and matches the tag, as in `ProfileNotFoundError` with tag `"ProfileNotFoundError"`. The string you pass is the **tag**: Effect stores it as a `_tag` field on every instance and reads it at runtime to tell one failure from another.
+Effect's convention is a class that extends `Data.TaggedError`. The class name ends in `Error` and matches the tag, as in `ProfileNotFoundError` with tag `"ProfileNotFoundError"`. The string you pass is the **tag**: Effect stores it as a `_tag` field on every instance and reads it at runtime to tell one failure from another.
 
 ```ts twoslash
 import { Data } from "effect"
@@ -413,9 +416,9 @@ class NetworkError extends Data.TaggedError("NetworkError")<{
 ```
 
 Constructing one is like constructing any object: `new NetworkError({ cause })` builds a value you
-can log, inspect or act on.
+can log, inspect, or act on.
 
-The second piece is the conversion. For example `Effect.tryPromise`: it wraps a `Promise` and puts its rejection in the error channel, as a value you choose. Here is `loadProfile`
+The second piece is the conversion. `Effect.tryPromise` wraps a `Promise` and puts its rejection in the error channel, as a value you choose. Here is `loadProfile`
 rewritten:
 
 <Tabs>
@@ -455,8 +458,11 @@ const loadProfile = (id: string) =>
 
 The failure now lives in the type: `Effect<Profile, NetworkError>`. A caller sees that a network failure is possible before writing a single line.
 
-But this pass converted only the two promise rejections. Nothing represents the 404 and the
-403, so a 404 now slips through as a success: two failures vanished instead of moving onto the type.
+But this pass converted only the two promise rejections, and it coarsened the
+parse one: `response.json()` now fails with `NetworkError`, where the try/catch
+version threw `ParseError`. Nothing represents the 404 and the 403, so a 404
+whose body parses as JSON slips through as a success. Two failures vanished
+instead of landing in the type.
 
 > What can fail here? Can I name each failure?
 
@@ -495,7 +501,7 @@ class ConflictError extends Data.TaggedError("ConflictError")<{
   something to act on.
 </Aside>
 
-Every failure now has a name and a function can return them as a value.
+Every failure now has a name, and a function can return each one as a value.
 
 Here is `loadProfile` with the 404 and 403 checks restored, the parse failure mapped to `ParseError`, and the shape check done by `decodeProfile`:
 
@@ -598,8 +604,9 @@ can fail.
 
 Handling an error means removing it from the union:
 
-- **Failing adds a member.** Each `Effect.fail` in a function contributes its
-  error to that function's failure type.
+- **Failing adds a member.** Every failure a function raises contributes to
+  that function's failure type, whether you write `Effect.fail` or yield a
+  tagged error.
 - **Handling removes a member.** `Effect.catchTag("ForbiddenError", ...)` takes
   `ForbiddenError` out of the failure channel. The tag on each class tells the
   members apart, so inside the handler `error` is a `ForbiddenError` and
@@ -674,10 +681,13 @@ You never had to remember the full list, **because the compiler keeps count for 
 > Is this failure part of my domain, or outside the contract?
 
 Section 2 sorted a boundary's failures: an Error when the contract publishes
-it, a Defect when not. Effect keeps the two apart in code. Typed failures stay
+it, a Defect when it does not. Effect keeps the two apart in code. Typed failures stay
 in the failure type. A failure outside the contract becomes a defect: raising
 one interrupts the running program, though a boundary can still catch it. You
-raise a defect by passing the failure to `Effect.die`.
+raise a defect by passing the failure to `Effect.die`. To catch a defect at a
+boundary, see [Unexpected Errors](/docs/v4/error-management/unexpected-errors/).
+To inspect a failure's complete cause, see
+[Sandboxing](/docs/v4/error-management/sandboxing/).
 
 For instance, the server must echo back the id it was asked for, and a mismatch
 is a broken contract no caller can repair:
@@ -714,9 +724,9 @@ const loadChecked = (id: string) =>
 
 The reverse also happens: a typed failure can be unrecoverable in a particular
 place. `Effect.orDie` turns a typed failure into a defect and drops it from the
-type. You can reach for it for two reasons:
+type. You use it for two reasons:
 
-- The failure is not expected by the caller, so its appearance can
+- The failure should never happen, so its appearance can
   only mean a broken contract.
 - The failure can happen, but this boundary declines to publish it.
 
@@ -759,7 +769,7 @@ const decoded: Effect.Effect<Profile, never> = decodeProfile(null).pipe(
   Effect.orDie,
 )
 
-// The ParseError did not vanish: it comes back as the defect itself.
+// The ParseError does not vanish: it comes back as the defect itself.
 const exit = Effect.runSyncExit(decoded)
 const defect = Exit.isFailure(exit)
   ? exit.cause.reasons.find(Cause.isDieReason)?.defect
@@ -798,9 +808,9 @@ const queryProfile = (id: string): Effect.Effect<Profile, DatabaseError> =>
   Effect.fail(new DatabaseError({ cause: "connection reset" }))
 
 // The repository is a boundary. DatabaseError is real, but this boundary does
-// not publish it, so callers above see a defect instead. The empty error
-// channel below (Effect<Profile> means Effect<Profile, never>) is orDie having
-// removed it.
+// not publish it, so callers above see a defect instead. orDie removed it from
+// the type, leaving the empty error channel (Effect<Profile> means
+// Effect<Profile, never>).
 const findProfile = (id: string): Effect.Effect<Profile> =>
   Effect.orDie(queryProfile(id))
 
@@ -1041,11 +1051,16 @@ single place at the edge decides what to do with all of them**.
 failures, so the result has the failure type `never`.
 
 <Aside type="note" title="Describe failure, then handle it">
-  Constructing a failure is not the same as deciding its fate. Effect values are
-  lazy, so the two can live in different places.
+  Constructing a failure is not the same as deciding what happens to it. Effect
+  values are lazy, so the two can live in different places.
 </Aside>
 
-### Shape the failure surface
+<Aside type="note" title="Checkpoint">
+  You can now combine operations into one program and resolve every failure at
+  the edge, where one handler covers whatever remains.
+</Aside>
+
+## 5. Shape the failure surface
 
 > How much of the failure surface should cross the boundary?
 
@@ -1056,8 +1071,8 @@ with its own catch operator.
 
 **Separate errors:** When the caller acts on each failure differently, publish
 each as its own error and match it with `Effect.catchTag`. Loading a profile
-fails two ways the caller acts on, the profile is missing or access is denied,
-so each is its own error:
+fails in two ways the caller acts on: the profile is missing, or access is
+denied. Each gets its own error:
 
 <Tabs>
 <TabItem label="Example (Peers: Match Each Tag)">
@@ -1096,7 +1111,7 @@ Effect.runSync(displayName) // => "No profile for 9"
 
 **One parent:** When the caller treats a failed request as one failure, publish
 a single parent error and put the specific cause in a `readonly reason` field,
-typed as a closed union of tagged reasons. That `reason` field is the convention
+typed as a closed union of tagged reasons. The `reason` field name is the convention
 `Effect.catchReason` follows: it matches the parent's `_tag`, then the
 `reason`'s `_tag`, and hands the handler the unwrapped child so the caller can
 act on the specific reason. A reason you do not match keeps the parent error in
@@ -1150,23 +1165,18 @@ Effect.runSync(displayName) // => "No profile for 9"
 When a caller needs several reasons at once, `Effect.catchReasons` matches them
 in a single call.
 
-Choose the operator by how much the caller on the other side needs to see:
-
-| Operator              | Use it for                                                                         |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `Effect.catchTag`     | a flat union of peers, matched by top-level tag                                    |
-| `Effect.catchReason`  | granular handling of one parent error, where the handler receives the nested cause |
-| `Effect.catchReasons` | several reasons in one call                                                        |
+[Matching](/docs/v4/error-management/matching/) is the full list of catch
+operators and when each fits.
 
 <Aside type="note" title="Checkpoint">
-  You can now combine operations into one program and resolve every failure at
-  the edge, where one handler covers whatever remains.
+  You can now decide how much of the failure surface crosses a boundary, and
+  publish it as peers or as one parent error.
 </Aside>
 
 ## Recap
 
-The compiler enforces only the union rules. The rest is judgment that the
-types keep honest.
+The compiler enforces only the union rules. Which failures belong in a
+contract, and which to raise as defects, is your judgment.
 
 - **Treat every function as a boundary.** Its failure list is part of the
   contract, alongside its parameters and its result.
@@ -1177,11 +1187,11 @@ types keep honest.
   failure cannot handle it.
 - **Name each failure and give it data.** A tag with data beats a message string,
   because recovery acts on data.
-- **The failure type is a union.** Every `Effect.fail` adds a member, and every
-  handler removes one.
+- **The failure type is a union.** Every failure you raise adds a member, and
+  every handler removes one.
 - **Make "everything handled" checkable.** Exhaustiveness is the compiler's job,
   not your memory's.
-- **Decide recoverable versus defect at each call site.** The decision depends on the
+- **Decide error versus defect at each call site.** The decision depends on the
   caller's context, not on the error itself.
 
 ## Further reading
@@ -1190,6 +1200,8 @@ types keep honest.
   behind the library.
 - [Expected Errors](/docs/v4/error-management/expected-errors/) and
   [Matching](/docs/v4/error-management/matching/) cover every recovery function.
+- [Unexpected Errors](/docs/v4/error-management/unexpected-errors/) covers
+  defects: raising, converting, and catching them.
 - [Two Error Types](/docs/v4/error-management/two-error-types/) and
   [Error Channel Operations](/docs/v4/error-management/error-channel-operations/)
   are the full reference for the failure type.
