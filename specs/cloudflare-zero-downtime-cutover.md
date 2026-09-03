@@ -130,9 +130,7 @@ DNS-only CNAMEs to Vercel.
 
 ### Review findings to fix before merge
 
-1. **Expired Mixedbread stores can be treated as healthy.** The provider
-   recreates a missing store after a `404`, but not a retrieved store whose
-   status is `expired`.
+No code review findings remain open.
 
 ### Resolved review findings
 
@@ -156,6 +154,8 @@ DNS-only CNAMEs to Vercel.
       immutable cache policy.
 - [x] Completing a playground file write discards acknowledgements for older
       content, so a later external reversion is applied to Monaco.
+- [x] The Mixedbread provider treats a retrieved store with `status: "expired"`
+      as absent, deletes it, and recreates it with a new stable ID.
 
 ### Risks to address before final teardown
 

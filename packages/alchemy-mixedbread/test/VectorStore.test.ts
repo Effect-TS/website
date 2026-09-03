@@ -317,3 +317,76 @@ test("recreates a preview store that expired while the inputs stayed the same", 
     ),
   )
 })
+
+test("recreates a preview store returned with expired status", async () => {
+  const fake = makeClient()
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      Effect.gen(function* () {
+        const provider = yield* VectorStore.Provider
+        const created = yield* provider.reconcile({
+          id: "PreviewSearchStore",
+          fqn: "PreviewSearchStore",
+          instanceId: "instance-1",
+          news: props,
+          olds: undefined,
+          output: undefined,
+          session,
+          bindings: [],
+        })
+        const expired = fake.stores.get(created.id)
+        assert.ok(expired)
+        fake.stores.set(created.id, {
+          ...expired,
+          status: "expired",
+        })
+
+        const read = provider.read
+        assert.ok(read)
+        assert.equal(
+          yield* read({
+            id: "PreviewSearchStore",
+            fqn: "PreviewSearchStore",
+            instanceId: "instance-1",
+            olds: props,
+            output: created,
+          }),
+          undefined,
+        )
+
+        const unchanged = {
+          id: "PreviewSearchStore",
+          fqn: "PreviewSearchStore",
+          instanceId: "instance-1",
+          olds: props,
+          news: props,
+          oldBindings: [],
+          newBindings: [],
+          output: created,
+        }
+        const diff = provider.diff
+        assert.ok(diff)
+        assert.deepEqual(yield* diff(unchanged), {
+          action: "update",
+          stables: [],
+        })
+
+        const recreated = yield* provider.reconcile({
+          id: "PreviewSearchStore",
+          fqn: "PreviewSearchStore",
+          instanceId: "instance-1",
+          news: props,
+          olds: props,
+          output: created,
+          session,
+          bindings: [],
+        })
+        assert.notEqual(recreated.id, created.id)
+        assert.equal(recreated.status, undefined)
+        assert.equal(fake.creates(), 2)
+        assert.equal(fake.stores.has(created.id), false)
+      }),
+    ),
+  )
+})

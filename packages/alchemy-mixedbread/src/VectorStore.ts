@@ -175,7 +175,7 @@ export const VectorStoreProvider = Provider.effect(
           const store = yield* client
             .retrieveStore(output.id)
             .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
-          if (store === undefined) {
+          if (store === undefined || store.status === "expired") {
             return { action: "update", stables: [] } as const
           }
         }
@@ -193,7 +193,7 @@ export const VectorStoreProvider = Provider.effect(
               .retrieveStore(output.id)
               .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
           : yield* exactStoreByName(olds.name)
-        if (store === undefined) return undefined
+        if (store === undefined || store.status === "expired") return undefined
         const attributes = toAttributes(store)
         return hasOwnership(store.metadata, ownership) ||
           hasLegacyOwnership(store.metadata, olds.metadata)
@@ -210,6 +210,13 @@ export const VectorStoreProvider = Provider.effect(
               .retrieveStore(output.id)
               .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
           : yield* exactStoreByName(news.name)
+
+        if (store?.status === "expired") {
+          yield* client
+            .deleteStore(store.id)
+            .pipe(Effect.catchIf(isNotFound, () => Effect.void))
+          store = undefined
+        }
 
         if (store === undefined) {
           store = yield* client
