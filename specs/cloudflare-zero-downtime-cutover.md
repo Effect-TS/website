@@ -27,7 +27,8 @@ safe migration. The remaining release gates are concrete:
 
 - Deploy the reconciled revision to the production `workers.dev` stage. The
   preview tested during this review was built from `4a1fef5`, not local HEAD.
-- Fix and certify the Cloudflare CI token policy.
+- Apply the certified, zone-scoped Cloudflare CI token policy through the
+  GitHub bootstrap stack.
 - Add enough production monitoring to detect a bad cutover and name the person
   responsible for rollback.
 - Add protection rules to the GitHub `Production` environment and pause
@@ -95,10 +96,9 @@ is useful evidence, but it is not a production acceptance test.
    apex to `www`. Reverse that behavior in Vercel first so the apex serves the
    site and `www` redirects to apex. Otherwise a cached `www` to apex redirect
    can loop after a Vercel rollback.
-2. **The CI token is too broad and may lack Zone Read.** `stacks/github.ts`
-   grants write access across all zones in the account and includes broad
-   account permissions. Restrict zone permissions to `effect.website`, add the
-   read permissions Alchemy needs, and remove unrelated permissions.
+2. **The CI token policy has not been applied.** The candidate policy passed
+   disposable Worker, Route, Custom Domain, redirect, Secrets Store, and cleanup
+   tests. Apply the matching repository policy before deploying production.
 3. **Monitoring is not defined.** Default Worker invocation logs are present,
    but there are no synthetic checks, server error alerts, dependency alerts,
    or agreed rollback thresholds.
@@ -131,8 +131,8 @@ is useful evidence, but it is not a production acceptance test.
 
 Complete these changes before setting the traffic mode to `routes`:
 
-- [ ] Update `stacks/github.ts` with a least-privilege, zone-scoped token.
-- [ ] Document how and when the GitHub bootstrap stack is applied.
+- [x] Update `stacks/github.ts` with a least-privilege, zone-scoped token.
+- [x] Document how and when the GitHub bootstrap stack is applied.
 - [x] Validate and log `CLOUDFLARE_TRAFFIC_MODE` before invoking Alchemy.
 - [x] Add smoke checks after every production deployment.
 - [x] Make a smoke-check failure fail the deployment and print the exact
@@ -189,6 +189,36 @@ Scripts Edit, Zone Read, Workers Routes Edit, and the permissions required for
 redirect management. Custom Domains use the Workers API rather than a separate
 Custom Domain permission. DNS Edit is needed only if Alchemy or the cutover
 process changes DNS through the API.
+
+## GitHub bootstrap stack
+
+`stacks/github.ts` manages the deployment token, repository secrets, and
+repository variables. Run it manually after changing those resources. Do not run
+it as part of a website deployment.
+
+The operator needs an Alchemy Cloudflare profile with `API Tokens Write`, a
+GitHub credential that can manage Actions secrets and variables for
+`Effect-TS/website`, and the application secrets read by the stack. Set
+`CLOUDFLARE_ACCOUNT_ID` and the exact `effect.website` zone ID as
+`CLOUDFLARE_ZONE_ID`. The deployment token created by this stack cannot update
+its own policy.
+
+Preview the change first:
+
+```bash
+vp exec alchemy deploy stacks/github.ts --stage prod --env-file .env --dry-run
+```
+
+Review the plan for the `effect-website-ci` token and the
+`CLOUDFLARE_API_TOKEN` GitHub secret. Apply it only during an approved deployment
+credential rotation:
+
+```bash
+vp exec alchemy deploy stacks/github.ts --stage prod --env-file .env
+```
+
+After applying the stack, verify the account-owned token is active and deploy to
+the production `workers-dev` stage before changing public traffic.
 
 ## Acceptance checks
 

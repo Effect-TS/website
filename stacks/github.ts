@@ -23,6 +23,7 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const { accountId } = yield* yield* Cloudflare.CloudflareEnvironment
+    const zoneId = yield* Config.string("CLOUDFLARE_ZONE_ID")
     const trafficMode = yield* Config.string("CLOUDFLARE_TRAFFIC_MODE").pipe(
       Config.withDefault("workers-dev"),
       Effect.flatMap(Schema.decodeUnknownEffect(TrafficMode)),
@@ -35,11 +36,7 @@ export default Alchemy.Stack(
       policies: [
         {
           effect: "allow",
-          permissionGroups: [
-            "Account Settings Write",
-            "Secrets Store Write",
-            "Workers Scripts Write",
-          ],
+          permissionGroups: ["Secrets Store Write", "Workers Scripts Write"],
           resources: {
             [`com.cloudflare.api.account.${accountId}`]: "*",
           },
@@ -47,13 +44,13 @@ export default Alchemy.Stack(
         {
           effect: "allow",
           permissionGroups: [
-            "DNS Write",
             "Dynamic URL Redirects Write",
             "Workers Routes Write",
+            "Zone Read",
           ],
           resources: {
             [`com.cloudflare.api.account.${accountId}`]: {
-              "com.cloudflare.api.account.zone.*": "*",
+              [`com.cloudflare.api.account.zone.${zoneId}`]: "*",
             },
           },
         },
