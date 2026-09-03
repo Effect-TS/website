@@ -109,6 +109,31 @@ for (const check of checks) {
   })
 }
 
+const legacyApiSource = new URL("/docs/api/v4/effect/Effect?cutover=1", baseUrl)
+await retry(legacyApiSource.href, async () => {
+  const response = await fetch(legacyApiSource, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (response.status !== 308) {
+    throw new Error(
+      `${legacyApiSource.href} returned ${response.status}; expected 308`,
+    )
+  }
+  const location = response.headers.get("location")
+  const destination =
+    location === null ? undefined : new URL(location, legacyApiSource)
+  const expected = new URL("/docs/v4/api/effect/Effect?cutover=1", baseUrl)
+  if (destination?.href !== expected.href) {
+    throw new Error(
+      `${legacyApiSource.href} redirected to ${destination?.href ?? "no location"}; expected ${expected.href}`,
+    )
+  }
+  console.log(
+    `PASS ${response.status} ${legacyApiSource.href} -> ${destination.href}`,
+  )
+})
+
 if (trafficMode !== "workers-dev") {
   await retry("production origin", async () => {
     const rootResponse = await fetch(new URL("/", baseUrl), {

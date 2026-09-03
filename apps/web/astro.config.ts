@@ -213,6 +213,10 @@ const config = defineConfig({
       status: 307,
       destination: "/docs/v4/api",
     },
+    "/docs/api/v4": {
+      status: 308,
+      destination: "/docs/v4/api",
+    },
   },
 })
 
