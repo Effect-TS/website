@@ -41,6 +41,25 @@ test("acknowledges an older local write without rolling back the model", () => {
   })
 })
 
+test("applies an external reversion after a newer local write completes", () => {
+  const sync = FileSync.make({ content: "V0", modelVersion: 1 })
+  sync.modelChanged({ content: "V1", modelVersion: 2 })
+  const first = sync.captureWrite()
+  assert.ok(first)
+  sync.writeCompleted(first)
+
+  sync.modelChanged({ content: "V2", modelVersion: 3 })
+  const second = sync.captureWrite()
+  assert.ok(second)
+  sync.writeCompleted(second)
+
+  const read = sync.beginFilesystemRead()
+  assert.deepEqual(sync.completeFilesystemRead(read, "V1"), {
+    _tag: "ApplyExternal",
+    content: "V1",
+  })
+})
+
 test("does not persist a programmatic external model update as a user edit", () => {
   const sync = FileSync.make({ content: "V0", modelVersion: 1 })
   const read = sync.beginFilesystemRead()

@@ -142,6 +142,7 @@ export const FileSync = {
         return
       }
       persistedContent = write.content
+      completedWrites.clear()
       completedWrites.set(write.content, write.revision)
     }
 

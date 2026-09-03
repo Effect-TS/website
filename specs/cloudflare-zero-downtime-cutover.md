@@ -130,11 +130,7 @@ DNS-only CNAMEs to Vercel.
 
 ### Review findings to fix before merge
 
-1. **Playground filesystem acknowledgements can become stale.** Completed write
-   content remains in the acknowledgement map after newer writes complete. A
-   later external change back to old content can be ignored, leaving Monaco and
-   the WebContainer filesystem out of sync.
-2. **Expired Mixedbread stores can be treated as healthy.** The provider
+1. **Expired Mixedbread stores can be treated as healthy.** The provider
    recreates a missing store after a `404`, but not a retrieved store whose
    status is `expired`.
 
@@ -158,6 +154,8 @@ DNS-only CNAMEs to Vercel.
 - [x] Generated Open Graph URLs include the website revision and any
       content-specific digest. Only versioned requests receive a one-year
       immutable cache policy.
+- [x] Completing a playground file write discards acknowledgements for older
+      content, so a later external reversion is applied to Monaco.
 
 ### Risks to address before final teardown
 
