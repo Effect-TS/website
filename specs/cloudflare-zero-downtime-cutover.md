@@ -27,6 +27,9 @@ safe migration. The remaining release gates are concrete:
 
 - Deploy the reconciled revision to the production `workers.dev` stage. The
   verified PR preview is not the production stage.
+- Provision isolated Cloudflare, Mixedbread, and Upstash preview resources, then
+  apply the bootstrap stack to migrate secrets into the `Preview` and
+  `Production` environments.
 - Add enough production monitoring to detect a bad cutover and name the person
   responsible for rollback.
 - Immediately after merging with administrator bypass, update the `main` ruleset
@@ -153,6 +156,11 @@ DNS-only CNAMEs to Vercel.
 - [x] Production deployment detects live Cloudflare traffic ownership before
       changing resources and rejects transitions that would detach Custom
       Domains. Application rollback within the current topology remains safe.
+- [x] PR deployment uses the trusted default-branch workflow, a dedicated
+      `Preview` environment, and preview-only Cloudflare, Mixedbread, and Upstash
+      credentials. Production credentials live in the `main`-restricted
+      `Production` environment. The bootstrap stack rejects production resource
+      identities reused for previews.
 
 ### Risks to address before final teardown
 
@@ -163,9 +171,8 @@ DNS-only CNAMEs to Vercel.
   and PostHog proxying have no repository-managed rate limits or abuse rules.
 - Preview cleanup only runs when GitHub delivers the PR close event. Add a
   scheduled job that removes Cloudflare stages for closed PRs.
-- Same-repository PR builds receive production-capable credentials. Use a
-  GitHub environment, least-privilege preview credentials, and trusted-branch
-  controls where Alchemy permits them.
+- PR code can consume preview-account quotas or expose preview credentials.
+  Apply spend limits and rate limits to the isolated preview resources.
 - Production deploys automatically on every `main` push. The environment is
   restricted to `main`, but has no reviewer gate and permits administrator
   bypass. Pause unrelated pushes while a cutover phase is running.

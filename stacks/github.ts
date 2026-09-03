@@ -59,28 +59,73 @@ export default Alchemy.Stack(
 
     const applicationSecrets = yield* Config.all({
       MXBAI_ADMIN_API_KEY: Config.redacted("MXBAI_ADMIN_API_KEY"),
-      MXBAI_PREVIEW_ADMIN_API_KEY: Config.redacted(
-        "MXBAI_PREVIEW_ADMIN_API_KEY",
-      ),
       MXBAI_SEARCH_API_KEY: Config.redacted("MXBAI_SEARCH_API_KEY"),
       MXBAI_VECTOR_STORE_ID: Config.redacted("MXBAI_VECTOR_STORE_ID"),
       KV_REST_API_URL: Config.redacted("KV_REST_API_URL"),
       KV_REST_API_TOKEN: Config.redacted("KV_REST_API_TOKEN"),
     })
+    const previewAccountId = yield* Config.string(
+      "CLOUDFLARE_PREVIEW_ACCOUNT_ID",
+    )
+    const previewSecrets = yield* Config.all({
+      CLOUDFLARE_PREVIEW_API_TOKEN: Config.redacted(
+        "CLOUDFLARE_PREVIEW_API_TOKEN",
+      ),
+      MXBAI_PREVIEW_ADMIN_API_KEY: Config.redacted(
+        "MXBAI_PREVIEW_ADMIN_API_KEY",
+      ),
+      MXBAI_PREVIEW_SEARCH_API_KEY: Config.redacted(
+        "MXBAI_PREVIEW_SEARCH_API_KEY",
+      ),
+      MXBAI_PREVIEW_VECTOR_STORE_ID: Config.redacted(
+        "MXBAI_PREVIEW_VECTOR_STORE_ID",
+      ),
+      KV_PREVIEW_REST_API_URL: Config.redacted("KV_PREVIEW_REST_API_URL"),
+      KV_PREVIEW_REST_API_TOKEN: Config.redacted("KV_PREVIEW_REST_API_TOKEN"),
+    })
+
+    if (
+      previewAccountId === accountId ||
+      Redacted.value(previewSecrets.MXBAI_PREVIEW_ADMIN_API_KEY) ===
+        Redacted.value(applicationSecrets.MXBAI_ADMIN_API_KEY) ||
+      Redacted.value(previewSecrets.MXBAI_PREVIEW_SEARCH_API_KEY) ===
+        Redacted.value(applicationSecrets.MXBAI_SEARCH_API_KEY) ||
+      Redacted.value(previewSecrets.MXBAI_PREVIEW_VECTOR_STORE_ID) ===
+        Redacted.value(applicationSecrets.MXBAI_VECTOR_STORE_ID) ||
+      Redacted.value(previewSecrets.KV_PREVIEW_REST_API_URL) ===
+        Redacted.value(applicationSecrets.KV_REST_API_URL) ||
+      Redacted.value(previewSecrets.KV_PREVIEW_REST_API_TOKEN) ===
+        Redacted.value(applicationSecrets.KV_REST_API_TOKEN)
+    ) {
+      yield* Effect.die(
+        "Preview Cloudflare, Mixedbread, and Upstash resources must be isolated from production",
+      )
+    }
 
     const repository = {
       owner: "Effect-TS",
       repository: "website",
     }
+    const productionEnvironment = yield* GitHub.Environment("production", {
+      ...repository,
+      name: "Production",
+      deploymentBranchPolicy: { customBranchPolicies: ["main"] },
+    })
+    const previewEnvironment = yield* GitHub.Environment("preview", {
+      ...repository,
+      name: "Preview",
+    })
 
     yield* Effect.all([
       GitHub.Secret("cloudflare-api-token", {
         ...repository,
+        environment: productionEnvironment,
         name: "CLOUDFLARE_API_TOKEN",
         value: apiToken.value,
       }),
       GitHub.Secret("cloudflare-account-id", {
         ...repository,
+        environment: productionEnvironment,
         name: "CLOUDFLARE_ACCOUNT_ID",
         value: Redacted.make(accountId),
       }),
@@ -92,6 +137,21 @@ export default Alchemy.Stack(
       ...Object.entries(applicationSecrets).map(([name, value]) =>
         GitHub.Secret(name.toLowerCase().replaceAll("_", "-"), {
           ...repository,
+          environment: productionEnvironment,
+          name,
+          value,
+        }),
+      ),
+      GitHub.Secret("cloudflare-preview-account-id", {
+        ...repository,
+        environment: previewEnvironment,
+        name: "CLOUDFLARE_PREVIEW_ACCOUNT_ID",
+        value: Redacted.make(previewAccountId),
+      }),
+      ...Object.entries(previewSecrets).map(([name, value]) =>
+        GitHub.Secret(name.toLowerCase().replaceAll("_", "-"), {
+          ...repository,
+          environment: previewEnvironment,
           name,
           value,
         }),
