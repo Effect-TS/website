@@ -104,7 +104,7 @@ export default Alchemy.Stack(
     const previewStoreEnabled = yield* Config.boolean(
       "MXBAI_PREVIEW_STORE_ENABLED",
     ).pipe(Config.withDefault(false))
-    const sha = yield* Config.string("GITHUB_SHA")
+    const sha = yield* Config.string("WEBSITE_REVISION")
     let storeId: Input<string | Redacted.Redacted<string>> = Config.redacted(
       "MXBAI_VECTOR_STORE_ID",
     )

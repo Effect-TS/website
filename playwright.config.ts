@@ -13,7 +13,7 @@ export default defineConfig({
   webServer:
     externalUrl === undefined
       ? {
-          command: "GITHUB_SHA=$(git rev-parse HEAD) vp exec alchemy dev",
+          command: "WEBSITE_REVISION=$(git rev-parse HEAD) vp exec alchemy dev",
           reuseExistingServer: false,
           timeout: 120_000,
           url: "http://localhost:14337/play",
