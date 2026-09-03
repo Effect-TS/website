@@ -106,12 +106,26 @@ jobs:
             --generator "$GENERATOR_HASH" \
             --expected-id "$SNAPSHOT_ID"
 
-  deploy-production:
+  resolve-website-revision:
     needs: [resolve-snapshot, publish-snapshot]
     if: always() && needs.resolve-snapshot.result == 'success' && (needs.publish-snapshot.result == 'success' || needs.publish-snapshot.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      revision: ${{ steps.revision.outputs.value }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - id: revision
+        run: echo "value=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  deploy-production:
+    needs: [resolve-snapshot, resolve-website-revision]
     uses: ./.github/workflows/deploy.yml
     with:
-      website-ref: ${{ github.sha }}
+      website-ref: ${{ needs.resolve-website-revision.outputs.revision }}
       api-reference-snapshot: ${{ needs.resolve-snapshot.outputs.snapshot_tag }}
       mixedbread-scope: api-reference
       cloudflare-traffic-mode: ${{ vars.CLOUDFLARE_TRAFFIC_MODE || 'workers-dev' }}

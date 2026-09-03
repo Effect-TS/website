@@ -26,13 +26,14 @@ The Cloudflare preview works, and the branch has the main pieces needed for a
 safe migration. The remaining release gates are concrete:
 
 - Deploy the reconciled revision to the production `workers.dev` stage. The
-  preview tested during this review was built from `4a1fef5`, not local HEAD.
-- Apply the certified, zone-scoped Cloudflare CI token policy through the
-  GitHub bootstrap stack.
+  verified PR preview is not the production stage.
 - Add enough production monitoring to detect a bad cutover and name the person
   responsible for rollback.
-- Add protection rules to the GitHub `Production` environment and pause
-  unrelated deployments during the cutover.
+- Immediately after merging with administrator bypass, update the `main` ruleset
+  to require the current `Check` and `Test` jobs instead of the removed `Format`,
+  `Lint`, and `Types` jobs.
+- Pause unrelated deployments during the cutover. The team has intentionally
+  chosen not to require deployment reviewers or disable administrator bypass.
 - Test the rollback workflow with an immutable known-good revision.
 
 Rate limits, preview cleanup, and stronger deployment controls should also be
@@ -46,18 +47,22 @@ to block the first route-based traffic test if the team accepts the risk.
 - Name.com is the registrar.
 - Cloudflare is already authoritative through `ben.ns.cloudflare.com` and
   `mary.ns.cloudflare.com`. No nameserver migration is needed.
-- The apex resolves to Vercel addresses and returns a Vercel `308` redirect to
-  `https://www.effect.website/`.
-- `www.effect.website` is a CNAME to `cname.vercel-dns.com` and is served by
-  Vercel.
+- The apex is a DNS-only CNAME to `cname.vercel-dns.com` with automatic TTL and
+  serves the Vercel production site without redirecting.
+- `www.effect.website` is also a DNS-only CNAME to
+  `cname.vercel-dns.com` with automatic TTL. Vercel returns a `307` redirect to
+  the same apex path and query string.
 - `CLOUDFLARE_TRAFFIC_MODE` is `workers-dev`, so production traffic remains on
   Vercel by design.
 - GitHub still stores `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and
   `VERCEL_PROJECT_ID`.
 - An active GitHub ruleset protects `main` with pull requests, linear history,
-  and required `Format`, `Lint`, and `Types` checks. Organization administrators
-  and one repository role can bypass it.
-- The GitHub `Production` environments have no protection rules.
+  and stale required `Format`, `Lint`, and `Types` checks. The current workflow
+  emits `Check` and `Test`. Organization administrators and one repository role
+  can bypass the ruleset.
+- The GitHub `Production` environment permits deployments only from `main`. It
+  has no required reviewers, and administrators can bypass its rules by
+  explicit team decision.
 
 Do not copy the observed Vercel IP addresses into a rollback procedure. Export
 the Cloudflare zone and record the exact DNS definitions before changing them.
@@ -83,34 +88,72 @@ The branch already provides:
 - A protected rollback workflow for immutable main-branch revisions.
 - A deployment compatibility marker that rejects revisions built with an
   incompatible Cloudflare deployment contract.
+- A zone-scoped deployment token with the tested Worker, Route, Custom Domain,
+  redirect, Zone Read, and Secrets Store permissions. The GitHub bootstrap stack
+  has applied the policy and updated the repository secret.
 
-The reviewed preview returned the expected responses for the home page,
-documentation redirects, `/play`, an Open Graph image, and a custom 404. This
-is useful evidence, but it is not a production acceptance test.
+The PR preview for `d3a53f5591da3aba004b33e599b5c3c723671206` passed the
+HTTP smoke suite, search, playground shortening, deployed Playwright tests,
+dprint and PostHog proxies, generated Open Graph rendering, and API reference
+link verification. Its PR comment and HTML revision marker identify the same
+commit. This is useful evidence, but it is not a production acceptance test.
+
+A point-in-time Vercel baseline from one network on 2026-09-03 sampled each key
+page ten times. Median response times were 28-50 ms for HTML pages, 162 ms for
+the dprint proxy, and 285 ms for search. Search returned 14 result groups; the
+Open Graph image and PostHog proxy returned `200`. Vercel currently returns
+`404` for both sitemap paths and `/robots.txt`.
+
+Vercel now matches the final canonical-host direction. The apex serves the site,
+`www` redirects to the same apex path and query with status `307`, HTTP upgrades
+to HTTPS, and canonical metadata remains on the apex. Both DNS records remain
+DNS-only CNAMEs to Vercel.
 
 ## Findings to resolve
 
 ### Cutover blockers
 
-1. **The existing redirect order would loop.** Production currently redirects
-   apex to `www`. Reverse that behavior in Vercel first so the apex serves the
-   site and `www` redirects to apex. Otherwise a cached `www` to apex redirect
-   can loop after a Vercel rollback.
-2. **The CI token policy has not been applied.** The candidate policy passed
-   disposable Worker, Route, Custom Domain, redirect, Secrets Store, and cleanup
-   tests. Apply the matching repository policy before deploying production.
-3. **Monitoring is not defined.** Default Worker invocation logs are present,
+1. **Monitoring is not defined.** Default Worker invocation logs are present,
    but there are no synthetic checks, server error alerts, dependency alerts,
    or agreed rollback thresholds.
-4. **The infrastructure toolchain is a patched beta.** Alchemy and its
+2. **The infrastructure toolchain is a patched beta.** Alchemy and its
    Cloudflare framework package are pinned to `2.0.0-beta.72` with local patches
    required for Node prerendering. Freeze these versions through cutover and
    prove a clean install and build on the reconciled commit.
-5. **Unrelated pushes can change production during cutover.** Production
-   deploys on every main-branch push, the active ruleset has bypass actors, and
-   the Production environments have no protection rules. Add a protected
-   production environment and a cutover deployment lock before proxying either
-   hostname.
+3. **The required check names are stale.** The active `main` ruleset still
+   requires `Format`, `Lint`, and `Types`; the current workflow emits `Check` and
+   `Test`. The approved sequence uses administrator bypass for this merge and
+   updates the ruleset immediately afterward.
+
+### Review findings to fix before merge
+
+1. **The rollback workflow permits unsafe traffic transitions.** Moving from
+   Custom Domains directly to `routes` or `workers-dev` detaches the domains and
+   can remove their managed DNS records before replacement DNS exists. Guard
+   rollback transitions according to the current traffic mode.
+2. **PR cleanup is missing `WEBSITE_REVISION`.** The stack now requires that
+   input, so `alchemy destroy` fails before deleting the preview Worker and PR
+   comment.
+3. **Legacy API-reference redirects were removed.** `/docs/api/v4`, package,
+   and module URLs return `404` on the PR Worker instead of redirecting to their
+   `/docs/v4/api` equivalents.
+4. **Generated Open Graph cache keys are incomplete.** Most generated image URLs
+   have no version, while Worker responses are cached across versions for one
+   year. A deployment can continue serving an image generated by older code or
+   metadata.
+5. **Playground filesystem acknowledgements can become stale.** Completed write
+   content remains in the acknowledgement map after newer writes complete. A
+   later external change back to old content can be ignored, leaving Monaco and
+   the WebContainer filesystem out of sync.
+6. **Expired Mixedbread stores can be treated as healthy.** The provider
+   recreates a missing store after a `404`, but not a retrieved store whose
+   status is `expired`.
+
+### Resolved review findings
+
+- [x] Ordinary production deployments require the current `main` revision. API
+      publication resolves `main` after publishing its snapshot, while only the
+      protected rollback workflow may deploy an older ancestor.
 
 ### Risks to address before final teardown
 
@@ -124,8 +167,18 @@ is useful evidence, but it is not a production acceptance test.
 - Same-repository PR builds receive production-capable credentials. Use a
   GitHub environment, least-privilege preview credentials, and trusted-branch
   controls where Alchemy permits them.
+- Production deploys automatically on every `main` push. The environment is
+  restricted to `main`, but has no reviewer gate and permits administrator
+  bypass. Pause unrelated pushes while a cutover phase is running.
 - There is no CI comparison between clean and incremental static output. A
   missing Astro cache key silently leaves stale HTML.
+- The public revision marker changes the shared layout dependency on every
+  commit, so it can invalidate every keyed page and reduce the benefit of
+  incremental rendering.
+- API-reference snapshot archives are not byte-for-byte reproducible because
+  their stable identity excludes generated timestamps and archive metadata.
+- Search change detection does not check the `git diff` exit status, so an
+  invalid revision can incorrectly select the production search store.
 
 ## Required code work
 
@@ -145,7 +198,9 @@ Complete these changes before setting the traffic mode to `routes`:
 - [x] Make the E2E server use an isolated port and verify its identity before
       reusing it.
 - [ ] Confirm the ruleset's required check names match the current workflows.
-- [ ] Add protection rules to the production environment.
+- [x] Restrict the production environment to deployments from `main`. Required
+      reviewers and administrator bypass restrictions were intentionally
+      declined.
 - [ ] Prevent unrelated main-branch and API-reference deployments while a
       cutover phase is running.
 - [x] Add a protected rollback deployment that accepts an immutable source
@@ -165,23 +220,23 @@ Complete these changes before deleting Vercel:
 Assign one cutover operator and one reviewer. Record the start time, each mode
 change, validation result, and rollback decision in the deployment issue.
 
-- [ ] Confirm the `effect.website` zone is Active in the account named by
+- [x] Confirm the `effect.website` zone is Active in the account named by
       `CLOUDFLARE_ACCOUNT_ID`.
-- [ ] Export the complete DNS zone.
-- [ ] Record the apex and `www` Vercel records and their proxy state.
-- [ ] Confirm mail, DKIM, DMARC, verification, CAA, SRV, and delegated records
+- [x] Export the complete DNS zone.
+- [x] Record the apex and `www` Vercel records and their proxy state.
+- [x] Confirm mail, DKIM, DMARC, verification, CAA, SRV, and delegated records
       will not change.
-- [ ] Confirm Universal SSL covers the apex and `www`.
-- [ ] Confirm no other Worker, Pages project, redirect, transform, or origin rule
+- [x] Confirm Universal SSL covers the apex and `www`.
+- [x] Confirm no other Worker, Pages project, redirect, transform, or origin rule
       owns either hostname.
-- [ ] Confirm the zone has an available Single Redirect rule within its quota.
-- [ ] Inspect the API token policy in Cloudflare. A successful preview proves
-      Workers Script access only.
-- [ ] Exercise Route, Custom Domain, redirect, HTTPS, and cleanup permissions on
-      disposable hostnames.
-- [ ] Record current Vercel latency, error rate, search success rate, and key
-      page checks as the rollback baseline.
-- [ ] Keep the Vercel project and both domains active.
+- [x] Confirm the zone has an available Single Redirect rule within its quota.
+- [x] Apply and inspect the zone-scoped API token policy.
+- [x] Exercise Worker, Route, Custom Domain, redirect, Secrets Store, and cleanup
+      permissions on disposable resources.
+- [ ] Prove Custom Domain certificate activation and HTTPS on a disposable
+      hostname. This check was explicitly deferred.
+- [x] Record a point-in-time Vercel latency, search, proxy, and key-page baseline.
+- [x] Keep the Vercel project and both domains active.
 
 The deployment token should have only the account and zone permissions required
 by the resources in `alchemy.run.ts`. Expected permissions include Workers
@@ -225,6 +280,23 @@ the production `workers-dev` stage before changing public traffic.
 Automate these where possible. Run them against the production `workers.dev`
 URL first, then against the public hostnames after every traffic change.
 
+### PR preview rehearsal
+
+- [x] Verify the deployed source revision in both the PR comment and HTML.
+- [x] Run the HTTP smoke suite against the PR Worker.
+- [x] Verify documentation, legacy, and trailing-slash redirects preserve query
+      strings.
+- [x] Verify canonical and Open Graph URLs use `https://effect.website`.
+- [x] Verify search returns results from the PR Mixedbread store.
+- [x] Write and read a disposable playground short link.
+- [x] Run the deployed Playwright suite, including Monaco worker loading.
+- [x] Verify dprint and PostHog proxying.
+- [x] Verify generated Open Graph images and API reference links.
+- [ ] Verify a sitemap. Both the current Vercel site and PR preview return `404`.
+
+These checks must run again against the production `workers.dev` stage. The
+production and public-hostname checklists below remain open.
+
 ### HTTP and routing
 
 - [ ] Home page returns `200`.
@@ -249,7 +321,9 @@ URL first, then against the public hostnames after every traffic change.
       redirect or CORS error.
 - [ ] Static and generated Open Graph images render.
 - [ ] Current API reference pages load and contain no unresolved module links.
-- [ ] RSS, sitemap, robots, fonts, JavaScript, and CSS load.
+- [ ] RSS, robots, fonts, JavaScript, and CSS load.
+- [ ] Decide whether the site requires a sitemap; none exists on Vercel or the
+      Cloudflare preview.
 
 ### Operations
 
@@ -267,10 +341,13 @@ Make one traffic change at a time. Stop after any failed check.
 
 ### Phase 0: align Vercel with the final canonical host
 
-1. In Vercel, make `effect.website` the primary production domain.
-2. Confirm that the apex serves the site without redirecting.
-3. Confirm that `www` redirects to the same apex path and query.
-4. Confirm that canonical and Open Graph URLs remain on the apex.
+1. [x] In Vercel, make `effect.website` the primary production domain.
+2. [x] Confirm that the apex serves the site without redirecting.
+3. [x] Confirm that `www` redirects to the same apex path and query.
+4. [x] Confirm that canonical and Open Graph URLs remain on the apex.
+
+Completed and verified on 2026-09-03. Vercel uses a `307` redirect from `www`
+to apex during the rollback window.
 
 Treat this canonical change as forward-only once public requests have received
 the new redirect. Restoring the previous apex to `www` redirect can loop for

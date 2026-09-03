@@ -32,6 +32,11 @@ on:
         required: false
         default: true
         type: boolean
+      allow-ancestor:
+        description: Allow an ancestor of current main for an explicit rollback
+        required: false
+        default: false
+        type: boolean
     secrets:
       MXBAI_ADMIN_API_KEY:
         required: true
@@ -67,6 +72,7 @@ jobs:
       - name: Validate website revision
         shell: bash
         env:
+          ALLOW_ANCESTOR: ${{ inputs.allow-ancestor }}
           WEBSITE_REF: ${{ inputs.website-ref }}
         run: |
           if [[ ! "$WEBSITE_REF" =~ ^[0-9a-f]{40}$ ]]; then
@@ -80,6 +86,10 @@ jobs:
           git fetch origin main --no-tags
           if ! git merge-base --is-ancestor "$WEBSITE_REF" origin/main; then
             echo "::error::Website revision must be an ancestor of origin/main."
+            exit 1
+          fi
+          if [[ "$ALLOW_ANCESTOR" != "true" && "$WEBSITE_REF" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Normal deployments must use the current origin/main revision. Use the protected rollback workflow to deploy an ancestor."
             exit 1
           fi
           expected_version=$(git show origin/main:.github/cloudflare-deployment-version)
