@@ -26,6 +26,12 @@ export const make = Effect.gen(function* () {
 
   const resolveContent = Effect.fn("OpenGraphGenerator.resolveContent")(
     function* (slug: string) {
+      if (slug === "play") {
+        return OpenGraphContent.Docs({
+          props: { title: "Effect Playground" },
+        })
+      }
+
       if (API_DOCS_REGEX.test(slug)) {
         const entryId = slug.slice("docs/".length)
         const metadata = Metadata.apiReference[entryId]
