@@ -113,7 +113,25 @@ const config = defineConfig({
     },
   },
 
-  integrations: [expressiveCode(), react(), mdx()],
+  integrations: [
+    expressiveCode(),
+    react(),
+    mdx(),
+    {
+      name: "posthog-ingest-proxy",
+      hooks: {
+        "astro:config:setup": ({ injectRoute }) => {
+          // `/_ingest` so the `/_` prefix skips Astro's
+          // trailing-slash 308 on PostHog's `/flags/`, `/e/` endpoints.
+          injectRoute({
+            pattern: "/_ingest/[...path]",
+            entrypoint: "./src/lib/ingest-proxy.ts",
+            prerender: false,
+          })
+        },
+      },
+    },
+  ],
 
   fonts: [
     {
