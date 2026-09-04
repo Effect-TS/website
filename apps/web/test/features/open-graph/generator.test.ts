@@ -87,6 +87,17 @@ test("resolves blog metadata", async () => {
   })
 })
 
+test("resolves playground metadata", async () => {
+  const expected = OpenGraphContent.Docs({
+    props: { title: "Effect Playground" },
+  })
+
+  await generate("play", (content) => {
+    assert.deepEqual(content, expected)
+    return Effect.succeed(new Uint8Array())
+  })
+})
+
 test("fails when metadata is missing", async () => {
   const error = await generate("docs/v4/missing", () =>
     Effect.die("The renderer should not be invoked"),
