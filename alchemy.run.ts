@@ -54,6 +54,8 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
         astro: { output: "static" as const },
         assets: {
           htmlHandling: "drop-trailing-slash" as const,
+          // Route the PostHog proxy through the Worker before the asset layer.
+          runWorkerFirst: ["/_ingest/*"],
         },
         ...(stage === "prod"
           ? {

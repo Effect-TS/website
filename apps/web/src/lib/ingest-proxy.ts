@@ -2,6 +2,9 @@ import type { APIRoute } from "astro"
 
 export const prerender = false
 
+// Served at `/_ingest/*` (injected in astro.config.ts). The `/_` prefix is
+// exempt from Astro's trailing-slash redirect (isInternalPath), so PostHog's
+// trailing-slash endpoints (`/flags/`, `/e/`) proxy without a 308.
 export const ALL: APIRoute = ({ params, request }) => {
   const path = params.path ?? ""
   const origin =
