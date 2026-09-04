@@ -1,0 +1,131 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      website-ref:
+        description: Website Git revision to deploy
+        required: true
+        type: string
+      api-reference-snapshot:
+        description: Exact API reference snapshot tag; latest published snapshot when omitted
+        required: false
+        default: ""
+        type: string
+      mixedbread-scope:
+        description: Mixedbread content scope to synchronize
+        required: false
+        default: markdown
+        type: string
+      cloudflare-traffic-mode:
+        description: Cloudflare production traffic mode
+        required: false
+        default: workers-dev
+        type: string
+      force-full-build:
+        description: Discard the Astro incremental build cache and re-render every page
+        required: false
+        default: false
+        type: boolean
+      synchronize-mixedbread:
+        description: Synchronize the Mixedbread production store after deployment
+        required: false
+        default: true
+        type: boolean
+      allow-ancestor:
+        description: Allow an ancestor of current main for an explicit rollback
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      MXBAI_ADMIN_API_KEY:
+        required: true
+      MXBAI_SEARCH_API_KEY:
+        required: true
+      MXBAI_VECTOR_STORE_ID:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      KV_REST_API_URL:
+        required: true
+      KV_REST_API_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.website-ref }}
+          fetch-depth: 0
+
+      - name: Validate website revision
+        shell: bash
+        env:
+          ALLOW_ANCESTOR: ${{ inputs.allow-ancestor }}
+          WEBSITE_REF: ${{ inputs.website-ref }}
+        run: |
+          if [[ ! "$WEBSITE_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Website revision must be a full lowercase commit SHA."
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$WEBSITE_REF" ]]; then
+            echo "::error::Checked-out commit does not match requested website revision."
+            exit 1
+          fi
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor "$WEBSITE_REF" origin/main; then
+            echo "::error::Website revision must be an ancestor of origin/main."
+            exit 1
+          fi
+          if [[ "$ALLOW_ANCESTOR" != "true" && "$WEBSITE_REF" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Normal deployments must use the current origin/main revision. Use the protected rollback workflow to deploy an ancestor."
+            exit 1
+          fi
+          expected_version=$(git show origin/main:.github/cloudflare-deployment-version)
+          actual_version=$(git show "$WEBSITE_REF":.github/cloudflare-deployment-version 2>/dev/null || true)
+          if [[ "$actual_version" != "$expected_version" ]]; then
+            echo "::error::Website revision uses Cloudflare deployment version '${actual_version:-missing}'; expected '$expected_version'."
+            exit 1
+          fi
+
+      - name: Restore trusted deployment tooling
+        shell: bash
+        run: |
+          git checkout origin/main -- \
+            .github/actions/deploy \
+            .github/actions/setup \
+            alchemy.run.ts \
+            apps/web/scripts/read-alchemy-deployment.mjs \
+            apps/web/scripts/validate-cloudflare-traffic-transition.mjs \
+            apps/web/scripts/write-alchemy-build-input.mjs \
+            apps/web/scripts/verify-cloudflare-deployment.mjs \
+            apps/web/scripts/verify-cloudflare-traffic.mjs
+
+      - uses: ./.github/actions/deploy
+        with:
+          website-ref: ${{ inputs.website-ref }}
+          api-reference-snapshot: ${{ inputs.api-reference-snapshot }}
+          mixedbread-scope: ${{ inputs.mixedbread-scope }}
+          mxbai-admin-api-key: ${{ secrets.MXBAI_ADMIN_API_KEY }}
+          mxbai-search-api-key: ${{ secrets.MXBAI_SEARCH_API_KEY }}
+          mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-traffic-mode: ${{ inputs.cloudflare-traffic-mode }}
+          force-full-build: ${{ inputs.force-full-build }}
+          synchronize-mixedbread: ${{ inputs.synchronize-mixedbread }}
+          kv-rest-api-url: ${{ secrets.KV_REST_API_URL }}
+          kv-rest-api-token: ${{ secrets.KV_REST_API_TOKEN }}
+          public-posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          public-posthog-api-host: ${{ vars.PUBLIC_POSTHOG_API_HOST }}

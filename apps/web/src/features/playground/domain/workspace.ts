@@ -157,7 +157,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
                   name: "package.json",
                   language: "json",
                   initialContent: JSON.stringify(
-                    { dependencies: options.dependencies },
+                    { type: "module", dependencies: options.dependencies },
                     undefined,
                     2,
                   ),
@@ -459,7 +459,7 @@ const mainV3 = makeFile(
   "main.ts",
   `import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
-import { DevToolsLayer } from "./DevTools"
+import { DevToolsLayer } from "./DevTools.js"
 
 const program = Effect.gen(function*() {
   yield* Effect.log("Welcome to the Effect Playground!")
@@ -478,7 +478,7 @@ const mainV4 = makeFile(
   "main.ts",
   `import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
-import { DevToolsLayer } from "./DevTools"
+import { DevToolsLayer } from "./DevTools.js"
 
 const program = Effect.gen(function*() {
   yield* Effect.log("Welcome to the Effect v4 Playground!")

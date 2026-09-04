@@ -1,4 +1,4 @@
-name: Vercel Production Deployment
+name: Production Deployment
 
 on:
   workflow_dispatch:
@@ -16,6 +16,11 @@ on:
           - markdown
           - api-reference
           - all
+      force_full_build:
+        description: Discard the Astro incremental build cache and re-render every page
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
@@ -23,23 +28,13 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: production
-  cancel-in-progress: false
-
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/deploy
-        with:
-          website-ref: ${{ github.sha }}
-          api-reference-snapshot: ${{ inputs.api_reference_snapshot || '' }}
-          mixedbread-scope: ${{ inputs.mixedbread_scope || 'markdown' }}
-          mxbai-api-key: ${{ secrets.MXBAI_API_KEY }}
-          mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+    uses: ./.github/workflows/deploy.yml
+    with:
+      website-ref: ${{ github.sha }}
+      api-reference-snapshot: ${{ inputs.api_reference_snapshot || '' }}
+      mixedbread-scope: ${{ inputs.mixedbread_scope || 'markdown' }}
+      cloudflare-traffic-mode: ${{ vars.CLOUDFLARE_TRAFFIC_MODE || 'workers-dev' }}
+      force-full-build: ${{ inputs.force_full_build || false }}
+    secrets: inherit

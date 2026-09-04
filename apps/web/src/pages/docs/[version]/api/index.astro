@@ -6,9 +6,12 @@ import { Search } from "@lucide/astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
+import { versionIndexDigest } from "@/features/api-reference/cache-key"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { DOCS_VERSIONS } from "@/lib/versions"
+
+export const prerender = true
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
@@ -23,9 +26,12 @@ export const getStaticPaths = (async () => {
     return groups
   }, new Map<string, Array<CollectionEntry<"apiReference">>>())
 
-  return Array.from(entriesByVersion).map(([version, entries]) => ({
+  return Array.from(entriesByVersion).map(([version, versionEntries]) => ({
     params: { version },
-    props: { entries, version },
+    props: { entries: versionEntries, version },
+    // This page renders only the version's package grid, so the package-level
+    // metadata digest is the complete set of inputs.
+    cacheKey: versionIndexDigest(entries, version),
   }))
 }) satisfies GetStaticPaths
 
@@ -198,7 +204,7 @@ const mobilePackages = [
 <DocShell
   title={`Effect ${version} API Reference`}
   description={openGraph?.description}
-  ogImageVersion={openGraph?.revision}
+  ogImageVersion={versionIndexDigest(entries, version)}
   activeSlug="api"
   version={version}
 >

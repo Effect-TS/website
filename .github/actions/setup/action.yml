@@ -1,12 +1,5 @@
 name: Setup
 description: Perform standard setup and install dependencies using pnpm.
-inputs:
-  deno-version:
-    description: The version of Deno to install
-    required: false
-  bun-version:
-    description: The version of Bun to install
-    required: false
 
 runs:
   using: composite
@@ -22,16 +15,6 @@ runs:
       uses: voidzero-dev/setup-vp@v1.17.0
       with:
         node-manager: false
-    - name: Install deno
-      uses: denoland/setup-deno@v2
-      if: ${{ inputs.deno-version != '' }}
-      with:
-        deno-version: ${{ inputs.deno-version }}
-    - name: Install bun
-      uses: oven-sh/setup-bun@v2
-      if: ${{ inputs.bun-version != '' }}
-      with:
-        bun-version: ${{ inputs.bun-version }}
     - name: Install dependencies
       shell: bash
-      run: pnpm install
+      run: pnpm install --frozen-lockfile

@@ -8,13 +8,11 @@ import type {
 import { TypeDocProjectReflection as TypeDocProjectReflectionSchema } from "@website/domain/ApiReference"
 import * as Schema from "effect/Schema"
 
-const defaultBaseDirectory = resolve(".data/api-reference")
-
 export async function loadReflection(
   entry: ApiReferenceEntry,
-  options?: { readonly baseDirectory?: string },
+  options: { readonly baseDirectory: string },
 ): Promise<TypeDocProjectReflection> {
-  const baseDirectory = resolve(options?.baseDirectory ?? defaultBaseDirectory)
+  const baseDirectory = resolve(options.baseDirectory)
   const reflectionPath = resolve(baseDirectory, entry.reflectionPath)
   const relativePath = relative(baseDirectory, reflectionPath)
   if (relativePath.startsWith("..") || isAbsolute(relativePath)) {

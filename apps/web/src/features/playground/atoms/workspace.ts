@@ -23,6 +23,10 @@ import { Loader } from "../services/loader"
 import { Terminal } from "../services/terminal"
 import { Dracula, NightOwlishLight } from "../services/terminal/themes"
 import { Toaster } from "../services/toaster"
+import {
+  ExtraLibRegistry,
+  type ExtraLibRegistry as ExtraLibRegistryType,
+} from "../services/typescript-project"
 import { WebContainer } from "../services/webcontainer"
 import { themeAtom } from "./theme"
 
@@ -80,27 +84,30 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
         loader.withIndicator("Preparing workspace"),
       )
 
-      const selectedFile = Atom.make(workspace.initialFile)
-      let observedWorkspace = workspace
+      const projectMetadata = ExtraLibRegistry.make(
+        monaco.languages.typescript.typescriptDefaults,
+      )
+      const dependencyTypes = ExtraLibRegistry.make(
+        monaco.languages.typescript.typescriptDefaults,
+      )
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          dependencyTypes.dispose()
+          projectMetadata.dispose()
+        }),
+      )
+      yield* setupWorkspaceProjectMetadata(workspace, projectMetadata).pipe(
+        Effect.forkScoped,
+      )
+
+      const pathToInitialFile = (workspace: Workspace) =>
+        Option.getOrThrow(workspace.pathTo(workspace.initialFile))
+      const selectedPath = Atom.make(pathToInitialFile(workspace))
       _get.subscribe(handle.workspace, (nextWorkspace) => {
-        const selected = _get.once(selectedFile)
-        if (Option.isNone(nextWorkspace.pathTo(selected))) {
-          const previousPath = observedWorkspace.pathTo(selected)
-          const replacement = Option.flatMap(previousPath, (path) =>
-            Option.map(nextWorkspace.findFile(path), ([file]) => file),
-          )
-          if (Option.isSome(replacement)) {
-            _get.set(selectedFile, replacement.value)
-          } else {
-            for (const node of nextWorkspace.filePaths.keys()) {
-              if (node._tag === "File") {
-                _get.set(selectedFile, node)
-                break
-              }
-            }
-          }
+        const selected = _get.once(selectedPath)
+        if (Option.isNone(nextWorkspace.findFile(selected))) {
+          _get.set(selectedPath, pathToInitialFile(nextWorkspace))
         }
-        observedWorkspace = nextWorkspace
       })
 
       const createTerminal = Atom.family(({ command }: WorkspaceTerminal) => {
@@ -153,7 +160,9 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
                 ),
               ),
               Effect.flatMap((process) => Effect.promise(() => process.exit)),
-              Effect.andThen(setupWorkspaceTypeAcquisition(workspace)),
+              Effect.andThen(
+                setupWorkspaceTypeAcquisition(workspace, dependencyTypes),
+              ),
               Effect.andThen(setupWorkspaceFormatters(workspace)),
               Effect.forkScoped,
             )
@@ -208,12 +217,12 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
             snapshots: defaultWorkspace.snapshots,
           })
           yield* handle.resetWorkspace(resetWorkspace)
-          get.set(selectedFile, resetWorkspace.initialFile)
+          get.set(selectedPath, pathToInitialFile(resetWorkspace))
         }),
       )
 
       return {
-        selectedFile,
+        selectedPath,
         createTerminal,
         terminalSize,
         workspace: handle.workspace,
@@ -227,34 +236,53 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
          * workspace the user actually worked on.
          */
         initialWorkspace: workspace,
-        readFile: (path: string) => container.readFile(path),
-        writeFile: handle.writeFile,
+        flushModels: handle.flushModels,
+        getModel: handle.getModel,
+        modelChanged: handle.modelChanged,
+        persistModel: handle.persistModel,
         createFile: Atom.fn<Parameters<typeof handle.createFile>>()(
           Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.createFile(...params)
             if (node._tag === "File") {
-              get.set(selectedFile, node)
+              const workspace = get(handle.workspace)
+              get.set(selectedPath, Option.getOrThrow(workspace.pathTo(node)))
             }
           }),
         ),
         renameFile: Atom.fn<Parameters<typeof handle.renameFile>>()(
           Effect.fnUntraced(function* (params, get) {
+            const previousWorkspace = get(handle.workspace)
+            const previousPath = Option.getOrThrow(
+              previousWorkspace.pathTo(params[0]),
+            )
+            const selected = get(selectedPath)
             const node = yield* handle.renameFile(...params)
-            if (node._tag === "Directory") {
-              return
-            }
             const workspace = get(handle.workspace)
-            if (Option.isNone(workspace.pathTo(get(selectedFile)))) {
-              get.set(selectedFile, node)
+            const nextPath = Option.getOrThrow(workspace.pathTo(node))
+            if (
+              selected === previousPath ||
+              selected.startsWith(`${previousPath}/`)
+            ) {
+              get.set(
+                selectedPath,
+                `${nextPath}${selected.slice(previousPath.length)}`,
+              )
             }
           }),
         ),
         removeFile: Atom.fn<File | Directory>()(
           Effect.fnUntraced(function* (node, get) {
+            const previousWorkspace = get(handle.workspace)
+            const removedPath = Option.getOrThrow(
+              previousWorkspace.pathTo(node),
+            )
+            const selected = get(selectedPath)
             yield* handle.removeFile(node)
-            const workspace = get(handle.workspace)
-            if (workspace.pathTo(get(selectedFile))._tag === "None") {
-              get.set(selectedFile, workspace.initialFile)
+            if (
+              selected === removedPath ||
+              selected.startsWith(`${removedPath}/`)
+            ) {
+              get.set(selectedPath, pathToInitialFile(get(handle.workspace)))
             }
           }),
         ),
@@ -264,21 +292,38 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
   ),
 )
 
-function setupWorkspaceTypeAcquisition(workspace: Workspace) {
+function setupWorkspaceProjectMetadata(
+  workspace: Workspace,
+  extraLibs: ExtraLibRegistryType,
+) {
+  return Effect.gen(function* () {
+    const container = yield* WebContainer
+    const packageJson = workspace.findFile("package.json")
+    if (Option.isNone(packageJson)) {
+      return
+    }
+
+    const [file] = packageJson.value
+    const path: string = Option.getOrThrow(workspace.fullPathTo(file))
+    const uri = monaco.Uri.file(path).toString(true)
+    const replacePackageJson = (content: string) =>
+      Effect.sync(() => extraLibs.replace(new Map([[uri, content]])))
+
+    yield* replacePackageJson(file.initialContent)
+    yield* container.watchFile(path).pipe(Stream.runForEach(replacePackageJson))
+  })
+}
+
+function setupWorkspaceTypeAcquisition(
+  workspace: Workspace,
+  extraLibs: ExtraLibRegistryType,
+) {
   return Effect.gen(function* () {
     const container = yield* WebContainer
 
-    function addExtraLib(path: string, content: string) {
-      return Effect.sync(() => {
-        monaco.languages.typescript.typescriptDefaults.addExtraLib(
-          content,
-          `file://${path}`,
-        )
-      })
-    }
-
     function acquireTypesAt(
       storePath: string,
+      acquiredTypes: Map<string, string>,
       packagePath?: string,
     ): Effect.Effect<void> {
       return Effect.gen(function* () {
@@ -308,7 +353,12 @@ function setupWorkspaceTypeAcquisition(workspace: Workspace) {
                   // Remove the store path from the file path before adding to
                   // Monaco's TypeScript extra libraries
                   const extraLib = fullPath.replace(storePath, "")
-                  return addExtraLib(extraLib, content)
+                  return Effect.sync(() =>
+                    acquiredTypes.set(
+                      monaco.Uri.file(extraLib).toString(true),
+                      content,
+                    ),
+                  )
                 }),
                 Effect.catchTag("FileNotFoundError", () => Effect.void),
               )
@@ -323,7 +373,11 @@ function setupWorkspaceTypeAcquisition(workspace: Workspace) {
           (directory) => {
             // Skip node_modules symlink inside .pnpm to avoid circular path
             if (directory === "node_modules") return Effect.void
-            return acquireTypesAt(storePath, `${path}/${directory}`)
+            return acquireTypesAt(
+              storePath,
+              acquiredTypes,
+              `${path}/${directory}`,
+            )
           },
           {
             concurrency: directories.length,
@@ -355,20 +409,26 @@ function setupWorkspaceTypeAcquisition(workspace: Workspace) {
      * non-symlinked directories.
      */
     const pnpmStorePath = workspace.relativePath("/node_modules/.pnpm")
-    const acquireTypes = container.readDirectory(pnpmStorePath).pipe(
-      Effect.map(
-        Array.filterMap((entry) =>
-          entry.isDirectory() && entry.name !== "node_modules"
-            ? Result.succeed(`${pnpmStorePath}/${entry.name}`)
-            : Result.failVoid,
-        ),
-      ),
-      Effect.flatMap(
-        Effect.forEach((storePath) => acquireTypesAt(storePath), {
-          concurrency: "unbounded",
-        }),
-      ),
-    )
+    const acquireTypes = Effect.gen(function* () {
+      const files = new Map<string, string>()
+      const storePaths = yield* container
+        .readDirectory(pnpmStorePath)
+        .pipe(
+          Effect.map(
+            Array.filterMap((entry) =>
+              entry.isDirectory() && entry.name !== "node_modules"
+                ? Result.succeed(`${pnpmStorePath}/${entry.name}`)
+                : Result.failVoid,
+            ),
+          ),
+        )
+      yield* Effect.forEach(
+        storePaths,
+        (storePath) => acquireTypesAt(storePath, files),
+        { concurrency: "unbounded", discard: true },
+      )
+      yield* Effect.sync(() => extraLibs.replace(files))
+    })
 
     const packageJson = workspace.findFile("package.json")
     if (Option.isNone(packageJson)) {

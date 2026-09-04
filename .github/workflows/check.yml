@@ -14,32 +14,8 @@ concurrency:
 permissions: {}
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install dependencies
-        uses: ./.github/actions/setup
-      - run: vp run lint
-
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install dependencies
-        uses: ./.github/actions/setup
-      - run: vp run fmt
-
-  types:
-    name: Types
+  check:
+    name: Check
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,3 +25,15 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: vp run check
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - run: vp test

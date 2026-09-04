@@ -2,13 +2,20 @@
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { Search } from "@lucide/astro"
-import { Icon } from "astro-icon/components"
 
+import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
+import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
-import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
+import {
+  apiReferenceDigests,
+  packageIndexKey,
+  packageMetadataDigest,
+  versionIndexDigest,
+} from "@/features/api-reference/cache-key"
 import DocShell from "@/layouts/DocShell.astro"
+import { cacheKey } from "@/lib/cache-key"
 import { DOCS_VERSIONS } from "@/lib/versions"
 
 interface StaticPathEntry {
@@ -16,6 +23,7 @@ interface StaticPathEntry {
     readonly version: string
     readonly package: string
   }
+  cacheKey?: string
   readonly props: {
     readonly pkg: {
       readonly name: string
@@ -29,6 +37,8 @@ interface StaticPathEntry {
     readonly version: string
   }
 }
+
+export const prerender = true
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
@@ -62,6 +72,19 @@ export const getStaticPaths = (async () => {
     }
   }
 
+  const digests = apiReferenceDigests(entries)
+  for (const path of paths.values()) {
+    const { version, package: packageSlug } = path.params
+    path.cacheKey = cacheKey(
+      // Module list and package identity.
+      digests.packageIndex.get(packageIndexKey(version, packageSlug)),
+      // The remaining package metadata this page renders.
+      packageMetadataDigest(path.props.modules[0]!.data),
+      // The mobile package switcher spans the whole version.
+      versionIndexDigest(entries, version),
+    )
+  }
+
   return [...paths.values()]
 }) satisfies GetStaticPaths
 
@@ -69,10 +92,6 @@ const collection = await getCollection("apiReference")
 const { modules, pkg, version } = Astro.props
 
 const displayName = pkg.name.replace("@effect/", "")
-const openGraph = resolveApiReferenceOpenGraph(
-  `docs/${version}/api/${pkg.slug}`,
-  modules.map((module) => module.data),
-)
 
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
@@ -157,7 +176,7 @@ function moduleName(modulePath: string, group: string): string {
 <DocShell
   title={`${pkg.name} API Reference | Effect`}
   description={pkg.description}
-  ogImageVersion={openGraph?.revision}
+  ogImageVersion={packageMetadataDigest(modules[0]!.data)}
   activeSlug="api"
   version={version}
 >
@@ -226,10 +245,10 @@ function moduleName(modulePath: string, group: string): string {
     >
       <span>{modules.length} modules</span>
       <a href={pkg.npmUrl} target="_blank" class="transition-colors hover:text-foreground">
-        <Icon name="fa7-brands:npm" class="mr-1 inline" aria-hidden="true" /> npm
+        <NpmLogo class="mr-1 inline size-4" aria-hidden="true" /> npm
       </a>
       <a href={pkg.sourceUrl} target="_blank" class="transition-colors hover:text-foreground">
-        <Icon name="fa7-brands:github" class="mr-1 inline" aria-hidden="true" /> Source
+        <GitHubLogo class="mr-1 inline size-4" aria-hidden="true" /> Source
       </a>
     </div>
 

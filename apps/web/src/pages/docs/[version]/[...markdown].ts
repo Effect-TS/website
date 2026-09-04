@@ -27,6 +27,10 @@ export async function getStaticPaths() {
       markdown: markdownSlugForDocId(entry.id.slice(VERSION.length + 1)),
     },
     props: { entry },
+    // The handler reads nothing beyond this entry, so its content digest is an
+    // exact cache key. Unlike the `.astro` docs route this never calls
+    // `render()`, so Astro's automatic content-entry tracking does not apply.
+    cacheKey: entry.digest,
   }))
 }
 

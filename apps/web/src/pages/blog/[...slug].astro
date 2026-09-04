@@ -2,17 +2,48 @@
 import { Image } from "astro:assets"
 import { getCollection, getEntries, render } from "astro:content"
 import { ArrowRightIcon, ArrowUpRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@lucide/astro"
-import LinkedInLogo from "@/assets/logos/linkedin/LinkedIn.svg"
-import TwitterLogo from "@/assets/logos/twitter/TwitterWhite.svg"
+import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
+import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
+import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
+
+export const prerender = true
 
 export async function getStaticPaths() {
-  const posts = await getCollection("blog")
-  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))
+  const [posts, tags, authors] = await Promise.all([
+    getCollection("blog"),
+    getCollection("blogTags"),
+    getCollection("blogAuthors"),
+  ])
+
+  // Tag and author names are rendered on every post. Both come from the
+  // `file()` loader, which sets no digest, so hash their data directly.
+  const references = digest({
+    tags: sortedRows(tags.map((tag) => [tag.id, tag.data])),
+    authors: sortedRows(authors.map((author) => [author.id, author.data])),
+  })
+
+  const sorted = [...posts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+
+  return sorted.map((post, index) => {
+    // Only the neighbours' id and title reach the rendered output, so keying on
+    // those keeps a new post from invalidating all 178 pages.
+    const previous = sorted[index + 1]
+    const next = sorted[index - 1]
+    return {
+      params: { slug: post.id },
+      props: { post },
+      cacheKey: cacheKey(
+        post.digest,
+        references,
+        digest([previous?.id, previous?.data.title, next?.id, next?.data.title]),
+      ),
+    }
+  })
 }
 
 const { post } = Astro.props

@@ -12,25 +12,73 @@ inputs:
   website-ref:
     description: Website Git revision associated with the deployment
     required: true
-  mxbai-api-key:
-    description: Mixedbread API key
+  mxbai-admin-api-key:
+    description: Mixedbread production synchronization API key
+    required: true
+  mxbai-search-api-key:
+    description: Mixedbread read-only Worker search API key
     required: true
   mxbai-vector-store-id:
     description: Mixedbread vector store ID
     required: true
-  vercel-org-id:
-    description: Vercel organization ID
+  cloudflare-account-id:
+    description: Cloudflare account ID
     required: true
-  vercel-project-id:
-    description: Vercel project ID
+  cloudflare-api-token:
+    description: Cloudflare API token
     required: true
-  vercel-token:
-    description: Vercel authentication token
+  cloudflare-traffic-mode:
+    description: Cloudflare production traffic mode
+    required: false
+    default: workers-dev
+  force-full-build:
+    description: Discard the Astro incremental build cache and re-render every page
+    required: false
+    default: "false"
+  kv-rest-api-url:
+    description: Upstash REST API URL
     required: true
+  kv-rest-api-token:
+    description: Upstash REST API token
+    required: true
+  public-posthog-key:
+    description: Public PostHog project key
+    required: false
+    default: ""
+  public-posthog-api-host:
+    description: Public PostHog API host
+    required: false
+    default: https://us.i.posthog.com
+  synchronize-mixedbread:
+    description: Synchronize the Mixedbread production store after deployment
+    required: false
+    default: "true"
 
 runs:
   using: composite
   steps:
+    - name: Validate production traffic mode
+      shell: bash
+      env:
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+      run: |
+        case "$TRAFFIC_MODE" in
+          workers-dev|routes|bridge|custom-domains) ;;
+          *)
+            echo "::error::Invalid Cloudflare traffic mode '$TRAFFIC_MODE'. Expected workers-dev, routes, bridge, or custom-domains."
+            exit 1
+            ;;
+        esac
+        echo "Deploying with Cloudflare traffic mode: $TRAFFIC_MODE"
+
+    - name: Validate production traffic transition
+      shell: bash
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+      run: node apps/web/scripts/validate-cloudflare-traffic-transition.mjs "$TRAFFIC_MODE"
+
     - name: Install dependencies
       uses: ./.github/actions/setup
 
@@ -41,21 +89,9 @@ runs:
         GH_TOKEN: ${{ github.token }}
         REQUESTED_SNAPSHOT: ${{ inputs.api-reference-snapshot }}
       run: |
-        snapshot="$REQUESTED_SNAPSHOT"
-        if [[ -z "$snapshot" ]]; then
-          snapshot=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | startswith("api-reference-")))] | sort_by(.published_at) | last | (.tag_name // "")')
-        fi
-
-        if [[ ! "$snapshot" =~ ^api-reference-[a-f0-9]{64}$ ]]; then
-          echo "::error::No valid published API reference snapshot is available. Publish one with the API reference workflow before deploying."
-          exit 1
-        fi
-
-        release=$(gh release view "$snapshot" --json isDraft,isPrerelease)
-        if [[ "$(jq -r '.isDraft or .isPrerelease' <<<"$release")" == "true" ]]; then
-          echo "::error::API reference snapshot must be a published, non-prerelease release: $snapshot"
-          exit 1
-        fi
+        snapshot=$(vp exec api-reference snapshot resolve \
+          --repository "$GITHUB_REPOSITORY" \
+          --tag "$REQUESTED_SNAPSHOT")
         echo "tag=$snapshot" >> "$GITHUB_OUTPUT"
 
     - name: Restore API reference snapshot
@@ -90,38 +126,118 @@ runs:
           exit 1
         fi
 
-    - name: Pull Vercel Environment Information
-      shell: bash
-      run: pnpm exec vercel pull --cwd apps/web --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts
-      env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
+    - name: Restore Astro incremental build cache
+      if: inputs.force-full-build != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: apps/web/.astro-cache
+        key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
+        restore-keys: |
+          astro-incremental-${{ runner.os }}-main-
 
-    - name: Build Project Artifacts
+    # Alchemy's --force re-runs the resource, while deleting this directory
+    # forces Astro to re-render every prerendered page during that build.
+    - name: Discard Astro incremental build cache
+      if: inputs.force-full-build == 'true'
       shell: bash
-      run: pnpm exec vercel build --cwd apps/web --prod --token="${{ inputs.vercel-token }}"
+      run: rm -rf apps/web/.astro-cache
+
+    - name: Write public build inputs
+      shell: bash
+      run: node apps/web/scripts/write-alchemy-build-input.mjs
       env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
+        PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
+        PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        PUBLIC_WEBSITE_REVISION: ${{ inputs.website-ref }}
+
+    - name: Deploy website to Cloudflare
+      id: deploy
+      shell: bash
+      run: |
+        set -o pipefail
+        log="$RUNNER_TEMP/alchemy-deploy.log"
+        args=(deploy --stage prod --yes)
+        if [[ "$FORCE_FULL_BUILD" == "true" ]]; then
+          args+=(--force)
+        fi
+        vp exec alchemy "${args[@]}" | tee "$log"
+
+        mapfile -t deployment_outputs < <(
+          node apps/web/scripts/read-alchemy-deployment.mjs "$log"
+        )
+        if [[ "${#deployment_outputs[@]}" != "2" ]]; then
+          echo "::error::Could not read the Worker name and URL from Alchemy output."
+          exit 1
+        fi
+        echo "website-url=${deployment_outputs[0]}" >> "$GITHUB_OUTPUT"
+        echo "worker-name=${deployment_outputs[1]}" >> "$GITHUB_OUTPUT"
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+        MXBAI_API_KEY: ${{ inputs.mxbai-search-api-key }}
+        MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
+        KV_REST_API_URL: ${{ inputs.kv-rest-api-url }}
+        KV_REST_API_TOKEN: ${{ inputs.kv-rest-api-token }}
+        PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
+        PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        PUBLIC_WEBSITE_REVISION: ${{ inputs.website-ref }}
+        GITHUB_TOKEN: ${{ github.token }}
+        WEBSITE_REVISION: ${{ inputs.website-ref }}
+        FORCE_FULL_BUILD: ${{ inputs.force-full-build }}
+
+    - name: Verify deployed website
+      shell: bash
+      env:
+        DEPLOYED_URL: ${{ steps.deploy.outputs.website-url }}
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+        WEBSITE_REF: ${{ inputs.website-ref }}
+      run: |
+        if [[ "$TRAFFIC_MODE" == "workers-dev" ]]; then
+          target="$DEPLOYED_URL"
+        else
+          target="https://effect.website"
+        fi
+        node apps/web/scripts/verify-cloudflare-deployment.mjs "$target" "$TRAFFIC_MODE" "$WEBSITE_REF"
+
+    - name: Verify Cloudflare traffic configuration
+      shell: bash
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+        WORKER_NAME: ${{ steps.deploy.outputs.worker-name }}
+      run: node apps/web/scripts/verify-cloudflare-traffic.mjs "$WORKER_NAME" "$TRAFFIC_MODE"
 
     - name: Verify generated API reference links
       shell: bash
-      run: node apps/web/scripts/verify-api-reference-links.mjs
+      run: |
+        if [[ -d apps/web/dist/client/docs ]]; then
+          node apps/web/scripts/verify-api-reference-links.mjs apps/web/dist/client
+        else
+          echo "Alchemy reused the unchanged deployment; no local build output to verify."
+        fi
 
-    - name: Patch trailing-slash redirect into build output
-      shell: bash
-      run: node apps/web/scripts/patch-vercel-trailing-slash.mjs
-
-    - name: Deploy Project Artifacts to Vercel
-      shell: bash
-      run: pnpm exec vercel deploy apps/web --prebuilt --archive=tgz --prod --token="${{ inputs.vercel-token }}" --scope=effect-ts
-      env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
+    - name: Save Astro incremental build cache
+      if: success() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+      uses: actions/cache/save@v5
+      with:
+        path: apps/web/.astro-cache
+        key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
 
     - name: Synchronize Mixedbread production store
+      if: inputs.synchronize-mixedbread == 'true'
       shell: bash
       run: vp exec mixedbread sync --scope "${{ inputs.mixedbread-scope }}" --sha "${{ inputs.website-ref }}"
       env:
-        MXBAI_API_KEY: ${{ inputs.mxbai-api-key }}
+        MXBAI_ADMIN_API_KEY: ${{ inputs.mxbai-admin-api-key }}
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
+
+    - name: Print rollback instructions
+      if: failure()
+      shell: bash
+      env:
+        TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
+      run: |
+        echo "::error::Deployment validation failed in traffic mode '$TRAFFIC_MODE'. Run the protected Rollback Production workflow with the recorded known-good commit, API snapshot, and previous traffic mode."
+        echo "::error::A rollback that removes Custom Domains requires the runbook's manual Vercel rollback procedure."

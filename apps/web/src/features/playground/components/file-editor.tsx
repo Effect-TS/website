@@ -15,7 +15,7 @@ export function FileEditor() {
   useMemo(constVoid, [atom])
   useAtomMount(atom.editor)
 
-  const selectedFile = useAtomValue(handle.selectedFile)
+  const selectedPath = useAtomValue(handle.selectedPath)
   const setElement = useAtomSet(atom.element)
 
   const containerRef = useCallback(
@@ -29,7 +29,7 @@ export function FileEditor() {
     <section className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
         <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-          {selectedFile.name}
+          {selectedPath.slice(selectedPath.lastIndexOf("/") + 1)}
         </span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <VersionToggle />

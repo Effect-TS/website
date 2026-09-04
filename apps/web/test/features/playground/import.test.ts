@@ -22,7 +22,6 @@ import {
   importAtom,
   makeAutoSaveAtom,
 } from "../../../src/features/playground/atoms/import.ts"
-import type { AtomWorkspaceHandle } from "../../../src/features/playground/atoms/workspace.ts"
 import {
   defaultMainFile,
   makeDefaultWorkspace,
@@ -76,9 +75,10 @@ test("autosave identifies a handle by its initial version", async () => {
     autoSaveWorkspaceAtom: savedWorkspaceAtom,
   })
   const handle = {
+    flushModels: () => Effect.void,
     initialWorkspace,
     workspaceAtom,
-  } as AtomWorkspaceHandle
+  }
   const registry = AtomRegistry.make()
   let resolveSaved!: (workspace: typeof liveWorkspace) => void
   const saved = new Promise<typeof liveWorkspace>((resolve) => {
@@ -138,9 +138,10 @@ test("autosave rejects a handle whose initial version is no longer selected", as
     autoSaveWorkspaceAtom: savedWorkspaceAtom,
   })
   const handle = {
+    flushModels: () => Effect.void,
     initialWorkspace,
     workspaceAtom,
-  } as AtomWorkspaceHandle
+  }
   const registry = AtomRegistry.make()
   let persisted = false
   const unsubscribe = registry.subscribe(savedWorkspaceAtom, (workspace) => {
@@ -163,6 +164,67 @@ test("autosave rejects a handle whose initial version is no longer selected", as
     assert.isTrue(Option.isNone(registry.get(savedWorkspaceAtom)))
   } finally {
     unsubscribe()
+    registry.dispose()
+  }
+})
+
+test("autosave snapshots the latest workspace after models flush", async () => {
+  const initialWorkspace = makeDefaultWorkspace("v3")
+  const liveWorkspace = initialWorkspace.append(
+    makeFile("extra.ts", "Effect.log('extra')", true),
+  )
+  const workspaceAtom = Atom.make(initialWorkspace)
+  const savedWorkspaceAtom = Atom.make(Option.none<typeof liveWorkspace>())
+  const versionOverrideAtom = Atom.make(Option.none<"v3" | "v4">())
+  let releaseFlush: (() => void) | undefined
+  let notifyFlushStarted: (() => void) | undefined
+  const flushStarted = new Promise<void>((resolve) => {
+    notifyFlushStarted = resolve
+  })
+  const flush = new Promise<void>((resolve) => {
+    releaseFlush = resolve
+  })
+  let notifySnapshot: ((workspace: typeof liveWorkspace) => void) | undefined
+  const snapshotTaken = new Promise<typeof liveWorkspace>((resolve) => {
+    notifySnapshot = resolve
+  })
+  const runtime = Atom.context()(
+    Layer.mergeAll(
+      Layer.succeed(WebContainer, {
+        readFileString: () => Effect.succeed(""),
+      } as unknown as WebContainer["Service"]),
+      Layer.succeed(WorkspaceCompression, {
+        snapshot: (workspace: typeof liveWorkspace) =>
+          Effect.sync(() => {
+            notifySnapshot?.(workspace)
+            return workspace
+          }),
+      } as unknown as WorkspaceCompression["Service"]),
+    ),
+  )
+  const autoSave = makeAutoSaveAtom({
+    runtime,
+    versionOverrideAtom,
+    autoSaveWorkspaceAtom: savedWorkspaceAtom,
+  })
+  const handle = {
+    flushModels: () =>
+      Effect.sync(() => notifyFlushStarted?.()).pipe(
+        Effect.andThen(Effect.promise(() => flush)),
+      ),
+    initialWorkspace,
+    workspaceAtom,
+  }
+  const registry = AtomRegistry.make()
+
+  try {
+    await Effect.runPromise(AtomRegistry.getResult(registry, autoSave(handle)))
+    await flushStarted
+    registry.set(workspaceAtom, liveWorkspace)
+    releaseFlush?.()
+
+    assert.equal(await snapshotTaken, liveWorkspace)
+  } finally {
     registry.dispose()
   }
 })
