@@ -239,5 +239,9 @@ runs:
       env:
         TRAFFIC_MODE: ${{ inputs.cloudflare-traffic-mode }}
       run: |
-        echo "::error::Deployment validation failed in traffic mode '$TRAFFIC_MODE'. Run the protected Rollback Production workflow with the recorded known-good commit, API snapshot, and previous traffic mode."
-        echo "::error::A rollback that removes Custom Domains requires the runbook's manual Vercel rollback procedure."
+        if [[ "$TRAFFIC_MODE" == "workers-dev" ]]; then
+          echo "::error::Deployment validation failed for the private workers.dev deployment. Production traffic was not changed; fix the validation failure and rerun the deployment."
+        else
+          echo "::error::Deployment validation failed in traffic mode '$TRAFFIC_MODE'. Run the protected Rollback Production workflow with the recorded known-good commit, API snapshot, and previous traffic mode."
+          echo "::error::A rollback that removes Custom Domains requires the runbook's manual Vercel rollback procedure."
+        fi
