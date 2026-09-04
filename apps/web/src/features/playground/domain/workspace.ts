@@ -6,6 +6,7 @@ import { pipe } from "effect/Function"
 import * as Hash from "effect/Hash"
 import * as Iterable from "effect/Iterable"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import { DocsVersion, defaultDocsVersion } from "@/lib/versions"
 
@@ -564,4 +565,195 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
 
 export function makeDefaultWorkspace(version: EffectVersion): Workspace {
   return defaultWorkspaces[version]
+}
+
+const encodeJson = Schema.encodeUnknownSync(
+  Schema.fromJsonString(Schema.Json, {
+    replacer: undefined,
+    space: 2,
+  }),
+)
+const parseJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Json))
+
+function patchPackageJson(content: string): string | undefined {
+  // Invalid JSON (e.g. a mid-edit autosave) is left alone so the next save
+  // captures the finished edit instead of discarding it.
+  const parsed = Option.getOrUndefined(parseJson(content))
+  if (!Predicate.isObject(parsed)) {
+    return undefined
+  }
+  if (parsed["type"] === "module") {
+    return undefined
+  }
+  parsed["type"] = "module"
+  return encodeJson(parsed)
+}
+
+function patchTsConfig(content: string): string | undefined {
+  const parsed = Option.getOrUndefined(parseJson(content))
+  if (!Predicate.isObject(parsed)) {
+    return undefined
+  }
+  const compilerOptions = Predicate.isObject(parsed["compilerOptions"])
+    ? parsed["compilerOptions"]
+    : {}
+  if (
+    compilerOptions["module"] === "NodeNext" &&
+    compilerOptions["moduleResolution"] === "NodeNext"
+  ) {
+    return undefined
+  }
+  compilerOptions["module"] = "NodeNext"
+  compilerOptions["moduleResolution"] = "NodeNext"
+  return encodeJson(parsed)
+}
+
+const importSpecifierPattern =
+  /((?:import|export)[^'"`;]*?from\s*|(?:^|;)\s*import\s*|import\s*\(\s*)(['"])(\.\.?\/[^'"]*)\2/g
+
+function normalizePosixPath(path: string): string {
+  const absolute = path.startsWith("/")
+  const segments = path.split("/")
+  const out: Array<string> = []
+  for (const segment of segments) {
+    if (segment === "" || segment === ".") {
+      continue
+    }
+    if (segment === "..") {
+      out.pop()
+      continue
+    }
+    out.push(segment)
+  }
+  return (absolute ? "/" : "") + out.join("/")
+}
+
+function resolveRelativePath(importerPath: string, specifier: string): string {
+  const directory = importerPath.includes("/")
+    ? importerPath.slice(0, importerPath.lastIndexOf("/"))
+    : ""
+  return normalizePosixPath(`${directory}/${specifier}`)
+}
+
+function hasExtension(specifier: string): boolean {
+  const lastSegment = specifier.slice(specifier.lastIndexOf("/") + 1)
+  return lastSegment.includes(".")
+}
+
+/**
+ * Appends `.js` to extensionless relative imports when the target exists in
+ * the workspace as a TypeScript file. Directory imports resolve to
+ * `./dir/index.js`. Unknown targets are left untouched.
+ */
+export function patchRelativeImports(
+  content: string,
+  importerPath: string,
+  files: ReadonlySet<string>,
+): string {
+  return content.replace(
+    importSpecifierPattern,
+    (match, prefix: string, quote: string, specifier: string) => {
+      if (specifier.endsWith("/") || hasExtension(specifier)) {
+        return match
+      }
+      const resolved = resolveRelativePath(importerPath, specifier)
+      if (files.has(`${resolved}.ts`) || files.has(`${resolved}.tsx`)) {
+        return `${prefix}${quote}${specifier}.js${quote}`
+      }
+      if (
+        files.has(`${resolved}/index.ts`) ||
+        files.has(`${resolved}/index.tsx`)
+      ) {
+        return `${prefix}${quote}${specifier}/index.js${quote}`
+      }
+      return match
+    },
+  )
+}
+
+function patchFileContent(
+  path: string,
+  content: string,
+  files: ReadonlySet<string>,
+): string | undefined {
+  if (path === "package.json") {
+    return patchPackageJson(content)
+  }
+  if (path === "tsconfig.json") {
+    return patchTsConfig(content)
+  }
+  if (path.endsWith(".ts") || path.endsWith(".tsx")) {
+    const patched = patchRelativeImports(content, path, files)
+    return patched === content ? undefined : patched
+  }
+  return undefined
+}
+
+function mapTree(
+  tree: FileTree,
+  f: (file: File, path: string) => File,
+): { tree: FileTree; changed: boolean } {
+  let changed = false
+  const walk = (prefix: string, children: FileTree): FileTree =>
+    children.map((node) => {
+      if (node._tag === "Directory") {
+        const next = walk(`${prefix}${node.name}/`, node.children)
+        if (next === node.children) {
+          return node
+        }
+        changed = true
+        return makeDirectory(node.name, next, node.userManaged ?? false)
+      }
+      const path = `${prefix}${node.name}`
+      const replacement = f(node, path)
+      if (replacement !== node) {
+        changed = true
+      }
+      return replacement
+    })
+  const next = walk("", tree)
+  return { tree: next, changed: changed || next !== tree }
+}
+
+/**
+ * Repairs workspaces persisted before the ESM fixes: `package.json` without
+ * `"type": "module"`, `tsconfig.json` without `NodeNext` module settings,
+ * `prepare` commands using npm, missing generated configs, and extensionless
+ * relative imports which fail under `NodeNext`.
+ *
+ * User code is preserved: only the fields above are patched, invalid JSON
+ * (e.g. a mid-edit autosave) is left untouched, and custom dependencies and
+ * extra files pass through unchanged.
+ */
+export function normalizeWorkspace(workspace: Workspace): Workspace {
+  let result = workspace
+  if (result.prepare.trim() !== "pnpm install") {
+    result = result.withPrepare("pnpm install")
+  }
+  const reference = makeDefaultWorkspace(result.effectVersion)
+  const files = new Set<string>()
+  for (const [node, path] of result.filePaths) {
+    if (node._tag === "File") {
+      files.add(path)
+    }
+  }
+  const mapped = mapTree(result.tree, (file, path) => {
+    const patched = patchFileContent(path, file.initialContent, files)
+    return patched === undefined ? file : file.withContent(patched)
+  })
+  result = mapped.changed ? result.setTree(mapped.tree) : result
+  const missing: Array<File> = []
+  for (const name of [
+    "package.json",
+    "tsconfig.json",
+    "dprint.json",
+  ] as const) {
+    if (Option.isNone(result.findFile(name))) {
+      const fallback = reference.findFile(name)
+      if (Option.isSome(fallback)) {
+        missing.push(fallback.value[0])
+      }
+    }
+  }
+  return missing.length > 0 ? result.append(...missing) : result
 }

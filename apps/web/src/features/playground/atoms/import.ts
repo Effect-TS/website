@@ -13,6 +13,7 @@ import {
   effectVersionForCodeLink,
   makeDefaultWorkspace,
   makeFile,
+  normalizeWorkspace,
   Workspace,
 } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
@@ -238,7 +239,7 @@ export const importAtom = runtime.atom(
       yield* Effect.logInfo(
         "Playground: loaded workspace from the localStorage autosave",
       )
-      return autoSaved.value
+      return normalizeWorkspace(autoSaved.value)
     }
 
     const version = Option.getOrElse(get(versionParamAtom), () =>

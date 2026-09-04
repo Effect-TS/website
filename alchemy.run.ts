@@ -54,7 +54,6 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
         astro: { output: "static" as const },
         assets: {
           htmlHandling: "drop-trailing-slash" as const,
-          notFoundHandling: "404-page" as const,
         },
         ...(stage === "prod"
           ? {
