@@ -1,0 +1,212 @@
+---
+pagefind: false
+title: This Week in Effect - 134
+excerpt: "Kit from Anomaly unleashed Astra on Effect. Dillon will never again start another TypeScript app without Effect. Matt praising Effect docs. Effect NYC & Effect San Francisco September meetups."
+date: 2026-09-04
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Release Candidate](https://www.effect.website/blog/releases/effect/40-rc) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+### Effect v4 RC updates.
+
+Another intense week on the RC hardening effort, with the vast majority of the ~130 commits being narrow, targeted correctness fixes across nearly every module in the library. Alongside that sweep, several more substantial changes landed too.
+
+- **Performance pass**: Reduced allocations in Effect's core primitives and fiber runtime, reduced per-request allocations in the HTTP and RPC servers, and improved overall `HttpRouter` request throughput. Also optimized synchronous Schema parsing for lower overhead on the hot path.
+
+- **Native TLS sockets**: Added in-place TLS socket upgrade support, along with `NodeSocket.makeTls` and `NodeSocketServer.makeTls` for first-class TLS socket construction on Node
+  .
+- **Schema internals refactor**: Refactored Schema's internal representation APIs and hid the `SchemaAST`/`SchemaIssue` class implementations behind a cleaner public surface, as part of stabilizing Schema's internals ahead of the stable release.
+
+- **ByteSize**: Refactored `ByteSize` as a branded `bigint` and added an exact-value constructor module, improving precision for byte-size arithmetic.
+
+- **PersistedQueue**: Completed a dedicated hardening and optimization pass on `PersistedQueue`.
+
+- **Cluster**: Fixed the empty shard-lock liveness probe to run on the shared pool instead of blocking on a dedicated one.
+
+- **Graph**: Simplified the `Graph` protocol and its runtime guard.
+
+- **Systematic correctness sweep**: The audit continued across dozens of modules — including `Schema`, `SchemaBinary`, `Stream`, `Sink`, `Chunk`, `Struct`, `Headers`, `Prompt`, `Socket`, `IndexedDb`, `McpServer`, and several AI provider integrations — fixing edge cases in encoding, decoding, serialization, and state preservation that surfaced during the RC review.
+
+- **Documentation**: Updated the v3-to-v4 migration guidance for `Socket` and typeclass changes.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [**Effect v4 Updates**](https://www.effect.website/blog?category=effect-v4-updates), starting from the recently published [Effect v4 RC: August 2026 Updates](https://www.effect.website/blog/effect-v4-rc-august-recap).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Platform
+
+- [Fix(platform): preserve multipart limit failures](https://github.com/Effect-TS/effect/pull/7998) (Bug Fix)
+
+## Community Events
+
+- Two new meetups happening in the US this month: [Effect NYC](https://luma.com/2e0qaazh) on Sep 24 and [Effect San Francisco](https://luma.com/all-things-effect) on Sep 30.
+
+  <Tweet id="2094389070155645318" />
+
+- Effect Days on December 9–11, 2026: Spend three days with the people building Effect and the people building with it.
+
+  <Tweet id="2095157378375131636" />
+
+- The first [Effect Warsaw](https://luma.com/29fn6spj) meetup is scheduled on September 15!
+
+  <Tweet id="2086778100180824403" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Adoption Partner
+
+Save your seat for the first [Effect Training Workshop](https://www.eventbrite.com/e/ziverge-effect-ts-workshop-tickets-1993621741295?aff=oddtdtcreator) by John De Goes!
+
+<Tweet id="2084222033424982343" />
+
+## Community Highlights
+
+- Kit unleashed Astra on Effect!
+
+  <Tweet id="2095882821189394638" />
+
+- Thank you, [Namespace](https://namespace.so/) 💙
+
+  <Tweet id="2095509395819900959" />
+
+- Dillon
+
+  <Tweet id="2094794450773934085" />
+
+- Thank you, Matt! 🫡
+
+  <Tweet id="2094856026470134082" />
+
+  <Tweet id="2094787007184511082" />
+
+- Who needs Fable 5.1 when you have Tim Smart - cit. [Patrick Roza](https://x.com/patroza/status/2095073138060980411?s=20)
+
+  <Tweet id="2095070652810371347" />
+
+- 🤍 SolidJS
+
+  <Tweet id="2094881008810434934" />
+
+- That's the way!
+
+  <Tweet id="2094130448985149633" />
+
+- `herdr-ts-sdk` by Dillon
+
+  <Tweet id="2094199200774754780" />
+
+- [PersistedQueue](https://effect.website/docs/v4/api/effect/unstable/persistence/PersistedQueue)
+
+  <Tweet id="2094481228598755783" />
+
+- The Golden Trinity!
+
+  <Tweet id="2094644449846714622" />
+
+- 💜 Sentry
+
+  <Tweet id="2095409108950171981" />
+
+- 🤍 Micky
+
+  <Tweet id="2095232312820539769" />
+
+- 🤍 Giulio
+
+  <Tweet id="2095513907691442569" />
+
+- [effect-agent](https://github.com/danieljvdm/effect-agent) - by Dan van der Merwe.
+
+  <Tweet id="2094862454606201325" />
+
+- [Tardigrade](https://tardigrade.sh/docs/why)
+
+  <Tweet id="2095544229384925612" />
+
+- [create-effect-project](https://github.com/deracs/create-effect-project) - scaffold an Effect v4 project - an HttpApi server, full-stack app, CLI, AI agent, or Cloudflare Worker - on Node or Bun with a single `npx` command. By Michael Goldsmith.
+
+- [effect-ast-grep-rules](https://github.com/danielo515/effect-ast-grep-rules) - a reusable collection of ast-grep rules for TypeScript projects using Effect. By Daniel Rodríguez Rivero.
+
+- [okf-graph](https://github.com/lloydrichards/proj_okf-graph) - an Effect-powered CLI for exploring and validating Open Knowledge Format bundles, turning the Markdown links between concept files into a directed graph you can query and inspect. By Lloyd Richards.
+
+- [fidy-ai](https://github.com/B4rz99/fidy-ai) - an agent-first personal finance product for Colombia, built on Effect, that lets users manage their finances through WhatsApp. By Orlando Barboza.
+
+- [tea-effect](https://github.com/savkelita/tea-effect) - The Elm Architecture for TypeScript with Effect, a spiritual successor to elm-ts that replaces fp-ts/RxJS with the Effect ecosystem and ships React hooks. By Marko Savic.
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 44 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/xKH8N0efB00?si=cCBLQLTljslHgfzi"
+  title="Effect Office Hours 44 🔥"
+/>
+
+- Effect LSP diagnostics and AI-agent-friendly tooling
+
+<YouTube
+  id="https://www.youtube.com/embed/TrQJE415aFs?si=JRTnOvKGv7VQlK2k"
+  title="Effect LSP diagnostics and AI-agent-friendly tooling"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
