@@ -141,6 +141,7 @@ const PASSES = [
       { date: "Dec 11", name: "Community Day", included: true },
     ],
     featured: true,
+    soldOut: true,
     pricing: {
       self: {
         price: "€449",
@@ -160,6 +161,7 @@ const PASSES = [
       { date: "Dec 11", name: "Community Day", included: true },
     ],
     featured: false,
+    soldOut: false,
     pricing: {
       self: {
         price: "€299",
@@ -531,7 +533,9 @@ const FAQ_COLUMNS = [
             {/* Day count comes from the pass itself, so it stays true if a day
                 is ever added or dropped. */}
             <span class="self-start border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
-              {pass.days.filter((day) => day.included).length}-day pass
+              {pass.soldOut
+                ? "Sold out"
+                : `${pass.days.filter((day) => day.included).length}-day pass`}
             </span>
             <h3 class="mt-4 text-lg font-semibold text-white">{pass.name}</h3>
 
@@ -557,20 +561,26 @@ const FAQ_COLUMNS = [
 
             <div class="mt-6 border-t border-dashed border-zinc-700" />
 
-            <div class="mt-6 space-y-3">
-              <PurchaseRow
-                href={pass.pricing.self.url}
-                label="Buy self-pay"
-                price={pass.pricing.self.price}
-                ariaLabel={`Buy the ${pass.name}, self-pay, ${pass.pricing.self.price}`}
-              />
-              <PurchaseRow
-                href={pass.pricing.business.url}
-                label="Buy business*"
-                price={pass.pricing.business.price}
-                ariaLabel={`Buy the ${pass.name}, business, ${pass.pricing.business.price}`}
-              />
-            </div>
+            {pass.soldOut ? (
+              <div class="mt-6 flex flex-1 items-center justify-center border border-dashed border-zinc-700 px-6 py-8">
+                <span class="text-zinc-400">Sold out</span>
+              </div>
+            ) : (
+              <div class="mt-6 space-y-3">
+                <PurchaseRow
+                  href={pass.pricing.self.url}
+                  label="Buy self-pay"
+                  price={pass.pricing.self.price}
+                  ariaLabel={`Buy the ${pass.name}, self-pay, ${pass.pricing.self.price}`}
+                />
+                <PurchaseRow
+                  href={pass.pricing.business.url}
+                  label="Buy business*"
+                  price={pass.pricing.business.price}
+                  ariaLabel={`Buy the ${pass.name}, business, ${pass.pricing.business.price}`}
+                />
+              </div>
+            )}
           </Card>
         ))
       }
