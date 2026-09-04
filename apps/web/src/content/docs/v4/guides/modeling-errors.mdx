@@ -5,11 +5,13 @@ sidebar:
   order: 1
 ---
 
-import { Aside, TabItem, Tabs } from "@astrojs/starlight/components"
+import { Aside } from "@astrojs/starlight/components"
 
-Thrown errors work, but they leave a question unanswered: **when you call a
-function, what can fail?** This tutorial shows how
-to model each failure as clearly as the result.
+Thrown errors work, but they leave a question unanswered: when you call a
+function, **what can fail**?
+
+This tutorial shows how `Effect` makes those failures part of a function's return type,
+so each one is visible at runtime _and_ in the signature, where the type checker tracks it.
 
 You're going to use one operation throughout the tutorial: load a user profile from an HTTP
 API, validate the response, and save it. That operation can fail five ways:
@@ -24,13 +26,9 @@ Keep those five in mind, because making them visible is the whole point.
 
 ## Shape the failure surface
 
-Here is a common version of the load step: four named error classes, a shape check,
-and a `try` around each `await`.
+Here is a common version of the load step without `Effect`, using try/catch and thrown errors: four named error classes, a type guard, and a try around each await.
 
-<Tabs>
-<TabItem label="Example (The Try/Catch Version)">
-
-```ts twoslash collapse={7-36}
+```ts twoslash title="loadProfile.ts"
 interface Profile {
   readonly id: string
   readonly name: string
@@ -53,22 +51,20 @@ class Forbidden extends Error {
   }
 }
 class ParseError extends Error {
-  constructor(readonly input: unknown) {
-    super("The body is not a profile")
+  constructor(cause?: unknown) {
+    super("The body is not a profile", { cause })
   }
 }
 
 function isProfile(body: unknown): body is Profile {
+  const p = body as Profile
   return (
-    typeof body === "object" &&
-    body !== null &&
-    "id" in body &&
-    "name" in body &&
-    "email" in body
+    typeof p?.id === "string" &&
+    typeof p?.name === "string" &&
+    typeof p?.email === "string"
   )
 }
 
-// The signature promises a Profile. It says nothing about failure.
 async function loadProfile(id: string): Promise<Profile> {
   let response: Response
   try {
@@ -92,19 +88,15 @@ async function loadProfile(id: string): Promise<Profile> {
     throw new ParseError(cause)
   }
 
-  if (!isProfile(body)) throw new ParseError(body)
+  if (!isProfile(body)) throw new ParseError()
   return body
 }
 ```
 
-</TabItem>
-</Tabs>
+Nothing in that code tells you what can go wrong. TypeScript has no syntax for
+it: `Promise` says nothing about failure.
 
-> How does this code tell me what can go wrong?
-
-It doesn't. TypeScript has no syntax for it: `Promise` says nothing about failure.
-
-`loadProfile` is an example of a common function signature that doesn't show how it can fail:
+`loadProfile` is a common function signature that hides how it can fail:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
@@ -114,18 +106,24 @@ It doesn't. TypeScript has no syntax for it: `Promise` says nothing about failur
 function loadProfile(id: string): Promise<Profile> // <- How can it fail?
 ```
 
-The only way to know how `loadProfile` can fail is to read the function
-implementation and find out when the four errors are thrown:
+To find out, you have to read the implementation, or the docs if they exist and
+haven't drifted from it. Either way, the signature never shows it.
 
-| Error             | When it is thrown                                                                         |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| `ProfileNotFound` | no profile has this id (the server answered 404)                                          |
-| `Forbidden`       | the caller may not see the profile (the server answered 403)                              |
-| `NetworkError`    | the request never completed, or the server answered with an unexpected status such as 500 |
-| `ParseError`      | the response body is not a profile                                                        |
+Worse, the compiler can't tell you any of this. Suppose a caller tries to handle
+the failure:
 
-Another problem is the false sense of security that comes from the program
-still compiling:
+```ts showLineNumbers=false
+try {
+  const profile = await loadProfile("123")
+} catch (error) {
+  // error: unknown
+  if (error instanceof Forbidden) {
+    // ...
+  }
+}
+```
+
+Every one of these still compiles:
 
 1. `error` is `unknown`: the compiler cannot see which errors `loadProfile`
    throws.
@@ -135,15 +133,11 @@ still compiling:
 1. Adding a new thrown error inside `loadProfile` later: every caller still
    compiles, and the failure reaches production.
 
-It would be ideal if the signature itself showed those errors.
-
 A **good function signature** is a contract with three clauses:
 
 1. what the function needs
 1. what it returns on success
 1. how it can fail
-
-> How can I write a good function signature?
 
 **Meet `Effect`**, which satisfies all three clauses and makes the contract explicit:
 
@@ -156,16 +150,14 @@ A **good function signature** is a contract with three clauses:
 function loadProfile(id: string): Effect<Profile, ProfileNotFound | Forbidden | NetworkError | ParseError>
 ```
 
-An `Effect<Success, Error>` is a description of a program with both a `Success` and an `Error` channel:
+An `Effect<Success, Error>` is a description of a program with both a `Success` and an `Error` type parameter:
 
-| Channel   | Clause                     |
-| --------- | -------------------------- |
-| `Success` | what it returns on success |
-| `Error`   | how it can fail            |
+| Type parameter | Clause                     |
+| -------------- | -------------------------- |
+| `Success`      | what it returns on success |
+| `Error`        | how it can fail            |
 
-> How do several failures share one signature?
-
-All possible failures in an `Effect`'s `Error` channel are exposed as a union type.
+All possible failures in an `Effect`'s `Error` type parameter are exposed as a union type.
 
 Now `loadProfile`'s signature can be read as:
 
@@ -177,6 +169,6 @@ Now `loadProfile`'s signature can be read as:
   You can now read a signature as a contract with three clauses: what the
   function needs, what it returns on success, and how it can fail. A `Promise`
   declares the first two, so the third lives only in the implementation. An
-  `Effect` signature declares all three, and its `Error` channel is the complete
-  list of ways the function can fail.
+  `Effect` signature declares all three, and its `Error` type parameter is the
+  complete list of ways the function can fail.
 </Aside>
