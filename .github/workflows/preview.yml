@@ -120,9 +120,3 @@ jobs:
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           WEBSITE_REVISION: ${{ github.event.pull_request.merged && github.event.pull_request.merge_commit_sha || github.event.pull_request.base.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Delete Mixedbread preview store
-        if: always()
-        run: vp exec mixedbread delete-preview --pr "${{ github.event.pull_request.number }}"
-        env:
-          MXBAI_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}

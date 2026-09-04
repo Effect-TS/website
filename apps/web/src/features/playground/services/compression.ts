@@ -3,7 +3,7 @@ import * as Data from "effect/Data"
 import * as Encoding from "effect/Encoding"
 import { flow, pipe } from "effect/Function"
 import * as Schema from "effect/Schema"
-import { Workspace } from "../domain/workspace"
+import { Workspace, normalizeWorkspace } from "../domain/workspace"
 
 export class CompressionError extends Data.TaggedError("CompressionError")<{
   readonly method: "compress" | "decompress"
@@ -113,8 +113,10 @@ export class WorkspaceCompression extends Context.Service<WorkspaceCompression>(
         pipe(
           compression.decompressBase64(compressed),
           Effect.andThen(decodeWorkspace),
-          // Older shared playgrounds may persist npm, but type acquisition expects pnpm's store.
-          Effect.map((workspace) => workspace.withPrepare("pnpm install")),
+          // Older shared playgrounds persist npm commands, CommonJS
+          // package.json files, and extensionless imports. Type acquisition
+          // expects pnpm's store and NodeNext ESM, so normalize on load.
+          Effect.map(normalizeWorkspace),
         )
 
       return { compress, decompress, snapshot } as const

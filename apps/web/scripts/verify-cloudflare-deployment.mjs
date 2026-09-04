@@ -50,6 +50,12 @@ const checks = [
     status: 200,
     contentType: "text/html",
   },
+  {
+    path: "/og/docs/v4/error-management/unexpected-errors.png",
+    status: 200,
+    contentType: "image/png",
+    cacheBust: true,
+  },
   { path: "/play", status: 200, contentType: "text/html", isolated: true },
   { path: "/robots.txt", status: 200, contentType: "text/plain" },
   { path: "/rss.xml", status: 200, contentType: "application/xml" },
