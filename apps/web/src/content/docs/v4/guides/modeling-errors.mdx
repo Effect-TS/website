@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components"
 
 Thrown errors work, but they leave a question unanswered: when you call a
 function, **what can fail**?
@@ -292,4 +292,192 @@ carries.
   You now model each failure as a value: a class from `Data.TaggedError`, with
   an `Error` suffix and a `_tag` that tells it apart from the others. These
   values are the members of an `Effect`'s `Error` union.
+</Aside>
+
+## Rewrite `loadProfile` with Effect
+
+An `Effect` is a description of work that has not run yet. You build one from
+steps, then run it.
+
+### `Effect.gen` reads like an `async` function
+
+Here is the same two-step program, first with a `Promise`, then with an `Effect`:
+
+<Tabs syncKey="promise-vs-effect">
+
+<TabItem label="Promise">
+
+```ts twoslash import.meta.vitest
+const fetchOne = () => Promise.resolve(2)
+const fetchTwo = () => Promise.resolve(3)
+
+async function program() {
+  const a = await fetchOne()
+  const b = await fetchTwo()
+  return a + b
+}
+
+await program() // => 5
+```
+
+</TabItem>
+
+<TabItem label="Effect">
+
+```ts twoslash import.meta.vitest
+import { Effect } from "effect"
+
+const fetchOne = () => Effect.succeed(2)
+const fetchTwo = () => Effect.succeed(3)
+
+const program = Effect.gen(function* () {
+  const a = yield* fetchOne()
+  const b = yield* fetchTwo()
+  return a + b
+})
+
+Effect.runSync(program) // => 5
+```
+
+</TabItem>
+
+</Tabs>
+
+Same shape, four swaps:
+
+- `async function` becomes `Effect.gen(function* ...)`
+- `await` becomes `yield*`
+- a resolved value becomes `Effect.succeed(value)`
+- `await program()` becomes `Effect.runSync(program)`
+
+If a step fails, the rest do not run, the same way a thrown error stops an `async`
+function.
+
+### Wrap a `Promise` with `Effect.tryPromise`
+
+A `Promise` hides its failures, so wrap `fetch` to give them a type. `try` creates
+the `Promise`, and `catch` maps a rejection to one of your failures:
+
+```ts twoslash import.meta.vitest
+import { Effect, Data } from "effect"
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+
+//      ┌─ Effect<string, NetworkError>
+//      ▼
+const request = Effect.tryPromise({
+  try: () => Promise.resolve("Ada"),
+  catch: (cause) => new NetworkError({ cause }),
+})
+
+await Effect.runPromise(request) // => "Ada"
+```
+
+A `Promise<string>` that could reject is now an `Effect<string, NetworkError>`: a
+`string` on success, a `NetworkError` when it rejects.
+
+### Fail a step with a tagged error
+
+Inside `Effect.gen`, yield a failure value to fail the whole `Effect`, the way
+`throw` stops a function. The failure lands in the `Error` type parameter:
+
+```ts twoslash
+import { Effect, Data } from "effect"
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+
+//      ┌─ Effect<never, ProfileNotFoundError>
+//      ▼
+const program = Effect.gen(function* () {
+  return yield* new ProfileNotFoundError({ id: "123" })
+})
+```
+
+Write `return yield*` so TypeScript knows the lines below the failure never run.
+
+Now rewrite `loadProfile` using `Effect`:
+
+```ts import.meta.vitest title="loadProfileEffect.ts" twoslash collapse={3-33}
+import { Effect, Data } from "effect"
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+function isProfile(body: unknown): body is Profile {
+  const p = body as Profile
+
+  return (
+    typeof p?.id === "string" &&
+    typeof p?.name === "string" &&
+    typeof p?.email === "string"
+  )
+}
+
+//    ┌─ (id: string) => Effect.Effect<Profile, ProfileNotFoundError | ForbiddenError | NetworkError | ParseError>
+//    ▼
+const loadProfile = (id: string) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () =>
+        fetch(`/api/profiles/${id}`, {
+          headers: { Accept: "application/json" },
+        }),
+      catch: (cause) => new NetworkError({ cause }),
+    })
+
+    if (!response.ok) {
+      if (response.status === 404)
+        return yield* new ProfileNotFoundError({ id })
+      if (response.status === 403) return yield* new ForbiddenError({ id })
+      return yield* new NetworkError({})
+    }
+
+    const body = yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: (cause) => new ParseError({ cause }),
+    })
+
+    if (!isProfile(body)) return yield* new ParseError({})
+
+    return body
+  })
+```
+
+The compiler inferred its `Error` type parameter as the union of all four failures,
+from the values you yield. You never wrote it by hand.
+
+<Aside type="tip" title="More delegation to TypeScript's compiler">
+  Effect uses TypeScript's inference to populate its type parameters.
+
+Both its `Success` and `Error` type parameters are automatically inferred.
+You rarely write an `Effect` signature by hand.
+
+</Aside>
+<Aside type="note" title="Checkpoint">
+  You now build the work with `Effect.gen`, take each success with `yield*`,
+  wrap a `Promise` with `Effect.tryPromise`, and fail by yielding a tagged
+  error.
 </Aside>
