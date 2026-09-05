@@ -159,18 +159,12 @@ An `Effect<Success, Error>` is a description of a program with both a `Success` 
 
 All possible failures in an `Effect`'s `Error` type parameter are exposed as a union type.
 
-Now `loadProfile`'s signature can be read as:
-
-- **needs** an id.
-- **succeeds** with a `Profile`.
-- **fails** with a `ProfileNotFound`, or `Forbidden`, or `NetworkError`, or `ParseError`.
+Now `loadProfile`'s signature shows how it can fail with a `ProfileNotFound`, `Forbidden`, `NetworkError`, or `ParseError`.
 
 <Aside type="note" title="Checkpoint">
-  You can now read a signature as a contract with three clauses: what the
-  function needs, what it returns on success, and how it can fail. A `Promise`
-  declares the first two, so the third lives only in the implementation. An
-  `Effect` signature declares all three, and its `Error` type parameter is the
-  complete list of ways the function can fail.
+  You can now read a signature and treat it as a contract. `Effect`'s `Success`
+  and `Error` type parameters show the information without having to read the
+  implementation.
 </Aside>
 
 ## Model failures as values
