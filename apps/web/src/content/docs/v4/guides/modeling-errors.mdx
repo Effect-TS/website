@@ -172,3 +172,124 @@ Now `loadProfile`'s signature can be read as:
   `Effect` signature declares all three, and its `Error` type parameter is the
   complete list of ways the function can fail.
 </Aside>
+
+## Model failures as values
+
+The `Error` type parameter lists the failures. Now build the values that go in
+it.
+
+Return each failure instead of throwing it:
+
+- A thrown error becomes `unknown` in a `catch`, so the compiler loses it.
+- A returned value keeps its type, so the compiler tracks it through every caller.
+
+`Effect` uses two conventions for these values:
+
+- an `Error` suffix on the class, to tell a failure from a success at a glance.
+- a `_tag` property, unique to each failure, so the compiler can tell them apart.
+
+`Data.TaggedError` builds both. Its argument becomes the `_tag`:
+
+{/* prettier-ignore */}
+```ts import.meta.vitest showLineNumbers=false mark=/class \w+(Error)|TaggedError[(](.CustomError.)[)]/
+import { Data } from "effect"
+
+//          ┌─ `Error` suffix
+//          │                               ┌─ `_tag` property value
+//          ▼                               ▼
+class CustomError extends Data.TaggedError("CustomError") {}
+
+const error = new CustomError()
+error._tag // => "CustomError"
+```
+
+<Aside type="tip" title="Why use a class?">
+  In TypeScript a class is both a type _and_ a value. One declaration gives you
+  the failure type to name in a signature and the constructor to build it, with
+  no extra imports.
+</Aside>
+
+Refactor the four error classes to `Data.TaggedError`:
+
+```ts twoslash import.meta.vitest collapse={3-7,25-59} title="loadProfile.ts"
+import { Data } from "effect"
+
+interface Profile {
+  readonly id: string
+  readonly name: string
+  readonly email: string
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+
+class ProfileNotFoundError extends Data.TaggedError("ProfileNotFoundError")<{
+  readonly id: string
+}> {}
+
+class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+  readonly id: string
+}> {}
+
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+function isProfile(body: unknown): body is Profile {
+  const p = body as Profile
+  return (
+    typeof p?.id === "string" &&
+    typeof p?.name === "string" &&
+    typeof p?.email === "string"
+  )
+}
+
+async function loadProfile(id: string): Promise<Profile> {
+  let response: Response
+  try {
+    response = await fetch(`/api/profiles/${id}`, {
+      headers: { Accept: "application/json" },
+    })
+  } catch (cause) {
+    throw new NetworkError({ cause })
+  }
+
+  if (!response.ok) {
+    if (response.status === 404) throw new ProfileNotFoundError({ id })
+    if (response.status === 403) throw new ForbiddenError({ id })
+    throw new NetworkError({})
+  }
+
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (cause) {
+    throw new ParseError({ cause })
+  }
+
+  if (!isProfile(body)) throw new ParseError({})
+  return body
+}
+
+// four distinct failures, each with its own `_tag`
+new NetworkError({})._tag // => "NetworkError"
+new ProfileNotFoundError({ id: "123" })._tag // => "ProfileNotFoundError"
+new ForbiddenError({ id: "123" })._tag // => "ForbiddenError"
+new ParseError({})._tag // => "ParseError"
+```
+
+The `{ ... }` after each `TaggedError` declares the fields' shape a failure
+carries.
+
+<Aside type="note" title="Some failures renamed">
+  `ProfileNotFound` and `Forbidden` from the first version become
+  `ProfileNotFoundError` and `ForbiddenError` here, to follow the `Error`-suffix
+  convention.
+</Aside>
+
+<Aside type="note" title="Checkpoint">
+  You now model each failure as a value: a class from `Data.TaggedError`, with
+  an `Error` suffix and a `_tag` that tells it apart from the others. These
+  values are the members of an `Effect`'s `Error` union.
+</Aside>
