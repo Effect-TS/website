@@ -17,6 +17,7 @@ import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-edi
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
+import { rehypeScopedTwoslash } from "./src/features/docs/rehype-scoped-twoslash"
 
 const FontsourceProvider = fontProviders.fontsource()
 
@@ -38,7 +39,11 @@ const config = defineConfig({
 
   markdown: {
     processor: unified({
-      rehypePlugins: [rehypeHeadingIds, rehypeHeadingLinks],
+      rehypePlugins: [
+        rehypeHeadingIds,
+        rehypeHeadingLinks,
+        rehypeScopedTwoslash,
+      ],
     }),
   },
 
