@@ -36,17 +36,28 @@ runs:
         path: .effect-source-v4
         fetch-depth: 1
 
-    - name: Restore API reference cache
+    - name: Restore v3 API reference cache
       if: inputs.cache == 'true'
-      id: cache
+      id: cache-v3
       uses: actions/cache@v5
       with:
-        path: apps/web/.data/api-reference
-        key: api-reference-v2-${{ runner.os }}-v3-${{ steps.checkout-v3.outputs.commit }}-v4-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+        path: apps/web/.data/api-reference/v3
+        key: api-reference-v3-${{ runner.os }}-${{ steps.checkout-v3.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
 
-    - name: Generate API reference
-      if: inputs.cache != 'true' || steps.cache.outputs.cache-hit != 'true'
+    - name: Restore v4 API reference cache
+      if: inputs.cache == 'true'
+      id: cache-v4
+      uses: actions/cache@v5
+      with:
+        path: apps/web/.data/api-reference/v4
+        key: api-reference-v4-${{ runner.os }}-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+
+    - name: Generate v3 API reference
+      if: inputs.cache != 'true' || steps.cache-v3.outputs.cache-hit != 'true'
       shell: bash
-      run: |
-        vp run api-reference:generate --version v3 --repo .effect-source-v3
-        vp run api-reference:generate --version v4 --repo .effect-source-v4
+      run: vp run api-reference:generate --version v3 --repo .effect-source-v3
+
+    - name: Generate v4 API reference
+      if: inputs.cache != 'true' || steps.cache-v4.outputs.cache-hit != 'true'
+      shell: bash
+      run: vp run api-reference:generate --version v4 --repo .effect-source-v4
