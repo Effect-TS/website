@@ -1,8 +1,10 @@
 ---
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import LinkedText from "@/components/blog/LinkedText.astro"
 
 interface Props {
   title: string
+  textLinks?: Record<string, string>
   steps: Array<{
     owner: string
     title: string
@@ -11,7 +13,7 @@ interface Props {
   footer?: string
 }
 
-const { title, steps, footer } = Astro.props
+const { title, steps, footer, textLinks = {} } = Astro.props
 ---
 
 <figure class="not-prose my-10 overflow-hidden rounded-lg border border-border bg-card/60">
@@ -26,7 +28,9 @@ const { title, steps, footer } = Astro.props
             {String(index + 1).padStart(2, "0")}
           </span>
           <div>
-            <p class="mb-1 text-xs text-muted-foreground">{owner}</p>
+            <p class="mb-1 text-xs text-muted-foreground">
+              <LinkedText text={owner} links={textLinks} />
+            </p>
             <p class="mb-1 text-base font-semibold text-foreground">{title}</p>
             <p class="text-sm leading-relaxed text-prose-foreground">{detail}</p>
           </div>

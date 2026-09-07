@@ -1,14 +1,16 @@
 ---
 import { Image } from "astro:assets"
 import type { ImageMetadata } from "astro"
+import LinkedText from "@/components/blog/LinkedText.astro"
 
 interface Props {
   src: ImageMetadata
   alt: string
   caption: string
+  textLinks?: Record<string, string>
 }
 
-const { src, alt, caption } = Astro.props
+const { src, alt, caption, textLinks = {} } = Astro.props
 ---
 
 <figure class="not-prose mx-auto my-10 w-full max-w-xl">
@@ -19,6 +21,6 @@ const { src, alt, caption } = Astro.props
     loading="lazy"
   />
   <figcaption class="mt-3 text-center text-sm leading-relaxed text-muted-foreground">
-    {caption}
+    <LinkedText text={caption} links={textLinks} />
   </figcaption>
 </figure>
