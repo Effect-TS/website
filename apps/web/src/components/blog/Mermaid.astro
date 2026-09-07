@@ -1,0 +1,44 @@
+---
+import { renderMermaidSVG } from "beautiful-mermaid"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  title: string
+  description: string
+  code: string
+}
+
+const { title, description, code } = Astro.props
+const svg = renderMermaidSVG(code, {
+  bg: "var(--background)",
+  fg: "var(--prose-foreground)",
+  line: "var(--border-strong)",
+  accent: "var(--brand)",
+  muted: "var(--muted-foreground)",
+  surface: "var(--card)",
+  border: "var(--border-strong)",
+  transparent: true,
+  padding: 16,
+})
+  // Use the site's fonts and keep the generated styles inside Mermaid diagrams.
+  .replace(/@import url\([^)]*\);/g, "")
+  .replace("<svg ", "<svg data-mermaid ")
+  .replace(
+    "text { font-family: 'Inter', system-ui, sans-serif; }",
+    "svg[data-mermaid] text { font-family: var(--font-inter), Inter, sans-serif; }",
+  )
+  .replace(".mono {", "svg[data-mermaid] .mono {")
+  .replace("svg {", "svg[data-mermaid] {")
+---
+
+<figure class="not-prose my-10 overflow-hidden rounded-lg border border-border bg-card/60">
+  <figcaption class="border-b border-border px-5 py-4">
+    <Eyebrow as="span" class="text-xs">{title}</Eyebrow>
+  </figcaption>
+  <div
+    role="img"
+    aria-label={description}
+    class="overflow-x-auto p-4 [&>svg]:mx-auto [&>svg]:h-auto [&>svg]:max-w-full"
+    set:html={svg}
+  />
+</figure>
