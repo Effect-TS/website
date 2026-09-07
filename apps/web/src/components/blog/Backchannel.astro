@@ -1,0 +1,56 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  date: string
+  source?: string
+  messages: Array<{
+    author: string
+    text: string
+    href?: string
+  }>
+}
+
+const { date, source = "effectful × anomaly", messages } = Astro.props
+---
+
+<section
+  aria-label={`${source}, ${date}`}
+  class="not-prose my-8 overflow-hidden rounded-lg border border-border bg-card/60"
+>
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+    <Eyebrow as="span" class="text-xs">{source}</Eyebrow>
+    <span class="font-mono text-xs text-muted-foreground">{date}</span>
+  </div>
+  <div class="divide-y divide-border">
+    {
+      messages.map(({ author, text, href }) => (
+        <div class="flex gap-3 px-4 py-5 sm:gap-4 sm:px-5">
+          <span
+            aria-hidden="true"
+            class="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background font-mono text-xs font-medium text-muted-foreground"
+          >
+            {author
+              .split(" ")
+              .map((part) => part[0])
+              .join("")}
+          </span>
+          <div class="min-w-0">
+            <div class="mb-1 text-sm font-semibold text-foreground">
+              {href ? (
+                <a href={href} class="underline underline-offset-4 hover:no-underline">
+                  {author}
+                </a>
+              ) : (
+                author
+              )}
+            </div>
+            <p class="m-0 whitespace-pre-line text-base leading-relaxed text-prose-foreground">
+              {text}
+            </p>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>

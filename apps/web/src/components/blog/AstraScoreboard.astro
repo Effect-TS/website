@@ -1,0 +1,67 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+const stats = [
+  { value: "207", label: "PRs opened" },
+  { value: "195", label: "Merged" },
+  { value: "12", label: "Closed unmerged" },
+  { value: "0", label: "Still open" },
+]
+
+const days = [
+  { date: "Sep 2", count: 91 },
+  { date: "Sep 3", count: 84 },
+  { date: "Sep 4", count: 31 },
+]
+---
+
+<section
+  aria-label="Final PR tally"
+  class="not-prose my-10 overflow-hidden rounded-lg border border-border bg-card/60"
+>
+  <div class="border-b border-border px-5 py-4">
+    <Eyebrow as="p" class="text-xs">The final tally · September 7</Eyebrow>
+  </div>
+  <dl class="m-0 grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+    {
+      stats.map(({ value, label }) => (
+        <div class="flex flex-col gap-2 bg-background px-5 py-6">
+          <dt class="order-2 text-xs text-muted-foreground">{label}</dt>
+          <dd
+            class:list={[
+              "m-0 font-mono text-3xl font-semibold tracking-tight tabular-nums",
+              value === "195" ? "text-brand" : "text-foreground",
+            ]}
+          >
+            {value}
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+  <div class="border-t border-border px-5 py-5">
+    <p class="mb-4 text-sm text-muted-foreground">
+      206 opened in three days. Here's the daily delivery.
+    </p>
+    <div class="space-y-3">
+      {
+        days.map(({ date, count }) => (
+          <div class="flex items-center gap-3 text-xs">
+            <span class="w-12 shrink-0 font-mono text-muted-foreground">{date}</span>
+            <div class="h-3 flex-1 overflow-hidden rounded-sm bg-muted" aria-hidden="true">
+              <div
+                class="h-full rounded-sm bg-brand/70"
+                style={{ width: `${(count / 91) * 100}%` }}
+              />
+            </div>
+            <span class="w-6 text-right font-mono text-foreground tabular-nums">{count}</span>
+          </div>
+        ))
+      }
+    </div>
+    <p class="mt-4 text-xs leading-relaxed text-muted-foreground">
+      The two-week total also includes one earlier PR, opened August 28. Outcomes checked September
+      7, 2026.
+    </p>
+  </div>
+</section>

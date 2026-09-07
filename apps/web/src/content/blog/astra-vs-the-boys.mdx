@@ -1,0 +1,382 @@
+---
+pagefind: false
+title: "Astra vs The Boys: a tail of 200 PRs"
+excerpt: 'Kit had "free" tokens. Tim had an army of agents. GitHub had a runner quota. dax would like to know who you think was paying for all this.'
+date: 2026-09-07
+authors:
+  - michael_arnaldi
+tags:
+  - effect
+---
+
+import Tweet from "astro-tweet"
+import Backchannel from "@/components/blog/Backchannel.astro"
+import AstraScoreboard from "@/components/blog/AstraScoreboard.astro"
+import AstraReviewLoop from "@/components/blog/AstraReviewLoop.astro"
+import StoryFigure from "@/components/blog/StoryFigure.astro"
+import reviewBoard from "@/assets/blog/astra-vs-the-boys/review-board.png"
+import drowning from "@/assets/blog/astra-vs-the-boys/the-boys-drowning.png"
+import selfReview from "@/assets/blog/astra-vs-the-boys/self-review.png"
+
+Tim asked Kit not to send us 100 pull requests a day.
+
+Kit gave his agent a goal of 99.
+
+We ended up with **207 PRs, 195 merges, a maxed-out GitHub runner quota, and a Slack channel full of people actively making the situation worse.** I was one of those people. This is my account of the incident.
+
+The participants were [Kit Langton](https://github.com/kitlangton) from [Anomaly](https://anomaly.co/), OpenAI's Astra, and the [Effectful](https://effectful.co/) team. On our side, [Tim Smart](https://github.com/tim-smart) had his own AI infrastructure, built with [Multica](https://multica.ai/). We call it **The Boys**.
+
+Kit orchestrated the bug hunt. The Boys helped us work through the incoming PRs. The humans gave the final feedback and decided what to merge. [Namespace](https://namespace.so/) eventually had to come and rescue our CI.
+
+All of this started with someone being polite.
+
+## It started with one bug. Obviously.
+
+On September 2, Kit dropped into our shared Effectful and Anomaly channel:
+
+> Sorry for PR spamming!
+
+He'd found [a Queue bug](https://github.com/Effect-TS/effect/pull/7576) while working on [OpenCode](https://opencode.ai/). A producer that had been waiting for space could resume and deliver a message more than once. That's the sort of thing you would quite reasonably prefer your queue not to do.
+
+After finding it, he'd sent some agents looking for similar bugs in Effect. They'd come back with more. The findings seemed plausible, he said, but we should feel free to ignore or close the PRs.
+
+Tim's response was immediate in spirit, if not in wall-clock time:
+
+> I shall take your tokens.
+
+Kit described them as "some spare free tokens." Free from his point of view, anyway. Was there any part of the codebase we'd like him to go through with "an unreasonable number of agents"?
+
+This is a dangerous question to ask people who maintain a TypeScript library for a living. We have a very long list of things we would like somebody else to investigate.
+
+Tim told him to go for it. Use the `audit` PR label so he could work through the submissions in bulk. One small request, though. Sebastian Lorenz had previously sent him something like 100 audit PRs a day.
+
+> Maybe don't do that
+
+A sensible boundary. Clearly communicated. What could go wrong?
+
+## We should have used an actual rate limiter
+
+About an hour and a half later, Tim was back with an update.
+
+<Backchannel
+  date="September 2"
+  messages={[
+    {
+      author: "Tim Smart",
+      text: "Kit then proceeds to send 30 PRs lol. (it's fine, you can keep going)",
+    },
+    {
+      author: "Aiden Cline",
+      text: "tbf u said not to do 100, so far he is compliant 😉",
+    },
+    {
+      author: "Tim Smart",
+      text: 'He didn\'t use the "audit" PR label though, so that is negative points.\n\nI had to shift-click and apply the label, and now my hands are calloused.',
+    },
+  ]}
+/>
+
+Aiden had found a loophole in the rate limiter. I suggested that Kit could open 101 PRs and remain in compliance. Sebastian announced that he needed a new job.
+
+Kit later explained that he didn't have labeling permissions. Our first failure of automation had been a human asking another human to click a button GitHub wouldn't let him click.
+
+By that evening, Sebastian was asking what the hell was happening. Kit checked in:
+
+<Backchannel
+  date="September 2 · later that evening"
+  messages={[
+    { author: "Kit", text: "uh oh\n\nI forgot to check on the session." },
+    {
+      author: "Sebastian Lorenz",
+      text: "Keep em coming. Tim needs food for his boys",
+    },
+  ]}
+/>
+
+Kit shared an agent report showing 43 PRs including the original Queue fix, with 31 already merged. Another 15 fixes were approved but waiting to be published. He added, helpfully, "< 100".
+
+Sebastian called them rookie numbers. We'd done 300 a few weeks earlier, he said. Having just complained about the volume, we were now challenging Kit to send more. Excellent incident management from everybody involved.
+
+Kit defended the quality of the submissions:
+
+> I asked the agent and it told me they're so good
+
+Maxwell Brown supplied the peer-review methodology:
+
+<StoryFigure
+  src={selfReview}
+  alt="The meme Maxwell posted: Barack Obama awarding a medal to another Barack Obama."
+  caption="Independent verification, courtesy of Maxwell."
+/>
+
+Sebastian also posted a read-aloud of [I Really Like Slop!](https://www.youtube.com/watch?v=JKOmIw8PTQA). The channel was contributing a lot of things at this point. Restraint wasn't one of them.
+
+By the next morning, the agent was reporting 106 PRs including the Queue fix. Kit's 99-PR goal had become more of a suggestion.
+
+Tim let him off:
+
+> I said per day so you pass
+
+We ship a library with actual rate limiters in it. Apparently we should have used one.
+
+## A secret model from a mysterious benefactor
+
+While this was happening, I wanted to know what Kit was running. We'd already been doing agent-assisted audits ourselves, and this thing was still finding bugs.
+
+I told Kit that Sebastian thought we'd run out of bugs. Sebastian immediately corrected me. He'd said Sol and DeepSeek weren't finding any more. He had not certified the absence of bugs in all known universes. Fair enough, Seb.
+
+Kit was less forthcoming about his setup.
+
+<Backchannel
+  date="September 2 · model identification research"
+  messages={[
+    { author: "Kit", text: "grok-fast\n\njkjk. a secret model." },
+    { author: "Kit", text: "a secret model from a mysterious benefactor" },
+    { author: "Michael Arnaldi", text: "Astra from OpenAI" },
+    {
+      author: "Kit",
+      text: "a secret model from a mysterious benefactor\n\nis all I'm allowed to say at this time",
+    },
+    {
+      author: "Maxwell Brown",
+      text: 'When did OpenAI rebrand to "a mysterious benefactor"',
+    },
+  ]}
+/>
+
+I kept guessing. Kit kept repeating "a secret model from a mysterious benefactor." I even asked whether Anomaly had finally got some GPUs and deployed a monster of their own.
+
+Then dax arrived.
+
+<Backchannel
+  date="September 2 · nothing to see here"
+  messages={[
+    { author: "dax", text: "what is going on here" },
+    { author: "Tim Smart", text: "Quick everybody hide" },
+  ]}
+/>
+
+It was Astra. My first guess. I would like that on the record.
+
+dax later confirmed that OpenAI had said we could talk about what we'd built with Astra. So we can now tell this story without referring to the mysterious benefactor another fourteen times.
+
+## How the hell do you review 200 PRs?
+
+This is the part that gets lost if you only look at the number of submissions. Kit had agents producing work. **We also had agents working through it.**
+
+The Boys are Tim's setup built with Multica, which lets him assign work to agents and track it as tasks. A PR can become a job to investigate, with progress and a result to review. Several of those jobs can be in flight while Tim looks at the work that has come back.
+
+The `audit` label mattered for that reason. It made the incoming batch easy to find and work through. The joke about Tim's calloused hands was attached to a real requirement for keeping the queue organized.
+
+Here's the board Tim shared while Kit was still arguing that thirty was less than a hundred:
+
+<StoryFigure
+  src={reviewBoard}
+  alt="Tim's work board showing audit PR tasks in In Progress and In Review, including fixes for SQL, Headers, Struct, Chunk, and SchemaGetter."
+  caption="The Boys at work. Several investigations in progress, several results ready for review."
+/>
+
+You can see individual PRs represented as work items, with fixes in progress and others waiting for review. That is how the incoming flood became work we could handle. Kit didn't have to wait for Tim to finish one investigation before another could start, and Tim didn't have to personally do every mechanical step of each fix.
+
+The agents could investigate the reported behavior, work on a reproduction, revise the implementation, and bring back code and test results. Tim then had something concrete to judge. His feedback sent the work around again when the implementation was wrong, the test was in the wrong place, or the proposed API wasn't one we wanted to maintain.
+
+<AstraReviewLoop />
+
+**The final human feedback was the important bit.** An agent saying "done" meant there was work to inspect. It didn't mean the PR had earned a merge.
+
+For this batch, the feedback included very ordinary maintainer decisions. Use the existing test suite. Match the overload above. Keep one or two tests that demonstrate the regression. Preserve the old API and introduce a separate one. Or, occasionally, delete the whole function.
+
+The Boys could do the follow-through. The humans decided what the follow-through should be.
+
+### Tim would like one fewer function
+
+Take [#7657](https://github.com/Effect-TS/effect/pull/7657). The finding was that `Channel.runDone` returned the wrong completion value. A perfectly reasonable thing for a bug-finding agent to bring us: here's a function, here's what it promises, here's what it actually does.
+
+Tim looked at the proposed fix and asked a different question.
+
+<Backchannel
+  source="Human feedback · GitHub"
+  date="PR #7657"
+  messages={[
+    {
+      author: "Tim Smart",
+      text: "Lets just remove it as it does the same thing as runDrain?",
+      href: "https://github.com/Effect-TS/effect/pull/7657#discussion_r3919950524",
+    },
+  ]}
+/>
+
+The resulting PR removed `runDone` and updated the tests, docs, migration guidance, and changeset to use `runDrain`.
+
+A bug finder had arrived with a broken function. A maintainer decided we didn't need the function. That still counts as a merged PR, but it tells you considerably more about the process than a green checkmark does.
+
+The same thing happened with [#7987](https://github.com/Effect-TS/effect/pull/7987). The original proposal narrowed `Multipart.isPart` to streamed parts. Tim wanted to preserve the existing broad guard and add `isStreamPart` for the narrower check. His [review comment](https://github.com/Effect-TS/effect/pull/7987#discussion_r3930780970) became the final design. The follow-up changed the implementation, tests, documentation, and even the PR wording to match.
+
+This is what we mean by human feedback. You can ask an agent to make a patch satisfy a test. Somebody still has to decide whether that patch is the API you want people to use next year.
+
+### Ninety tests walk into a repository
+
+The other recurring conversation was about tests. Agents are very willing to write tests. Getting them to stop writing tests can be its own project.
+
+In [#8045](https://github.com/Effect-TS/effect/pull/8045), a line-ending fix for migration-document tooling arrived with a standalone 90-case matrix. Tim reduced it to three cases in the existing suite.
+
+Ninety. For line endings. Somewhere a carriage return was receiving more individual attention than most of our public APIs.
+
+The review comments elsewhere in the batch tell the same story. On [#7945](https://github.com/Effect-TS/effect/pull/7945), Tim asked for one or two tests that prevent the regression. On [#7829](https://github.com/Effect-TS/effect/pull/7829), he pointed out that the test was in the wrong file. It moved into the real libSQL integration suite, and the standalone file disappeared.
+
+That is useful agent work followed by useful human feedback followed by more useful agent work. The fix gets tested, and we avoid adopting a small private testing framework every time somebody finds a bug.
+
+When we checked the GitHub histories, **185 of the 195 merged PRs retained maintainer-authored commits**. Tim appears in 184 of them; Giulio in one. There were recorded force pushes on 102 merged branches. A lot happened between "here is a bug" and "this belongs on main."
+
+Those author names don't tell you which lines somebody typed by hand. The Boys' work also runs through Tim's account, and branches were rewritten during review. They do show why the merge rate is a measure of the whole process, including our revisions, rather than a grade for Astra's first attempt.
+
+## And yes, the findings were good
+
+For all the jokes about slop, Kit was sending us things worth fixing. This was a broad audit of Effect v4, with findings across the runtime, data structures, platform integrations, SQL, type declarations, and tooling.
+
+Some examples of what was coming through the queue:
+
+- **Old cleanup touching new state.** Several cache and resource fixes dealt with an interrupted or stale operation removing a newer entry. [#7585](https://github.com/Effect-TS/effect/pull/7585) protects newer cache entries when a refresh is interrupted. [#7586](https://github.com/Effect-TS/effect/pull/7586) handles ownership when an old `RcRef` borrower releases a resource. These are the bugs where each operation looks reasonable on its own and the ordering ruins your afternoon.
+- **Data disappearing from collections.** [#7617](https://github.com/Effect-TS/effect/pull/7617) fixes concatenation of sliced chunks. [#7774](https://github.com/Effect-TS/effect/pull/7774) stops removing a Trie child from also pruning a prefix that still has a value. Deleting `"abc"` should not make `"ab"` disappear as a bonus.
+- **HTTP cleanup and wire formats.** [#7679](https://github.com/Effect-TS/effect/pull/7679) closes request scopes for streaming HEAD responses, where there is no response body to finish the cleanup. [#7683](https://github.com/Effect-TS/effect/pull/7683) preserves valid JSON-RPC control IDs of `0` and `""`. Falsy is not the same thing as missing, however enthusiastically JavaScript encourages the confusion.
+- **SQL behaving differently on reuse.** [#7635](https://github.com/Effect-TS/effect/pull/7635) fixes placeholder numbering in cached returning fragments. [#7829](https://github.com/Effect-TS/effect/pull/7829) isolates transaction contexts between libSQL clients. Both are considerably more interesting than a spelling correction.
+- **AI integrations mangling payloads.** [#7756](https://github.com/Effect-TS/effect/pull/7756) and [#7758](https://github.com/Effect-TS/effect/pull/7758) address base64 image handling in the OpenAI and Anthropic integrations. Double-encoding an image is a creative way to ensure nobody sees it.
+- **Types and tools disagreeing with the code.** The run also found missing service requirements, recovery signatures accepting the wrong types, generated clients encoding forms as JSON, and Markdown/MDX examples that weren't getting executed properly. The audit eventually reached the tools we use to maintain the library itself.
+
+Some changes needed more work after they landed. Tim's [PubSub follow-up](https://github.com/Effect-TS/effect/pull/7607) arrived less than twelve minutes after [the original merge](https://github.com/Effect-TS/effect/pull/7603), fixing a new polling check that confused a sentinel published as real data with an empty subscription. Giulio consolidated JSON Pointer and array-index handling into shared helpers in [#7823](https://github.com/Effect-TS/effect/pull/7823) and [#7855](https://github.com/Effect-TS/effect/pull/7855).
+
+The work kept moving after the merge button. That's maintenance. The funny part was how much of it had shown up because Kit decided to spend those tokens on Effect.
+
+## We found the GitHub rate limit
+
+The Boys were making progress. Unfortunately, every PR also wanted the attention of our CI runners, and GitHub had a rather less flexible interpretation of "keep them coming."
+
+On September 3, we maxed out the runner quota for the Effect repository. PRs were piling up faster than CI could process them.
+
+Sebastian posted this in the channel:
+
+<StoryFigure
+  src={drowning}
+  alt="The I'M DROWNING! meme Sebastian posted to describe Tim's agents under the incoming PR workload."
+  caption="Sebastian: “Tim's boys r/n ^”"
+/>
+
+Then he linked [#7845, Configure namespace.so runners](https://github.com/Effect-TS/effect/pull/7845), with the message "Kit is forcing us to do this."
+
+We asked **Namespace.so** for help. Roughly **30 minutes later**, we had more concurrency and better performance, fully sponsored for Effect's open-source organization. Fast, dedicated runners, right when we needed them. Here is what we posted that day:
+
+<div className="not-prose my-8 flex justify-center">
+  <Tweet id="2095509395819900959" />
+</div>
+
+Sebastian helped get the infrastructure set up, moved the Linux jobs over, adjusted caching and test execution, and limited the memory used by bundle comparisons. We could get back to reviewing the work instead of watching it wait for a machine.
+
+Kit, observing these events from a safe distance, had a question:
+
+<div className="not-prose my-8 flex justify-center">
+  <Tweet id="2095510279081660710" />
+</div>
+
+Yes, Kit.
+
+dax, meanwhile, had a follow-up question about those "free" tokens:
+
+<div className="not-prose my-8 flex justify-center">
+  <Tweet id="2095512887070478406" />
+</div>
+
+Apparently "free tokens" meant someone else got the bill. Kit had the agents running; dax had the financial perspective.
+
+The PRs had acquired an infrastructure department. Accounting was already in the replies.
+
+## Works on main. Case closed.
+
+The runner migration also gave us a good example of why the humans were still in the conversation.
+
+Sebastian reported that [#7768](https://github.com/Effect-TS/effect/pull/7768), a generated form-urlencoded request fix, broke on Bun. Tim sent an investigation through The Boys and shared the "Team Lead" report. The targeted suite passed all 13 tests, including all six request-encoding variants. No code change or PR was needed, the report concluded.
+
+Sebastian replied:
+
+> It does break ... Or rather, it did before I merged this:
+
+He linked the runner PR.
+
+The agent had tested `main` at `4372c79a32`. Sebastian's repair was already in that revision. He'd replaced the new test helper's Node/Babel compilation with Rolldown while expanding Bun test coverage.
+
+So the tests passed. The agent was correct about that. It had successfully verified the fix Sebastian had already made, then delivered the excellent news that nobody needed to fix it.
+
+The code change was in the test helper and CI execution. The human contribution to the discussion was remembering what had happened earlier that morning.
+
+This is why a report comes back to a person. Somebody has to connect the result to the question we were actually asking.
+
+## 207 PRs later
+
+By September 4, we had already posted a thank-you to Kit and Anomaly. At that point the public count was 204 opened and 174 merged:
+
+<div className="not-prose my-8 flex justify-center">
+  <Tweet id="2095882821189394638" />
+</div>
+
+The final count below comes from checking every PR Kit opened in the repository during the two weeks ending September 7. The extra earlier PR is an August 28 RcMap fix; the other 206 arrived on September 2, 3, and 4.
+
+<AstraScoreboard />
+
+Tim merged **193** of those PRs. Giulio and Sebastian merged one each. The median time from opening to merge was about **6 hours and 48 minutes**. That's elapsed time, with several PRs in progress together, but it gives you an idea of how quickly this was moving.
+
+The twelve closed PRs are worth understanding too. Giulio replaced two proposals about schema-derived test data with different implementations, [#8094](https://github.com/Effect-TS/effect/pull/8094) and [#8095](https://github.com/Effect-TS/effect/pull/8095). The findings prompted work that landed, even though Kit's particular PRs closed. The other ten don't have public explanations for their closure.
+
+**A 94.2% merge rate is a hell of a result for this collaboration.** It includes the agent investigations, the human feedback, the revised implementations, and the tests we kept after deleting the other eighty-seven.
+
+It also needed an off switch.
+
+## Good boy, Astra
+
+On September 4, Tim asked Kit to stop. The findings were getting increasingly exotic and reaching edge cases in our internal tooling.
+
+<Backchannel
+  date="September 4"
+  messages={[
+    {
+      author: "Tim Smart",
+      text: "@Kit the PRs were starting to get exotic and were fixing edge cases in our internal tooling, so I think we can stop there thanks!",
+    },
+    {
+      author: "Kit",
+      text: "Hahaha sounds good. I'll pull the plug\n\nGood boy, Astra!",
+    },
+    {
+      author: "Michael Arnaldi",
+      text: "Thanks a lot for the tokens\n\nFirst guess btw",
+    },
+  ]}
+/>
+
+I had correctly identified the model and made a joke about opening 101 PRs. Tim had merged 193. We all contributed according to our abilities.
+
+The next day, Tim gave his review of the whole experience:
+
+> I had to fix up every PR because the quality was average, so not sure how I feel about gpt 6 now lol. But the findings were good.
+
+Both parts matter. Astra found bugs we wanted fixed. Tim and The Boys worked through the patches, and the humans kept making decisions about the code we would have to live with afterward. The final result was 195 merged PRs. The process involved rather more judgment than asking the same agent whether it had done a good job.
+
+Sebastian later asked Kit whether he'd used a multi-pass process separating detection, reproduction, and fixing. Tim's answer was that Kit likes to "vibe with his sub-agents. Let them fly."
+
+We'll leave the exact orchestration recipe to Kit. We can confirm that they flew.
+
+## Free tokens, very real thank-yous
+
+**[Anomaly.co](https://anomaly.co/)**, thank you for making those tokens free for Effect. The bugs we fixed were real. So, as dax reminded us, was the bill.
+
+**[Kit Langton](https://github.com/kitlangton)**, thank you for orchestrating the whole thing, sending us the findings, and giving us several days of material for this post. An unreasonable number of agents turned out to be a productive use of the token budget. We'll let you and dax settle the accounting.
+
+**[Tim Smart](https://github.com/tim-smart) and The Boys**, thank you for working through the queue. Tim's AI infrastructure, built with **[Multica](https://multica.ai/)**, gave us a way to get the investigations and revisions done while keeping the final feedback with the humans. Also, condolences to Tim's shift-clicking hand.
+
+**[Namespace.so](https://namespace.so/)**, thank you for promptly sponsoring Effect's open-source organization with fast, dedicated CI runners. Roughly thirty minutes from asking for help to having sponsored capacity is an absurdly good response. You saved us a lot of staring at queued jobs.
+
+**[Sebastian Lorenz](https://github.com/fubhy)**, thank you for helping set up the infrastructure and fixing the CI issues as they came up. Including the fix The Boys subsequently certified as unnecessary. And thank you to **Giulio Canti** for the schema work and replacement implementations.
+
+To **the rest of the [Effectful](https://effectful.co/) and Anomaly teams**, thank you for having fun through all of it. Aiden's defense of the PR limit, Maxwell's self-award meme, dax walking into the middle of the conversation, Mirela helping us tell the story. This was a good week to be in that Slack channel.
+
+And for the record: 91 PRs on September 2. 84 on September 3. 31 on September 4.
+
+Under a hundred per day. Aiden wins.
