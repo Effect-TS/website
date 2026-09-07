@@ -28,7 +28,7 @@ Kit gave his agent a goal of 99.
 
 We ended up with **207 PRs, 195 merges, a maxed-out GitHub runner quota, and a Slack channel full of people actively making the situation worse.** I was one of those people. This is my account of the incident.
 
-The participants were [Kit Langton](https://github.com/kitlangton) from [Anomaly](https://anomaly.co/), OpenAI's Astra, and the [Effectful](https://effectful.co/) team. On our side, [Tim Smart](https://github.com/tim-smart) had his own AI infrastructure, built with [Multica](https://multica.ai/). We call it **The Boys**.
+The participants were [Kit Langton](https://github.com/kitlangton) from [Anomaly](https://anomaly.co/), OpenAI's Astra, and the [Effectful](https://effectful.co/) team. On our side, [Tim Smart](https://x.com/tim_smart) had his own AI infrastructure, built with [Multica](https://multica.ai/). We call it **The Boys**.
 
 Kit orchestrated the bug hunt. The Boys helped us work through the incoming PRs. The humans gave the final feedback and decided what to merge. [Namespace](https://namespace.so/) eventually had to come and rescue our CI.
 
@@ -68,6 +68,7 @@ About an hour and a half later, Tim was back with an update.
   messages={[
     {
       author: "Tim Smart",
+      href: "https://x.com/tim_smart",
       text: "Kit then proceeds to send 30 PRs lol. (it's fine, you can keep going)",
     },
     {
@@ -77,6 +78,7 @@ About an hour and a half later, Tim was back with an update.
     },
     {
       author: "Tim Smart",
+      href: "https://x.com/tim_smart",
       text: 'He didn\'t use the "audit" PR label though, so that is negative points.\n\nI had to shift-click and apply the label, and now my hands are calloused.',
     },
   ]}
@@ -140,7 +142,11 @@ Kit was less forthcoming about his setup.
   messages={[
     { author: "Kit", text: "grok-fast\n\njkjk. a secret model." },
     { author: "Kit", text: "a secret model from a mysterious benefactor" },
-    { author: "Michael Arnaldi", text: "Astra from OpenAI" },
+    {
+      author: "Michael Arnaldi",
+      href: "https://x.com/MichaelArnaldi",
+      text: "Astra from OpenAI",
+    },
     {
       author: "Kit",
       text: "a secret model from a mysterious benefactor\n\nis all I'm allowed to say at this time",
@@ -155,14 +161,22 @@ Kit was less forthcoming about his setup.
 
 I kept guessing. Kit kept repeating "a secret model from a mysterious benefactor." I even asked whether Anomaly had finally got some GPUs and deployed a monster of their own.
 
-Then dax arrived.
+Then [dax](https://x.com/thdxr) arrived.
 
 <Backchannel
   source="effectful × anomaly"
   date="September 2 · nothing to see here"
   messages={[
-    { author: "dax", text: "what is going on here" },
-    { author: "Tim Smart", text: "Quick everybody hide" },
+    {
+      author: "dax",
+      href: "https://x.com/thdxr",
+      text: "what is going on here",
+    },
+    {
+      author: "Tim Smart",
+      href: "https://x.com/tim_smart",
+      text: "Quick everybody hide",
+    },
   ]}
 />
 
@@ -231,7 +245,7 @@ The Boys could do the follow-through. The humans decided what the follow-through
 
 Take [#7657](https://github.com/Effect-TS/effect/pull/7657). The finding was that `Channel.runDone` returned the wrong completion value. A perfectly reasonable thing for a bug-finding agent to bring us: here's a function, here's what it promises, here's what it actually does.
 
-Tim looked at the proposed fix and asked a different question.
+Tim looked at the proposed fix and [asked a different question](https://github.com/Effect-TS/effect/pull/7657#discussion_r3919950524).
 
 <Backchannel
   source="Human feedback · GitHub"
@@ -240,7 +254,7 @@ Tim looked at the proposed fix and asked a different question.
     {
       author: "Tim Smart",
       text: "Lets just remove it as it does the same thing as runDrain?",
-      href: "https://github.com/Effect-TS/effect/pull/7657#discussion_r3919950524",
+      href: "https://x.com/tim_smart",
     },
   ]}
 />
@@ -395,6 +409,7 @@ On September 4, Tim asked Kit to stop. The findings were getting increasingly ex
   messages={[
     {
       author: "Tim Smart",
+      href: "https://x.com/tim_smart",
       text: "@Kit the PRs were starting to get exotic and were fixing edge cases in our internal tooling, so I think we can stop there thanks!",
     },
     {
@@ -403,6 +418,7 @@ On September 4, Tim asked Kit to stop. The findings were getting increasingly ex
     },
     {
       author: "Michael Arnaldi",
+      href: "https://x.com/MichaelArnaldi",
       text: "Thanks a lot for the tokens\n\nFirst guess btw",
     },
   ]}
@@ -426,13 +442,13 @@ We'll leave the exact orchestration recipe to Kit. We can confirm that they flew
 
 **[Kit Langton](https://github.com/kitlangton)**, thank you for orchestrating the whole thing, sending us the findings, and giving us several days of material for this post. An unreasonable number of agents turned out to be a productive use of the token budget. We'll let you and dax settle the accounting.
 
-**[Tim Smart](https://github.com/tim-smart) and The Boys**, thank you for working through the queue. Tim's AI infrastructure, built with **[Multica](https://multica.ai/)**, gave us a way to get the investigations and revisions done while keeping the final feedback with the humans. Also, condolences to Tim's shift-clicking hand.
+**[Tim Smart](https://x.com/tim_smart) and The Boys**, thank you for working through the queue. Tim's AI infrastructure, built with **[Multica](https://multica.ai/)**, gave us a way to get the investigations and revisions done while keeping the final feedback with the humans. Also, condolences to Tim's shift-clicking hand.
 
 **[Namespace.so](https://namespace.so/)**, thank you for promptly sponsoring Effect's open-source organization with fast, dedicated CI runners. Roughly thirty minutes from asking for help to having sponsored capacity is an absurdly good response. You saved us a lot of staring at queued jobs.
 
 **[Sebastian Lorenz](https://github.com/fubhy)**, thank you for helping set up the infrastructure and fixing the CI issues as they came up. Including the fix The Boys subsequently certified as unnecessary. And thank you to **[Giulio Canti](https://x.com/GiulioCanti)** for the schema work and replacement implementations.
 
-To **the rest of the [Effectful](https://effectful.co/) and Anomaly teams**, thank you for having fun through all of it. [Aiden](https://x.com/rekram11)'s defense of the PR limit, Maxwell's self-award meme, dax walking into the middle of the conversation, [Mirela Prifti](https://x.com/MirelaPriftix) helping us tell the story. This was a good week to be in that Slack channel.
+To **the rest of the [Effectful](https://effectful.co/) and Anomaly teams**, thank you for having fun through all of it. [Aiden](https://x.com/rekram11)'s defense of the PR limit, Maxwell's self-award meme, [dax](https://x.com/thdxr) walking into the middle of the conversation, [Mirela Prifti](https://x.com/MirelaPriftix) helping us tell the story. This was a good week to be in that Slack channel.
 
 And for the record: 91 PRs on September 2. 84 on September 3. 31 on September 4.
 
