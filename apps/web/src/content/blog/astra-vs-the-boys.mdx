@@ -11,8 +11,8 @@ tags:
 
 import Tweet from "astro-tweet"
 import Backchannel from "@/components/blog/Backchannel.astro"
-import AstraScoreboard from "@/components/blog/AstraScoreboard.astro"
-import AstraReviewLoop from "@/components/blog/AstraReviewLoop.astro"
+import Scoreboard from "@/components/blog/Scoreboard.astro"
+import ReviewLoop from "@/components/blog/ReviewLoop.astro"
 import StoryFigure from "@/components/blog/StoryFigure.astro"
 import reviewBoard from "@/assets/blog/astra-vs-the-boys/review-board.png"
 import drowning from "@/assets/blog/astra-vs-the-boys/the-boys-drowning.png"
@@ -59,6 +59,7 @@ A sensible boundary. Clearly communicated. What could go wrong?
 About an hour and a half later, Tim was back with an update.
 
 <Backchannel
+  source="effectful × anomaly"
   date="September 2"
   messages={[
     {
@@ -83,6 +84,7 @@ Kit later explained that he didn't have labeling permissions. Our first failure 
 By that evening, Sebastian was asking what the hell was happening. Kit checked in:
 
 <Backchannel
+  source="effectful × anomaly"
   date="September 2 · later that evening"
   messages={[
     { author: "Kit", text: "uh oh\n\nI forgot to check on the session." },
@@ -128,6 +130,7 @@ I told Kit that Sebastian thought we'd run out of bugs. Sebastian immediately co
 Kit was less forthcoming about his setup.
 
 <Backchannel
+  source="effectful × anomaly"
   date="September 2 · model identification research"
   messages={[
     { author: "Kit", text: "grok-fast\n\njkjk. a secret model." },
@@ -149,6 +152,7 @@ I kept guessing. Kit kept repeating "a secret model from a mysterious benefactor
 Then dax arrived.
 
 <Backchannel
+  source="effectful × anomaly"
   date="September 2 · nothing to see here"
   messages={[
     { author: "dax", text: "what is going on here" },
@@ -180,7 +184,36 @@ You can see individual PRs represented as work items, with fixes in progress and
 
 The agents could investigate the reported behavior, work on a reproduction, revise the implementation, and bring back code and test results. Tim then had something concrete to judge. His feedback sent the work around again when the implementation was wrong, the test was in the wrong place, or the proposed API wasn't one we wanted to maintain.
 
-<AstraReviewLoop />
+<ReviewLoop
+  title="How a finding became a merge"
+  steps={[
+    {
+      owner: "Kit + Astra",
+      title: "Find it. Open a PR.",
+      detail:
+        "A bug report, a proposed fix, and a reproduction to investigate.",
+    },
+    {
+      owner: "The Boys · Multica",
+      title: "Work the review queue.",
+      detail:
+        "Investigate the finding, check the patch, revise the code and tests.",
+    },
+    {
+      owner: "Tim + the maintainers",
+      title: "Give the final feedback.",
+      detail:
+        "Decide on behavior, API design, test scope, and whether the change belongs.",
+    },
+    {
+      owner: "Back through the loop",
+      title: "Revise, verify, then decide.",
+      detail:
+        "Apply the feedback and check the result. A maintainer merges, closes, or replaces the PR.",
+    },
+  ]}
+  footer="Agents do the legwork. Humans make the final call."
+/>
 
 **The final human feedback was the important bit.** An agent saying "done" meant there was work to inspect. It didn't mean the PR had earned a merge.
 
@@ -319,7 +352,24 @@ By September 4, we had already posted a thank-you to Kit and Anomaly. At that po
 
 The final count below comes from checking every PR Kit opened in the repository during the two weeks ending September 7. The extra earlier PR is an August 28 RcMap fix; the other 206 arrived on September 2, 3, and 4.
 
-<AstraScoreboard />
+<Scoreboard
+  title="The final tally · September 7"
+  stats={[
+    { value: 207, label: "PRs opened" },
+    { value: 195, label: "Merged", highlight: true },
+    { value: 12, label: "Closed unmerged" },
+    { value: 0, label: "Still open" },
+  ]}
+  breakdown={{
+    description: "206 opened in three days. Here's the daily delivery.",
+    items: [
+      { label: "Sep 2", value: 91 },
+      { label: "Sep 3", value: 84 },
+      { label: "Sep 4", value: 31 },
+    ],
+  }}
+  note="The two-week total also includes one earlier PR, opened August 28. Outcomes checked September 7, 2026."
+/>
 
 Tim merged **193** of those PRs. Giulio and Sebastian merged one each. The median time from opening to merge was about **6 hours and 48 minutes**. That's elapsed time, with several PRs in progress together, but it gives you an idea of how quickly this was moving.
 
@@ -334,6 +384,7 @@ It also needed an off switch.
 On September 4, Tim asked Kit to stop. The findings were getting increasingly exotic and reaching edge cases in our internal tooling.
 
 <Backchannel
+  source="effectful × anomaly"
   date="September 4"
   messages={[
     {
