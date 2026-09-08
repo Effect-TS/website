@@ -7,15 +7,21 @@ interface Props {
   src: ImageMetadata
   alt: string
   caption: string
+  width?: number
   textLinks?: Record<string, string>
 }
 
-const { src, alt, caption, textLinks = {} } = Astro.props
+const { src, alt, caption, width = src.width, textLinks = {} } = Astro.props
+const displayWidth = Math.min(width, src.width)
 ---
 
-<figure class="not-prose mx-auto my-10 w-full max-w-xl">
+<figure
+  class="not-prose mx-auto my-10 w-full max-w-xl"
+  style={{ width: `min(100%, ${displayWidth}px)` }}
+>
   <Image
     src={src}
+    format={src.format}
     alt={alt}
     class="m-0 h-auto w-full rounded-lg border border-border"
     loading="lazy"

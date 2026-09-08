@@ -1,0 +1,17 @@
+---
+import type { HTMLAttributes } from "astro/types"
+
+interface Props extends HTMLAttributes<"img"> {
+  src: string
+  alt: string
+}
+
+const { src, ...attributes } = Astro.props
+const url = new URL(src)
+
+if (url.hostname === "pbs.twimg.com" && url.pathname.startsWith("/media/")) {
+  url.searchParams.set("name", "orig")
+}
+---
+
+<img {...attributes} src={url.href} />
