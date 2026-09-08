@@ -1,24 +1,15 @@
-const [workerName, trafficMode] = process.argv.slice(2)
+const [workerName] = process.argv.slice(2)
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 const apiToken = process.env.CLOUDFLARE_API_TOKEN
-const expected = {
-  "workers-dev": { route: false, domains: [] },
-  routes: { route: true, domains: [] },
-  bridge: { route: true, domains: ["effect.website", "www.effect.website"] },
-  "custom-domains": {
-    route: false,
-    domains: ["effect.website", "www.effect.website"],
-  },
-}[trafficMode]
+const expectedHostnames = ["effect.website", "www.effect.website"]
 
 if (
   workerName === undefined ||
-  expected === undefined ||
   accountId === undefined ||
   apiToken === undefined
 ) {
   console.error(
-    "Usage: verify-cloudflare-traffic.mjs <worker-name> <traffic-mode> with CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
+    "Usage: verify-cloudflare-traffic.mjs <worker-name> with CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
   )
   process.exit(1)
 }
@@ -59,19 +50,16 @@ const verifyTraffic = async () => {
   const apexRoutes = routes.filter(
     (route) => route.pattern === "effect.website/*",
   )
-  const routeMatches = expected.route
-    ? apexRoutes.length === 1 && apexRoutes[0].script === workerName
-    : apexRoutes.length === 0
-  if (!routeMatches) {
+  if (apexRoutes.length !== 0) {
     const owners = apexRoutes
       .map((route) => route.script ?? "<none>")
       .join(", ")
     throw new Error(
-      `Worker Route state does not match traffic mode ${trafficMode}: expected ${expected.route ? workerName : "no route"}, received ${owners || "no route"}`,
+      `Expected no effect.website/* Worker Route, received ${owners || "no route"}`,
     )
   }
 
-  const websiteHostnames = ["effect.website", "www.effect.website"]
+  const websiteHostnames = expectedHostnames
   const domains = (
     await Promise.all(
       websiteHostnames.map((hostname) =>
@@ -87,22 +75,22 @@ const verifyTraffic = async () => {
       .map((domain) => [domain.hostname, domain.service]),
   )
   const byName = (left, right) => left.localeCompare(right)
-  const expectedHostnames = expected.domains.toSorted(byName)
+  const expectedSorted = expectedHostnames.toSorted(byName)
   const hostnames = [...attached.keys()].sort(byName)
   const domainsMatch =
-    JSON.stringify(hostnames) === JSON.stringify(expectedHostnames) &&
+    JSON.stringify(hostnames) === JSON.stringify(expectedSorted) &&
     hostnames.every((hostname) => attached.get(hostname) === workerName)
   if (!domainsMatch) {
     const owners = [...attached]
       .map(([hostname, service]) => `${hostname}=${service ?? "<none>"}`)
       .join(", ")
     throw new Error(
-      `Custom Domain state does not match traffic mode ${trafficMode}: expected ${expectedHostnames.join(", ") || "none"} on ${workerName}, received ${owners || "none"}`,
+      `Expected ${expectedSorted.join(", ")} on ${workerName}, received ${owners || "none"}`,
     )
   }
 
   console.log(
-    `PASS Cloudflare traffic mode ${trafficMode}: route=${expected.route}, domains=${hostnames.join(",") || "none"}`,
+    `PASS Cloudflare traffic: route=false, domains=${hostnames.join(",")}`,
   )
 }
 

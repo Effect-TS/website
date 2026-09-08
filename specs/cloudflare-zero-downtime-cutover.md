@@ -420,16 +420,24 @@ mode to `workers-dev` and deploy.
 
 ### Phase 5: attach Custom Domains behind the route
 
-1. Set `CLOUDFLARE_TRAFFIC_MODE=bridge`.
-2. Deploy production.
-3. Confirm that both Custom Domains are attached to `WebsiteWorker`.
-4. Confirm that Cloudflare created the managed DNS records.
-5. Wait for both certificates to become Active.
-6. Confirm that the Alchemy-managed `www` redirect exists.
-7. Keep the temporary redirect and apex Worker Route in place while checking
-   the Custom Domains.
-8. Do not claim that this phase tests apex Custom Domain traffic. The Worker
-   Route takes precedence and still handles apex requests.
+The Custom Domain API rejects hostnames with externally managed DNS records.
+The completed cutover therefore attached each hostname manually before Alchemy
+adopted the live attachments:
+
+1. [x] Delete the apex placeholder record, immediately attach
+       `effect.website` to `WebsiteWorker`, and verify its managed DNS record.
+2. [x] Delete the `www` placeholder record, immediately attach
+       `www.effect.website` to `WebsiteWorker`, and verify its managed DNS record.
+3. [x] Set `CLOUDFLARE_TRAFFIC_MODE=bridge` and deploy production so Alchemy
+       adopts both attachments into state and creates the managed `www` redirect.
+4. [x] Keep the temporary redirect and apex Worker Route in place while
+       checking the Custom Domains.
+5. [x] Confirm that both certificates are available and both managed DNS
+       records are proxied.
+
+If a manual attachment fails before Cloudflare creates its managed DNS record,
+immediately restore the proxied `A` record to `192.0.2.0`. The apex Worker Route
+or temporary `www` redirect will resume handling that hostname.
 
 Before cutover, prove Custom Domain attachment and detachment on a disposable
 hostname, including the resulting DNS records. If provisioning fails here,
@@ -459,41 +467,52 @@ schedule a maintenance window to restore the exported records.
 
 ## Vercel teardown
 
-Start only after the 48-hour Custom Domain observation period and explicit
-approval from the cutover owner.
+The cutover owner explicitly waived the 48-hour Custom Domain observation
+period on 2026-09-08 after the production acceptance checks passed.
 
 ### External cleanup
 
-- [ ] Remove `effect.website` and `www.effect.website` from the Vercel project.
-- [ ] Disable Vercel production and preview deployments for this repository.
-- [ ] Remove the Vercel GitHub integration or project connection.
-- [ ] Remove stale Vercel deployment checks from repository rules and external
+- [x] Remove `effect.website` and `www.effect.website` from the Vercel project.
+- [x] Disable Vercel production and preview deployments for this repository.
+- [x] Remove the Vercel GitHub integration or project connection.
+- [x] Confirm no stale Vercel deployment checks exist in repository rules or external
       automation.
-- [ ] Remove obsolete Vercel deployments according to the retention policy.
-- [ ] Delete `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` from GitHub
+- [x] Retain the disconnected Vercel project and deployment history as an archive.
+- [x] Delete `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` from GitHub
       after confirming that no other automation uses them.
-- [ ] Confirm that DNS has no Vercel targets and Cloudflare Custom Domains own
+- [x] Confirm that DNS has no Vercel targets and Cloudflare Custom Domains own
       both website records.
 
 ### Repository cleanup
 
-- [ ] Delete `apps/web/vercel.json` after testing its Cloudflare replacements.
-- [ ] Delete `apps/web/scripts/patch-vercel-trailing-slash.mjs`.
-- [ ] Change the default `.vercel/output/static` path in
+- [x] Delete `apps/web/vercel.json` after testing its Cloudflare replacements.
+- [x] Delete `apps/web/scripts/patch-vercel-trailing-slash.mjs`.
+- [x] Change the default `.vercel/output/static` path in
       `verify-api-reference-links.mjs` to the Cloudflare build output or require
       the path argument.
-- [ ] Remove the commented Vercel adapter import and configuration from
+- [x] Remove the commented Vercel adapter import and configuration from
       `apps/web/astro.config.ts`.
-- [ ] Remove the `.vercel` watcher and gitignore entries.
-- [ ] Remove `vercel` and `@astrojs/vercel` from the package manifests.
-- [ ] Regenerate `pnpm-lock.yaml` with `pnpm` and verify that unneeded Vercel
+- [x] Remove the `.vercel` watcher and gitignore entries.
+- [x] Remove `vercel` and `@astrojs/vercel` from the package manifests.
+- [x] Regenerate `pnpm-lock.yaml` with `pnpm` and verify that unneeded Vercel
       transitive packages disappear.
-- [ ] Update the privacy policy to name Cloudflare instead of Vercel and change
+- [x] Update the privacy policy to name Cloudflare instead of Vercel and change
       its last-updated date.
-- [ ] Replace the transitional traffic modes with a fixed Custom Domain setup
+- [x] Replace the transitional traffic modes with a fixed Custom Domain setup
       after the team no longer needs Vercel rollback.
-- [ ] Mark this runbook complete and record the final Worker version, commit,
+- [x] Mark this runbook complete and record the final Worker version, commit,
       DNS export, and completion date.
+
+Completed on 2026-09-08 with:
+
+- Production Worker: `effectwebsite-websiteworker-prod-dmg2e35va35d5fkg`
+- Worker deployment: `3a1ece6d-01a0-4897-bc8b-acafd95b0624`
+- Worker version: `e162c858-2dd1-45b7-9aff-bd52e1311580` at 100%
+- Source revision: `33c630016068b3c12d67f6841381c4a83aeb9636`
+- Managed DNS: proxied, read-only `AAAA` records to `100::` for
+  `effect.website` and `www.effect.website`
+- Canonical redirect: Alchemy-managed `301` from `www` to the apex with path
+  and query preservation
 
 Editorial references to Vercel, company logos, podcast assets, and third-party
 `vercel.app` links are content, not hosting dependencies. Do not remove them as

@@ -3,8 +3,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const staticRoot = path.resolve(
-  process.argv[2] ??
-    fileURLToPath(new URL("../.vercel/output/static", import.meta.url)),
+  process.argv[2] ?? fileURLToPath(new URL("../dist/client", import.meta.url)),
 )
 const apiRoot = path.join(staticRoot, "docs")
 const htmlByPath = new Map()
