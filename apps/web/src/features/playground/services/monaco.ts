@@ -112,6 +112,8 @@ export class Monaco extends Context.Service<Monaco>()("app/Monaco", {
           Effect.sync(() =>
             monaco.editor.create(element, {
               automaticLayout: true,
+              ariaLabel: "TypeScript editor",
+              accessibilitySupport: "auto",
               fixedOverflowWidgets: true,
               fontSize: 16,
               minimap: { enabled: false },

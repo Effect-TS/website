@@ -1,14 +1,17 @@
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections"
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground.ts"
+import { pluginCodeAccessibility } from "./src/plugins/expressive-code/accessibility.ts"
 
 export default {
   plugins: [
     pluginCollapsibleSections(),
     pluginLineNumbers(),
     pluginOpenInPlayground(),
+    pluginCodeAccessibility(),
   ],
   styleOverrides: {
+    lineNumbers: { foreground: "var(--muted-foreground)" },
     borderColor: ["oklch(27.4% 0.006 286.033)", "oklch(92% 0.004 286.32)"],
     borderRadius: "calc(0.5rem - 1px)",
     borderWidth: "1px",

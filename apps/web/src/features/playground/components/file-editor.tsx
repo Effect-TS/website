@@ -38,6 +38,10 @@ export function FileEditor() {
         </div>
       </div>
       <div ref={containerRef} className="min-h-0 flex-1" />
+      <p className="border-t border-border px-3 py-1 text-xs text-muted-foreground">
+        To use Tab to leave the editor, press Ctrl+M (Windows/Linux) or
+        Ctrl+Shift+M (macOS). Press again to indent with Tab.
+      </p>
     </section>
   )
 }

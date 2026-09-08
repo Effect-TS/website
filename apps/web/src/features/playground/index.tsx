@@ -3,6 +3,7 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useCallback, Fragment, Suspense } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -71,6 +72,7 @@ function ImportError({ cause }: { cause: Cause.Cause<never> }) {
 }
 
 function CodeEditorPanels() {
+  const isNarrow = useMediaQuery("(max-width: 48rem)")
   const { terminalSize } = useWorkspaceHandle()
   const setSize = useAtomSet(terminalSize)
   const onResize = useCallback(
@@ -85,7 +87,7 @@ function CodeEditorPanels() {
     storage: globalThis.localStorage,
   })
   const sidebarLayout = useDefaultLayout({
-    id: "sidebar",
+    id: isNarrow ? "sidebar-mobile" : "sidebar",
     storage: globalThis.localStorage,
   })
 
@@ -98,14 +100,14 @@ function CodeEditorPanels() {
       <ResizablePanel defaultSize={70}>
         <ResizablePanelGroup
           {...sidebarLayout}
-          orientation="horizontal"
+          orientation={isNarrow ? "vertical" : "horizontal"}
           className="h-full"
         >
-          <ResizablePanel defaultSize={20} minSize={10}>
+          <ResizablePanel defaultSize={isNarrow ? 30 : 20} minSize={10}>
             <FileExplorer />
           </ResizablePanel>
-          <ResizableHandle className="w-px bg-zinc-200 hover:bg-zinc-400 dark:bg-zinc-700 dark:hover:bg-zinc-500" />
-          <ResizablePanel defaultSize={80}>
+          <ResizableHandle className="bg-border hover:bg-border-strong" />
+          <ResizablePanel defaultSize={isNarrow ? 70 : 80}>
             <FileEditor />
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -124,7 +126,10 @@ function CodeEditorPanels() {
             defaultValue="terminal"
             className="flex h-full w-full flex-col gap-0"
           >
-            <TabsList className="!h-auto w-full justify-start gap-0 rounded-none border-b border-zinc-200 bg-transparent p-0 dark:border-zinc-800">
+            <TabsList
+              aria-label="Playground output"
+              className="!h-auto w-full justify-start gap-0 rounded-none border-b border-zinc-200 bg-transparent p-0 dark:border-zinc-800"
+            >
               <TabsTrigger
                 value="terminal"
                 className="-mb-px h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-4 py-2.5 font-mono text-xs tracking-wider text-zinc-500 uppercase transition-none hover:text-zinc-900 data-active:border-zinc-900 data-active:bg-transparent data-active:text-zinc-900 data-active:shadow-none dark:text-zinc-400 dark:hover:text-white dark:data-active:border-white dark:data-active:text-white"

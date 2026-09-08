@@ -41,7 +41,7 @@ and `sky` scales.
 | `navigation-foreground`       | sidebar and TOC links                | zinc-700    | zinc-400    |
 | `navigation-heading`          | sidebar and TOC section labels       | zinc-700    | zinc-300    |
 | `muted-foreground`            | secondary text, metadata, labels     | zinc-600    | zinc-400    |
-| `subtle-foreground`           | faint text, timestamps, inactive     | zinc-400    | zinc-500    |
+| `subtle-foreground`           | timestamps, inactive labels          | custom zinc | zinc-400    |
 | `card` / `popover`            | subtle surface (see below)           | zinc-50     | zinc-900    |
 | `card-foreground`             | text on a card                       | zinc-900    | zinc-50     |
 | `muted`                       | hover fill, subtle tint              | zinc-100    | zinc-800    |
@@ -51,11 +51,16 @@ and `sky` scales.
 | `secondary-foreground`        | text on secondary                    | zinc-900    | zinc-50     |
 | `primary`                     | solid CTA, inverted                  | zinc-900    | zinc-50     |
 | `primary-foreground`          | text on primary                      | zinc-50     | zinc-900    |
-| `destructive`                 | error or danger                      | red-600     | red-500     |
+| `destructive`                 | error or danger text and tint        | red-700     | red-400     |
 | `destructive-foreground`      | text on destructive                  | white       | white       |
 | `border`                      | thin borders                         | zinc-200    | zinc-800    |
-| `border-strong` / `input`     | strong or hover border, inputs       | zinc-300    | zinc-700    |
-| `ring` / `brand`              | focus ring, Effect brand accent      | emerald-500 | emerald-400 |
+| `border-strong`               | stronger decorative border           | zinc-300    | zinc-700    |
+| `input`                       | visible form-control boundary        | zinc-500    | zinc-500    |
+| `ring`                        | keyboard focus                       | emerald-700 | emerald-400 |
+| `brand`                       | Effect brand accent                  | emerald-500 | emerald-400 |
+| `warning-foreground`          | caution and unstable labels          | amber-700   | amber-400   |
+| `info-foreground`             | informational callouts               | sky-800     | sky-400     |
+| `success-foreground`          | tips and positive status             | emerald-800 | emerald-400 |
 | `featured` / `featured-hover` | featured blog card (custom)          | #f7f7f8     | #141315     |
 
 ### Text hierarchy

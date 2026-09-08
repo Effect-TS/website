@@ -1,0 +1,47 @@
+---
+import type { ImageMetadata } from "astro"
+
+interface Props {
+  src: ImageMetadata
+  poster: ImageMetadata
+  label: string
+  description: string
+}
+
+const { src, poster, label, description } = Astro.props
+---
+
+<figure>
+  <details class="group">
+    <summary
+      class="mb-2 w-fit cursor-pointer rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground"
+    >
+      <span class="group-open:hidden">Play animation</span>
+      <span class="hidden group-open:inline">Stop animation</span>
+      <span class="sr-only">: {label}</span>
+    </summary>
+    <img
+      src={src.src}
+      width={src.width}
+      height={src.height}
+      alt={label}
+      loading="lazy"
+      class="w-full"
+    />
+  </details>
+  <img
+    src={poster.src}
+    width={poster.width}
+    height={poster.height}
+    alt={label}
+    loading="lazy"
+    class="w-full"
+  />
+  <figcaption>{description}</figcaption>
+</figure>
+
+<style>
+  details[open] + img {
+    display: none;
+  }
+</style>

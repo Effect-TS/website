@@ -19,16 +19,13 @@ const { version, versions, packages = [], modules = [] } = Astro.props
 
 const selects = [
   { label: "Version", items: versions, width: "w-20 shrink-0" },
-  { label: "Package", items: packages, width: "min-w-0 flex-1" },
-  { label: "Module", items: modules, width: "min-w-0 flex-1" },
+  { label: "Package", items: packages, width: "min-w-24 flex-1" },
+  { label: "Module", items: modules, width: "min-w-24 flex-1" },
 ].filter(({ items }) => items.length > 0)
 ---
 
-<nav
-  aria-label="API reference mobile navigation"
-  class="sticky top-[var(--sticky-header-height)] z-30 border-y border-border bg-background/95 backdrop-blur lg:hidden"
->
-  <div class="mx-auto flex h-12 max-w-352 items-center gap-2 px-4">
+<nav aria-label="API reference mobile navigation" class="bg-background">
+  <div class="mx-auto flex min-h-12 max-w-352 flex-wrap items-center gap-2 px-4 py-2">
     <a
       href={`/docs/${version}/api`}
       class="shrink-0 font-mono text-xs font-semibold tracking-wider text-foreground uppercase"
@@ -44,7 +41,7 @@ const selects = [
           <select
             aria-label={label}
             data-api-navigation-select
-            class="h-8 w-full appearance-none truncate rounded-md border border-border bg-card py-1 pr-7 pl-2 font-mono text-xs text-foreground outline-none transition-colors hover:border-border-strong focus:border-border-strong"
+            class="h-8 min-w-0 w-full appearance-none truncate rounded-md border border-input bg-card py-1 pr-7 pl-2 font-mono text-xs text-foreground transition-colors hover:bg-muted"
           >
             {items.map((item) => (
               <option value={item.href} selected={item.selected} disabled={item.disabled}>

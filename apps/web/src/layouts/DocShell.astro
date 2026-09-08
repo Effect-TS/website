@@ -3,7 +3,8 @@ import DocsNavigation from "@/components/navigation/DocsNavigation.astro"
 import Footer from "@/components/Footer.astro"
 import SidebarScrollMemory from "@/components/ui/sidebar/SidebarScrollMemory.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
-import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import Main from "@/components/layout/Main.astro"
+import StickySubnav from "@/components/navigation/StickySubnav.astro"
 import type { DocsNavSection } from "@/lib/docs-sections"
 import type { NavigationActiveSlug } from "@/lib/navigation"
 
@@ -48,12 +49,12 @@ const railClass =
   <DocsNavigation section={navSection} version={version} />
 
   <div class="relative w-full">
-    <slot name="mobile-nav" />
+    <StickySubnav><slot name="mobile-nav" /></StickySubnav>
 
     <div class:list={["mx-auto grid w-full max-w-352 grid-cols-1", gridCols]}>
       {
         hasSidebar && (
-          <aside class="hidden border-r border-border lg:block">
+          <aside aria-label="Documentation sidebar" class="hidden border-r border-border lg:block">
             <div data-doc-sidebar-rail class={railClass}>
               <slot name="sidebar" />
             </div>
@@ -61,13 +62,13 @@ const railClass =
         )
       }
 
-      <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
+      <Main class="@container/prose min-w-0 px-6 py-12 lg:px-12 lg:py-16">
         <slot />
-      </main>
+      </Main>
 
       {
         hasToc && (
-          <aside class="hidden border-l border-border xl:block">
+          <aside aria-label="Page contents" class="hidden border-l border-border xl:block">
             <div class={railClass}>
               <slot name="toc" />
             </div>

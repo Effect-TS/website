@@ -75,7 +75,12 @@ export function VisualEffectCodeSnippet({
 
   return (
     <React.Fragment>
-      <div className="overflow-x-auto">
+      <div
+        className="overflow-x-auto"
+        role="region"
+        aria-label="Example code"
+        tabIndex={0}
+      >
         <div
           ref={snippetContainerReference}
           className="relative min-w-full bg-background px-6 py-5"

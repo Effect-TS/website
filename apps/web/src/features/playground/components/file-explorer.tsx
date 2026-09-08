@@ -1,7 +1,8 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as Data from "effect/Data"
 import * as Atom from "effect/unstable/reactivity/Atom"
-import { useCallback } from "react"
+import { useCallback, useLayoutEffect, useRef } from "react"
+import { ConfirmDialog } from "./confirm-dialog"
 import { useWorkspaceHandle, useWorkspaceTree } from "../context/workspace"
 import { Directory, File, Workspace } from "../domain/workspace"
 import { FileTree } from "./file-explorer/file-tree"
@@ -15,6 +16,10 @@ export declare namespace FileExplorer {
     }
     Editing: {
       node: Directory | File
+    }
+    Deleting: {
+      node: Directory | File
+      trigger: HTMLButtonElement
     }
   }>
 }
@@ -63,9 +68,41 @@ export const useRemove = () => {
 
 export function FileExplorer() {
   const tree = useWorkspaceTree()
+  const state = useExplorerState()
+  const dispatch = useExplorerDispatch()
+  const remove = useRemove()
+  const root = useRef<HTMLElement>(null)
+  const returnFocus = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    if (state._tag === "Deleting") returnFocus.current = state.trigger
+  }, [state])
   return (
-    <aside className="min-h-full w-full overflow-auto bg-zinc-50 px-3 py-3 dark:bg-zinc-950">
+    <aside
+      ref={root}
+      data-file-explorer
+      aria-label="Files"
+      tabIndex={-1}
+      className="min-h-full w-full overflow-auto bg-background px-3 py-3"
+    >
       <FileTree tree={tree} />
+      <ConfirmDialog
+        open={state._tag === "Deleting"}
+        title={
+          state._tag === "Deleting"
+            ? `Delete ${state.node.name}?`
+            : "Delete file?"
+        }
+        description="This will remove it from the playground."
+        confirmLabel="Delete"
+        finalFocus={returnFocus}
+        onClose={() => dispatch(State.Idle())}
+        onConfirm={() => {
+          if (state._tag === "Deleting") {
+            returnFocus.current = root.current
+            remove(state.node)
+          }
+        }}
+      />
     </aside>
   )
 }

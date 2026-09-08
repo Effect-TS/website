@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/Button"
 import {
   EmbedCommand,
   EmbedState,
@@ -21,7 +22,6 @@ import type { PodcastTranscriptCue, TranscriptFollowMode } from "../domain"
 import { usePodcastEpisode } from "../context"
 
 const AUTO_SCROLL_SETTLE_WINDOW_MS = 120
-const AUTO_FOLLOW_RESUME_DELAY_MS = 5_000
 
 const isDesktopViewportAtom = Atom.make((get) => {
   if (typeof window === "undefined") {
@@ -47,8 +47,6 @@ export function PodcastTranscript() {
   const cueElementMapRef = React.useRef(new Map<string, HTMLButtonElement>())
   const suppressScrollEventRef = React.useRef(false)
   const scrollSettleFrameRef = React.useRef<number | undefined>(undefined)
-  const autoFollowResumeTimeoutRef = React.useRef<number | undefined>(undefined)
-  const autoFollowPauseTokenRef = React.useRef(0)
   const [isOpen, setIsOpen] = React.useState(true)
   const [autoFollowMode, setAutoFollowMode] =
     React.useState<TranscriptFollowMode>("auto")
@@ -104,34 +102,13 @@ export function PodcastTranscript() {
   const activeCueId = activeTranscriptCue?.id ?? transcript[0]?.id
   const shouldAutoFollow = isDesktopViewport && autoFollowMode === "auto"
 
-  const clearAutoFollowResumeTimeout = React.useCallback(() => {
-    if (autoFollowResumeTimeoutRef.current !== undefined) {
-      window.clearTimeout(autoFollowResumeTimeoutRef.current)
-      autoFollowResumeTimeoutRef.current = undefined
-    }
+  const pauseAutoFollow = React.useCallback(() => {
+    setAutoFollowMode("paused-by-user")
   }, [])
 
-  const pauseAutoFollow = React.useCallback(() => {
-    const token = autoFollowPauseTokenRef.current + 1
-    autoFollowPauseTokenRef.current = token
-    setAutoFollowMode("paused-by-user")
-    clearAutoFollowResumeTimeout()
-
-    autoFollowResumeTimeoutRef.current = window.setTimeout(() => {
-      if (autoFollowPauseTokenRef.current !== token) {
-        return
-      }
-
-      setAutoFollowMode("auto")
-      autoFollowResumeTimeoutRef.current = undefined
-    }, AUTO_FOLLOW_RESUME_DELAY_MS)
-  }, [clearAutoFollowResumeTimeout])
-
   const resumeAutoFollow = React.useCallback(() => {
-    autoFollowPauseTokenRef.current += 1
-    clearAutoFollowResumeTimeout()
     setAutoFollowMode("auto")
-  }, [clearAutoFollowResumeTimeout])
+  }, [])
 
   const clearScrollSettleFrame = React.useCallback(() => {
     if (scrollSettleFrameRef.current !== undefined) {
@@ -172,10 +149,9 @@ export function PodcastTranscript() {
 
   const handleSeek = React.useCallback(
     (cue: PodcastTranscriptCue) => {
-      resumeAutoFollow()
       setActiveTranscriptCue(cue)
     },
-    [resumeAutoFollow, setActiveTranscriptCue],
+    [setActiveTranscriptCue],
   )
 
   const setCueElement = React.useCallback(
@@ -191,10 +167,9 @@ export function PodcastTranscript() {
 
   React.useEffect(() => {
     return () => {
-      clearAutoFollowResumeTimeout()
       clearScrollSettleFrame()
     }
-  }, [clearAutoFollowResumeTimeout, clearScrollSettleFrame])
+  }, [clearScrollSettleFrame])
 
   React.useEffect(() => {
     const root = rootRef.current
@@ -219,7 +194,7 @@ export function PodcastTranscript() {
     viewport.addEventListener("scroll", handleScroll, { passive: true })
 
     return () => viewport.removeEventListener("scroll", handleScroll)
-  }, [pauseAutoFollow])
+  }, [isOpen, pauseAutoFollow])
 
   React.useEffect(() => {
     if (
@@ -295,7 +270,21 @@ export function PodcastTranscript() {
           ref={rootRef}
           className="bg-card border-t border-zinc-700 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
         >
-          <ScrollArea className="h-80 p-2 lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="m-2 hidden self-start lg:inline-flex"
+            aria-pressed={autoFollowMode === "auto"}
+            onClick={
+              autoFollowMode === "auto" ? pauseAutoFollow : resumeAutoFollow
+            }
+          >
+            Follow playback
+          </Button>
+          <ScrollArea
+            onFocusCapture={pauseAutoFollow}
+            className="h-80 p-2 lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1"
+          >
             <ul className="space-y-1 pr-2">
               {transcript.map((cue) => {
                 const isActive = cue === activeTranscriptCue
@@ -310,13 +299,13 @@ export function PodcastTranscript() {
                       type="button"
                       onClick={() => handleSeek(cue)}
                       aria-current={isActive ? "true" : undefined}
-                      aria-label={`Jump to ${cue.label}`}
                       className={cn(
                         "group hover:bg-accent/50 flex w-full cursor-pointer items-baseline gap-4 rounded-md bg-inherit px-3 py-2.5 text-left",
                         isActive && "bg-accent",
                       )}
                     >
                       <code className="shrink-0 font-mono text-xs leading-relaxed text-muted-foreground">
+                        <span className="sr-only">Jump to </span>
                         {cue.label}
                       </code>
                       <span

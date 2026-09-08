@@ -6,8 +6,8 @@ import { PodcastTranscript } from "./PodcastTranscript"
 
 export function PodcastEpisodeLayout({ children }: React.PropsWithChildren) {
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="min-w-0 lg:col-span-2">
         <div className="mb-4 lg:mb-0">
           <YouTubeEmbed />
         </div>

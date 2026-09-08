@@ -10,7 +10,8 @@ import {
   FolderPlusIcon,
   TrashIcon,
 } from "lucide-react"
-import React, { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useMemo, useRef } from "react"
+import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "../../context/workspace"
 import { Directory, File } from "../../domain/workspace"
@@ -18,7 +19,6 @@ import {
   State,
   useExplorerDispatch,
   useExplorerState,
-  useRemove,
   useRename,
 } from "../file-explorer"
 import { FileInput } from "./file-input"
@@ -60,7 +60,7 @@ export function FileNode({
   const handle = useWorkspaceHandle()
   const state = useExplorerState()
   const [selectedPath, setSelectedPath] = useAtom(handle.selectedPath)
-  const [showControls, setShowControls] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const rename = useRename()
   const isEditing = useMemo(
     () => state._tag === "Editing" && Equal.equals(state.node, node),
@@ -80,6 +80,7 @@ export function FileNode({
 
   return isEditing ? (
     <FileInput
+      finalFocus={triggerRef}
       type={node._tag}
       depth={depth}
       initialValue={node.name}
@@ -87,24 +88,20 @@ export function FileNode({
     />
   ) : (
     <FileNodeRoot
-      className={cn(
-        showControls ? "grid-cols-[minmax(0,1fr)_auto]" : "auto-cols-auto",
-        className,
-      )}
+      className={cn("grid-cols-[minmax(0,1fr)_auto]", className)}
       isSelected={isSelected}
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
     >
       <FileNodeTrigger
+        ref={triggerRef}
         depth={depth}
+        expanded={props.type === "directory" ? props.isOpen : undefined}
+        current={props.type === "file" && isSelected}
         onClick={(event) => handleClick(event, node)}
       >
         <FileNodeIcon {...props} />
         <FileNodeName node={node} />
       </FileNodeTrigger>
-      {showControls && (
-        <FileNodeControls className="justify-self-end" node={node} />
-      )}
+      <FileNodeControls className="justify-self-end" node={node} />
     </FileNodeRoot>
   )
 }
@@ -113,26 +110,20 @@ function FileNodeRoot({
   children,
   className,
   isSelected,
-  onMouseEnter,
-  onMouseLeave,
 }: React.PropsWithChildren<{
   readonly className?: string
   readonly isSelected: boolean
-  readonly onMouseEnter: () => void
-  readonly onMouseLeave: () => void
 }>) {
   return (
     <div
       data-selected={isSelected}
       className={cn(
-        "grid items-center rounded-md transition-colors",
+        "group grid items-center rounded-md transition-colors",
         isSelected
           ? "group bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
           : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
         className,
       )}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     >
       {children}
     </div>
@@ -140,11 +131,17 @@ function FileNodeRoot({
 }
 
 function FileNodeTrigger({
+  ref,
   children,
   depth,
+  expanded,
+  current,
   onClick,
 }: React.PropsWithChildren<{
   readonly depth: number
+  readonly ref: React.Ref<HTMLButtonElement>
+  readonly expanded?: boolean | undefined
+  readonly current: boolean
   readonly onClick: React.MouseEventHandler<HTMLButtonElement>
 }>) {
   const paddingLeft = depth * 12 + 6
@@ -152,8 +149,11 @@ function FileNodeTrigger({
 
   return (
     <button
+      ref={ref}
       type="button"
       style={styles}
+      aria-expanded={expanded}
+      aria-current={current ? "true" : undefined}
       className={cn(
         "grid w-full cursor-pointer grid-cols-[14px_16px_auto] items-center justify-start gap-1.5 bg-transparent py-1.5 [&_span]:truncate",
       )}
@@ -217,77 +217,60 @@ function FileNodeControls({
   readonly node: File | Directory
 }) {
   const dispatch = useExplorerDispatch()
-  const remove = useRemove()
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
     (node._tag === "Directory" || node.userManaged) && (
       <div className={cn("flex h-full items-center gap-0.5 pr-1", className)}>
         {node.userManaged && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             title="Rename"
-            className="cursor-pointer rounded p-1.5 text-zinc-400 transition-colors group-data-[selected=true]:text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 group-data-[selected=true]:hover:bg-zinc-300 group-data-[selected=true]:hover:text-zinc-800 dark:text-zinc-500 dark:group-data-[selected=true]:text-zinc-300 dark:hover:bg-zinc-700/60 dark:hover:text-zinc-200 dark:group-data-[selected=true]:hover:bg-zinc-600/60 dark:group-data-[selected=true]:hover:text-white"
+            aria-label={`Rename ${node.name}`}
             onClick={() => dispatch(State.Editing({ node }))}
           >
             <FilePenIcon size={16} />
-          </button>
+          </Button>
         )}
         {node._tag === "Directory" && (
           <>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               title="New File"
-              className="cursor-pointer rounded p-1.5 text-zinc-400 transition-colors group-data-[selected=true]:text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 group-data-[selected=true]:hover:bg-zinc-300 group-data-[selected=true]:hover:text-zinc-800 dark:text-zinc-500 dark:group-data-[selected=true]:text-zinc-300 dark:hover:bg-zinc-700/60 dark:hover:text-zinc-200 dark:group-data-[selected=true]:hover:bg-zinc-600/60 dark:group-data-[selected=true]:hover:text-white"
+              aria-label={`New file in ${node.name}`}
               onClick={() =>
                 dispatch(State.Creating({ parent: node, type: "File" }))
               }
             >
               <FilePlusIcon size={16} />
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
               title="New Folder"
-              className="cursor-pointer rounded p-1.5 text-zinc-400 transition-colors group-data-[selected=true]:text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 group-data-[selected=true]:hover:bg-zinc-300 group-data-[selected=true]:hover:text-zinc-800 dark:text-zinc-500 dark:group-data-[selected=true]:text-zinc-300 dark:hover:bg-zinc-700/60 dark:hover:text-zinc-200 dark:group-data-[selected=true]:hover:bg-zinc-600/60 dark:group-data-[selected=true]:hover:text-white"
+              aria-label={`New folder in ${node.name}`}
               onClick={() =>
                 dispatch(State.Creating({ parent: node, type: "Directory" }))
               }
             >
               <FolderPlusIcon size={16} />
-            </button>
+            </Button>
           </>
         )}
-        {node.userManaged &&
-          (confirmDelete ? (
-            <div className="flex items-center gap-1 px-1">
-              <button
-                type="button"
-                className="cursor-pointer rounded px-1.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                onClick={() => {
-                  remove(node)
-                  setConfirmDelete(false)
-                }}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                className="cursor-pointer rounded px-1.5 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-700/60"
-                onClick={() => setConfirmDelete(false)}
-              >
-                No
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              title="Delete"
-              className="cursor-pointer rounded p-1.5 text-zinc-400 transition-colors group-data-[selected=true]:text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 group-data-[selected=true]:hover:bg-zinc-300 group-data-[selected=true]:hover:text-zinc-800 dark:text-zinc-500 dark:group-data-[selected=true]:text-zinc-300 dark:hover:bg-zinc-700/60 dark:hover:text-zinc-200 dark:group-data-[selected=true]:hover:bg-zinc-600/60 dark:group-data-[selected=true]:hover:text-white"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <TrashIcon size={16} />
-            </button>
-          ))}
+        {node.userManaged && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Delete"
+            aria-label={`Delete ${node.name}`}
+            onClick={(event) => {
+              dispatch(State.Deleting({ node, trigger: event.currentTarget }))
+            }}
+          >
+            <TrashIcon size={16} />
+          </Button>
+        )}
       </div>
     )
   )

@@ -6,6 +6,7 @@ import { ChevronDown, Menu } from "@lucide/astro"
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import DocShell from "@/layouts/DocShell.astro"
+import Disclosure from "@/components/ui/Disclosure.astro"
 import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
 import { buildDocsSidebar } from "@/lib/docs-sections"
 
@@ -82,14 +83,12 @@ const tocItems = headings
   section={section}
 >
   <!-- Mobile docs menu -->
-  <div
-    slot="mobile-nav"
-    class="sticky top-[var(--sticky-header-height)] z-40 border-b border-border bg-background/95 backdrop-blur-sm lg:hidden"
-  >
-    <details class="group">
-      <summary
-        class="flex w-full cursor-pointer select-none list-none items-center gap-2 px-4 py-3 text-sm font-medium text-navigation-heading"
-      >
+  <div slot="mobile-nav" class="relative">
+    <Disclosure
+      label={`Docs menu: ${currentLabel}`}
+      triggerClass="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-navigation-heading"
+    >
+      <Fragment slot="trigger">
         <Menu class="h-5 w-5 -translate-y-px" aria-hidden="true" />
         <span>Docs menu</span>
         <span class="text-muted-foreground">/</span>
@@ -98,14 +97,14 @@ const tocItems = headings
           class="ml-auto h-4 w-4 transition-transform group-open:rotate-180"
           aria-hidden="true"
         />
-      </summary>
+      </Fragment>
       <nav
         aria-label="Documentation navigation"
-        class="max-h-[60vh] overflow-y-auto border-t border-border px-4 py-4"
+        class="absolute inset-x-0 top-full max-h-[calc(100dvh_-_var(--sticky-header-height)_-_var(--secondary-navigation-height))] overflow-y-auto border-y border-border bg-background px-4 py-4 shadow-lg"
       >
         <DocsSidebarTree items={items} currentId={entry.id} />
       </nav>
-    </details>
+    </Disclosure>
   </div>
 
   <!-- Desktop sidebar -->

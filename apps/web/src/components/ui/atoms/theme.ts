@@ -10,12 +10,14 @@ let transitionTimeout: number | undefined
 
 function applyThemeClass(theme: Theme) {
   const root = document.documentElement
-  root.classList.add("theme-transition")
   clearTimeout(transitionTimeout)
-  transitionTimeout = window.setTimeout(
-    () => root.classList.remove("theme-transition"),
-    300,
-  )
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    root.classList.add("theme-transition")
+    transitionTimeout = window.setTimeout(
+      () => root.classList.remove("theme-transition"),
+      300,
+    )
+  }
 
   const isDark =
     theme === "dark" ||

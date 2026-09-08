@@ -7,6 +7,7 @@ interface SearchTriggerIslandProps {
   readonly mode: "desktop" | "mobile"
   readonly onTrigger?: () => void
   readonly openDelayMs?: number
+  readonly compact?: boolean
 }
 
 interface SearchShortcut {
@@ -66,6 +67,7 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
   mode,
   onTrigger,
   openDelayMs = 0,
+  compact = false,
 }: SearchTriggerIslandProps) {
   const [shortcut, setShortcut] = useState<SearchShortcut>(META_SHORTCUT)
 
@@ -124,14 +126,18 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
       onClick={onClick}
       className={cn(
         "flex h-8 cursor-pointer appearance-none items-center gap-2 rounded-md border bg-transparent px-2.5 py-1 text-sm transition-colors",
-        "border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-white",
+        "border-border-strong text-muted-foreground hover:bg-muted hover:text-foreground",
+        compact && "size-[40px] shrink-0 justify-center p-0",
       )}
     >
       <Search className="h-4.5 w-4.5" aria-hidden="true" />
-      <span>Search</span>
+      <span className={compact ? "sr-only" : undefined}>Search</span>
       <kbd
         aria-hidden="true"
-        className="inline-flex items-center justify-center gap-0.5 text-[12px] leading-none text-muted-foreground"
+        className={cn(
+          "items-center justify-center gap-0.5 text-[12px] leading-none text-muted-foreground",
+          compact ? "hidden" : "inline-flex",
+        )}
       >
         <span>{shortcut.label}</span>
         <span>K</span>

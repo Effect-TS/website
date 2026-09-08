@@ -1,4 +1,12 @@
-import { useEffect, useId } from "react"
+import { useRef } from "react"
+import { Button } from "@/components/ui/Button"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 export function ConfirmDialog({
   open,
@@ -7,6 +15,7 @@ export function ConfirmDialog({
   confirmLabel,
   onConfirm,
   onClose,
+  finalFocus,
 }: {
   readonly open: boolean
   readonly title: string
@@ -14,68 +23,38 @@ export function ConfirmDialog({
   readonly confirmLabel: string
   readonly onConfirm: () => void
   readonly onClose: () => void
+  readonly finalFocus?: import("react").RefObject<HTMLElement | null>
 }) {
-  const id = useId()
-
-  useEffect(() => {
-    if (!open) return
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-    }
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
-  }, [open, onClose])
-
-  if (!open) return null
-
+  const cancel = useRef<HTMLButtonElement>(null)
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={`${id}-title`}
-      aria-describedby={`${id}-description`}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
     >
-      <button
-        type="button"
-        aria-label="Close dialog"
-        onClick={onClose}
-        className="absolute inset-0 animate-[fadeIn_0.2s_ease-out] bg-black/25 backdrop-blur-sm"
-      />
-      <div className="relative w-full max-w-md animate-[dialogIn_0.25s_ease-out] rounded-md border border-zinc-300 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
-        <h2
-          id={`${id}-title`}
-          className="text-lg font-semibold text-zinc-900 dark:text-white"
-        >
-          {title}
-        </h2>
-        <p
-          id={`${id}-description`}
-          className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400"
-        >
-          {description}
-        </p>
-        <div className="mt-6 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            className="cursor-pointer rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-white"
-            onClick={onClose}
-            autoFocus
-          >
+      <DialogContent
+        initialFocus={cancel}
+        finalFocus={finalFocus}
+        showCloseButton={false}
+      >
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+        <DialogFooter>
+          <Button ref={cancel} variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="cursor-pointer rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+          </Button>
+          <Button
+            variant="destructive"
             onClick={() => {
               onConfirm()
               onClose()
             }}
           >
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

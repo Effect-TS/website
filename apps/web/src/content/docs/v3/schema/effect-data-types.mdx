@@ -151,14 +151,14 @@ The `Schema.Option` function is useful for converting an `Option` into a JSON-se
 Schema.Option(schema: Schema<A, I, R>)
 ```
 
-##### Decoding
+#### Decoding
 
 | Input                        | Output                                                                              |
 | ---------------------------- | ----------------------------------------------------------------------------------- |
 | `{ _tag: "None" }`           | Converted to `Option.none()`                                                        |
 | `{ _tag: "Some", value: I }` | Converted to `Option.some(a)`, where `I` is decoded into `A` using the inner schema |
 
-##### Encoding
+#### Encoding
 
 | Input            | Output                                                                                          |
 | ---------------- | ----------------------------------------------------------------------------------------------- |
@@ -519,14 +519,14 @@ Schema.Either(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input                          | Output                                                                                          |
 | ------------------------------ | ----------------------------------------------------------------------------------------------- |
 | `{ _tag: "Left", left: LI }`   | Converted to `Either.left(LA)`, where `LI` is decoded into `LA` using the inner `left` schema   |
 | `{ _tag: "Right", right: RI }` | Converted to `Either.right(RA)`, where `RI` is decoded into `RA` using the inner `right` schema |
 
-##### Encoding
+#### Encoding
 
 | Input              | Output                                                                                                      |
 | ------------------ | ----------------------------------------------------------------------------------------------------------- |
@@ -584,14 +584,14 @@ Schema.EitherFromSelf(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input              | Output                                                                                          |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
 | `Either.left(LI)`  | Converted to `Either.left(LA)`, where `LI` is decoded into `LA` using the inner `left` schema   |
 | `Either.right(RI)` | Converted to `Either.right(RA)`, where `RI` is decoded into `RA` using the inner `right` schema |
 
-##### Encoding
+#### Encoding
 
 | Input              | Output                                                                                          |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
@@ -649,14 +649,14 @@ Schema.EitherFromUnion(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input | Output                                                                                          |
 | ----- | ----------------------------------------------------------------------------------------------- |
 | `LI`  | Converted to `Either.left(LA)`, where `LI` is decoded into `LA` using the inner `left` schema   |
 | `RI`  | Converted to `Either.right(RA)`, where `RI` is decoded into `RA` using the inner `right` schema |
 
-##### Encoding
+#### Encoding
 
 | Input              | Output                                                                            |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -717,14 +717,14 @@ Schema.Exit(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input                                              | Output                                                                                                                                            |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `{ _tag: "Failure", cause: CauseEncoded<FI, DI> }` | Converted to `Exit.failCause(Cause<FA>)`, where `CauseEncoded<FI, DI>` is decoded into `Cause<FA>` using the inner `failure` and `defect` schemas |
 | `{ _tag: "Success", value: SI }`                   | Converted to `Exit.succeed(SA)`, where `SI` is decoded into `SA` using the inner `success` schema                                                 |
 
-##### Encoding
+#### Encoding
 
 | Input                       | Output                                                                                                                                                                   |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -854,14 +854,14 @@ Schema.ExitFromSelf(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input                       | Output                                                                                                                                 |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `Exit.failCause(Cause<FI>)` | Converted to `Exit.failCause(Cause<FA>)`, where `Cause<FI>` is decoded into `Cause<FA>` using the inner `failure` and `defect` schemas |
 | `Exit.succeed(SI)`          | Converted to `Exit.succeed(SA)`, where `SI` is decoded into `SA` using the inner `success` schema                                      |
 
-##### Encoding
+#### Encoding
 
 | Input                       | Output                                                                                                                                 |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -939,13 +939,13 @@ The `Schema.ReadonlySet` function is useful for converting a `ReadonlySet` into 
 Schema.ReadonlySet(schema: Schema<A, I, R>)
 ```
 
-##### Decoding
+#### Decoding
 
 | Input              | Output                                                                              |
 | ------------------ | ----------------------------------------------------------------------------------- |
 | `ReadonlyArray<I>` | Converted to `ReadonlySet<A>`, where `I` is decoded into `A` using the inner schema |
 
-##### Encoding
+#### Encoding
 
 | Input            | Output                                                                   |
 | ---------------- | ------------------------------------------------------------------------ |
@@ -990,13 +990,13 @@ The `Schema.ReadonlySetFromSelf` function is designed for scenarios where `Reado
 Schema.ReadonlySetFromSelf(schema: Schema<A, I, R>)
 ```
 
-##### Decoding
+#### Decoding
 
 | Input            | Output                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------- |
 | `ReadonlySet<I>` | Converted to `ReadonlySet<A>`, where `I` is decoded into `A` using the inner schema |
 
-##### Encoding
+#### Encoding
 
 | Input            | Output                                                                 |
 | ---------------- | ---------------------------------------------------------------------- |
@@ -1046,13 +1046,13 @@ Schema.ReadonlyMap(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input                              | Output                                                                                                                                                        |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ReadonlyArray<readonly [KI, VI]>` | Converted to `ReadonlyMap<KA, VA>`, where `KI` is decoded into `KA` using the inner `key` schema and `VI` is decoded into `VA` using the inner `value` schema |
 
-##### Encoding
+#### Encoding
 
 | Input                 | Output                                                                                                                                                                     |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1117,13 +1117,13 @@ Schema.ReadonlyMapFromSelf(options: {
 })
 ```
 
-##### Decoding
+#### Decoding
 
 | Input                 | Output                                                                                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ReadonlyMap<KI, VI>` | Converted to `ReadonlyMap<KA, VA>`, where `KI` is decoded into `KA` using the inner `key` schema and `VI` is decoded into `VA` using the inner `value` schema |
 
-##### Encoding
+#### Encoding
 
 | Input                 | Output                                                                                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |

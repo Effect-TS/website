@@ -126,7 +126,8 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
           document.documentElement.dataset.theme = "dark"
           return
         }
-        var stored = localStorage.getItem("theme")
+        var stored
+        try { stored = localStorage.getItem("theme") } catch (_) {}
         if (stored) { try { stored = JSON.parse(stored) } catch (_) {} }
         var isDark
         if (stored === "light") {

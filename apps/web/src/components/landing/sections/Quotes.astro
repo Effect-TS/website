@@ -137,6 +137,14 @@ const copies = [0, 1, 2] as const
         <div class="flex gap-2">
           <button
             type="button"
+            data-role="pause"
+            hidden
+            aria-pressed="false"
+            class="min-h-10 rounded-md border border-border-strong bg-card px-3 text-sm text-foreground"
+            >Pause scrolling</button
+          >
+          <button
+            type="button"
             data-role="previous"
             aria-label="Scroll quotes left"
             disabled
@@ -161,6 +169,7 @@ const copies = [0, 1, 2] as const
       <div
         data-role="rail"
         tabindex="0"
+        role="region"
         aria-label="Developer quotes"
         class="quotes-rail flex gap-4 overflow-x-auto px-4 select-none [scrollbar-width:none] [-ms-overflow-style:none] [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
       >
@@ -172,6 +181,7 @@ const copies = [0, 1, 2] as const
                 <article
                   data-role="card"
                   data-copy={copyIndex}
+                  aria-hidden={copyIndex !== 1 ? "true" : undefined}
                   class="quotes-card min-h-54 md:min-h-56 w-65 md:w-80 p-4 md:p-6 flex flex-col shrink-0 border border-zinc-700 bg-zinc-950"
                 >
                   <p class="text-sm md:text-base text-zinc-400 leading-relaxed">"{quote.text}"</p>
@@ -234,6 +244,8 @@ const copies = [0, 1, 2] as const
     #isInView = false
     #isPointerDragging = false
     #isPaused = false
+    #userPaused = false
+    #pauseButton: HTMLButtonElement | null = null
     #ignoreScrollEventsUntil = 0
     #pointerId: number | null = null
     #dragStartX = 0
@@ -265,6 +277,9 @@ const copies = [0, 1, 2] as const
       this.#nextButton.disabled = false
 
       this.#motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+      this.#pauseButton = this.querySelector('[data-role="pause"]')
+      this.#pauseButton?.toggleAttribute("hidden", this.#motionQuery.matches)
+      this.#pauseButton?.addEventListener("click", this.#onPauseClick)
 
       this.#measure()
       this.#setInitialPosition()
@@ -274,6 +289,7 @@ const copies = [0, 1, 2] as const
     }
 
     disconnectedCallback() {
+      this.#pauseButton?.removeEventListener("click", this.#onPauseClick)
       this.#observer?.disconnect()
       this.#resizeObserver?.disconnect()
       this.#stopAutoScroll()
@@ -385,7 +401,13 @@ const copies = [0, 1, 2] as const
     }
 
     #getReducedMotion() {
-      return this.#motionQuery?.matches === true
+      return this.#userPaused || this.#motionQuery?.matches === true
+    }
+
+    #onPauseClick = () => {
+      this.#userPaused = !this.#userPaused
+      this.#pauseButton?.setAttribute("aria-pressed", String(this.#userPaused))
+      this.#updateAutoScrollState()
     }
 
     #startAutoScroll() {
@@ -605,6 +627,7 @@ const copies = [0, 1, 2] as const
     }
 
     #onMotionPreferenceChange = () => {
+      this.#pauseButton?.toggleAttribute("hidden", this.#motionQuery?.matches === true)
       this.#updateAutoScrollState()
     }
   }
@@ -615,6 +638,9 @@ const copies = [0, 1, 2] as const
 </script>
 
 <style>
+  effect-quotes[data-enhanced="false"] [data-copy]:not([data-copy="1"]) {
+    display: none;
+  }
   .quotes-rail {
     padding-left: max(1rem, calc((100vw - 73.75rem) / 2 + 1rem));
     padding-right: max(1rem, calc((100vw - 73.75rem) / 2 + 1rem));

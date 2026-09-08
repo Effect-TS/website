@@ -1,0 +1,24 @@
+---
+import type { HTMLAttributes } from "astro/types"
+import { Search } from "@lucide/astro"
+
+interface Props extends Omit<HTMLAttributes<"input">, "type" | "aria-label"> {
+  label: string
+}
+
+const { label, class: className, ...props } = Astro.props
+---
+
+<label class:list={["relative block not-prose", className]}>
+  <span class="sr-only">{label}</span>
+  <Search
+    class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+    aria-hidden="true"
+  />
+  <input
+    {...props}
+    type="search"
+    autocomplete="off"
+    class="w-full rounded-lg border border-input bg-transparent py-2 pr-4 pl-11 font-mono text-sm text-foreground placeholder:text-muted-foreground"
+  />
+</label>

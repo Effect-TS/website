@@ -105,7 +105,7 @@ export const ChromeDevTools: monaco.editor.IStandaloneThemeData = {
     "editor.foreground": "#000000",
     "editor.background": "#FFFFFF",
     "editor.selectionBackground": "#BAD6FD",
-    "editor.lineHighlightBackground": "#0000001A",
+    "editor.lineHighlightBackground": "#00000004",
     "editorCursor.foreground": "#000000",
     "editorWhitespace.foreground": "#B3B3B3F4",
   },

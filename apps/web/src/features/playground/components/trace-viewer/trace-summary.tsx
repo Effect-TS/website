@@ -25,10 +25,8 @@ export function TraceSummary() {
 
   return (
     <p className="ml-px py-3">
-      <span className="flex items-center text-sm text-zinc-500 dark:text-zinc-400">
-        <span className="mr-2 font-bold text-zinc-900 dark:text-white">
-          Summary
-        </span>
+      <span className="flex flex-wrap items-center text-sm text-muted-foreground">
+        <span className="mr-2 font-bold text-foreground">Summary</span>
         <span>{summary}</span>
       </span>
     </p>

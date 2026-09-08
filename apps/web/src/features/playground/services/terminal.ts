@@ -26,7 +26,7 @@ export class Terminal extends Context.Service<
     spawn: Effect.fnUntraced(function* (options) {
       let resizeObserver: ResizeObserver | undefined
       const terminal = yield* Effect.acquireRelease(
-        Effect.sync(() => new XTerm(options)),
+        Effect.sync(() => new XTerm({ ...options, screenReaderMode: true })),
         (terminal) =>
           Effect.sync(() => {
             resizeObserver?.disconnect()

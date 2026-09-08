@@ -287,7 +287,7 @@ function commentHtml(
     markdown === undefined ? [] : [renderMarkdown(markdown, options)]
   const see = seeMarkdown(value, options)
   if (see !== undefined) {
-    blocks.push("<h4>See</h4>", renderMarkdown(see, options))
+    blocks.push("<p><strong>See</strong></p>", renderMarkdown(see, options))
   }
   return blocks.length > 0 ? blocks.join("") : undefined
 }
@@ -305,6 +305,7 @@ function renderMarkdown(
     .processSync(removeEmptyTableRows(markdown))
     .toString()
     .trim()
+    .replaceAll("<pre>", '<pre tabindex="0">')
     .replaceAll("<table>", '<div class="api-table"><table>')
     .replaceAll("</table>", "</table></div>")
 }
@@ -369,7 +370,7 @@ function commentMarkdown(
   if (value === undefined) return undefined
   const blocks = [commentPartsMarkdown(value.summary, options).trim()]
   const see = includeSee ? seeMarkdown(value, options) : undefined
-  if (see !== undefined) blocks.push("#### See", see)
+  if (see !== undefined) blocks.push("**See**", see)
   const markdown = blocks.filter(Boolean).join("\n\n")
   return markdown.length > 0 ? markdown : undefined
 }

@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content"
 import { Image } from "astro:assets"
-import { ChevronLeft, ChevronRight, CornerRightDown } from "@lucide/astro"
+import { CornerRightDown } from "@lucide/astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import Footer from "@/components/Footer.astro"
@@ -9,7 +9,8 @@ import DitheredOverlay from "@/components/DitheredOverlay.astro"
 import GridRails from "@/components/GridRails.astro"
 import Link from "@/components/Link.astro"
 import SocialLink from "@/components/SocialLink.astro"
-import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import Main from "@/components/layout/Main.astro"
+import CarouselControls from "@/components/ui/CarouselControls.astro"
 
 const products = await getCollection("merch")
 
@@ -28,7 +29,7 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
 
     <Navigation />
 
-    <main id={PAGE_TITLE_ID} class="relative w-full">
+    <Main class="relative w-full">
       <!-- Hero Section -->
       <section class="relative w-full bg-zinc-950 pt-16 pb-16">
         <div class="mx-auto w-full max-w-295 px-4">
@@ -37,7 +38,7 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
             <div class="flex flex-col gap-6 lg:pr-8">
               <h1 class="text-[3.052rem] font-semibold leading-tight text-white md:text-[3.815rem]">
                 Show off your
-                <span class="effect-badge relative inline-block px-4 py-1.5 font-mono">
+                <span class="effect-badge relative inline-block max-w-full px-4 py-1.5 font-mono">
                   <span class="corner-bracket corner-tl corner-amber"></span>
                   <span class="corner-bracket corner-tr corner-amber"></span>
                   <span class="corner-bracket corner-bl corner-amber"></span>
@@ -133,21 +134,10 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
                       />
                     ))}
 
-                    <button
-                      data-carousel-prev
-                      class="absolute left-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-zinc-400 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 md:flex"
-                      aria-label="Previous image"
-                    >
-                      <ChevronLeft class="size-8" />
-                    </button>
-
-                    <button
-                      data-carousel-next
-                      class="absolute right-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-zinc-400 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 md:flex"
-                      aria-label="Next image"
-                    >
-                      <ChevronRight class="size-8" />
-                    </button>
+                    <CarouselControls
+                      count={product.data.images.length}
+                      label={product.data.name}
+                    />
 
                     <div class="absolute right-3 top-3" aria-hidden="true">
                       <svg width="64" height="8" viewBox="86 86 755 87" fill="none">
@@ -187,19 +177,6 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
                           points="799.8,154.7 799.8,86.2 779.9,86.2 779.9,172 779.9,172 841.2,172 841.2,154.7"
                         />
                       </svg>
-                    </div>
-
-                    <div class="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-                      {product.data.images.map((_, i) => (
-                        <button
-                          data-carousel-dot
-                          class:list={[
-                            "carousel-dot h-1.5 w-1.5 cursor-pointer rounded-full transition-colors",
-                            { "is-active": i === 0 },
-                          ]}
-                          aria-label={`Go to image ${i + 1}`}
-                        />
-                      ))}
                     </div>
                   </div>
 
@@ -259,7 +236,7 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
           </div>
         </div>
       </section>
-    </main>
+    </Main>
 
     <Footer />
   </div>
@@ -338,16 +315,6 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
   .carousel-image.is-active {
     display: block;
   }
-
-  .carousel-dot {
-    background-color: rgb(161 161 170);
-  }
-  .carousel-dot.is-active {
-    background-color: rgb(24 24 27);
-  }
-  .carousel-dot:not(.is-active):hover {
-    background-color: rgb(82 82 91);
-  }
 </style>
 
 <script>
@@ -359,10 +326,10 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
 
     function showImage(idx: number) {
       images[current]?.classList.remove("is-active")
-      dots[current]?.classList.remove("is-active")
+      dots[current]?.removeAttribute("aria-current")
       current = ((idx % total) + total) % total
       images[current]?.classList.add("is-active")
-      dots[current]?.classList.add("is-active")
+      dots[current]?.setAttribute("aria-current", "true")
     }
 
     carousel.querySelector("[data-carousel-prev]")?.addEventListener("click", () => {

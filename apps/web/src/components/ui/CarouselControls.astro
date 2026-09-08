@@ -1,0 +1,45 @@
+---
+import { ChevronLeft, ChevronRight } from "@lucide/astro"
+interface Props {
+  count: number
+  label: string
+}
+const { count, label } = Astro.props
+---
+
+<div role="group" aria-label={`${label} images`}>
+  <button
+    type="button"
+    data-carousel-prev
+    class="absolute left-0 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded bg-background/90 text-foreground"
+    aria-label={`Previous ${label} image`}
+  >
+    <ChevronLeft aria-hidden="true" />
+  </button>
+  <button
+    type="button"
+    data-carousel-next
+    class="absolute right-0 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded bg-background/90 text-foreground"
+    aria-label={`Next ${label} image`}
+  >
+    <ChevronRight aria-hidden="true" />
+  </button>
+  <div class="absolute inset-x-2 bottom-2 flex flex-wrap justify-center gap-1">
+    {
+      Array.from({ length: count }, (_, i) => (
+        <button
+          type="button"
+          data-carousel-dot
+          aria-current={i === 0 ? "true" : undefined}
+          aria-label={`${label}, image ${i + 1} of ${count}`}
+          class="group/dot flex size-7 items-center justify-center rounded bg-background/90 text-muted-foreground aria-current:text-foreground"
+        >
+          <span
+            aria-hidden="true"
+            class="size-2 rounded-full border border-current group-aria-current/dot:bg-current"
+          />
+        </button>
+      ))
+    }
+  </div>
+</div>

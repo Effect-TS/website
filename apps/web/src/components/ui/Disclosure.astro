@@ -1,0 +1,91 @@
+---
+interface Props {
+  label: string
+  class?: string
+  triggerClass?: string
+  panelClass?: string
+}
+
+const { label, class: className, triggerClass, panelClass } = Astro.props
+---
+
+<site-disclosure class:list={["block", className]}>
+  <details class="group/disclosure">
+    <summary
+      aria-label={label}
+      class:list={["cursor-pointer list-none [&::-webkit-details-marker]:hidden", triggerClass]}
+    >
+      <slot name="trigger">{label}</slot>
+    </summary>
+    <div class={panelClass}>
+      <slot />
+    </div>
+  </details>
+</site-disclosure>
+
+<style>
+  @media (max-height: 30rem) {
+    details > div {
+      max-height: 80dvh;
+    }
+  }
+</style>
+
+<script>
+  class SiteDisclosure extends HTMLElement {
+    #events?: AbortController
+
+    connectedCallback() {
+      this.#events?.abort()
+      this.#events = new AbortController()
+      const options = { signal: this.#events.signal }
+      const details = this.querySelector("details")
+      const trigger = details?.querySelector("summary")
+      if (!details || !trigger) return
+
+      this.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.key === "Escape" && details.open) {
+            event.preventDefault()
+            details.open = false
+            trigger.focus()
+          }
+        },
+        options,
+      )
+      this.addEventListener(
+        "click",
+        (event) => {
+          if (event.target instanceof Element && event.target.closest("a[href]")) {
+            details.open = false
+            trigger.focus({ preventScroll: true })
+          }
+        },
+        options,
+      )
+      document.addEventListener(
+        "pointerdown",
+        (event) => {
+          if (event.target instanceof Node && !this.contains(event.target)) details.open = false
+        },
+        options,
+      )
+      this.addEventListener(
+        "focusout",
+        (event) => {
+          if (event.relatedTarget instanceof Node && !this.contains(event.relatedTarget))
+            details.open = false
+        },
+        options,
+      )
+    }
+
+    disconnectedCallback() {
+      this.#events?.abort()
+    }
+  }
+
+  if (!customElements.get("site-disclosure"))
+    customElements.define("site-disclosure", SiteDisclosure)
+</script>

@@ -1,0 +1,26 @@
+---
+interface Props {
+  src: string
+  title: string
+  description: string
+}
+
+const { src, title, description } = Astro.props
+const descriptionId = `video-${crypto.randomUUID()}`
+---
+
+<figure>
+  <video
+    controls
+    muted
+    playsinline
+    preload="metadata"
+    class="w-full"
+    aria-label={title}
+    aria-describedby={descriptionId}
+  >
+    <source src={src} type="video/mp4" />
+    <a href={src}>Download {title}</a>
+  </video>
+  <figcaption id={descriptionId}>{description}</figcaption>
+</figure>
