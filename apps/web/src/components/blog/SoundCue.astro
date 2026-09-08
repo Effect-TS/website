@@ -28,7 +28,13 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
   <button
     type="button"
     aria-label={playLabel}
-    class={cn(buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground" }))}
+    class={cn(
+      buttonVariants({
+        variant: "ghost",
+        size: "sm",
+        className: "text-muted-foreground motion-reduce:transition-none",
+      }),
+    )}
     hidden
   >
     <Play aria-hidden="true" data-play-icon />
@@ -40,6 +46,8 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
 </sound-cue>
 
 <script>
+  import { isSoundEnabled, readSoundPreference, soundPreferenceKey } from "@/lib/sound-preference"
+
   type State = "ready" | "playing" | "blocked" | "error"
 
   class CuePlayer {
@@ -47,7 +55,9 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
     readonly cues = new Set<SoundCueElement>()
     #events = new AbortController()
     #interaction: AbortController | undefined
-    #played = false
+    #automaticComplete = false
+    #automaticPlayback = false
+    #reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
     #starting = false
     #state: State = "ready"
     #message = ""
@@ -67,18 +77,30 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
       )
       this.audio.addEventListener("pause", () => this.#update("ready"), { signal })
       this.audio.addEventListener("ended", () => this.#update("ready"), { signal })
+      this.#reducedMotion.addEventListener("change", this.#onPreferenceChange, { signal })
+      window.addEventListener(
+        "storage",
+        (event) => {
+          if (event.key === null || event.key === soundPreferenceKey) this.#onPreferenceChange()
+        },
+        { signal },
+      )
     }
 
     add(cue: SoundCueElement) {
       this.cues.add(cue)
       cue.update(this.#state, this.#message)
-      if (cue.hasAttribute("data-first-interaction") && !this.#played && !this.#interaction) {
+      if (
+        cue.hasAttribute("data-first-interaction") &&
+        !this.#automaticComplete &&
+        !this.#interaction
+      ) {
         this.#interaction = new AbortController()
         const options = { capture: true, signal: this.#interaction.signal }
         document.addEventListener("click", this.#onInteraction, options)
         document.addEventListener("keydown", this.#onInteraction, options)
         // A visitor may interact before this component's script has loaded.
-        if (navigator.userActivation?.hasBeenActive) void this.#play()
+        if (navigator.userActivation?.hasBeenActive) void this.#play(true)
       }
     }
 
@@ -91,7 +113,19 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
         return
       // A Play button handles its own click, including Enter/Space activation.
       if (event.target instanceof Element && event.target.closest("sound-cue button")) return
-      void this.#play()
+      void this.#play(true)
+    }
+
+    #allowsAutomatic() {
+      return isSoundEnabled(readSoundPreference(), this.#reducedMotion.matches)
+    }
+
+    #onPreferenceChange = () => {
+      if (this.#automaticPlayback && !this.#allowsAutomatic()) {
+        this.#completeAutomatic()
+        this.audio.pause()
+        this.#update("ready")
+      }
     }
 
     toggle() {
@@ -103,7 +137,7 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
     }
 
     #completeAutomatic() {
-      this.#played = true
+      this.#automaticComplete = true
       this.#interaction?.abort()
       this.#interaction = undefined
     }
@@ -111,13 +145,19 @@ const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0
     #update(state: State, message = "") {
       this.#state = state
       this.#message = message
+      if (state !== "playing") this.#automaticPlayback = false
       for (const cue of this.cues) cue.update(state, message)
     }
 
-    async #play() {
+    async #play(automatic = false) {
       if (this.#starting) return
+      if (automatic && !this.#allowsAutomatic()) {
+        this.#completeAutomatic()
+        return
+      }
       this.#starting = true
       this.#update("ready")
+      this.#automaticPlayback = automatic
       try {
         this.audio.currentTime = 0
         await this.audio.play()

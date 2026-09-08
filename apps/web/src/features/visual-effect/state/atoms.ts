@@ -5,6 +5,7 @@ import type { ExampleDefinition } from "@/features/visual-effect/model/example-d
 import type { SoundSettings } from "@/features/visual-effect/model/sound"
 import { SoundManager } from "@/features/visual-effect/runtime/SoundManager"
 import { VisualEffectManager } from "@/features/visual-effect/runtime/VisualEffectManager"
+import { isSoundEnabled } from "@/lib/sound-preference"
 import {
   prefersReducedMotionAtom,
   soundPreferenceAtom,
@@ -103,11 +104,5 @@ export const soundEnabledAtom = Atom.make((get) => {
   if (!unlocked) {
     return false
   }
-  if (preference === "off") {
-    return false
-  }
-  if (preference === "on") {
-    return true
-  }
-  return !prefersReducedMotion
+  return isSoundEnabled(preference, prefersReducedMotion)
 }).pipe(Atom.withLabel("visual-effects:sound-enabled"), Atom.keepAlive)

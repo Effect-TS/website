@@ -4,6 +4,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import { isSoundEnabled } from "@/lib/sound-preference"
 import {
   soundCueKey,
   type SoundCue,
@@ -48,22 +49,10 @@ export class SoundManager extends Context.Service<
       }
     }
 
-    const isSoundEnabled = () => {
+    const soundIsEnabled = () => {
       const soundPreference = registry.get(soundPreferenceAtom)
       const prefersReducedMotion = registry.get(prefersReducedMotionAtom)
-
-      // Do not play sounds if the user has explicitly disabled them
-      if (soundPreference === "off") {
-        return false
-      }
-
-      if (soundPreference === "on") {
-        return true
-      }
-
-      // If the user prefers reduced motion and they've set their sound
-      // preference to system, respect their preferences
-      return prefersReducedMotion === false
+      return isSoundEnabled(soundPreference, prefersReducedMotion)
     }
 
     const isPlayableCue = Effect.fn(function* (cue: SoundCue) {
@@ -79,7 +68,7 @@ export class SoundManager extends Context.Service<
     })
 
     const play = Effect.fn(function* (cue: SoundCue) {
-      const soundEnabled = isSoundEnabled()
+      const soundEnabled = soundIsEnabled()
       if (!soundEnabled) {
         return yield* Effect.void
       }
