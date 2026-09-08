@@ -34,7 +34,7 @@ this tutorial all give the same result:
 
 ## Shape the failure surface
 
-Nothing in a try/catch signature tells you what can fail. Here is a common
+Nothing in the signature of a try/catch function tells you what can fail. Here is a common
 version of the payment step without `Effect`: three named error classes, a
 type guard (a function that narrows a type), and a try around each await.
 
@@ -71,7 +71,9 @@ function isAuthorization(body: unknown): body is Authorization {
 // Tutorial fixture: sandbox tokens make provider results reproducible.
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
-const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
+const authorizePayment = async (
+  token: PaymentToken,
+): Promise<Authorization> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -146,7 +148,7 @@ Every one of these still compiles:
 1. `error instanceof PaymentDeclinedError` compiles even if `processPayment`
    never throws it.
 1. Forgetting an error that `processPayment` does throw still compiles.
-1. Adding a new thrown error inside `processPayment` later: every caller still
+1. When `processPayment` starts throwing a new error later, every caller still
    compiles, and the failure reaches production.
 
 A **good function signature** is a contract with three clauses:
@@ -173,14 +175,15 @@ An `Effect<Success, Error>` is a description of a program with both a `Success` 
 | `Success`      | what it returns on success |
 | `Error`        | how it can fail            |
 
-All possible failures in an `Effect`'s `Error` type parameter are exposed as a union type.
+An `Effect`'s `Error` type parameter exposes all possible failures as a union type.
 
 Now `processPayment`'s signature shows how it can fail: with a
 `PaymentDeclinedError`, `NetworkError`, or `ParseError`.
 
 <Aside type="note" title="Checkpoint">
-  You can now read a signature and treat it as a contract. `Effect`'s `Success` and `Error` type
-  parameters show the information needed without needing to read the implementation.
+  You can now read a signature and treat it as a contract. `Effect`'s `Success`
+  and `Error` type parameters show what you need without reading the
+  implementation.
 </Aside>
 
 ## Model failures as values
@@ -214,8 +217,9 @@ error._tag // => "ParseError"
 ```
 
 <Aside type="tip" title="Why use a class?">
-  In TypeScript a class is both a type _and_ a value. One declaration gives you the failure type to
-  name in a signature and the constructor to build it, with no extra imports.
+  In TypeScript a class is both a type _and_ a value. One declaration gives you
+  the failure type to name in a signature and the constructor to build it, with
+  no extra imports.
 </Aside>
 
 Refactor the three error classes to `Data.TaggedError`:
@@ -277,13 +281,13 @@ async function processPayment(token: PaymentToken): Promise<Authorization> {
 }
 ```
 
-The `{ ... }` after each `TaggedError` declares the fields' shape a failure
-carries.
+The `{ ... }` after each `TaggedError` declares the shape of the fields the
+failure carries.
 
 <Aside type="note" title="Checkpoint">
-  You now model each failure as a value: a class from `Data.TaggedError`, with an `Error` suffix and
-  a `_tag` that tells it apart from the others. These values are the members of an `Effect`'s
-  `Error` union.
+  You now model each failure as a value: a class from `Data.TaggedError`, with
+  an `Error` suffix and a `_tag` that tells it apart from the others. These
+  values are the members of an `Effect`'s `Error` union.
 </Aside>
 
 ## Rewrite `processPayment` with Effect
@@ -308,9 +312,12 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
-const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
+const authorizePayment = async (
+  token: PaymentToken,
+): Promise<Authorization> => {
   if (token === "tok_timeout") throw new Error("Provider unreachable")
-  if (token === "tok_declined") return { authorizationId: "pauth_123", status: "declined" }
+  if (token === "tok_declined")
+    return { authorizationId: "pauth_123", status: "declined" }
   return { authorizationId: "pauth_123", status: "authorized" }
 }
 // ---cut---
@@ -377,7 +384,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
-const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
+const authorizePayment = async (
+  token: PaymentToken,
+): Promise<Authorization> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -421,7 +430,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
-const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
+const authorizePayment = async (
+  token: PaymentToken,
+): Promise<Authorization> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -524,23 +535,23 @@ The compiler inferred its `Error` type parameter as the union of all three failu
 from the values you yield. You never wrote it by hand.
 
 <Aside type="tip" title="More delegation to TypeScript's compiler">
-  `Effect` infers both type parameters from the steps you build, so you rarely write an `Effect`
-  signature by hand.
+  `Effect` infers both type parameters from the steps you build, so you rarely
+  write an `Effect` signature by hand.
 </Aside>
 <Aside type="note" title="Checkpoint">
-  You now build the work with `Effect.gen`, take each success with `yield*`, wrap a `Promise` with
-  `Effect.tryPromise`, and fail by yielding a tagged error.
+  You now build the work with `Effect.gen`, take each success with `yield*`,
+  wrap a `Promise` with `Effect.tryPromise`, and fail by yielding a tagged
+  error.
 </Aside>
 
-## Recovering from failures
+## Recover from failures
 
 The signature lists what can fail. Now read it from the other side: a caller
 that uses the list to recover.
 
 ### `Effect.catchTag` handles one failure
 
-`Effect.catchTag` takes the `_tag` property of one failure and a handler, which is an `Effect`.
-The handler receives the typed failure as a parameter, not `unknown`. The example uses `pipe`, which applies a function to the `Effect`, like method chaining:
+`Effect.catchTag` takes the `_tag` of one failure and a handler. The handler is an `Effect` that receives the typed failure as a parameter, not `unknown`. The example uses `pipe`, which applies a function to the `Effect`, like method chaining:
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -562,7 +573,10 @@ type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
 const processPayment = (
   token: PaymentToken,
-): Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError> =>
+): Effect.Effect<
+  Authorization,
+  PaymentDeclinedError | NetworkError | ParseError
+> =>
   token === "tok_declined"
     ? Effect.fail(new PaymentDeclinedError())
     : token === "tok_timeout"
@@ -596,13 +610,11 @@ So the `Success` type parameter now covers both: `string | Authorization`.
 
 </Aside>
 
-Compared to the `try`/`catch` version the `error` is not `unknown` anymore. The handler receives a `PaymentDeclinedError`.
-
-Tracking the errors in the `Error` type parameter gives TypeScript's compiler another job: it won't compile a handler for a `_tag` that isn't in the union.
+The compiler now has another job: it won't compile a handler for a `_tag` that isn't in the union.
 
 ### `Effect.catchTags` handles all the failures
 
-`Effect.catchTags`, notice the `s` at the end, handles all the tracked failures.
+`Effect.catchTags`, notice the `s` at the end, handles all the tracked failures with one table: an object keyed by `_tag`.
 
 For each `_tag`, its handler receives the typed failure:
 
@@ -626,7 +638,10 @@ type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
 const processPayment = (
   token: PaymentToken,
-): Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError> =>
+): Effect.Effect<
+  Authorization,
+  PaymentDeclinedError | NetworkError | ParseError
+> =>
   token === "tok_declined"
     ? Effect.fail(new PaymentDeclinedError())
     : token === "tok_timeout"
@@ -654,8 +669,6 @@ Two more rules the compiler enforces:
 1. Whatever the table misses stays in the `Error` type. The result is
    `Effect.Effect<Authorization, ParseError>`.
 
-Failures not handled stay in the signature until someone handles them.
-
 When all the errors are handled, the `Error` type parameter becomes `never`:
 
 ```ts twoslash import.meta.vitest showLineNumbers=false
@@ -678,7 +691,10 @@ type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
 declare const processPayment: (
   token: PaymentToken,
-) => Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
+) => Effect.Effect<
+  Authorization,
+  PaymentDeclinedError | NetworkError | ParseError
+>
 // ---cut---
 //    ┌─ (token: PaymentToken) => Effect.Effect<string | Authorization, never>
 //    ▼
@@ -693,16 +709,17 @@ const recover = (token: PaymentToken) =>
 ```
 
 <Aside type="note" title="Why `never`?">
-  `never` is TypeScript's empty type: the union with no members left. Each handled tag drops out of
-  the union, and once the last one is gone there is nothing to name, so the type is `never`. It is
-  the type-level way of saying "this can no longer fail."
+  `never` is TypeScript's empty type: the union with no members left. Each
+  handled tag drops out of the union, and once the last one is gone there is
+  nothing to name, so the type is `never`. It is the type-level way of saying
+  "this can no longer fail."
 </Aside>
 
-Every failure tracked in the `Error` type parameter until now is an **expected failure**. But `never` does not mean the code cannot fail.
+Every failure tracked in the `Error` type parameter until now is an expected failure. But `never` does not mean the code cannot fail.
 
 An unexpected failure can still happen: an uncaught exception, or a programming error you never planned for. Not every failure belongs in the `Error` type parameter.
 
-In `Effect` these **unexpected failures** are called **defects**.
+In `Effect` these are called **defects**.
 
 <Aside type="note" title="Checkpoint">
   The `Error` type is now a to-do list the compiler keeps for you. It shrinks
