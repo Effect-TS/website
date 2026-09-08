@@ -531,3 +531,183 @@ from the values you yield. You never wrote it by hand.
   You now build the work with `Effect.gen`, take each success with `yield*`, wrap a `Promise` with
   `Effect.tryPromise`, and fail by yielding a tagged error.
 </Aside>
+
+## Recovering from failures
+
+The signature lists what can fail. Now read it from the other side: a caller
+that uses the list to recover.
+
+### `Effect.catchTag` handles one failure
+
+`Effect.catchTag` takes the `_tag` property of one failure and a handler, which is an `Effect`.
+The handler receives the typed failure as a parameter, not `unknown`. The example uses `pipe`, which applies a function to the `Effect`, like method chaining:
+
+```ts twoslash import.meta.vitest
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+const processPayment = (
+  token: PaymentToken,
+): Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError> =>
+  token === "tok_declined"
+    ? Effect.fail(new PaymentDeclinedError())
+    : token === "tok_timeout"
+      ? Effect.fail(new NetworkError({}))
+      : Effect.succeed({ authorizationId: "pauth_123", status: "authorized" })
+// ---cut---
+const outcome = processPayment("tok_declined").pipe(
+  Effect.catchTag("PaymentDeclinedError", (cause) =>
+    //                                     └─ `PaymentDeclinedError`
+    Effect.succeed("Payment declined"),
+  ),
+)
+
+await Effect.runPromise(outcome) // => "Payment declined"
+```
+
+The handled failure leaves the `Error` type parameter. The others stay:
+
+{/* prettier-ignore */}
+```ts showLineNumbers=false
+//                                    ┌─ `PaymentDeclinedError` is removed
+//                                    ▼
+Effect.Effect<string | Authorization, NetworkError | ParseError>
+```
+
+<Aside type="note" title="Success type widens too">
+  The handler returns `Effect.succeed("Payment declined")`, a `string`, while
+  the original success was an `Authorization`.
+
+So the `Success` type parameter now covers both: `string | Authorization`.
+
+</Aside>
+
+Compared to the `try`/`catch` version the `error` is not `unknown` anymore. The handler receives a `PaymentDeclinedError`.
+
+Tracking the errors in the `Error` type parameter gives TypeScript's compiler another job: it won't compile a handler for a `_tag` that isn't in the union.
+
+### `Effect.catchTags` handles all the failures
+
+`Effect.catchTags`, notice the `s` at the end, handles all the tracked failures.
+
+For each `_tag`, its handler receives the typed failure:
+
+```ts twoslash import.meta.vitest
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+const processPayment = (
+  token: PaymentToken,
+): Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError> =>
+  token === "tok_declined"
+    ? Effect.fail(new PaymentDeclinedError())
+    : token === "tok_timeout"
+      ? Effect.fail(new NetworkError({}))
+      : Effect.succeed({ authorizationId: "pauth_123", status: "authorized" })
+// ---cut---
+const outcome = processPayment("tok_timeout").pipe(
+  Effect.catchTags({
+    //             ┌─ `NetworkError`
+    //             ▼
+    NetworkError: (cause) => Effect.succeed("Provider unreachable, try again"),
+
+    //                     ┌─ `PaymentDeclinedError`
+    //                     ▼
+    PaymentDeclinedError: (cause) => Effect.succeed("Payment declined"),
+  }),
+)
+
+await Effect.runPromise(outcome) // => "Provider unreachable, try again"
+```
+
+Two more rules the compiler enforces:
+
+1. Every key must be a `_tag` from the union. A typo does not compile.
+1. Whatever the table misses stays in the `Error` type. The result is
+   `Effect.Effect<Authorization, ParseError>`.
+
+Failures not handled stay in the signature until someone handles them.
+
+When all the errors are handled, the `Error` type parameter becomes `never`:
+
+```ts twoslash import.meta.vitest showLineNumbers=false
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+declare const processPayment: (
+  token: PaymentToken,
+) => Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
+// ---cut---
+//    ┌─ (token: PaymentToken) => Effect.Effect<string | Authorization, never>
+//    ▼
+const recover = (token: PaymentToken) =>
+  processPayment(token).pipe(
+    Effect.catchTags({
+      NetworkError: () => Effect.succeed("..."),
+      ParseError: () => Effect.succeed("..."),
+      PaymentDeclinedError: () => Effect.succeed("..."),
+    }),
+  )
+```
+
+<Aside type="note" title="Why `never`?">
+  `never` is TypeScript's empty type: the union with no members left. Each handled tag drops out of
+  the union, and once the last one is gone there is nothing to name, so the type is `never`. It is
+  the type-level way of saying "this can no longer fail."
+</Aside>
+
+Every failure tracked in the `Error` type parameter until now is an **expected failure**. But `never` does not mean the code cannot fail.
+
+An unexpected failure can still happen: an uncaught exception, or a programming error you never planned for. Not every failure belongs in the `Error` type parameter.
+
+In `Effect` these **unexpected failures** are called **defects**.
+
+<Aside type="note" title="Checkpoint">
+  The `Error` type is now a to-do list the compiler keeps for you. It shrinks
+  as you handle failures.
+
+"Did I cover every case?" is now answered by the type, not by reading the implementation.
+
+</Aside>
