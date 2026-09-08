@@ -44,25 +44,25 @@ flows, screenshots, and the browser accessibility tree.
 
 ## Shared fixes
 
-| Area                   | Findings and implementation                                                                                                                                                                                                                                                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Page landmarks         | `Main.astro` supplies a single focusable skip-link destination across docs, API, marketing, events, and the playground. The playground has a page heading and a named main landmark.                                                                                                                                                             |
-| Navigation             | `Disclosure.astro` provides native disclosure semantics, Escape/focus recovery, and closing on link activation, outside interaction, or focus departure. Docs, event navigation, contents menus, and calendar links use it.                                                                                                                      |
-| Sticky content         | `StickySubnav.astro` measures secondary navigation for anchor clearance. Headers become non-sticky in short viewports. Compact docs controls and a non-shrinking logo remain usable with enlarged text.                                                                                                                                          |
-| Dialogs and menus      | Shared Base UI primitives provide bounded, scrollable dialogs, focus containment, initial/final focus, and Escape. Theme and blog category menus use radio items. Explicit menu names take precedence over generated trigger labels.                                                                                                             |
-| Theme and focus        | Stronger subtle-text, destructive, callout, and focus tokens replace low-contrast styling. Buttons and ordinary links share a visible focus outline. Theme changes respect reduced motion.                                                                                                                                                       |
-| Documentation tabs     | Named tablists, labelled panels, selected state, arrow/Home/End navigation, and optional storage. Without JavaScript, every example and its label remains readable.                                                                                                                                                                              |
-| Code and API reference | Expressive Code supplies focusable, numbered code regions and higher-contrast line numbers. Long declaration names and metadata wrap. Raw JSDoc code can scroll with the keyboard. Examples use figures/captions; generated “See” labels do not impose a heading level.                                                                          |
-| Filter results         | `FilterStatus.astro` announces package/module counts. Blog filtering and pagination announce the result count and page.                                                                                                                                                                                                                          |
-| Homepage               | A native package-manager select and separate copy button replace nested controls. The copy result is announced. Quote scrolling has an explicit pause control, honors reduced motion, and hides duplicate slides from the accessibility tree.                                                                                                    |
-| Merch                  | `CarouselControls.astro` provides named previous/next controls, 28px image targets, and current-image state.                                                                                                                                                                                                                                     |
-| Playground             | File actions are always available to keyboard users. Inputs have names and focus recovery. Deletion confirmation is owned by the explorer so removing a row does not unmount the focus manager. After deletion, focus returns to the explorer's first control. Sharing uses the common dialog with named copy/download controls and status text. |
-| Editor and terminal    | Monaco is named and uses automatic accessibility support. Visible instructions explain its native Tab-navigation shortcut. The light current-line tint preserves syntax contrast. xterm's screen-reader mode is enabled. Mobile file/editor panels stack vertically.                                                                             |
-| Trace viewer           | Native trace selection, keyboard column resizing, named span controls, expanded states, contextual duration/error names, and row/column headers. Empty and populated views were exercised.                                                                                                                                                       |
-| Podcast                | Transcript cue names retain the visible text. Desktop follow-playback is explicit; a user pause persists and focus in the transcript pauses following. Chapter and guest links wrap.                                                                                                                                                             |
-| Motion and media       | Shared reduced-motion styles cover CSS animation and transitions. The loader honors reduced motion and announces progress. `VideoFigure.astro` provides native playback controls and descriptions for the three silent video uses.                                                                                                               |
-| Content structure      | Footer/job headings, documentation section levels, release-post section levels, and Micro comparison-table headers were corrected in their source content. Event inclusions expose “Included” and “Not included” text.                                                                                                                           |
-| Reflow                 | Shared prose, heading/link wrapping, navigation, footer, API metadata, calls to action, ticket rows, podcast columns, and merch badges were corrected at their shared layout/component boundaries.                                                                                                                                               |
+| Area                   | Findings and implementation                                                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Page landmarks         | `Main.astro` supplies a single focusable skip-link destination across docs, API, marketing, events, and the playground. The playground has a page heading and a named main landmark.                                                                                                                                     |
+| Navigation             | `Disclosure.astro` provides native disclosure semantics, Escape/focus recovery, and closing on link activation, outside interaction, or focus departure. Docs, event navigation, contents menus, and calendar links use it.                                                                                              |
+| Sticky content         | `StickySubnav.astro` measures secondary navigation for anchor clearance. Headers become non-sticky in short viewports. Compact docs controls and a non-shrinking logo remain usable with enlarged text.                                                                                                                  |
+| Dialogs and menus      | Shared Base UI primitives provide bounded, scrollable dialogs, focus containment, initial/final focus, and Escape. Theme and blog category menus use radio items. Explicit menu names take precedence over generated trigger labels.                                                                                     |
+| Theme and focus        | Stronger subtle-text, destructive, callout, and focus tokens replace low-contrast styling. Buttons and ordinary links share a visible focus outline. Theme changes respect reduced motion.                                                                                                                               |
+| Documentation tabs     | Named tablists, labelled panels, selected state, arrow/Home/End navigation, and optional storage. Without JavaScript, every example and its label remains readable.                                                                                                                                                      |
+| Code and API reference | Expressive Code supplies focusable, numbered code regions and higher-contrast line numbers. Long declaration names and metadata wrap. Raw JSDoc code can scroll with the keyboard. Examples use figures/captions; generated “See” labels do not impose a heading level.                                                  |
+| Filter results         | `FilterStatus.astro` announces package/module counts. Blog filtering and pagination announce the result count and page.                                                                                                                                                                                                  |
+| Homepage               | `InstallCommand` preserves the package-manager logo dropdown and uses the shared radio menu beside a separate copy button. The copy result is announced. Quote scrolling has an explicit pause control, honors reduced motion, and hides duplicate slides from the accessibility tree.                                   |
+| Merch                  | `CarouselControls.astro` provides named previous/next controls, 24px image targets around the original 6px dots, and current-image state. The controls retain their appearance over light product photographs.                                                                                                           |
+| Playground             | File actions appear on hover, keyboard focus, and touch devices. Inputs have names and focus recovery. Inline deletion initially focuses No; Escape restores Delete, and confirmed deletion focuses the explorer before removing the row. Sharing uses the shared Base UI popover with named controls and live feedback. |
+| Editor and terminal    | Monaco is named and uses automatic accessibility support. A keyboard-help control explains its native Tab-navigation shortcut. The light current-line tint preserves syntax contrast. xterm's screen-reader mode is enabled. Mobile file/editor panels stack vertically.                                                 |
+| Trace viewer           | The shared radio menu handles trace selection with the original selector appearance. Column resizing, span controls, expanded states, duration/error names, and row/column headers have keyboard and accessibility-tree support.                                                                                         |
+| Podcast                | Transcript cue names retain the visible text. Desktop follow-playback is explicit; a user pause persists and focus in the transcript pauses following. Chapter and guest links wrap.                                                                                                                                     |
+| Motion and media       | Shared reduced-motion styles cover CSS animation and transitions. The loader honors reduced motion and announces progress. `VideoFigure.astro` provides native playback controls and descriptions for the three silent video uses.                                                                                       |
+| Content structure      | Footer/job headings, documentation section levels, release-post section levels, and Micro comparison-table headers were corrected in their source content. Event inclusions expose “Included” and “Not included” text.                                                                                                   |
+| Reflow                 | Shared prose, heading/link wrapping, navigation, footer, API metadata, calls to action, ticket rows, podcast columns, and merch badges were corrected at their shared layout/component boundaries.                                                                                                                       |
 
 ## Verification
 
@@ -99,6 +99,113 @@ After rebasing onto current `main`, verification passed again:
 The broad crawl evidence below predates the rebase. Post-rebase logs are
 `site-post-rebase-tests.log` and `site-post-rebase-e2e.log` in the same local
 evidence directory.
+
+### Install panel visual regression
+
+The initial audit replaced the homepage's logo dropdown with a native
+select and changed the panel's background and spacing. Automated accessibility
+checks did not catch that design regression. After the user reported it on PR
+#1539, `InstallCommand.tsx` restored the logo dropdown, divider, spacing, and panel
+styling through the shared radio menu and a separate copy button.
+
+Both homepage instances were visually compared with `https://effect.website` at
+1280, 390, and 320 pixels. The desktop and 390-pixel panels retain their original
+52-pixel height. At 320 pixels the command wraps rather than truncates, giving the
+panel a 58-pixel height. Enlarged text stacks the controls when needed.
+
+- Keyboard regression covers opening, selected-item state, Escape focus recovery,
+  selection, Tab to Copy, clipboard contents, and feedback in both panels.
+- All five package managers fit at all three widths with normal and 200% text,
+  for 30 panel states. This checks panel containment, not whole-page reflow at
+  every enlarged-text width.
+- The open menu and closed panels have zero axe violations at all three widths.
+- The default command remains readable without JavaScript.
+
+Local evidence: `install-visual-verification.json`,
+`install-package-manager-states.json`, and the `install-original-*` and
+`install-restored-*` screenshots in the evidence directory documented below.
+
+### Site-wide visual regression review
+
+The user reported further design regressions after the install-panel fix.
+The review compared the full PR diff with `86af6759`, the pre-audit revision,
+running that revision locally with the same API dataset. Automated accessibility
+results had missed changes to component appearance and interaction patterns.
+
+| Component or area        | Regression and correction                                                                                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docs navigation          | Restored the Docs label, divider, section spacing, bordered version segments, navigation background, and menu close icon. The full navigation fits from 960px; narrower layouts use the shared disclosure. |
+| Theme menu               | Restored the moon in dark mode, sun in light mode, icon sizes, dropdown width, border, padding, and item spacing.                                                                                          |
+| Shared disclosures       | Restored docs/event close icons and calendar/contents chevron rotation. Focus entering a menu rendered through a portal keeps its parent disclosure open.                                                  |
+| Blog category menu       | Restored placement below the trigger, square item treatment, spacing, and the original selection marker. Removed the extra radio-indicator column.                                                         |
+| Homepage install panels  | Restored logos, chevron, divider, background, dimensions, and separate keyboard-operable selection/copy actions in both instances.                                                                         |
+| Quote controls           | Replaced the added wide pause-label button with an icon control matching the arrow buttons. Its accessible name and pressed state remain available.                                                        |
+| Merch carousel           | Removed the added background boxes and always-visible desktop arrows. Larger transparent targets surround the small dots; arrows appear on hover and keyboard focus.                                       |
+| Playground file explorer | Restored the original background, compact hover actions, and inline Yes/No confirmation. Keyboard focus also reveals the actions.                                                                          |
+| Playground sharing       | Restored the anchored Share popover, original dimensions, and input/button arrangement. Base UI supplies focus management and Escape.                                                                      |
+| Playground confirmations | Restored the modal width, padding, text spacing, button sizing, and neutral confirmation treatment.                                                                                                        |
+| Editor and trace viewer  | Moved the added instruction strip into a keyboard-help popover. Restored trace-panel colors, radio-menu selection, and the narrow visible column separator with a larger transparent hit area.             |
+| Shared colors            | Restored callout tint hues and green API JSDoc links. Separate foreground tokens provide text contrast without recoloring backgrounds. Form borders no longer supply button background colors.             |
+| Footer                   | Removed the blanket opaque fill, preserving the original gradient and page backdrop.                                                                                                                       |
+| Dark-only pages          | Merch and brand assets now use the existing `BaseLayout` dark-mode setting, so a saved light preference cannot put dark footer text over their fixed dark backgrounds.                                     |
+| Blog media               | Removed added caption/control rows from the document flow. Play/Stop controls overlay the GIF previews, descriptions remain in the accessibility tree, and the 644px demo retains its natural dimensions.  |
+
+The final screenshot capture includes 47 routes and 158 baseline/corrected pairs,
+316 rendered page states. It covers 1280px and 390px, with both themes for docs,
+blog, and the playground. All requested routes returned the expected status.
+Screenshots include page tops, full pages under 12,000px tall, and footers.
+Separate captures exercise open menus, sharing, confirmations, quote controls,
+media, and podcast transcripts. Earlier exploratory captures included a podcast
+URL with an invalid trailing slash; the final set uses the canonical route.
+
+The review also inspected the source-only changes: landmarks and labels, code
+focus/region names, tab initialization, API wrapping, transcript-follow behavior,
+heading levels, table headers, media descriptions, and alternative text. Heading
+level corrections retain the shared typography for each semantic level. Narrow
+layouts wrap long API names and stack playground panels to keep them usable.
+
+Verification after these corrections passed formatting for 810 files,
+lint/TypeScript for 425 files, Astro checks for 334 files, all 332 unit tests,
+and all 20 browser regressions. New regressions cover both install panels,
+desktop docs geometry, mobile nested-menu focus, natural GIF dimensions, inline
+deletion, sharing, and editor keyboard help.
+
+Late verification found and corrected the fixed-dark-page theme mismatch,
+homepage feature-grid and CTA width constraints, and podcast breadcrumb contrast.
+The final project check passed, and the homepage/merch browser tests passed again.
+Homepage and docs root widths match the viewport in 28 states: 320, 390, 768, 960,
+1024, 1280, and 1536px, each with normal and 200% root text. Both default install
+commands remain readable without JavaScript. All seven native animation controls
+and their posters also passed a no-JS check with reduced motion.
+
+The 84-state accessibility rerun covered 14 affected routes in six width/theme
+combinations. It reported two light-theme merch states with the footer contrast
+failure. After correcting the theme boundary, a 24-state check of homepage,
+merch, brand assets, and the podcast episode had no violations, readiness errors,
+unexpected status, or root overflow. These runs have 28,151 and 22,310 incomplete
+contrast occurrences respectively. The first also has 12 caption, four required-
+children, and two link-in-text incompletes; the second has two link-in-text
+incompletes. They remain review requests.
+
+Open-control checks cover 32 distinct states across 16 scenarios. Four states
+retain axe's `region` recommendation for theme/category menus portalled outside
+the page landmarks. The pointer-open category menu also triggers
+`scrollable-region-focusable` in both themes. Its popup is already focused with
+`tabindex="-1"`; ArrowDown and End navigate its items, End scrolls it by 87px,
+and the scrollability flag clears after keyboard navigation. These flags are
+recorded rather than suppressed or addressed by adding unrelated landmarks.
+The final ten-state follow-up has 24 `aria-hidden-focus`, four
+`aria-valid-attr-value`, 10,988 contrast, and two link-in-text incomplete node
+occurrences. Populated trace selection was separately exercised with two fixture
+traces. Selection, focus restoration, rendering, and axe passed in both themes.
+
+Evidence is in `visual-audit/final`, `visual-check-final.log`,
+`visual-unit-final.log`, and `visual-e2e-final.log` under the local evidence
+directory. `visual-audit/verified` contains the corrected podcast capture and
+menu-rule follow-up. `visual-axe-final.json`, `visual-axe-verified.json`,
+`visual-reflow-verified.json`, `visual-trace-verified.json`, and
+`visual-e2e-late.log` record the later checks. The original broad crawl below
+describes the earlier audit revision.
 
 ### Automated results
 

@@ -96,7 +96,7 @@ export function FileInput({
             ref={inputRef}
             type="text"
             aria-label={type === "File" ? "File name" : "Folder name"}
-            className="w-full rounded-sm border border-input bg-background p-0 px-1 text-sm text-foreground"
+            className="w-full rounded-sm border border-input bg-popover p-0 px-1 text-sm text-foreground"
             value={fileName}
             onChange={handleChange}
             onFocus={(e) => e.target.select()}

@@ -33,10 +33,10 @@ export function PlaygroundLoader() {
           transition={{ duration: reducedMotion ? 0 : 0.5 }}
           role="status"
           aria-label="Loading Playground"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navigation-background p-4"
         >
-          <div className="w-full max-w-sm rounded-md border border-border bg-card p-6">
-            <p className="font-mono text-sm font-medium tracking-wider text-foreground uppercase">
+          <div className="w-full max-w-sm rounded-md border border-border bg-popover/40 p-6">
+            <p className="font-mono text-sm font-medium tracking-wider text-prose-foreground uppercase">
               Loading Playground
             </p>
             <div className="mt-4 mb-5 h-px bg-border" />

@@ -32,14 +32,19 @@ export default function ThemeToggle({
       <DropdownMenuTrigger
         aria-label="Change theme"
         className={cn(
-          "flex min-h-8 min-w-8 items-center justify-center text-muted-foreground hover:text-foreground",
+          "flex min-h-6 min-w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
           className,
         )}
       >
-        <Sun size={18} className="hidden dark:block" aria-hidden="true" />
-        <Moon size={18} className="dark:hidden" aria-hidden="true" />
+        <Sun size={20} className="dark:hidden" aria-hidden="true" />
+        <Moon size={20} className="hidden dark:block" aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent aria-label="Theme" align="end" className="min-w-36">
+      <DropdownMenuContent
+        aria-label="Theme"
+        align="end"
+        sideOffset={8}
+        className="w-36 rounded-md border border-border-strong bg-popover px-0 py-1 shadow-lg ring-0"
+      >
         <DropdownMenuRadioGroup value={theme}>
           {options.map(({ value, icon: Icon, label }) => (
             <DropdownMenuRadioItem
@@ -47,8 +52,9 @@ export default function ThemeToggle({
               value={value}
               onClick={() => selectTheme(value)}
               closeOnClick
+              className="gap-2.5 rounded-none py-2 pl-3 text-muted-foreground aria-checked:text-foreground"
             >
-              <Icon size={16} aria-hidden="true" />
+              <Icon className="size-[15px]" aria-hidden="true" />
               {label}
             </DropdownMenuRadioItem>
           ))}

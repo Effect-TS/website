@@ -42,6 +42,14 @@ const { label, class: className, triggerClass, panelClass } = Astro.props
       const details = this.querySelector("details")
       const trigger = details?.querySelector("summary")
       if (!details || !trigger) return
+      const contains = (target: Node) =>
+        this.contains(target) ||
+        [...this.querySelectorAll("[aria-controls]")].some((control) =>
+          control
+            .getAttribute("aria-controls")
+            ?.split(/\s+/)
+            .some((id) => document.getElementById(id)?.contains(target)),
+        )
 
       this.addEventListener(
         "keydown",
@@ -67,14 +75,14 @@ const { label, class: className, triggerClass, panelClass } = Astro.props
       document.addEventListener(
         "pointerdown",
         (event) => {
-          if (event.target instanceof Node && !this.contains(event.target)) details.open = false
+          if (event.target instanceof Node && !contains(event.target)) details.open = false
         },
         options,
       )
       this.addEventListener(
         "focusout",
         (event) => {
-          if (event.relatedTarget instanceof Node && !this.contains(event.relatedTarget))
+          if (event.relatedTarget instanceof Node && !contains(event.relatedTarget))
             details.open = false
         },
         options,

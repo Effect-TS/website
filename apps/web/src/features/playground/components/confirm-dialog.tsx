@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog"
 
 export function ConfirmDialog({
@@ -37,15 +36,26 @@ export function ConfirmDialog({
         initialFocus={cancel}
         finalFocus={finalFocus}
         showCloseButton={false}
+        overlayClassName="bg-black/25 backdrop-blur-sm"
+        className="block rounded-md border border-border-strong bg-popover p-6 shadow-2xl ring-0 sm:max-w-md"
       >
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-        <DialogFooter>
-          <Button ref={cancel} variant="outline" onClick={onClose}>
+        <DialogTitle className="text-lg font-semibold leading-normal">
+          {title}
+        </DialogTitle>
+        <DialogDescription className="mt-3 leading-relaxed">
+          {description}
+        </DialogDescription>
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <Button
+            ref={cancel}
+            variant="outline"
+            className="h-auto rounded-lg px-4 py-2"
+            onClick={onClose}
+          >
             Cancel
           </Button>
           <Button
-            variant="destructive"
+            className="h-auto rounded-lg px-4 py-2"
             onClick={() => {
               onConfirm()
               onClose()
@@ -53,7 +63,7 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

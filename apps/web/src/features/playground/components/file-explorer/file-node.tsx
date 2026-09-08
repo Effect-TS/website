@@ -10,7 +10,13 @@ import {
   FolderPlusIcon,
   TrashIcon,
 } from "lucide-react"
-import React, { useCallback, useMemo, useRef } from "react"
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { Button } from "@/components/ui/Button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "../../context/workspace"
@@ -20,6 +26,7 @@ import {
   useExplorerDispatch,
   useExplorerState,
   useRename,
+  useRemove,
 } from "../file-explorer"
 import { FileInput } from "./file-input"
 
@@ -118,7 +125,7 @@ function FileNodeRoot({
     <div
       data-selected={isSelected}
       className={cn(
-        "group grid items-center rounded-md transition-colors",
+        "group group/file grid items-center rounded-md transition-colors",
         isSelected
           ? "group bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
           : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
@@ -209,6 +216,17 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
   return <span>{fileName}</span>
 }
 
+function FileActionButton(props: React.ComponentProps<typeof Button>) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      className="size-7 cursor-pointer rounded border-0 p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+      {...props}
+    />
+  )
+}
+
 function FileNodeControls({
   className,
   node,
@@ -217,60 +235,102 @@ function FileNodeControls({
   readonly node: File | Directory
 }) {
   const dispatch = useExplorerDispatch()
+  const remove = useRemove()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const deleteTrigger = useRef<HTMLButtonElement>(null)
+  const cancel = useRef<HTMLButtonElement>(null)
+  const wasConfirming = useRef(false)
+  useLayoutEffect(() => {
+    if (confirmDelete) cancel.current?.focus()
+    else if (wasConfirming.current) deleteTrigger.current?.focus()
+    wasConfirming.current = confirmDelete
+  }, [confirmDelete])
 
   return (
     (node._tag === "Directory" || node.userManaged) && (
-      <div className={cn("flex h-full items-center gap-0.5 pr-1", className)}>
-        {node.userManaged && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Rename"
-            aria-label={`Rename ${node.name}`}
-            onClick={() => dispatch(State.Editing({ node }))}
-          >
-            <FilePenIcon size={16} />
-          </Button>
+      <div
+        className={cn(
+          "w-0 overflow-hidden opacity-0 group-hover/file:w-auto group-hover/file:overflow-visible group-hover/file:opacity-100 group-focus-within/file:w-auto group-focus-within/file:overflow-visible group-focus-within/file:opacity-100 [@media(hover:none)]:w-auto [@media(hover:none)]:overflow-visible [@media(hover:none)]:opacity-100",
+          className,
         )}
-        {node._tag === "Directory" && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              title="New File"
-              aria-label={`New file in ${node.name}`}
-              onClick={() =>
-                dispatch(State.Creating({ parent: node, type: "File" }))
-              }
+      >
+        <div className="flex h-full items-center gap-0.5 pr-1">
+          {node.userManaged && (
+            <FileActionButton
+              title="Rename"
+              aria-label={`Rename ${node.name}`}
+              onClick={() => dispatch(State.Editing({ node }))}
             >
-              <FilePlusIcon size={16} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              title="New Folder"
-              aria-label={`New folder in ${node.name}`}
-              onClick={() =>
-                dispatch(State.Creating({ parent: node, type: "Directory" }))
-              }
-            >
-              <FolderPlusIcon size={16} />
-            </Button>
-          </>
-        )}
-        {node.userManaged && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Delete"
-            aria-label={`Delete ${node.name}`}
-            onClick={(event) => {
-              dispatch(State.Deleting({ node, trigger: event.currentTarget }))
-            }}
-          >
-            <TrashIcon size={16} />
-          </Button>
-        )}
+              <FilePenIcon size={16} />
+            </FileActionButton>
+          )}
+          {node._tag === "Directory" && (
+            <>
+              <FileActionButton
+                title="New File"
+                aria-label={`New file in ${node.name}`}
+                onClick={() =>
+                  dispatch(State.Creating({ parent: node, type: "File" }))
+                }
+              >
+                <FilePlusIcon size={16} />
+              </FileActionButton>
+              <FileActionButton
+                title="New Folder"
+                aria-label={`New folder in ${node.name}`}
+                onClick={() =>
+                  dispatch(State.Creating({ parent: node, type: "Directory" }))
+                }
+              >
+                <FolderPlusIcon size={16} />
+              </FileActionButton>
+            </>
+          )}
+          {node.userManaged &&
+            (confirmDelete ? (
+              <div
+                role="group"
+                aria-label={`Delete ${node.name}?`}
+                className="flex items-center gap-1 px-1"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault()
+                    setConfirmDelete(false)
+                  }
+                }}
+              >
+                <button
+                  type="button"
+                  className="min-h-6 cursor-pointer rounded px-1.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
+                  onClick={(event) => {
+                    event.currentTarget
+                      .closest<HTMLElement>("[data-file-explorer]")
+                      ?.focus({ preventScroll: true })
+                    remove(node)
+                  }}
+                >
+                  Yes
+                </button>
+                <button
+                  ref={cancel}
+                  type="button"
+                  className="min-h-6 cursor-pointer rounded px-1.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <FileActionButton
+                ref={deleteTrigger}
+                title="Delete"
+                aria-label={`Delete ${node.name}`}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <TrashIcon size={16} />
+              </FileActionButton>
+            ))}
+        </div>
       </div>
     )
   )

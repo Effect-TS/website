@@ -40,6 +40,13 @@ and `sky` scales.
 | `prose-foreground`            | rendered prose body text             | zinc-700    | zinc-300    |
 | `navigation-foreground`       | sidebar and TOC links                | zinc-700    | zinc-400    |
 | `navigation-heading`          | sidebar and TOC section labels       | zinc-700    | zinc-300    |
+| `navigation-background`       | navigation and explorer background   | zinc-50     | zinc-950    |
+| `control-background`          | segmented controls and trace panel   | zinc-100    | zinc-900    |
+| `control-selected`            | selected version segment             | zinc-200    | zinc-700    |
+| `control-foreground`          | version and menu controls            | zinc-600    | zinc-300    |
+| `field-background`            | playground input and selector fill   | white       | zinc-800    |
+| `image-control`               | controls over light product photos   | zinc-500    | zinc-500    |
+| `image-control-active`        | selected/hovered product controls    | zinc-900    | zinc-900    |
 | `muted-foreground`            | secondary text, metadata, labels     | zinc-600    | zinc-400    |
 | `subtle-foreground`           | timestamps, inactive labels          | custom zinc | zinc-400    |
 | `card` / `popover`            | subtle surface (see below)           | zinc-50     | zinc-900    |
@@ -58,9 +65,10 @@ and `sky` scales.
 | `input`                       | visible form-control boundary        | zinc-500    | zinc-500    |
 | `ring`                        | keyboard focus                       | emerald-700 | emerald-400 |
 | `brand`                       | Effect brand accent                  | emerald-500 | emerald-400 |
-| `warning-foreground`          | caution and unstable labels          | amber-700   | amber-400   |
-| `info-foreground`             | informational callouts               | sky-800     | sky-400     |
-| `success-foreground`          | tips and positive status             | emerald-800 | emerald-400 |
+| `brand-foreground`            | accented API JSDoc links             | emerald-700 | emerald-400 |
+| `warning-foreground`          | caution and unstable labels          | amber-700   | amber-500   |
+| `info-foreground`             | informational callouts               | blue-700    | blue-500    |
+| `success-foreground`          | tips and positive status             | emerald-800 | emerald-500 |
 | `featured` / `featured-hover` | featured blog card (custom)          | #f7f7f8     | #141315     |
 
 ### Text hierarchy
@@ -80,6 +88,10 @@ Use three neutral text levels. Order them from most to least emphasis:
   toggle classes with JavaScript.
 
 ### Surfaces and borders
+
+Callout tints use `--info`, `--success`, `--warning`, and `--danger`, with their
+original blue-500, emerald-500, amber-500, and red-500 values in both themes.
+Their foreground tokens supply readable text without changing the tint.
 
 - Use `bg-background` for the page background.
 - Use `bg-card` for an elevated or inset panel. Add opacity for a tint.
@@ -117,6 +129,8 @@ second base color:
   theme and lighter in the dark theme. Links have an underline by default.
   Remove the underline on hover. `.prose-effect` provides this style. Do not
   style links per page.
+  API JSDoc retains its green links through `brand-foreground`, which darkens in
+  the light theme for text contrast.
 - **Eyebrow and kicker labels** use monospace, uppercase text with letter
   spacing. Use `<Eyebrow as="…" class="…">` from
   `src/components/ui/Eyebrow.astro`. Do not use a raw utility string.

@@ -10,7 +10,7 @@ import { formatDuration } from "./utils"
 
 export function TraceDetails({ span }: { readonly span: Span }) {
   return (
-    <div className="mb-1 flex flex-col rounded-sm border border-border bg-card p-2">
+    <div className="mb-1 flex flex-col rounded-sm border border-border-strong bg-card p-2">
       <div className="mb-2 flex justify-between border-b border-zinc-400 px-2 pb-1 dark:border-zinc-600">
         <h3 className="text-lg font-bold">{span.label}</h3>
         {Option.isSome(span.duration) && (

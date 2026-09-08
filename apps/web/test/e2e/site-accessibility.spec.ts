@@ -34,6 +34,53 @@ for (const route of [
   })
 }
 
+test("install commands support keyboard selection and copying in both panels", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.goto("/")
+  await page.waitForFunction(
+    () => !document.querySelector('astro-island[client="load"][ssr]'),
+  )
+  const panels = page.locator("[data-install-command]")
+  await expect(panels).toHaveCount(2)
+  for (const panel of await panels.all()) {
+    const trigger = panel.getByRole("button", { name: "Package manager: npm" })
+    await trigger.focus()
+    await page.keyboard.press("ArrowDown")
+    const menu = page.getByRole("menu", {
+      name: "Package manager",
+      exact: true,
+    })
+    await expect(menu).toBeVisible()
+    await expect(
+      menu.getByRole("menuitemradio", { name: "npm", exact: true }),
+    ).toBeChecked()
+    await page.keyboard.press("Escape")
+    await expect(trigger).toBeFocused()
+    await page.keyboard.press("ArrowDown")
+    await page.keyboard.press("End")
+    await page.keyboard.press("Enter")
+    await expect(menu).toBeHidden()
+    await expect(
+      panel.getByRole("button", { name: "Package manager: deno" }),
+    ).toBeFocused()
+    await expect(panel.locator('[data-role="command-text"]')).toHaveText(
+      "deno add npm:effect@rc",
+    )
+    await page.keyboard.press("Tab")
+    await expect(
+      panel.getByRole("button", { name: "Copy install command" }),
+    ).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expect(panel.getByRole("status")).toHaveText("Copied install command")
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "deno add npm:effect@rc",
+    )
+  }
+})
+
 test("shared disclosures return focus on Escape", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   for (const [route, label] of [
@@ -53,6 +100,103 @@ test("shared disclosures return focus on Escape", async ({ page }) => {
     await expect(disclosure).not.toHaveAttribute("open", "")
     await expect(trigger).toBeFocused()
   }
+})
+
+test("docs navigation preserves its desktop layout and nests keyboard menus on mobile", async ({
+  page,
+}) => {
+  await page.goto("/docs/v4/getting-started/installation", {
+    waitUntil: "networkidle",
+  })
+  const navigation = page.getByRole("navigation", {
+    name: "Documentation",
+    exact: true,
+  })
+  for (const width of [960, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(
+      navigation.getByRole("link", { name: "Docs", exact: true }),
+    ).toBeVisible()
+    await expect(
+      navigation
+        .getByRole("link", { name: "Guides", exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible()
+    const versions = navigation
+      .getByRole("group", { name: "Documentation version" })
+      .filter({ visible: true })
+    await expect(
+      versions.getByRole("link", { name: "Effect v4 (rc) documentation" }),
+    ).toHaveAttribute("aria-current", "page")
+    const bounds = await versions.boundingBox()
+    expect(bounds!.height).toBeLessThan(40)
+    expect(bounds!.width).toBeLessThan(140)
+    expect(
+      await navigation.evaluate((element) => element.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+    expect((await navigation.boundingBox())!.height).toBe(64)
+  }
+
+  await page.setViewportSize({ width: 320, height: 900 })
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%"
+  })
+  const trigger = navigation.locator('summary[aria-label="Documentation menu"]')
+  await trigger.focus()
+  await page.keyboard.press("Enter")
+  const disclosure = trigger.locator("..")
+  const theme = disclosure.getByRole("button", {
+    name: "Change theme",
+    exact: true,
+  })
+  await theme.focus()
+  await page.keyboard.press("ArrowDown")
+  const menu = page.getByRole("menu", { name: "Theme", exact: true })
+  await expect(menu).toBeVisible()
+  await page.keyboard.press("Home")
+  await page.keyboard.press("Enter")
+  await expect(menu).toBeHidden()
+  await expect(theme).toBeFocused()
+  await expect(disclosure).toHaveAttribute("open", "")
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    320,
+  )
+  await page.keyboard.press("Escape")
+  await expect(trigger).toBeFocused()
+  await expect(disclosure).not.toHaveAttribute("open", "")
+})
+
+test("animation controls preserve the image dimensions when starting and stopping", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto("/blog/releases/playground")
+  const poster = page.getByRole("img", {
+    name: "Playground format on save",
+    exact: true,
+  })
+  await poster.scrollIntoViewIfNeeded()
+  await expect
+    .poll(() =>
+      poster.evaluate((element: HTMLImageElement) => element.naturalWidth),
+    )
+    .toBe(644)
+  const before = await poster.boundingBox()
+  expect(before!.width).toBe(644)
+  expect(before!.height).toBe(360)
+  const figure = poster.locator("..")
+  const control = figure.locator("summary")
+  await control.focus()
+  await page.keyboard.press("Enter")
+  await expect(control.locator("..")).toHaveAttribute("open", "")
+  const playing = await page
+    .getByRole("img", { name: "Playground format on save", exact: true })
+    .boundingBox()
+  expect(playing!.width).toBe(before!.width)
+  expect(playing!.height).toBe(before!.height)
+  await page.keyboard.press("Enter")
+  await expect(control.locator("..")).not.toHaveAttribute("open", "")
+  await expect(control).toBeFocused()
 })
 
 test("blog category selection supports keyboard navigation and announces results", async ({
@@ -155,23 +299,24 @@ test("playground exposes file actions to keyboard users and contains dialog focu
   })
   await remove.focus()
   await page.keyboard.press("Enter")
-  const deletion = page.getByRole("dialog", {
+  const deletion = page.getByRole("group", {
     name: "Delete accessibility-test.ts?",
     exact: true,
   })
   await expect(
-    deletion.getByRole("button", { name: "Cancel", exact: true }),
+    deletion.getByRole("button", { name: "No", exact: true }),
   ).toBeFocused()
   await page.keyboard.press("Escape")
   await expect(remove).toBeFocused()
   await page.keyboard.press("Enter")
-  await deletion.getByRole("button", { name: "Delete", exact: true }).click()
+  await page.keyboard.press("Shift+Tab")
+  await expect(
+    deletion.getByRole("button", { name: "Yes", exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press("Enter")
   await expect(created).toBeHidden()
   await expect(
-    page
-      .getByRole("complementary", { name: "Files", exact: true })
-      .getByRole("button")
-      .first(),
+    page.getByRole("complementary", { name: "Files", exact: true }),
   ).toBeFocused()
   const reset = page.getByRole("button", { name: "Reset", exact: true })
   await reset.click()
@@ -204,6 +349,17 @@ test("playground exposes file actions to keyboard users and contains dialog focu
   ).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(share).toBeFocused()
+
+  const keyboardHelp = page.getByRole("button", {
+    name: "Editor keyboard controls",
+    exact: true,
+  })
+  await keyboardHelp.click()
+  await expect(
+    page.getByRole("dialog", { name: "Editor keyboard controls" }),
+  ).toContainText("Ctrl+Shift+M")
+  await page.keyboard.press("Escape")
+  await expect(keyboardHelp).toBeFocused()
 
   await page.getByRole("tab", { name: "Trace Viewer", exact: true }).click()
   const resize = page.getByRole("separator", { name: /Name column width/ })

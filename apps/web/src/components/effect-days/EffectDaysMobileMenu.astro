@@ -1,5 +1,5 @@
 ---
-import { Menu } from "@lucide/astro"
+import { Menu, X } from "@lucide/astro"
 import Disclosure from "@/components/ui/Disclosure.astro"
 
 interface Props {
@@ -15,18 +15,21 @@ const isActive = (href: string) =>
 <Disclosure
   label="Event navigation"
   class="lg:hidden"
-  triggerClass="flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-  panelClass="absolute inset-x-0 top-full z-90 max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto border-t border-border bg-background px-4 py-3"
+  triggerClass="flex size-10 items-center justify-center rounded-lg text-control-foreground transition-colors hover:bg-muted hover:text-foreground"
+  panelClass="absolute inset-x-0 top-full z-90 max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto border-t border-border bg-navigation-background"
 >
-  <Menu slot="trigger" class="size-6" aria-hidden="true" />
-  <ul class="mx-auto max-w-295">
+  <Fragment slot="trigger">
+    <Menu class="size-6 group-open/disclosure:hidden" aria-hidden="true" />
+    <X class="hidden size-6 group-open/disclosure:block" aria-hidden="true" />
+  </Fragment>
+  <ul class="mx-auto max-w-352 px-4 py-3">
     {
       links.map((link) => (
         <li>
           <a
             href={link.href}
             aria-current={isActive(link.href) ? "page" : undefined}
-            class="block py-3 text-sm text-muted-foreground no-underline hover:text-foreground aria-[current=page]:text-foreground"
+            class="block py-3 text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground aria-[current=page]:text-foreground"
           >
             {link.label}
           </a>

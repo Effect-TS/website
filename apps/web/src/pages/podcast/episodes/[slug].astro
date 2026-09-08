@@ -7,6 +7,7 @@ import { PodcastEpisodeRoot } from "@/features/podcast/components/PodcastEpisode
 import { podcastTranscriptPath, readPodcastTranscript } from "@/features/podcast/transcript"
 import { slugifyPodcast } from "@/features/podcast/utils"
 import PageLayout from "@/layouts/PageLayout.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { cacheKey, digest } from "@/lib/cache-key"
 
 export const prerender = true
@@ -45,9 +46,7 @@ const { Content } = await render(entry)
 <PageLayout activeSlug="podcast" title={episode.title} description={episode.description}>
   <section class="relative w-full py-8 lg:py-12 overflow-hidden">
     <div class="relative mx-auto max-w-295 px-4">
-      <div
-        class="mb-2 flex flex-wrap items-center gap-2 text-sm tracking-wider text-zinc-500 font-mono font-medium uppercase"
-      >
+      <Eyebrow as="div" class="mb-2 flex flex-wrap items-center gap-2">
         <Link
           href="/podcast/"
           class="text-inherit hover:text-white no-underline hover:underline hover:underline-offset-4"
@@ -57,7 +56,7 @@ const { Content } = await render(entry)
         <span>🎙️</span>
         <span aria-hidden="true">/</span>
         <span>Episode #{episodeNumber}</span>
-      </div>
+      </Eyebrow>
       <h1 class="max-w-2/3 text-3xl text-white font-semibold tracking-tight">
         {episode.title}
       </h1>

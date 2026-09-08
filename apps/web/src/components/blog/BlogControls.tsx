@@ -198,7 +198,9 @@ export default function BlogControls({
             <DropdownMenuContent
               aria-label="Blog category"
               align="end"
-              className="w-64"
+              sideOffset={8}
+              collisionAvoidance={{ side: "none", align: "shift" }}
+              className="w-64 rounded-md border border-border-strong bg-background px-0 py-2 shadow-lg shadow-black/40 ring-0"
             >
               <DropdownMenuRadioGroup
                 value={activeTagId}
@@ -211,7 +213,8 @@ export default function BlogControls({
                       key={category.id}
                       value={category.id}
                       closeOnClick
-                      className={`group/item relative flex w-full items-baseline justify-between gap-3 px-4 py-2 text-left font-mono text-sm transition-colors ${
+                      indicator={false}
+                      className={`group/item relative flex w-full items-baseline justify-between gap-3 rounded-none px-4 py-2 text-left font-mono text-sm transition-colors focus:bg-transparent ${
                         isActive
                           ? "text-foreground"
                           : "text-muted-foreground hover:text-foreground"

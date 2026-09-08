@@ -126,7 +126,7 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
       onClick={onClick}
       className={cn(
         "flex h-8 cursor-pointer appearance-none items-center gap-2 rounded-md border bg-transparent px-2.5 py-1 text-sm transition-colors",
-        "border-border-strong text-muted-foreground hover:bg-muted hover:text-foreground",
+        "border-input text-muted-foreground hover:bg-muted hover:text-foreground",
         compact && "size-[40px] shrink-0 justify-center p-0",
       )}
     >

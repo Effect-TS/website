@@ -20,13 +20,14 @@ function DropdownMenuContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  collisionAvoidance,
   portalContainer,
   className,
   ...props
 }: MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
+    "align" | "alignOffset" | "side" | "sideOffset" | "collisionAvoidance"
   > & {
     portalContainer?: MenuPrimitive.Portal.Props["container"]
   }) {
@@ -38,6 +39,7 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        collisionAvoidance={collisionAvoidance}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
@@ -201,9 +203,11 @@ function DropdownMenuRadioItem({
   className,
   children,
   inset,
+  indicator = true,
   ...props
 }: MenuPrimitive.RadioItem.Props & {
   inset?: boolean
+  indicator?: boolean
 }) {
   return (
     <MenuPrimitive.RadioItem
@@ -215,14 +219,16 @@ function DropdownMenuRadioItem({
       )}
       {...props}
     >
-      <span
-        className="pointer-events-none absolute right-2 flex items-center justify-center"
-        data-slot="dropdown-menu-radio-item-indicator"
-      >
-        <MenuPrimitive.RadioItemIndicator>
-          <CheckIcon />
-        </MenuPrimitive.RadioItemIndicator>
-      </span>
+      {indicator && (
+        <span
+          className="pointer-events-none absolute right-2 flex items-center justify-center"
+          data-slot="dropdown-menu-radio-item-indicator"
+        >
+          <MenuPrimitive.RadioItemIndicator>
+            <CheckIcon />
+          </MenuPrimitive.RadioItemIndicator>
+        </span>
+      )}
       {children}
     </MenuPrimitive.RadioItem>
   )

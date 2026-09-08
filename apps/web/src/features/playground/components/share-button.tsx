@@ -4,12 +4,12 @@ import { CheckIcon, CopyIcon, DownloadIcon, Loader2Icon } from "lucide-react"
 import { useRef } from "react"
 import { Button } from "@/components/ui/Button"
 import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverTitle,
+  PopoverDescription,
+} from "@/components/ui/popover"
 import { copyLinkAtom, downloadAtom, shareAtom } from "../atoms/share"
 import { useWorkspaceHandle } from "../context/workspace"
 
@@ -17,16 +17,20 @@ export function ShareButton() {
   const handle = useWorkspaceHandle()
   const share = useAtomSet(shareAtom(handle))
   return (
-    <Dialog
+    <Popover
       onOpenChange={(open) => {
         if (open) share()
       }}
     >
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <PopoverTrigger
+        render={
+          <Button variant="surface" className="h-7.5 rounded-md px-3 text-xs" />
+        }
+      >
         Share
-      </DialogTrigger>
+      </PopoverTrigger>
       <ShareContent />
-    </Dialog>
+    </Popover>
   )
 }
 
@@ -42,12 +46,16 @@ function ShareContent() {
   const input = useRef<HTMLInputElement>(null)
 
   return (
-    <DialogContent initialFocus={input}>
+    <PopoverContent
+      initialFocus={input}
+      align="end"
+      className="w-100 max-w-[calc(100vw-2rem)] bg-control-background"
+    >
       <div className="flex flex-col space-y-2">
-        <DialogTitle>Share</DialogTitle>
-        <DialogDescription>
+        <PopoverTitle className="text-lg font-semibold">Share</PopoverTitle>
+        <PopoverDescription className="text-sm text-muted-foreground">
           Use the link to share this playground with others.
-        </DialogDescription>
+        </PopoverDescription>
       </div>
       <div className="flex items-center space-x-2 pt-4">
         <div className="min-w-0 flex-1">
@@ -58,12 +66,13 @@ function ShareContent() {
             readOnly
             placeholder="Loading..."
             value={isFailed ? "An error occurred." : url}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            className="h-9 w-full rounded-md border border-input bg-field-background px-3 text-sm text-foreground"
           />
         </div>
         <Button
-          variant="outline"
+          variant="surface"
           size="icon"
+          className="h-9 w-auto rounded-md px-3"
           aria-label="Copy playground link"
           disabled={isWaiting || isFailed}
           onClick={() => setCopied(handle)}
@@ -82,8 +91,9 @@ function ShareContent() {
           Or download the files locally
         </p>
         <Button
-          variant="outline"
+          variant="surface"
           size="icon"
+          className="h-9 w-auto rounded-md px-3"
           aria-label="Download playground files"
           disabled={isWaiting || isFailed}
           onClick={() => download(handle)}
@@ -97,7 +107,7 @@ function ShareContent() {
           )}
         </Button>
       </div>
-      <p role="status" className="text-sm text-muted-foreground">
+      <p role="status" className="sr-only">
         {isWaiting
           ? "Creating playground link…"
           : isFailed
@@ -108,6 +118,6 @@ function ShareContent() {
                 ? "Playground download started."
                 : "Playground link ready."}
       </p>
-    </DialogContent>
+    </PopoverContent>
   )
 }

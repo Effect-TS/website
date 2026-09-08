@@ -108,7 +108,7 @@ export function TraceWaterfall() {
                     width: `calc(var(--header-${header?.id}-size) * 1px)`,
                   }}
                   className={cn(
-                    "grid grid-cols-[minmax(150px,1fr)_24px] items-center border-t border-border p-0 text-left font-normal",
+                    "grid grid-cols-[minmax(150px,1fr)_8px] items-center border-t border-border-strong p-0 text-left font-normal",
                     header.column.columnDef.meta?.grow && "grow",
                   )}
                 >
@@ -151,7 +151,7 @@ export function TraceWaterfall() {
                       onDoubleClick={() => header.column.resetSize()}
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
-                      className="min-h-6 w-6 cursor-ew-resize border-l border-border"
+                      className="relative min-h-6 h-full w-px cursor-ew-resize border-l border-border-strong px-0.75 after:absolute after:inset-y-0 after:-inset-x-2"
                     />
                   )}
                 </th>

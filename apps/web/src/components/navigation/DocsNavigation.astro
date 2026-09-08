@@ -1,5 +1,5 @@
 ---
-import { Menu } from "@lucide/astro"
+import { Menu, X } from "@lucide/astro"
 import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
@@ -7,6 +7,7 @@ import { SearchDialog } from "@/components/navigation/SearchDialog"
 import SearchTriggerIsland from "@/components/navigation/SearchTriggerIsland"
 import Disclosure from "@/components/ui/Disclosure.astro"
 import ThemeToggle from "@/components/ui/ThemeToggle"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
 import type { DocsNavSection } from "@/lib/docs-sections"
 
@@ -21,16 +22,34 @@ const links = [
   { key: "guides", href: `/docs/${version}/guides`, label: "Guides" },
   { key: "api", href: `/docs/${version}/api`, label: "Reference" },
 ]
+const versions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: section === "api" ? `/docs/${value}/api` : `/docs/${value}`,
+  label,
+  ariaLabel: `Effect ${label} documentation`,
+  active: version === value,
+}))
 const linkClass =
-  "text-sm text-muted-foreground no-underline hover:text-foreground aria-[current=page]:text-foreground aria-[current=page]:font-semibold"
+  "text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground aria-[current=page]:text-foreground"
 ---
 
 <div data-site-header class="sticky top-0 z-100 w-full">
   <AnnouncementBanner />
-  <header class="@container/navigation relative border-b border-border bg-background/95">
-    <nav aria-label="Documentation" class="mx-auto flex h-16 max-w-352 items-center gap-3 px-4">
+  <header
+    class="@container/navigation relative border-b border-border bg-navigation-background/85 backdrop-blur-sm"
+  >
+    <nav aria-label="Documentation" class="mx-auto flex h-16 max-w-352 items-center px-4">
       <NavigationLogo />
-      <div class="hidden items-center gap-6 @min-[70rem]/navigation:flex">
+      <div class="ml-8 hidden items-center gap-4 @min-[40rem]/navigation:flex">
+        <a href={`/docs/${version}`} class="text-sm font-medium text-foreground no-underline"
+          >Docs</a
+        >
+        <div
+          class="hidden h-4.5 w-px bg-border-strong @min-[60rem]/navigation:block"
+          aria-hidden="true"
+        >
+        </div>
+      </div>
+      <div class="ml-4 hidden items-center gap-6 @min-[60rem]/navigation:flex">
         {
           links.map((link) => (
             <a
@@ -42,61 +61,52 @@ const linkClass =
             </a>
           ))
         }
-        <div
-          class="flex gap-1 rounded-md border border-border p-1"
-          aria-label="Documentation version"
-          role="group"
-        >
-          {
-            DOCS_VERSIONS.map(({ value, label }) => (
-              <a
-                href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
-                class="rounded px-3 py-1 text-sm text-muted-foreground aria-[current=page]:bg-accent aria-[current=page]:text-foreground"
-                aria-label={`Effect ${label} documentation`}
-                aria-current={version === value ? "page" : undefined}
-              >
-                {label}
-              </a>
-            ))
-          }
-        </div>
       </div>
-      <div class="ml-auto hidden items-center gap-4 @min-[70rem]/navigation:flex">
+      <div class="ml-6 hidden @min-[60rem]/navigation:block">
+        <VersionSwitch variant="navigation" versions={versions} />
+      </div>
+      <div class="ml-auto hidden items-center gap-4.5 @min-[60rem]/navigation:flex">
         <NavigationDesktopActions showThemeToggle />
       </div>
-      <div class="ml-auto flex items-center gap-2 @min-[70rem]/navigation:hidden">
-        <SearchTriggerIsland client:load mode="desktop" compact />
-        <ThemeToggle client:load className="size-[40px] text-muted-foreground" />
+      <div class="ml-auto flex items-center gap-2 @min-[60rem]/navigation:hidden">
+        <div class="hidden items-center gap-2 @min-[40rem]/navigation:flex">
+          <SearchTriggerIsland client:load mode="desktop" compact />
+          <ThemeToggle client:load className="size-10 text-muted-foreground" />
+        </div>
         <Disclosure
           label="Documentation menu"
-          triggerClass="flex size-[40px] items-center justify-center text-muted-foreground"
-          panelClass="absolute inset-x-0 top-full max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto border-b border-border bg-background p-4 shadow-lg"
+          triggerClass="-mr-2 flex size-10 items-center justify-center rounded-lg text-control-foreground transition-colors hover:bg-muted hover:text-foreground"
+          panelClass="absolute inset-x-0 top-full z-90 max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto border-t border-border bg-navigation-background"
         >
-          <Menu slot="trigger" aria-hidden="true" />
-          {
-            links.map((link) => (
-              <a
-                href={link.href}
-                class:list={["block py-3", linkClass]}
-                aria-current={link.key === section ? "page" : undefined}
-              >
-                {link.label}
-              </a>
-            ))
-          }
-          <div class="flex flex-wrap gap-3 border-t border-border pt-3">
-            {
-              DOCS_VERSIONS.map(({ value, label }) => (
-                <a
-                  href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
-                  class="rounded px-3 py-2 text-sm text-muted-foreground aria-[current=page]:bg-accent aria-[current=page]:text-foreground"
-                  aria-label={`Effect ${label} documentation`}
-                  aria-current={version === value ? "page" : undefined}
-                >
-                  {label}
-                </a>
-              ))
-            }
+          <Fragment slot="trigger">
+            <Menu class="size-6 group-open/disclosure:hidden" aria-hidden="true" />
+            <X class="hidden size-6 group-open/disclosure:block" aria-hidden="true" />
+          </Fragment>
+          <div class="mx-auto max-w-352 px-4 py-3">
+            <ul>
+              {
+                links.map((link) => (
+                  <li>
+                    <a
+                      href={link.href}
+                      class:list={["block py-3", linkClass]}
+                      aria-current={link.key === section ? "page" : undefined}
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+            <div
+              class="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3"
+            >
+              <VersionSwitch variant="navigation" versions={versions} />
+              <div class="flex items-center gap-3 @min-[40rem]/navigation:hidden">
+                <SearchTriggerIsland client:load mode="desktop" />
+                <ThemeToggle client:load className="size-10" />
+              </div>
+            </div>
           </div>
         </Disclosure>
       </div>

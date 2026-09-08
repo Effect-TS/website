@@ -7,6 +7,7 @@ import { useWorkspaceHandle } from "../context/workspace"
 import { ResetButton } from "./reset-button"
 import { ShareButton } from "./share-button"
 import { VersionToggle } from "./version-toggle"
+import { EditorKeyboardHelp } from "./editor-keyboard-help"
 
 export function FileEditor() {
   const handle = useWorkspaceHandle()
@@ -32,16 +33,13 @@ export function FileEditor() {
           {selectedPath.slice(selectedPath.lastIndexOf("/") + 1)}
         </span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <EditorKeyboardHelp />
           <VersionToggle />
           <ResetButton />
           <ShareButton />
         </div>
       </div>
       <div ref={containerRef} className="min-h-0 flex-1" />
-      <p className="border-t border-border px-3 py-1 text-xs text-muted-foreground">
-        To use Tab to leave the editor, press Ctrl+M (Windows/Linux) or
-        Ctrl+Shift+M (macOS). Press again to indent with Tab.
-      </p>
     </section>
   )
 }
