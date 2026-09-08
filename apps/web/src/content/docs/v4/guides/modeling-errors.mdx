@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components"
+import { Aside } from "@astrojs/starlight/components"
 
 Thrown errors work, but they leave a question unanswered: when you call a
 function, **what can fail**?
@@ -23,8 +23,8 @@ authorization). That operation can fail three ways:
 
 Keep those three in mind, because making them visible is the whole point.
 
-The SDK is simulated with sandbox payment tokens, so every example in this
-tutorial runs and gives the same result:
+The SDK is simulated with sandbox payment tokens, so the runnable examples in
+this tutorial all give the same result:
 
 | Token            | Result                              |
 | ---------------- | ----------------------------------- |
@@ -34,9 +34,9 @@ tutorial runs and gives the same result:
 
 ## Shape the failure surface
 
-Here is a common version of the payment step without `Effect`, using try/catch
-and thrown errors: three named error classes, a type guard (a function that
-narrows a type), and a try around each await.
+Nothing in a try/catch signature tells you what can fail. Here is a common
+version of the payment step without `Effect`: three named error classes, a
+type guard (a function that narrows a type), and a try around each await.
 
 ```ts twoslash import.meta.vitest title="processPayment.ts"
 interface Authorization {
@@ -71,9 +71,7 @@ function isAuthorization(body: unknown): body is Authorization {
 // Tutorial fixture: sandbox tokens make provider results reproducible.
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
+const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -103,8 +101,10 @@ async function processPayment(token: PaymentToken): Promise<Authorization> {
 await processPayment("tok_visa") // => { authorizationId: "pauth_123", status: "authorized" }
 ```
 
-The payment goes through. But nothing in that code tells you what can go wrong.
-TypeScript has no syntax for it: `Promise` says nothing about failure.
+The payment goes through. `Promise` says nothing about failure.
+
+To find out, you have to read the implementation, or the docs if they exist and
+haven't drifted from it. Either way, the signature never shows it.
 
 `processPayment` is a common function signature that hides how it can fail:
 
@@ -116,9 +116,6 @@ TypeScript has no syntax for it: `Promise` says nothing about failure.
 function processPayment(token: PaymentToken): Promise<Authorization>
 //                                            └─ How can it fail?
 ```
-
-To find out, you have to read the implementation, or the docs if they exist and
-haven't drifted from it. Either way, the signature never shows it.
 
 Worse, the compiler can't tell you any of this. Suppose a caller tries to handle
 the failure:
@@ -133,7 +130,7 @@ declare function processPayment(token: PaymentToken): Promise<Authorization>
 class PaymentDeclinedError extends Error {}
 // ---cut---
 try {
-  const authorization = await processPayment("tok_declined")
+  await processPayment("tok_declined")
 } catch (error) {
   //       └─ `unknown`
   if (error instanceof PaymentDeclinedError) {
@@ -182,17 +179,16 @@ Now `processPayment`'s signature shows how it can fail: with a
 `PaymentDeclinedError`, `NetworkError`, or `ParseError`.
 
 <Aside type="note" title="Checkpoint">
-  You can now read a signature and treat it as a contract. `Effect`'s `Success`
-  and `Error` type parameters show the information needed without needing to
-  read the implementation.
+  You can now read a signature and treat it as a contract. `Effect`'s `Success` and `Error` type
+  parameters show the information needed without needing to read the implementation.
 </Aside>
 
 ## Model failures as values
 
-The `Error` type parameter lists the failures. Now build the values that go in
-it.
+So far the failures are only types in the `Error` type parameter. Next you build
+the runtime values behind those.
 
-Return each failure instead of throwing it:
+You return each failure instead of throwing it:
 
 - A thrown error becomes `unknown` in a `catch`, so the compiler loses it.
 - A returned value keeps its type, so the compiler tracks it through every caller.
@@ -218,9 +214,8 @@ error._tag // => "ParseError"
 ```
 
 <Aside type="tip" title="Why use a class?">
-  In TypeScript a class is both a type _and_ a value. One declaration gives you
-  the failure type to name in a signature and the constructor to build it, with
-  no extra imports.
+  In TypeScript a class is both a type _and_ a value. One declaration gives you the failure type to
+  name in a signature and the constructor to build it, with no extra imports.
 </Aside>
 
 Refactor the three error classes to `Data.TaggedError`:
@@ -286,36 +281,36 @@ The `{ ... }` after each `TaggedError` declares the fields' shape a failure
 carries.
 
 <Aside type="note" title="Checkpoint">
-  You now model each failure as a value: a class from `Data.TaggedError`, with
-  an `Error` suffix and a `_tag` that tells it apart from the others. These
-  values are the members of an `Effect`'s `Error` union.
+  You now model each failure as a value: a class from `Data.TaggedError`, with an `Error` suffix and
+  a `_tag` that tells it apart from the others. These values are the members of an `Effect`'s
+  `Error` union.
 </Aside>
 
 ## Rewrite `processPayment` with Effect
 
-An `Effect` is a description of work that has not run yet. You build one from
-steps, then run it.
+Now you build the program with `Effect`, and every failure you yield lands in its `Error` type parameter.
 
 ### `Effect.gen` reads like an `async` function
 
+An `Effect` is lazily executed: creating one doesn't run it. It describes a program that can succeed or fail.
+
 Here is the same two-step program, first with a `Promise`, then with an `Effect`:
 
-<Tabs syncKey="promise-vs-effect">
+<div class="not-prose my-6 grid grid-cols-1 gap-x-6 md:grid-cols-2">
 
-<TabItem label="Promise">
+<div>
 
-```ts twoslash import.meta.vitest
+**Promise**
+
+```ts twoslash import.meta.vitest showLineNumbers=false
 interface Authorization {
   readonly authorizationId: string
   readonly status: "authorized" | "declined"
 }
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
+const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
   if (token === "tok_timeout") throw new Error("Provider unreachable")
-  if (token === "tok_declined")
-    return { authorizationId: "pauth_123", status: "declined" }
+  if (token === "tok_declined") return { authorizationId: "pauth_123", status: "declined" }
   return { authorizationId: "pauth_123", status: "authorized" }
 }
 // ---cut---
@@ -328,11 +323,13 @@ async function program() {
 await program() // => { first: "authorized", second: "declined" }
 ```
 
-</TabItem>
+</div>
 
-<TabItem label="Effect">
+<div>
 
-```ts twoslash import.meta.vitest
+**Effect**
+
+```ts twoslash import.meta.vitest showLineNumbers=false
 import { Effect } from "effect"
 
 interface Authorization {
@@ -356,9 +353,9 @@ const program = Effect.gen(function* () {
 await Effect.runPromise(program) // => { first: "authorized", second: "declined" }
 ```
 
-</TabItem>
+</div>
 
-</Tabs>
+</div>
 
 Same shape, three swaps:
 
@@ -380,9 +377,7 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
+const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -426,9 +421,7 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
+const authorizePayment = async (token: PaymentToken): Promise<Authorization> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -531,11 +524,10 @@ The compiler inferred its `Error` type parameter as the union of all three failu
 from the values you yield. You never wrote it by hand.
 
 <Aside type="tip" title="More delegation to TypeScript's compiler">
-  `Effect` infers both type parameters from the steps you build, so you rarely
-  write an `Effect` signature by hand.
+  `Effect` infers both type parameters from the steps you build, so you rarely write an `Effect`
+  signature by hand.
 </Aside>
 <Aside type="note" title="Checkpoint">
-  You now build the work with `Effect.gen`, take each success with `yield*`,
-  wrap a `Promise` with `Effect.tryPromise`, and fail by yielding a tagged
-  error.
+  You now build the work with `Effect.gen`, take each success with `yield*`, wrap a `Promise` with
+  `Effect.tryPromise`, and fail by yielding a tagged error.
 </Aside>
