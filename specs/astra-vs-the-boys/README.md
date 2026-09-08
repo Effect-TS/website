@@ -4,7 +4,7 @@ Research notes for the proposed post. Repository: [Effect-TS/effect](https://git
 
 ## Sound cue
 
-The article plays the Law & Order sting after the cast section. The local asset, `apps/web/src/assets/blog/astra-vs-the-boys/dun-dun.mp3`, is a 1.3-second clip from [3kh0/soundboard](https://github.com/3kh0/soundboard/blob/main/sounds/DUN_DUN.mp3), where it is listed as "Law and order DUN DUN!". Sebastian suggested [the Myinstants version](https://www.myinstants.com/en/instant/law-and-order-dun-dun/); its MP3 endpoint returned HTTP 403 when downloaded.
+The article plays the Law & Order sting once on the first click, tap, or key press. Both written "Dun dun." cues provide play controls. The local asset, `apps/web/src/assets/blog/astra-vs-the-boys/dun-dun.mp3`, is a 1.3-second clip from [3kh0/soundboard](https://github.com/3kh0/soundboard/blob/main/sounds/DUN_DUN.mp3), where it is listed as "Law and order DUN DUN!". Sebastian suggested [the Myinstants version](https://www.myinstants.com/en/instant/law-and-order-dun-dun/); its MP3 endpoint returned HTTP 403 when downloaded.
 
 ## The count
 

@@ -1,0 +1,198 @@
+---
+import { Play, Square } from "@lucide/astro"
+import ArticleLink from "@/components/blog/ArticleLink.astro"
+import { buttonVariants } from "@/components/ui/Button"
+import { cn } from "@/lib/utils"
+
+interface Props {
+  src: string
+  label: string
+  playLabel: string
+  stopLabel: string
+  onFirstInteraction?: boolean
+  volume?: number
+}
+
+const { src, label, playLabel, stopLabel, onFirstInteraction = false, volume = 0.6 } = Astro.props
+---
+
+<sound-cue
+  class="not-prose my-5 flex flex-wrap items-center gap-2"
+  data-src={src}
+  data-volume={Math.max(0, Math.min(1, volume))}
+  data-first-interaction={onFirstInteraction || undefined}
+  data-play-label={playLabel}
+  data-stop-label={stopLabel}
+>
+  <em class="text-base text-prose-foreground">{label}</em>
+  <button
+    type="button"
+    aria-label={playLabel}
+    class={cn(buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground" }))}
+    hidden
+  >
+    <Play aria-hidden="true" data-play-icon />
+    <Square aria-hidden="true" data-stop-icon class="hidden" />
+    <span data-action>Play</span>
+  </button>
+  <span role="status" class="text-sm text-muted-foreground"></span>
+  <noscript><ArticleLink href={src}>Play</ArticleLink></noscript>
+</sound-cue>
+
+<script>
+  type State = "ready" | "playing" | "blocked" | "error"
+
+  class CuePlayer {
+    readonly audio: HTMLAudioElement
+    readonly cues = new Set<SoundCueElement>()
+    #events = new AbortController()
+    #interaction: AbortController | undefined
+    #played = false
+    #starting = false
+    #state: State = "ready"
+    #message = ""
+
+    constructor(src: string, volume: number) {
+      this.audio = new Audio(src)
+      this.audio.preload = "auto"
+      this.audio.volume = volume
+      const { signal } = this.#events
+      this.audio.addEventListener(
+        "playing",
+        () => {
+          this.#completeAutomatic()
+          this.#update("playing")
+        },
+        { signal },
+      )
+      this.audio.addEventListener("pause", () => this.#update("ready"), { signal })
+      this.audio.addEventListener("ended", () => this.#update("ready"), { signal })
+    }
+
+    add(cue: SoundCueElement) {
+      this.cues.add(cue)
+      cue.update(this.#state, this.#message)
+      if (cue.hasAttribute("data-first-interaction") && !this.#played && !this.#interaction) {
+        this.#interaction = new AbortController()
+        const options = { capture: true, signal: this.#interaction.signal }
+        document.addEventListener("click", this.#onInteraction, options)
+        document.addEventListener("keydown", this.#onInteraction, options)
+        // A visitor may interact before this component's script has loaded.
+        if (navigator.userActivation?.hasBeenActive) void this.#play()
+      }
+    }
+
+    #onInteraction = (event: Event) => {
+      if (!event.isTrusted || document.hidden) return
+      if (
+        event instanceof KeyboardEvent &&
+        (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.key === "Escape")
+      )
+        return
+      // A Play button handles its own click, including Enter/Space activation.
+      if (event.target instanceof Element && event.target.closest("sound-cue button")) return
+      void this.#play()
+    }
+
+    toggle() {
+      if (this.audio.paused) void this.#play()
+      else {
+        this.#completeAutomatic()
+        this.audio.pause()
+      }
+    }
+
+    #completeAutomatic() {
+      this.#played = true
+      this.#interaction?.abort()
+      this.#interaction = undefined
+    }
+
+    #update(state: State, message = "") {
+      this.#state = state
+      this.#message = message
+      for (const cue of this.cues) cue.update(state, message)
+    }
+
+    async #play() {
+      if (this.#starting) return
+      this.#starting = true
+      this.#update("ready")
+      try {
+        this.audio.currentTime = 0
+        await this.audio.play()
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return
+        const blocked = error instanceof DOMException && error.name === "NotAllowedError"
+        this.#update(
+          blocked ? "blocked" : "error",
+          blocked ? "Click Play to enable sound." : "Couldn't play the sound. Try again.",
+        )
+      } finally {
+        this.#starting = false
+      }
+    }
+
+    dispose() {
+      this.#events.abort()
+      this.#interaction?.abort()
+      this.audio.pause()
+      this.audio.removeAttribute("src")
+      this.audio.load()
+    }
+  }
+
+  class SoundCueElement extends HTMLElement {
+    static players = new Map<string, CuePlayer>()
+    #player: CuePlayer | undefined
+    #events: AbortController | undefined
+
+    connectedCallback() {
+      const src = this.dataset.src
+      const button = this.querySelector("button")
+      if (!src || !button) return
+
+      this.#events = new AbortController()
+      this.#player = SoundCueElement.players.get(src)
+      if (!this.#player) {
+        this.#player = new CuePlayer(src, Number(this.dataset.volume))
+        SoundCueElement.players.set(src, this.#player)
+      }
+      button.hidden = false
+      button.addEventListener("click", () => this.#player?.toggle(), {
+        signal: this.#events.signal,
+      })
+      this.#player.add(this)
+    }
+
+    update(state: State, message: string) {
+      this.dataset.state = state
+      const playing = state === "playing"
+      this.querySelector("button")?.setAttribute(
+        "aria-label",
+        (playing ? this.dataset.stopLabel : this.dataset.playLabel) ?? "",
+      )
+      this.querySelector("[data-play-icon]")?.classList.toggle("hidden", playing)
+      this.querySelector("[data-stop-icon]")?.classList.toggle("hidden", !playing)
+      const action = this.querySelector("[data-action]")
+      if (action) action.textContent = playing ? "Stop" : "Play"
+      const status = this.querySelector('[role="status"]')
+      if (status) status.textContent = message
+    }
+
+    disconnectedCallback() {
+      this.#events?.abort()
+      this.#events = undefined
+      this.#player?.cues.delete(this)
+      if (this.#player?.cues.size === 0) {
+        this.#player.dispose()
+        SoundCueElement.players.delete(this.dataset.src ?? "")
+      }
+      this.#player = undefined
+    }
+  }
+
+  if (!customElements.get("sound-cue")) {
+    customElements.define("sound-cue", SoundCueElement)
+  }
+</script>

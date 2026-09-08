@@ -16,7 +16,7 @@ import Quote from "@/components/blog/Quote.astro"
 import Scoreboard from "@/components/blog/Scoreboard.astro"
 import Mermaid from "@/components/blog/Mermaid.astro"
 import People from "@/components/blog/People.astro"
-import ScrollSound from "@/components/blog/ScrollSound.astro"
+import SoundCue from "@/components/blog/SoundCue.astro"
 import StoryFigure from "@/components/blog/StoryFigure.astro"
 import TweetImage from "@/components/blog/TweetImage.astro"
 import reviewBoard from "@/assets/blog/astra-vs-the-boys/review-board.png"
@@ -28,13 +28,20 @@ export const components = { a: ArticleLink }
 
 export const tweetComponents = { MediaImg: TweetImage }
 
+export const soundCueProps = {
+  src: dunDun,
+  label: "Dun dun.",
+  playLabel: "Play the Law & Order sound effect",
+  stopLabel: "Stop the Law & Order sound effect",
+}
+
 Tim had asked Kit not to send us a hundred pull requests a day. Kit gave his agent a target of 99.
 
 We ended up with **207 PRs and a maxed-out GitHub runner quota.** If you're wondering who encouraged him, the Slack history is unfortunately quite clear.
 
 In the pull request system, the people are represented by two separate yet equally important groups: the agents who find the bugs, and the maintainers who have to merge them. These are their stories.
 
-_Dun dun._
+<SoundCue {...soundCueProps} onFirstInteraction />
 
 ## The People vs. Kit Langton
 
@@ -92,13 +99,6 @@ _Dun dun._
       },
     },
   ]}
-/>
-
-<ScrollSound
-  src={dunDun}
-  label="Dun dun."
-  playLabel="Play the Law & Order sound effect"
-  stopLabel="Stop the Law & Order sound effect"
 />
 
 ## The complaint
@@ -458,4 +458,4 @@ On the charge of exceeding one hundred pull requests per day, the jury finds the
 
 Aiden wins.
 
-_Dun dun._
+<SoundCue {...soundCueProps} />
