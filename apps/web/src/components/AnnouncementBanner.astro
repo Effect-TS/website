@@ -13,7 +13,9 @@ const { href = "/effect-days" } = Astro.props
 
 <effect-days-announcement
   data-announcement
-  class="group relative flex h-10 items-center justify-center border-b border-zinc-700/60 bg-zinc-900 px-12 text-zinc-100"
+  role="region"
+  aria-label="Announcement"
+  class="group relative flex min-h-10 items-center justify-center border-b border-zinc-700/60 bg-zinc-900 px-12 py-2 text-zinc-100"
 >
   <span
     aria-hidden="true"
@@ -25,8 +27,10 @@ const { href = "/effect-days" } = Astro.props
     aria-label="Effect Days 2026, December 9–11: get your ticket"
     class="absolute inset-0"></a>
 
-  <div class="pointer-events-none flex min-w-0 items-center gap-2 text-sm">
-    <span class="truncate">
+  <div
+    class="pointer-events-none flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm"
+  >
+    <span>
       <span class="font-medium text-zinc-100">Effect Days 2026</span>
       <span aria-hidden="true" class="hidden px-2 text-zinc-600 sm:inline">·</span>
       <span class="hidden text-zinc-400 sm:inline">Dec 9–11</span>
@@ -84,6 +88,15 @@ const { href = "/effect-days" } = Astro.props
   const STORAGE_KEY = "effect-days-2026-banner-dismissed"
 
   class EffectDaysAnnouncementElement extends HTMLElement {
+    #resize = new ResizeObserver(() => {
+      const height = this.getBoundingClientRect().height
+      document.documentElement.style.setProperty("--announcement-height", `${height}px`)
+      document.documentElement.style.setProperty(
+        "--sticky-header-height",
+        `calc(4rem + ${height}px)`,
+      )
+    })
+
     #dismiss = () => {
       document.documentElement.classList.add("announcement-dismissed")
       try {
@@ -94,10 +107,12 @@ const { href = "/effect-days" } = Astro.props
     }
 
     connectedCallback() {
+      this.#resize.observe(this)
       this.querySelector("[data-role='dismiss']")?.addEventListener("click", this.#dismiss)
     }
 
     disconnectedCallback() {
+      this.#resize.disconnect()
       this.querySelector("[data-role='dismiss']")?.removeEventListener("click", this.#dismiss)
     }
   }

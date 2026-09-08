@@ -20,6 +20,7 @@ export default function ThemeToggle({
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   const theme = useAtomValue(themeAtom)
   const selectTheme = useAtomSet(selectThemeAtom)
@@ -27,13 +28,21 @@ export default function ThemeToggle({
   // Close menu on outside click or Escape
   useEffect(() => {
     if (!open) return
+    menuRef.current
+      ?.querySelector<HTMLElement>(
+        '[role="menuitemradio"][aria-checked="true"]',
+      )
+      ?.focus()
     const handlePointer = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
     }
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false)
+      if (e.key === "Escape") {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
     }
     document.addEventListener("mousedown", handlePointer)
     document.addEventListener("keydown", handleKey)
@@ -46,8 +55,15 @@ export default function ThemeToggle({
   return (
     <div ref={menuRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((isOpen) => !isOpen)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault()
+            setOpen(true)
+          }
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Change theme"
@@ -61,6 +77,30 @@ export default function ThemeToggle({
         <div
           role="menu"
           aria-label="Theme"
+          onKeyDown={(event) => {
+            const items = Array.from(
+              event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                '[role="menuitemradio"]',
+              ),
+            )
+            const current = items.indexOf(
+              document.activeElement as HTMLButtonElement,
+            )
+            let next: number | undefined
+            if (event.key === "ArrowDown") next = (current + 1) % items.length
+            if (event.key === "ArrowUp")
+              next = (current - 1 + items.length) % items.length
+            if (event.key === "Home") next = 0
+            if (event.key === "End") next = items.length - 1
+            if (next !== undefined) {
+              event.preventDefault()
+              items[next]?.focus()
+            }
+            if (event.key === "Tab") {
+              setOpen(false)
+              triggerRef.current?.focus()
+            }
+          }}
           className="absolute top-full right-0 z-50 mt-2 w-36 overflow-hidden rounded-md border border-zinc-300 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
         >
           {options.map((opt) => {
@@ -71,10 +111,12 @@ export default function ThemeToggle({
                 key={opt.value}
                 type="button"
                 role="menuitemradio"
+                tabIndex={-1}
                 aria-checked={isActive}
                 onClick={() => {
                   selectTheme(opt.value)
                   setOpen(false)
+                  triggerRef.current?.focus()
                 }}
                 className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
                   isActive

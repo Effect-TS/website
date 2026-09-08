@@ -169,19 +169,13 @@ const shareShellClass =
                     class="group/byline flex items-center gap-3 no-underline"
                   >
                     {avatar && (
-                      <Image
-                        src={avatar}
-                        alt={author.data.name}
-                        class="h-10 w-10 rounded-md object-cover"
-                      />
+                      <Image src={avatar} alt="" class="h-10 w-10 rounded-md object-cover" />
                     )}
                     <span class="flex min-w-0 flex-col">
-                      <span class="truncate text-base font-medium text-foreground group-hover/byline:underline">
+                      <span class="text-base font-medium text-foreground group-hover/byline:underline">
                         {author.data.name}
                       </span>
-                      <span class="mt-0.5 truncate text-xs text-muted-foreground">
-                        {author.data.title}
-                      </span>
+                      <span class="mt-0.5 text-xs text-muted-foreground">{author.data.title}</span>
                     </span>
                   </a>
                 )
@@ -211,19 +205,13 @@ const shareShellClass =
                     class="group/byline flex items-center gap-3 no-underline"
                   >
                     {avatar && (
-                      <Image
-                        src={avatar}
-                        alt={author.data.name}
-                        class="h-12 w-12 rounded-md object-cover"
-                      />
+                      <Image src={avatar} alt="" class="h-12 w-12 rounded-md object-cover" />
                     )}
                     <span class="flex min-w-0 flex-col">
-                      <span class="truncate text-base font-medium text-foreground group-hover/byline:underline">
+                      <span class="text-base font-medium text-foreground group-hover/byline:underline">
                         {author.data.name}
                       </span>
-                      <span class="mt-0.5 truncate text-sm text-muted-foreground">
-                        {author.data.title}
-                      </span>
+                      <span class="mt-0.5 text-sm text-muted-foreground">{author.data.title}</span>
                     </span>
                   </a>
                 )
@@ -231,16 +219,18 @@ const shareShellClass =
             }
           </div>
 
-          <div class="sticky top-[var(--sticky-header-height)]">
+          <div
+            class="sticky top-[var(--sticky-header-height)] max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto pb-4"
+          >
             <TableOfContents
               items={tocItems}
               class="rounded-md border border-border bg-card/40 p-5"
             />
 
             <div class="mt-6">
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center gap-3">
                 <Eyebrow as="span" class="text-xs">Share</Eyebrow>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <a
                     href={xUrl}
                     target="_blank"
@@ -277,7 +267,7 @@ const shareShellClass =
           </div>
         </aside>
 
-        <article class="min-w-0 pb-20 md:col-span-8 md:row-start-1">
+        <article class="@container/post min-w-0 pb-20 md:col-span-8 md:row-start-1">
           <div class="mt-10 mb-10 block md:hidden">
             <TableOfContents
               items={tocItems}
@@ -336,7 +326,7 @@ const shareShellClass =
                       <ChevronLeftIcon class="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
                       Previous
                     </span>
-                    <span class="mt-1.5 line-clamp-1 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                    <span class="mt-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
                       {prevPost.data.title}
                     </span>
                   </a>
@@ -352,7 +342,7 @@ const shareShellClass =
                       Next
                       <ChevronRightIcon class="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                     </span>
-                    <span class="mt-1.5 line-clamp-1 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                    <span class="mt-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
                       {nextPost.data.title}
                     </span>
                   </a>
@@ -440,6 +430,16 @@ const shareShellClass =
 </PageLayout>
 
 <style>
+  .blog-article :global(.heading-permalink) {
+    color: var(--muted-foreground);
+  }
+
+  @container post (width < 40rem) {
+    .blog-article :global(.heading-permalink) {
+      position: static;
+    }
+  }
+
   .blog-post-grid-offset {
     transform: translateY(-1rem);
   }

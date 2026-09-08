@@ -105,7 +105,10 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
       >
         <Search className="h-4.5 w-4.5" aria-hidden="true" />
         <span className="text-sm">Search</span>
-        <kbd className="ml-auto inline-flex items-center justify-center gap-0.5 text-xs leading-none text-zinc-300">
+        <kbd
+          aria-hidden="true"
+          className="ml-auto inline-flex items-center justify-center gap-0.5 text-xs leading-none text-muted-foreground"
+        >
           <span>{shortcut.label}</span>
           <span>K</span>
         </kbd>
@@ -125,7 +128,11 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
       )}
     >
       <Search className="h-4.5 w-4.5" aria-hidden="true" />
-      <kbd className="inline-flex items-center justify-center gap-0.5 text-[12px] leading-none text-zinc-400/80 dark:text-zinc-400/80">
+      <span>Search</span>
+      <kbd
+        aria-hidden="true"
+        className="inline-flex items-center justify-center gap-0.5 text-[12px] leading-none text-muted-foreground"
+      >
         <span>{shortcut.label}</span>
         <span>K</span>
       </kbd>

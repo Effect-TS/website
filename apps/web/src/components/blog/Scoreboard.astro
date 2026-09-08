@@ -37,7 +37,7 @@ const maximum = breakdown?.items.reduce((max, item) => Math.max(max, item.value)
           <dd
             class:list={[
               "m-0 font-mono text-3xl font-semibold tracking-tight tabular-nums",
-              highlight ? "text-brand" : "text-foreground",
+              highlight ? "highlight" : "text-foreground",
             ]}
           >
             {value}
@@ -58,7 +58,7 @@ const maximum = breakdown?.items.reduce((max, item) => Math.max(max, item.value)
                   <span class="w-12 shrink-0 font-mono text-muted-foreground">{label}</span>
                   <div class="h-3 flex-1 overflow-hidden rounded-sm bg-muted" aria-hidden="true">
                     <div
-                      class="h-full rounded-sm bg-brand/70"
+                      class="bar h-full rounded-sm"
                       style={{
                         width: `${maximum > 0 ? (Math.max(0, value) / maximum) * 100 : 0}%`,
                       }}
@@ -79,3 +79,13 @@ const maximum = breakdown?.items.reduce((max, item) => Math.max(max, item.value)
     )
   }
 </section>
+
+<style>
+  .highlight {
+    color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+  }
+
+  .bar {
+    background-color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+  }
+</style>

@@ -1,21 +1,72 @@
-diff --git a/src/utils.ts b/src/utils.ts
---- a/src/utils.ts
-+++ b/src/utils.ts
-@@ -120,10 +120,10 @@
-     { indices: tweet.display_text_range, type: "text" },
-   ];
+diff --git a/src/Tweet.astro b/src/Tweet.astro
+index 9ef574015d9f58d13dd1de8fe343d66518e4b27f..db46e2c0dfb23c5367f40a328acc5ff9fd4bc91b 100644
+--- a/src/Tweet.astro
++++ b/src/Tweet.astro
+@@ -1,10 +1,11 @@
+ ---
+ import TweetContent from "./TweetContent.astro";
++import type { TwitterComponents } from "./twitter-theme/types";
 
--  addEntities(result, "hashtag", tweet.entities.hashtags);
--  addEntities(result, "mention", tweet.entities.user_mentions);
--  addEntities(result, "url", tweet.entities.urls);
--  addEntities(result, "symbol", tweet.entities.symbols);
-+  addEntities(result, "hashtag", tweet.entities.hashtags ?? []);
-+  addEntities(result, "mention", tweet.entities.user_mentions ?? []);
-+  addEntities(result, "url", tweet.entities.urls ?? []);
-+  addEntities(result, "symbol", tweet.entities.symbols ?? []);
-   if (tweet.entities.media) {
-     addEntities(result, "media", tweet.entities.media);
+ interface Props {
+   id: string;
+-  // TODO: add support for custom components (do we need this though?)
+-  // components?: TwitterComponents;
++  components?: TwitterComponents;
++  mediaAlt?: ReadonlyArray<string>;
+   fetchOptions?: RequestInit;
+   onError?: ((error: any) => any) | undefined;
+ }
+diff --git a/src/TweetContent.astro b/src/TweetContent.astro
+index 8084b749cf2782e0f2ab6c6106d1dda3faaa7f91..db4cec7e9bbbb5b6b9bb4382d1a6c9765bffd5a8 100644
+--- a/src/TweetContent.astro
++++ b/src/TweetContent.astro
+@@ -6,11 +6,12 @@ import type { TwitterComponents } from "./twitter-theme/types";
+ interface Props {
+   id: string;
+   components?: TwitterComponents;
++  mediaAlt?: ReadonlyArray<string>;
+   fetchOptions?: RequestInit;
+   onError?: ((error: any) => any) | undefined;
+ }
+
+-const { id, components, fetchOptions, onError } = Astro.props;
++const { id, components, mediaAlt, fetchOptions, onError } = Astro.props;
+ let error;
+ const tweet = id
+   ? await getTweet(id, fetchOptions).catch((err) => {
+@@ -35,6 +36,6 @@ if (!tweet) {
+   tweetNotFound ? (
+     <NotFound error={error} />
+   ) : (
+-    <EmbeddedTweet tweet={tweet!} components={components} />
++    <EmbeddedTweet tweet={tweet!} components={components} mediaAlt={mediaAlt} />
+   )
+ }
+diff --git a/src/twitter-theme/EmbeddedTweet.astro b/src/twitter-theme/EmbeddedTweet.astro
+index fd68fcc916e99bba05196c18220c861d1e643c7c..339c74461230c4f7fb6058d2b57d67dbf7ed8845 100644
+--- a/src/twitter-theme/EmbeddedTweet.astro
++++ b/src/twitter-theme/EmbeddedTweet.astro
+@@ -15,9 +15,10 @@ import { enrichTweet } from "../utils.js";
+ type Props = {
+   tweet: Tweet;
+   components?: Omit<TwitterComponents, "TweetNotFound">;
++  mediaAlt?: ReadonlyArray<string>;
+ };
+
+-const { tweet: t, components } = Astro.props;
++const { tweet: t, components, mediaAlt } = Astro.props;
+ const tweet = enrichTweet(t);
+ ---
+
+@@ -27,7 +28,7 @@ const tweet = enrichTweet(t);
+   <TweetBody tweet={tweet} />
+   {
+     tweet.mediaDetails?.length ? (
+-      <TweetMedia tweet={tweet} components={components} />
++      <TweetMedia tweet={tweet} components={components} mediaAlt={mediaAlt} />
+     ) : null
    }
+   {tweet.quoted_tweet && <QuotedTweet tweet={tweet.quoted_tweet} />}
 diff --git a/src/twitter-theme/TweetBody.astro b/src/twitter-theme/TweetBody.astro
 index 04225a838ebf91081acf59efd30c335732e5ca83..4e8edfcea4e82dd0ee1b89b890499dfaffef823f 100644
 --- a/src/twitter-theme/TweetBody.astro
@@ -23,7 +74,7 @@ index 04225a838ebf91081acf59efd30c335732e5ca83..4e8edfcea4e82dd0ee1b89b890499dfa
 @@ -8,24 +8,20 @@ interface Props {
  const { tweet } = Astro.props;
  ---
- 
+
 -<p class={styles.root}>
 -  {
 -    tweet.entities.map((item, i) => {
@@ -77,7 +128,7 @@ index e61fd03544caaa3be53323d65e870ee78ee538a4..8be5e6ac26d568db858bc7366a16812e
 +  rel: "noopener noreferrer"
 +}
  ---
- 
+
 -<a
 -  href={tweet.in_reply_to_url}
 -  class={s.root}
@@ -106,7 +157,7 @@ index 124bd3d3d8b2f0190e8aee3a7def441722d8a460..88e97b44654a93ef765ac0d2f67b940f
 +  rel: "noopener noreferrer"
 +}
  ---
- 
+
 -<a
 -  href={Astro.props.href}
 -  class={s.root}
@@ -116,6 +167,40 @@ index 124bd3d3d8b2f0190e8aee3a7def441722d8a460..88e97b44654a93ef765ac0d2f67b940f
 -  <slot />
 -</a>
 +<a {...props}><slot /></a>
+diff --git a/src/twitter-theme/TweetMedia.astro b/src/twitter-theme/TweetMedia.astro
+index 6cc610f3595f2fc2691a46d9e81020e4b5269bba..ccda2a14cf41dcd721ebe1ac0c39c6e083f17b2c 100644
+--- a/src/twitter-theme/TweetMedia.astro
++++ b/src/twitter-theme/TweetMedia.astro
+@@ -31,9 +31,10 @@ const getSkeletonStyle = (media: MediaDetails, itemCount: number) => {
+ interface Props {
+   tweet: EnrichedTweet | EnrichedQuotedTweet;
+   components?: TwitterComponents;
++  mediaAlt?: ReadonlyArray<string>;
+   quoted?: boolean;
+ }
+-const { tweet, components, quoted } = Astro.props;
++const { tweet, components, quoted, mediaAlt } = Astro.props;
+ const length = tweet.mediaDetails?.length ?? 0;
+ const Img = components?.MediaImg ?? MediaImg;
+ ---
+@@ -48,7 +49,7 @@ const Img = components?.MediaImg ?? MediaImg;
+     )}
+   >
+     {
+-      tweet.mediaDetails?.map((media: any) => (
++      tweet.mediaDetails?.map((media: any, index: number) => (
+         <Fragment>
+           {media.type === "photo" ? (
+             <a
+@@ -63,7 +64,7 @@ const Img = components?.MediaImg ?? MediaImg;
+               />
+               <Img
+                 src={getMediaUrl(media, "small")}
+-                alt={media.ext_alt_text || "Image"}
++                alt={mediaAlt?.[index] ?? (media.ext_alt_text || "Image")}
+                 class={styles.image}
+                 draggable
+               />
 diff --git a/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro b/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro
 index 1edf0b8c089fbe8578a9994599552f67d5d94884..0efee2080cb41832d91416021755cdb31d0d2543 100644
 --- a/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro
@@ -123,8 +208,185 @@ index 1edf0b8c089fbe8578a9994599552f67d5d94884..0efee2080cb41832d91416021755cdb3
 @@ -7,6 +7,4 @@ interface Props {
  }
  ---
- 
+
 -<p class={styles.root}>
 -  {Astro.props.tweet.entities.map((item, i) => <span>{item.text}</span>)}
 -</p>
 +<p class={styles.root}>{Astro.props.tweet.entities.map((item, i) => <span>{item.text}</span>)}</p>
+diff --git a/src/twitter-theme/quoted-tweet/quoted-tweet-header.module.css b/src/twitter-theme/quoted-tweet/quoted-tweet-header.module.css
+index 4e4d79509675fb339838b399b283da2faaf5a801..7af25eef751a291b2cb4d4cd2a2104db5b6ceb56 100644
+--- a/src/twitter-theme/quoted-tweet/quoted-tweet-header.module.css
++++ b/src/twitter-theme/quoted-tweet/quoted-tweet-header.module.css
+@@ -3,12 +3,13 @@
+   padding: 0.75rem 0.75rem 0 0.75rem;
+   line-height: var(--tweet-header-line-height);
+   font-size: var(--tweet-header-font-size);
+-  white-space: nowrap;
++  white-space: normal;
+   overflow-wrap: break-word;
+   overflow: hidden;
+ }
+
+ .avatar {
++  flex-shrink: 0;
+   position: relative;
+   height: 20px;
+   width: 20px;
+@@ -20,14 +21,14 @@
+
+ .author {
+   display: flex;
++  flex-wrap: wrap;
++  min-width: 0;
+   margin: 0 0.5rem;
+ }
+
+ .authorText {
+   font-weight: 700;
+-  text-overflow: ellipsis;
+-  overflow: hidden;
+-  white-space: nowrap;
++  overflow-wrap: anywhere;
+ }
+
+ .username {
+diff --git a/src/twitter-theme/tweet-container.module.css b/src/twitter-theme/tweet-container.module.css
+index d02e6cc4308cc853f450cf2f16804c861443b9b8..6c3a96793ab211cc69a308960b029a7e070244ce 100644
+--- a/src/twitter-theme/tweet-container.module.css
++++ b/src/twitter-theme/tweet-container.module.css
+@@ -1,6 +1,6 @@
+ .root {
+   width: 100%;
+-  min-width: 250px;
++  min-width: min(250px, 100%);
+   max-width: 550px;
+   overflow: hidden;
+   /* Base font styles */
+@@ -18,6 +18,16 @@
+ .root:hover {
+   background-color: var(--tweet-bg-color-hover);
+ }
++.root a:focus-visible {
++  outline: 2px solid currentColor;
++  outline-offset: 2px;
++}
++@media (prefers-reduced-motion: reduce) {
++  .root,
++  .root * {
++    transition: none;
++  }
++}
+ .article {
+   position: relative;
+   box-sizing: inherit;
+diff --git a/src/twitter-theme/tweet-header.module.css b/src/twitter-theme/tweet-header.module.css
+index 2ce994e2fab7481e5aee88f016966036ae2eee94..150f531ae62d3f5ce0f3c6bbe1acdd494a7dfc02 100644
+--- a/src/twitter-theme/tweet-header.module.css
++++ b/src/twitter-theme/tweet-header.module.css
+@@ -3,12 +3,13 @@
+   padding-bottom: 0.75rem;
+   line-height: var(--tweet-header-line-height);
+   font-size: var(--tweet-header-font-size);
+-  white-space: nowrap;
++  white-space: normal;
+   overflow-wrap: break-word;
+-  overflow: hidden;
++  overflow: visible;
+ }
+
+ .avatar {
++  flex-shrink: 0;
+   position: relative;
+   height: 48px;
+   width: 48px;
+@@ -35,6 +36,7 @@
+ }
+
+ .author {
++  min-width: 0;
+   max-width: calc(100% - 84px);
+   display: flex;
+   flex-direction: column;
+@@ -42,6 +44,7 @@
+   margin: 0 0.5rem;
+ }
+ .authorLink {
++  min-height: 24px;
+   text-decoration: none;
+   color: inherit;
+   display: flex;
+@@ -55,23 +58,28 @@
+ }
+ .authorLinkText {
+   font-weight: 700;
+-  text-overflow: ellipsis;
+-  overflow: hidden;
+-  white-space: nowrap;
++  overflow-wrap: anywhere;
+ }
+
+ .authorMeta {
+   display: flex;
++  flex-wrap: wrap;
+ }
+ .authorFollow {
+   display: flex;
+ }
+ .username {
++  display: inline-flex;
++  align-items: center;
++  min-height: 24px;
+   color: var(--tweet-font-color-secondary);
+   text-decoration: none;
+   text-overflow: ellipsis;
+ }
+ .follow {
++  display: inline-flex;
++  align-items: center;
++  min-height: 24px;
+   color: var(--tweet-color-blue-secondary);
+   text-decoration: none;
+   font-weight: 700;
+@@ -84,6 +92,9 @@
+ }
+
+ .brand {
++  min-width: 24px;
++  min-height: 24px;
++  flex-shrink: 0;
+   margin-inline-start: auto;
+ }
+
+diff --git a/src/twitter-theme/tweet-link.module.css b/src/twitter-theme/tweet-link.module.css
+index b41aa448eb07b93b216cb15c0539e5681179ce1a..18eb4973799fc3d11205f157762a79f0e7c40f5e 100644
+--- a/src/twitter-theme/tweet-link.module.css
++++ b/src/twitter-theme/tweet-link.module.css
+@@ -1,7 +1,8 @@
+ .root {
+   font-weight: inherit;
+   color: var(--tweet-color-blue-secondary);
+-  text-decoration: none;
++  text-decoration: underline;
++  text-underline-offset: 2px;
+   cursor: pointer;
+ }
+ .root:hover {
+diff --git a/src/utils.ts b/src/utils.ts
+index 66166d2c8fd901246d3f25bbb9347b2ab833afa5..fca602947325240c116e792044430fc46b1d358a 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -120,10 +120,10 @@ function getEntities(tweet: TweetBase): Entity[] {
+     { indices: tweet.display_text_range, type: "text" },
+   ];
+
+-  addEntities(result, "hashtag", tweet.entities.hashtags);
+-  addEntities(result, "mention", tweet.entities.user_mentions);
+-  addEntities(result, "url", tweet.entities.urls);
+-  addEntities(result, "symbol", tweet.entities.symbols);
++  addEntities(result, "hashtag", tweet.entities.hashtags ?? []);
++  addEntities(result, "mention", tweet.entities.user_mentions ?? []);
++  addEntities(result, "url", tweet.entities.urls ?? []);
++  addEntities(result, "symbol", tweet.entities.symbols ?? []);
+   if (tweet.entities.media) {
+     addEntities(result, "media", tweet.entities.media);
+   }

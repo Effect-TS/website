@@ -21,7 +21,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
     showThemeToggle && (
       <ThemeToggle
         client:load
-        className="h-10 w-10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white md:hidden"
+        className="h-10 w-10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white @min-[64rem]/navigation:hidden"
       />
     )
   }
@@ -31,7 +31,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
     data-role="menu-button"
     aria-label="Open navigation menu"
     aria-expanded="false"
-    class="flex h-10 w-10 appearance-none items-center justify-center rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 md:hidden dark:hover:bg-zinc-800 text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white"
+    class="flex h-10 w-10 appearance-none items-center justify-center rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 @min-[64rem]/navigation:hidden dark:hover:bg-zinc-800 text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white"
   >
     <svg
       data-role="icon-open"
@@ -53,6 +53,9 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       aria-label="Close mobile menu"></button>
     <div
       data-role="panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Navigation menu"
       class="fixed top-0 right-0 flex h-full w-full max-w-[64%] flex-col bg-white shadow-xl dark:bg-zinc-900"
       style="transform: translateX(100%)"
     >
@@ -69,7 +72,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
           <X class="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
-      <nav class="flex-1 overflow-y-auto px-6 py-6">
+      <nav aria-label="Mobile" class="flex-1 overflow-y-auto px-6 py-6">
         <div class="space-y-1">
           {
             primaryLinks.map((link) => (
@@ -127,8 +130,8 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
           <span class="text-sm">Search</span>
           <kbd
             data-role="search-kbd"
-            class="ml-auto inline-flex items-center gap-0.5 text-xs text-zinc-400/80 dark:text-zinc-500"
-          ></kbd>
+            aria-hidden="true"
+            class="ml-auto inline-flex items-center gap-0.5 text-xs text-muted-foreground"></kbd>
         </button>
       </nav>
     </div>
@@ -149,7 +152,6 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
 <script>
   import { NAVIGATION_EVENTS } from "@/lib/navigation"
 
-  const MOBILE_BREAKPOINT = 768
   const ANIMATION_DURATION_MS = 300
 
   const isApplePlatform = (): boolean => {
@@ -236,7 +238,10 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       if (searchKbd) {
         const shortcut = isApplePlatform() ? "⌘K" : "Ctrl+K"
         searchKbd.textContent = shortcut
-        this.#menuSearchButton.setAttribute("aria-keyshortcuts", shortcut)
+        this.#menuSearchButton.setAttribute(
+          "aria-keyshortcuts",
+          isApplePlatform() ? "Meta+K" : "Control+K",
+        )
       }
 
       const menuLinks = menuRoot.querySelectorAll("[data-role='menu-link']")
@@ -327,6 +332,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       if (this.#prefersReducedMotion) {
         this.#menuRoot.classList.toggle("hidden", !nextOpen)
         this.#panel.style.transform = nextOpen ? "translateX(0)" : "translateX(100%)"
+        if (nextOpen) this.#closeButton?.focus()
 
         if (!nextOpen && this.#shouldRestoreFocus) {
           this.#menuButton.focus()
@@ -350,6 +356,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
             this.#panel.style.transform = "translateX(0)"
           }
           this.#isAnimating = false
+          if (this.#open) this.#closeButton?.focus()
         }, ANIMATION_DURATION_MS)
       } else {
         if (this.#panel) {
@@ -423,13 +430,35 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
     }
 
     #onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && this.#open) {
+      if (!this.#open || this.#pendingSearchTransition) return
+
+      if (event.key === "Escape") {
+        event.preventDefault()
         this.#closeMenu(true)
+        return
+      }
+
+      if (event.key === "Tab" && this.#panel) {
+        const controls = Array.from(
+          this.#panel.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), [tabindex="0"]',
+          ),
+        ).filter((element) => element.getClientRects().length > 0)
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        const outside = !this.#panel.contains(document.activeElement)
+        if (event.shiftKey && (document.activeElement === first || outside)) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && (document.activeElement === last || outside)) {
+          event.preventDefault()
+          first?.focus()
+        }
       }
     }
 
     #onResize = () => {
-      if (window.innerWidth < MOBILE_BREAKPOINT || !this.#open) {
+      if (this.#menuButton?.getClientRects().length || !this.#open) {
         return
       }
 
