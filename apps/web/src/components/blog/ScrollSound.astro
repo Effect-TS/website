@@ -1,0 +1,139 @@
+---
+import { Volume2 } from "@lucide/astro"
+import ArticleLink from "@/components/blog/ArticleLink.astro"
+import { buttonVariants } from "@/components/ui/Button"
+import { cn } from "@/lib/utils"
+
+interface Props {
+  src: string
+  label: string
+  playLabel: string
+  stopLabel: string
+  volume?: number
+}
+
+const { src, label, playLabel, stopLabel, volume = 0.6 } = Astro.props
+---
+
+<scroll-sound
+  class="not-prose my-6 flex items-center gap-3"
+  data-volume={Math.max(0, Math.min(1, volume))}
+  data-play-label={playLabel}
+  data-stop-label={stopLabel}
+>
+  <audio src={src} preload="auto"></audio>
+  <button
+    type="button"
+    aria-label={playLabel}
+    class={cn(buttonVariants({ variant: "outline", className: "text-foreground" }))}
+    hidden
+  >
+    <Volume2 aria-hidden="true" />
+    <span>{label}</span>
+  </button>
+  <span role="status" class="text-sm text-muted-foreground"></span>
+  <noscript><ArticleLink href={src}>{label}</ArticleLink></noscript>
+</scroll-sound>
+
+<script>
+  class ScrollSoundElement extends HTMLElement {
+    #audio: HTMLAudioElement | null = null
+    #button: HTMLButtonElement | null = null
+    #status: HTMLElement | null = null
+    #events: AbortController | undefined
+    #attempted = false
+    #lastScrollY = 0
+    #beforeCue = false
+
+    connectedCallback() {
+      this.#audio = this.querySelector("audio")
+      this.#button = this.querySelector("button")
+      this.#status = this.querySelector('[role="status"]')
+      if (!this.#audio || !this.#button || !this.#status) return
+
+      this.#events = new AbortController()
+      const { signal } = this.#events
+      this.#audio.volume = Number(this.dataset.volume)
+      this.#button.hidden = false
+      this.#lastScrollY = window.scrollY
+      this.#beforeCue = this.#isBeforeCue()
+
+      if (!this.#attempted) {
+        window.addEventListener("scroll", this.#onScroll, { passive: true, signal })
+      }
+
+      this.#button.addEventListener(
+        "click",
+        () => {
+          this.#stopWatching()
+          if (this.#audio?.paused) void this.#play()
+          else this.#audio?.pause()
+        },
+        { signal },
+      )
+
+      this.#audio.addEventListener("playing", () => this.#setPlaying(true), { signal })
+      this.#audio.addEventListener("pause", () => this.#setPlaying(false), { signal })
+      this.#audio.addEventListener("ended", () => this.#setPlaying(false), { signal })
+    }
+
+    // The cue follows the section and fires as its end reaches the reading area.
+    #isBeforeCue() {
+      return this.getBoundingClientRect().top > window.innerHeight * 0.75
+    }
+
+    #onScroll = () => {
+      const scrollingDown = window.scrollY > this.#lastScrollY
+      const beforeCue = this.#isBeforeCue()
+      this.#lastScrollY = window.scrollY
+
+      if (scrollingDown && this.#beforeCue && !beforeCue && !document.hidden) {
+        this.#stopWatching()
+        void this.#play()
+      }
+
+      this.#beforeCue = beforeCue
+    }
+
+    #stopWatching() {
+      this.#attempted = true
+      window.removeEventListener("scroll", this.#onScroll)
+    }
+
+    #setPlaying(playing: boolean) {
+      this.dataset.state = playing ? "playing" : "ready"
+      this.#button?.setAttribute(
+        "aria-label",
+        (playing ? this.dataset.stopLabel : this.dataset.playLabel) ?? "",
+      )
+    }
+
+    async #play() {
+      if (!this.#audio || !this.#status) return
+      this.#status.textContent = ""
+      try {
+        this.#audio.currentTime = 0
+        await this.#audio.play()
+      } catch (error) {
+        if (!this.isConnected || (error instanceof DOMException && error.name === "AbortError")) {
+          return
+        }
+        const blocked = error instanceof DOMException && error.name === "NotAllowedError"
+        this.dataset.state = blocked ? "blocked" : "error"
+        this.#status.textContent = blocked
+          ? "Click to play."
+          : "Couldn't play the sound. Try again."
+      }
+    }
+
+    disconnectedCallback() {
+      this.#events?.abort()
+      this.#events = undefined
+      this.#audio?.pause()
+    }
+  }
+
+  if (!customElements.get("scroll-sound")) {
+    customElements.define("scroll-sound", ScrollSoundElement)
+  }
+</script>

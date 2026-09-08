@@ -2,6 +2,10 @@
 
 Research notes for the proposed post. Repository: [Effect-TS/effect](https://github.com/Effect-TS/effect). PR author: [Kit Langton, @kitlangton](https://github.com/kitlangton).
 
+## Sound cue
+
+The article plays the Law & Order sting after the cast section. The local asset, `apps/web/src/assets/blog/astra-vs-the-boys/dun-dun.mp3`, is a 1.3-second clip from [3kh0/soundboard](https://github.com/3kh0/soundboard/blob/main/sounds/DUN_DUN.mp3), where it is listed as "Law and order DUN DUN!". Sebastian suggested [the Myinstants version](https://www.myinstants.com/en/instant/law-and-order-dun-dun/); its MP3 endpoint returned HTTP 403 when downloaded.
+
 ## The count
 
 Kit opened **207 PRs** in the two-week window. **195 merged, 12 closed without merging, and none remain open.** Of the 12 unmerged PRs, Giulio explicitly replaced two with different implementations that have since merged. The other ten closures have no explanation in the public PR or linked issue discussion.
