@@ -1,0 +1,91 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  title: string
+  stats: Array<{
+    value: string | number
+    label: string
+    highlight?: boolean
+  }>
+  breakdown?: {
+    description: string
+    items: Array<{
+      label: string
+      value: number
+    }>
+  }
+  note?: string
+}
+
+const { title, stats, breakdown, note } = Astro.props
+const maximum = breakdown?.items.reduce((max, item) => Math.max(max, item.value), 0) ?? 0
+---
+
+<section
+  aria-label={title}
+  class="not-prose my-10 overflow-hidden rounded-lg border border-border bg-card/60"
+>
+  <div class="border-b border-border px-5 py-4">
+    <Eyebrow as="p" class="text-xs">{title}</Eyebrow>
+  </div>
+  <dl class="m-0 grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+    {
+      stats.map(({ value, label, highlight }) => (
+        <div class="flex flex-col gap-2 bg-background px-5 py-6">
+          <dt class="order-2 text-xs text-muted-foreground">{label}</dt>
+          <dd
+            class:list={[
+              "m-0 font-mono text-3xl font-semibold tracking-tight tabular-nums",
+              highlight ? "highlight" : "text-foreground",
+            ]}
+          >
+            {value}
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+  {
+    (breakdown || note) && (
+      <div class="border-t border-border px-5 py-5">
+        {breakdown && (
+          <>
+            <p class="mb-4 text-sm text-muted-foreground">{breakdown.description}</p>
+            <div class="space-y-3">
+              {breakdown.items.map(({ label, value }) => (
+                <div class="flex items-center gap-3 text-xs">
+                  <span class="w-12 shrink-0 font-mono text-muted-foreground">{label}</span>
+                  <div class="h-3 flex-1 overflow-hidden rounded-sm bg-muted" aria-hidden="true">
+                    <div
+                      class="bar h-full rounded-sm"
+                      style={{
+                        width: `${maximum > 0 ? (Math.max(0, value) / maximum) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <span class="w-6 text-right font-mono text-foreground tabular-nums">{value}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {note && (
+          <p class:list={["text-xs leading-relaxed text-muted-foreground", breakdown && "mt-4"]}>
+            {note}
+          </p>
+        )}
+      </div>
+    )
+  }
+</section>
+
+<style>
+  .highlight {
+    color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+  }
+
+  .bar {
+    background-color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+  }
+</style>

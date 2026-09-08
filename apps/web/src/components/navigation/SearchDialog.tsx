@@ -458,14 +458,18 @@ export function SearchDialog({
         ref={registerDialogElement}
         showCloseButton={false}
         initialFocus={getInputElement}
-        overlayClassName="z-200 bg-black/40 backdrop-blur-sm"
-        className="ph-no-capture top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
+        finalFocus={() =>
+          registry.get(searchOpenSourceAtom) === "mobile"
+            ? document.querySelector<HTMLElement>(
+                'effect-mobile-menu [data-role="menu-button"]',
+              )
+            : true
+        }
+        overlayClassName="z-200 bg-black/40 backdrop-blur-sm motion-reduce:animate-none"
+        className="ph-no-capture top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 motion-reduce:animate-none sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
         onKeyDown={handleDialogKeyDown}
       >
-        <DialogTitle className="sr-only">
-          Type to search. Use arrow keys to navigate results. Press Enter to
-          select. Press Escape to close.
-        </DialogTitle>
+        <DialogTitle className="sr-only">Search Effect</DialogTitle>
         <SearchDialogHeader />
         <SearchDialogResults />
         <SearchDialogFooter />

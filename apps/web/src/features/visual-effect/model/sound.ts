@@ -1,7 +1,5 @@
-import * as Schema from "effect/Schema"
-
-export const SoundPreference = Schema.Literals(["system", "on", "off"])
-export type SoundPreference = typeof SoundPreference.Type
+import type { SoundPreference } from "@/lib/sound-preference"
+export { SoundPreference } from "@/lib/sound-preference"
 
 export interface SoundSettings {
   readonly preference: SoundPreference

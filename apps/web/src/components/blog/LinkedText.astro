@@ -1,0 +1,30 @@
+---
+import ArticleLink from "@/components/blog/ArticleLink.astro"
+
+interface Props {
+  text: string
+  links?: Record<string, string>
+}
+
+const { text, links = {} } = Astro.props
+const targets = new Map(Object.entries(links))
+const labels = [...targets.keys()].sort((a, b) => b.length - a.length)
+const pattern = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")
+const parts = pattern ? text.split(new RegExp(`\\b(${pattern})\\b`, "g")) : [text]
+---
+
+{
+  parts.map((part) => {
+    const href = targets.get(part)
+    return href !== undefined ? (
+      <ArticleLink
+        href={href}
+        class="text-foreground underline underline-offset-4 hover:no-underline"
+      >
+        {part}
+      </ArticleLink>
+    ) : (
+      part
+    )
+  })
+}
