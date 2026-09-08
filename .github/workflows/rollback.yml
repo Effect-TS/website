@@ -11,16 +11,6 @@ on:
         description: Exact known-good API reference snapshot tag
         required: true
         type: string
-      cloudflare_traffic_mode:
-        description: Traffic mode to restore
-        required: true
-        default: workers-dev
-        type: choice
-        options:
-          - workers-dev
-          - routes
-          - bridge
-          - custom-domains
 
 permissions:
   contents: read
@@ -31,7 +21,6 @@ jobs:
     with:
       website-ref: ${{ inputs.website_ref }}
       api-reference-snapshot: ${{ inputs.api_reference_snapshot }}
-      cloudflare-traffic-mode: ${{ inputs.cloudflare_traffic_mode }}
       allow-ancestor: true
       force-full-build: true
       synchronize-mixedbread: false

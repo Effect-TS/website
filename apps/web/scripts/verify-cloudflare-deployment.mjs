@@ -1,12 +1,5 @@
 import { pathToFileURL } from "node:url"
 
-const trafficModes = new Set([
-  "workers-dev",
-  "routes",
-  "bridge",
-  "custom-domains",
-])
-
 export const retry = async (
   label,
   operation,
@@ -74,11 +67,9 @@ const checks = [
 ]
 
 const main = async () => {
-  const [baseUrlArgument, trafficMode, expectedRevision] = process.argv.slice(2)
-  if (baseUrlArgument === undefined || !trafficModes.has(trafficMode)) {
-    throw new Error(
-      "Usage: verify-cloudflare-deployment.mjs <base-url> <traffic-mode>",
-    )
+  const [baseUrlArgument, expectedRevision] = process.argv.slice(2)
+  if (baseUrlArgument === undefined) {
+    throw new Error("Usage: verify-cloudflare-deployment.mjs <base-url>")
   }
 
   const baseUrl = new URL(baseUrlArgument)
@@ -173,49 +164,47 @@ const main = async () => {
     )
   })
 
-  if (trafficMode !== "workers-dev") {
-    await retry("production origin", async () => {
-      const rootResponse = await fetch(new URL("/", baseUrl), {
-        redirect: "manual",
-        signal: AbortSignal.timeout(30_000),
-      })
-      if (
-        rootResponse.headers.get("server")?.toLowerCase() === "vercel" ||
-        rootResponse.headers.has("x-vercel-id")
-      ) {
-        throw new Error(`${baseUrl.href} is still served by Vercel`)
-      }
+  await retry("production origin", async () => {
+    const rootResponse = await fetch(new URL("/", baseUrl), {
+      redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
     })
+    if (
+      rootResponse.headers.get("server")?.toLowerCase() === "vercel" ||
+      rootResponse.headers.has("x-vercel-id")
+    ) {
+      throw new Error(`${baseUrl.href} is still served by Vercel`)
+    }
+  })
 
-    const redirectSource = new URL(
-      "https://www.effect.website/docs/v4/onboarding?cutover=1",
-    )
-    await retry(redirectSource.href, async () => {
-      const redirectResponse = await fetch(redirectSource, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(30_000),
-      })
-      if (![301, 302, 307, 308].includes(redirectResponse.status)) {
-        throw new Error(
-          `${redirectSource.href} returned ${redirectResponse.status}; expected a redirect`,
-        )
-      }
-      const location = redirectResponse.headers.get("location")
-      if (location === null) {
-        throw new Error(`${redirectSource.href} returned no redirect location`)
-      }
-      const destination = new URL(location, redirectSource)
-      const expected = "https://effect.website/docs/v4/onboarding?cutover=1"
-      if (destination.href !== expected) {
-        throw new Error(
-          `${redirectSource.href} redirected to ${destination.href}; expected ${expected}`,
-        )
-      }
-      console.log(
-        `PASS ${redirectResponse.status} ${redirectSource.href} -> ${destination.href}`,
-      )
+  const redirectSource = new URL(
+    "https://www.effect.website/docs/v4/onboarding?cutover=1",
+  )
+  await retry(redirectSource.href, async () => {
+    const redirectResponse = await fetch(redirectSource, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
     })
-  }
+    if (redirectResponse.status !== 301) {
+      throw new Error(
+        `${redirectSource.href} returned ${redirectResponse.status}; expected 301`,
+      )
+    }
+    const location = redirectResponse.headers.get("location")
+    if (location === null) {
+      throw new Error(`${redirectSource.href} returned no redirect location`)
+    }
+    const destination = new URL(location, redirectSource)
+    const expected = "https://effect.website/docs/v4/onboarding?cutover=1"
+    if (destination.href !== expected) {
+      throw new Error(
+        `${redirectSource.href} redirected to ${destination.href}; expected ${expected}`,
+      )
+    }
+    console.log(
+      `PASS ${redirectResponse.status} ${redirectSource.href} -> ${destination.href}`,
+    )
+  })
 }
 
 if (

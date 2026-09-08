@@ -4,7 +4,7 @@ import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as KeyValueStore from "effect/unstable/persistence/KeyValueStore"
 
-const VercelKVS = Layer.unwrap(
+const UpstashKVS = Layer.unwrap(
   Effect.gen(function* () {
     if (process.env.NODE_ENV === "development") {
       return KeyValueStore.layerMemory
@@ -13,11 +13,11 @@ const VercelKVS = Layer.unwrap(
       url: Config.string("KV_REST_API_URL"),
       token: Config.redacted("KV_REST_API_TOKEN"),
     })
-    return makeVercelKVS(config.url, config.token)
+    return makeUpstashKVS(config.url, config.token)
   }),
 )
 
-const makeVercelKVS = (url: string, token: Redacted.Redacted) =>
+const makeUpstashKVS = (url: string, token: Redacted.Redacted) =>
   Layer.effect(
     KeyValueStore.KeyValueStore,
     Effect.gen(function* () {
@@ -72,4 +72,4 @@ const makeVercelKVS = (url: string, token: Redacted.Redacted) =>
     }),
   )
 
-export const ShortenKVS = VercelKVS
+export const ShortenKVS = UpstashKVS

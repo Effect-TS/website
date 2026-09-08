@@ -17,11 +17,6 @@ on:
         required: false
         default: markdown
         type: string
-      cloudflare-traffic-mode:
-        description: Cloudflare production traffic mode
-        required: false
-        default: workers-dev
-        type: string
       force-full-build:
         description: Discard the Astro incremental build cache and re-render every page
         required: false
@@ -107,7 +102,6 @@ jobs:
             .github/actions/setup \
             alchemy.run.ts \
             apps/web/scripts/read-alchemy-deployment.mjs \
-            apps/web/scripts/validate-cloudflare-traffic-transition.mjs \
             apps/web/scripts/write-alchemy-build-input.mjs \
             apps/web/scripts/verify-cloudflare-deployment.mjs \
             apps/web/scripts/verify-cloudflare-traffic.mjs
@@ -122,7 +116,6 @@ jobs:
           mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare-traffic-mode: ${{ inputs.cloudflare-traffic-mode }}
           force-full-build: ${{ inputs.force-full-build }}
           synchronize-mixedbread: ${{ inputs.synchronize-mixedbread }}
           kv-rest-api-url: ${{ secrets.KV_REST_API_URL }}

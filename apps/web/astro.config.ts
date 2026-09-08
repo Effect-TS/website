@@ -1,6 +1,5 @@
 import mdx from "@astrojs/mdx"
 import react from "@astrojs/react"
-// import vercel from "@astrojs/vercel"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import { rehypeHeadingIds, unified } from "@astrojs/markdown-remark"
@@ -29,8 +28,6 @@ const cacheDir = new URL("./.astro-cache/", import.meta.url)
 // https://astro.build/config
 const config = defineConfig({
   site: "https://effect.website",
-
-  // adapter: vercel(),
 
   trailingSlash: "never",
 
@@ -86,7 +83,7 @@ const config = defineConfig({
         },
       },
       watch: {
-        ignored: ["**/.astro/**", "**/.direnv/**", "**/.vercel/**"],
+        ignored: ["**/.astro/**", "**/.direnv/**"],
       },
     },
   },
