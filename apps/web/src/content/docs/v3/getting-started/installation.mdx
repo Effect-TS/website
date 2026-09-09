@@ -10,13 +10,13 @@ import { Steps, Tabs, TabItem } from "@astrojs/starlight/components"
 Requirements:
 
 - TypeScript 5.4 or newer.
-- Node.js, Deno, and Bun are supported.
+- Node.js 22.18 or newer, Deno, and Bun are supported.
 
 ## Manual Installation
 
-### Node.js
+### JavaScript runtimes
 
-Follow these steps to create a new Effect project for [Node.js](https://nodejs.org/):
+Follow these steps to create a new Effect project for [Node.js](https://nodejs.org/), [Bun](https://bun.sh/), or [Deno](https://deno.com/):
 
 <Steps>
 
@@ -58,9 +58,33 @@ Follow these steps to create a new Effect project for [Node.js](https://nodejs.o
 
    </TabItem>
 
+   <TabItem label="Bun" icon="bun">
+
+   ```sh showLineNumbers=false
+   bun init
+   ```
+
+   </TabItem>
+
+   <TabItem label="Deno" icon="deno">
+
+   ```sh showLineNumbers=false
+   deno init
+   ```
+
+   </TabItem>
+
    </Tabs>
 
-   This creates a `package.json` file with an initial setup for your TypeScript project.
+   This creates a `package.json` file with an initial setup for your TypeScript project. For Bun, this also generates a `tsconfig.json` file. For Deno, this generates a `deno.json` file.
+
+   Make sure the `package.json` file contains the `"type": "module"` field, so that Node.js treats your source files as ES modules (`bun init` adds this automatically):
+
+   ```json showLineNumbers=false
+   {
+     "type": "module"
+   }
+   ```
 
 3. Initialize TypeScript:
 
@@ -87,6 +111,18 @@ Follow these steps to create a new Effect project for [Node.js](https://nodejs.o
    ```sh showLineNumbers=false
    yarn tsc --init
    ```
+
+   </TabItem>
+
+   <TabItem label="Bun" icon="bun">
+
+   `bun init` has already generated a `tsconfig.json` file.
+
+   </TabItem>
+
+   <TabItem label="Deno" icon="deno">
+
+   Deno runs TypeScript out of the box, and `deno init` has already generated a `deno.json` file with `strict` mode enabled by default. No further configuration is needed.
 
    </TabItem>
 
@@ -132,6 +168,22 @@ Follow these steps to create a new Effect project for [Node.js](https://nodejs.o
 
    </TabItem>
 
+   <TabItem label="Bun" icon="bun">
+
+   ```sh showLineNumbers=false
+   bun add effect
+   ```
+
+   </TabItem>
+
+   <TabItem label="Deno" icon="deno">
+
+   ```sh showLineNumbers=false
+   deno add npm:effect
+   ```
+
+   </TabItem>
+
    </Tabs>
 
    This package will provide the foundational functionality for your Effect project.
@@ -147,7 +199,7 @@ mkdir src
 touch src/index.ts
 ```
 
-Open the `index.ts` file and add the following code:
+Open the `src/index.ts` file and add the following code:
 
 ```ts title="src/index.ts"
 import { Effect, Console } from "effect"
@@ -157,121 +209,53 @@ const program = Console.log("Hello, World!")
 Effect.runSync(program)
 ```
 
-Run the `index.ts` file. Here we are using [tsx](https://github.com/privatenumber/tsx) to run the `index.ts` file in the terminal:
+Run the `src/index.ts` file. Node.js 22.18 or newer, Bun, and Deno can run TypeScript files directly, so no additional tooling is needed:
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
 
 ```sh showLineNumbers=false
-npx tsx src/index.ts
+node src/index.ts
 ```
 
-You should see the message `"Hello, World!"` printed. This confirms that the program is working correctly.
+</TabItem>
 
-### Deno
-
-Follow these steps to create a new Effect project for [Deno](https://deno.com/):
-
-<Steps>
-
-1. Create a project directory and navigate into it:
-
-   ```sh showLineNumbers=false
-   mkdir hello-effect
-   cd hello-effect
-   ```
-
-2. Initialize Deno:
-
-   ```sh showLineNumbers=false
-   deno init
-   ```
-
-3. Install the necessary package as dependency:
-
-   ```sh showLineNumbers=false
-   deno add npm:effect
-   ```
-
-   This package will provide the foundational functionality for your Effect project.
-
-</Steps>
-
-Let's write and run a simple program to ensure that everything is set up correctly.
-
-Open the `main.ts` file and replace the content with the following code:
-
-```ts title="main.ts"
-import { Effect, Console } from "effect"
-
-const program = Console.log("Hello, World!")
-
-Effect.runSync(program)
-```
-
-Run the `main.ts` file:
+<TabItem label="pnpm" icon="pnpm">
 
 ```sh showLineNumbers=false
-deno run main.ts
+node src/index.ts
 ```
 
-You should see the message `"Hello, World!"` printed. This confirms that the program is working correctly.
+</TabItem>
 
-### Bun
-
-Follow these steps to create a new Effect project for [Bun](https://bun.sh/):
-
-<Steps>
-
-1. Create a project directory and navigate into it:
-
-   ```sh showLineNumbers=false
-   mkdir hello-effect
-   cd hello-effect
-   ```
-
-2. Initialize Bun:
-
-   ```sh showLineNumbers=false
-   bun init
-   ```
-
-   When running this command, it will generate a `tsconfig.json` file that contains configuration options for TypeScript. One of the most important options to consider is the `strict` flag.
-
-   Make sure to open the `tsconfig.json` file and verify that the value of the `strict` option is set to `true`.
-
-   ```json showLineNumbers=false
-   {
-     "compilerOptions": {
-       "strict": true
-     }
-   }
-   ```
-
-3. Install the necessary package as dependency:
-
-   ```sh showLineNumbers=false
-   bun add effect
-   ```
-
-   This package will provide the foundational functionality for your Effect project.
-
-</Steps>
-
-Let's write and run a simple program to ensure that everything is set up correctly.
-
-Open the `index.ts` file and replace the content with the following code:
-
-```ts title="index.ts"
-import { Effect, Console } from "effect"
-
-const program = Console.log("Hello, World!")
-
-Effect.runSync(program)
-```
-
-Run the `index.ts` file:
+<TabItem label="Yarn" icon="seti:yarn">
 
 ```sh showLineNumbers=false
-bun index.ts
+node src/index.ts
 ```
+
+</TabItem>
+
+<TabItem label="Bun" icon="bun">
+
+```sh showLineNumbers=false
+bun src/index.ts
+```
+
+</TabItem>
+
+<TabItem label="Deno" icon="deno">
+
+```sh showLineNumbers=false
+deno run src/index.ts
+```
+
+</TabItem>
+
+</Tabs>
+
+If you are using an older version of Node.js, run the file with [tsx](https://github.com/privatenumber/tsx) instead: `npx tsx src/index.ts`.
 
 You should see the message `"Hello, World!"` printed. This confirms that the program is working correctly.
 
