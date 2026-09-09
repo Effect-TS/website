@@ -35,7 +35,7 @@ const FAQS: FaqItem[] = [
 <div class="space-y-4">
   {
     FAQS.map(({ question, answer }) => (
-      <details class="group rounded-md border border-zinc-700 hover:border-zinc-600 hover:bg-zinc-900/50">
+      <details class="faq-item group rounded-md border border-zinc-700 hover:border-zinc-600 hover:bg-zinc-900/50">
         <summary class="flex cursor-pointer list-none items-center justify-between bg-transparent px-5 py-4 text-base leading-snug font-medium text-zinc-300 hover:bg-transparent hover:text-white">
           {question}
           <span class="ml-2 flex h-6 w-6 shrink-0 items-center justify-center bg-zinc-800/80 text-zinc-400 transition-all duration-200 group-hover:bg-zinc-700">
@@ -55,7 +55,7 @@ const FAQS: FaqItem[] = [
             </svg>
           </span>
         </summary>
-        <div class="grid transition-[grid-template-rows] duration-200 ease-out [grid-template-rows:0fr] group-open:[grid-template-rows:1fr]">
+        <div class="faq-panel grid transition-[grid-template-rows] duration-200 ease-out [grid-template-rows:0fr] group-open:[grid-template-rows:1fr]">
           <div class="overflow-hidden">
             <div
               class="px-5 pt-0 pb-5 text-[15px] leading-relaxed text-zinc-400 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4"
@@ -67,3 +67,27 @@ const FAQS: FaqItem[] = [
     ))
   }
 </div>
+
+<style>
+  @supports selector(::details-content) {
+    .faq-panel {
+      display: block;
+      overflow: hidden;
+      transition: none;
+    }
+
+    .faq-item::details-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      content-visibility: hidden;
+      transition:
+        grid-template-rows 200ms cubic-bezier(0, 0, 0.2, 1),
+        content-visibility 200ms allow-discrete;
+    }
+
+    .faq-item[open]::details-content {
+      grid-template-rows: 1fr;
+      content-visibility: visible;
+    }
+  }
+</style>
