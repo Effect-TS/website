@@ -5,6 +5,8 @@ sidebar:
   order: 11
 ---
 
+import { Aside } from "@astrojs/starlight/components"
+
 Yieldable Errors are special types of errors that can be yielded directly within a generator function using [Effect.gen](/docs/v3/getting-started/using-generators/).
 These errors allow you to handle them intuitively, without needing to explicitly invoke [Effect.fail](/docs/v3/getting-started/creating-effects/#fail). This simplifies how you manage custom errors in your code.
 
@@ -76,3 +78,9 @@ Example Output (n < 0.2):
 Foo error: Oh no!
 */
 ```
+
+<Aside type="caution" title="Tags Must Be Unique">
+
+`Effect.catchTag` matches errors by comparing the `_tag` string, and TypeScript narrows unions the same way. Both mechanisms assume that each tagged error uses a unique tag, but TypeScript cannot enforce this: nothing stops two classes from passing the same tag string to `Data.TaggedError`. When that happens the two errors are indistinguishable, `Effect.catchTag` and `Effect.catchTags` catch both, and neither the compiler nor the runtime warns about it.
+
+</Aside>

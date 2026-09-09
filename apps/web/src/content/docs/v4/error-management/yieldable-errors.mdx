@@ -5,6 +5,8 @@ sidebar:
   order: 11
 ---
 
+import { Aside } from "@astrojs/starlight/components"
+
 Errors created with `Data.Error` and `Data.TaggedError` are yieldable. Inside [`Effect.gen`](/docs/v4/getting-started/using-generators/), yielding one is equivalent to passing it to [`Effect.fail`](/docs/v4/getting-started/creating-effects/#fail).
 
 ## Data.Error
@@ -62,3 +64,9 @@ Effect.runSync(program) // => "No user missing"
 ```
 
 Use tagged errors for domain errors that callers may need to distinguish. The class is both the error's constructor and its TypeScript type.
+
+<Aside type="caution" title="Tags Must Be Unique">
+
+`Effect.catchTag` matches errors by comparing the `_tag` string, and TypeScript narrows unions the same way. Both mechanisms assume that each tagged error uses a unique tag, but TypeScript cannot enforce this: nothing stops two classes from passing the same tag string to `Data.TaggedError`. When that happens the two errors are indistinguishable, `Effect.catchTag` and `Effect.catchTags` catch both, and neither the compiler nor the runtime warns about it.
+
+</Aside>
