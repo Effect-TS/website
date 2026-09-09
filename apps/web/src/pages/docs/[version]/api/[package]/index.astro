@@ -1,7 +1,7 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { Search } from "@lucide/astro"
+import SearchField from "@/components/ui/SearchField.astro"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
@@ -15,6 +15,7 @@ import {
   versionIndexDigest,
 } from "@/features/api-reference/cache-key"
 import DocShell from "@/layouts/DocShell.astro"
+import FilterStatus from "@/components/ui/FilterStatus.astro"
 import { cacheKey } from "@/lib/cache-key"
 import { DOCS_VERSIONS } from "@/lib/versions"
 
@@ -205,7 +206,7 @@ function moduleName(modulePath: string, group: string): string {
       <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
     </header>
 
-    <div aria-label={`${pkg.name} modules`}>
+    <div role="group" aria-label={`${pkg.name} modules`}>
       <ApiSidebarNav sections={sidebarSections} />
     </div>
   </nav>
@@ -253,29 +254,21 @@ function moduleName(modulePath: string, group: string): string {
     </div>
 
     <!-- Search -->
-    <label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
-      <span class="sr-only">Search {displayName} modules</span>
-      <Search
-        class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden="true"
-      />
-      <input
-        id="search"
-        type="search"
-        aria-label={`Search ${displayName} modules`}
-        placeholder={`Search ${displayName} modules…`}
-        autocomplete="off"
-        data-module-search
-        class="w-full rounded-lg border border-input bg-transparent py-2 pr-4 pl-11 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
-      />
-    </label>
+    <SearchField
+      id="search"
+      label={`Search ${displayName} modules`}
+      placeholder={`Search ${displayName} modules…`}
+      data-module-search
+      class="mt-4 mb-6 md:mt-8 md:mb-10"
+    />
 
+    <FilterStatus count={modules.length} label="Modules found" />
     <div class="not-prose space-y-12" data-module-list>
       {
         sections.map((section) => (
           <div data-module-section>
             {section.label !== undefined && (
-              <h2 class="mb-6 border-b border-border pb-3 font-mono text-sm font-semibold tracking-wider text-amber-600 uppercase dark:text-amber-400">
+              <h2 class="mb-6 border-b border-border pb-3 font-mono text-sm font-semibold tracking-wider text-warning-foreground uppercase">
                 {section.label}
               </h2>
             )}
@@ -331,6 +324,7 @@ function moduleName(modulePath: string, group: string): string {
   const input = document.querySelector<HTMLInputElement>("[data-module-search]")
   const list = document.querySelector<HTMLElement>("[data-module-list]")
   const emptyState = document.querySelector<HTMLElement>("[data-empty-state]")
+  const status = document.querySelector<HTMLElement>("filter-status")
 
   if (input !== null && list !== null && emptyState !== null) {
     input.addEventListener("input", () => {
@@ -358,6 +352,7 @@ function moduleName(modulePath: string, group: string): string {
       }
 
       emptyState.classList.toggle("hidden", visibleModules > 0)
+      if (status) status.dataset.count = String(visibleModules)
     })
   }
 </script>

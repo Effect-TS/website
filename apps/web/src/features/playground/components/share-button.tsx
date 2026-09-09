@@ -1,48 +1,36 @@
 import { useAtomSet, useAtomValue, useAtom } from "@effect/atom-react"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { CheckIcon, CopyIcon, DownloadIcon, Loader2Icon } from "lucide-react"
-import { useCallback, useState, useRef, useEffect } from "react"
+import { useRef } from "react"
+import { Button } from "@/components/ui/Button"
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverTitle,
+  PopoverDescription,
+} from "@/components/ui/popover"
 import { copyLinkAtom, downloadAtom, shareAtom } from "../atoms/share"
 import { useWorkspaceHandle } from "../context/workspace"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
   const share = useAtomSet(shareAtom(handle))
-  const [open, setOpen] = useState(false)
-  const popoverRef = useRef<HTMLDivElement>(null)
-
-  const onToggle = useCallback(() => {
-    setOpen((prev) => {
-      if (!prev) share()
-      return !prev
-    })
-  }, [share])
-
-  useEffect(() => {
-    if (!open) return
-    const handleClick = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [open])
-
   return (
-    <div className="relative" ref={popoverRef}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="h-7.5 cursor-pointer rounded-md border border-zinc-300 bg-zinc-50 px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-white"
+    <Popover
+      onOpenChange={(open) => {
+        if (open) share()
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button variant="subtle" className="h-7.5 rounded-md px-3 text-xs" />
+        }
       >
         Share
-      </button>
-      {open && <ShareContent />}
-    </div>
+      </PopoverTrigger>
+      <ShareContent />
+    </Popover>
   )
 }
 
@@ -55,30 +43,37 @@ function ShareContent() {
   const url = AsyncResult.isSuccess(result) ? result.value.url : ""
   const isWaiting = result.waiting
   const isFailed = AsyncResult.isFailure(result)
+  const input = useRef<HTMLInputElement>(null)
 
   return (
-    <div className="absolute top-full right-0 z-50 mt-2 w-[400px] max-w-[calc(100vw-2rem)] animate-[dialogIn_0.25s_ease-out] rounded-lg border border-zinc-300 bg-zinc-100 p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+    <PopoverContent
+      initialFocus={input}
+      align="end"
+      className="w-100 max-w-[calc(100vw-2rem)] bg-control-background"
+    >
       <div className="flex flex-col space-y-2">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
-          Share
-        </h3>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <PopoverTitle className="text-lg font-semibold">Share</PopoverTitle>
+        <PopoverDescription className="text-sm text-muted-foreground">
           Use the link to share this playground with others.
-        </p>
+        </PopoverDescription>
       </div>
       <div className="flex items-center space-x-2 pt-4">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <input
             type="text"
+            ref={input}
+            aria-label="Playground link"
             readOnly
             placeholder="Loading..."
             value={isFailed ? "An error occurred." : url}
-            className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+            className="h-9 w-full rounded-md border border-input bg-field-background px-3 text-sm text-foreground"
           />
         </div>
-        <button
-          type="button"
-          className="h-9 cursor-pointer rounded-md border border-zinc-300 bg-white px-3 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+        <Button
+          variant="surface"
+          size="icon"
+          className="h-9 w-auto rounded-md px-3"
+          aria-label="Copy playground link"
           disabled={isWaiting || isFailed}
           onClick={() => setCopied(handle)}
         >
@@ -89,15 +84,17 @@ function ShareContent() {
           ) : (
             <CopyIcon size={16} />
           )}
-        </button>
+        </Button>
       </div>
       <div className="flex items-center space-x-2 pt-4">
-        <p className="flex-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="flex-1 text-sm text-muted-foreground">
           Or download the files locally
         </p>
-        <button
-          type="button"
-          className="h-9 cursor-pointer rounded-md border border-zinc-300 bg-white px-3 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+        <Button
+          variant="surface"
+          size="icon"
+          className="h-9 w-auto rounded-md px-3"
+          aria-label="Download playground files"
           disabled={isWaiting || isFailed}
           onClick={() => download(handle)}
         >
@@ -108,8 +105,19 @@ function ShareContent() {
           ) : (
             <DownloadIcon size={16} />
           )}
-        </button>
+        </Button>
       </div>
-    </div>
+      <p role="status" className="sr-only">
+        {isWaiting
+          ? "Creating playground link…"
+          : isFailed
+            ? "Unable to create a playground link."
+            : AsyncResult.isSuccess(copied)
+              ? "Playground link copied."
+              : AsyncResult.isSuccess(downloaded)
+                ? "Playground download started."
+                : "Playground link ready."}
+      </p>
+    </PopoverContent>
   )
 }

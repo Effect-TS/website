@@ -1,5 +1,6 @@
 ---
 import { Calendar, ChevronDown, Download, ExternalLink } from "@lucide/astro"
+import Disclosure from "@/components/ui/Disclosure.astro"
 
 /**
  * "Save to calendar" control for the Effect Days pages.
@@ -60,36 +61,23 @@ const itemClass =
   "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 no-underline transition-colors hover:bg-zinc-800 hover:text-white"
 ---
 
-<effect-save-to-calendar
-  class:list={["relative block", fullWidth ? "w-full" : "w-full sm:inline-block sm:w-auto"]}
+<Disclosure
+  label="Save to calendar"
+  class={fullWidth ? "relative w-full" : "relative w-full sm:w-auto"}
+  triggerClass="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-md inset-ring inset-ring-border-strong bg-card/50 px-6 py-3.5 text-sm font-medium text-foreground transition-all hover:bg-muted hover:inset-ring-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+  panelClass="absolute top-full left-0 z-20 mt-2 min-w-full w-max max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card shadow-xl"
 >
-  {
-    /* py-3.5 puts back the 4px that the smaller line-height gives up, so the
-      button stays 48px tall and level with the "Get tickets" button beside it. */
-  }
-  <button
-    type="button"
-    data-role="menu-button"
-    aria-haspopup="menu"
-    aria-expanded="false"
-    class:list={[
-      "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md inset-ring inset-ring-zinc-700 bg-zinc-900/50 px-6 py-3.5 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:inset-ring-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
-      fullWidth ? "w-full" : "w-full sm:w-auto",
-    ]}
-  >
+  <Fragment slot="trigger">
     <Calendar size={18} aria-hidden="true" />
     Save to calendar
     <ChevronDown
       data-role="chevron"
-      class="text-base text-zinc-500 transition-transform duration-200"
+      class="text-base text-subtle-foreground transition-transform duration-200 group-open/disclosure:rotate-180"
       aria-hidden="true"
     />
-  </button>
+  </Fragment>
 
-  <div
-    data-role="menu"
-    class="absolute top-full left-0 z-20 mt-2 hidden w-full overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 shadow-xl"
-  >
+  <div>
     {
       MENU.map((item) => (
         <a
@@ -114,64 +102,4 @@ const itemClass =
       Apple, other (.ics)
     </a>
   </div>
-</effect-save-to-calendar>
-
-<script>
-  class EffectSaveToCalendarElement extends HTMLElement {
-    #button: HTMLButtonElement | null = null
-    #chevron: SVGElement | null = null
-    #menu: HTMLDivElement | null = null
-    #open = false
-
-    connectedCallback() {
-      this.#button = this.querySelector("[data-role='menu-button']")
-      this.#chevron = this.querySelector("[data-role='chevron']")
-      this.#menu = this.querySelector("[data-role='menu']")
-
-      if (!(this.#button instanceof HTMLButtonElement)) return
-      if (!(this.#chevron instanceof SVGElement)) return
-      if (!(this.#menu instanceof HTMLDivElement)) return
-
-      this.#button.addEventListener("click", this.#onToggle)
-      this.#menu.querySelectorAll("[data-role='menu-link']").forEach((link) => {
-        link.addEventListener("click", this.#onLinkClick)
-      })
-      document.addEventListener("mousedown", this.#onOutsidePointer)
-      document.addEventListener("keydown", this.#onKeyDown)
-    }
-
-    disconnectedCallback() {
-      this.#button?.removeEventListener("click", this.#onToggle)
-      this.#menu?.querySelectorAll("[data-role='menu-link']").forEach((link) => {
-        link.removeEventListener("click", this.#onLinkClick)
-      })
-      document.removeEventListener("mousedown", this.#onOutsidePointer)
-      document.removeEventListener("keydown", this.#onKeyDown)
-    }
-
-    #setOpen = (open: boolean) => {
-      if (!this.#button || !this.#chevron || !this.#menu) return
-      this.#open = open
-      this.#button.setAttribute("aria-expanded", String(open))
-      this.#chevron.classList.toggle("rotate-180", open)
-      this.#menu.classList.toggle("hidden", !open)
-    }
-
-    #onToggle = () => this.#setOpen(!this.#open)
-    #onLinkClick = () => this.#setOpen(false)
-
-    #onOutsidePointer = (event: MouseEvent) => {
-      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
-        this.#setOpen(false)
-      }
-    }
-
-    #onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && this.#open) this.#setOpen(false)
-    }
-  }
-
-  if (!customElements.get("effect-save-to-calendar")) {
-    customElements.define("effect-save-to-calendar", EffectSaveToCalendarElement)
-  }
-</script>
+</Disclosure>

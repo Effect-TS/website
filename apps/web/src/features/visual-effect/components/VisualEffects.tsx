@@ -48,6 +48,8 @@ export default function VisualEffects() {
       <div className="relative">
         <div
           ref={drag.ref}
+          role="group"
+          aria-label="Example category"
           onPointerDown={drag.onPointerDown}
           onPointerMove={drag.onPointerMove}
           onPointerUp={drag.onPointerUp}
@@ -63,6 +65,7 @@ export default function VisualEffects() {
               <button
                 key={cat}
                 type="button"
+                aria-pressed={active}
                 onClick={() => {
                   reset()
                   setCategory(cat)
@@ -115,6 +118,8 @@ function SubTabs({
       <div className="relative">
         <div
           ref={drag.ref}
+          role="group"
+          aria-label="Example"
           onPointerDown={drag.onPointerDown}
           onPointerMove={drag.onPointerMove}
           onPointerUp={drag.onPointerUp}
@@ -129,6 +134,7 @@ function SubTabs({
               <button
                 key={example.key}
                 type="button"
+                aria-pressed={isActive}
                 onClick={() => {
                   onTabChange()
                   setActiveKey(example.key)

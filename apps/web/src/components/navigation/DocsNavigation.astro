@@ -4,7 +4,10 @@ import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import { SearchDialog } from "@/components/navigation/SearchDialog"
-import { cn } from "@/lib/utils"
+import SearchTriggerIsland from "@/components/navigation/SearchTriggerIsland"
+import Disclosure from "@/components/ui/Disclosure.astro"
+import ThemeToggle from "@/components/ui/ThemeToggle"
+import VersionSwitch from "@/components/ui/VersionSwitch.astro"
 import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
 import type { DocsNavSection } from "@/lib/docs-sections"
 
@@ -14,106 +17,80 @@ interface Props {
 }
 
 const { section, version = defaultDocsVersion } = Astro.props
-
-const DOCS_HOME = { href: `/docs/${version}`, label: "Docs" }
-
-const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: string }> = [
-  { key: "onboarding", label: "Onboarding", href: `/docs/${version}` },
-  { key: "guides", label: "Guides", href: `/docs/${version}/guides` },
-  { key: "api", label: "Reference", href: `/docs/${version}/api` },
+const links = [
+  { key: "onboarding", href: `/docs/${version}`, label: "Onboarding" },
+  { key: "guides", href: `/docs/${version}/guides`, label: "Guides" },
+  { key: "api", href: `/docs/${version}/api`, label: "Reference" },
 ]
-
-const navItemClass = (active: boolean) =>
-  cn(
-    "text-sm font-medium text-zinc-500 no-underline transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white",
-    active && "text-zinc-900 dark:text-white",
-  )
+const versions = DOCS_VERSIONS.map(({ value, label }) => ({
+  href: section === "api" ? `/docs/${value}/api` : `/docs/${value}`,
+  label,
+  ariaLabel: `Effect ${label} documentation`,
+  active: version === value,
+}))
+const linkClass =
+  "text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground aria-[current=page]:text-foreground"
 ---
 
-<div class="sticky top-0 z-100 w-full">
+<div data-site-header class="sticky top-0 z-100 w-full">
   <AnnouncementBanner />
-
-  <div
-    class="w-full border-b border-zinc-200 bg-zinc-50/85 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/85"
+  <header
+    class="@container/navigation relative border-b border-border bg-navigation-background/85 backdrop-blur-sm"
   >
-    <header class="relative mx-auto w-full max-w-352 px-4">
-      <nav class="flex h-16 items-center">
-        <NavigationLogo />
-
-        <div class="ml-8 hidden items-center gap-4 sm:flex">
-          <a
-            href={DOCS_HOME.href}
-            class="text-sm font-medium text-zinc-900 no-underline dark:text-white"
-          >
-            {DOCS_HOME.label}
-          </a>
-          <div class="hidden h-4.5 w-px bg-zinc-300 md:block dark:bg-zinc-700" aria-hidden="true">
-          </div>
-        </div>
-
-        <div class="ml-4 hidden items-center gap-6 md:flex">
-          {
-            SECTION_LINKS.map((link) => (
-              <a
-                href={link.href}
-                class={navItemClass(link.key === section)}
-                aria-current={link.key === section ? "page" : undefined}
-              >
-                {link.label}
-              </a>
-            ))
-          }
-        </div>
-
-        <div
-          class="ml-6 hidden shrink-0 gap-1 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900"
+    <nav aria-label="Documentation" class="mx-auto flex h-16 max-w-352 items-center px-4">
+      <NavigationLogo />
+      <div class="ml-8 hidden items-center gap-4 @min-[40rem]/navigation:flex">
+        <a href={`/docs/${version}`} class="text-sm font-medium text-foreground no-underline"
+          >Docs</a
         >
-          {
-            DOCS_VERSIONS.map(({ value, label }) => (
-              <a
-                href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
-                aria-label={`Effect ${label} documentation`}
-                aria-current={version === value ? "page" : undefined}
-                class:list={[
-                  "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
-                  version === value
-                    ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
-                ]}
-              >
-                {label}
-              </a>
-            ))
-          }
+        <div
+          class="hidden h-4.5 w-px bg-border-strong @min-[60rem]/navigation:block"
+          aria-hidden="true"
+        >
         </div>
-
-        <docs-mobile-menu class="ml-auto flex items-center md:hidden">
-          <button
-            type="button"
-            data-role="toggle"
-            aria-label="Open menu"
-            aria-expanded="false"
-            aria-controls="docs-mobile-panel"
-            class="-mr-2 flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
-          >
-            <Menu data-role="icon-open" class="h-6 w-6" aria-hidden="true" />
-            <X data-role="icon-close" class="hidden h-6 w-6" aria-hidden="true" />
-          </button>
-
-          <div
-            id="docs-mobile-panel"
-            data-role="panel"
-            class="fixed inset-x-0 top-full z-90 hidden border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
-          >
-            <ul class="mx-auto w-full max-w-352 px-4 py-3">
+      </div>
+      <div class="ml-4 hidden items-center gap-6 @min-[60rem]/navigation:flex">
+        {
+          links.map((link) => (
+            <a
+              href={link.href}
+              class={linkClass}
+              aria-current={link.key === section ? "page" : undefined}
+            >
+              {link.label}
+            </a>
+          ))
+        }
+      </div>
+      <div class="ml-6 hidden @min-[60rem]/navigation:block">
+        <VersionSwitch variant="navigation" versions={versions} />
+      </div>
+      <div class="ml-auto hidden items-center gap-4.5 @min-[60rem]/navigation:flex">
+        <NavigationDesktopActions showThemeToggle />
+      </div>
+      <div class="ml-auto flex items-center gap-2 @min-[60rem]/navigation:hidden">
+        <div class="hidden items-center gap-2 @min-[40rem]/navigation:flex">
+          <SearchTriggerIsland client:load mode="desktop" compact />
+          <ThemeToggle client:load className="size-10 text-muted-foreground" />
+        </div>
+        <Disclosure
+          label="Documentation menu"
+          triggerClass="-mr-2 flex size-10 items-center justify-center rounded-lg text-control-foreground transition-colors hover:bg-muted hover:text-foreground"
+          panelClass="absolute inset-x-0 top-full z-90 max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto border-t border-border bg-navigation-background"
+        >
+          <Fragment slot="trigger">
+            <Menu class="size-6 group-open/disclosure:hidden" aria-hidden="true" />
+            <X class="hidden size-6 group-open/disclosure:block" aria-hidden="true" />
+          </Fragment>
+          <div class="mx-auto max-w-352 px-4 py-3">
+            <ul>
               {
-                SECTION_LINKS.map((link) => (
+                links.map((link) => (
                   <li>
                     <a
                       href={link.href}
-                      data-role="link"
+                      class:list={["block py-3", linkClass]}
                       aria-current={link.key === section ? "page" : undefined}
-                      class={cn("block py-3", navItemClass(link.key === section))}
                     >
                       {link.label}
                     </a>
@@ -121,78 +98,19 @@ const navItemClass = (active: boolean) =>
                 ))
               }
             </ul>
+            <div
+              class="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3"
+            >
+              <VersionSwitch variant="navigation" versions={versions} />
+              <div class="flex items-center gap-3 @min-[40rem]/navigation:hidden">
+                <SearchTriggerIsland client:load mode="desktop" />
+                <ThemeToggle client:load className="size-10" />
+              </div>
+            </div>
           </div>
-        </docs-mobile-menu>
-
-        <div class="ml-auto hidden items-center gap-4.5 md:flex">
-          <NavigationDesktopActions showThemeToggle />
-        </div>
-      </nav>
-    </header>
-  </div>
+        </Disclosure>
+      </div>
+    </nav>
+  </header>
 </div>
-
 <SearchDialog client:load version={version} />
-
-<script>
-  class DocsMobileMenuElement extends HTMLElement {
-    #toggle: HTMLButtonElement | null = null
-    #iconOpen: SVGElement | null = null
-    #iconClose: SVGElement | null = null
-    #panel: HTMLElement | null = null
-    #open = false
-
-    connectedCallback() {
-      this.#toggle = this.querySelector("[data-role='toggle']")
-      this.#iconOpen = this.querySelector("[data-role='icon-open']")
-      this.#iconClose = this.querySelector("[data-role='icon-close']")
-      this.#panel = this.querySelector("[data-role='panel']")
-
-      if (!(this.#toggle instanceof HTMLButtonElement)) return
-      if (!(this.#panel instanceof HTMLElement)) return
-
-      this.#toggle.addEventListener("click", this.#onToggle)
-      this.#panel.querySelectorAll("[data-role='link']").forEach((link) => {
-        link.addEventListener("click", this.#onLinkClick)
-      })
-      document.addEventListener("mousedown", this.#onOutsidePointer)
-      document.addEventListener("keydown", this.#onKeyDown)
-    }
-
-    disconnectedCallback() {
-      this.#toggle?.removeEventListener("click", this.#onToggle)
-      this.#panel?.querySelectorAll("[data-role='link']").forEach((link) => {
-        link.removeEventListener("click", this.#onLinkClick)
-      })
-      document.removeEventListener("mousedown", this.#onOutsidePointer)
-      document.removeEventListener("keydown", this.#onKeyDown)
-    }
-
-    #setOpen = (open: boolean) => {
-      if (!this.#toggle || !this.#panel) return
-      this.#open = open
-      this.#toggle.setAttribute("aria-expanded", String(open))
-      this.#toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu")
-      this.#iconOpen?.classList.toggle("hidden", open)
-      this.#iconClose?.classList.toggle("hidden", !open)
-      this.#panel.classList.toggle("hidden", !open)
-    }
-
-    #onToggle = () => this.#setOpen(!this.#open)
-    #onLinkClick = () => this.#setOpen(false)
-
-    #onOutsidePointer = (event: MouseEvent) => {
-      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
-        this.#setOpen(false)
-      }
-    }
-
-    #onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && this.#open) this.#setOpen(false)
-    }
-  }
-
-  if (!customElements.get("docs-mobile-menu")) {
-    customElements.define("docs-mobile-menu", DocsMobileMenuElement)
-  }
-</script>

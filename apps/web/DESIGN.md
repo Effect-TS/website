@@ -33,30 +33,50 @@ These tokens change with the theme. Define them in `:root` and `.dark`. Expose
 them with `@theme inline`. Their values use Tailwind's `zinc`, `red`, `emerald`,
 and `sky` scales.
 
-| Token                         | Use for                              | Light       | Dark        |
-| ----------------------------- | ------------------------------------ | ----------- | ----------- |
-| `background`                  | page background                      | white       | zinc-950    |
-| `foreground`                  | headings, strong text, active        | zinc-900    | zinc-50     |
-| `prose-foreground`            | rendered prose body text             | zinc-700    | zinc-300    |
-| `navigation-foreground`       | sidebar and TOC links                | zinc-700    | zinc-400    |
-| `navigation-heading`          | sidebar and TOC section labels       | zinc-700    | zinc-300    |
-| `muted-foreground`            | secondary text, metadata, labels     | zinc-600    | zinc-400    |
-| `subtle-foreground`           | faint text, timestamps, inactive     | zinc-400    | zinc-500    |
-| `card` / `popover`            | subtle surface (see below)           | zinc-50     | zinc-900    |
-| `card-foreground`             | text on a card                       | zinc-900    | zinc-50     |
-| `muted`                       | hover fill, subtle tint              | zinc-100    | zinc-800    |
-| `accent`                      | selected or active fill              | zinc-200    | zinc-800    |
-| `accent-foreground`           | text on accent                       | zinc-900    | zinc-50     |
-| `secondary`                   | chip or segmented-control background | zinc-100    | zinc-800    |
-| `secondary-foreground`        | text on secondary                    | zinc-900    | zinc-50     |
-| `primary`                     | solid CTA, inverted                  | zinc-900    | zinc-50     |
-| `primary-foreground`          | text on primary                      | zinc-50     | zinc-900    |
-| `destructive`                 | error or danger                      | red-600     | red-500     |
-| `destructive-foreground`      | text on destructive                  | white       | white       |
-| `border`                      | thin borders                         | zinc-200    | zinc-800    |
-| `border-strong` / `input`     | strong or hover border, inputs       | zinc-300    | zinc-700    |
-| `ring` / `brand`              | focus ring, Effect brand accent      | emerald-500 | emerald-400 |
-| `featured` / `featured-hover` | featured blog card (custom)          | #f7f7f8     | #141315     |
+| Token                             | Use for                              | Light       | Dark        |
+| --------------------------------- | ------------------------------------ | ----------- | ----------- |
+| `background`                      | page background                      | white       | zinc-950    |
+| `foreground`                      | headings, strong text, active        | zinc-900    | zinc-50     |
+| `prose-foreground`                | rendered prose body text             | zinc-700    | zinc-300    |
+| `navigation-foreground`           | sidebar and TOC links                | zinc-700    | zinc-400    |
+| `navigation-heading`              | sidebar and TOC section labels       | zinc-700    | zinc-300    |
+| `navigation-background`           | navigation and explorer background   | zinc-50     | zinc-950    |
+| `control-background`              | segmented controls and trace panel   | zinc-100    | zinc-900    |
+| `control-selected`                | selected version segment             | zinc-200    | zinc-700    |
+| `control-foreground`              | version and menu controls            | zinc-600    | zinc-300    |
+| `field-background`                | playground input and selector fill   | white       | zinc-800    |
+| `button-background`               | subtle button fill                   | zinc-50     | zinc-800    |
+| `button-hover`                    | subtle button hover fill             | zinc-100    | zinc-900    |
+| `button-foreground`               | subtle button text                   | zinc-700    | zinc-200    |
+| `navigation-control-border`       | navbar search button boundary        | zinc-300    | zinc-600    |
+| `navigation-control-border-hover` | navbar search button hover boundary  | zinc-400    | zinc-700    |
+| `separator`                       | resizable panel divider              | zinc-200    | zinc-700    |
+| `separator-hover`                 | resizable panel divider hover        | zinc-400    | zinc-500    |
+| `image-control`                   | controls over light product photos   | zinc-500    | zinc-500    |
+| `image-control-active`            | selected/hovered product controls    | zinc-900    | zinc-900    |
+| `muted-foreground`                | secondary text, metadata, labels     | zinc-600    | zinc-400    |
+| `subtle-foreground`               | timestamps, inactive labels          | custom zinc | zinc-400    |
+| `card` / `popover`                | subtle surface (see below)           | zinc-50     | zinc-900    |
+| `card-foreground`                 | text on a card                       | zinc-900    | zinc-50     |
+| `muted`                           | hover fill, subtle tint              | zinc-100    | zinc-800    |
+| `accent`                          | selected or active fill              | zinc-200    | zinc-800    |
+| `accent-foreground`               | text on accent                       | zinc-900    | zinc-50     |
+| `secondary`                       | chip or segmented-control background | zinc-100    | zinc-800    |
+| `secondary-foreground`            | text on secondary                    | zinc-900    | zinc-50     |
+| `primary`                         | solid CTA, inverted                  | zinc-900    | zinc-50     |
+| `primary-foreground`              | text on primary                      | zinc-50     | zinc-900    |
+| `destructive`                     | error or danger text and tint        | red-700     | red-400     |
+| `destructive-foreground`          | text on destructive                  | white       | white       |
+| `border`                          | thin borders                         | zinc-200    | zinc-800    |
+| `border-strong`                   | stronger decorative border           | zinc-300    | zinc-700    |
+| `input`                           | visible form-control boundary        | zinc-500    | zinc-500    |
+| `ring`                            | keyboard focus                       | zinc-900    | white       |
+| `brand`                           | Effect brand accent                  | emerald-500 | emerald-400 |
+| `brand-foreground`                | accented API JSDoc links             | emerald-700 | emerald-400 |
+| `warning-foreground`              | caution and unstable labels          | amber-700   | amber-500   |
+| `info-foreground`                 | informational callouts               | blue-700    | blue-500    |
+| `success-foreground`              | tips and positive status             | emerald-800 | emerald-500 |
+| `featured` / `featured-hover`     | featured blog card (custom)          | #f7f7f8     | #141315     |
 
 ### Text hierarchy
 
@@ -76,11 +96,19 @@ Use three neutral text levels. Order them from most to least emphasis:
 
 ### Surfaces and borders
 
+Callout tints use `--info`, `--success`, `--warning`, and `--danger`, with their
+original blue-500, emerald-500, amber-500, and red-500 values in both themes.
+Their foreground tokens supply readable text without changing the tint.
+
 - Use `bg-background` for the page background.
 - Use `bg-card` for an elevated or inset panel. Add opacity for a tint.
 - Use `border-border` for a thin border. Use `border-border-strong` for a
   stronger or hover border.
 - Use `bg-primary text-primary-foreground` for a solid CTA.
+- Use the shared `Button` with `variant="subtle"` for dimmed toolbar actions.
+  Its border uses `border-strong`; `input` is reserved for form-field boundaries.
+  Navbar search uses the navigation-control border tokens. `ResizableHandle`
+  owns the divider's resting, hover, and keyboard-focus styles.
 
 ### Translucent surfaces
 
@@ -112,6 +140,8 @@ second base color:
   theme and lighter in the dark theme. Links have an underline by default.
   Remove the underline on hover. `.prose-effect` provides this style. Do not
   style links per page.
+  API JSDoc retains its green links through `brand-foreground`, which darkens in
+  the light theme for text contrast.
 - **Eyebrow and kicker labels** use monospace, uppercase text with letter
   spacing. Use `<Eyebrow as="…" class="…">` from
   `src/components/ui/Eyebrow.astro`. Do not use a raw utility string.

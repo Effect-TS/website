@@ -1,0 +1,42 @@
+---
+import { ChevronLeft, ChevronRight } from "@lucide/astro"
+interface Props {
+  count: number
+  label: string
+}
+const { count, label } = Astro.props
+---
+
+<div role="group" aria-label={`${label} images`}>
+  <button
+    type="button"
+    data-carousel-prev
+    class="absolute left-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-image-control opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 hover:text-image-control-active focus-visible:outline-image-control-active md:flex"
+    aria-label={`Previous ${label} image`}
+  >
+    <ChevronLeft class="size-8" aria-hidden="true" />
+  </button>
+  <button
+    type="button"
+    data-carousel-next
+    class="absolute right-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-image-control opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100 hover:text-image-control-active focus-visible:outline-image-control-active md:flex"
+    aria-label={`Next ${label} image`}
+  >
+    <ChevronRight class="size-8" aria-hidden="true" />
+  </button>
+  <div class="absolute inset-x-2 bottom-1 flex flex-wrap justify-center">
+    {
+      Array.from({ length: count }, (_, i) => (
+        <button
+          type="button"
+          data-carousel-dot
+          aria-current={i === 0 ? "true" : undefined}
+          aria-label={`${label}, image ${i + 1} of ${count}`}
+          class="group/dot flex size-6 cursor-pointer items-center justify-center rounded-full text-image-control transition-colors hover:text-image-control-active aria-current:text-image-control-active focus-visible:outline-image-control-active"
+        >
+          <span aria-hidden="true" class="size-1.5 rounded-full bg-current" />
+        </button>
+      ))
+    }
+  </div>
+</div>

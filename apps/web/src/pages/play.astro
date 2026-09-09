@@ -1,7 +1,7 @@
 ---
 import Navigation from "@/components/navigation/Navigation.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
-import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import Main from "@/components/layout/Main.astro"
 import { CodeEditor } from "@/features/playground/index"
 
 export const prerender = false
@@ -12,14 +12,15 @@ Astro.response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
 
 <BaseLayout title="Playground" description="Effect Playground">
   <div
-    class="relative flex h-screen flex-col overflow-hidden bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-white"
+    class="relative flex h-dvh min-h-[calc(40rem_+_var(--sticky-header-height))] flex-col overflow-hidden bg-background text-foreground antialiased"
   >
     <Navigation activeSlug="playground" />
 
-    <div id={PAGE_TITLE_ID} class="flex flex-1 overflow-hidden">
+    <Main aria-label="Effect Playground" class="flex min-h-0 flex-1 overflow-hidden">
+      <h1 class="sr-only">Effect Playground</h1>
       <div class="js-editor h-full w-full">
         <CodeEditor client:only="react" />
       </div>
-    </div>
+    </Main>
   </div>
 </BaseLayout>

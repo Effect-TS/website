@@ -346,11 +346,11 @@ test("renders TypeDoc inline links with their intended semantics", () => {
   )
   assert.match(html, /href="\/docs\/v4\/api\/effect\/Effect">an effect<\/a>/)
   assert.match(html, /and <code>Missing<\/code>\./)
-  assert.match(html, /<h4>See<\/h4>/)
+  assert.match(html, /<p><strong>See<\/strong><\/p>/)
   assert.match(
     html,
     /<li><a href="\/docs\/v4\/api\/effect\/Links#target">target<\/a><\/li>/,
   )
   assert.match(source?.commentMarkdown ?? "", /\[target\]/)
-  assert.match(source?.commentMarkdown ?? "", /#### See/)
+  assert.match(source?.commentMarkdown ?? "", /\*\*See\*\*/)
 })

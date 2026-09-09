@@ -1,13 +1,14 @@
 ---
 interface Props {
   syncKey?: string
+  label?: string
 }
 
-const { syncKey } = Astro.props
+const { syncKey, label = "Code examples" } = Astro.props
 ---
 
 <docs-tabs data-sync-key={syncKey}>
-  <div class="docs-tabs-list" role="tablist"></div>
+  <div class="docs-tabs-list" data-tablist data-label={label} hidden></div>
   <div class="docs-tabs-panels">
     <slot />
   </div>
@@ -24,8 +25,12 @@ const { syncKey } = Astro.props
     syncKey: string | undefined
 
     connectedCallback() {
+      if (this.tabs.length > 0) return
       this.syncKey = this.dataset.syncKey || undefined
-      const tablist = this.querySelector<HTMLElement>("[role=tablist]")!
+      const tablist = this.querySelector<HTMLElement>("[data-tablist]")!
+      tablist.hidden = false
+      tablist.setAttribute("role", "tablist")
+      tablist.setAttribute("aria-label", tablist.dataset.label!)
       const panelsWrapper = this.querySelector(".docs-tabs-panels")!
 
       this.panels = [...panelsWrapper.querySelectorAll<HTMLElement>(":scope > .docs-tab-panel")]
@@ -36,33 +41,49 @@ const { syncKey } = Astro.props
         panel.id = panelId
 
         const btn = document.createElement("button")
+        btn.id = `${panelId}-tab`
         btn.type = "button"
         btn.setAttribute("role", "tab")
         btn.textContent = label
         btn.setAttribute("aria-controls", panelId)
         btn.setAttribute("aria-selected", "false")
         btn.tabIndex = -1
+        panel.setAttribute("role", "tabpanel")
+        panel.setAttribute("aria-labelledby", btn.id)
+        panel.tabIndex = 0
 
         btn.addEventListener("click", () => this.selectTab(i, true))
         btn.addEventListener("keydown", (e: KeyboardEvent) => {
           const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
-          if (dir === 0) return
+          if (dir === 0 && e.key !== "Home" && e.key !== "End") return
           e.preventDefault()
-          this.selectTab((i + dir + this.tabs.length) % this.tabs.length, true)
+          this.selectTab(
+            e.key === "Home"
+              ? 0
+              : e.key === "End"
+                ? this.tabs.length - 1
+                : (i + dir + this.tabs.length) % this.tabs.length,
+            true,
+          )
         })
 
         tablist.append(btn)
         this.tabs.push(btn)
       })
 
-      // Signal CSS to switch from :first-of-type fallback to data-active control
+      // Once controls exist, display only the selected example.
       this.setAttribute("data-initialized", "")
 
       if (this.syncKey) {
         const group = DocsTabs.synced.get(this.syncKey) ?? new Set<DocsTabs>()
         group.add(this)
         DocsTabs.synced.set(this.syncKey, group)
-        const stored = localStorage.getItem(STORAGE_PREFIX + this.syncKey)
+        let stored: string | null = null
+        try {
+          stored = localStorage.getItem(STORAGE_PREFIX + this.syncKey)
+        } catch {
+          /* Tabs work when storage is disabled. */
+        }
         const idx = stored
           ? Math.max(
               0,
@@ -87,7 +108,11 @@ const { syncKey } = Astro.props
         this.tabs[index]?.focus()
         const label = this.tabs[index]?.textContent
         if (this.syncKey && label) {
-          localStorage.setItem(STORAGE_PREFIX + this.syncKey, label)
+          try {
+            localStorage.setItem(STORAGE_PREFIX + this.syncKey, label)
+          } catch {
+            /* Persistence is optional. */
+          }
           DocsTabs.synced.get(this.syncKey)?.forEach((other) => {
             if (other === this) return
             const idx = other.tabs.findIndex((t) => t.textContent === label)

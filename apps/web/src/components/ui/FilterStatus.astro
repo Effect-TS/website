@@ -1,0 +1,21 @@
+---
+interface Props {
+  count: number
+  label: string
+}
+const { count, label } = Astro.props
+---
+
+<filter-status role="status" class="sr-only" data-count={count} data-label={label}
+  >{label}: {count}.</filter-status
+>
+
+<script>
+  class FilterStatus extends HTMLElement {
+    static observedAttributes = ["data-count"]
+    attributeChangedCallback() {
+      this.textContent = `${this.dataset.label}: ${this.dataset.count}.`
+    }
+  }
+  if (!customElements.get("filter-status")) customElements.define("filter-status", FilterStatus)
+</script>

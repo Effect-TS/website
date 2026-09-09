@@ -1,7 +1,7 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { Search } from "@lucide/astro"
+import SearchField from "@/components/ui/SearchField.astro"
 
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
@@ -9,6 +9,7 @@ import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { versionIndexDigest } from "@/features/api-reference/cache-key"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
+import FilterStatus from "@/components/ui/FilterStatus.astro"
 import { DOCS_VERSIONS } from "@/lib/versions"
 
 export const prerender = true
@@ -231,23 +232,15 @@ const mobilePackages = [
     <h1 class="mb-4! md:mb-6!">API Reference</h1>
 
     <!-- Search -->
-    <label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
-      <span class="sr-only">Search packages</span>
-      <Search
-        class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden="true"
-      />
-      <input
-        id="search"
-        type="search"
-        aria-label="Search packages"
-        placeholder="Search packages…"
-        autocomplete="off"
-        data-package-search
-        class="w-full rounded-lg border border-input bg-transparent py-2 pr-4 pl-11 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
-      />
-    </label>
+    <SearchField
+      id="search"
+      label="Search packages"
+      placeholder="Search packages…"
+      data-package-search
+      class="mt-4 mb-6 md:mt-8 md:mb-10"
+    />
 
+    <FilterStatus count={packages.length} label="Packages found" />
     <div class="space-y-4 md:space-y-8">
       {
         sidebarGroups.map((group) => (
@@ -255,15 +248,15 @@ const mobilePackages = [
             <Eyebrow as="h2" tone="navigation" class="mb-4">
               {group.name}
             </Eyebrow>
-            <div class="grid gap-4 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               {group.packages.map((info) => (
                 <div
                   data-package-card
                   data-package-name={info.packageName}
                   class="group relative rounded-lg border border-border bg-card/40 p-4 transition-colors hover:border-border-strong hover:bg-muted/70 focus-within:border-border-strong focus-within:ring-2 focus-within:ring-subtle-foreground/30 dark:bg-card/30 dark:hover:bg-card/70"
                 >
-                  <div class="flex items-baseline justify-between gap-4">
-                    <h3 class="truncate font-mono text-sm font-semibold transition-colors group-hover:text-foreground">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 class="min-w-0 font-mono text-sm font-semibold transition-colors group-hover:text-foreground [overflow-wrap:anywhere]">
                       <a
                         href={`/docs/${version}/api/${info.packageSlug}`}
                         class="focus:outline-none after:absolute after:inset-0 after:content-['']"
@@ -271,7 +264,7 @@ const mobilePackages = [
                         {info.packageName}
                       </a>
                     </h3>
-                    <span class="shink-0 font-mono text-xs text-muted-foreground">
+                    <span class="font-mono text-xs text-muted-foreground">
                       {info.packageModuleCount} modules
                     </span>
                   </div>
@@ -296,6 +289,7 @@ const mobilePackages = [
   const input = document.querySelector<HTMLInputElement>("[data-package-search]")
   const groups = document.querySelectorAll<HTMLElement>("[data-package-group]")
   const emptyState = document.querySelector<HTMLElement>("[data-empty-state]")
+  const status = document.querySelector<HTMLElement>("filter-status")
 
   function normalize(value: string) {
     return value
@@ -335,6 +329,7 @@ const mobilePackages = [
       }
 
       emptyState.classList.toggle("hidden", visiblePackages > 0)
+      if (status) status.dataset.count = String(visiblePackages)
     })
   }
 </script>

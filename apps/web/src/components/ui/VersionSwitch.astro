@@ -9,29 +9,51 @@ interface Props {
     readonly href: string
     readonly label: string
     readonly active: boolean
+    readonly ariaLabel?: string
   }>
   readonly "aria-label"?: string | undefined
+  readonly variant?: "sidebar" | "navigation"
+  readonly class?: string
 }
 
-const { versions, "aria-label": ariaLabel = "Documentation version" } = Astro.props
+const {
+  versions,
+  "aria-label": ariaLabel = "Documentation version",
+  variant = "sidebar",
+  class: className,
+} = Astro.props
 ---
 
 <div
   role="group"
   aria-label={ariaLabel}
-  class="mb-4 grid gap-1 rounded-lg border border-border p-1"
-  style={`grid-template-columns: repeat(${versions.length}, minmax(0, 1fr))`}
+  class:list={[
+    variant === "navigation"
+      ? "inline-flex shrink-0 gap-1 rounded-md border border-border-strong bg-control-background p-0.5"
+      : "mb-4 grid gap-1 rounded-lg border border-border p-1",
+    className,
+  ]}
+  style={variant === "sidebar"
+    ? `grid-template-columns: repeat(${versions.length}, minmax(0, 1fr))`
+    : undefined}
 >
   {
-    versions.map(({ href, label, active }) => (
+    versions.map(({ href, label, active, ariaLabel }) => (
       <a
         href={href}
+        aria-label={ariaLabel}
         aria-current={active ? "page" : undefined}
         class:list={[
-          "rounded-md px-2 py-1 text-center font-mono text-xs transition-colors",
+          "py-1 text-center font-mono text-xs transition-colors",
+          variant === "navigation" ? "rounded-sm px-3" : "rounded-md px-2",
           active
-            ? "bg-accent font-semibold text-foreground"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            ? [
+                "font-semibold text-foreground",
+                variant === "navigation" ? "bg-control-selected" : "bg-accent",
+              ]
+            : variant === "navigation"
+              ? "text-control-foreground hover:text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
         ]}
       >
         {label}

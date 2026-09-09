@@ -64,7 +64,12 @@ export const useRemove = () => {
 export function FileExplorer() {
   const tree = useWorkspaceTree()
   return (
-    <aside className="min-h-full w-full overflow-auto bg-zinc-50 px-3 py-3 dark:bg-zinc-950">
+    <aside
+      data-file-explorer
+      aria-label="Files"
+      tabIndex={-1}
+      className="min-h-full w-full overflow-auto bg-navigation-background px-3 py-3"
+    >
       <FileTree tree={tree} />
     </aside>
   )

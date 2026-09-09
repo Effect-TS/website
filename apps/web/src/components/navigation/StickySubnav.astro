@@ -1,0 +1,28 @@
+<sticky-subnav
+  class="sticky top-[var(--sticky-header-height)] z-40 block border-b border-border bg-background/95 backdrop-blur-sm lg:hidden"
+>
+  <slot />
+</sticky-subnav>
+
+<script>
+  class StickySubnav extends HTMLElement {
+    #observer?: ResizeObserver
+
+    connectedCallback() {
+      this.#observer = new ResizeObserver(() => {
+        document.documentElement.style.setProperty(
+          "--secondary-navigation-height",
+          `${this.getBoundingClientRect().height}px`,
+        )
+      })
+      this.#observer.observe(this)
+    }
+
+    disconnectedCallback() {
+      this.#observer?.disconnect()
+      document.documentElement.style.removeProperty("--secondary-navigation-height")
+    }
+  }
+
+  if (!customElements.get("sticky-subnav")) customElements.define("sticky-subnav", StickySubnav)
+</script>

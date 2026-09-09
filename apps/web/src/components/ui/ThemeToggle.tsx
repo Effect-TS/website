@@ -1,11 +1,18 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { Check, Monitor, Moon, Sun } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { Monitor, Moon, Sun } from "lucide-react"
 import {
   selectThemeAtom,
   themeAtom,
   type Theme,
 } from "@/components/ui/atoms/theme"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "./dropdown-menu"
+import { cn } from "@/lib/utils"
 
 const options: { value: Theme; icon: typeof Sun; label: string }[] = [
   { value: "dark", icon: Moon, label: "Dark" },
@@ -18,126 +25,41 @@ export default function ThemeToggle({
 }: {
   className?: string
 }) {
-  const [open, setOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-
   const theme = useAtomValue(themeAtom)
   const selectTheme = useAtomSet(selectThemeAtom)
-
-  // Close menu on outside click or Escape
-  useEffect(() => {
-    if (!open) return
-    menuRef.current
-      ?.querySelector<HTMLElement>(
-        '[role="menuitemradio"][aria-checked="true"]',
-      )
-      ?.focus()
-    const handlePointer = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
-    document.addEventListener("mousedown", handlePointer)
-    document.addEventListener("keydown", handleKey)
-    return () => {
-      document.removeEventListener("mousedown", handlePointer)
-      document.removeEventListener("keydown", handleKey)
-    }
-  }, [open])
-
   return (
-    <div ref={menuRef} className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((isOpen) => !isOpen)}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault()
-            setOpen(true)
-          }
-        }}
-        aria-haspopup="menu"
-        aria-expanded={open}
+    <DropdownMenu>
+      <DropdownMenuTrigger
         aria-label="Change theme"
-        className={`flex items-center justify-center transition-colors ${className}`}
+        className={cn(
+          "flex min-h-6 min-w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
+          className,
+        )}
       >
         <Sun size={20} className="dark:hidden" aria-hidden="true" />
         <Moon size={20} className="hidden dark:block" aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          aria-label="Theme"
-          onKeyDown={(event) => {
-            const items = Array.from(
-              event.currentTarget.querySelectorAll<HTMLButtonElement>(
-                '[role="menuitemradio"]',
-              ),
-            )
-            const current = items.indexOf(
-              document.activeElement as HTMLButtonElement,
-            )
-            let next: number | undefined
-            if (event.key === "ArrowDown") next = (current + 1) % items.length
-            if (event.key === "ArrowUp")
-              next = (current - 1 + items.length) % items.length
-            if (event.key === "Home") next = 0
-            if (event.key === "End") next = items.length - 1
-            if (next !== undefined) {
-              event.preventDefault()
-              items[next]?.focus()
-            }
-            if (event.key === "Tab") {
-              setOpen(false)
-              triggerRef.current?.focus()
-            }
-          }}
-          className="absolute top-full right-0 z-50 mt-2 w-36 overflow-hidden rounded-md border border-zinc-300 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          {options.map((opt) => {
-            const Icon = opt.icon
-            const isActive = theme === opt.value
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="menuitemradio"
-                tabIndex={-1}
-                aria-checked={isActive}
-                onClick={() => {
-                  selectTheme(opt.value)
-                  setOpen(false)
-                  triggerRef.current?.focus()
-                }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                  isActive
-                    ? "text-zinc-900 dark:text-white"
-                    : "text-zinc-600 dark:text-zinc-400"
-                }`}
-              >
-                <Icon size={15} aria-hidden="true" />
-                <span className="flex-1">{opt.label}</span>
-                {isActive && (
-                  <Check
-                    size={14}
-                    className="text-zinc-500 dark:text-zinc-400"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        aria-label="Theme"
+        align="end"
+        sideOffset={8}
+        className="w-36 rounded-md border border-border-strong bg-popover px-0 py-1 shadow-lg ring-0"
+      >
+        <DropdownMenuRadioGroup value={theme}>
+          {options.map(({ value, icon: Icon, label }) => (
+            <DropdownMenuRadioItem
+              key={value}
+              value={value}
+              onClick={() => selectTheme(value)}
+              closeOnClick
+              className="gap-2.5 rounded-none py-2 pl-3 text-muted-foreground aria-checked:text-foreground"
+            >
+              <Icon className="size-[15px]" aria-hidden="true" />
+              {label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

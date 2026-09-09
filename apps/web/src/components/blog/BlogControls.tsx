@@ -8,10 +8,15 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PostCard, type SerializedPost, type SerializedTag } from "./PostCard"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu"
 
 const POSTS_PER_PAGE = 12
-
-const NAVBAR_HEIGHT = 64
 
 type SortOrder = "newest" | "oldest"
 
@@ -38,8 +43,7 @@ export default function BlogControls({
   const [currentPage, setCurrentPage] = useState(1)
   const [categoryOpen, setCategoryOpen] = useState(false)
 
-  const gridRef = useRef<HTMLDivElement>(null)
-  const categoryDropdownRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLHeadingElement>(null)
 
   const activeTagName = useMemo(
     () => tags.find((tag) => tag.id === activeTagId)?.name ?? "Category",
@@ -91,23 +95,6 @@ export default function BlogControls({
     [filteredPosts, safePage],
   )
 
-  useEffect(() => {
-    if (!categoryOpen) return
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!categoryDropdownRef.current?.contains(event.target as Node))
-        setCategoryOpen(false)
-    }
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCategoryOpen(false)
-    }
-    window.addEventListener("mousedown", handleClickOutside)
-    window.addEventListener("keydown", handleEscapeKey)
-    return () => {
-      window.removeEventListener("mousedown", handleClickOutside)
-      window.removeEventListener("keydown", handleEscapeKey)
-    }
-  }, [categoryOpen])
-
   const syncUrl = useCallback((tagId: string) => {
     if (typeof window === "undefined") return
     const url = new URL(window.location.href)
@@ -120,10 +107,15 @@ export default function BlogControls({
     const element = gridRef.current
     if (!element) return
     const { top } = element.getBoundingClientRect()
-    if (top < NAVBAR_HEIGHT) {
-      window.scrollTo({
-        top: top + window.scrollY - NAVBAR_HEIGHT,
-        behavior: "smooth",
+    const clearance = Number.parseFloat(
+      getComputedStyle(document.documentElement).scrollPaddingTop,
+    )
+    if (top < clearance) {
+      element.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
       })
     }
   }, [])
@@ -147,6 +139,7 @@ export default function BlogControls({
   const goToPage = useCallback(
     (page: number) => {
       setCurrentPage(page)
+      gridRef.current?.focus({ preventScroll: true })
       maybeScrollToGrid()
     },
     [maybeScrollToGrid],
@@ -181,22 +174,17 @@ export default function BlogControls({
 
   return (
     <div className="min-w-0 pb-24">
-      <div
-        ref={gridRef}
-        className="mt-16 flex flex-wrap items-baseline justify-between gap-4 border-b border-border-strong/80 pb-4 md:mt-20"
-      >
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+      <div className="mt-16 flex flex-wrap items-baseline justify-between gap-4 border-b border-border-strong/80 pb-4 md:mt-20">
+        <h2
+          ref={gridRef}
+          tabIndex={-1}
+          className="text-2xl font-bold tracking-tight text-foreground"
+        >
           {activeTagId === "all" ? "Other posts" : activeTagName}
         </h2>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3 sm:gap-x-6">
-          <div ref={categoryDropdownRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setCategoryOpen((isOpen) => !isOpen)}
-              aria-haspopup="listbox"
-              aria-expanded={categoryOpen}
-              className="group inline-flex items-baseline gap-1.5 font-mono text-sm transition-colors"
-            >
+          <DropdownMenu open={categoryOpen} onOpenChange={setCategoryOpen}>
+            <DropdownMenuTrigger className="group inline-flex items-baseline gap-1.5 font-mono text-sm transition-colors">
               <span className="text-muted-foreground group-hover:text-foreground">
                 {activeTagId === "all" ? "Category" : activeTagName}
               </span>
@@ -206,54 +194,55 @@ export default function BlogControls({
                   categoryOpen ? "rotate-180" : ""
                 }`}
               />
-            </button>
-            {categoryOpen && (
-              <ul
-                role="listbox"
-                className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-border-strong bg-background py-2 shadow-lg shadow-black/40"
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              aria-label="Blog category"
+              align="end"
+              sideOffset={8}
+              collisionAvoidance={{ side: "none", align: "shift" }}
+              className="w-64 rounded-md border border-border-strong bg-background px-0 py-2 shadow-lg shadow-black/40 ring-0"
+            >
+              <DropdownMenuRadioGroup
+                value={activeTagId}
+                onValueChange={handleTagChange}
               >
                 {sortedTags.map((category) => {
                   const isActive = activeTagId === category.id
                   return (
-                    <li key={category.id}>
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={isActive}
-                        onClick={() => {
-                          handleTagChange(category.id)
-                          setCategoryOpen(false)
-                        }}
-                        className={`group/item relative flex w-full items-baseline justify-between gap-3 px-4 py-2 text-left font-mono text-sm transition-colors ${
-                          isActive
-                            ? "text-foreground"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
+                    <DropdownMenuRadioItem
+                      key={category.id}
+                      value={category.id}
+                      closeOnClick
+                      indicator={false}
+                      className={`group/item relative flex w-full items-baseline justify-between gap-3 rounded-none px-4 py-2 text-left font-mono text-sm transition-colors focus:bg-transparent ${
+                        isActive
+                          ? "text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span>
+                        {category.id === "all"
+                          ? "Reset category"
+                          : category.name}
+                      </span>
+                      <span
+                        className={`tabular-nums ${isActive ? "text-foreground" : "text-subtle-foreground"}`}
                       >
-                        <span>
-                          {category.id === "all"
-                            ? "Reset category"
-                            : category.name}
-                        </span>
-                        <span
-                          className={`tabular-nums ${isActive ? "text-foreground" : "text-subtle-foreground"}`}
-                        >
-                          {String(category.count).padStart(3, "0")}
-                        </span>
-                        <span
-                          className={`pointer-events-none absolute right-4 bottom-1 left-4 h-px origin-left bg-foreground transition-transform duration-300 ease-out ${
-                            isActive
-                              ? "scale-x-100"
-                              : "scale-x-0 group-hover/item:scale-x-[0.08]"
-                          }`}
-                        />
-                      </button>
-                    </li>
+                        {String(category.count).padStart(3, "0")}
+                      </span>
+                      <span
+                        className={`pointer-events-none absolute right-4 bottom-1 left-4 h-px origin-left bg-foreground transition-transform duration-300 ease-out ${
+                          isActive
+                            ? "scale-x-100"
+                            : "scale-x-0 group-hover/item:scale-x-[0.08]"
+                        }`}
+                      />
+                    </DropdownMenuRadioItem>
                   )
                 })}
-              </ul>
-            )}
-          </div>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             type="button"
             onClick={() =>
@@ -286,6 +275,9 @@ export default function BlogControls({
         </div>
       </div>
 
+      <p className="sr-only" role="status">
+        {filteredPosts.length} posts. Page {safePage} of {totalPages}.
+      </p>
       {paginatedPosts.length > 0 ? (
         <>
           <div className="flex flex-col">

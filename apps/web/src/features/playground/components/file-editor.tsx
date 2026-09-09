@@ -7,6 +7,7 @@ import { useWorkspaceHandle } from "../context/workspace"
 import { ResetButton } from "./reset-button"
 import { ShareButton } from "./share-button"
 import { VersionToggle } from "./version-toggle"
+import { EditorKeyboardHelp } from "./editor-keyboard-help"
 
 export function FileEditor() {
   const handle = useWorkspaceHandle()
@@ -32,6 +33,7 @@ export function FileEditor() {
           {selectedPath.slice(selectedPath.lastIndexOf("/") + 1)}
         </span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <EditorKeyboardHelp />
           <VersionToggle />
           <ResetButton />
           <ShareButton />

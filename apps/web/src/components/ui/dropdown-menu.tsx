@@ -20,32 +20,38 @@ function DropdownMenuContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  collisionAvoidance,
   portalContainer,
   className,
   ...props
 }: MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
+    "align" | "alignOffset" | "side" | "sideOffset" | "collisionAvoidance"
   > & {
     portalContainer?: MenuPrimitive.Portal.Props["container"]
   }) {
   return (
     <MenuPrimitive.Portal container={portalContainer}>
       <MenuPrimitive.Positioner
-        className="isolate z-50 outline-none"
+        className="isolate z-300 outline-none"
         align={align}
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        collisionAvoidance={collisionAvoidance}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
             "bg-popover text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg p-1 shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-closed:overflow-hidden",
+            "motion-reduce:animate-none",
             className,
           )}
           {...props}
+          aria-labelledby={
+            props["aria-label"] ? undefined : props["aria-labelledby"]
+          }
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
@@ -197,9 +203,11 @@ function DropdownMenuRadioItem({
   className,
   children,
   inset,
+  indicator = true,
   ...props
 }: MenuPrimitive.RadioItem.Props & {
   inset?: boolean
+  indicator?: boolean
 }) {
   return (
     <MenuPrimitive.RadioItem
@@ -211,14 +219,16 @@ function DropdownMenuRadioItem({
       )}
       {...props}
     >
-      <span
-        className="pointer-events-none absolute right-2 flex items-center justify-center"
-        data-slot="dropdown-menu-radio-item-indicator"
-      >
-        <MenuPrimitive.RadioItemIndicator>
-          <CheckIcon />
-        </MenuPrimitive.RadioItemIndicator>
-      </span>
+      {indicator && (
+        <span
+          className="pointer-events-none absolute right-2 flex items-center justify-center"
+          data-slot="dropdown-menu-radio-item-indicator"
+        >
+          <MenuPrimitive.RadioItemIndicator>
+            <CheckIcon />
+          </MenuPrimitive.RadioItemIndicator>
+        </span>
+      )}
       {children}
     </MenuPrimitive.RadioItem>
   )

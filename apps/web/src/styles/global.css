@@ -5,16 +5,42 @@
 
 html {
   --announcement-height: 2.5rem;
-  scroll-padding-top: calc(5rem + var(--announcement-height));
+  scroll-padding-top: calc(
+    var(--sticky-header-height) + var(--secondary-navigation-height, 0px) + 1rem
+  );
 }
 
 html.announcement-dismissed {
   --announcement-height: 0rem;
 }
 
+/* Short viewports need room for content when browser zoom enlarges navigation. */
+@media (max-height: 30rem) {
+  [data-site-header],
+  sticky-subnav {
+    position: static;
+  }
+
+  html {
+    scroll-padding-top: 1rem;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
+  }
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  a {
+    overflow-wrap: anywhere;
   }
 }
 
@@ -43,6 +69,20 @@ html.announcement-dismissed {
 }
 
 @layer utilities {
+  .prose-effect {
+    overflow-wrap: anywhere;
+  }
+
+  .prose-effect pre {
+    overflow-x: auto;
+  }
+
+  @container prose (width < 40rem) {
+    .prose-effect .heading-permalink {
+      position: static;
+    }
+  }
+
   /* docs-tabs: context-aware tab component used in docs and blog MDX */
   docs-tabs {
     display: block;
@@ -61,9 +101,9 @@ html.announcement-dismissed {
     display: none;
   }
 
-  /* No-JS default: show first panel, hide the rest */
+  /* Without JavaScript every example remains readable. */
   .docs-tab-panel {
-    display: none;
+    display: block;
   }
 
   .docs-tab-panel:first-of-type {
@@ -72,6 +112,10 @@ html.announcement-dismissed {
 
   /* JS-initialized: web component takes over via data attributes */
   docs-tabs[data-initialized] .docs-tab-panel {
+    display: none;
+  }
+
+  docs-tabs[data-initialized] .docs-tab-fallback-label {
     display: none;
   }
 
@@ -93,7 +137,7 @@ html.announcement-dismissed {
     font-size: 0.875rem;
     font-weight: 500;
     color: inherit;
-    opacity: 0.5;
+    color: var(--muted-foreground);
     cursor: pointer;
     transition:
       opacity 150ms,
@@ -386,6 +430,26 @@ html.announcement-dismissed {
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-navigation-background: var(--navigation-background);
+  --color-control-background: var(--control-background);
+  --color-control-selected: var(--control-selected);
+  --color-control-foreground: var(--control-foreground);
+  --color-field-background: var(--field-background);
+  --color-button-background: var(--button-background);
+  --color-button-hover: var(--button-hover);
+  --color-button-foreground: var(--button-foreground);
+  --color-navigation-control-border: var(--navigation-control-border);
+  --color-navigation-control-border-hover: var(
+    --navigation-control-border-hover
+  );
+  --color-separator: var(--separator);
+  --color-separator-hover: var(--separator-hover);
+  --color-image-control: var(--image-control);
+  --color-image-control-active: var(--image-control-active);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info-foreground: var(--info-foreground);
+  --color-success-foreground: var(--success-foreground);
 
   /* Featured blog card — a hand-tuned recessed surface (zinc-50 light /
      near-black dark). Bespoke values, but named here so call sites stay
@@ -458,6 +522,21 @@ html.announcement-dismissed {
   --prose-foreground: oklch(0.37 0.013 285.805); /* zinc-700 */
   --navigation-foreground: oklch(0.37 0.013 285.805); /* zinc-700 */
   --navigation-heading: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --navigation-background: oklch(0.985 0 0); /* zinc-50 */
+  --control-background: oklch(0.967 0.001 286.375); /* zinc-100 */
+  --control-selected: oklch(0.92 0.004 286.32); /* zinc-200 */
+  --control-foreground: oklch(0.442 0.017 285.786); /* zinc-600 */
+  --field-background: oklch(1 0 0); /* white */
+  --button-background: oklch(0.985 0 0); /* zinc-50 */
+  --button-hover: oklch(0.967 0.001 286.375); /* zinc-100 */
+  --button-foreground: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --navigation-control-border: oklch(0.871 0.006 286.286); /* zinc-300 */
+  --navigation-control-border-hover: oklch(0.705 0.015 286.067); /* zinc-400 */
+  --separator: oklch(0.92 0.004 286.32); /* zinc-200 */
+  --separator-hover: oklch(0.705 0.015 286.067); /* zinc-400 */
+  /* Product photographs have light backgrounds in both themes. */
+  --image-control: oklch(0.552 0.016 285.938); /* zinc-500 */
+  --image-control-active: oklch(0.21 0.006 285.885); /* zinc-900 */
 
   --card: oklch(
     0.985 0 0
@@ -466,7 +545,7 @@ html.announcement-dismissed {
 
   --muted: oklch(0.967 0.001 286.375); /* zinc-100 */
   --muted-foreground: oklch(0.442 0.017 285.786); /* zinc-600 */
-  --subtle-foreground: oklch(0.705 0.015 286.067); /* zinc-400 */
+  --subtle-foreground: oklch(0.5 0.016 285.938);
 
   --accent: oklch(0.92 0.004 286.32); /* zinc-200 (selected/active fill) */
   --accent-foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
@@ -477,14 +556,22 @@ html.announcement-dismissed {
   --primary: oklch(0.21 0.006 285.885); /* zinc-900 */
   --primary-foreground: oklch(0.985 0 0); /* zinc-50 */
 
-  --destructive: oklch(0.577 0.245 27.325); /* red-600 */
+  --destructive: oklch(0.505 0.213 27.518); /* red-700 */
   --destructive-foreground: oklch(1 0 0); /* white */
 
   --border: oklch(0.92 0.004 286.32); /* zinc-200 */
   --border-strong: oklch(0.871 0.006 286.286); /* zinc-300 */
-  --input: oklch(0.871 0.006 286.286); /* zinc-300 */
-  --ring: oklch(0.696 0.17 162.48); /* emerald-500 */
+  --input: oklch(0.552 0.016 285.938); /* zinc-500 */
+  --ring: oklch(0.21 0.006 285.885); /* zinc-900 */
   --brand: oklch(0.696 0.17 162.48); /* emerald-500 */
+  --brand-foreground: oklch(0.508 0.118 165.612); /* emerald-700 */
+  --warning: #f59e0b; /* amber-500 */
+  --info: #3b82f6; /* blue-500 */
+  --success: #10b981; /* emerald-500 */
+  --danger: #ef4444; /* red-500 */
+  --warning-foreground: oklch(0.555 0.163 48.998); /* amber-700 */
+  --info-foreground: oklch(0.488 0.243 264.376); /* blue-700 */
+  --success-foreground: oklch(0.432 0.095 166.913); /* emerald-800 */
 
   --featured: #f7f7f8;
   --featured-hover: #f4f4f5;
@@ -499,13 +586,25 @@ html.announcement-dismissed {
   --prose-foreground: oklch(0.871 0.006 286.286); /* zinc-300 */
   --navigation-foreground: oklch(0.705 0.015 286.067); /* zinc-400 */
   --navigation-heading: oklch(0.871 0.006 286.286); /* zinc-300 */
+  --navigation-background: oklch(0.141 0.005 285.823); /* zinc-950 */
+  --control-background: oklch(0.21 0.006 285.885); /* zinc-900 */
+  --control-selected: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --control-foreground: oklch(0.871 0.006 286.286); /* zinc-300 */
+  --field-background: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --button-background: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --button-hover: oklch(0.21 0.006 285.885); /* zinc-900 */
+  --button-foreground: oklch(0.92 0.004 286.32); /* zinc-200 */
+  --navigation-control-border: oklch(0.442 0.017 285.786); /* zinc-600 */
+  --navigation-control-border-hover: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --separator: oklch(0.37 0.013 285.805); /* zinc-700 */
+  --separator-hover: oklch(0.552 0.016 285.938); /* zinc-500 */
 
   --card: oklch(0.21 0.006 285.885); /* zinc-900 */
   --card-foreground: oklch(0.985 0 0); /* zinc-50 */
 
   --muted: oklch(0.274 0.006 286.033); /* zinc-800 */
   --muted-foreground: oklch(0.705 0.015 286.067); /* zinc-400 */
-  --subtle-foreground: oklch(0.552 0.016 285.938); /* zinc-500 */
+  --subtle-foreground: oklch(0.705 0.015 286.067); /* zinc-400 */
 
   --accent: oklch(0.274 0.006 286.033); /* zinc-800 */
   --accent-foreground: oklch(0.985 0 0); /* zinc-50 */
@@ -516,14 +615,18 @@ html.announcement-dismissed {
   --primary: oklch(0.985 0 0); /* zinc-50 */
   --primary-foreground: oklch(0.21 0.006 285.885); /* zinc-900 */
 
-  --destructive: oklch(0.637 0.237 25.331); /* red-500 */
+  --destructive: oklch(0.704 0.191 22.216); /* red-400 */
   --destructive-foreground: oklch(1 0 0); /* white */
 
   --border: oklch(0.274 0.006 286.033); /* zinc-800 */
   --border-strong: oklch(0.37 0.013 285.805); /* zinc-700 */
-  --input: oklch(0.37 0.013 285.805); /* zinc-700 */
-  --ring: oklch(0.765 0.177 163.223); /* emerald-400 */
+  --input: oklch(0.552 0.016 285.938); /* zinc-500 */
+  --ring: oklch(1 0 0); /* white */
   --brand: oklch(0.765 0.177 163.223); /* emerald-400 */
+  --brand-foreground: var(--brand);
+  --warning-foreground: var(--warning);
+  --info-foreground: var(--info);
+  --success-foreground: var(--success);
 
   --featured: #141315;
   --featured-hover: #0f0f11;
@@ -739,28 +842,24 @@ summary {
 
 /* Global Focus Indicators */
 *:focus-visible {
-  outline: 2px solid var(--color-zinc-900);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--color-zinc-900);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
-.dark *:focus-visible,
-.dark button:focus-visible,
-.dark a:focus-visible {
-  outline-color: var(--color-white);
-}
-
-[data-api-sidebar] :focus-visible {
-  outline-color: var(--color-zinc-900);
-}
-
-.dark [data-api-sidebar] :focus-visible {
-  outline-color: var(--color-white);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Visual Effect Tab Styles */

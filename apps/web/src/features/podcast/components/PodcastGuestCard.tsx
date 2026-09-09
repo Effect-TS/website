@@ -39,7 +39,7 @@ export function PodcastGuestCard() {
           Listen on
         </p>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <a
             className="group flex items-center text-white no-underline transition-colors"
             href={episode.links.apple}

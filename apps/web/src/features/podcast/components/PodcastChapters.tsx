@@ -119,7 +119,7 @@ export function PodcastChapters() {
                       <div className="min-w-0 flex-1">
                         <p
                           className={cn(
-                            "truncate text-sm font-medium transition-colors",
+                            "text-sm font-medium transition-colors",
                             isActive
                               ? "text-foreground"
                               : "text-muted-foreground group-hover:text-foreground",

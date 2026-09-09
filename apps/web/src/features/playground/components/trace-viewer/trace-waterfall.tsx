@@ -23,22 +23,15 @@ const columns: Array<ColumnDef<Span>> = [
   {
     id: "name",
     accessorFn: (node) => node,
-    header: () => (
-      <h5 role="columnheader" className="ml-2 text-sm font-bold">
-        Name
-      </h5>
-    ),
+    header: () => <span className="ml-2 text-sm font-bold">Name</span>,
     cell: (props) => <NameCell {...props} />,
     minSize: 200,
+    maxSize: 800,
   },
   {
     id: "span",
     accessorFn: (node) => node,
-    header: () => (
-      <h5 role="columnheader" className="ml-2 grow text-sm font-bold">
-        Duration
-      </h5>
-    ),
+    header: () => <span className="ml-2 grow text-sm font-bold">Duration</span>,
     cell: (props) => <DurationCell {...props} />,
     meta: {
       grow: true,
@@ -90,8 +83,14 @@ export function TraceWaterfall() {
   }, [table.getState().columnSizingInfo, table.getState().columnSizing])
 
   return (
-    <div className="h-full w-full overflow-auto">
+    <div
+      className="h-full w-full overflow-auto"
+      tabIndex={0}
+      role="region"
+      aria-label="Trace waterfall"
+    >
       <table
+        aria-label="Trace spans"
         style={columnSizeVars as any}
         className="w-full border-collapse border-spacing-0 border-b border-zinc-300 dark:border-zinc-700"
       >
@@ -104,11 +103,12 @@ export function TraceWaterfall() {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
+                  scope="col"
                   style={{
                     width: `calc(var(--header-${header?.id}-size) * 1px)`,
                   }}
                   className={cn(
-                    "grid grid-cols-[minmax(150px,1fr)_8px] items-center border-t border-zinc-300 p-0 text-left font-normal dark:border-zinc-700",
+                    "grid grid-cols-[minmax(150px,1fr)_8px] items-center border-t border-border-strong p-0 text-left font-normal",
                     header.column.columnDef.meta?.grow && "grow",
                   )}
                 >
@@ -121,11 +121,37 @@ export function TraceWaterfall() {
                   {header.column.getCanResize() && (
                     <div
                       role="separator"
-                      aria-label="drag to resize"
+                      tabIndex={0}
+                      aria-label="Name column width (Left and Right arrows to resize)"
+                      aria-orientation="vertical"
+                      aria-valuemin={200}
+                      aria-valuemax={800}
+                      aria-valuenow={header.getSize()}
+                      onKeyDown={(event) => {
+                        const width =
+                          event.key === "Home"
+                            ? 200
+                            : event.key === "End"
+                              ? 800
+                              : event.key === "ArrowLeft"
+                                ? header.getSize() - 10
+                                : event.key === "ArrowRight"
+                                  ? header.getSize() + 10
+                                  : undefined
+                        if (width === undefined) return
+                        event.preventDefault()
+                        table.setColumnSizing((current) => ({
+                          ...current,
+                          [header.column.id]: Math.min(
+                            800,
+                            Math.max(200, width),
+                          ),
+                        }))
+                      }}
                       onDoubleClick={() => header.column.resetSize()}
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
-                      className="h-full w-px cursor-ew-resize border-l border-zinc-300 px-0.75 dark:border-zinc-700"
+                      className="relative min-h-6 h-full w-px cursor-ew-resize border-l border-border-strong px-0.75 after:absolute after:inset-y-0 after:-inset-x-2"
                     />
                   )}
                 </th>
@@ -164,7 +190,7 @@ export function TraceWaterfall() {
                       )}
                       {cell.column.getCanResize() && (
                         <div
-                          role="separator"
+                          aria-hidden="true"
                           className="h-full w-px border-l border-zinc-300 px-0.75 dark:border-zinc-700"
                         />
                       )}
@@ -190,13 +216,21 @@ function NameCell({ getValue, row }: CellContext<Span, unknown>) {
   const node = getValue<Span>()
   return (
     <div className="ml-2 flex h-full items-start overflow-hidden text-ellipsis whitespace-nowrap">
-      <button
-        type="button"
-        className="flex h-full items-start bg-transparent p-0"
-        onClick={row.getToggleExpandedHandler()}
-      >
-        <TraceTree row={row} />
-      </button>
+      {row.getCanExpand() ? (
+        <button
+          type="button"
+          aria-label={`Child spans of ${node.label}`}
+          aria-expanded={row.getIsExpanded()}
+          className="flex min-h-6 min-w-6 h-full items-start bg-transparent p-0"
+          onClick={row.getToggleExpandedHandler()}
+        >
+          <TraceTree row={row} />
+        </button>
+      ) : (
+        <span aria-hidden="true">
+          <TraceTree row={row} />
+        </span>
+      )}
       <div
         className={cn(
           "flex h-8 items-center",
@@ -221,7 +255,7 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
 
   if (currentSpan.span._tag === "ExternalSpan") {
     return (
-      <div className="text-xs text-zinc-500">
+      <div className="text-xs text-muted-foreground">
         &lt;&lt; External Span &gt;&gt;
       </div>
     )
@@ -258,7 +292,7 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
           <div>
             <span className="text-xs">In-Progress</span>
             <span className="mx-2">...</span>
-            <span className="text-xs font-medium text-zinc-500">
+            <span className="text-xs font-medium text-muted-foreground">
               Started: {formatDuration(relativeStartTime)} after trace start
             </span>
           </div>
@@ -284,13 +318,14 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
 
   return (
     <div className="flex w-full items-center justify-start">
-      <div role="separator" style={{ width: spacer }} />
+      <div aria-hidden="true" style={{ width: spacer }} />
       <div className="flex h-full w-full flex-col justify-center">
         <button
           type="button"
-          aria-label="select table row"
+          aria-label={`${currentSpan.label}, ${formatDuration(spanDuration)}${currentSpan.hasError ? ", error" : ""}: span details`}
+          aria-expanded={row.getIsSelected()}
           style={{ width }}
-          className="my-1 flex h-6 cursor-pointer rounded-sm border border-zinc-900 bg-transparent dark:border-white"
+          className="my-1 flex h-6 min-w-6 cursor-pointer rounded-sm border border-foreground bg-transparent"
           onClick={row.getToggleSelectedHandler()}
         >
           <div className={cn("my-0.5 ml-2 rounded-sm leading-3", pillColors)}>

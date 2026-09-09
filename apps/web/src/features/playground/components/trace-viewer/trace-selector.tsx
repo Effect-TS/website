@@ -1,68 +1,60 @@
 import { useAtom, useAtomValue } from "@effect/atom-react"
-import { ChevronDownIcon, CheckIcon } from "lucide-react"
-import { useState, useRef, useEffect } from "react"
-import { cn } from "@/lib/utils"
-import { selectedSpanIndexAtom, selectedSpanAtom } from "../../atoms/devtools"
+import { ChevronDownIcon } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import { selectedSpanIndexAtom } from "../../atoms/devtools"
 import { rootSpansAtom } from "../../services/devtools"
 
 export function TraceSelector() {
-  const [open, setOpen] = useState(false)
   const rootSpans = useAtomValue(rootSpansAtom)
-  const [span, setSelectedSpan] = useAtom(selectedSpanAtom)
-  const selectedSpanIndex = useAtomValue(selectedSpanIndexAtom)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [open])
-
+  const [selectedIndex, setSelectedIndex] = useAtom(selectedSpanIndexAtom)
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex min-w-[350px] cursor-pointer items-center justify-between rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Select a trace"
+        className="flex w-[350px] max-w-full cursor-pointer items-center justify-between rounded-md border border-input bg-field-background px-3 py-2 text-sm hover:bg-muted"
       >
-        <span className="truncate">{span?.traceId || "Select a trace..."}</span>
-        <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-80" />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-[350px] overflow-auto rounded-md border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-          {rootSpans.length === 0 ? (
-            <div className="p-3 text-sm text-zinc-500">No traces found.</div>
-          ) : (
-            rootSpans.map((root, index) => (
-              <button
+        <span className="truncate">
+          {rootSpans[selectedIndex]?.traceId || "Select a trace..."}
+        </span>
+        <ChevronDownIcon
+          className="ml-2 size-4 shrink-0 opacity-80"
+          aria-hidden="true"
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        aria-label="Traces"
+        className="max-h-60 w-[350px] max-w-[calc(100vw-2rem)] rounded-md border border-border-strong bg-field-background p-0 shadow-lg ring-0"
+      >
+        {rootSpans.length === 0 ? (
+          <DropdownMenuItem
+            disabled
+            className="p-3 text-sm text-muted-foreground opacity-100 data-disabled:opacity-100"
+          >
+            No traces found.
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuRadioGroup value={String(selectedIndex)}>
+            {rootSpans.map((root, index) => (
+              <DropdownMenuRadioItem
                 key={root.traceId}
-                type="button"
-                className={cn(
-                  "flex w-full cursor-pointer items-center px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700",
-                  selectedSpanIndex === index && "bg-zinc-100 dark:bg-zinc-700",
-                )}
-                onClick={() => {
-                  setSelectedSpan(index)
-                  setOpen(false)
-                }}
+                value={String(index)}
+                onClick={() => setSelectedIndex(index)}
+                closeOnClick
+                className="cursor-pointer rounded-none py-2 pl-3 aria-checked:bg-control-selected"
               >
-                <span className="flex-1 truncate">{root.traceId}</span>
-                <CheckIcon
-                  className={cn(
-                    "ml-2 h-4 w-4",
-                    selectedSpanIndex === index ? "opacity-100" : "opacity-0",
-                  )}
-                />
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+                <span className="truncate">{root.traceId}</span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
