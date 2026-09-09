@@ -12,6 +12,8 @@ const buttonVariants = cva(
           "hover:bg-muted aria-expanded:bg-muted dark:border-input dark:bg-border-strong/30 dark:hover:bg-border-strong/50 border-border bg-background hover:text-foreground aria-expanded:text-foreground",
         surface:
           "border-input bg-field-background text-foreground hover:bg-muted",
+        subtle:
+          "border-border-strong bg-button-background text-button-foreground hover:bg-button-hover hover:text-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

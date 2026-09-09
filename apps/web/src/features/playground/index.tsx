@@ -106,14 +106,14 @@ function CodeEditorPanels() {
           <ResizablePanel defaultSize={isNarrow ? 30 : 20} minSize={10}>
             <FileExplorer />
           </ResizablePanel>
-          <ResizableHandle className="bg-border hover:bg-border-strong" />
+          <ResizableHandle />
           <ResizablePanel defaultSize={isNarrow ? 70 : 80}>
             <FileEditor />
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>
 
-      <ResizableHandle className="h-px bg-zinc-200 hover:bg-zinc-400 dark:bg-zinc-700 dark:hover:bg-zinc-500" />
+      <ResizableHandle />
 
       <ResizablePanel
         defaultSize={30}

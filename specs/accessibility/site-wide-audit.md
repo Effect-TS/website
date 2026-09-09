@@ -207,6 +207,42 @@ menu-rule follow-up. `visual-axe-final.json`, `visual-axe-verified.json`,
 `visual-e2e-late.log` record the later checks. The original broad crawl below
 describes the earlier audit revision.
 
+### Review follow-up, September 9
+
+The next review identified emerald search focus outlines and overly bright
+Share/navbar-search borders. The shared focus token now restores the original
+neutral treatment: zinc-900 in light mode and white in dark mode, with the
+existing two-pixel outline and offset.
+
+Share and Reset use the shared `Button` subtle variant, with the original
+dimmed fill, text, and border colors. Navbar search has separate resting and
+hover border tokens. Both playground panel dividers use `ResizableHandle`'s
+shared colors and sizing, matching the pre-audit desktop divider treatment.
+The dividers retain keyboard resizing and a visible focus outline.
+
+The project check passed formatting for 810 files, lint/TypeScript for 425 files,
+and Astro checks for 334 files with no diagnostics. All 20 article/site
+accessibility and playground file-sync browser tests passed in one run.
+
+The final comparison used Chrome `152.0.7977.83`, both themes, and 1280px,
+390px, and 320px widths. It captured 18 baseline/corrected pairs for the
+playground, open Share popover, and focused search dialog, plus six corrected
+keyboard-resize states. Computed colors and dimensions match the baseline for
+Share/Reset; search focus color, thickness, and offset also match. Desktop
+search borders and divider colors match in resting and hover states.
+Search/Share focus recovery and keyboard resizing passed.
+
+All 18 corrected axe states had zero violations and no root-width overflow.
+The run retained 360 contrast, 84 `aria-hidden-focus`, six
+`aria-valid-attr-value`, and five `aria-required-children` incomplete node
+occurrences. Direct checks measured Share text contrast at 9.99:1 light and
+11.74:1 dark, and the search focus outline at 17.72:1 light and 19.90:1 dark.
+These measurements do not resolve every contrast incomplete.
+
+Local evidence: `review-verification/results.json` and screenshots,
+`review-check.log`, and `review-e2e.log`. The final comparison ran from
+14:46:22 to 14:47:03 UTC on September 9 and exited with status 0.
+
 ### Automated results
 
 Chrome version: `152.0.7977.76`. All four runs completed their expected state

@@ -24,7 +24,7 @@ export function ShareButton() {
     >
       <PopoverTrigger
         render={
-          <Button variant="surface" className="h-7.5 rounded-md px-3 text-xs" />
+          <Button variant="subtle" className="h-7.5 rounded-md px-3 text-xs" />
         }
       >
         Share
