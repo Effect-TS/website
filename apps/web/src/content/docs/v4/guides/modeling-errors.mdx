@@ -294,7 +294,7 @@ failure carries.
 
 Now you build the program with `Effect`, and every failure you yield lands in its `Error` type parameter.
 
-### `Effect.gen` reads like an `async` function
+### Write the program like an `async` function
 
 An `Effect` is lazily executed: creating one doesn't run it. It describes a program that can succeed or fail.
 
@@ -373,10 +373,11 @@ Same shape, three swaps:
 If a step fails, the rest do not run, the same way a thrown error stops an `async`
 function.
 
-### Wrap a `Promise` with `Effect.tryPromise`
+### Give the SDK call a failure type
 
-A `Promise` hides its failures, so wrap the SDK call to give them a type. `try`
-creates the `Promise`, and `catch` maps a rejection to one of your failures:
+A `Promise` hides its failures, so wrap the SDK call with `Effect.tryPromise` to
+give them a type. `try` creates the `Promise`, and `catch` maps a rejection to
+one of your failures:
 
 ```ts twoslash import.meta.vitest
 interface Authorization {
@@ -549,7 +550,7 @@ from the values you yield. You never wrote it by hand.
 The signature lists what can fail. Now read it from the other side: a caller
 that uses the list to recover.
 
-### `Effect.catchTag` handles one failure
+### Handle one failure
 
 `Effect.catchTag` takes the `_tag` of one failure and a handler. The handler is an `Effect` that receives the typed failure as a parameter, not `unknown`. The example uses `pipe`, which applies a function to the `Effect`, like method chaining:
 
@@ -612,7 +613,7 @@ So the `Success` type parameter now covers both: `string | Authorization`.
 
 The compiler now has another job: it won't compile a handler for a `_tag` that isn't in the union.
 
-### `Effect.catchTags` handles all the failures
+### Handle all the failures
 
 `Effect.catchTags`, notice the `s` at the end, handles all the tracked failures with one table: an object keyed by `_tag`.
 
