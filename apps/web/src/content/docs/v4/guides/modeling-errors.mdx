@@ -715,9 +715,22 @@ const recover = (token: PaymentToken) =>
   "this can no longer fail."
 </Aside>
 
-Every failure tracked in the `Error` type parameter until now is an expected failure. But `never` does not mean the code cannot fail.
+Every failure so far is one a caller can respond to. But `never` does not
+mean the code cannot fail.
 
-An unexpected failure can still happen: an uncaught exception, or a programming error you never planned for. Not every failure belongs in the `Error` type parameter.
+Some failures have no handler. In a payment program, they break a rule about
+money:
+
+- An authorization is captured once.
+- A capture matches its authorization.
+- The provider sends the status its contract promises.
+
+A capture charges the authorized payment, and the ledger is the record of
+payments already captured. Each rule above is an invariant: a condition that
+must hold for the money to be correct.
+
+When one of those breaks, no handler applies. The safe action is to stop and
+report.
 
 In `Effect` these are called **defects**.
 
@@ -727,4 +740,477 @@ In `Effect` these are called **defects**.
 
 "Did I cover every case?" is now answered by the type, not by reading the implementation.
 
+</Aside>
+
+## Defects: the failures you didn't model
+
+A defect is a failure outside the intended control flow: an impossible state,
+a failed assertion, a bug in third-party code. It never enters the `Error`
+type parameter. `Effect` records failures in two places:
+
+1. the `Error` type parameter tracks the failures you modeled. The compiler
+   watches it.
+1. the `Cause`, the runtime's record of everything that happened, retains the
+   rest: failures, defects, interruptions (a run stopped before it finished).
+   The compiler never sees it.
+
+Here is the tutorial's signature, one more time. Every failure it names is one
+a caller can respond to:
+
+{/* prettier-ignore */}
+```ts showLineNumbers=false
+//                           ┌─ the failures you modeled
+//                           ▼
+Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
+```
+
+The next section shows where the runtime puts a failure this type never names.
+
+### When no caller can respond
+
+Some failures have no handler to offer. The capture step guards one rule
+about money: an authorization is captured once. The ledger fixture pretends
+the first attempt already succeeded, so this run is the retry. When the step
+finds the payment already in the ledger, the invariant is broken, and no
+caller can respond to that. A typed error would promise a recovery that
+cannot exist, so the step raises a defect instead: the failure goes to the
+`Cause`, and the `Error` type parameter stays empty.
+
+```ts twoslash import.meta.vitest title="capturePaymentRetry.ts"
+import { Data, Effect } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
+  readonly authorizationId: string
+}> {}
+
+// Tutorial fixture: an in-memory ledger, so captures are reproducible.
+// The first attempt already captured the payment. This run is the retry.
+const captured = new Set(["pauth_123"])
+
+//    ┌─ Effect.Effect<Authorization>: no `Error` type parameter
+//    ▼
+const capturePayment = (
+  authorization: Authorization,
+): Effect.Effect<Authorization> =>
+  Effect.gen(function* () {
+    if (captured.has(authorization.authorizationId)) {
+      // An authorization is captured once. No caller can respond to the
+      // broken invariant, so the step dies instead of failing with a
+      // modeled error.
+      return yield* Effect.die(
+        new DoubleCaptureError({
+          authorizationId: authorization.authorizationId,
+        }),
+      )
+    }
+    captured.add(authorization.authorizationId)
+    return authorization
+  })
+
+const outcome = capturePayment({
+  authorizationId: "pauth_123",
+  status: "authorized",
+}).pipe(
+  Effect.catchDefect((defect) =>
+    defect instanceof DoubleCaptureError
+      ? Effect.succeed(
+          `terminated: authorization already captured: pauth_123: ${defect.authorizationId}`,
+        )
+      : Effect.die(defect),
+  ),
+)
+
+await Effect.runPromise(outcome) // => "terminated: authorization already captured: pauth_123"
+```
+
+The signature says `Effect.Effect<Authorization>`: no `Error` type parameter.
+
+So the capture cannot fail? The double capture says otherwise. The failure
+never entered the `Error` type parameter: it became a defect.
+
+`Effect.catchDefect` can be used to recover from the defect. Without it, `Effect.runPromise`
+would reject with the `Error`. The handler's else branch re-raises with
+`Effect.die`, which raises a defect on purpose.
+
+What about the recovery from the previous section? Give the job both steps,
+authorize then capture, and pipe it through `Effect.catchTags` with every tag
+handled:
+
+```ts twoslash import.meta.vitest collapse={3-56}
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
+  readonly message: string
+}> {}
+
+function isAuthorization(body: unknown): body is Authorization {
+  const r = body as Authorization
+  return (
+    (r?.status === "authorized" || r?.status === "declined") &&
+    typeof r?.authorizationId === "string"
+  )
+}
+
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+const authorizePayment = async (token: PaymentToken): Promise<unknown> => {
+  if (token === "tok_timeout") {
+    throw new Error("Provider unreachable")
+  }
+  if (token === "tok_declined") {
+    return { authorizationId: "pauth_123", status: "declined" }
+  }
+  return { authorizationId: "pauth_123", status: "authorized" }
+}
+
+const processPayment = (token: PaymentToken) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () => authorizePayment(token),
+      catch: (cause) => new NetworkError({ cause }),
+    })
+
+    if (!isAuthorization(response)) {
+      return yield* new ParseError({})
+    }
+
+    if (response.status === "declined") {
+      return yield* new PaymentDeclinedError()
+    }
+
+    return response
+  })
+
+// Tutorial fixture: an in-memory ledger, so captures are reproducible.
+// The first attempt already captured the payment. This run is the retry.
+const captured = new Set(["pauth_123"])
+
+const capturePayment = (
+  authorization: Authorization,
+): Effect.Effect<Authorization> =>
+  Effect.gen(function* () {
+    if (captured.has(authorization.authorizationId)) {
+      return yield* Effect.die(
+        new DoubleCaptureError({
+          message: `already captured: ${authorization.authorizationId}`,
+        }),
+      )
+    }
+    captured.add(authorization.authorizationId)
+    return authorization
+  })
+
+// The job: authorize the payment, then capture the authorization.
+const captureFlow = (token: PaymentToken) =>
+  Effect.gen(function* () {
+    const authorization = yield* processPayment(token)
+    return yield* capturePayment(authorization)
+  })
+
+// ---cut---
+// Every tag handled: Effect.Effect<string | Authorization, never>.
+const outcome = captureFlow("tok_visa").pipe(
+  Effect.catchTags({
+    NetworkError: () => Effect.succeed("handled NetworkError"),
+    ParseError: () => Effect.succeed("handled ParseError"),
+    PaymentDeclinedError: () => Effect.succeed("handled PaymentDeclinedError"),
+  }),
+  Effect.catchDefect(() => Effect.succeed("the defect passed through")),
+)
+
+await Effect.runPromise(outcome) // => "the defect passed through"
+```
+
+The table handles every tag, and the `Error` type parameter is `never`. The
+defect still terminated the program: only `Effect.catchDefect` saw it. Typed
+recovery never catches defects. `never` means nothing left to respond to, not
+nothing can fail.
+
+## Die when the data lies
+
+Whether a bug throws it or you write it with `Effect.die`, it lands in the
+same place: the `Cause`. `Effect.die` is the deliberate form, for the
+invariants you check on purpose. The next invariant is a status the type
+says cannot exist.
+
+A `default` arm in a switch over `authorization.status` is unreachable: the
+type has two members, and both cases return. The arm is still there, for the
+runtime rather than the type, and TypeScript considers it dead code, which
+is why the arm casts before reading the status. `Effect.die` is what it
+returns: an exception you raise on purpose. It never enters the `Error` type parameter.
+
+```ts twoslash import.meta.vitest
+import { Effect } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+//    ┌─ Effect.Effect<string>: no `Error` type parameter
+//    ▼
+const label = (authorization: Authorization) => {
+  switch (authorization.status) {
+    case "authorized":
+      return Effect.succeed(`charged ${authorization.authorizationId}`)
+    case "declined":
+      return Effect.succeed("no charge")
+    default: {
+      // Unreachable per the type. Here for the runtime anyway.
+      const status = (authorization as { status: string }).status
+      return Effect.die(new Error(`Impossible status: ${status}`))
+    }
+  }
+}
+
+// The data lies: a status the type says cannot exist.
+const forged = {
+  authorizationId: "pauth_123",
+  status: "refunded",
+} as unknown as Authorization
+
+const outcome = label(forged).pipe(
+  Effect.catchDefect((defect) =>
+    defect instanceof Error
+      ? Effect.succeed(`terminated with a defect: ${defect.message}`)
+      : Effect.die(defect),
+  ),
+)
+
+await Effect.runPromise(outcome) // => "terminated with a defect: Impossible status: refunded"
+```
+
+The forged value stands in for data from an untyped source, a parsed JSON
+body or a third-party response, where nothing guarantees the runtime matches
+the type. The status is `"refunded"`: the type says it cannot exist, and the
+runtime says otherwise. The impossible arm fired, and `Effect.die` terminated with a
+descriptive `Error`. Pass an `Error` with a useful message: it is the report
+`catchDefect` receives.
+
+## Stop tracking what you won't recover
+
+`Effect.orDie` is a modeling decision: no caller can do anything with these
+failures, so stop tracking them. Every typed failure
+becomes a defect, and the `Error` type parameter disappears.
+
+The function is the boundary between your Effect code and its callers. Apply
+`Effect.orDie` where that boundary is defined: inside, the code still fails with typed errors, but the signature
+the caller sees has none left.
+
+```ts twoslash import.meta.vitest
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+// Fixture: `processPayment` reduced to the sandbox tokens, so the example runs.
+const processPayment = (
+  token: PaymentToken,
+): Effect.Effect<
+  Authorization,
+  PaymentDeclinedError | NetworkError | ParseError
+> =>
+  token === "tok_declined"
+    ? Effect.fail(new PaymentDeclinedError())
+    : token === "tok_timeout"
+      ? Effect.fail(new NetworkError({}))
+      : Effect.succeed({ authorizationId: "pauth_123", status: "authorized" })
+// ---cut---
+//    ┌─ Effect.Effect<Authorization>: `Error` type parameter is gone
+//    ▼
+const reconcile = processPayment("tok_declined").pipe(Effect.orDie)
+
+try {
+  await Effect.runPromise(reconcile)
+} catch (defect) {
+  defect instanceof PaymentDeclinedError && defect._tag // => "PaymentDeclinedError"
+}
+```
+
+A nightly reconciliation job: when the payment fails, the job crashes and
+alerts whoever owns it. Nothing here is recoverable in place, so nothing is
+left to track. The failure crossed the boundary as a defect:
+`Effect.runPromise` rejected with the `PaymentDeclinedError` itself.
+
+### Promote a failure: turn it into a defect
+
+Do it when the failure is a bug, not an expected outcome.
+Suppose the provider is your own service, and its contract guarantees
+the response shape. `ParseError` stops being a failure a caller can respond
+to: it is a broken promise. To promote one while keeping the rest tracked,
+catch the tag and die with it:
+
+```ts twoslash showLineNumbers=false
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+declare const processPayment: (
+  token: PaymentToken,
+) => Effect.Effect<
+  Authorization,
+  PaymentDeclinedError | NetworkError | ParseError
+>
+
+//    ┌─ Effect.Effect<Authorization, PaymentDeclinedError | NetworkError>
+//    |  `ParseError` is now a defect; `PaymentDeclinedError` and `NetworkError` stay tracked
+//    ▼
+const strictProcessPayment = (token: PaymentToken) =>
+  processPayment(token).pipe(
+    Effect.catchTag("ParseError", (error) => Effect.die(error)),
+  )
+```
+
+Keep `PaymentDeclinedError` and `NetworkError` as failures: a decline has a
+message for the customer, a timeout has a retry. Promoting those would make
+them invisible to every caller.
+
+### Recover at the boundary
+
+A defect is a bug. A handler cannot fix it. But the boundary decides what
+happens next, once, in one place: the job runner, the HTTP handler, the batch
+loop. For each defect, ask:
+
+1. Could a caller respond to this? Then it is not a bug. Model it as a typed
+   failure: a class with a `_tag`, named in the `Error` type parameter.
+1. Is it a bug? Report it, and let the program terminate.
+1. Can the program continue without it? Catch it, report it, and go on.
+
+Inside the program, defects stay fatal. Only the boundary decides.
+
+`Effect.catchDefect` handles defects only. The next example is the other
+direction from the previous section: typed failures pass through unchanged.
+
+```ts twoslash import.meta.vitest
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly authorizationId: string
+  readonly status: "authorized" | "declined"
+}
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly cause?: unknown
+}> {}
+class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
+class ParseError extends Data.TaggedError("ParseError")<{
+  readonly cause?: unknown
+}> {}
+
+// Tutorial fixture: sandbox tokens make provider results reproducible.
+type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
+
+// Fixture: `processPayment` reduced to the sandbox tokens, so the example runs.
+const processPayment = (
+  token: PaymentToken,
+): Effect.Effect<
+  Authorization,
+  PaymentDeclinedError | NetworkError | ParseError
+> =>
+  token === "tok_declined"
+    ? Effect.fail(new PaymentDeclinedError())
+    : token === "tok_timeout"
+      ? Effect.fail(new NetworkError({}))
+      : Effect.succeed({ authorizationId: "pauth_123", status: "authorized" })
+// ---cut---
+const outcome = processPayment("tok_declined").pipe(
+  Effect.catchDefect((defect) =>
+    defect instanceof Error
+      ? Effect.succeed(`reported: ${defect.message}`)
+      : Effect.die(defect),
+  ),
+)
+
+try {
+  await Effect.runPromise(outcome)
+} catch (failure) {
+  failure instanceof PaymentDeclinedError && failure._tag // => "PaymentDeclinedError"
+}
+```
+
+The `catchDefect` handler never ran. `catch (failure)`, not `catch (defect)`:
+the typed failure was never a defect. It reached `runPromise` untouched,
+exactly as its type said, with all three members still in the `Error` type
+parameter.
+
+`Effect.catchCause` receives the complete `Cause`: typed failures, defects,
+interruptions, even several at once. `Cause.hasDies` asks whether a defect is
+in there. One handler, failures and defects together. Take the capture job
+from the previous sections, with the double capture:
+
+```ts twoslash import.meta.vitest
+import { Cause, Effect } from "effect"
+
+// Tutorial fixture: the capture job from the previous sections, reduced to
+// its outcome. The ledger already shows the authorization captured, so the
+// job terminated with a defect.
+const job = Effect.die(new Error("authorization already captured: pauth_123"))
+
+const outcome = job.pipe(
+  Effect.catchCause((cause) =>
+    Cause.hasDies(cause)
+      ? Effect.succeed("reported the broken invariant")
+      : Effect.failCause(cause),
+  ),
+)
+
+await Effect.runPromise(outcome) // => "reported the broken invariant"
+```
+
+When `hasDies` is false, `Effect.failCause` re-raises the `Cause`: nothing
+to recover there, so pass it along. Prefer the typed operators for the
+failures you modeled: `Effect.catchTag` and `Effect.catchTags`. Use
+`catchDefect` or `catchCause` only where recovering from the unexpected is
+intentional and safe.
+
+<Aside type="note" title="Checkpoint">
+  "Did I cover every case?" has two answers now. For the failures you modeled,
+  the `Error` type parameter answers: it shrinks as you handle them. For the
+  ones you didn't, the boundary answers: `catchDefect` sees them at the edge,
+  where you report them and let the program terminate.
 </Aside>
