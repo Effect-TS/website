@@ -32,7 +32,7 @@ a predictable result:
 | `"tok_declined"` | The provider declines the payment   |
 | `"tok_timeout"`  | The provider is unreachable         |
 
-## Shape the failure surface
+## The problem with thrown errors
 
 Nothing in the signature of a try/catch function tells you what can fail. Here is a common
 version of the payment step without `Effect`: three named error classes, a
@@ -149,6 +149,8 @@ Every one of these still compiles:
 1. When `processPayment` starts throwing a new error later, every caller still
    compiles, and the error reaches production.
 
+## How Effect makes failures visible
+
 A **good function signature** is a contract with three clauses:
 
 1. what the function needs
@@ -184,7 +186,7 @@ Now `processPayment`'s signature shows how it can fail: with a
   implementation.
 </Aside>
 
-## Model failures as values
+## Model each failure as value
 
 So far the failures are only types in the `Error` type parameter. Next you build
 the runtime values behind those.
@@ -288,7 +290,7 @@ failure carries.
   values are the members of an `Effect`'s `Error` union.
 </Aside>
 
-## Rewrite `processPayment` with Effect
+## Fail with values instead of throwing
 
 Now you build the program with `Effect`, and every failure you yield lands in its `Error` type parameter.
 
@@ -543,7 +545,7 @@ from the values you yield. You never wrote it by hand.
   error.
 </Aside>
 
-## Recover from failures
+## Recover from failures you modeled
 
 The signature lists what can fail. Now read it from the other side: a caller
 that uses the list to recover.
@@ -713,7 +715,7 @@ const recover = (token: PaymentToken) =>
   "this can no longer fail."
 </Aside>
 
-## Defects: the failures you didn't model
+## Separate bugs from failures you handle
 
 Every failure so far is one a caller can respond to. But `never` does not mean
 the code cannot fail.
