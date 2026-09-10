@@ -34,9 +34,9 @@ a predictable result:
 
 ## The problem with thrown errors
 
-Nothing in the signature of a try/catch function tells you what can fail. Here is a common
-version of the payment step without `Effect`: three named error classes, a
-type guard (a function that narrows a type), and a try around the await.
+Nothing in the signature of a try/catch function tells you what can fail.
+
+Here is a common version of the payment step without `Effect`:
 
 ```ts twoslash import.meta.vitest title="processPayment.ts"
 interface Authorization {
@@ -106,8 +106,6 @@ The payment goes through. `Promise` says nothing about failure.
 To find out, you have to read the implementation, or the docs if they exist and
 haven't drifted from it. Either way, the signature never shows it.
 
-`processPayment` is a common function signature that hides how it can fail:
-
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
 //                     ┌─ Needs `token`
@@ -149,15 +147,42 @@ Every one of these still compiles:
 1. When `processPayment` starts throwing a new error later, every caller still
    compiles, and the error reaches production.
 
-## How Effect makes failures visible
+## Model each failure as a value
 
-A **good function signature** is a contract with three clauses:
+A signature answers three questions for a caller:
 
 1. what the function needs
 1. what it returns on success
 1. how it can fail
 
-**Meet `Effect`**, which satisfies all three clauses and makes the contract explicit:
+`processPayment` answers only the first two.
+
+Imagine TypeScript had syntax for the failure:
+
+{/* prettier-ignore */}
+```ts showLineNumbers=false
+// /!\ Not real TypeScript.
+const processPayment: (token: PaymentToken) => Promise<Authorization> throws
+  PaymentDeclinedError | NetworkError | ParseError
+```
+
+TypeScript has no `throws` clause. But a return type can take a second type parameter for the failure.
+
+Meet `Effect`. `Effect<Success, Error>` describes a program that either succeeds with a `Success` or fails with an `Error`:
+
+{/* prettier-ignore */}
+```ts showLineNumbers=false
+// One parameter: the success.
+Promise<Authorization>
+
+// Two parameters: the success and the failure.
+Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
+```
+
+When the program fails, the failure comes back as a value, not as a thrown error. Because the
+failure is part of the return type, the compiler tracks it through every caller.
+
+The signature now answers all three questions:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
@@ -168,40 +193,13 @@ A **good function signature** is a contract with three clauses:
 const processPayment: (token: PaymentToken) => Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
 ```
 
-An `Effect<Success, Error>` is a description of a program with both a `Success` and an `Error` type parameter:
+`Effect` uses two conventions for failure values:
 
-| Type parameter | Clause                     |
-| -------------- | -------------------------- |
-| `Success`      | what it returns on success |
-| `Error`        | how it can fail            |
+- An `Error` suffix on the class, to tell a failure from a success immediately.
+- A `_tag` property, unique to each failure, so the compiler can tell them apart.
 
-An `Effect`'s `Error` type parameter exposes all possible failures as a union type.
-
-Now `processPayment`'s signature shows how it can fail: with a
-`PaymentDeclinedError`, `NetworkError`, or `ParseError`.
-
-<Aside type="note" title="Checkpoint">
-  You can now read a signature and treat it as a contract. `Effect`'s `Success`
-  and `Error` type parameters show what you need without reading the
-  implementation.
-</Aside>
-
-## Model each failure as value
-
-So far the failures are only types in the `Error` type parameter. Next you build
-the runtime values behind those.
-
-You return each failure instead of throwing it:
-
-- A thrown error becomes `unknown` in a `catch`, so the compiler loses it.
-- A returned value keeps its type, so the compiler tracks it through every caller.
-
-`Effect` uses two conventions for these values:
-
-- an `Error` suffix on the class, to tell a failure from a success at a glance.
-- a `_tag` property, unique to each failure, so the compiler can tell them apart.
-
-`Data.TaggedError` builds both. Its argument becomes the `_tag`:
+`Data.TaggedError` supplies the `_tag` from its argument; the class name carries
+the suffix:
 
 {/* prettier-ignore */}
 ```ts import.meta.vitest showLineNumbers=false mark=/class \w+(Error)|TaggedError[(](.ParseError.)[)]|[.](_tag)/
@@ -216,10 +214,30 @@ const error = new ParseError()
 error._tag // => "ParseError"
 ```
 
+Without a `_tag`, a plain `extends Error` leaves them identical:
+
+```ts twoslash
+import { Effect } from "effect"
+
+class NetworkError extends Error {}
+class ParseError extends Error {}
+
+// You model two failures in the `Error` type parameter...
+declare const program: Effect.Effect<string, NetworkError | ParseError>
+
+// ...but this compiles: to the compiler the two are one type.
+const oneError: Effect.Effect<string, NetworkError> = program
+```
+
+`_tag` is what keeps the failures distinct. Both classes have the same shape, so
+TypeScript compares them structurally and `ParseError` drops out of the union,
+which produces the "why did my other error disappear?" confusion that catches
+beginners. Add a `_tag` to each and the assignment stops compiling: every failure
+becomes its own member of the union.
+
 <Aside type="tip" title="Why use a class?">
   In TypeScript a class is both a type _and_ a value. One declaration gives you
-  the failure type to name in a signature and the constructor to build it, with
-  no extra imports.
+  the failure type to name in a signature and the constructor to build it.
 </Aside>
 
 Refactor the three error classes to `Data.TaggedError`:
@@ -281,13 +299,12 @@ const processPayment = async (token: PaymentToken): Promise<Authorization> => {
 }
 ```
 
-The `{ ... }` after each `TaggedError` declares the shape of the fields the
-failure carries.
+The `<{ ... }>` type argument on `NetworkError` and `ParseError` declares the
+fields those failures carry.
 
 <Aside type="note" title="Checkpoint">
-  You now model each failure as a value: a class from `Data.TaggedError`, with
-  an `Error` suffix and a `_tag` that tells it apart from the others. These
-  values are the members of an `Effect`'s `Error` union.
+  You now model each failure as a value: a class from `Data.TaggedError`. These
+  values are the members of an `Effect`'s `Error` type parameter union.
 </Aside>
 
 ## Fail with values instead of throwing
