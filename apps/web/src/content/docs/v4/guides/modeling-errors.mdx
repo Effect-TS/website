@@ -23,8 +23,8 @@ authorization). That operation can fail three ways:
 
 Keep those three in mind, because making them visible is the whole point.
 
-The SDK is simulated with sandbox payment tokens, so the runnable examples in
-this tutorial all give the same result:
+The SDK is simulated with sandbox payment tokens, so each token gives
+a predictable result:
 
 | Token            | Result                              |
 | ---------------- | ----------------------------------- |
@@ -36,7 +36,7 @@ this tutorial all give the same result:
 
 Nothing in the signature of a try/catch function tells you what can fail. Here is a common
 version of the payment step without `Effect`: three named error classes, a
-type guard (a function that narrows a type), and a try around each await.
+type guard (a function that narrows a type), and a try around the await.
 
 ```ts twoslash import.meta.vitest title="processPayment.ts"
 interface Authorization {
@@ -55,8 +55,8 @@ class PaymentDeclinedError extends Error {
   }
 }
 class ParseError extends Error {
-  constructor(cause?: unknown) {
-    super("The response is not an authorization", { cause })
+  constructor(args?: { cause?: unknown }) {
+    super("The response is not an authorization", { cause: args?.cause })
   }
 }
 
@@ -71,9 +71,7 @@ function isAuthorization(body: unknown): body is Authorization {
 // Tutorial fixture: sandbox tokens make provider results reproducible.
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
+const authorizePayment = async (token: PaymentToken): Promise<unknown> => {
   if (token === "tok_timeout") {
     throw new Error("Provider unreachable")
   }
@@ -92,7 +90,7 @@ async function processPayment(token: PaymentToken): Promise<Authorization> {
   }
 
   if (!isAuthorization(response)) {
-    throw new ParseError()
+    throw new ParseError({})
   }
   if (response.status === "declined") {
     throw new PaymentDeclinedError()
@@ -615,7 +613,7 @@ The compiler now has another job: it won't compile a handler for a `_tag` that i
 
 ### Handle all the failures
 
-`Effect.catchTags`, notice the `s` at the end, handles all the tracked failures with one table: an object keyed by `_tag`.
+`Effect.catchTags` (notice the `s` at the end), handles all the tracked failures with one table: an object keyed by `_tag`.
 
 For each `_tag`, its handler receives the typed error:
 
@@ -667,8 +665,7 @@ await Effect.runPromise(outcome) // => "Provider unreachable, try again"
 Two more rules the compiler enforces:
 
 1. Every key must be a `_tag` from the union. A typo does not compile.
-1. Whatever the table misses stays in the `Error` type. The result is
-   `Effect.Effect<Authorization, ParseError>`.
+1. The result keeps what the table misses: `Effect.Effect<Authorization, ParseError>`.
 
 When all the failures are handled, the `Error` type parameter becomes `never`:
 
@@ -725,7 +722,6 @@ Some failures have no handler. In a payment program, they break a rule about
 money:
 
 - An authorization is captured once.
-- A capture matches its authorization.
 - The provider sends the status its contract promises.
 
 Each rule above is an invariant: a condition that must hold for the money to be correct.
@@ -752,8 +748,8 @@ a caller can respond to:
 Effect.Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
 ```
 
-A failure this type never names lands in the `Cause`. Each decision below gets
-its own subsection, with the `Effect` API that carries it out:
+A failure this type never names lands in the `Cause`. Key decisions below use
+these `Effect` APIs:
 
 | Decision                                        | `Effect` API         |
 | ----------------------------------------------- | -------------------- |
@@ -831,8 +827,8 @@ So the capture cannot fail? The double capture says otherwise. The failure
 never entered the `Error` type parameter: it became a defect.
 
 `Effect.catchDefect` recovered from it. Without it, `Effect.runPromise` rejects
-with the error. The handler's else branch re-raises with `Effect.die`, which
-raises a defect on purpose: a defect the boundary cannot handle stays fatal.
+with the error. Unknown defects stay fatal, so the handler re-raises them with
+`Effect.die`.
 
 ### Typed recovery never catches a defect
 
@@ -856,7 +852,7 @@ class ParseError extends Data.TaggedError("ParseError")<{
   readonly cause?: unknown
 }> {}
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
-  readonly message: string
+  readonly authorizationId: string
 }> {}
 
 function isAuthorization(body: unknown): body is Authorization {
@@ -906,7 +902,7 @@ const capturePayment = (
     if (captured.has(authorization.authorizationId)) {
       return yield* Effect.die(
         new DoubleCaptureError({
-          message: `already captured: ${authorization.authorizationId}`,
+          authorizationId: authorization.authorizationId,
         }),
       )
     }
@@ -937,10 +933,8 @@ await Effect.runPromise(outcome) // => "the defect passed through"
 ```
 
 The table handles every tag, and the `Error` type parameter is `never`. The
-defect still terminated the program:
-
-1. Typed recovery never catches defects. Only `Effect.catchDefect` saw it.
-1. `never` means nothing left to respond to, not nothing can fail.
+defect still terminated the program: typed recovery never catches defects, so
+only `Effect.catchDefect` saw it.
 
 ### Guard impossible data
 
@@ -1066,7 +1060,7 @@ left to track. The failure crossed the boundary as a defect:
 
 ### Promote one failure to a defect
 
-`Effect.orDie` promotes every failure. Promote one failure when that failure is
+`Effect.orDie` promotes every failure. Promote one failure when it is
 a bug, not an expected outcome. Suppose the provider is your own service, and
 its contract guarantees the response shape. `ParseError` stops being a failure
 a caller can respond to: it is a broken promise. To promote one while keeping
