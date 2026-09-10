@@ -60,7 +60,7 @@ class ParseError extends Error {
   }
 }
 
-function isAuthorization(body: unknown): body is Authorization {
+const isAuthorization = (body: unknown): body is Authorization => {
   const r = body as Authorization
   return (
     (r?.status === "authorized" || r?.status === "declined") &&
@@ -81,7 +81,7 @@ const authorizePayment = async (token: PaymentToken): Promise<unknown> => {
   return { authorizationId: "pauth_123", status: "authorized" }
 }
 
-async function processPayment(token: PaymentToken): Promise<Authorization> {
+const processPayment = async (token: PaymentToken): Promise<Authorization> => {
   let response: unknown
   try {
     response = await authorizePayment(token)
@@ -110,11 +110,11 @@ haven't drifted from it. Either way, the signature never shows it.
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
-//                      ┌─ Needs `token`
-//                      │                             ┌─ Returns `Authorization`
-//                      ▼                             ▼
-function processPayment(token: PaymentToken): Promise<Authorization>
-//                                            └─ How can it fail?
+//                     ┌─ Needs `token`
+//                     │                       ┌─ Returns `Authorization`
+//                     ▼                       ▼
+const processPayment: (token: PaymentToken) => Promise<Authorization>
+//                                             └─ How can it fail?
 ```
 
 Worse, the compiler can't tell you any of this. Suppose a caller tries to handle
@@ -126,7 +126,7 @@ interface Authorization {
   readonly authorizationId: string
   readonly status: "authorized" | "declined"
 }
-declare function processPayment(token: PaymentToken): Promise<Authorization>
+declare const processPayment: (token: PaymentToken) => Promise<Authorization>
 class PaymentDeclinedError extends Error {}
 // ---cut---
 try {
@@ -161,11 +161,11 @@ A **good function signature** is a contract with three clauses:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
-//                      ┌─ What the function needs
-//                      │                            ┌─ What it returns on success
-//                      │                            │              ┌─ How it can fail
-//                      ▼                            ▼              ▼
-function processPayment(token: PaymentToken): Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
+//                     ┌─ What the function needs
+//                     │                              ┌─ What it returns on success
+//                     │                              │              ┌─ How it can fail
+//                     ▼                              ▼              ▼
+const processPayment: (token: PaymentToken) => Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
 ```
 
 An `Effect<Success, Error>` is a description of a program with both a `Success` and an `Error` type parameter:
@@ -242,7 +242,7 @@ class ParseError extends Data.TaggedError("ParseError")<{
   readonly cause?: unknown
 }> {}
 
-function isAuthorization(body: unknown): body is Authorization {
+const isAuthorization = (body: unknown): body is Authorization => {
   const r = body as Authorization
   return (
     (r?.status === "authorized" || r?.status === "declined") &&
@@ -263,7 +263,7 @@ const authorizePayment = async (token: PaymentToken): Promise<unknown> => {
   return { authorizationId: "pauth_123", status: "authorized" }
 }
 
-async function processPayment(token: PaymentToken): Promise<Authorization> {
+const processPayment = async (token: PaymentToken): Promise<Authorization> => {
   let response: unknown
   try {
     response = await authorizePayment(token)
@@ -321,7 +321,7 @@ const authorizePayment = async (
   return { authorizationId: "pauth_123", status: "authorized" }
 }
 // ---cut---
-async function program() {
+const program = async () => {
   const first = await authorizePayment("tok_visa")
   const second = await authorizePayment("tok_declined")
   return { first: first.status, second: second.status }
@@ -470,7 +470,7 @@ result, which is exactly what lets the `Error` type parameter track it.
 
 Now rewrite `processPayment` using `Effect`:
 
-```ts import.meta.vitest title="processPaymentEffect.ts" twoslash collapse={3-37}
+```ts import.meta.vitest title="processPaymentEffect.ts" twoslash collapse={3-36}
 import { Effect, Data } from "effect"
 
 interface Authorization {
@@ -488,7 +488,7 @@ class ParseError extends Data.TaggedError("ParseError")<{
   readonly cause?: unknown
 }> {}
 
-function isAuthorization(body: unknown): body is Authorization {
+const isAuthorization = (body: unknown): body is Authorization => {
   const r = body as Authorization
   return (
     (r?.status === "authorized" || r?.status === "declined") &&
@@ -496,7 +496,6 @@ function isAuthorization(body: unknown): body is Authorization {
   )
 }
 
-// Tutorial fixture: sandbox tokens make provider results reproducible.
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
 const authorizePayment = async (token: PaymentToken): Promise<unknown> => {
@@ -858,10 +857,8 @@ class ParseError extends Data.TaggedError("ParseError")<{
   readonly cause?: unknown
 }> {}
 
-// Tutorial fixture: sandbox tokens make provider results reproducible.
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
-// Fixture: `processPayment` reduced to the sandbox tokens, so the example runs.
 const processPayment = (
   token: PaymentToken,
 ): Effect.Effect<
@@ -922,10 +919,8 @@ class ParseError extends Data.TaggedError("ParseError")<{
   readonly cause?: unknown
 }> {}
 
-// Tutorial fixture: sandbox tokens make provider results reproducible.
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
-// Fixture: `processPayment` reduced to the sandbox tokens, so the example runs.
 const processPayment = (
   token: PaymentToken,
 ): Effect.Effect<
