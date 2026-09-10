@@ -14,7 +14,10 @@ import type { Element, Root } from "hast"
  */
 
 /** Docs folders whose `twoslash` blocks are type-checked at build time. */
-const TWOSLASH_SCOPES: Array<RegExp> = [/docs[/\\]v4[/\\]guides[/\\]/]
+const TWOSLASH_SCOPES: Array<RegExp> = [
+  /docs[/\\]v4[/\\]guides[/\\]/,
+  /docs[/\\]v4[/\\]tutorials[/\\]/,
+]
 
 const HAS_TWOSLASH = /\btwoslash\b/
 const TWOSLASH_TOKEN = /(?<=^|\s)twoslash(?=\s|$)/g
