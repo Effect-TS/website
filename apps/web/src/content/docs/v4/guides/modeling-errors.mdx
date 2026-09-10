@@ -1189,3 +1189,21 @@ A rule of thumb for the whole section:
   ones you didn't, the boundary answers: `catchDefect` sees them at the edge,
   where you report them and let the program terminate.
 </Aside>
+
+## Review what you built
+
+You can now do five things. Each one maps to an operator you used.
+
+- Read an `Effect` signature as a contract. The `Success` type parameter names the result, and the `Error` type parameter names every failure a caller can handle.
+- Model each failure as a value with `Data.TaggedError`, so the compiler tracks the failure instead of losing it as `unknown` in a `catch`.
+- Turn a rejecting `Promise` into typed failures with `Effect.tryPromise`, and fail inside `Effect.gen` with a yielded tagged error.
+- Recover with `Effect.catchTag` for one `_tag` and `Effect.catchTags` for many. Each handled tag leaves the `Error` union. An empty union is `never`.
+- Keep defects apart from typed failures. `Effect.die` records a defect in the `Cause`. `Effect.catchDefect` recovers at the boundary. `Effect.orDie` converts tracked failures you no longer handle.
+
+## Further reading
+
+Each guide below extends one job from this tutorial.
+
+- To answer a decline or a timeout with a fallback value, read [Expected Errors](/docs/v4/error-management/expected-errors/).
+- To add a new tagged failure to the signature, read [Yieldable Errors](/docs/v4/error-management/yieldable-errors/).
+- To report a double capture or an impossible status at the boundary, read [Unexpected Errors](/docs/v4/error-management/unexpected-errors/).
