@@ -491,9 +491,15 @@ A `Promise<Authorization>` that could reject is now an
 
 ### Return a tagged error from a step
 
-Inside `Effect.gen`, yield an error to fail the whole `Effect`, the way
-`throw` stops a function. The yielded error joins the `Error` type parameter,
-next to the `NetworkError` from the wrapped call:
+This line feels wrong when you first see it: a step fails by returning an error
+value, with no `throw` and no outer `catch`.
+
+The error value is not new. `new PaymentDeclinedError()` is the same class
+instance you would have passed to `throw`. `throw` does not create anything.
+It moves the value up the call stack until a `catch` block receives it. Here,
+the value comes back the same way a success does, and the rest of the `Effect`
+stops. The error joins `NetworkError` in the `Error` type parameter, where
+TypeScript sees it:
 
 ```ts twoslash
 import { Effect, Data } from "effect"
