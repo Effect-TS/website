@@ -1,0 +1,201 @@
+---
+pagefind: false
+title: This Week in Effect - 135
+excerpt: "Astra vs The Boys: 207 PRs, three days. The Primeagen dives into Effect. Ziverge runs their first Effect training workshop."
+date: 2026-09-11
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Release Candidate](https://www.effect.website/blog/releases/effect/40-rc) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+### Effect v4 RC updates.
+
+The RC hardening effort continued at full pace this week. A few changes stand out as worth flagging directly, including one API rename.
+
+- **Breaking rename**: `Schema.transformOrFail` has been renamed to `Schema.transformEffect` for clarity. If you're already building against the v4 RC, this is a search-and-replace across your schema transformations.
+
+- **Service declarations**: `Reactivity`, `LanguageModel`, `EmbeddingModel`, and `Chat` are now declared as `interface + Context.Service`, aligning their definitions with the rest of the service module conventions.
+
+- **File-serving hardening**: A dedicated cluster of fixes landed around file and byte-range handling — fixed file body content-length precision and range errors, rejected file seeks before the start of a file, clamped `HttpPlatform` file responses to available bytes, fixed oversized byte ranges in `HttpStaticServer`, and fixed invalid `File.readAlloc` sizes on Node and Deno.
+
+- **Performance**: Reduced HTTP server overhead across response headers, routing, `HttpApi` errors, and `Effect.cached`, reduced web handler cold start on Cloudflare, and optimized `OtlpTracer` span creation and export.
+
+- **Schema**: Improved JSON Schema generation, fixed arbitrary generation and shrinking for index signatures, and centralized JSON Pointer URI fragment handling.
+
+- **Workflow**: Fixed durable suspension for child workflow fan-out inside activities, and made activity counter acquisition interruption-safe.
+
+- **CLI**: Aligned CLI constructor names with Schema and Config conventions, and fixed key=value pair splitting to use the first separator.
+
+- **WebSocket & networking**: Dispatched WebSocket events directly instead of through an intermediate queue, and added shared network address values.
+
+- **MCP**: Reported MCP toolkit failures before recovery, ensuring failures surface promptly instead of being silently retried.
+
+- **Systematic correctness sweep**: The broader audit continued across dozens of modules — `Effect`, `Types`, `Context`, `Metric`, `HttpClient`, `Tuple`, `Number`, `SqlModel`, `RequestResolver`, and several AI provider integrations — fixing edge cases in error handling, type inference, and state preservation.
+
+- **Documentation**: Updated v3-to-v4 migration guidance multiple times to reflect the week's API changes, including the `transformEffect` rename.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [Effect v4 Updates](https://www.effect.website/blog?category=effect-v4-updates), starting from the recently published [Effect v4 RC: August 2026 Updates](https://www.effect.website/blog/effect-v4-rc-august-recap).
+
+---
+
+Other technical updates from the past week.
+
+### Effect CLI
+
+- [Update TOML dependency to remove a vulnerability notice](https://github.com/Effect-TS/effect/pull/8142) (Improvement)
+
+### Effect Opentelemetry
+
+- [Fix OpenTelemetry propagation through skipped spans](https://github.com/Effect-TS/effect/pull/8139) (Bug Fix)
+
+## Community Events
+
+- The 3-day passes for Effect Days that include the workshop went sold out this week! The conference is scheduled on December 9–11, 2026 in Livorno, Italy.
+
+  <Tweet id="2096992094174765175" />
+
+  <Tweet id="2097353374538621150" />
+
+- Two meetups happening in the US this month: [Effect NYC](https://luma.com/2e0qaazh) on Sep 24 and [Effect San Francisco](https://luma.com/all-things-effect) on Sep 30.
+
+  <Tweet id="2094389070155645318" />
+
+- The first [Effect Warsaw](https://luma.com/29fn6spj) meetup is scheduled on September 15!
+
+  <Tweet id="2086778100180824403" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Adoption Partner
+
+John De Goes just run Ziverge's first [Effect Training Workshop](https://www.eventbrite.com/e/ziverge-effect-ts-workshop-tickets-1993621741295?aff=oddtdtcreator). We can't wait to have more at the Effect Days!
+
+<Tweet id="2097753339664400604" />
+
+## Community Highlights
+
+- [Astra vs The Boys](https://effect.website/blog/astra-vs-the-boys)!
+
+<Tweet id="2097380472070213664" />
+
+- OpenCodeJR really is the best!
+
+<Tweet id="2096267318913364160" />
+
+- 😎
+
+<Tweet id="2097206337491144807" />
+
+- The Primeagen learning Effect? 🤔
+
+<Tweet id="2098148203636158666" />
+
+<YouTube
+  id="https://www.youtube.com/embed/O2__t8lceCg?si=5UPzvPB5rfNMTrsV"
+  title="🚨🚨 LEARNING EFFECTJS - Learning in the age of AI🚨🚨"
+/>
+
+- Join the Effect crew in New Zealand 🇳🇿
+
+<Tweet id="2097494521684918305" />
+
+- There is no other way!
+
+<Tweet id="2096872019987988558" />
+
+- [effect-uai](https://github.com/betalyra/effect-uai) - composable, effectful building blocks for building AI agents with Effect. By betalyra, also behind [ensforge](https://ensforge.com/), a type-safe TypeScript SDK for ENS names, records, registration, renewals, and React hooks. Check out the project reveal on YouTube.
+
+- [effect-lsc](https://github.com/pigoz/effect-lsc) - Effect Live Server Components, a backend-first UI framework bringing Phoenix LiveView-style architecture to TypeScript. By Stefano Pigozzi.
+
+- [ilha](https://github.com/ilhajs/ilha) - a lightweight, isomorphic UI library for shipping minimal JavaScript, rendering reactive components on the server and hydrating only what matters in the browser.
+
+<YouTube
+  id="https://www.youtube.com/embed/BtTi1HhyyWQ?si=JtSIzptqELhjIM58"
+  title="Intro to effect-uai"
+/>
+
+- [git](https://github.com/chr33s/git) - a unified Git implementation that runs as a Smart-HTTP server, browser client, and CLI tool from one core, built for agent-native collaboration with cryptographically signed code reviews, written in Effect v4. By chr33s. Check out the [foldkit](https://github.com/chr33s/git/tree/experimental/foldkit) branch for a file browser, commit viewer, task manager, and pull request inspector, built as one Foldkit application over Effect.
+
+- [Learn Effect with Craft](https://craft-ts.github.io/craft/learn-effect/00-start-here) - a guide for teams already using Effect to adopt [Craft](https://craft-ts.github.io/craft/), a TypeScript UI framework with a component model, reactivity system, and routing layer that integrates with Effect programs for frontend development.
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Ecosystem updates, effect-mq, Jobs vs Workflows | Effect Office Hours 45 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/aDwXzVe7Rio?si=OhanHRgWqWKmU3WC"
+  title="Ecosystem updates, effect-mq, Jobs vs Workflows | Effect Office Hours 45 🔥"
+/>
+
+- Observability, agents, and local telemetry workflows
+
+<YouTube
+  id="https://www.youtube.com/embed/LfD1VIrLgk4?si=sZT6rxq8RWU4lCgo"
+  title="Observability, agents, and local telemetry workflows"
+/>
+
+- Using Effect RPC over WebSockets with Express
+
+<YouTube
+  id="https://www.youtube.com/embed/RZrqoOERrQA?si=2sn58ruNch6kWPtg"
+  title="Using Effect RPC over WebSockets with Express"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
