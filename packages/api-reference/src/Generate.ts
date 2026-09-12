@@ -22,6 +22,7 @@ import {
   normalizePath,
 } from "typedoc"
 import TypeScript from "typescript"
+import { isSemver } from "@website/domain/Changelog"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -221,6 +222,114 @@ export async function generate(options: GenerateOptions): Promise<void> {
   console.log(
     `Generated ${packageManifests.length} packages in ${outputDirectory}`,
   )
+
+  generateChangelogs(packages, repositoryDirectory, revision, options)
+}
+
+// Channel branch for stable source links (avoids embedding the commit SHA,
+// which would rewrite every changelog file on each generation).
+const channelBranches: Record<string, string> = { v3: "v3", v4: "main" }
+
+function generateChangelogs(
+  packages: ReadonlyArray<PackageInfo>,
+  repositoryDirectory: string,
+  revision: string,
+  options: GenerateOptions,
+): void {
+  const outputDirectory = resolve(
+    websiteDirectory,
+    join("apps/web/.data/changelog", options.version),
+  )
+  assertSafeOutputDirectory(outputDirectory, repositoryDirectory)
+
+  const sourceRef = channelBranches[options.version] ?? revision
+
+  // A single-package run refreshes only its file; a full run rebuilds the set.
+  if (options.package === undefined) {
+    prepareOutputDirectory(outputDirectory)
+  } else {
+    mkdirSync(outputDirectory, { recursive: true })
+    if (!isFile(join(outputDirectory, outputMarker))) {
+      writeFileSync(join(outputDirectory, outputMarker), "")
+    }
+  }
+
+  let written = 0
+  for (const packageInfo of packages) {
+    const changelogPath = join(packageInfo.directory, "CHANGELOG.md")
+    if (!isFile(changelogPath)) {
+      continue
+    }
+    const slug = packageNameToSlug(packageInfo.manifest.name)
+    const relativePath = toPosixPath(
+      relative(repositoryDirectory, packageInfo.directory),
+    )
+    const document = buildChangelogDocument(
+      readFileSync(changelogPath, "utf8"),
+      {
+        name: packageInfo.manifest.name,
+        slug,
+        channel: options.version,
+        packageVersion: packageInfo.manifest.version,
+        sourceUrl: `https://github.com/Effect-TS/effect/blob/${sourceRef}/${relativePath}/CHANGELOG.md`,
+      },
+    )
+    writeFileSync(join(outputDirectory, `${slug}.md`), document)
+    written += 1
+  }
+
+  console.log(`Generated ${written} changelogs in ${outputDirectory}`)
+}
+
+interface ChangelogMeta {
+  readonly name: string
+  readonly slug: string
+  readonly channel: string
+  readonly packageVersion: string
+  readonly sourceUrl: string
+}
+
+function buildChangelogDocument(source: string, meta: ChangelogMeta): string {
+  const frontmatter = [
+    "---",
+    `package: ${JSON.stringify(meta.name)}`,
+    `slug: ${JSON.stringify(meta.slug)}`,
+    `channel: ${JSON.stringify(meta.channel)}`,
+    `packageVersion: ${JSON.stringify(meta.packageVersion)}`,
+    `sourceUrl: ${JSON.stringify(meta.sourceUrl)}`,
+    "---",
+  ].join("\n")
+
+  const blocks = splitChangelogSections(source)
+  const body =
+    blocks.length === 0 ? "No changelog entries." : blocks.join("\n\n")
+
+  return `${frontmatter}\n\n${body}\n`
+}
+
+// Keep only released-version (semver `##`) entries; the heading itself carries
+// the anchor (rehype assigns ids and permalinks at render time).
+function splitChangelogSections(source: string): Array<string> {
+  const lines = source.split("\n")
+  const sections: Array<Array<string>> = []
+  let current: Array<string> | undefined
+  let fenced = false
+
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      fenced = !fenced
+    }
+    const heading = fenced ? null : /^##\s+(.+?)\s*$/.exec(line)
+    const version = heading?.[1]?.trim()
+    if (version !== undefined && isSemver(version)) {
+      current = [line]
+      sections.push(current)
+    } else if (current !== undefined) {
+      current.push(line)
+    }
+  }
+
+  return sections.map((sectionLines) => sectionLines.join("\n").trim())
 }
 
 async function generatePackage(
@@ -672,6 +781,18 @@ function prepareOutputDirectory(path: string): void {
 
   mkdirSync(path, { recursive: true })
   writeFileSync(join(path, outputMarker), "")
+}
+
+function packageNameToSlug(packageName: string): string {
+  const slug = packageName.startsWith("@effect/")
+    ? packageName.slice("@effect/".length)
+    : packageName
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(slug)) {
+    throw new Error(
+      `Cannot derive a changelog URL slug from package name ${JSON.stringify(packageName)}`,
+    )
+  }
+  return slug
 }
 
 function packageOutputPath(output: string, packageName: string): string {

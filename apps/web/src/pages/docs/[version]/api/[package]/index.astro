@@ -1,7 +1,7 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { Search } from "@lucide/astro"
+import { ScrollText, Search } from "@lucide/astro"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
@@ -193,7 +193,7 @@ function moduleName(modulePath: string, group: string): string {
       <a
         href={`/docs/${version}/api`}
         aria-current="page"
-        class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
+        class="mb-4 block font-mono text-sm font-medium tracking-wider text-foreground uppercase hover:underline"
       >
         API Reference
       </a>
@@ -249,6 +249,12 @@ function moduleName(modulePath: string, group: string): string {
       </a>
       <a href={pkg.sourceUrl} target="_blank" class="transition-colors hover:text-foreground">
         <GitHubLogo class="mr-1 inline size-4" aria-hidden="true" /> Source
+      </a>
+      <a
+        href={`/docs/${version}/api/${pkg.slug}/changelog`}
+        class="transition-colors hover:text-foreground"
+      >
+        <ScrollText class="mr-1 inline size-4" aria-hidden="true" /> Changelog
       </a>
     </div>
 

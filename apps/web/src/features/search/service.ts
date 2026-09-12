@@ -13,6 +13,7 @@ import {
   ApiReferenceGeneratedMetadata,
   ApiReferenceMetadata,
   BlogGeneratedMetadata,
+  ChangelogGeneratedMetadata,
   DocumentationGeneratedMetadata,
   SearchError,
   StoreSearchResponse,
@@ -55,7 +56,8 @@ export class Search extends Context.Service<Search>()("app/Search", {
     function markdownSection(
       generated:
         | typeof DocumentationGeneratedMetadata.Type
-        | typeof BlogGeneratedMetadata.Type,
+        | typeof BlogGeneratedMetadata.Type
+        | typeof ChangelogGeneratedMetadata.Type,
     ) {
       const firstHeading = generated.chunk_headings[0]
       const endLine = generated.start_line + generated.num_lines
@@ -136,6 +138,37 @@ export class Search extends Context.Service<Search>()("app/Search", {
 
           const result = grouped.get(href)
           if (result === undefined || result.kind !== "blog") return
+          const section = markdownSection(generated)
+          if (section === undefined || section.anchor.length === 0) return
+          const sectionHref = `${href}#${section.anchor}`
+          if (result.chunks.some((match) => match.href === sectionHref)) return
+          result.chunks.push({
+            id: `${chunk.file_id}-${chunk.chunk_index}`,
+            href: sectionHref,
+            title: section.title,
+            snippet: section.excerpt || extractSnippet(chunk.text),
+            score: chunk.score,
+          })
+          return
+        }
+
+        if (Schema.is(ChangelogGeneratedMetadata)(generated)) {
+          const href = generated.search.page_href
+          if (!grouped.has(href)) {
+            grouped.set(href, {
+              kind: "changelog",
+              id: href,
+              title: generated.search.page_title,
+              description: `Changelog for ${generated.search.package_name}`,
+              href,
+              packageName: generated.search.package_name,
+              version: generated.search.docs_version,
+              chunks: [],
+            })
+          }
+
+          const result = grouped.get(href)
+          if (result === undefined || result.kind !== "changelog") return
           const section = markdownSection(generated)
           if (section === undefined || section.anchor.length === 0) return
           const sectionHref = `${href}#${section.anchor}`

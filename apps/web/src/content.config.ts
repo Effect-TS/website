@@ -12,6 +12,23 @@ const apiReference = defineCollection({
   schema: ApiReferenceContentEntry,
 })
 
+const changelog = defineCollection({
+  loader: glob({
+    base: new URL("../.data/changelog/", import.meta.url),
+    pattern: "*/*.md",
+    // Slug defaults to the filename, which repeats across version dirs
+    // (`v3/effect`, `v4/effect`); key on the full path to keep it unique.
+    generateId: ({ entry }) => entry.replace(/\.md$/, ""),
+  }),
+  schema: z.object({
+    package: z.string().min(1),
+    slug: z.string().min(1),
+    channel: z.string().regex(/^v\d+$/),
+    packageVersion: z.string().min(1),
+    sourceUrl: z.url(),
+  }),
+})
+
 const blog = defineCollection({
   loader: glob({
     base: "./src/content/blog",
@@ -141,6 +158,7 @@ const docs = defineCollection({
 
 export const collections = {
   apiReference,
+  changelog,
   docs,
   docsSidebar,
   docsOnboarding,
