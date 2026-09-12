@@ -36,6 +36,19 @@ export const BlogStagedSearchMetadata = Schema.Struct({
 })
 export type BlogStagedSearchMetadata = typeof BlogStagedSearchMetadata.Type
 
+export const ChangelogStagedSearchMetadata = Schema.Struct({
+  schema_version: Schema.Literal(1),
+  content_source: Schema.Literal("changelog"),
+  docs_version: Schema.String,
+  package_name: Schema.String,
+  package_slug: Schema.String,
+  page_href: Schema.String,
+  page_title: Schema.String,
+  sections: Schema.Array(SearchSection),
+})
+export type ChangelogStagedSearchMetadata =
+  typeof ChangelogStagedSearchMetadata.Type
+
 export const DocumentationSearchSection = SearchSection
 
 export const DocumentationSearchMetadata = Schema.Struct({
@@ -45,5 +58,10 @@ export const DocumentationSearchMetadata = Schema.Struct({
 
 export const BlogSearchMetadata = Schema.Struct({
   ...BlogStagedSearchMetadata.fields,
+  sections: Schema.Array(Schema.fromJsonString(SearchSection)),
+})
+
+export const ChangelogSearchMetadata = Schema.Struct({
+  ...ChangelogStagedSearchMetadata.fields,
   sections: Schema.Array(Schema.fromJsonString(SearchSection)),
 })
