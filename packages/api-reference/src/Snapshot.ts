@@ -30,6 +30,7 @@ const generatorFiles = [
   "packages/api-reference/package.json",
   "packages/domain/src/ApiReference.ts",
   "packages/domain/src/ApiReferenceSnapshot.ts",
+  "packages/domain/src/Changelog.ts",
   "pnpm-lock.yaml",
 ] as const
 
@@ -458,12 +459,19 @@ export class Snapshot extends Context.Service<
             output: path.join(output, "manifest.json"),
           })
           const archive = path.join(output, "api-reference.tar.gz")
+          // Ship the generated changelog data alongside the API reference so the
+          // deploy (which restores this snapshot instead of regenerating) has it.
+          const dataParent = path.dirname(data)
+          const changelogExists = yield* fs.exists(
+            path.join(dataParent, "changelog"),
+          )
           yield* process.run("tar", [
             "-czf",
             archive,
             "-C",
-            path.dirname(data),
+            dataParent,
             path.basename(data),
+            ...(changelogExists ? ["changelog"] : []),
           ])
           const checksum = yield* fileDigest(archive)
           yield* fs.writeFileString(
