@@ -25,9 +25,7 @@ const changelog = defineCollection({
     slug: z.string().min(1),
     channel: z.string().regex(/^v\d+$/),
     packageVersion: z.string().min(1),
-    revision: z.string().min(1),
     sourceUrl: z.url(),
-    versions: z.array(z.object({ label: z.string(), slug: z.string() })),
   }),
 })
 
