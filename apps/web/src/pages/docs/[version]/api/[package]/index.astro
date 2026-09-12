@@ -89,7 +89,9 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths
 
 const collection = await getCollection("apiReference")
+const changelogIds = new Set((await getCollection("changelog")).map((entry) => entry.id))
 const { modules, pkg, version } = Astro.props
+const hasChangelog = changelogIds.has(`${version}/${pkg.slug}`)
 
 const displayName = pkg.name.replace("@effect/", "")
 
@@ -193,7 +195,7 @@ function moduleName(modulePath: string, group: string): string {
       <a
         href={`/docs/${version}/api`}
         aria-current="page"
-        class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
+        class="mb-4 block font-mono text-sm font-medium tracking-wider text-foreground uppercase hover:underline"
       >
         API Reference
       </a>
@@ -250,6 +252,16 @@ function moduleName(modulePath: string, group: string): string {
       <a href={pkg.sourceUrl} target="_blank" class="transition-colors hover:text-foreground">
         <GitHubLogo class="mr-1 inline size-4" aria-hidden="true" /> Source
       </a>
+      {
+        hasChangelog && (
+          <a
+            href={`/docs/${version}/api/${pkg.slug}/changelog`}
+            class="transition-colors hover:text-foreground"
+          >
+            Changelog
+          </a>
+        )
+      }
     </div>
 
     <!-- Search -->

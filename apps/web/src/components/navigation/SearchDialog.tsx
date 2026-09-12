@@ -22,6 +22,7 @@ import {
   History,
   LoaderCircle,
   Newspaper,
+  ScrollText,
   Search,
   SearchX,
   X,
@@ -53,6 +54,7 @@ import {
   SearchResult,
   type ApiReferenceSearchResult,
   type BlogSearchResult,
+  type ChangelogSearchResult,
   type DocumentationSearchResult,
 } from "@/features/search/domain"
 import {
@@ -156,6 +158,7 @@ const SEARCH_RESULT_GROUPS: ReadonlyArray<{
 }> = [
   { value: "documentation", label: "docs" },
   { value: "api-reference", label: "api" },
+  { value: "changelog", label: "changelog" },
   { value: "blog", label: "blog" },
 ]
 const MAX_GROUP_RESULTS = 5
@@ -660,6 +663,7 @@ function SearchDialogResults() {
         if (
           (kind !== "documentation" &&
             kind !== "api-reference" &&
+            kind !== "changelog" &&
             kind !== "blog") ||
           (level !== "page" && level !== "chunk") ||
           (view !== "grouped" && view !== "section") ||
@@ -910,6 +914,9 @@ function SearchResultsOverview({
     (result) => result.kind === "api-reference",
   )
   const blogResults = results.filter((result) => result.kind === "blog")
+  const changelogResults = results.filter(
+    (result) => result.kind === "changelog",
+  )
   const documentationResults = results.filter(
     (result) => result.kind === "documentation",
   )
@@ -927,6 +934,11 @@ function SearchResultsOverview({
         title="API reference"
         results={apiReferenceResults}
         onViewAll={() => onViewSection("api-reference")}
+      />
+      <SearchResultsSection
+        title="Changelog"
+        results={changelogResults}
+        onViewAll={() => onViewSection("changelog")}
       />
       <SearchResultsSection
         title="Blog"
@@ -1102,6 +1114,9 @@ function SearchResultItem({ result, rank, view }: SearchResultItemProps) {
     case "documentation": {
       return <DocumentationItem result={result} rank={rank} view={view} />
     }
+    case "changelog": {
+      return <ChangelogItem result={result} rank={rank} view={view} />
+    }
     case "blog": {
       return <BlogItem result={result} rank={rank} view={view} />
     }
@@ -1225,6 +1240,65 @@ function ApiReferenceItem({
                 </p>
               ) : null}
               <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {chunk.snippet}
+              </p>
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </li>
+  )
+}
+
+function ChangelogItem({
+  result,
+  rank,
+  view,
+}: SearchResultItemProps & { readonly result: ChangelogSearchResult }) {
+  return (
+    <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
+      <a
+        href={result.href}
+        data-search-result-link
+        data-search-result-kind={result.kind}
+        data-search-result-level="page"
+        data-search-result-rank={rank}
+        data-search-results-view={view}
+        className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+      >
+        <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2 py-0.5 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+            <ScrollText className="size-3" />
+            <span>Changelog</span>
+            <span aria-hidden="true">·</span>
+            <span>{result.version.toUpperCase()}</span>
+          </span>
+          <span className="text-zinc-600 dark:text-zinc-300">
+            {result.packageName}
+          </span>
+        </p>
+        <p className="font-mono text-base font-semibold text-zinc-900 dark:text-white">
+          {result.title}
+        </p>
+      </a>
+      {result.chunks.length > 0 ? (
+        <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
+          {result.chunks.map((chunk, index) => (
+            <a
+              key={chunk.id}
+              href={chunk.href}
+              data-search-result-link
+              data-search-result-kind={result.kind}
+              data-search-result-level="chunk"
+              data-search-result-rank={rank}
+              data-search-chunk-rank={index + 1}
+              data-search-results-view={view}
+              className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+            >
+              <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                {chunk.title}
+              </p>
+              <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
                 {chunk.snippet}
               </p>
             </a>
