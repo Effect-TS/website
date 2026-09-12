@@ -2,6 +2,8 @@
 import type { GetStaticPaths } from "astro"
 import { getCollection, render, type CollectionEntry } from "astro:content"
 
+import { isSemver } from "@website/domain/Changelog"
+
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import DocShell from "@/layouts/DocShell.astro"
 
@@ -30,13 +32,12 @@ export const getStaticPaths = (async () => {
 
 const { entry } = Astro.props
 const { version, package: packageSlug } = Astro.params
-const { Content } = await render(entry)
+const { Content, headings } = await render(entry)
 
 const displayName = entry.data.package.replace("@effect/", "")
-const versions = entry.data.versions.map((item) => ({
-  label: item.label,
-  href: `#${item.slug}`,
-}))
+const versions = headings
+  .filter((heading) => heading.depth === 2 && isSemver(heading.text))
+  .map((heading) => ({ label: heading.text, href: `#${heading.slug}` }))
 ---
 
 <DocShell
