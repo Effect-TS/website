@@ -1,12 +1,14 @@
 import * as Schema from "effect/Schema"
 import {
   BlogSearchMetadata,
+  ChangelogSearchMetadata,
   DocumentationSearchMetadata,
   DocumentationSearchSection,
 } from "@website/domain/SearchMetadata"
 
 export {
   BlogSearchMetadata,
+  ChangelogSearchMetadata,
   DocumentationSearchMetadata,
   DocumentationSearchSection,
 }
@@ -83,6 +85,15 @@ export const BlogGeneratedMetadata = Schema.Struct({
   search: BlogSearchMetadata,
 })
 
+export const ChangelogGeneratedMetadata = Schema.Struct({
+  type: Schema.Literal("markdown"),
+  start_line: Schema.Int,
+  num_lines: Schema.Int,
+  chunk_headings: Schema.Array(HeadingInfo),
+  heading_context: Schema.Array(HeadingInfo),
+  search: ChangelogSearchMetadata,
+})
+
 export const ApiReferenceGeneratedMetadata = Schema.Struct({
   type: Schema.Literal("text"),
   declaration_anchor: Schema.String,
@@ -98,6 +109,7 @@ export const GeneratedMetadata = Schema.Union([
   ApiReferenceGeneratedMetadata,
   DocumentationGeneratedMetadata,
   BlogGeneratedMetadata,
+  ChangelogGeneratedMetadata,
   Schema.Record(Schema.String, Schema.Unknown),
 ])
 
@@ -175,10 +187,23 @@ export const BlogSearchResult = Schema.Struct({
 })
 export type BlogSearchResult = typeof BlogSearchResult.Type
 
+export const ChangelogSearchResult = Schema.Struct({
+  kind: Schema.Literal("changelog"),
+  id: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  href: Schema.String,
+  packageName: Schema.String,
+  version: Schema.String,
+  chunks: Schema.Array(SearchResultChunk),
+})
+export type ChangelogSearchResult = typeof ChangelogSearchResult.Type
+
 export const SearchResult = Schema.Union([
   DocumentationSearchResult,
   ApiReferenceSearchResult,
   BlogSearchResult,
+  ChangelogSearchResult,
 ])
 export type SearchResult = typeof SearchResult.Type
 

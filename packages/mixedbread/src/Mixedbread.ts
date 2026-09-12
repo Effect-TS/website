@@ -17,6 +17,7 @@ import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
   DEFAULT_API_REFERENCE_DIRECTORY,
+  DEFAULT_CHANGELOG_DIRECTORY,
   DEFAULT_DOCUMENTATION_DIRECTORY,
   type DeleteOptions,
   type SyncOptions,
@@ -33,6 +34,7 @@ import {
   markdownSyncArguments,
   markdownSyncMetadata,
   stageBlog,
+  stageChangelog,
   stageDocumentation,
 } from "./MarkdownSync.ts"
 import { makeStoreClient } from "./Store.ts"
@@ -96,6 +98,12 @@ export class Mixedbread extends Context.Service<
     const blogStageDir = yield* Config.string("BLOG_STAGE_DIRECTORY").pipe(
       Config.withDefault(".data/mixedbread/blog"),
     )
+    const changelogContentDir = yield* Config.string(
+      "CHANGELOG_CONTENT_DIRECTORY",
+    ).pipe(Config.withDefault(DEFAULT_CHANGELOG_DIRECTORY))
+    const changelogStageDir = yield* Config.string(
+      "CHANGELOG_STAGE_DIRECTORY",
+    ).pipe(Config.withDefault(".data/mixedbread/changelog"))
     const version = yield* Config.number("MXBAI_STORE_VERSION").pipe(
       Config.withDefault(2),
     )
@@ -117,6 +125,7 @@ export class Mixedbread extends Context.Service<
     const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (
       storeId: string,
       options: SyncOptions,
+      includeChangelog: boolean,
     ) {
       const metadata = markdownSyncMetadata(options, version)
       const command = ChildProcess.make(
@@ -124,6 +133,7 @@ export class Mixedbread extends Context.Service<
         markdownSyncArguments({
           blogStageDir,
           documentationStageDir,
+          changelogStageDir: includeChangelog ? changelogStageDir : undefined,
           metadata,
           storeId,
         }),
@@ -185,7 +195,7 @@ export class Mixedbread extends Context.Service<
 
     const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(
       function* (storeId: string, options: SyncOptions) {
-        yield* Effect.all(
+        const [, , changelogCount] = yield* Effect.all(
           [
             stageDocumentation({
               contentDir,
@@ -201,13 +211,17 @@ export class Mixedbread extends Context.Service<
               Effect.provideService(FileSystem.FileSystem, fs),
               Effect.provideService(Path.Path, path),
             ),
+            stageChangelog({
+              contentDir: changelogContentDir,
+              stageDir: changelogStageDir,
+            }).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+              Effect.provideService(Path.Path, path),
+            ),
           ],
-          {
-            concurrency: "unbounded",
-            discard: true,
-          },
+          { concurrency: "unbounded" },
         )
-        yield* syncMarkdown(storeId, options)
+        yield* syncMarkdown(storeId, options, changelogCount > 0)
         yield* deleteLegacyDocumentation(storeId)
       },
     )

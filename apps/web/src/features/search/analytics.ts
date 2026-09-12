@@ -103,6 +103,9 @@ function resultCounts(results: ReadonlyArray<SearchResult>) {
     ).length,
     blog_result_count: results.filter((result) => result.kind === "blog")
       .length,
+    changelog_result_count: results.filter(
+      (result) => result.kind === "changelog",
+    ).length,
   } as const
 }
 
