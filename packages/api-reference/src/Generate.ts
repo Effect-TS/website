@@ -22,7 +22,7 @@ import {
   normalizePath,
 } from "typedoc"
 import TypeScript from "typescript"
-import { changelogSlug, isSemver } from "@website/domain/Changelog"
+import { isSemver } from "@website/domain/Changelog"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -226,6 +226,10 @@ export async function generate(options: GenerateOptions): Promise<void> {
   generateChangelogs(packages, repositoryDirectory, revision, options)
 }
 
+// Channel branch for stable source links (avoids embedding the commit SHA,
+// which would rewrite every changelog file on each generation).
+const channelBranches: Record<string, string> = { v3: "v3", v4: "main" }
+
 function generateChangelogs(
   packages: ReadonlyArray<PackageInfo>,
   repositoryDirectory: string,
@@ -237,6 +241,8 @@ function generateChangelogs(
     join("apps/web/.data/changelog", options.version),
   )
   assertSafeOutputDirectory(outputDirectory, repositoryDirectory)
+
+  const sourceRef = channelBranches[options.version] ?? revision
 
   // A single-package run refreshes only its file; a full run rebuilds the set.
   if (options.package === undefined) {
@@ -265,8 +271,7 @@ function generateChangelogs(
         slug,
         channel: options.version,
         packageVersion: packageInfo.manifest.version,
-        revision,
-        sourceUrl: `https://github.com/Effect-TS/effect/blob/${revision}/${relativePath}/CHANGELOG.md`,
+        sourceUrl: `https://github.com/Effect-TS/effect/blob/${sourceRef}/${relativePath}/CHANGELOG.md`,
       },
     )
     writeFileSync(join(outputDirectory, `${slug}.md`), document)
@@ -281,53 +286,33 @@ interface ChangelogMeta {
   readonly slug: string
   readonly channel: string
   readonly packageVersion: string
-  readonly revision: string
   readonly sourceUrl: string
 }
 
 function buildChangelogDocument(source: string, meta: ChangelogMeta): string {
-  const sections = splitChangelogSections(source)
-  // Cache the version list so the sidebar reads structured data instead of
-  // re-deriving it from rendered headings; slugs match rehype-assigned ids.
-  const versionsYaml =
-    sections.length === 0
-      ? "versions: []"
-      : [
-          "versions:",
-          ...sections.map(
-            ({ version }) =>
-              `  - label: ${JSON.stringify(version)}\n    slug: ${JSON.stringify(changelogSlug(version))}`,
-          ),
-        ].join("\n")
-
   const frontmatter = [
     "---",
     `package: ${JSON.stringify(meta.name)}`,
     `slug: ${JSON.stringify(meta.slug)}`,
     `channel: ${JSON.stringify(meta.channel)}`,
     `packageVersion: ${JSON.stringify(meta.packageVersion)}`,
-    `revision: ${JSON.stringify(meta.revision)}`,
     `sourceUrl: ${JSON.stringify(meta.sourceUrl)}`,
-    versionsYaml,
     "---",
   ].join("\n")
 
+  const blocks = splitChangelogSections(source)
   const body =
-    sections.length === 0
-      ? "No changelog entries."
-      : sections.map(({ block }) => block).join("\n\n")
+    blocks.length === 0 ? "No changelog entries." : blocks.join("\n\n")
 
   return `${frontmatter}\n\n${body}\n`
 }
 
-// Keep only released-version entries; rely on the Markdown heading for the
-// anchor (rehype assigns ids and permalinks at render time).
-function splitChangelogSections(
-  source: string,
-): Array<{ readonly version: string; readonly block: string }> {
+// Keep only released-version (semver `##`) entries; the heading itself carries
+// the anchor (rehype assigns ids and permalinks at render time).
+function splitChangelogSections(source: string): Array<string> {
   const lines = source.split("\n")
-  const sections: Array<{ version: string; lines: Array<string> }> = []
-  let current: { version: string; lines: Array<string> } | undefined
+  const sections: Array<Array<string>> = []
+  let current: Array<string> | undefined
   let fenced = false
 
   for (const line of lines) {
@@ -337,17 +322,14 @@ function splitChangelogSections(
     const heading = fenced ? null : /^##\s+(.+?)\s*$/.exec(line)
     const version = heading?.[1]?.trim()
     if (version !== undefined && isSemver(version)) {
-      current = { version, lines: [line] }
+      current = [line]
       sections.push(current)
     } else if (current !== undefined) {
-      current.lines.push(line)
+      current.push(line)
     }
   }
 
-  return sections.map(({ version, lines: sectionLines }) => ({
-    version,
-    block: sectionLines.join("\n").trim(),
-  }))
+  return sections.map((sectionLines) => sectionLines.join("\n").trim())
 }
 
 async function generatePackage(
