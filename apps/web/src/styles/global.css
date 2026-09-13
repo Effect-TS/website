@@ -52,8 +52,8 @@ html.announcement-dismissed {
 
   .docs-tabs-list {
     display: flex;
-    border-bottom: 1px solid currentColor;
-    border-bottom-color: oklch(from currentColor l c h / 0.15);
+    /* Full-width baseline track under all tabs (Radix gray-a5) */
+    box-shadow: inset 0 -1px 0 0 var(--border);
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -84,32 +84,61 @@ html.announcement-dismissed {
     padding-top: 1rem;
   }
 
-  /* Tab buttons (built by the web component) */
+  /* Tab triggers (built by the web component) — Radix Themes Tabs, size 2 */
   .docs-tabs-list [role="tab"] {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 2.5rem; /* --tab-height: --space-7 (40px) */
+    padding-inline: 0.5rem; /* --tab-padding-x: --space-2 */
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    padding: 0.5rem 1rem;
     font-size: 0.875rem;
+    line-height: 1.25rem;
     font-weight: 500;
-    color: inherit;
-    opacity: 0.5;
+    color: var(--muted-foreground);
     cursor: pointer;
-    transition:
-      opacity 150ms,
-      border-color 150ms;
     white-space: nowrap;
   }
 
-  .docs-tabs-list [role="tab"]:hover {
-    opacity: 0.8;
+  /* Inner span holds the hover highlight, inset from the trigger edges */
+  .docs-tab-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem; /* --tab-inner-padding: --space-1 --space-2 */
+    border-radius: 0.25rem; /* --radius-2 */
+    transition: background-color 150ms;
   }
 
+  .docs-tabs-list [role="tab"]:hover {
+    color: var(--foreground);
+  }
+
+  .docs-tabs-list [role="tab"]:hover .docs-tab-inner,
+  .docs-tabs-list [role="tab"][aria-selected="true"] .docs-tab-inner {
+    background-color: var(--muted); /* Radix gray-a3 */
+  }
+
+  /* Active: high-contrast text + full-width indicator on the track */
   .docs-tabs-list [role="tab"][aria-selected="true"] {
-    opacity: 1;
-    font-weight: 600;
-    border-bottom-color: currentColor;
+    color: var(--foreground);
+  }
+
+  .docs-tabs-list [role="tab"][aria-selected="true"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: currentColor;
+  }
+
+  .docs-tabs-list [role="tab"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
 
   /* Align prose heading sizes with the project's @theme font-size scale */
@@ -975,4 +1004,22 @@ html.theme-transition *::after {
     stroke 0.25s ease-out,
     opacity 0.25s ease-out !important;
   transition-delay: 0s !important;
+}
+
+.expressive-code {
+  --ec-frm-frameBoxShdCssVal: none !important;
+  --ec-frm-edTabBarBg: transparent !important;
+  --ec-frm-edTabBarBrdBtmCol: var(--border) !important;
+  --ec-frm-edActTabBg: transparent !important;
+  --ec-frm-edActTabFg: var(--foreground) !important;
+  --ec-frm-edActTabBrdCol: transparent !important;
+  --ec-frm-edActTabIndTopCol: transparent !important;
+  --ec-frm-edActTabIndBtmCol: var(--brand) !important;
+  --ec-frm-edActTabIndHt: 2px !important;
+  --ec-frm-edTabBrdRad: 0 !important;
+  --ec-frm-trmTtbBg: transparent !important;
+  --ec-frm-trmTtbFg: var(--muted-foreground) !important;
+  --ec-frm-trmTtbBrdBtmCol: var(--border) !important;
+  --ec-frm-trmTtbDotsFg: var(--border-strong) !important;
+  --ec-frm-trmTtbDotsOpa: 1 !important;
 }
