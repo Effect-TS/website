@@ -239,6 +239,8 @@ Effect<Authorization, PaymentDeclinedError | NetworkError | ParseError>
 When the program fails, the error stays in the return type. TypeScript tracks it
 through every caller.
 
+These are the **expected errors**: failures a caller can handle, named in the `Error` type parameter.
+
 The signature now answers all three questions:
 
 {/* prettier-ignore */}
@@ -622,10 +624,9 @@ from the values you yield. You never wrote it by hand.
   error.
 </Aside>
 
-## Handle the errors you modeled
+## Handle the expected errors you modeled
 
-The signature lists what can fail. Now read it from the other side. The caller
-uses the list to handle them.
+The signature lists the expected errors. Now read it from the other side. The caller uses the list to handle them.
 
 `Effect.catchTag` takes the `_tag` of one error and a handler. The handler is an `Effect` that receives the typed error as a parameter, not `unknown`. The example uses `pipe` to apply the handler to the `Effect`, like method chaining:
 
@@ -788,40 +789,26 @@ const handle = (token: PaymentToken) =>
   "this can no longer fail."
 </Aside>
 
-## Separate defects from the errors you handle
+## Modeling unexpected errors: defects
 
-Every failure so far is one a caller can respond to. But `never` does not mean
-the code cannot fail.
+Every error so far is one a caller can respond to. These are expected errors. But `never` does not mean the code cannot fail.
 
-Some failures have no handler. In a payment program, they break a rule about
-money:
+Some conditions must always hold, or the payment step charges a customer wrong. Each is an invariant:
 
-- An authorization is captured once.
-- The provider sends the status its contract promises.
+- An authorization is captured once, never twice.
+- The provider returns a status its contract promises.
 
-Each rule above is an invariant: a condition that must hold for the money to be correct.
+When one breaks, no handler can respond, so the safe action is to stop and report. Effect calls a failure like this an **unexpected error**, or a **defect**: an impossible state, a broken invariant, or a bug in third-party code.
 
-When one of those breaks, no handler applies. The safe action is to stop and
-report. In Effect, these are called **defects**.
+Unlike an expected error, a defect does not go in the `Error` type parameter; the runtime records it in a `Cause`.
 
-A failure is anything that goes wrong. An error is a failure a caller can
-handle, and a defect is a failure no handler can respond to: an impossible
-state, a broken invariant, a bug in third-party code. The errors you modeled go
-in the `Error` type parameter. Everything else lands in the `Cause`.
+The capture step enforces the first invariant. The ledger fixture starts with
+the payment already captured, so this run is the retry, and the invariant
+breaks.
 
-### Raise a defect
-
-The capture step enforces the first invariant: an authorization is captured
-once. The ledger fixture starts with the payment already captured, so this run
-is the retry. Walk through what happens:
-
-1. The capture finds the payment already in the ledger.
-1. The invariant is broken.
-1. No caller can respond to a broken invariant.
-
-A typed error would promise a handler that cannot exist. So the step dies
-instead of failing: `Effect.die` sends the error to the `Cause` instead of the
-`Error` type parameter, which stays empty.
+No caller can undo a double capture, so a typed error would promise a handler
+that cannot exist. The step dies instead: `Effect.die` sends the error to the
+`Cause`, and the `Error` type parameter stays empty.
 
 ```ts twoslash import.meta.vitest title="capturePayment.ts"
 import { Data, Effect } from "effect"
@@ -846,9 +833,8 @@ const capturePayment = (
 ): Effect.Effect<Authorization> =>
   Effect.gen(function* () {
     if (captured.has(authorization.authorizationId)) {
-      // An authorization is captured once. No caller can respond to the
-      // broken invariant, so the step dies instead of failing with a
-      // modeled error.
+      // Invariant broken: the step dies instead of failing with a
+      // typed error no caller could handle.
       return yield* Effect.die(
         new DoubleCaptureError({
           authorizationId: authorization.authorizationId,
@@ -873,14 +859,11 @@ const outcome = capturePayment({
 await Effect.runPromise(outcome) // => "terminated: pauth_123 already captured"
 ```
 
-The signature says `Effect.Effect<Authorization>`: no `Error` type parameter.
-
-So the capture cannot fail? The double capture says otherwise. The failure
-never entered the `Error` type parameter: it became a defect.
-
-`Effect.catchDefect` handled it. Without it, `Effect.runPromise` rejects
-with the error. Unknown defects stay fatal, so the handler re-raises them with
-`Effect.die`.
+The signature promises `Effect.Effect<Authorization>` with no `Error` type
+parameter, yet the double capture fails the run. The failure never entered the
+type: it became a defect, and `Effect.catchDefect` caught it. Without that
+handler, `Effect.runPromise` rejects. Unknown defects stay fatal, so the handler
+re-raises them with `Effect.die`.
 
 ### Remove errors no caller can handle from the type
 
@@ -933,10 +916,9 @@ try {
 }
 ```
 
-A nightly reconciliation job is one such boundary. When the payment fails, the
-job crashes and alerts whoever owns it. Nothing here can be handled in place, so nothing is
-left to track. The failure crossed the boundary as a defect:
-`Effect.runPromise` rejected with the `PaymentDeclinedError` itself.
+A nightly reconciliation job is one such boundary: when the payment fails, the
+job crashes and alerts whoever owns it. The failure crossed the boundary as a
+defect, so `Effect.runPromise` rejected with the `PaymentDeclinedError` itself.
 
 ### Handle defects at the application boundary
 
@@ -969,6 +951,9 @@ class PaymentDeclinedError extends Data.TaggedError("PaymentDeclinedError") {}
 class ParseError extends Data.TaggedError("ParseError")<{
   readonly cause?: unknown
 }> {}
+class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
+  readonly authorizationId: string
+}> {}
 
 type PaymentToken = "tok_visa" | "tok_declined" | "tok_timeout"
 
@@ -986,8 +971,8 @@ const processPayment = (
 // ---cut---
 const outcome = processPayment("tok_declined").pipe(
   Effect.catchDefect((defect) =>
-    defect instanceof Error
-      ? Effect.succeed(`reported: ${defect.message}`)
+    defect instanceof DoubleCaptureError
+      ? Effect.succeed(`reported: ${defect.authorizationId} already captured`)
       : Effect.die(defect),
   ),
 )
