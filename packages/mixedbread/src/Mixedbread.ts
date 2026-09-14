@@ -67,36 +67,36 @@ export class Mixedbread extends Context.Service<
   }
 >()("Mixedbread", {
   make: Effect.gen(function* () {
-    const apiKey = yield* Config.redacted("MXBAI_ADMIN_API_KEY")
+    const apiKey = yield* Config.Redacted("MXBAI_ADMIN_API_KEY")
     const configuredStoreId = yield* Config.option(
-      Config.redacted("MXBAI_VECTOR_STORE_ID"),
+      Config.Redacted("MXBAI_VECTOR_STORE_ID"),
     )
-    const storePrefix = yield* Config.string("MXBAI_PREVIEW_STORE_PREFIX").pipe(
+    const storePrefix = yield* Config.String("MXBAI_PREVIEW_STORE_PREFIX").pipe(
       Config.withDefault("effect-website-pr-"),
     )
-    const branch = yield* Config.string("GITHUB_HEAD_REF").pipe(
-      Config.orElse(() => Config.string("GITHUB_REF_NAME")),
+    const branch = yield* Config.String("GITHUB_HEAD_REF").pipe(
+      Config.orElse(() => Config.String("GITHUB_REF_NAME")),
       Config.withDefault("unknown"),
     )
-    const repository = yield* Config.string("GITHUB_REPOSITORY").pipe(
+    const repository = yield* Config.String("GITHUB_REPOSITORY").pipe(
       Config.withDefault("Effect-TS/website"),
     )
-    const contentDir = yield* Config.string("CONTENT_DIRECTORY").pipe(
+    const contentDir = yield* Config.String("CONTENT_DIRECTORY").pipe(
       Config.withDefault(DEFAULT_DOCUMENTATION_DIRECTORY),
     )
-    const blogContentDir = yield* Config.string("BLOG_CONTENT_DIRECTORY").pipe(
+    const blogContentDir = yield* Config.String("BLOG_CONTENT_DIRECTORY").pipe(
       Config.withDefault(DEFAULT_BLOG_DIRECTORY),
     )
-    const apiReferenceDir = yield* Config.string(
+    const apiReferenceDir = yield* Config.String(
       "API_REFERENCE_DIRECTORY",
     ).pipe(Config.withDefault(DEFAULT_API_REFERENCE_DIRECTORY))
-    const documentationStageDir = yield* Config.string(
+    const documentationStageDir = yield* Config.String(
       "DOCUMENTATION_STAGE_DIRECTORY",
     ).pipe(Config.withDefault(".data/mixedbread/documentation"))
-    const blogStageDir = yield* Config.string("BLOG_STAGE_DIRECTORY").pipe(
+    const blogStageDir = yield* Config.String("BLOG_STAGE_DIRECTORY").pipe(
       Config.withDefault(".data/mixedbread/blog"),
     )
-    const version = yield* Config.number("MXBAI_STORE_VERSION").pipe(
+    const version = yield* Config.Number("MXBAI_STORE_VERSION").pipe(
       Config.withDefault(2),
     )
 

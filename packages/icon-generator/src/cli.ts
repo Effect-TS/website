@@ -11,12 +11,12 @@ import * as Flag from "effect/unstable/cli/Flag"
 import { Help } from "effect/unstable/cli/GlobalFlag"
 import * as IconGenerator from "./IconGenerator.ts"
 
-const icons = Argument.string("icon").pipe(
+const icons = Argument.String("icon").pipe(
   Argument.variadic({ min: 1 }),
   Argument.withDescription("Icon IDs such as fa7-brands:github"),
 )
 
-const output = Flag.directory("output").pipe(
+const output = Flag.Directory("output").pipe(
   Flag.withDefault("."),
   Flag.withDescription("Directory that receives generated icon collections"),
 )

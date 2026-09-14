@@ -20,8 +20,8 @@ import {
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
-    const apiKey = yield* Config.redacted("MXBAI_API_KEY")
-    const storeId = yield* Config.redacted("MXBAI_VECTOR_STORE_ID")
+    const apiKey = yield* Config.Redacted("MXBAI_API_KEY")
+    const storeId = yield* Config.Redacted("MXBAI_VECTOR_STORE_ID")
 
     const mxbai = new Mixedbread({ apiKey: Redacted.value(apiKey) })
 

@@ -22,8 +22,8 @@ Use the constructors in the `Config` module for individual values and `Config.al
 import { Config, ConfigProvider, Effect } from "effect"
 
 const AppConfig = Config.all({
-  host: Config.nonEmptyString("HOST"),
-  port: Config.port("PORT"),
+  host: Config.NonEmptyString("HOST"),
+  port: Config.Port("PORT"),
 })
 
 const provider = ConfigProvider.fromEnv({
@@ -48,8 +48,8 @@ In application code, a `Config` can instead be yielded as an Effect. It then use
 import { Config, Effect } from "effect"
 
 const AppConfig = Config.all({
-  host: Config.nonEmptyString("HOST"),
-  port: Config.port("PORT").pipe(Config.withDefault(8080)),
+  host: Config.NonEmptyString("HOST"),
+  port: Config.Port("PORT").pipe(Config.withDefault(8080)),
 })
 
 const program = Effect.gen(function* () {
@@ -74,23 +74,23 @@ Effect provides convenience constructors for common scalar values:
 
 | Constructor               | Result                                                   |
 | ------------------------- | -------------------------------------------------------- |
-| `string(name?)`           | A string                                                 |
-| `nonEmptyString(name?)`   | A non-empty string                                       |
-| `finite(name?)`           | A finite number                                          |
-| `int(name?)`              | An integer                                               |
-| `port(name?)`             | An integer between 1 and 65,535                          |
-| `boolean(name?)`          | A boolean                                                |
-| `literal(value, name?)`   | One literal value                                        |
-| `literals(values, name?)` | One of several literal values                            |
-| `duration(name?)`         | A `Duration`                                             |
-| `date(name?)`             | A `Date`                                                 |
-| `url(name?)`              | A `URL`                                                  |
-| `logLevel(name?)`         | A [LogLevel](/docs/v4/observability/logging/#log-levels) |
-| `redacted(name?)`         | A [`Redacted<string>`](/docs/v4/data-types/redacted/)    |
+| `String(name?)`           | A string                                                 |
+| `NonEmptyString(name?)`   | A non-empty string                                       |
+| `Finite(name?)`           | A finite number                                          |
+| `Int(name?)`              | An integer                                               |
+| `Port(name?)`             | An integer between 1 and 65,535                          |
+| `Boolean(name?)`          | A boolean                                                |
+| `Literal(value, name?)`   | One literal value                                        |
+| `Literals(values, name?)` | One of several literal values                            |
+| `Duration(name?)`         | A `Duration`                                             |
+| `Date(name?)`             | A `Date`                                                 |
+| `URL(name?)`              | A `URL`                                                  |
+| `LogLevel(name?)`         | A [LogLevel](/docs/v4/observability/logging/#log-levels) |
+| `Redacted(name?)`         | A [`Redacted<string>`](/docs/v4/data-types/redacted/)    |
 
-For ordinary numeric settings, prefer `Config.finite`. `Config.number` also accepts non-finite values such as `NaN` and `Infinity`, which are rarely valid configuration values.
+For ordinary numeric settings, prefer `Config.Finite`. `Config.Number` also accepts non-finite values such as `NaN` and `Infinity`, which are rarely valid configuration values.
 
-`Config.boolean` accepts the case-sensitive strings `true`, `false`, `yes`, `no`, `on`, `off`, `1`, `0`, `y`, and `n`.
+`Config.Boolean` accepts the case-sensitive strings `true`, `false`, `yes`, `no`, `on`, `off`, `1`, `0`, `y`, and `n`.
 
 ## Using Config with Schema
 
@@ -121,7 +121,7 @@ import { Config, ConfigProvider, Effect, Schema } from "effect"
 const ServerConfig = Config.schema(
   Schema.Struct({
     host: Schema.String,
-    port: Config.Port,
+    port: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 65535 })),
   }),
   "server",
 )
@@ -142,14 +142,14 @@ See [Schema: Config](/docs/v4/schema/effect-data-types/#config) for more details
 
 ### Arrays and Records
 
-`Config.Array` and `Config.Record` are schemas for values that may be supplied either structurally or as one separated string. Pass them to `Config.schema`; they are not `Config` combinators.
+`Config.Array` and `Config.Record` read values supplied either structurally or as one separated string. Both return a `Config` directly.
 
 **Example** (Reading a Comma-Separated Array)
 
 ```ts twoslash import.meta.vitest name="config-array-1"
 import { Config, ConfigProvider, Effect, Schema } from "effect"
 
-const exporters = Config.schema(Config.Array(Schema.String), "EXPORTERS")
+const exporters = Config.Array(Schema.String, "EXPORTERS")
 const provider = ConfigProvider.fromEnv({
   env: { EXPORTERS: "otlp,prometheus" },
 })
@@ -157,7 +157,7 @@ const provider = ConfigProvider.fromEnv({
 Effect.runSync(exporters.parse(provider)) // => ["otlp", "prometheus"]
 ```
 
-`Config.Record(key, value)` similarly accepts either a record or a string such as `"service.name=api,service.version=1.0"`. Both schemas accept options for customizing their separators.
+`Config.Record(key, value, path)` similarly accepts either a record or a string such as `"service.name=api,service.version=1.0"`. Both constructors accept options for customizing their separators.
 
 Plain `Schema.Array` and `Schema.Record` remain useful when the provider must supply a structural array or object rather than a separated scalar value.
 
@@ -171,8 +171,8 @@ Plain `Schema.Array` and `Schema.Record` remain useful when the provider must su
 import { Config, ConfigProvider, Effect } from "effect"
 
 const DatabaseConfig = Config.all({
-  host: Config.nonEmptyString("HOST"),
-  port: Config.port("PORT"),
+  host: Config.NonEmptyString("HOST"),
+  port: Config.Port("PORT"),
 }).pipe(Config.nested("DATABASE"))
 
 const provider = ConfigProvider.fromEnv({
@@ -198,7 +198,7 @@ For APIs that accept either an already-built `Config<T>` or a nested record of c
 ```ts twoslash import.meta.vitest name="config-default-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
-const port = Config.port("PORT").pipe(Config.withDefault(8080))
+const port = Config.Port("PORT").pipe(Config.withDefault(8080))
 const provider = ConfigProvider.fromUnknown({})
 
 Effect.runSync(port.parse(provider)) // => 8080
@@ -213,7 +213,7 @@ Use `Config.option` when absence should produce an `Option` instead.
 ```ts twoslash import.meta.vitest name="optional-config-1"
 import { Config, ConfigProvider, Effect, Option } from "effect"
 
-const apiKey = Config.string("API_KEY").pipe(Config.option)
+const apiKey = Config.String("API_KEY").pipe(Config.option)
 const provider = ConfigProvider.fromUnknown({})
 
 Effect.runSync(apiKey.parse(provider)) // => Option.none()
@@ -228,8 +228,8 @@ Effect.runSync(apiKey.parse(provider)) // => Option.none()
 ```ts twoslash import.meta.vitest name="config-or-else-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
-const host = Config.string("HOST").pipe(
-  Config.orElse(() => Config.string("FALLBACK_HOST")),
+const host = Config.String("HOST").pipe(
+  Config.orElse(() => Config.String("FALLBACK_HOST")),
 )
 
 const provider = ConfigProvider.fromUnknown({ FALLBACK_HOST: "localhost" })
@@ -249,8 +249,8 @@ Use `Config.map` for a transformation that cannot fail.
 import { Config, ConfigProvider, Effect } from "effect"
 
 const origin = Config.all({
-  host: Config.nonEmptyString("HOST"),
-  port: Config.port("PORT"),
+  host: Config.NonEmptyString("HOST"),
+  port: Config.Port("PORT"),
 }).pipe(Config.map(({ host, port }) => `http://${host}:${port}`))
 
 const provider = ConfigProvider.fromUnknown({
@@ -261,18 +261,18 @@ const provider = ConfigProvider.fromUnknown({
 Effect.runSync(origin.parse(provider)) // => "http://localhost:8080"
 ```
 
-For validation and parsing, prefer expressing the rules in a schema and using `Config.schema`. `Config.mapOrFail` is available when a transformation instead needs to return an `Effect<B, ConfigError>`.
+For validation and parsing, prefer expressing the rules in a schema and using `Config.schema`. `Config.mapEffect` is available when a transformation instead needs to return an `Effect<B, ConfigError>`.
 
 ## Handling Sensitive Values
 
-`Config.redacted` wraps a string in `Redacted<string>`, whose string representation does not reveal the value. Accessing the secret requires an explicit call to `Redacted.value`.
+`Config.Redacted` wraps a string in `Redacted<string>`, whose string representation does not reveal the value. Accessing the secret requires an explicit call to `Redacted.value`.
 
 **Example** (Protecting a Secret)
 
 ```ts twoslash import.meta.vitest name="redacted-config-1"
 import { Config, ConfigProvider, Effect, Redacted } from "effect"
 
-const apiKey = Config.redacted("API_KEY")
+const apiKey = Config.Redacted("API_KEY")
 const provider = ConfigProvider.fromEnv({
   env: { API_KEY: "secret-value" },
 })
@@ -333,8 +333,8 @@ const provider = ConfigProvider.fromUnknown(
 )
 
 const server = Config.all({
-  host: Config.string("host"),
-  port: Config.port("port"),
+  host: Config.String("host"),
+  port: Config.Port("port"),
 }).pipe(Config.nested("server"))
 
 Effect.runSync(server.parse(provider)) // => { host: "localhost", port: 8080 }
@@ -363,7 +363,7 @@ const provider = ConfigProvider.fromEnv({
   env: { DATABASE_HOST: "localhost" },
 }).pipe(ConfigProvider.constantCase)
 
-const databaseHost = Config.string("databaseHost")
+const databaseHost = Config.String("databaseHost")
 
 Effect.runSync(databaseHost.parse(provider)) // => "localhost"
 ```
@@ -388,8 +388,8 @@ const defaults = ConfigProvider.fromUnknown({
 
 const provider = ConfigProvider.orElse(environment, defaults)
 const app = Config.all({
-  host: Config.string("HOST"),
-  port: Config.port("PORT"),
+  host: Config.String("HOST"),
+  port: Config.Port("PORT"),
 })
 
 Effect.runSync(app.parse(provider)) // => { host: "production.example.com", port: 8080 }
@@ -408,7 +408,7 @@ const provider = ConfigProvider.fromUnknown({ PORT: 8080 })
 const ProviderLayer = ConfigProvider.layer(provider)
 
 const program = Effect.gen(function* () {
-  return yield* Config.port("PORT")
+  return yield* Config.Port("PORT")
 })
 
 Effect.runSync(Effect.provide(program, ProviderLayer)) // => 8080
