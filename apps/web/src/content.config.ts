@@ -18,6 +18,7 @@ const blog = defineCollection({
     pattern: [
       "cause-and-effect/*.mdx",
       "this-week-in-effect/*/index.mdx",
+      "module-of-the-week/*/index.mdx",
       "releases/effect/*.mdx",
       "releases/schema/*.mdx",
       "releases/*.mdx",

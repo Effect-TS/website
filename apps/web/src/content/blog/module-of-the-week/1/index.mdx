@@ -1,0 +1,217 @@
+---
+pagefind: false
+title: Module of the Week - PersistedQueue
+excerpt: Module of the Week is a weekly blog post that explores the lesser-known parts of Effect, one module at a time.
+date: 2026-09-15
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import PersistedQueueDemo from "@/components/blog/module-of-the-week/persisted-queue/PersistedQueueDemo"
+
+Ever found something in Effect and thought, "I could've used this two weeks ago"? Maybe you'd have used it outright. Maybe you'd have borrowed a few ideas. Either way, wouldn't it have been nice to know about it _before_ you did all that work?
+
+And that's understandable. Effect has a huge surface area, and keeping track of what's available, let alone when to use it, can be quite difficult.
+
+That's why we're starting Module of the Week. Each week, we'll take a closer look at a lesser-known module or concept in Effect and talk about how to use it and when it might come in handy.
+
+## This week: `PersistedQueue`
+
+This week's pick came out of a conversation with Adam Rankin from Warp on our last Effect Office Hours. We spoke about [`effect-mq`](https://www.effect-mq.com/), an Effect-native alternative to BullMQ for processing background jobs. My first thought was that it was probably using Effect's `PersistedQueue` under the hood.
+
+Turns out, Adam hadn't heard of the module, but wished he'd known about it sooner because he probably _would_ have used it.
+
+After that conversation, `PersistedQueue` felt like a pretty natural choice for our first Module of the Week.
+
+## Why persist a queue?
+
+Imagine you're working on an app where users can upload photos. Every photo needs a few thumbnails, but the user shouldn't have to wait for the thumbnails to be generated to know their photo was uploaded successfully. This is a perfect use case for `PersistedQueue`!
+
+When a user uploads an image, we:
+
+1. Save their image to object storage
+2. Enqueue a thumbnail processing job in our `PersistedQueue`
+3. Respond to the user letting them know their image upload was successful
+
+Our thumbnail generation can occur asynchronously in the background whenever a worker picks it up. And since the job is in persistent storage, both the upload API and our thumbnail workers can crash, restart, get redeployed - whatever - without affecting the jobs in our queue.
+
+Here's what that looks like with a single client (producer) adding jobs to a queue and one worker (consumer) taking jobs out of the queue.
+
+<PersistedQueueDemo simple client:load />
+
+## Multiple Producers and Consumers
+
+Let's continue our hypothetical scenario and assume that your app is growing rapidly and you need to introduce more API replicas to handle the increased traffic.
+
+You also want to add horizontal auto-scaling capabilities for your thumbnail workers so that you can bring more workers online as the queue grows and then scale them back down once you catch up with the image processing backlog.
+
+Since the `PersistedQueue` sits between the upload API and thumbnail workers, we can freely scale either application as we need without making changes to our queue.
+
+### Sharing a queue
+
+Here's the same setup with three upload APIs and initially one worker. As more jobs arrive, our infrastructure scales up the number of workers to keep up with the backlog of jobs. Once all the jobs are finished, our infrastructure scales back down to a single worker.
+
+<PersistedQueueDemo scenario="many-to-many" client:load />
+
+### Preventing duplicate claims
+
+As more workers come online, what's to stop two of them from claiming the same thumbnail job?
+
+When a worker `take`s a job from the `PersistedQueue`, it acquires a lock on that job, reserving it for that worker. Until the lock is released or expires, other workers cannot `take` that job from the queue.
+
+The worker will periodically refresh its lock while it works on a job, with each refresh pushes the lock expiry back. This way a longer job doesn't lose its lock on a job just because it takes more time.
+
+If the worker crashes, it stops refreshing its lock on the job and the lock eventually expires, letting another worker claim the unfinished job.
+
+<PersistedQueueDemo scenario="lock" client:load />
+
+Watch the lock countdown reset when the lock is renewed. Once worker 1 goes offline, the lock expires and worker 2 claims the job on a later poll.
+
+### Configuring lock behavior
+
+Lock behavior is configurable depending on the store implementation that is being used.
+
+For example, let's say we want to refresh every 10 seconds and expire the lock after 30 seconds without a successful refresh. With the Redis store, that would look like:
+
+```ts
+PersistedQueue.layerStoreRedis({
+  lockRefreshInterval: "10 seconds", // default is 30 seconds
+  lockExpiration: "30 seconds", // default is 90 seconds
+})
+```
+
+Keep the refresh interval shorter than the expiration, with some room for network delays or other overhead. Each successful refresh will reset the expiration countdown.
+
+A shorter expiration lets another worker pick up abandoned jobs sooner. But it also means a transient connectivity issues could result in a worker losing its lock while it's still processing a job.
+
+## Example
+
+Alright, let's take a look at how we could setup a very basic producer and consumer in code.
+
+### Define the queue
+
+First, we give the queue a name. Our API and worker will both use `"thumbnails"` so that they both target the same queue.
+
+Then, we describe the jobs with a schema. Each job carries information about where to find the original image for processing and where to write the generated thumbnails.
+
+```ts title="queue.ts"
+import { Layer, Schema } from "effect"
+import { PersistedQueue } from "effect/unstable/persistence"
+import { NodeRedis } from "@effect/platform-node"
+
+export const ThumbnailJob = Schema.Struct({
+  sourceBucket: Schema.NonEmptyString,
+  sourceKey: Schema.NonEmptyString,
+  outputPrefix: Schema.NonEmptyString,
+})
+
+export const makeQueue = PersistedQueue.make({
+  name: "thumbnails",
+  schema: ThumbnailJob,
+})
+
+export const QueueLayer = PersistedQueue.layer.pipe(
+  Layer.provide(PersistedQueue.layerStoreRedis()),
+  Layer.provide(NodeRedis.layer({ url: "redis://redis:6379" })),
+)
+```
+
+We'll use `QueueLayer` in both processes to connect them to the same Redis server. The API and worker don't need to run on the same machine, as long as they can both reach that server. Replace `redis://redis:6379` with your Redis address.
+
+### Offer work from the upload API
+
+Once the image is in object storage, the API can enqueue a thumbnail job by calling `offer`. We'll also give our jobs a stable `id` so retried upload requests don't enqueue duplicate jobs.
+
+```ts title="api.ts"
+import { Effect } from "effect"
+import { makeQueue, QueueLayer } from "./queue.ts"
+
+const api = Effect.gen(function* () {
+  const queue = yield* makeQueue
+  yield* queue.offer(
+    {
+      sourceBucket: "user-photos",
+      sourceKey: "originals/041.jpg",
+      outputPrefix: "thumbnails/041/",
+    },
+    { id: "thumbnails:041" },
+  )
+  // The job is safely stored. We can respond to the user now.
+})
+
+api.pipe(Effect.provide(QueueLayer), Effect.runPromise)
+```
+
+Once `offer` finishes, the API can respond to the user. The job is safely stored in Redis and will remain there until a worker becomes available to process it.
+
+### Consume work in the worker
+
+The worker runs in its own process and uses `take` to pick up jobs from the queue. We'll leave the image processing to a hypothetical `Thumbnails` service that downloads the original, creates the thumbnails, and uploads the results.
+
+```ts title="worker.ts"
+import { NodeServices } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { makeQueue, QueueLayer } from "./queue.ts"
+import { Thumbnails } from "./Thumbnails.ts"
+
+const worker = Effect.gen(function* () {
+  const queue = yield* makeQueue
+  const thumbnails = yield* Thumbnails
+
+  yield* queue
+    .take((job) => thumbnails.create(job))
+    .pipe(Effect.catchTag("ResizeError", Effect.logError), Effect.forever)
+})
+
+const WorkerLayer = Layer.merge(QueueLayer, Thumbnails.layer).pipe(
+  Layer.provide(NodeServices.layer),
+)
+
+worker.pipe(Effect.provide(WorkerLayer), Effect.runPromise)
+```
+
+If there's no work available, `take` waits. Otherwise, it passes the job to `thumbnails.create(job)` and acknowledges the job when that succeeds.
+
+If image processing fails with a `ResizeError`, we log it and continue taking work from the queue. The failed job may become available for processing again according to the queue's retry settings. We'll look at how that works next.
+
+## Failures and Retries
+
+Suppose our worker tries to download an image, but object storage is temporarily unavailable. The handler fails. We'd like to try again, but leave some time between attempts rather than spam our queue with retries.
+
+We can control that with two options on the `PersistedQueue.make` constructor: `maxAttempts` and `retrySchedule`.
+
+### Configuring retries
+
+Let's allow three attempts in total, with a two-second delay after each failed attempt:
+
+```ts
+import { Schedule } from "effect"
+
+// In queue.ts, using the ThumbnailJob schema from above.
+export const makeQueue = PersistedQueue.make({
+  name: "thumbnails",
+  schema: ThumbnailJob,
+  maxAttempts: 3,
+  retrySchedule: Schedule.spaced("2 seconds"),
+})
+```
+
+Three attempts means the initial attempt and up to two more. The count increases each time a worker claims the job.
+
+### Understanding failures
+
+Let's take a look at an example with two workers and one thumbnail job. Worker 1 picks it up, but fails to process it. Worker 2 is already waiting. Watch what happens to the lock and attempt count as the job changes hands.
+
+<PersistedQueueDemo scenario="failure" client:load />
+
+The handler failure in Worker 1 releases the lock on the job, but worker 2 still has to wait out the 2-second `retrySchedule` delay that was configured for this queue.
+
+After the delay, Worker 2 claims the job and the attempt count increments by one. If the number of attempts for a job reaches the configured `maxAttempts`, that job will no longer be eligible for processing.
+
+## Conclusion
+
+To summarize, a `PersistedQueue` is a place where you can store work and process it later. If your app makes use of background job processing, it's definitely worth a look.
+
+We hope you enjoyed this edition of Module of the Week! Until the next one - Happy Effecting!
