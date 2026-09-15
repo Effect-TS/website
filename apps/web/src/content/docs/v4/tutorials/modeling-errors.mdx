@@ -33,16 +33,7 @@ Keep those three in mind. Each one becomes visible to TypeScript later.
 A typical TypeScript function signature says what it needs and what it returns.
 It says nothing about what the function can throw.
 
-The tutorial simulates a sandbox with payment tokens. Each token gives a
-predictable result:
-
-| Token               | Result                              |
-| ------------------- | ----------------------------------- |
-| `"tok_authorized"`  | The provider authorizes the payment |
-| `"tok_declined"`    | The provider declines the payment   |
-| `"tok_expiredcard"` | The card is expired                 |
-| `"tok_invalid"`     | The token is not valid              |
-| `"tok_timeout"`     | The provider is unreachable         |
+The tutorial uses sandbox tokens to give each run a predictable result.
 
 Here is a common version of the payment step without Effect:
 
@@ -60,11 +51,11 @@ interface Authorization {
 
 // Tutorial fixture: sandbox tokens make results reproducible
 type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+  | "tok_authorized" // The provider authorizes the payment
+  | "tok_declined" // The provider declines the payment
+  | "tok_expiredcard" // The card is expired
+  | "tok_invalid" // The token is not valid
+  | "tok_timeout" // The provider is unreachable
 
 const authorizePayment = async (
   token: PaymentToken,
