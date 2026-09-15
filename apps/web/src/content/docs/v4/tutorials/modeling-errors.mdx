@@ -129,7 +129,8 @@ Because the signature does not name the errors, TypeScript cannot check how
   `unknown`, so it cannot tell which error `authorizePayment` threw.
 - **Over-specification**: `processPayment` can handle an error that
   `authorizePayment` never throws, and TypeScript still compiles it.
-- **Under-specification**: forgetting to handle an error in `processPayment` that `authorizePayment` does throw still compiles.
+- **Under-specification**: `processPayment` can omit a handler for an error that
+  `authorizePayment` throws, and TypeScript still compiles it.
 - **Drift**: when `authorizePayment` starts throwing a new error later, `processPayment` still compiles, and the error can reach production.
 
 ## Make each error visible to TypeScript
