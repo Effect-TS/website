@@ -194,59 +194,30 @@ through every caller.
 
 ### Keep error types distinct
 
-As you saw above, the `Error` type parameter can contain a union of expected
-errors. For that union to be useful, TypeScript must be able to distinguish its
-members. Class names alone are not enough because TypeScript compares types by
-their structure.
+As you saw above, an `Effect` can name several expected errors in the `Error` type
+parameter using a union. At the type level, this tells the caller every failure
+it may need to handle. At runtime, the program fails with one specific error.
+The caller needs to identify that error to decide what to do, such as retrying a
+network request or asking for a different card.
 
-Effect error classes use two conventions to keep errors distinct and
-recognizable:
-
-- An `Error` suffix on the class, to tell an error from a success immediately.
-- A `_tag` property, unique to each error, so TypeScript can tell them apart.
-
-`Data.TaggedError` supplies the `_tag` from its argument. The class name carries
-the suffix:
+Effect provides `Data.TaggedError` for this purpose. When you define an error,
+you choose an identifier that is unique across your application. This ensures
+that the error can be distinguished from every other error:
 
 {/* prettier-ignore */}
-```ts import.meta.vitest showLineNumbers=false mark=/class \w+(Error)|TaggedError[(](.InvalidTokenError.)[)]|[.](_tag)/
+```ts import.meta.vitest showLineNumbers=false
 import { Data } from "effect"
 
-//                ┌─ `Error` suffix
-//                │                               ┌─ `_tag` property value
-//                ▼                               ▼
+//                                                ┌─ Unique error identifier
+//                                                ▼
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
-
-const error = new InvalidTokenError()
-error._tag // => "InvalidTokenError"
 ```
 
-{/* prettier-ignore */}
-{/*
-Without a `_tag`, two classes that extend `Error` stay identical:
-
-```ts twoslash
-import { Effect } from "effect"
-
-class NetworkError extends Error {}
-class ExpiredCardError extends Error {}
-
-// You put two errors in the `Error` type parameter...
-declare const program: Effect.Effect<string, NetworkError | ExpiredCardError>
-
-// ...but this compiles: to TypeScript the two are one type.
-const oneError: Effect.Effect<string, NetworkError> = program
-```
-
-`_tag` is what keeps the errors distinct. Both classes have the same shape, so
-TypeScript compares them structurally and drops `ExpiredCardError` out of the
-union. The result is the "why did my other error disappear?" confusion that
-trips up beginners. Add a `_tag` to each and the assignment stops compiling.
-Every error becomes its own member of the union.
-\*/}
+`Data.TaggedError` stores this identifier in a `_tag` property. Later, Effect
+uses `_tag` to select the matching error handler.
 
 <Aside type="tip" title="Why use a class?">
-  In TypeScript a class is both a type _and_ a value. One declaration gives you
+  In TypeScript a class is both a type and a value. One declaration gives you
   the error type to name in a signature and the constructor to build it.
 </Aside>
 
