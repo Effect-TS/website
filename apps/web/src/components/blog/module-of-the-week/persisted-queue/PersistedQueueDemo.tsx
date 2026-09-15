@@ -214,6 +214,7 @@ export default function PersistedQueueDemo({
     <figure
       ref={figure}
       className="pq-demo"
+      data-running={playing && visible}
       aria-label="Persisted queue across processes"
     >
       <div className="pq-toolbar">
