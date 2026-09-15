@@ -192,7 +192,15 @@ union contains the expected errors, which are failures a caller can handle.
 Effect puts them in the `Error` type parameter, and TypeScript tracks them
 through every caller.
 
-Effect uses two conventions for typed errors:
+### Keep error types distinct
+
+As you saw above, the `Error` type parameter can contain a union of expected
+errors. For that union to be useful, TypeScript must be able to distinguish its
+members. Class names alone are not enough because TypeScript compares types by
+their structure.
+
+Effect error classes use two conventions to keep errors distinct and
+recognizable:
 
 - An `Error` suffix on the class, to tell an error from a success immediately.
 - A `_tag` property, unique to each error, so TypeScript can tell them apart.
