@@ -131,7 +131,8 @@ Because the signature does not name the errors, TypeScript cannot check how
   `authorizePayment` never throws, and TypeScript still compiles it.
 - **Under-specification**: `processPayment` can omit a handler for an error that
   `authorizePayment` throws, and TypeScript still compiles it.
-- **Drift**: when `authorizePayment` starts throwing a new error later, `processPayment` still compiles, and the error can reach production.
+- **Drift**: if `authorizePayment` starts throwing a new error, the handlers in
+  `processPayment` fall out of sync without causing a compile error.
 
 ## Make each error visible to TypeScript
 
