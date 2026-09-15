@@ -108,12 +108,9 @@ const processPayment = async (token: PaymentToken) => {
 }
 ```
 
-Each `throw` matches one of the three errors listed above.
-
-The payment goes through. `Promise` says nothing about failure.
-
-To find out what can fail, you have to read the implementation, or the docs if
-they exist and haven't drifted from it. Either way, the signature never shows it.
+`authorizePayment` can throw the three errors listed above, but its return type
+is only `Promise<Authorization>`. To discover those errors, a caller must read
+the implementation or rely on documentation that may fall out of date.
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
