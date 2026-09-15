@@ -163,6 +163,19 @@ index 2ce29611546c0380c3c515e265f21354aad901b2..c993c22e93a43ad4db1f941b047c84f9
      if (ci) {
          if (auth.readEnvironment === undefined) {
              return yield* Effect.fail(new AuthError({
+diff --git a/lib/Cli/LoggingCli.js b/lib/Cli/LoggingCli.js
+index 16f0355a21598d8791b3795332f5d1b29e9c183e..b6096057bb8f009852b2dc0741246ffe6fd3e2eb 100644
+--- a/lib/Cli/LoggingCli.js
++++ b/lib/Cli/LoggingCli.js
+@@ -160,7 +160,7 @@ export const LoggingCli = Layer.effect(Cli, Effect.gen(function* () {
+     // Captured at layer build so `approvePlan` keeps the CLIService signature
+     // (no requirements on the returned Effects).
+     const promptContext = yield* Effect.context();
+-    const confirm = (options) => Prompt.confirm(options).pipe(Effect.catchTag("QuitError", () => Effect.succeed(false)), Effect.provideContext(promptContext));
++    const confirm = (options) => Prompt.Confirm(options).pipe(Effect.catchTag("QuitError", () => Effect.succeed(false)), Effect.provideContext(promptContext));
+     return Cli.of({
+         startPlanningSession: (label, _detail, title) => Effect.gen(function* () {
+             // Same information as the interactive session, one plain line per
 diff --git a/lib/Cli/commands/aws.js b/lib/Cli/commands/aws.js
 index 025b8f6572e6bbeb05a503a1bce29036cc32f5a2..ec6d65409e00ef8f71d629a0aa2ac57f20d2a85e 100644
 --- a/lib/Cli/commands/aws.js
@@ -450,14 +463,16 @@ index 0018aae1310b9142855eb3b581ee6e685d1ffb7f..233bc89ca49a45c17af22183e1fcf2ef
      const target = {
          entrypoint: options.main,
 diff --git a/lib/Cli/main.js b/lib/Cli/main.js
-index c41d1129a2651be73f801c24265822246d3d3699..04f624d2c443ae452a76f0db6004b1f357a0fe95 100644
+index c41d1129a2651be73f801c24265822246d3d3699..24f6713ff2e2b139327a8ac575850dfc932b0ef4 100644
 --- a/lib/Cli/main.js
 +++ b/lib/Cli/main.js
-@@ -83,7 +83,7 @@ const commands = await Promise.all(commandMetadata.map(([name, description]) =>
+@@ -82,8 +82,8 @@ const commands = await Promise.all(commandMetadata.map(([name, description]) =>
+  * (capability detection runs while the service layers are built, before flag
   * parsing); this registration exists so the parser accepts the flag.
   */
- const NoInput = GlobalFlag.setting("no-input")({
+-const NoInput = GlobalFlag.setting("no-input")({
 -    flag: Flag.boolean("no-input").pipe(Flag.withDescription("Disable prompts and the interactive TUI (plain output; commands needing input fail)"), Flag.withDefault(false)),
++const NoInput = GlobalFlag.Setting("no-input")({
 +    flag: Flag.Boolean("no-input").pipe(Flag.withDescription("Disable prompts and the interactive TUI (plain output; commands needing input fail)"), Flag.withDefault(false)),
  });
  const root = Command.make("alchemy", {}, () => Effect.fail(new CliError.ShowHelp({ commandPath: ["alchemy"], errors: [] }))).pipe(Command.withDescription("Define, deploy, and operate cloud infrastructure with type-safe Effect programs."), Command.withExamples([
@@ -2077,6 +2092,19 @@ index ba937f83d8d043cf4a1a8de04a0c2698b097d0c6..ca3fe05adacc04e05207c7d91caad4ad
      if (ci) {
        if (auth.readEnvironment === undefined) {
          return yield* Effect.fail(
+diff --git a/src/Cli/LoggingCli.ts b/src/Cli/LoggingCli.ts
+index b7638eaf566b0113bf4b6b718d8f94111c1b9e3d..16ea1f2540d3f79f17061c7a8770be6ef9be587e 100644
+--- a/src/Cli/LoggingCli.ts
++++ b/src/Cli/LoggingCli.ts
+@@ -214,7 +214,7 @@ export const LoggingCli = Layer.effect(
+     // (no requirements on the returned Effects).
+     const promptContext = yield* Effect.context<Prompt.Environment>();
+     const confirm = (options: Prompt.ConfirmOptions) =>
+-      Prompt.confirm(options).pipe(
++      Prompt.Confirm(options).pipe(
+         Effect.catchTag("QuitError", () => Effect.succeed(false)),
+         Effect.provideContext(promptContext),
+       );
 diff --git a/src/Cli/commands/aws.ts b/src/Cli/commands/aws.ts
 index 2382b9817c898642974faf74f089da273775e3ec..21390a0323ab44009210faf1bc3e24b399a6277e 100644
 --- a/src/Cli/commands/aws.ts
@@ -2542,14 +2570,16 @@ index cb4668abe7c5ec9132a522093639184b6b75f68a..67b6e76e4e2cfc3a6f2543bdc387ec81
    Effect.map((value) => value === "1" || value === "true"),
  );
 diff --git a/src/Cli/main.ts b/src/Cli/main.ts
-index 1e668014a79e068ecfb92f22bae1e94d153714db..d826fb90a1cad7c014ccc14a02f9e021c80b2def 100644
+index 1e668014a79e068ecfb92f22bae1e94d153714db..709264fe8faeb1b9e591724529894ff677b36a55 100644
 --- a/src/Cli/main.ts
 +++ b/src/Cli/main.ts
-@@ -110,7 +110,7 @@ const commands = await Promise.all(
+@@ -109,8 +109,8 @@ const commands = await Promise.all(
+  * (capability detection runs while the service layers are built, before flag
   * parsing); this registration exists so the parser accepts the flag.
   */
- const NoInput = GlobalFlag.setting("no-input")({
+-const NoInput = GlobalFlag.setting("no-input")({
 -  flag: Flag.boolean("no-input").pipe(
++const NoInput = GlobalFlag.Setting("no-input")({
 +  flag: Flag.Boolean("no-input").pipe(
      Flag.withDescription(
        "Disable prompts and the interactive TUI (plain output; commands needing input fail)",
@@ -3556,25 +3586,3 @@ index 5e1605145e63b077885a2a92b5d32db60d567284..c60d235dbacff84ba65f6ed4473c4265
    Config.option,
  );
  
---- a/src/Cli/main.ts
-+++ b/src/Cli/main.ts
-@@ -109,7 +109,7 @@
-  * (capability detection runs while the service layers are built, before flag
-  * parsing); this registration exists so the parser accepts the flag.
-  */
--const NoInput = GlobalFlag.setting("no-input")({
-+const NoInput = GlobalFlag.Setting("no-input")({
-   flag: Flag.Boolean("no-input").pipe(
-     Flag.withDescription(
-       "Disable prompts and the interactive TUI (plain output; commands needing input fail)",
---- a/lib/Cli/main.js
-+++ b/lib/Cli/main.js
-@@ -82,7 +82,7 @@
-  * (capability detection runs while the service layers are built, before flag
-  * parsing); this registration exists so the parser accepts the flag.
-  */
--const NoInput = GlobalFlag.setting("no-input")({
-+const NoInput = GlobalFlag.Setting("no-input")({
-     flag: Flag.Boolean("no-input").pipe(Flag.withDescription("Disable prompts and the interactive TUI (plain output; commands needing input fail)"), Flag.withDefault(false)),
- });
- const root = Command.make("alchemy", {}, () => Effect.fail(new CliError.ShowHelp({ commandPath: ["alchemy"], errors: [] }))).pipe(Command.withDescription("Define, deploy, and operate cloud infrastructure with type-safe Effect programs."), Command.withExamples([

@@ -1,0 +1,120 @@
+diff --git a/dist/core/node/Docker.mjs b/dist/core/node/Docker.mjs
+index 6e99bb9ca6c8078ac9494b627fac0ffcbfcd5a10..5e44efd281423c40b5740e930a65910cf1820b33 100644
+--- a/dist/core/node/Docker.mjs
++++ b/dist/core/node/Docker.mjs
+@@ -17,9 +17,9 @@ import * as NodeStream from "node:stream";
+ var Docker = class extends Context.Service()("cloudflare-runtime/Docker") {};
+ const DEFAULT_DOCKER_HOST = process.platform === "win32" ? "//./pipe/docker_engine" : "unix:///var/run/docker.sock";
+ const DEV_CONTAINER_PREFIX = "alchemy-dev";
+-const DockerHost = Config.string("DOCKER_HOST");
+-const DockerBin = Config.string("DOCKER_BIN").pipe(Config.orElse(() => Config.succeed("docker")));
+-const ContainerEgressInterceptorImage = Config.string("CONTAINER_EGRESS_INTERCEPTOR_IMAGE").pipe(Config.orElse(() => Config.succeed("cloudflare/proxy-everything:3cb1195@sha256:0ef6716c52430096900b150d84a3302057d6cd2319dae7987128c85d0733e3c8")));
++const DockerHost = Config.String("DOCKER_HOST");
++const DockerBin = Config.String("DOCKER_BIN").pipe(Config.orElse(() => Config.succeed("docker")));
++const ContainerEgressInterceptorImage = Config.String("CONTAINER_EGRESS_INTERCEPTOR_IMAGE").pipe(Config.orElse(() => Config.succeed("cloudflare/proxy-everything:3cb1195@sha256:0ef6716c52430096900b150d84a3302057d6cd2319dae7987128c85d0733e3c8")));
+ /**
+ * Docker's containerd image store rejects combined `repo:tag@digest` pull
+ * refs ("cannot overwrite digest"); the digest fully pins the image, so the
+diff --git a/dist/core/node/internal/Paths.mjs b/dist/core/node/internal/Paths.mjs
+index 160d8519ed666aaafc62ff7b636b2f259319e0f5..22e1aa9ba718e78da8188371796bc82ca38be67e 100644
+--- a/dist/core/node/internal/Paths.mjs
++++ b/dist/core/node/internal/Paths.mjs
+@@ -12,7 +12,7 @@ const PathsLive = Layer.effect(Paths, Effect.gen(function* () {
+ 	const fs = yield* FileSystem.FileSystem;
+ 	const path = yield* Path.Path;
+ 	const home$1 = yield* home;
+-	const makeWith = (options) => (...prefix) => Config.string(options.env).pipe(Effect.orElseSucceed(() => path.join(home$1, ...options.fallback)), Effect.map((root) => path.join(root, ...prefix)), Effect.tap((path) => fs.makeDirectory(path, { recursive: true }).pipe(Effect.catchTag("PlatformError", (error) => new SystemError({
++	const makeWith = (options) => (...prefix) => Config.String(options.env).pipe(Effect.orElseSucceed(() => path.join(home$1, ...options.fallback)), Effect.map((root) => path.join(root, ...prefix)), Effect.tap((path) => fs.makeDirectory(path, { recursive: true }).pipe(Effect.catchTag("PlatformError", (error) => new SystemError({
+ 		subtag: "Paths",
+ 		message: `Failed to create directory "${path}".`,
+ 		cause: error,
+diff --git a/dist/core/node/internal/System.mjs b/dist/core/node/internal/System.mjs
+index 9432b02c936733cab558ac700f1c74d1a63c2481..7092ff8bf008bac25d5f39e6b3d043885f68ff2d 100644
+--- a/dist/core/node/internal/System.mjs
++++ b/dist/core/node/internal/System.mjs
+@@ -2,8 +2,8 @@ import * as Config from "effect/Config";
+ import * as Effect from "effect/Effect";
+ import * as NodeOs from "node:os";
+ //#region src/core/internal/System.ts
+-const home = Config.string("CLOUDFLARE_RUNTIME_HOME").pipe(Effect.orElseSucceed(() => NodeOs.homedir()));
+-const fileSystemSupportsWatcher = Config.boolean("CLOUDFLARE_RUNTIME_FILE_SYSTEM_SUPPORTS_WATCHER").pipe(Effect.orElseSucceed(() => NodeOs.platform() !== "win32"));
++const home = Config.String("CLOUDFLARE_RUNTIME_HOME").pipe(Effect.orElseSucceed(() => NodeOs.homedir()));
++const fileSystemSupportsWatcher = Config.Boolean("CLOUDFLARE_RUNTIME_FILE_SYSTEM_SUPPORTS_WATCHER").pipe(Effect.orElseSucceed(() => NodeOs.platform() !== "win32"));
+ //#endregion
+ export { fileSystemSupportsWatcher, home };
+ 
+diff --git a/dist/core/node/remote-bindings/Access.mjs b/dist/core/node/remote-bindings/Access.mjs
+index 77363bf40055177c9a9d18a41359dfd8cc27ffe6..766e9a1c6450d715a0e0692d01cef269ac60ff50 100644
+--- a/dist/core/node/remote-bindings/Access.mjs
++++ b/dist/core/node/remote-bindings/Access.mjs
+@@ -41,7 +41,7 @@ const layer = Layer.effect(Access, Effect.gen(function* () {
+ 			detail: { stdout: stdout.toString() }
+ 		}));
+ 	}), Effect.scoped);
+-	const getEnv = (name) => Config.string(name).pipe(Effect.catchTag("ConfigError", () => Effect.succeed(void 0)));
++	const getEnv = (name) => Config.String(name).pipe(Effect.catchTag("ConfigError", () => Effect.succeed(void 0)));
+ 	return Access.of({ getAccessHeaders: Effect.fn(function* (domain) {
+ 		if (!(yield* Cache.get(usesAccessCache, domain))) return {};
+ 		const clientId = yield* getEnv("CLOUDFLARE_ACCESS_CLIENT_ID");
+diff --git a/src/core/Docker.ts b/src/core/Docker.ts
+index bc59c8ecac5fd6407c900197c82098a8134fda56..933f28d48d34dbb73a318e46b02aa0529bc1cb99 100644
+--- a/src/core/Docker.ts
++++ b/src/core/Docker.ts
+@@ -84,11 +84,11 @@ const DEFAULT_DOCKER_HOST =
+     : "unix:///var/run/docker.sock";
+ const DEV_CONTAINER_PREFIX = "alchemy-dev";
+ 
+-const DockerHost = Config.string("DOCKER_HOST");
+-const DockerBin = Config.string("DOCKER_BIN").pipe(
++const DockerHost = Config.String("DOCKER_HOST");
++const DockerBin = Config.String("DOCKER_BIN").pipe(
+   Config.orElse(() => Config.succeed("docker")),
+ );
+-const ContainerEgressInterceptorImage = Config.string(
++const ContainerEgressInterceptorImage = Config.String(
+   "CONTAINER_EGRESS_INTERCEPTOR_IMAGE",
+ ).pipe(
+   Config.orElse(() =>
+diff --git a/src/core/internal/Paths.ts b/src/core/internal/Paths.ts
+index e471b26189077d4a9b4a2538d8b5749ccdbcb014..88f7044ded7381cead09a1d62e8d17ced464c7a2 100644
+--- a/src/core/internal/Paths.ts
++++ b/src/core/internal/Paths.ts
+@@ -35,7 +35,7 @@ export const PathsLive = Layer.effect(
+     const makeWith =
+       (options: { env: string; fallback: Array<string> }) =>
+       (...prefix: Array<string>) =>
+-        Config.string(options.env).pipe(
++        Config.String(options.env).pipe(
+           Effect.orElseSucceed(() => path.join(home, ...options.fallback)),
+           Effect.map((root) => path.join(root, ...prefix)),
+           Effect.tap((path) =>
+diff --git a/src/core/internal/System.ts b/src/core/internal/System.ts
+index f873aa500d7e441e176717ff7c41f24271f83ee8..1d0de4c2a42adce33c6b89a2345104efd61811fd 100644
+--- a/src/core/internal/System.ts
++++ b/src/core/internal/System.ts
+@@ -2,10 +2,10 @@ import * as Config from "effect/Config";
+ import * as Effect from "effect/Effect";
+ import * as NodeOs from "node:os";
+ 
+-export const home = Config.string("CLOUDFLARE_RUNTIME_HOME").pipe(
++export const home = Config.String("CLOUDFLARE_RUNTIME_HOME").pipe(
+   Effect.orElseSucceed(() => NodeOs.homedir()),
+ );
+ 
+-export const fileSystemSupportsWatcher = Config.boolean(
++export const fileSystemSupportsWatcher = Config.Boolean(
+   "CLOUDFLARE_RUNTIME_FILE_SYSTEM_SUPPORTS_WATCHER",
+ ).pipe(Effect.orElseSucceed(() => NodeOs.platform() !== "win32"));
+diff --git a/src/core/remote-bindings/Access.ts b/src/core/remote-bindings/Access.ts
+index d48d44c3c18b7ba3a05ed7e04351139f68096817..7e4e91b211f448f5860049e949eb7d5d71c517e1 100644
+--- a/src/core/remote-bindings/Access.ts
++++ b/src/core/remote-bindings/Access.ts
+@@ -75,7 +75,7 @@ export const layer = Layer.effect(
+       );
+ 
+     const getEnv = (name: string) =>
+-      Config.string(name).pipe(
++      Config.String(name).pipe(
+         Effect.catchTag("ConfigError", () => Effect.succeed(undefined)),
+       );
+ 
