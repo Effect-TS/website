@@ -125,8 +125,8 @@ const authorizePayment: (token: PaymentToken) => Promise<Authorization>
 Because the signature does not name the errors, TypeScript cannot check how
 `processPayment` handles them. The missing type information causes four problems:
 
-1. **Blindness**: `error` is `unknown`, so TypeScript cannot see which errors
-   `authorizePayment` throws.
+1. **Blindness**: in `catch (error)`, TypeScript gives the caught value the type
+   `unknown`, so it cannot tell which error `authorizePayment` threw.
 1. **Over-specification**: TypeScript compiles even if `authorizePayment` never throws it.
 1. **Under-specification**: forgetting to handle an error in `processPayment` that `authorizePayment` does throw still compiles.
 1. **Drift**: when `authorizePayment` starts throwing a new error later, `processPayment` still compiles, and the error can reach production.
