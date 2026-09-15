@@ -15,6 +15,8 @@ export function SimpleDiagram({
   const stored = time >= 2
   const processing = time >= 5.2 && time < 8
   const complete = time >= 9
+  const progress = Math.max(0, Math.min(1, (time - 5.2) / 2.8))
+  const wordCount = Math.round(900 - 897 * progress)
   const width = useTransform(
     clock,
     (t) => 136 * Math.max(0, Math.min(1, (t - 5.2) / 2.8)),
@@ -22,17 +24,17 @@ export function SimpleDiagram({
   return (
     <svg
       className="pq-simple"
-      viewBox="0 0 960 280"
+      viewBox="0 0 960 410"
       role="img"
       aria-labelledby={`${id}-title ${id}-desc`}
     >
       <title id={`${id}-title`}>
-        An upload API queues a thumbnail job for a worker
+        A post API queues a de-slop job for a worker
       </title>
       <desc id={`${id}-desc`}>
-        The API offers image 041. The job waits in the persisted queue until a
-        worker takes it, creates a thumbnail, and acknowledges completion. The
-        stored job remains until processing is acknowledged.
+        The API offers post 041. A worker removes filler from the post, reducing
+        900 words to “I got promoted.” The stored job remains until the worker
+        acknowledges completion.
       </desc>
       <path d="M216 140 C287 140 287 140 358 140" className="pq-wire" />
       <path d="M602 140 C673 140 673 140 744 140" className="pq-wire" />
@@ -48,10 +50,10 @@ export function SimpleDiagram({
       <g transform="translate(48 104)">
         <rect width="168" height="72" rx="4" className="pq-node" />
         <text x="16" y="27" className="pq-node-title">
-          UPLOAD API
+          POST API
         </text>
         <text x="16" y="51" className="pq-small">
-          {stored ? "request done" : "offer(image)"}
+          {stored ? "request done" : "offer(post)"}
         </text>
       </g>
       <rect
@@ -63,11 +65,21 @@ export function SimpleDiagram({
         className="pq-store"
       />
       <text x="376" y="115" className="pq-node-title">
-        thumbnails
+        posts
       </text>
       <path d="M358 129 H602" className="pq-divider" />
       {stored && (
-        <g>
+        <g
+          className={`pq-job ${complete ? "pq-job-complete" : time >= 4 ? "pq-job-processing" : ""}`}
+        >
+          <rect
+            x="368"
+            y="140"
+            width="224"
+            height="36"
+            rx="4"
+            className="pq-node"
+          />
           <circle
             cx="380"
             cy="158"
@@ -77,7 +89,12 @@ export function SimpleDiagram({
           <text x="392" y="162" className="pq-small">
             #041
           </text>
-          <text x="584" y="162" textAnchor="end" className="pq-small">
+          <text
+            x="584"
+            y="162"
+            textAnchor="end"
+            className={`pq-small ${complete ? "pq-success-text" : ""}`}
+          >
             {complete ? "complete" : time >= 4 ? "processing" : "waiting"}
           </text>
         </g>
@@ -93,7 +110,11 @@ export function SimpleDiagram({
           WORKER
         </text>
         <text x="16" y="51" className="pq-small">
-          {time >= 8 ? "✓ ready" : processing ? "resize #041" : "take(handler)"}
+          {time >= 8
+            ? "✓ ready"
+            : processing
+              ? "de-slop #041"
+              : "take(handler)"}
         </text>
         {processing && !reducedMotion && (
           <motion.rect
@@ -140,15 +161,66 @@ export function SimpleDiagram({
           />
         </>
       )}
-      <text x="480" y="238" textAnchor="middle" className="pq-small">
-        {time < 2
-          ? "The API offers a thumbnail job."
-          : time < 4
-            ? "The request is finished. The job can wait."
-            : time < 8
-              ? "The worker picks up the job and creates the thumbnail."
-              : "The worker finishes and acknowledges the job."}
+      <rect
+        x="48"
+        y="220"
+        width="864"
+        height="166"
+        rx="5"
+        className="pq-node"
+      />
+      <path d="M48 352 H912" className="pq-divider" />
+      <text x="68" y="374" className="pq-small">
+        Total words: {stored ? wordCount : "—"}
       </text>
+      <foreignObject x="68" y="236" width="824" height="116">
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 400,
+            lineHeight: "24px",
+            color: "#f4f4f5",
+          }}
+        >
+          {!stored ? null : time < 8 ? (
+            <>
+              <span
+                style={{
+                  textDecoration: progress > 0.15 ? "line-through" : "none",
+                }}
+              >
+                I'm humbled and beyond thrilled to announce the next chapter in
+                my leadership journey.
+              </span>{" "}
+              <span
+                style={{
+                  textDecoration: progress > 0.35 ? "line-through" : "none",
+                }}
+              >
+                After countless moments of growth and leaning into discomfort,
+              </span>{" "}
+              I got promoted.{" "}
+              <span
+                style={{
+                  textDecoration: progress > 0.55 ? "line-through" : "none",
+                }}
+              >
+                This isn't about a title. It's about showing up as my authentic
+                self.
+              </span>{" "}
+              <span
+                style={{
+                  textDecoration: progress > 0.75 ? "line-through" : "none",
+                }}
+              >
+                Let that sink in. What does leadership mean to YOU?
+              </span>
+            </>
+          ) : (
+            "I got promoted."
+          )}
+        </div>
+      </foreignObject>
     </svg>
   )
 }

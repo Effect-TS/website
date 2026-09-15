@@ -245,7 +245,7 @@ export default function PersistedQueueDemo({
             </button>
           </div>
         )}
-        <span className="pq-example">IMAGE PROCESSING</span>
+        <span className="pq-example">LINKEDIN DE-SLOPPER</span>
       </div>
 
       <div

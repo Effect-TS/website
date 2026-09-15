@@ -1,6 +1,7 @@
 ---
 pagefind: false
 title: Module of the Week - PersistedQueue
+slug: module-of-the-week/persisted-queue
 excerpt: Module of the Week is a weekly blog post that explores the lesser-known parts of Effect, one module at a time.
 date: 2026-09-15
 authors:
@@ -13,23 +14,31 @@ import PersistedQueueDemo from "@/components/blog/module-of-the-week/persisted-q
 
 This week's pick came out of a conversation with Adam Rankin from Warp on our last Effect Office Hours. We spoke about [`effect-mq`](https://www.effect-mq.com/), an Effect-native alternative to BullMQ for processing background jobs. My first thought was that it was probably using Effect's `PersistedQueue` under the hood.
 
-Turns out, Adam hadn't heard of the module, but wished he'd known about it sooner because he probably _would_ have used it.
+Turns out, Adam hadn't heard of the module, but wished he'd known about it sooner because he probably _would_ have used it. Who wouldn't - amirite?
 
-After that conversation, `PersistedQueue` felt like a pretty natural choice for our first Module of the Week.
+After that conversation, `PersistedQueue` was a no-brainer for our first Module of the Week.
 
 ## Why persist a queue?
 
-Imagine you're working on an app where users can upload photos. Every photo needs a few thumbnails, but the user shouldn't have to wait for the thumbnails to be generated to know their photo was uploaded successfully. This is a perfect use case for `PersistedQueue`!
+Imagine we're building a service that removes the AI-generated nonsense from LinkedIn posts until something human remains. Users submit their posts, and we strip out the "humbled and honored," the "let that sink in," and whatever a missed flight apparently taught someone about servant leadership.
 
-When a user uploads an image, we:
+We can let the user know their response was successful and excavate an actual thought later.
 
-1. Save their image to object storage
-2. Enqueue a thumbnail processing job in our `PersistedQueue`
-3. Respond to the user letting them know their image upload was successful
+When a post is submitted, we:
 
-Our thumbnail generation can occur asynchronously in the background whenever a worker picks it up. And since the job is in persistent storage, both the upload API and our thumbnail workers can crash, restart, get redeployed - whatever - without affecting the jobs in our queue.
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    Enqueue a de-slop job in <code>PersistedQueue</code>.
+  </li>
+  <li>Respond to the user confirming their submission was successful.</li>
+  <li>Process the post in the background when a worker picks up the job.</li>
+</ol>
 
-Here's what that looks like with a single client (producer) adding jobs to a queue and one worker (consumer) taking jobs out of the queue.
+A worker processes the text in the background and saves the result. Ideally, there's still a sentence left.
+
+Because the job is persisted, it survives API and worker restarts. If a worker crashes halfway through "leveraging authentic human connection," another can retry the job. The user doesn't have to submit it again. The next worker, unfortunately, has to re-read the whole thing.
+
+Here's that flow with one API and one worker:
 
 <PersistedQueueDemo simple client:load />
 
