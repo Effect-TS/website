@@ -122,7 +122,8 @@ const authorizePayment: (token: PaymentToken) => Promise<Authorization>
 //                                               └─ How can it fail?
 ```
 
-Worse, TypeScript can't tell you any of this. Error handling here has four problems:
+Because the signature does not name the errors, TypeScript cannot check how
+`processPayment` handles them. The missing type information causes four problems:
 
 1. **Blindness**: `error` is `unknown`, so TypeScript cannot see which errors
    `authorizePayment` throws.
