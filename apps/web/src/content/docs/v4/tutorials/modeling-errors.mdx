@@ -52,26 +52,26 @@ interface Authorization {
 }
 
 // Errors
-class NetworkError extends Error {}
-
 class ExpiredCardError extends Error {}
 
 class InvalidTokenError extends Error {}
+
+class NetworkError extends Error {}
 
 // Simulates the payment provider
 const authorizePayment = async (
   token: PaymentToken,
 ): Promise<Authorization> => {
-  if (token === "tok_timeout") {
-    throw new NetworkError()
-  }
-
   if (token === "tok_expiredcard") {
     throw new ExpiredCardError()
   }
 
   if (token === "tok_invalid") {
     throw new InvalidTokenError()
+  }
+
+  if (token === "tok_timeout") {
+    throw new NetworkError()
   }
 
   if (token === "tok_declined") {
@@ -92,11 +92,11 @@ const processPayment = async (token: PaymentToken) => {
   } catch (error) {
     // `error` is `unknown`. TypeScript does not know which errors
     // `authorizePayment` can throw.
-    if (error instanceof InvalidTokenError) {
+    if (error instanceof ExpiredCardError) {
       // ...
     }
 
-    if (error instanceof ExpiredCardError) {
+    if (error instanceof InvalidTokenError) {
       // ...
     }
 
@@ -151,7 +151,7 @@ three without reading the implementation:
 ```ts showLineNumbers=false
 // Not real TypeScript
 const authorizePayment: (token: PaymentToken) => Promise<Authorization> throws
-  ExpiredCardError | NetworkError | InvalidTokenError
+  ExpiredCardError | InvalidTokenError | NetworkError
 ```
 
 Unfortunately, TypeScript has no `throws` clause, so thrown errors cannot appear
@@ -164,7 +164,7 @@ type AuthorizationOutcome =
   | { readonly ok: true; readonly authorization: Authorization }
   | {
       readonly ok: false
-      readonly error: ExpiredCardError | NetworkError | InvalidTokenError
+      readonly error: ExpiredCardError | InvalidTokenError | NetworkError
     }
 
 // The Promise resolves to one of the two outcomes above.
@@ -184,7 +184,7 @@ Its `Effect<Success, Error>` type records both possible outcomes:
 //                       │                              ┌─ What it returns on success
 //                       │                              │              ┌─ How it can fail
 //                       ▼                              ▼              ▼
-const authorizePayment: (token: PaymentToken) => Effect<Authorization, ExpiredCardError | NetworkError | InvalidTokenError>
+const authorizePayment: (token: PaymentToken) => Effect<Authorization, ExpiredCardError | InvalidTokenError | NetworkError>
 ```
 
 For now, focus on the return type. `Authorization` is the success value. The
@@ -203,11 +203,11 @@ different card.
 There is a problem, however, with the original error definitions:
 
 ```ts twoslash import.meta.vitest showLineNumbers=false
-class NetworkError extends Error {}
-
 class ExpiredCardError extends Error {}
 
 class InvalidTokenError extends Error {}
+
+class NetworkError extends Error {}
 ```
 
 These classes are distinct at runtime, so `instanceof` works. At the type level,
@@ -220,15 +220,15 @@ identifier that is unique across your application:
 ```ts twoslash import.meta.vitest showLineNumbers=false
 import { Data } from "effect"
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
-
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 
-const error = new NetworkError()
+class NetworkError extends Data.TaggedError("NetworkError") {}
+
+const error = new ExpiredCardError()
 console.log(error._tag)
-// Output: "NetworkError"
+// Output: "ExpiredCardError"
 ```
 
 These identifiers keep the error types distinct in the union.
@@ -350,11 +350,11 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
-
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 type PaymentToken =
   | "tok_authorized"
@@ -367,19 +367,19 @@ const authorizePayment = (
   token: PaymentToken,
 ): Effect.Effect<
   Authorization,
-  NetworkError | ExpiredCardError | InvalidTokenError
+  ExpiredCardError | InvalidTokenError | NetworkError
 > =>
   Effect.gen(function* () {
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
     if (token === "tok_expiredcard") {
       return yield* new ExpiredCardError()
     }
 
     if (token === "tok_invalid") {
       return yield* new InvalidTokenError()
+    }
+
+    if (token === "tok_timeout") {
+      return yield* new NetworkError()
     }
 
     if (token === "tok_declined") {
@@ -401,11 +401,11 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
-
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 type PaymentToken =
   | "tok_authorized"
@@ -418,19 +418,19 @@ const authorizePayment = (
   token: PaymentToken,
 ): Effect.Effect<
   Authorization,
-  NetworkError | ExpiredCardError | InvalidTokenError
+  ExpiredCardError | InvalidTokenError | NetworkError
 > =>
   Effect.gen(function* () {
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
     if (token === "tok_expiredcard") {
       return yield* new ExpiredCardError()
     }
 
     if (token === "tok_invalid") {
       return yield* new InvalidTokenError()
+    }
+
+    if (token === "tok_timeout") {
+      return yield* new NetworkError()
     }
 
     if (token === "tok_declined") {
@@ -440,7 +440,7 @@ const authorizePayment = (
     return { id: "pauth_123", status: "authorized" }
   })
 // ---cut---
-//    ┌─ (token: PaymentToken) => Effect.Effect<Authorization, NetworkError | ExpiredCardError | InvalidTokenError>
+//    ┌─ (token: PaymentToken) => Effect.Effect<Authorization, ExpiredCardError | InvalidTokenError | NetworkError>
 //    ▼
 const processPayment = (token: PaymentToken) =>
   Effect.gen(function* () {
@@ -481,9 +481,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 type PaymentToken =
   | "tok_authorized"
@@ -555,9 +555,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 type PaymentToken =
   | "tok_authorized"
@@ -590,14 +590,14 @@ const processPayment = (
 // ---cut---
 const outcome = processPayment("tok_timeout").pipe(
   Effect.catchTags({
-    //             ┌─ `NetworkError`
-    //             ▼
-    NetworkError: (error) => Effect.succeed("Provider unreachable, try again"),
-
     //                 ┌─ `ExpiredCardError`
     //                 ▼
     ExpiredCardError: (error) =>
       Effect.succeed("Card expired, ask for another"),
+
+    //             ┌─ `NetworkError`
+    //             ▼
+    NetworkError: (error) => Effect.succeed("Provider unreachable, try again"),
   }),
 )
 
@@ -619,9 +619,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 type PaymentToken =
   | "tok_authorized"
@@ -642,9 +642,9 @@ declare const processPayment: (
 const handle = (token: PaymentToken) =>
   processPayment(token).pipe(
     Effect.catchTags({
-      NetworkError: () => Effect.succeed("..."),
       ExpiredCardError: () => Effect.succeed("..."),
       InvalidTokenError: () => Effect.succeed("..."),
+      NetworkError: () => Effect.succeed("..."),
     }),
   )
 ```
@@ -687,11 +687,11 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
-
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
   readonly id: string
@@ -790,9 +790,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 type PaymentToken =
   | "tok_authorized"
@@ -862,9 +862,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
   readonly authorizationId: string
 }> {}
