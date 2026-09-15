@@ -221,9 +221,23 @@ uses `_tag` to select the matching error handler.
   the error type to name in a signature and the constructor to build it.
 </Aside>
 
-Refactor the three error classes to `Data.TaggedError`:
+Here are the original error definitions:
 
-```ts twoslash import.meta.vitest {3,5,7}
+```ts twoslash import.meta.vitest showLineNumbers=false
+class NetworkError extends Error {}
+
+class ExpiredCardError extends Error {}
+
+class InvalidTokenError extends Error {}
+```
+
+These classes are distinct at runtime, so `instanceof` works. At the type level,
+however, they have the same shape. TypeScript cannot distinguish them in an
+`Effect`'s `Error` union.
+
+Replace only the error definitions with `Data.TaggedError`:
+
+```ts twoslash import.meta.vitest showLineNumbers=false
 import { Data } from "effect"
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
@@ -231,63 +245,9 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
-
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
-
-// Tutorial fixture: sandbox tokens make results reproducible
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
-  if (token === "tok_timeout") {
-    throw new NetworkError()
-  }
-
-  if (token === "tok_expiredcard") {
-    throw new ExpiredCardError()
-  }
-
-  if (token === "tok_invalid") {
-    throw new InvalidTokenError()
-  }
-
-  if (token === "tok_declined") {
-    return { id: "pauth_456", status: "declined" }
-  }
-
-  return { id: "pauth_123", status: "authorized" }
-}
-
-const processPayment = async (token: PaymentToken): Promise<Authorization> => {
-  try {
-    return await authorizePayment(token)
-  } catch (error) {
-    if (error instanceof ExpiredCardError) {
-      throw error
-    }
-
-    if (error instanceof InvalidTokenError) {
-      throw error
-    }
-
-    throw new NetworkError()
-  }
-}
 ```
 
-<Aside type="note" title="Checkpoint">
-  Each error is now a class from `Data.TaggedError`. The classes are the members
-  of an `Effect`'s `Error` type parameter union.
-</Aside>
+Their unique identifiers keep the three error types distinct in the union.
 
 ## Return errors instead of throwing them
 
