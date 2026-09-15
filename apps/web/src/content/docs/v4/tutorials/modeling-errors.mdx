@@ -90,7 +90,8 @@ const processPayment = async (token: PaymentToken) => {
   try {
     const payment = await authorizePayment("tok_declined")
   } catch (error) {
-    //     └─ `unknown`
+    // `error` is `unknown`. TypeScript does not know which errors
+    // `authorizePayment` can throw.
     if (error instanceof InvalidTokenError) {
       // ...
     }
