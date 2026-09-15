@@ -23,7 +23,7 @@ export function PersistedQueuePacket({
   toY: number
   label: string
   ack?: boolean
-  controlX?: number
+  controlX?: number | undefined
 }) {
   const progress = useTransform(clock, (time) =>
     Math.max(0, Math.min(1, (time - start) / duration)),
