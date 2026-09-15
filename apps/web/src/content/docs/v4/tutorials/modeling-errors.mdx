@@ -144,18 +144,39 @@ A caller needs three pieces of information about a function:
 
 The signature of `authorizePayment` provides only the first two.
 
-Imagine a signature that named its errors:
+Imagine the signature named those errors with a union, so callers could see all
+three without reading the implementation:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
-// /!\ Not real TypeScript.
+// Not real TypeScript
 const authorizePayment: (token: PaymentToken) => Promise<Authorization> throws
   ExpiredCardError | NetworkError | InvalidTokenError
 ```
 
-TypeScript has no `throws` clause. But a return type can take a second type parameter for the error.
+Unfortunately, TypeScript has no `throws` clause, so thrown errors cannot appear
+in the function's type. One alternative is to treat an expected failure as a
+value and return either it or the successful value:
 
-Meet Effect. `Effect<Success, Error>` describes a program that either succeeds with a `Success` or fails with an `Error`, answering all three questions:
+```ts showLineNumbers=false
+// `ok` tells the caller whether the outcome contains an authorization or an error.
+type AuthorizationOutcome =
+  | { readonly ok: true; readonly authorization: Authorization }
+  | {
+      readonly ok: false
+      readonly error: ExpiredCardError | NetworkError | InvalidTokenError
+    }
+
+// The Promise resolves to one of the two outcomes above.
+const authorizePayment: (token: PaymentToken) => Promise<AuthorizationOutcome>
+```
+
+`AuthorizationOutcome` exposes both cases at the type level. At runtime, the
+caller checks `ok`. This becomes repetitive: every caller must inspect the
+result and return any error it cannot handle.
+
+The Effect library removes this manual work by propagating unhandled failures.
+Its `Effect<Success, Error>` type records both possible outcomes:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
@@ -166,10 +187,10 @@ Meet Effect. `Effect<Success, Error>` describes a program that either succeeds w
 const authorizePayment: (token: PaymentToken) => Effect<Authorization, ExpiredCardError | NetworkError | InvalidTokenError>
 ```
 
-When the program fails, the error stays in the return type. TypeScript tracks it
+For now, focus on the return type. `Authorization` is the success value. The
+union contains the expected errors, which are failures a caller can handle.
+Effect puts them in the `Error` type parameter, and TypeScript tracks them
 through every caller.
-
-These are the **expected errors**: failures a caller can handle, named in the `Error` type parameter.
 
 Effect uses two conventions for typed errors:
 
