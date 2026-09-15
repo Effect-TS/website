@@ -44,33 +44,174 @@ Here's that flow with one API and one worker:
 
 ## Multiple Producers and Consumers
 
-Let's continue our hypothetical scenario and assume that your app is growing rapidly and you need to introduce more API replicas to handle the increased traffic.
+Now imagine someone shares our service on LinkedIn with an 800-word post about the importance of brevity. Submissions start pouring in, and our lone worker can't keep up.
 
-You also want to add horizontal auto-scaling capabilities for your thumbnail workers so that you can bring more workers online as the queue grows and then scale them back down once you catch up with the image processing backlog.
+We need more API replicas to handle incoming submissions and horizontal autoscaling for our workers, bringing them online as the backlog grows and scaling them back down once they contain all the thought leadership.
 
-Since the `PersistedQueue` sits between the upload API and thumbnail workers, we can freely scale either application as we need without making changes to our queue.
+Because the `PersistedQueue` is decoupled from these services, they can be scaled independently without affecting the queue.
 
 ### Sharing a queue
 
-Here's the same setup with three upload APIs and initially one worker. As more jobs arrive, our infrastructure scales up the number of workers to keep up with the backlog of jobs. Once all the jobs are finished, our infrastructure scales back down to a single worker.
+Here's our service with three API replicas feeding jobs into the same queue. As the backlog grows, our infrastructure brings two more workers online to help.
 
 <PersistedQueueDemo scenario="many-to-many" client:load />
 
 ### Preventing duplicate claims
 
-As more workers come online, what's to stop two of them from claiming the same thumbnail job?
+With several workers running, what's to stop two of them from claiming the same post? Nobody needs two processes investigating what a cold shower taught a founder about product-market fit.
 
-When a worker `take`s a job from the `PersistedQueue`, it acquires a lock on that job, reserving it for that worker. Until the lock is released or expires, other workers cannot `take` that job from the queue.
+When a worker claims a job through `take`, it acquires a lock. Other workers can't claim that job until the lock is released or expires.
 
-The worker will periodically refresh its lock while it works on a job, with each refresh pushes the lock expiry back. This way a longer job doesn't lose its lock on a job just because it takes more time.
+The worker periodically refreshes the lock, extending its expiry so longer jobs have time to finish. Some posts have a twelve-paragraph origin story before they get to the webinar link. These things take time.
 
-If the worker crashes, it stops refreshing its lock on the job and the lock eventually expires, letting another worker claim the unfinished job.
+If the worker crashes, the refreshes stop and the lock eventually expires, allowing another worker to claim the job and try again.
 
 <PersistedQueueDemo scenario="lock" client:load />
 
-Watch the lock countdown reset when the lock is renewed. Once worker 1 goes offline, the lock expires and worker 2 claims the job on a later poll.
+Watch the lock countdown reset when the lock is refreshed. Once worker 1 goes offline, the lock expires and worker 2 claims the job on a later poll.
 
-### Configuring lock behavior
+## Example
+
+Let's put the de-slopper to work. We'll run the submission API and worker as separate processes, with a shared queue between them.
+
+### Defining the queue
+
+Both processes will use a `PostsQueue` service backed by the same named queue, `"posts"`.
+
+Each job carries the submitted text and a post ID to save the result against. The schema requires non-empty text, which shouldn't be a problem. Nobody on LinkedIn has ever used zero words when six paragraphs would do.
+
+```ts title="queue.ts"
+import { Context, Layer, Schema } from "effect"
+import { PersistedQueue } from "effect/unstable/persistence"
+import { NodeRedis } from "@effect/platform-node"
+
+export const PostJob = Schema.Struct({
+  postId: Schema.NonEmptyString,
+  text: Schema.NonEmptyString,
+})
+
+export class PostsQueue extends Context.Service<PostsQueue>()("PostsQueue", {
+  make: PersistedQueue.make({
+    name: "posts",
+    schema: PostJob,
+  }),
+}) {}
+
+export const QueueLayer = Layer.effect(PostsQueue, PostsQueue.make).pipe(
+  Layer.provide(PersistedQueue.layer),
+  Layer.provide(PersistedQueue.layerStoreRedis()),
+  Layer.provide(NodeRedis.layer({ url: "redis://redis:6379" })),
+)
+
+export const QueueLayerTest = Layer.effect(PostsQueue, PostsQueue.make).pipe(
+  Layer.provide(PersistedQueue.layer),
+  Layer.provide(PersistedQueue.layerStoreMemory),
+)
+```
+
+We'll use `QueueLayer` in both processes to connect them to the same Redis server. The API and worker don't need to run on the same machine, as long as they can both reach that server. Replace `redis://redis:6379` with your Redis address.
+
+Effect's dependency injection lets us swap the storage layers without changing the API or worker code. `QueueLayerTest` uses an in-memory store for tests; we could also replace the Redis layers with a SQL store and its database connection layer if we wanted.
+
+### Offering work to the queue
+
+The API `yield*`s the `PostsQueue` to get access to the service, and then calls `offer` to enqueue the submitted post.
+
+We also provide a stable job `id` so that we can prevent duplicates if the submission is retried. Being "beyond thrilled" once was plenty.
+
+```ts title="api.ts"
+import { Effect } from "effect"
+import { PostsQueue, QueueLayer } from "./queue.ts"
+
+const api = Effect.gen(function* () {
+  const queue = yield* PostsQueue
+
+  yield* queue.offer(
+    {
+      postId: "041",
+      text:
+        "I'm humbled and beyond thrilled to announce that I got promoted. " +
+        "This isn't about a title. It's about showing up as my authentic self.",
+    },
+    { id: "deslop:041" },
+  )
+})
+
+api.pipe(Effect.provide(QueueLayer), Effect.runPromise)
+```
+
+Once `offer` succeeds, the API can respond to the user confirming the submission. The worker will deal with all the prepositions asynchronously.
+
+### Consuming work from the queue
+
+The worker gets the same `PostsQueue` service and calls `take`, delegating the actual cleanup of a post to a hypothetical `Deslopper` service. Its `process` method removes the filler and saves the result under the job's `postId`, replacing any previous result if the job runs again. For this post, we're hoping for "I got promoted."
+
+```ts title="worker.ts"
+import { NodeServices } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { PostsQueue, QueueLayer } from "./queue.ts"
+import { Deslopper } from "./Deslopper.ts"
+
+const worker = Effect.gen(function* () {
+  const queue = yield* PostsQueue
+  const deslopper = yield* Deslopper
+
+  yield* queue
+    .take((job) => deslopper.process(job))
+    .pipe(
+      Effect.catchTag("DeslopError", Effect.logError),
+      Effect.forever, // Continue taking work from the queue forever
+    )
+})
+
+const WorkerLayer = Layer.merge(QueueLayer, Deslopper.layer).pipe(
+  Layer.provide(NodeServices.layer),
+)
+
+worker.pipe(Effect.provide(WorkerLayer), Effect.runPromise)
+```
+
+If there's no work available, `take` waits. Otherwise, it passes the job to `deslopper.process(job)` and acknowledges it when processing succeeds.
+
+If processing fails with a `DeslopError`, we log it and keep the worker running. The queue's retry settings determine whether and when the failed job becomes available again.
+
+## Failures and Retries
+
+Suppose the text-processing service is temporarily unavailable and our handler fails. We'd like to try again, but leave some time between requests. Somewhere, a post still contains "I'm delighted to share." It can remain delighted for another five seconds.
+
+`PersistedQueue.make` gives us two options for this: `maxAttempts` and `retrySchedule`.
+
+### Configuring retries
+
+Let's allow three attempts in total, waiting five seconds before each retry:
+
+```ts
+import { Schedule } from "effect"
+
+// Update the PostsQueue constructor in queue.ts.
+export class PostsQueue extends Context.Service<PostsQueue>()("PostsQueue", {
+  make: PersistedQueue.make({
+    name: "posts",
+    schema: PostJob,
+    maxAttempts: 3,
+    retrySchedule: Schedule.spaced("5 seconds"),
+  }),
+}) {}
+```
+
+`maxAttempts: 3` allows the initial attempt and up to two retries. If the third attempt fails, the queue marks the job as failed and stops offering it to workers. We gave "unlocking human potential" three chances to become a sentence. That's enough compute for today.
+
+### Understanding failures
+
+Worker 1 takes post `#041`, while worker 2 handles the other posts in the queue. Then worker 1's handler fails. Let's see how `#041` gets another attempt:
+
+<PersistedQueueDemo scenario="failure" client:load />
+
+Once the failure reaches the queue, it releases the lock and schedules a retry in five seconds. Worker 2 has finished the other posts, but can't claim `#041` until that delay ends.
+
+Worker 2 then claims it for attempt 2, processes it, and acknowledges completion. Two attempts, one post, three sentences about "authentic leadership" that nobody has to read again.
+
+## Configuring lock behavior
 
 Lock behavior is configurable depending on the store implementation that is being used.
 
@@ -83,133 +224,9 @@ PersistedQueue.layerStoreRedis({
 })
 ```
 
-Keep the refresh interval shorter than the expiration, with some room for network delays or other overhead. Each successful refresh will reset the expiration countdown.
+Keep the refresh interval shorter than the expiration, with some room for network delays or other overhead. As we've seen, each successful refresh will reset the expiration countdown.
 
-A shorter expiration lets another worker pick up abandoned jobs sooner. But it also means a transient connectivity issues could result in a worker losing its lock while it's still processing a job.
-
-## Example
-
-Alright, let's take a look at how we could setup a very basic producer and consumer in code.
-
-### Define the queue
-
-First, we give the queue a name. Our API and worker will both use `"thumbnails"` so that they both target the same queue.
-
-Then, we describe the jobs with a schema. Each job carries information about where to find the original image for processing and where to write the generated thumbnails.
-
-```ts title="queue.ts"
-import { Layer, Schema } from "effect"
-import { PersistedQueue } from "effect/unstable/persistence"
-import { NodeRedis } from "@effect/platform-node"
-
-export const ThumbnailJob = Schema.Struct({
-  sourceBucket: Schema.NonEmptyString,
-  sourceKey: Schema.NonEmptyString,
-  outputPrefix: Schema.NonEmptyString,
-})
-
-export const makeQueue = PersistedQueue.make({
-  name: "thumbnails",
-  schema: ThumbnailJob,
-})
-
-export const QueueLayer = PersistedQueue.layer.pipe(
-  Layer.provide(PersistedQueue.layerStoreRedis()),
-  Layer.provide(NodeRedis.layer({ url: "redis://redis:6379" })),
-)
-```
-
-We'll use `QueueLayer` in both processes to connect them to the same Redis server. The API and worker don't need to run on the same machine, as long as they can both reach that server. Replace `redis://redis:6379` with your Redis address.
-
-### Offer work from the upload API
-
-Once the image is in object storage, the API can enqueue a thumbnail job by calling `offer`. We'll also give our jobs a stable `id` so retried upload requests don't enqueue duplicate jobs.
-
-```ts title="api.ts"
-import { Effect } from "effect"
-import { makeQueue, QueueLayer } from "./queue.ts"
-
-const api = Effect.gen(function* () {
-  const queue = yield* makeQueue
-  yield* queue.offer(
-    {
-      sourceBucket: "user-photos",
-      sourceKey: "originals/041.jpg",
-      outputPrefix: "thumbnails/041/",
-    },
-    { id: "thumbnails:041" },
-  )
-  // The job is safely stored. We can respond to the user now.
-})
-
-api.pipe(Effect.provide(QueueLayer), Effect.runPromise)
-```
-
-Once `offer` finishes, the API can respond to the user. The job is safely stored in Redis and will remain there until a worker becomes available to process it.
-
-### Consume work in the worker
-
-The worker runs in its own process and uses `take` to pick up jobs from the queue. We'll leave the image processing to a hypothetical `Thumbnails` service that downloads the original, creates the thumbnails, and uploads the results.
-
-```ts title="worker.ts"
-import { NodeServices } from "@effect/platform-node"
-import { Effect, Layer } from "effect"
-import { makeQueue, QueueLayer } from "./queue.ts"
-import { Thumbnails } from "./Thumbnails.ts"
-
-const worker = Effect.gen(function* () {
-  const queue = yield* makeQueue
-  const thumbnails = yield* Thumbnails
-
-  yield* queue
-    .take((job) => thumbnails.create(job))
-    .pipe(Effect.catchTag("ResizeError", Effect.logError), Effect.forever)
-})
-
-const WorkerLayer = Layer.merge(QueueLayer, Thumbnails.layer).pipe(
-  Layer.provide(NodeServices.layer),
-)
-
-worker.pipe(Effect.provide(WorkerLayer), Effect.runPromise)
-```
-
-If there's no work available, `take` waits. Otherwise, it passes the job to `thumbnails.create(job)` and acknowledges the job when that succeeds.
-
-If image processing fails with a `ResizeError`, we log it and continue taking work from the queue. The failed job may become available for processing again according to the queue's retry settings. We'll look at how that works next.
-
-## Failures and Retries
-
-Suppose our worker tries to download an image, but object storage is temporarily unavailable. The handler fails. We'd like to try again, but leave some time between attempts rather than spam our queue with retries.
-
-We can control that with two options on the `PersistedQueue.make` constructor: `maxAttempts` and `retrySchedule`.
-
-### Configuring retries
-
-Let's allow three attempts in total, with a two-second delay after each failed attempt:
-
-```ts
-import { Schedule } from "effect"
-
-// In queue.ts, using the ThumbnailJob schema from above.
-export const makeQueue = PersistedQueue.make({
-  name: "thumbnails",
-  schema: ThumbnailJob,
-  maxAttempts: 3,
-  retrySchedule: Schedule.spaced("2 seconds"),
-})
-```
-
-Three attempts means the initial attempt and up to two more. The count increases each time a worker claims the job.
-
-### Understanding failures
-
-Let's take a look at an example with two workers and one thumbnail job. Worker 1 picks it up, but fails to process it. Worker 2 is already waiting. Watch what happens to the lock and attempt count as the job changes hands.
-
-<PersistedQueueDemo scenario="failure" client:load />
-
-The handler failure in Worker 1 releases the lock on the job, but worker 2 still has to wait out the 2-second `retrySchedule` delay that was configured for this queue.
-
-After the delay, Worker 2 claims the job and the attempt count increments by one. If the number of attempts for a job reaches the configured `maxAttempts`, that job will no longer be eligible for processing.
+A shorter expiration lets another worker pick up abandoned jobs sooner. But it also means a transient connectivity issue could result in a worker losing its lock while it's still processing a job.
 
 ## Conclusion
 

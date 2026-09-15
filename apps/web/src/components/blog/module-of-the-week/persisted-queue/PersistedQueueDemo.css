@@ -1,10 +1,11 @@
 .pq-demo {
-  --pq-bg: #171714;
-  --pq-panel: #1f1f1b;
-  --pq-border: #383830;
-  --pq-muted: #a09e91;
-  --pq-ink: #eeede5;
-  --pq-accent: #eaa36d;
+  container-type: inline-size;
+  --pq-bg: light-dark(#faf9f6, #171714);
+  --pq-panel: light-dark(#ffffff, #1f1f1b);
+  --pq-border: light-dark(#d9d6cc, #383830);
+  --pq-muted: light-dark(#686459, #a09e91);
+  --pq-ink: light-dark(#292820, #eeede5);
+  --pq-accent: light-dark(#a85b20, #eaa36d);
   margin: 0;
   color: var(--pq-ink);
   background: var(--pq-bg);
@@ -14,6 +15,9 @@
   font:
     14px/1.5 system-ui,
     sans-serif;
+  color-scheme: light;
+}
+.dark .pq-demo {
   color-scheme: dark;
 }
 .pq-demo * {
@@ -49,8 +53,8 @@
   padding: 7px 12px;
 }
 .pq-modes button[aria-pressed="true"] {
-  background: #2b2821;
-  border-color: #69513c;
+  background: light-dark(#fff0df, #2b2821);
+  border-color: light-dark(#c39165, #69513c);
   color: var(--pq-accent);
 }
 .pq-modes span {
@@ -83,6 +87,25 @@
 .pq-demo svg text {
   fill: var(--pq-ink);
 }
+.pq-demo svg.pq-simple-mobile {
+  display: none;
+  min-width: 0;
+}
+.pq-demo svg.pq-topology-mobile,
+.pq-demo svg.pq-lock-mobile,
+.pq-demo svg.pq-failure-mobile {
+  min-width: 0;
+  max-height: 75svh;
+}
+@container (max-width: 640px) {
+  .pq-demo svg.pq-simple-desktop {
+    display: none;
+  }
+  .pq-demo svg.pq-simple-mobile {
+    display: block;
+    max-height: 75svh;
+  }
+}
 .pq-demo svg .pq-label {
   fill: var(--pq-muted);
   font-size: 10px;
@@ -102,11 +125,13 @@
 .pq-demo svg.pq-lock-demo .pq-label,
 .pq-demo svg.pq-lock-demo .pq-small,
 .pq-demo svg.pq-lock-demo .pq-success-text,
+.pq-demo svg.pq-lock-demo .pq-error-text,
 .pq-demo svg.pq-lock-demo .pq-job-status,
 .pq-demo svg.pq-failure-demo .pq-label,
 .pq-demo svg.pq-failure-demo .pq-small,
 .pq-demo svg.pq-failure-demo .pq-error-text,
 .pq-demo svg.pq-failure-demo .pq-success-text,
+.pq-demo svg.pq-failure-demo .pq-job-status,
 .pq-demo svg.pq-failure-demo .pq-lock text,
 .pq-demo svg.pq-topology .pq-label,
 .pq-demo svg.pq-topology .pq-small,
@@ -128,17 +153,17 @@
     fill 300ms ease;
 }
 .pq-store {
-  stroke: #555347;
+  stroke: light-dark(#b1ad9f, #555347);
 }
 .pq-node-active {
-  stroke: #a47950;
+  stroke: light-dark(#b66f34, #a47950);
 }
 .pq-wire {
   fill: none;
-  stroke: #636055;
+  stroke: light-dark(#a6a092, #636055);
   stroke-width: 1;
   stroke-dasharray: 3 5;
-  color: #8d8878;
+  color: light-dark(#77705e, #8d8878);
 }
 .pq-wire-active {
   stroke: var(--pq-accent);
@@ -151,17 +176,17 @@
   fill: var(--pq-accent);
 }
 .pq-green {
-  fill: #a5bb8c;
+  fill: light-dark(#527438, #a5bb8c);
 }
 .pq-red {
-  fill: #e39a8a;
+  fill: light-dark(#ae4032, #e39a8a);
 }
 .pq-demo svg .pq-error-text {
-  fill: #e39a8a;
+  fill: light-dark(#ae4032, #e39a8a);
   font-size: 10px;
 }
 .pq-node-error {
-  stroke: #ce8375;
+  stroke: light-dark(#bb5848, #ce8375);
 }
 .pq-lock {
   color: var(--pq-muted);
@@ -176,29 +201,29 @@
   transition: stroke 250ms ease;
 }
 .pq-lock-held > rect:first-child {
-  fill: #30291f;
+  fill: light-dark(#fff0df, #30291f);
 }
 .pq-demo svg .pq-lock text {
   fill: currentColor;
   font-size: 10px;
 }
 .pq-demo svg .pq-success-text {
-  fill: #b1c69a;
+  fill: light-dark(#42662b, #b1c69a);
   font-size: 10px;
 }
 .pq-failure-signal .pq-packet rect {
-  fill: #352321;
-  stroke: #ce8375;
+  fill: light-dark(#fff0ec, #352321);
+  stroke: light-dark(#bb5848, #ce8375);
 }
 .pq-demo svg .pq-failure-signal text {
-  fill: #e39a8a;
+  fill: light-dark(#ae4032, #e39a8a);
 }
 .pq-muted-dot {
-  fill: #77766b;
+  fill: light-dark(#8c8779, #77766b);
 }
 .pq-job rect {
-  fill: #292923;
-  stroke: #4c4b40;
+  fill: light-dark(#f2f0e9, #292923);
+  stroke: light-dark(#c5c0b1, #4c4b40);
   transition:
     stroke 300ms ease,
     fill 300ms ease;
@@ -209,38 +234,42 @@
 .pq-job-processing rect,
 .pq-job-delivering rect,
 .pq-job-acknowledging rect {
-  stroke: #bb8959;
-  fill: #30291f;
+  stroke: light-dark(#b66f34, #bb8959);
+  fill: light-dark(#fff0df, #30291f);
 }
 .pq-job-complete rect {
-  stroke: #536348;
-  fill: #242b21;
+  stroke: light-dark(#81996b, #536348);
+  fill: light-dark(#edf4e5, #242b21);
+}
+.pq-job-error rect {
+  stroke: light-dark(#bb5848, #ce8375);
+  fill: light-dark(#fff0ec, #352321);
 }
 .pq-demo svg .pq-job-complete .pq-job-status {
-  fill: #b1c69a;
+  fill: light-dark(#42662b, #b1c69a);
 }
 .pq-job-status {
   font-size: 10px;
 }
 .pq-packet rect {
-  fill: #30271d;
+  fill: light-dark(#fff0df, #30271d);
   stroke: var(--pq-accent);
 }
 .pq-demo svg .pq-packet text {
-  fill: #f3c69e;
+  fill: light-dark(#914c18, #f3c69e);
   font-size: 10px;
 }
 .pq-ack rect {
-  fill: #242b21;
-  stroke: #a5bb8c;
+  fill: light-dark(#edf4e5, #242b21);
+  stroke: light-dark(#527438, #a5bb8c);
 }
 .pq-demo svg .pq-ack text {
-  fill: #b1c69a;
+  fill: light-dark(#42662b, #b1c69a);
 }
 .pq-phases {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: #1c1c18;
+  background: light-dark(#f2f0e9, #1c1c18);
   border-block: 1px solid var(--pq-border);
 }
 .pq-phases > div {
@@ -262,13 +291,13 @@
 }
 .pq-phases [aria-current="step"] {
   color: var(--pq-accent);
-  background: #2b251e;
+  background: light-dark(#fff0df, #2b251e);
   box-shadow: inset 0 2px var(--pq-accent);
 }
 .pq-narration {
   min-height: 76px;
   padding: 23px 28px;
-  color: #cbc9bc;
+  color: light-dark(#514d42, #cbc9bc);
 }
 .pq-controls {
   display: flex;
@@ -291,7 +320,7 @@
   min-width: 76px;
 }
 .pq-controls .pq-play {
-  background: #292923;
+  background: light-dark(#eeece4, #292923);
 }
 .pq-controls button:hover:not(:disabled) {
   border-color: var(--pq-muted);
@@ -304,9 +333,9 @@
   margin: 0;
   border-top: 1px solid var(--pq-border);
   padding: 18px 28px;
-  background: #1c1c18;
+  background: light-dark(#f2f0e9, #1c1c18);
   font-size: 12px;
-  color: #cbc9bc;
+  color: light-dark(#514d42, #cbc9bc);
 }
 .pq-demo figcaption span {
   display: block;

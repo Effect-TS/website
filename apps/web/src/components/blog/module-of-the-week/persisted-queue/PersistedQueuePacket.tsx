@@ -12,6 +12,7 @@ export function PersistedQueuePacket({
   toY,
   label,
   ack = false,
+  controlX,
 }: {
   clock: MotionValue<number>
   start: number
@@ -22,12 +23,13 @@ export function PersistedQueuePacket({
   toY: number
   label: string
   ack?: boolean
+  controlX?: number
 }) {
   const progress = useTransform(clock, (time) =>
     Math.max(0, Math.min(1, (time - start) / duration)),
   )
   const x = useTransform(progress, (t) => {
-    const middle = (fromX + toX) / 2
+    const middle = controlX ?? (fromX + toX) / 2
     return (1 - t) ** 3 * fromX + 3 * (1 - t) * t * middle + t ** 3 * toX
   })
   const y = useTransform(

@@ -85,6 +85,7 @@ export default function PersistedQueueDemo({
     mode === "many-to-many" ? workerCount(time) : multipleWorkers ? 3 : 1
   const [playing, setPlaying] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [compact, setCompact] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
   const figure = useRef<HTMLElement>(null)
   const clock = useMotionValue(0)
@@ -104,17 +105,16 @@ export default function PersistedQueueDemo({
   const crash = crashFrame(time)
   const states = jobs.map((_, i) => frame(mode, time, i))
   const storedCount = states.filter((state) => state !== "offering").length
-  const storeHeight = 125 + storedCount * 47
-  const storeTop = 210 - storeHeight / 2
+  const storeHeight = 60 + storedCount * 47
+  const storeCenter = compact ? 480 : 210
+  const storeTop = storeCenter - storeHeight / 2
   const storeTransition = {
     duration: reducedMotion ? 0 : 0.35,
     ease: "easeInOut" as const,
   }
   const done = states.filter((s) => s === "complete").length
-  const pending = states.filter((s) => s === "pending").length
   const isActive = (state: string) =>
     ["delivering", "processing", "acknowledging"].includes(state)
-  const active = states.filter(isActive).length
   const phase =
     mode === "crash"
       ? crash.phase
@@ -143,6 +143,16 @@ export default function PersistedQueueDemo({
               : multipleWorkers
                 ? "Three worker processes claim different jobs and create thumbnails in parallel."
                 : "One worker claims each job, creates its thumbnail, and acknowledges completion before taking another."
+
+  useEffect(() => {
+    const element = figure.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setCompact(entry.contentRect.width <= 640)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -259,6 +269,7 @@ export default function PersistedQueueDemo({
             clock={clock}
             time={time}
             reducedMotion={reducedMotion}
+            mobile={compact}
           />
         ) : simple ? (
           <SimpleDiagram
@@ -277,11 +288,12 @@ export default function PersistedQueueDemo({
             clock={clock}
             time={time}
             reducedMotion={reducedMotion}
+            mobile={compact}
           />
         ) : (
           <svg
-            className="pq-topology"
-            viewBox="0 0 960 420"
+            className={`pq-topology ${compact ? "pq-topology-mobile" : ""}`}
+            viewBox={compact ? "0 0 360 912" : "0 0 960 375"}
             role="img"
             aria-labelledby={`${id}-title ${id}-desc`}
           >
@@ -309,18 +321,30 @@ export default function PersistedQueueDemo({
                 <path d="M1 1 L7 4 L1 7" fill="none" stroke="currentColor" />
               </marker>
             </defs>
-            <text x="48" y="38" className="pq-label">
-              {mode === "fan-out" ? "01 PRODUCER" : "03 PRODUCERS"}
+            <text
+              x={compact ? 96 : 48}
+              y={compact ? 24 : 38}
+              className="pq-label"
+            >
+              {mode === "fan-out" ? "PRODUCER" : "PRODUCERS"}
             </text>
-            <text x="374" y="38" className="pq-label">
-              SHARED PERSISTENCE
+            <text
+              x={compact ? 58 : 374}
+              y={compact ? 356 : 38}
+              className="pq-label"
+            >
+              PERSISTED QUEUE
             </text>
-            <text x="744" y="38" className="pq-label">
-              {replicas === 1 ? "01 CONSUMER" : `0${replicas} CONSUMERS`}
+            <text
+              x={compact ? 96 : 744}
+              y={compact ? 620 : 38}
+              className="pq-label"
+            >
+              {replicas === 1 ? "CONSUMER" : "CONSUMERS"}
             </text>
 
             {(mode === "fan-out" ? [1] : [0, 1, 2]).map((i) => {
-              const y = 105 + i * 105
+              const y = compact ? 76 + i * 86 : 105 + i * 105
               const offering =
                 mode === "fan-out"
                   ? states.some((state) => state === "offering")
@@ -329,10 +353,14 @@ export default function PersistedQueueDemo({
                 <g key={`producer-${i}`}>
                   <path
                     className={`pq-wire ${offering ? "pq-wire-active" : ""}`}
-                    d={`M216 ${y} C287 ${y} 287 210 358 210`}
+                    d={
+                      compact
+                        ? `M264 ${y} C340 ${y} 340 480 302 480`
+                        : `M216 ${y} C287 ${y} 287 210 358 210`
+                    }
                     markerEnd={`url(#${id}-arrow)`}
                   />
-                  <g transform={`translate(48 ${y - 36})`}>
+                  <g transform={`translate(${compact ? 96 : 48} ${y - 36})`}>
                     <rect className="pq-node" width="168" height="72" rx="4" />
                     <circle
                       cx="16"
@@ -341,14 +369,10 @@ export default function PersistedQueueDemo({
                       className={offering ? "pq-orange" : "pq-muted-dot"}
                     />
                     <text x="28" y="27" className="pq-node-title">
-                      UPLOAD API {mode !== "fan-out" ? i + 1 : ""}
+                      POST API {mode !== "fan-out" ? i + 1 : ""}
                     </text>
                     <text x="16" y="51" className="pq-small">
-                      {offering
-                        ? "offer(image)"
-                        : mode === "fan-out"
-                          ? "jobs stored"
-                          : "job stored"}
+                      {offering ? "offer(post)" : "request done"}
                     </text>
                   </g>
                 </g>
@@ -360,7 +384,7 @@ export default function PersistedQueueDemo({
                 ? Array.from({ length: replicas }, (_, i) => i)
                 : [1]
               ).map((i) => {
-                const y = 105 + i * 105
+                const y = compact ? 680 + i * 86 : 105 + i * 105
                 const jobIndex = multipleWorkers
                   ? i
                   : states.findIndex(isActive)
@@ -380,10 +404,14 @@ export default function PersistedQueueDemo({
                   >
                     <path
                       className={`pq-wire ${processing ? "pq-wire-active" : ""}`}
-                      d={`M602 210 C673 210 673 ${y} 744 ${y}`}
+                      d={
+                        compact
+                          ? `M58 480 C20 480 20 ${y} 96 ${y}`
+                          : `M602 210 C673 210 673 ${y} 744 ${y}`
+                      }
                       markerEnd={`url(#${id}-arrow)`}
                     />
-                    <g transform={`translate(744 ${y - 36})`}>
+                    <g transform={`translate(${compact ? 96 : 744} ${y - 36})`}>
                       <rect
                         className={`pq-node ${processing ? "pq-node-active" : ""}`}
                         width="168"
@@ -407,7 +435,9 @@ export default function PersistedQueueDemo({
                       </text>
                       <text x="16" y="51" className="pq-small">
                         {processing
-                          ? `${state === "delivering" ? "receiving" : state === "acknowledging" ? "ack" : "resize"} #${job}`
+                          ? state === "delivering"
+                            ? "take(handler)"
+                            : `${state === "acknowledging" ? "ack" : "deslop"} #${job}`
                           : completed
                             ? "✓ ready"
                             : "take(handler)"}
@@ -425,20 +455,8 @@ export default function PersistedQueueDemo({
               })}
             </AnimatePresence>
 
-            {mode === "many-to-many" && (
-              <text x="480" y="395" textAnchor="middle" className="pq-small">
-                Infrastructure autoscaling · {replicas}{" "}
-                {replicas === 1 ? "worker" : "workers"}
-                {time >= 15.5
-                  ? " · scale down"
-                  : time >= 4.2 && time < 7
-                    ? " · scale up"
-                    : ""}
-              </text>
-            )}
-
             <motion.g
-              animate={{ y: storeTop }}
+              animate={{ x: compact ? -300 : 0, y: storeTop }}
               initial={false}
               transition={storeTransition}
             >
@@ -454,20 +472,14 @@ export default function PersistedQueueDemo({
               />
               <path d="M358 42 H602" className="pq-divider" />
               <text x="376" y="26" className="pq-node-title">
-                QUEUE STORE
-              </text>
-              <text x="584" y="26" textAnchor="end" className="pq-small">
-                durable
-              </text>
-              <text x="376" y="71" className="pq-small">
-                queue: "thumbnails"
+                posts
               </text>
               {jobs.map(
                 (job, i) =>
                   states[i] !== "offering" && (
                     <motion.g
                       key={job}
-                      transform={`translate(376 ${89 + i * 47})`}
+                      transform={`translate(376 ${54 + i * 47})`}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={storeTransition}
@@ -492,22 +504,17 @@ export default function PersistedQueueDemo({
                     </motion.g>
                   ),
               )}
-              <motion.text
-                x="376"
-                animate={{ y: storeHeight - 17 }}
-                initial={false}
-                transition={storeTransition}
-                className="pq-small"
-              >
-                {storedCount === 0
-                  ? "Empty"
-                  : `${pending} waiting · ${active} active`}
-              </motion.text>
             </motion.g>
             {!reducedMotion &&
               jobs.map((job, i) => {
-                const producerY = mode === "fan-out" ? 210 : 105 + i * 105
-                const workerY = multipleWorkers ? 105 + i * 105 : 210
+                const producerIndex = mode === "fan-out" ? 1 : i
+                const workerIndex = multipleWorkers ? i : 1
+                const producerY = compact
+                  ? 76 + producerIndex * 86
+                  : 105 + producerIndex * 105
+                const workerY = compact
+                  ? 680 + workerIndex * 86
+                  : 105 + workerIndex * 105
                 const claim = claimTime(mode, i)
                 return (
                   <g key={`${mode}-${job}`}>
@@ -515,19 +522,21 @@ export default function PersistedQueueDemo({
                       clock={clock}
                       start={offerTime(mode, i)}
                       duration={1.6}
-                      fromX={216}
+                      controlX={compact ? 340 : undefined}
+                      fromX={compact ? 264 : 216}
                       fromY={producerY}
-                      toX={358}
-                      toY={210}
+                      toX={compact ? 302 : 358}
+                      toY={storeCenter}
                       label={`#${job}`}
                     />
                     <Packet
                       clock={clock}
                       start={claim}
                       duration={1.3}
-                      fromX={602}
-                      fromY={210}
-                      toX={744}
+                      controlX={compact ? 20 : undefined}
+                      fromX={compact ? 58 : 602}
+                      fromY={storeCenter}
+                      toX={compact ? 96 : 744}
                       toY={workerY}
                       label={`#${job}`}
                     />
@@ -535,10 +544,11 @@ export default function PersistedQueueDemo({
                       clock={clock}
                       start={claim + 1.3 + processingDuration(mode)}
                       duration={0.8}
-                      fromX={744}
+                      controlX={compact ? 20 : undefined}
+                      fromX={compact ? 96 : 744}
                       fromY={workerY}
-                      toX={602}
-                      toY={210}
+                      toX={compact ? 58 : 602}
+                      toY={storeCenter}
                       label="ACK"
                       ack
                     />
