@@ -15,7 +15,7 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const { accountId } = yield* yield* Cloudflare.CloudflareEnvironment
-    const zoneId = yield* Config.string("CLOUDFLARE_ZONE_ID")
+    const zoneId = yield* Config.String("CLOUDFLARE_ZONE_ID")
 
     const apiToken = yield* Cloudflare.ApiToken.AccountApiToken("ci-token", {
       name: "effect-website-ci",
@@ -45,14 +45,14 @@ export default Alchemy.Stack(
     })
 
     const applicationSecrets = yield* Config.all({
-      MXBAI_ADMIN_API_KEY: Config.redacted("MXBAI_ADMIN_API_KEY"),
-      MXBAI_PREVIEW_ADMIN_API_KEY: Config.redacted(
+      MXBAI_ADMIN_API_KEY: Config.Redacted("MXBAI_ADMIN_API_KEY"),
+      MXBAI_PREVIEW_ADMIN_API_KEY: Config.Redacted(
         "MXBAI_PREVIEW_ADMIN_API_KEY",
       ),
-      MXBAI_SEARCH_API_KEY: Config.redacted("MXBAI_SEARCH_API_KEY"),
-      MXBAI_VECTOR_STORE_ID: Config.redacted("MXBAI_VECTOR_STORE_ID"),
-      KV_REST_API_URL: Config.redacted("KV_REST_API_URL"),
-      KV_REST_API_TOKEN: Config.redacted("KV_REST_API_TOKEN"),
+      MXBAI_SEARCH_API_KEY: Config.Redacted("MXBAI_SEARCH_API_KEY"),
+      MXBAI_VECTOR_STORE_ID: Config.Redacted("MXBAI_VECTOR_STORE_ID"),
+      KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
+      KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
     })
 
     const repository = {
@@ -80,9 +80,9 @@ export default Alchemy.Stack(
     ])
 
     const publicPosthogKey = yield* Config.option(
-      Config.string("PUBLIC_POSTHOG_KEY"),
+      Config.String("PUBLIC_POSTHOG_KEY"),
     )
-    const publicPosthogApiHost = yield* Config.string(
+    const publicPosthogApiHost = yield* Config.String(
       "PUBLIC_POSTHOG_API_HOST",
     ).pipe(Config.withDefault("https://us.i.posthog.com"))
 

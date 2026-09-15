@@ -1,0 +1,235 @@
+---
+pagefind: false
+title: Module of the Week - PersistedQueue
+slug: module-of-the-week/persisted-queue
+excerpt: Module of the Week is a weekly blog post that explores the lesser-known parts of Effect, one module at a time.
+date: 2026-09-15
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import PersistedQueueDemo from "@/components/blog/module-of-the-week/persisted-queue/PersistedQueueDemo"
+
+This week's pick came out of a conversation with Adam Rankin from Warp on our last Effect Office Hours. We spoke about [`effect-mq`](https://www.effect-mq.com/), an Effect-native alternative to BullMQ for processing background jobs. My first thought was that it was probably using Effect's `PersistedQueue` under the hood.
+
+Turns out, Adam hadn't heard of the module, but wished he'd known about it sooner because he probably _would_ have used it. Who wouldn't - amirite?
+
+After that conversation, `PersistedQueue` was a no-brainer for our first Module of the Week.
+
+## Why persist a queue?
+
+Imagine we're building a service that removes the AI-generated nonsense from LinkedIn posts until something human remains. Users submit their posts, and we strip out the "humbled and honored," the "let that sink in," and whatever a missed flight apparently taught someone about servant leadership.
+
+We can let the user know their response was successful and excavate an actual thought later.
+
+When a post is submitted, we:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    Enqueue a de-slop job in <code>PersistedQueue</code>.
+  </li>
+  <li>Respond to the user confirming their submission was successful.</li>
+  <li>Process the post in the background when a worker picks up the job.</li>
+</ol>
+
+A worker processes the text in the background and saves the result. Ideally, there's still a sentence left.
+
+Because the job is persisted, it survives API and worker restarts. If a worker crashes halfway through "leveraging authentic human connection," another can retry the job. The user doesn't have to submit it again. The next worker, unfortunately, has to re-read the whole thing.
+
+Here's that flow with one API and one worker:
+
+<PersistedQueueDemo simple client:load />
+
+## Multiple Producers and Consumers
+
+Now imagine someone shares our service on LinkedIn with an 800-word post about the importance of brevity. Submissions start pouring in, and our lone worker can't keep up.
+
+We need more API replicas to handle incoming submissions and horizontal autoscaling for our workers, bringing them online as the backlog grows and scaling them back down once they contain all the thought leadership.
+
+Because the `PersistedQueue` is decoupled from these services, they can be scaled independently without affecting the queue.
+
+### Sharing a queue
+
+Here's our service with three API replicas feeding jobs into the same queue. As the backlog grows, our infrastructure brings two more workers online to help.
+
+<PersistedQueueDemo scenario="many-to-many" client:load />
+
+### Preventing duplicate claims
+
+With several workers running, what's to stop two of them from claiming the same post? Nobody needs two processes investigating what a cold shower taught a founder about product-market fit.
+
+When a worker claims a job through `take`, it acquires a lock. Other workers can't claim that job until the lock is released or expires.
+
+The worker periodically refreshes the lock, extending its expiry so longer jobs have time to finish. Some posts have a twelve-paragraph origin story before they get to the webinar link. These things take time.
+
+If the worker crashes, the refreshes stop and the lock eventually expires, allowing another worker to claim the job and try again.
+
+<PersistedQueueDemo scenario="lock" client:load />
+
+Watch the lock countdown reset when the lock is refreshed. Once worker 1 goes offline, the lock expires and worker 2 claims the job on a later poll.
+
+## Example
+
+Let's put the de-slopper to work. We'll run the submission API and worker as separate processes, with a shared queue between them.
+
+### Defining the queue
+
+Both processes will use a `PostsQueue` service backed by the same named queue, `"posts"`.
+
+Each job carries the submitted text and a post ID to save the result against. The schema requires non-empty text, which shouldn't be a problem. Nobody on LinkedIn has ever used zero words when six paragraphs would do.
+
+```ts title="queue.ts"
+import { Context, Layer, Schema } from "effect"
+import { PersistedQueue } from "effect/unstable/persistence"
+import { NodeRedis } from "@effect/platform-node"
+
+export const PostJob = Schema.Struct({
+  postId: Schema.NonEmptyString,
+  text: Schema.NonEmptyString,
+})
+
+export class PostsQueue extends Context.Service<PostsQueue>()("PostsQueue", {
+  make: PersistedQueue.make({
+    name: "posts",
+    schema: PostJob,
+  }),
+}) {}
+
+export const QueueLayer = Layer.effect(PostsQueue, PostsQueue.make).pipe(
+  Layer.provide(PersistedQueue.layer),
+  Layer.provide(PersistedQueue.layerStoreRedis()),
+  Layer.provide(NodeRedis.layer({ url: "redis://redis:6379" })),
+)
+
+export const QueueLayerTest = Layer.effect(PostsQueue, PostsQueue.make).pipe(
+  Layer.provide(PersistedQueue.layer),
+  Layer.provide(PersistedQueue.layerStoreMemory),
+)
+```
+
+We'll use `QueueLayer` in both processes to connect them to the same Redis server. The API and worker don't need to run on the same machine, as long as they can both reach that server. Replace `redis://redis:6379` with your Redis address.
+
+Effect's dependency injection lets us swap the storage layers without changing the API or worker code. `QueueLayerTest` uses an in-memory store for tests; we could also replace the Redis layers with a SQL store and its database connection layer if we wanted.
+
+### Offering work to the queue
+
+The API `yield*`s the `PostsQueue` to get access to the service, and then calls `offer` to enqueue the submitted post.
+
+We also provide a stable job `id` so that we can prevent duplicates if the submission is retried. Being "beyond thrilled" once was plenty.
+
+```ts title="api.ts"
+import { Effect } from "effect"
+import { PostsQueue, QueueLayer } from "./queue.ts"
+
+const api = Effect.gen(function* () {
+  const queue = yield* PostsQueue
+
+  yield* queue.offer(
+    {
+      postId: "041",
+      text:
+        "I'm humbled and beyond thrilled to announce that I got promoted. " +
+        "This isn't about a title. It's about showing up as my authentic self.",
+    },
+    { id: "deslop:041" },
+  )
+})
+
+api.pipe(Effect.provide(QueueLayer), Effect.runPromise)
+```
+
+Once `offer` succeeds, the API can respond to the user confirming the submission. The worker will deal with all the prepositions asynchronously.
+
+### Consuming work from the queue
+
+The worker gets the same `PostsQueue` service and calls `take`, delegating the actual cleanup of a post to a hypothetical `Deslopper` service. Its `process` method removes the filler and saves the result under the job's `postId`, replacing any previous result if the job runs again. For this post, we're hoping for "I got promoted."
+
+```ts title="worker.ts"
+import { NodeServices } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { PostsQueue, QueueLayer } from "./queue.ts"
+import { Deslopper } from "./Deslopper.ts"
+
+const worker = Effect.gen(function* () {
+  const queue = yield* PostsQueue
+  const deslopper = yield* Deslopper
+
+  yield* queue
+    .take((job) => deslopper.process(job))
+    .pipe(
+      Effect.catchTag("DeslopError", Effect.logError),
+      Effect.forever, // Continue taking work from the queue forever
+    )
+})
+
+const WorkerLayer = Layer.merge(QueueLayer, Deslopper.layer).pipe(
+  Layer.provide(NodeServices.layer),
+)
+
+worker.pipe(Effect.provide(WorkerLayer), Effect.runPromise)
+```
+
+If there's no work available, `take` waits. Otherwise, it passes the job to `deslopper.process(job)` and acknowledges it when processing succeeds.
+
+If processing fails with a `DeslopError`, we log it and keep the worker running. The queue's retry settings determine whether and when the failed job becomes available again.
+
+## Failures and Retries
+
+Suppose the text-processing service is temporarily unavailable and our handler fails. We'd like to try again, but leave some time between requests. Somewhere, a post still contains "I'm delighted to share." It can remain delighted for another five seconds.
+
+`PersistedQueue.make` gives us two options for this: `maxAttempts` and `retrySchedule`.
+
+### Configuring retries
+
+Let's allow three attempts in total, waiting five seconds before each retry:
+
+```ts
+import { Schedule } from "effect"
+
+// Update the PostsQueue constructor in queue.ts.
+export class PostsQueue extends Context.Service<PostsQueue>()("PostsQueue", {
+  make: PersistedQueue.make({
+    name: "posts",
+    schema: PostJob,
+    maxAttempts: 3,
+    retrySchedule: Schedule.spaced("5 seconds"),
+  }),
+}) {}
+```
+
+`maxAttempts: 3` allows the initial attempt and up to two retries. If the third attempt fails, the queue marks the job as failed and stops offering it to workers. We gave "unlocking human potential" three chances to become a sentence. That's enough compute for today.
+
+### Understanding failures
+
+Worker 1 takes post `#041`, while worker 2 handles the other posts in the queue. Then worker 1's handler fails. Let's see how `#041` gets another attempt:
+
+<PersistedQueueDemo scenario="failure" client:load />
+
+Once the failure reaches the queue, it releases the lock and schedules a retry in five seconds. Worker 2 has finished the other posts, but can't claim `#041` until that delay ends.
+
+Worker 2 then claims it for attempt 2, processes it, and acknowledges completion. Two attempts, one post, three sentences about "authentic leadership" that nobody has to read again.
+
+## Configuring lock behavior
+
+Lock behavior is configurable depending on the store implementation that is being used.
+
+For example, let's say we want to refresh every 10 seconds and expire the lock after 30 seconds without a successful refresh. With the Redis store, that would look like:
+
+```ts
+PersistedQueue.layerStoreRedis({
+  lockRefreshInterval: "10 seconds", // default is 30 seconds
+  lockExpiration: "30 seconds", // default is 90 seconds
+})
+```
+
+Keep the refresh interval shorter than the expiration, with some room for network delays or other overhead. As we've seen, each successful refresh will reset the expiration countdown.
+
+A shorter expiration lets another worker pick up abandoned jobs sooner. But it also means a transient connectivity issue could result in a worker losing its lock while it's still processing a job.
+
+## Conclusion
+
+To summarize, a `PersistedQueue` is a place where you can store work and process it later. If your app makes use of background job processing, it's definitely worth a look.
+
+We hope you enjoyed this edition of Module of the Week! Until the next one - Happy Effecting!

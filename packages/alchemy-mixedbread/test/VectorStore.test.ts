@@ -1,7 +1,7 @@
 import { NotFoundError } from "@mixedbread/sdk"
 import type { Store } from "@mixedbread/sdk/resources/stores/stores"
 import { Unowned } from "alchemy/AdoptPolicy"
-import type { ScopedPlanStatusSession } from "alchemy/Cli/Cli"
+import type { ScopedPlanStatusSession } from "alchemy/Report"
 import type { Provider } from "alchemy/Provider"
 import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"

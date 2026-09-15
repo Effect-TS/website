@@ -1,0 +1,140 @@
+---
+import { Image } from "astro:assets"
+
+interface Props {
+  src: ImageMetadata
+  alt: string
+  class?: string
+}
+
+const { src, alt, class: className } = Astro.props
+---
+
+<zoomable-image class:list={["not-prose block", className]}>
+  <button type="button" class="image-trigger" aria-label="Enlarge image" aria-haspopup="dialog">
+    <Image src={src} alt={alt} class="preview" />
+  </button>
+  <dialog class="image-dialog" aria-label="Enlarged image">
+    <button type="button" class="image-close" aria-label="Close enlarged image" autofocus>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        ></path>
+      </svg>
+    </button>
+    <Image src={src} alt={alt} class="enlarged" />
+  </dialog>
+</zoomable-image>
+
+<script>
+  class ZoomableImage extends HTMLElement {
+    private listeners: AbortController | undefined
+
+    connectedCallback() {
+      this.listeners?.abort()
+      this.listeners = new AbortController()
+      const options = { signal: this.listeners.signal }
+      const trigger = this.querySelector<HTMLButtonElement>(".image-trigger")
+      const close = this.querySelector<HTMLButtonElement>(".image-close")
+      const dialog = this.querySelector<HTMLDialogElement>("dialog")
+      if (!trigger || !close || !dialog) return
+
+      trigger.addEventListener("click", () => dialog.showModal(), options)
+      close.addEventListener("click", () => dialog.close(), options)
+      dialog.addEventListener(
+        "click",
+        (event) => {
+          if (event.target === dialog) dialog.close()
+        },
+        options,
+      )
+      dialog.addEventListener("close", () => trigger.focus({ preventScroll: true }), options)
+    }
+
+    disconnectedCallback() {
+      this.querySelector<HTMLDialogElement>("dialog")?.close()
+      this.listeners?.abort()
+    }
+  }
+
+  if (!customElements.get("zoomable-image")) {
+    customElements.define("zoomable-image", ZoomableImage)
+  }
+</script>
+
+<style>
+  .image-trigger {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+  }
+
+  .preview {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0;
+  }
+
+  .image-dialog {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 64px 24px 24px;
+    border: 0;
+    background: transparent;
+    cursor: zoom-out;
+  }
+
+  .image-dialog[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .image-dialog::backdrop {
+    background: rgb(0 0 0 / 92%);
+  }
+
+  .enlarged {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0;
+    object-fit: contain;
+    cursor: default;
+  }
+
+  .image-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid #52525b;
+    border-radius: 6px;
+    background: #18181b;
+    color: white;
+    cursor: pointer;
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--foreground, white);
+    outline-offset: 4px;
+  }
+
+  :global(html:has(dialog.image-dialog[open])) {
+    overflow: hidden;
+  }
+</style>

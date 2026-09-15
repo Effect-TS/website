@@ -10,8 +10,8 @@ const UpstashKVS = Layer.unwrap(
       return KeyValueStore.layerMemory
     }
     const config = yield* Config.all({
-      url: Config.string("KV_REST_API_URL"),
-      token: Config.redacted("KV_REST_API_TOKEN"),
+      url: Config.String("KV_REST_API_URL"),
+      token: Config.Redacted("KV_REST_API_TOKEN"),
     })
     return makeUpstashKVS(config.url, config.token)
   }),

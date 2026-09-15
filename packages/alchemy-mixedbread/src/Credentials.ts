@@ -20,8 +20,8 @@ export const fromEnv = Layer.effect(
   Effect.cached(
     Effect.orDie(
       Config.all({
-        apiKey: Config.redacted("MXBAI_ADMIN_API_KEY"),
-        baseUrl: Config.option(Config.string("MIXEDBREAD_BASE_URL")).pipe(
+        apiKey: Config.Redacted("MXBAI_ADMIN_API_KEY"),
+        baseUrl: Config.option(Config.String("MIXEDBREAD_BASE_URL")).pipe(
           Config.map(Option.getOrUndefined),
         ),
       }),

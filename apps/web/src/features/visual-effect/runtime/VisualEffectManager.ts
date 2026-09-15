@@ -208,7 +208,10 @@ export class VisualEffectManager extends Context.Service<
         ): (typeof Notifications.Service)["notify"] =>
         (message, options) =>
           Effect.withFiber((fiber) => {
-            const span = fiber.currentSpan
+            const span = Context.getOrUndefined(
+              fiber.context,
+              Tracer.ParentSpan,
+            )
             const duration = options?.duration
               ? (Duration.fromInput(options.duration) ??
                 defaultNotificationDuration)

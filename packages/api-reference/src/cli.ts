@@ -19,31 +19,31 @@ const write = Effect.fn("cli.write")(function* (value: string) {
 })
 
 const optionalString = (name: string, description: string) =>
-  Flag.string(name).pipe(Flag.withDescription(description), Flag.optional)
+  Flag.String(name).pipe(Flag.withDescription(description), Flag.optional)
 
-const v3 = Flag.string("v3").pipe(
+const v3 = Flag.String("v3").pipe(
   Flag.withDescription("Full Effect v3 Git commit SHA"),
 )
-const v4 = Flag.string("v4").pipe(
+const v4 = Flag.String("v4").pipe(
   Flag.withDescription("Full Effect v4 Git commit SHA"),
 )
 const generator = optionalString(
   "generator",
   "Generator digest; computed from source files when omitted",
 )
-const data = Flag.string("data").pipe(
+const data = Flag.String("data").pipe(
   Flag.withDescription("API reference data directory"),
 )
-const output = Flag.string("output").pipe(
+const output = Flag.String("output").pipe(
   Flag.withDescription("Output file or directory"),
 )
-const websiteRevision = Flag.string("website-revision").pipe(
+const websiteRevision = Flag.String("website-revision").pipe(
   Flag.withDescription("Website Git commit SHA"),
 )
-const repository = Flag.string("repository").pipe(
+const repository = Flag.String("repository").pipe(
   Flag.withDescription("GitHub repository in owner/name form"),
 )
-const expectedId = Flag.string("expected-id").pipe(
+const expectedId = Flag.String("expected-id").pipe(
   Flag.withDescription("Expected deterministic snapshot ID"),
 )
 
@@ -95,7 +95,7 @@ const createCommand = Command.make("create", {
 
 const validateCommand = Command.make("validate", {
   data,
-  manifest: Flag.string("manifest").pipe(
+  manifest: Flag.String("manifest").pipe(
     Flag.withDescription("Snapshot manifest path"),
   ),
 }).pipe(
@@ -109,7 +109,7 @@ const validateCommand = Command.make("validate", {
 )
 
 const prepareCommand = Command.make("prepare", {
-  eventName: Flag.string("event-name"),
+  eventName: Flag.String("event-name"),
   eventRepository: optionalString("event-repository", "Dispatch repository"),
   eventChannel: optionalString("event-channel", "Dispatch API channel"),
   eventRevision: optionalString("event-revision", "Dispatch Git revision"),
@@ -168,7 +168,7 @@ const packageCommand = Command.make("package", {
 
 const publishCommand = Command.make("publish", {
   repository,
-  assets: Flag.string("assets").pipe(
+  assets: Flag.String("assets").pipe(
     Flag.withDescription("Snapshot release asset directory"),
   ),
   v3,
@@ -216,7 +216,7 @@ const snapshotCommand = Command.make("snapshot").pipe(
   ]),
 )
 
-const version = Flag.string("version")
+const version = Flag.String("version")
 const generateCommand = Command.make("generate", {
   version,
   repository: optionalString("repo", "Effect repository directory"),

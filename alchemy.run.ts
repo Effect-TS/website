@@ -55,10 +55,10 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
           crossVersionCache: true,
         },
         env: {
-          MXBAI_API_KEY: Config.redacted("MXBAI_API_KEY"),
+          MXBAI_API_KEY: Config.Redacted("MXBAI_API_KEY"),
           MXBAI_VECTOR_STORE_ID: storeId,
-          KV_REST_API_URL: Config.redacted("KV_REST_API_URL"),
-          KV_REST_API_TOKEN: Config.redacted("KV_REST_API_TOKEN"),
+          KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
+          KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
         },
         sessionKVBindingName: false,
         prerenderEnvironment: "node" as const,
@@ -77,12 +77,12 @@ export default Alchemy.Stack(
     state: Cloudflare.state(),
   },
   Effect.gen(function* () {
-    const pullRequest = yield* Config.option(Config.int("PULL_REQUEST"))
-    const previewStoreEnabled = yield* Config.boolean(
+    const pullRequest = yield* Config.option(Config.Int("PULL_REQUEST"))
+    const previewStoreEnabled = yield* Config.Boolean(
       "MXBAI_PREVIEW_STORE_ENABLED",
     ).pipe(Config.withDefault(false))
-    const sha = yield* Config.string("WEBSITE_REVISION")
-    let storeId: Input<string | Redacted.Redacted<string>> = Config.redacted(
+    const sha = yield* Config.String("WEBSITE_REVISION")
+    let storeId: Input<string | Redacted.Redacted<string>> = Config.Redacted(
       "MXBAI_VECTOR_STORE_ID",
     )
 

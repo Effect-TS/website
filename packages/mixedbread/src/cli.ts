@@ -15,24 +15,24 @@ import { Mixedbread } from "./Mixedbread.ts"
 import * as Preview from "./Preview.ts"
 import { SearchChanges } from "./SearchChanges.ts"
 
-const pullRequest = Flag.integer("pr").pipe(
+const pullRequest = Flag.Int("pr").pipe(
   Flag.withDescription("Pull request number that identifies the preview store"),
 )
 
-const revision = Flag.string("sha").pipe(
+const revision = Flag.String("sha").pipe(
   Flag.withDescription("Git commit SHA associated with the indexed content"),
 )
 
-const scope = Flag.choice("scope", ["all", "markdown", "api-reference"]).pipe(
+const scope = Flag.Literals("scope", ["all", "markdown", "api-reference"]).pipe(
   Flag.withDefault("all"),
   Flag.withDescription("Content scope to synchronize"),
 )
 
-const base = Flag.string("base").pipe(
+const base = Flag.String("base").pipe(
   Flag.withDescription("Base Git revision to compare"),
 )
 
-const head = Flag.string("head").pipe(
+const head = Flag.String("head").pipe(
   Flag.withDescription("Head Git revision to compare"),
 )
 
@@ -51,7 +51,7 @@ const syncCommand = Command.make("sync", {
           mixedbread.syncProduction(revision, scope),
         ),
       onSome: Effect.fnUntraced(function* (pullRequest) {
-        const storeId = yield* Config.string("MXBAI_VECTOR_STORE_ID")
+        const storeId = yield* Config.String("MXBAI_VECTOR_STORE_ID")
         return yield* Mixedbread.use((mixedbread) =>
           mixedbread.syncStore(
             { kind: "preview", pullRequest, revision, storeId },

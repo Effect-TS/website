@@ -1,0 +1,383 @@
+.pq-demo {
+  container-type: inline-size;
+  --pq-bg: light-dark(#faf9f6, #171714);
+  --pq-panel: light-dark(#ffffff, #1f1f1b);
+  --pq-border: light-dark(#d9d6cc, #383830);
+  --pq-muted: light-dark(#686459, #a09e91);
+  --pq-ink: light-dark(#292820, #eeede5);
+  --pq-accent: light-dark(#a85b20, #eaa36d);
+  margin: 0;
+  color: var(--pq-ink);
+  background: var(--pq-bg);
+  border: 1px solid var(--pq-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+  color-scheme: light;
+  transition:
+    border-color 250ms ease,
+    box-shadow 250ms ease;
+}
+.pq-demo[data-running="true"] {
+  border-color: color-mix(in srgb, var(--pq-accent) 60%, var(--pq-border));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pq-accent) 18%, transparent);
+}
+.dark .pq-demo {
+  color-scheme: dark;
+}
+.pq-demo * {
+  box-sizing: border-box;
+}
+.pq-demo button {
+  font: inherit;
+  cursor: pointer;
+}
+.pq-demo button:focus-visible,
+.pq-scroll:focus-visible {
+  outline: 2px solid var(--pq-accent);
+  outline-offset: -3px;
+}
+.pq-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--pq-border);
+  padding: 16px 24px;
+  gap: 16px;
+}
+.pq-modes {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pq-modes button {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pq-muted);
+  padding: 7px 12px;
+}
+.pq-modes button[aria-pressed="true"] {
+  background: light-dark(#fff0df, #2b2821);
+  border-color: light-dark(#c39165, #69513c);
+  color: var(--pq-accent);
+}
+.pq-modes span {
+  margin-left: 12px;
+  font:
+    11px ui-monospace,
+    monospace;
+}
+.pq-example,
+.pq-step {
+  color: var(--pq-muted);
+  font:
+    10px ui-monospace,
+    monospace;
+  letter-spacing: 0.08em;
+}
+.pq-scroll {
+  overflow-x: auto;
+}
+.pq-demo svg {
+  display: block;
+  width: 100%;
+  min-width: 660px;
+  font:
+    12px ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.pq-demo svg text {
+  fill: var(--pq-ink);
+}
+.pq-demo svg.pq-simple-mobile {
+  display: none;
+  min-width: 0;
+}
+.pq-demo svg.pq-topology-mobile,
+.pq-demo svg.pq-lock-mobile,
+.pq-demo svg.pq-failure-mobile {
+  min-width: 0;
+  max-height: 75svh;
+}
+@container (max-width: 640px) {
+  .pq-demo svg.pq-simple-desktop {
+    display: none;
+  }
+  .pq-demo svg.pq-simple-mobile {
+    display: block;
+    max-height: 75svh;
+  }
+}
+.pq-demo svg .pq-label {
+  fill: var(--pq-muted);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+.pq-demo svg .pq-small {
+  fill: var(--pq-muted);
+  font-size: 10px;
+}
+.pq-node-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.pq-demo svg.pq-simple .pq-label,
+.pq-demo svg.pq-simple .pq-small,
+.pq-demo svg.pq-lock-demo .pq-label,
+.pq-demo svg.pq-lock-demo .pq-small,
+.pq-demo svg.pq-lock-demo .pq-success-text,
+.pq-demo svg.pq-lock-demo .pq-error-text,
+.pq-demo svg.pq-lock-demo .pq-job-status,
+.pq-demo svg.pq-failure-demo .pq-label,
+.pq-demo svg.pq-failure-demo .pq-small,
+.pq-demo svg.pq-failure-demo .pq-error-text,
+.pq-demo svg.pq-failure-demo .pq-success-text,
+.pq-demo svg.pq-failure-demo .pq-job-status,
+.pq-demo svg.pq-failure-demo .pq-lock text,
+.pq-demo svg.pq-topology .pq-label,
+.pq-demo svg.pq-topology .pq-small,
+.pq-demo svg.pq-topology .pq-job-status {
+  font-size: 14px;
+}
+.pq-demo svg.pq-simple .pq-node-title,
+.pq-demo svg.pq-lock-demo .pq-node-title,
+.pq-demo svg.pq-failure-demo .pq-node-title,
+.pq-demo svg.pq-topology .pq-node-title {
+  font-size: 15px;
+}
+.pq-node,
+.pq-store {
+  fill: var(--pq-panel);
+  stroke: var(--pq-border);
+  transition:
+    stroke 300ms ease,
+    fill 300ms ease;
+}
+.pq-store {
+  stroke: light-dark(#b1ad9f, #555347);
+}
+.pq-node-active {
+  stroke: light-dark(#b66f34, #a47950);
+}
+.pq-wire {
+  fill: none;
+  stroke: light-dark(#a6a092, #636055);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  color: light-dark(#77705e, #8d8878);
+}
+.pq-wire-active {
+  stroke: var(--pq-accent);
+  color: var(--pq-accent);
+}
+.pq-divider {
+  stroke: var(--pq-border);
+}
+.pq-orange {
+  fill: var(--pq-accent);
+}
+.pq-green {
+  fill: light-dark(#527438, #a5bb8c);
+}
+.pq-red {
+  fill: light-dark(#ae4032, #e39a8a);
+}
+.pq-demo svg .pq-error-text {
+  fill: light-dark(#ae4032, #e39a8a);
+  font-size: 10px;
+}
+.pq-node-error {
+  stroke: light-dark(#bb5848, #ce8375);
+}
+.pq-lock {
+  color: var(--pq-muted);
+}
+.pq-lock-held {
+  color: var(--pq-accent);
+}
+.pq-lock rect,
+.pq-lock path {
+  fill: none;
+  stroke: currentColor;
+  transition: stroke 250ms ease;
+}
+.pq-lock-held > rect:first-child {
+  fill: light-dark(#fff0df, #30291f);
+}
+.pq-demo svg .pq-lock text {
+  fill: currentColor;
+  font-size: 10px;
+}
+.pq-demo svg .pq-success-text {
+  fill: light-dark(#42662b, #b1c69a);
+  font-size: 10px;
+}
+.pq-failure-signal .pq-packet rect {
+  fill: light-dark(#fff0ec, #352321);
+  stroke: light-dark(#bb5848, #ce8375);
+}
+.pq-demo svg .pq-failure-signal text {
+  fill: light-dark(#ae4032, #e39a8a);
+}
+.pq-muted-dot {
+  fill: light-dark(#8c8779, #77766b);
+}
+.pq-job rect {
+  fill: light-dark(#f2f0e9, #292923);
+  stroke: light-dark(#c5c0b1, #4c4b40);
+  transition:
+    stroke 300ms ease,
+    fill 300ms ease;
+}
+.pq-job {
+  transition: opacity 300ms ease;
+}
+.pq-job-processing rect,
+.pq-job-delivering rect,
+.pq-job-acknowledging rect {
+  stroke: light-dark(#b66f34, #bb8959);
+  fill: light-dark(#fff0df, #30291f);
+}
+.pq-job-complete rect {
+  stroke: light-dark(#81996b, #536348);
+  fill: light-dark(#edf4e5, #242b21);
+}
+.pq-job-error rect {
+  stroke: light-dark(#bb5848, #ce8375);
+  fill: light-dark(#fff0ec, #352321);
+}
+.pq-demo svg .pq-job-complete .pq-job-status {
+  fill: light-dark(#42662b, #b1c69a);
+}
+.pq-job-status {
+  font-size: 10px;
+}
+.pq-packet rect {
+  fill: light-dark(#fff0df, #30271d);
+  stroke: var(--pq-accent);
+}
+.pq-demo svg .pq-packet text {
+  fill: light-dark(#914c18, #f3c69e);
+  font-size: 10px;
+}
+.pq-ack rect {
+  fill: light-dark(#edf4e5, #242b21);
+  stroke: light-dark(#527438, #a5bb8c);
+}
+.pq-demo svg .pq-ack text {
+  fill: light-dark(#42662b, #b1c69a);
+}
+.pq-phases {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: light-dark(#f2f0e9, #1c1c18);
+  border-block: 1px solid var(--pq-border);
+}
+.pq-phases > div {
+  padding: 12px 16px;
+  border-right: 1px solid var(--pq-border);
+  color: var(--pq-muted);
+  text-align: center;
+  font:
+    11px ui-monospace,
+    monospace;
+  text-transform: uppercase;
+}
+.pq-phases > div:last-child {
+  border-right: 0;
+}
+.pq-phases span {
+  margin-right: 8px;
+  opacity: 0.6;
+}
+.pq-phases [aria-current="step"] {
+  color: var(--pq-accent);
+  background: light-dark(#fff0df, #2b251e);
+  box-shadow: inset 0 2px var(--pq-accent);
+}
+.pq-narration {
+  min-height: 76px;
+  padding: 23px 28px;
+  color: light-dark(#514d42, #cbc9bc);
+}
+.pq-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 24px 22px;
+}
+.pq-controls > div {
+  display: flex;
+  gap: 6px;
+}
+.pq-controls button {
+  border: 1px solid var(--pq-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pq-ink);
+  padding: 7px 13px;
+  font-size: 12px;
+  min-width: 76px;
+}
+.pq-controls .pq-play {
+  background: light-dark(#eeece4, #292923);
+}
+.pq-controls button:hover:not(:disabled) {
+  border-color: var(--pq-muted);
+}
+.pq-controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pq-demo figcaption {
+  margin: 0;
+  border-top: 1px solid var(--pq-border);
+  padding: 18px 28px;
+  background: light-dark(#f2f0e9, #1c1c18);
+  font-size: 12px;
+  color: light-dark(#514d42, #cbc9bc);
+}
+.pq-demo figcaption span {
+  display: block;
+  color: var(--pq-muted);
+  margin-top: 5px;
+}
+@media (max-width: 600px) {
+  .pq-toolbar {
+    padding: 12px;
+  }
+  .pq-example {
+    display: none;
+  }
+  .pq-phases > div {
+    padding: 12px 4px;
+    font-size: 10px;
+  }
+  .pq-phases span {
+    margin-right: 3px;
+  }
+  .pq-narration {
+    min-height: 106px;
+    padding: 20px;
+  }
+  .pq-controls {
+    padding: 0 16px 20px;
+    flex-wrap: wrap;
+  }
+  .pq-demo figcaption {
+    padding: 18px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pq-demo,
+  .pq-demo * {
+    transition: none;
+  }
+}
