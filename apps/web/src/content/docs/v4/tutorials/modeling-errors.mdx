@@ -194,34 +194,13 @@ through every caller.
 
 ### Keep error types distinct
 
-As you saw above, an `Effect` can name several expected errors in the `Error` type
-parameter using a union. At the type level, this tells the caller every failure
-it may need to handle. At runtime, the program fails with one specific error.
-The caller needs to identify that error to decide what to do, such as retrying a
-network request or asking for a different card.
+The `Error` type parameter in `Effect<Success, Error>` can list several expected
+errors as a union. This tells callers which failures they may need to handle. At
+runtime, the program fails with one of them, and the caller may respond
+differently to each error, such as retrying a network request or asking for a
+different card.
 
-Effect provides `Data.TaggedError` for this purpose. When you define an error,
-you choose an identifier that is unique across your application. This ensures
-that the error can be distinguished from every other error:
-
-{/* prettier-ignore */}
-```ts import.meta.vitest showLineNumbers=false
-import { Data } from "effect"
-
-//                                                ┌─ Unique error identifier
-//                                                ▼
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
-```
-
-`Data.TaggedError` stores this identifier in a `_tag` property. Later, Effect
-uses `_tag` to select the matching error handler.
-
-<Aside type="tip" title="Why use a class?">
-  In TypeScript a class is both a type and a value. One declaration gives you
-  the error type to name in a signature and the constructor to build it.
-</Aside>
-
-Here are the original error definitions:
+There is a problem, however, with the original error definitions:
 
 ```ts twoslash import.meta.vitest showLineNumbers=false
 class NetworkError extends Error {}
@@ -235,7 +214,8 @@ These classes are distinct at runtime, so `instanceof` works. At the type level,
 however, they have the same shape. TypeScript cannot distinguish them in an
 `Effect`'s `Error` union.
 
-Replace only the error definitions with `Data.TaggedError`:
+The Effect library solves this with `Data.TaggedError`. Give each error an
+identifier that is unique across your application:
 
 ```ts twoslash import.meta.vitest showLineNumbers=false
 import { Data } from "effect"
@@ -245,9 +225,20 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+
+const error = new NetworkError()
+console.log(error._tag)
+// Output: "NetworkError"
 ```
 
-Their unique identifiers keep the three error types distinct in the union.
+These identifiers keep the error types distinct in the union.
+`Data.TaggedError` stores each identifier in a `_tag` property, which Effect
+later uses to select the matching error handler.
+
+<Aside type="tip" title="Why use a class?">
+  In TypeScript a class is both a type and a value. One declaration gives you
+  the error type to name in a signature and the constructor to build it.
+</Aside>
 
 ## Return errors instead of throwing them
 
