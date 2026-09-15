@@ -56,6 +56,7 @@ type PaymentToken =
   | "tok_invalid" // The token is not valid
   | "tok_timeout" // The provider is unreachable
 
+// Simulates the payment provider
 const authorizePayment = async (
   token: PaymentToken,
 ): Promise<Authorization> => {
@@ -82,6 +83,7 @@ const authorizePayment = async (
   throw new InvalidTokenError()
 }
 
+// Calls the payment provider from application code
 const processPayment = async (token: PaymentToken) => {
   try {
     const payment = await authorizePayment("tok_declined")
