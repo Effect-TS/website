@@ -37,24 +37,26 @@ Here are common implementations of `authorizePayment` and `processPayment`
 without Effect:
 
 ```ts twoslash import.meta.vitest
-class NetworkError extends Error {}
-
-class ExpiredCardError extends Error {}
-
-class InvalidTokenError extends Error {}
-
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
-
-// Sandbox tokens make results reproducible
+// Input: sandbox tokens make results reproducible
 type PaymentToken =
   | "tok_authorized" // The provider authorizes the payment
   | "tok_declined" // The provider declines the payment
   | "tok_expiredcard" // The card is expired
   | "tok_invalid" // The token is not valid
   | "tok_timeout" // The provider is unreachable
+
+// Output
+interface Authorization {
+  readonly id: string
+  readonly status: "authorized" | "declined"
+}
+
+// Errors
+class NetworkError extends Error {}
+
+class ExpiredCardError extends Error {}
+
+class InvalidTokenError extends Error {}
 
 // Simulates the payment provider
 const authorizePayment = async (
