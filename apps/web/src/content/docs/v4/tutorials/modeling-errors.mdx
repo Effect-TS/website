@@ -15,10 +15,10 @@ so TypeScript tracks it through every caller.
 
 You use two functions throughout the tutorial:
 
-| Function           | Description                                                                                                       |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `authorizePayment` | Simulates the payment provider: a sandbox token produces an authorization, a decline, or one of the errors below. |
-| `processPayment`   | Calls `authorizePayment`. This second function shows what happens to errors when one function calls another.      |
+| Function           | Description                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `authorizePayment` | Simulates the payment provider: a sandbox token produces an authorization, a decline, or one of the errors below.                          |
+| `processPayment`   | Calls `authorizePayment` and turns the result into an HTTP response. It also shows what happens to errors when one function calls another. |
 
 `authorizePayment` can fail three ways:
 
@@ -85,23 +85,24 @@ const authorizePayment = async (
   throw new InvalidTokenError()
 }
 
-// Calls the payment provider from application code
-const processPayment = async (token: PaymentToken) => {
+// Turns the provider result into an HTTP response
+const processPayment = async (token: PaymentToken): Promise<Response> => {
   try {
-    const payment = await authorizePayment("tok_declined")
+    const authorization = await authorizePayment(token)
+    return Response.json(authorization)
   } catch (error) {
     // `error` is `unknown`. TypeScript does not know which errors
     // `authorizePayment` can throw.
     if (error instanceof ExpiredCardError) {
-      // ...
+      return new Response("Card expired", { status: 402 })
     }
 
     if (error instanceof InvalidTokenError) {
-      // ...
+      return new Response("Invalid payment token", { status: 400 })
     }
 
     if (error instanceof NetworkError) {
-      // ...
+      return new Response("Payment provider unavailable", { status: 503 })
     }
 
     throw error
@@ -240,110 +241,27 @@ later uses to select the matching error handler.
   the error type to name in a signature and the constructor to build it.
 </Aside>
 
-### Rewrite the payment flow with Effect
+### Return and propagate typed errors
 
-Now you build the program with Effect. An `Effect` is lazily executed: creating one doesn't run it. It describes a program that can succeed or fail.
+The error types are ready. To make them part of the return type, define
+`authorizePayment` with `Effect.fn` so it returns an `Effect` instead of a
+`Promise`.
 
-Here is the same two-step program, first with a `Promise`, then with an `Effect`:
+The syntax maps to familiar `async` / `await` code:
 
-<div class="not-prose my-6 grid grid-cols-1 gap-x-6 md:grid-cols-2">
+| Operation               | `async` / `await`               | Effect                                 |
+| ----------------------- | ------------------------------- | -------------------------------------- |
+| Define the function     | `async (token) => { ... }`      | `Effect.fn(function* (token) { ... })` |
+| Use a successful result | `await authorizePayment(token)` | `yield* authorizePayment(token)`       |
+| Succeed                 | `return authorization`          | `return authorization`                 |
+| Fail                    | `throw new ExpiredCardError()`  | `return yield* new ExpiredCardError()` |
 
-<div>
-
-**Promise**
-
-```ts twoslash import.meta.vitest showLineNumbers=false
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
-
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-const authorizePayment = async (
-  token: PaymentToken,
-): Promise<Authorization> => {
-  if (token === "tok_declined") {
-    return { id: "pauth_456", status: "declined" }
-  }
-
-  return { id: "pauth_123", status: "authorized" }
-}
-// ---cut---
-const program = async () => {
-  const first = await authorizePayment("tok_authorized")
-  const second = await authorizePayment("tok_declined")
-
-  return { first: first.status, second: second.status }
-}
-
-await program() // => { first: "authorized", second: "declined" }
-```
-
-</div>
-
-<div>
-
-**Effect**
-
-```ts twoslash import.meta.vitest showLineNumbers=false
-import { Effect } from "effect"
-
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
-
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-const authorizePayment = (token: PaymentToken): Effect.Effect<Authorization> =>
-  Effect.succeed(
-    token === "tok_declined"
-      ? { id: "pauth_456", status: "declined" }
-      : { id: "pauth_123", status: "authorized" },
-  )
-// ---cut---
-const program = Effect.gen(function* () {
-  const first = yield* authorizePayment("tok_authorized")
-  const second = yield* authorizePayment("tok_declined")
-
-  return { first: first.status, second: second.status }
-})
-
-await Effect.runPromise(program) // => { first: "authorized", second: "declined" }
-```
-
-</div>
-
-</div>
-
-Same shape, three swaps:
-
-- `async function` becomes `Effect.gen(function* ...)`
-- `await` becomes `yield*`
-- `await program()` becomes `await Effect.runPromise(program)`
-
-If a step returns an error, the rest do not run, the same way a thrown error stops an `async`
-function.
-
-Now refactor `authorizePayment` with Effect.
-
-`return yield*` returns the same way as a success, and the rest of the `Effect` stops.
-There is no `throw` and no outer `catch`. The error gets added the `Error` type parameter,
-where TypeScript tracks it:
+Unlike `throw`, the failure in the last row becomes part of the returned
+`Effect` type. `Effect.fn` infers both the success and error types from the
+function body:
 
 ```ts twoslash
-import { Effect, Data } from "effect"
+import { Data, Effect } from "effect"
 
 interface Authorization {
   readonly id: string
@@ -363,38 +281,47 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 // ---cut---
-const authorizePayment = (
-  token: PaymentToken,
-): Effect.Effect<
-  Authorization,
-  ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
+const authorizePayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
 
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
 
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
 
-    if (token === "tok_declined") {
-      return { id: "pauth_456", status: "declined" }
-    }
+  const authorization: Authorization =
+    token === "tok_declined"
+      ? { id: "pauth_456", status: "declined" }
+      : { id: "pauth_123", status: "authorized" }
 
-    return { id: "pauth_123", status: "authorized" }
-  })
+  return authorization
+})
 ```
 
-Refactor `processPayment` with Effect. Now calls `authorizePayment` and returns its result. It
-inherits the three errors, so it sees them:
+From the three failing branches and the successful `return`, TypeScript infers
+this signature:
 
-```ts import.meta.vitest twoslash
-import { Effect, Data } from "effect"
+```ts showLineNumbers=false
+declare const authorizePayment: (
+  token: PaymentToken,
+) => Effect.Effect<
+  Authorization,
+  ExpiredCardError | InvalidTokenError | NetworkError
+>
+```
+
+Now rewrite `processPayment`. Its body only describes the successful path. If
+`authorizePayment` succeeds, `yield*` gives it the `Authorization`. If it fails,
+Effect stops the function and propagates the error, so no `try` / `catch` is
+needed:
+
+```ts twoslash
+import { Data, Effect } from "effect"
 
 interface Authorization {
   readonly id: string
@@ -414,56 +341,32 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 
-const authorizePayment = (
+declare const authorizePayment: (
   token: PaymentToken,
-): Effect.Effect<
+) => Effect.Effect<
   Authorization,
   ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
-
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
-
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
-    if (token === "tok_declined") {
-      return { id: "pauth_456", status: "declined" }
-    }
-
-    return { id: "pauth_123", status: "authorized" }
-  })
+>
 // ---cut---
-//    ┌─ (token: PaymentToken) => Effect.Effect<Authorization, ExpiredCardError | InvalidTokenError | NetworkError>
-//    ▼
-const processPayment = (token: PaymentToken) =>
-  Effect.gen(function* () {
-    const authorization = yield* authorizePayment(token)
-
-    return authorization
-  })
-
-await Effect.runPromise(processPayment("tok_authorized")) // => { id: "pauth_123", status: "authorized" }
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  const authorization = yield* authorizePayment(token)
+  return Response.json(authorization)
+})
 ```
 
-TypeScript inferred the `Error` type parameter as the union of the three errors
-you return.
+The success type changes to `Response`, while the same error union propagates:
 
-<Aside type="tip" title="More delegation to TypeScript">
-  TypeScript infers both type parameters from the steps you build, so you rarely
-  write an `Effect` signature by hand.
-</Aside>
+```ts showLineNumbers=false
+declare const processPayment: (
+  token: PaymentToken,
+) => Effect.Effect<
+  Response,
+  ExpiredCardError | InvalidTokenError | NetworkError
+>
+```
 
-<Aside type="note" title="Checkpoint">
-  You now build the work with `Effect.gen`, take each success with `yield*`, and
-  fail by returning a tagged error with `return yield*`.
-</Aside>
+`processPayment` still leaves those errors unhandled. The next section shows
+how to handle them.
 
 ## Handle the expected errors you modeled
 
