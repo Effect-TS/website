@@ -596,14 +596,19 @@ const captureEffect: Effect.Effect<Authorization, never> = capturePayment({
   defect.
 </Aside>
 
-### Stop tracking errors no caller can handle
+### Treat typed errors as fatal at a boundary
 
-Sometimes a reusable function exposes typed errors, but a particular program
-has no useful way to recover from them. For example, a nightly reconciliation
-job may need to stop and alert its owner when any payment fails.
+`processPayment` exposes typed errors because some callers can recover from
+them. A nightly reconciliation job, however, may choose to stop and alert its
+owner whenever a payment returns an error.
 
-At that boundary, `Effect.orDie` converts every typed error into a defect. The
-resulting `Effect` has `never` as its `Error` type parameter:
+The job makes this decision where it calls `processPayment`. This is a boundary,
+the point where reusable Effect code meets the application code that decides
+what happens next.
+
+At this boundary, `Effect.orDie` makes the decision explicit. It converts every
+typed error into a defect, so the resulting `Effect` has `never` as its `Error`
+type parameter:
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -624,9 +629,14 @@ const reconcile: Effect.Effect<Response, never> = processPayment(
 ).pipe(Effect.orDie)
 ```
 
-Inside `processPayment`, the three errors remain typed. `Effect.orDie` changes
-only the `Effect` returned at this boundary. It does not turn an expired card
-into a bug. It says that `reconcile` has chosen not to recover from it.
+`processPayment` still exposes the same three typed errors to its other callers.
+`Effect.orDie` changes only `reconcile`.
+
+<Aside type="note" title="Typed errors do not force recovery">
+  A caller is not required to handle every typed error. It can let errors
+  propagate, convert selected errors into defects with `Effect.catchTag` and
+  `Effect.die`, or convert the entire error channel with `Effect.orDie`.
+</Aside>
 
 ### Handle defects at the application boundary
 
