@@ -529,11 +529,11 @@ When all the errors are handled, the `Error` type parameter becomes `never`.
 
 ## Model unexpected errors as defects
 
-The `Error` type parameter tracks failures a caller can recover from. Some
-failures do not belong there. A broken invariant or an impossible state should
-stop the computation because no handler can make it safe to continue.
+The `Error` type parameter tracks expected errors a caller can recover from.
+Some problems do not belong there. A broken invariant or an impossible state
+should stop the computation because no handler can make it safe to continue.
 
-Effect calls such a failure an **unexpected error**, or a **defect**. Defects do
+Effect calls such a problem an **unexpected error**, or a **defect**. Defects do
 not appear in the `Error` type parameter. At runtime, Effect stores the reason
 the computation stopped in a value called a `Cause`.
 
@@ -688,50 +688,121 @@ const reconcile: Effect.Effect<Response, never> = processPayment(
 ### Handle defects only at a safe boundary
 
 Defects normally stop the affected computation. Most code should leave them
-alone. An application boundary, such as an HTTP handler or job runner, may use
-`Effect.catchDefect` when it can report a known defect and continue safely.
+alone. An HTTP handler is a safe boundary for `DoubleCaptureError`: it can end
+the current request with a `500` response without resuming the payment operation,
+while the server continues handling other requests.
+
+The HTTP handler needs to inspect the defect before deciding whether it can
+safely return a response. `Effect.catchDefect` runs a handler when an `Effect`
+stops with a defect.
+
+The value passed to that handler is `unknown` by design. Defects are not listed
+in the `Error` type parameter, so TypeScript cannot know their shape. The
+handler must narrow the value at runtime and leave anything it does not
+recognize fatal.
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly id: string
+  readonly status: "authorized" | "declined"
+}
+
+class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
+class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
 
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
   readonly id: string
 }> {}
 
-const paymentEffect = Effect.die(
-  new DoubleCaptureError({ id: "pauth_123" }),
-).pipe(
-  Effect.catchDefect((defect) =>
-    defect instanceof DoubleCaptureError
-      ? Effect.succeed(
-          new Response(`reported: ${defect.id} already captured`, {
-            status: 500,
-          }),
-        )
-      : Effect.die(defect),
-  ),
+type PaymentToken =
+  | "tok_authorized"
+  | "tok_declined"
+  | "tok_expiredcard"
+  | "tok_invalid"
+  | "tok_timeout"
+
+const authorizePayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
+
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
+
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
+
+  const authorization: Authorization =
+    token === "tok_declined"
+      ? { id: "pauth_456", status: "declined" }
+      : { id: "pauth_123", status: "authorized" }
+
+  return authorization
+})
+
+const captured = new Set(["pauth_123"])
+
+const capturePayment = Effect.fn(function* (authorization: Authorization) {
+  if (captured.has(authorization.id)) {
+    return yield* Effect.die(
+      new DoubleCaptureError({
+        id: authorization.id,
+      }),
+    )
+  }
+
+  captured.add(authorization.id)
+
+  return authorization
+})
+
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  const authorization = yield* authorizePayment(token)
+
+  if (authorization.status === "authorized") {
+    yield* capturePayment(authorization)
+  }
+
+  return Response.json(authorization)
+})
+// ---cut---
+// `catchDefect` leaves the expected errors in the type.
+const requestEffect: Effect.Effect<
+  Response,
+  ExpiredCardError | InvalidTokenError | NetworkError
+> = processPayment("tok_authorized").pipe(
+  Effect.catchDefect((defect) => {
+    if (defect instanceof DoubleCaptureError) {
+      return Effect.succeed(
+        new Response(`${defect.id} already captured`, {
+          status: 500,
+        }),
+      )
+    }
+
+    return Effect.die(defect)
+  }),
 )
 
-const res = await Effect.runPromise(paymentEffect)
+const res = await Effect.runPromise(requestEffect)
 res.status // => 500
-await res.text() // => "reported: pauth_123 already captured"
+await res.text() // => "pauth_123 already captured"
 ```
 
-`Effect.catchDefect` does not handle expected errors. They remain in the
-`Error` type parameter for `Effect.catchTag` or `Effect.catchTags`. The handler
-above also sends unknown defects back to `Effect.die`, because continuing after
-an unknown failure would be unsafe.
+`Effect.catchDefect` turns the known `DoubleCaptureError` into a response. The
+type annotation shows that the three expected errors from `processPayment`
+remain. Handle those with `Effect.catchTag` or `Effect.catchTags`. The handler
+sends unknown defects back to `Effect.die` because continuing would be unsafe.
 
-As a rule of thumb:
-
-- Prefer the typed operators for the errors you modeled: `Effect.catchTag`
-  and `Effect.catchTags`.
-- Let defects stop the computation unless a boundary can continue safely.
-
-<Aside type="note" title="Checkpoint">
-  Expected errors appear in the `Error` type parameter and are handled as part
-  of normal control flow. Defects stay outside that type and normally stop the
-  computation. Inspect them only at application boundaries.
+<Aside type="note" title="Recovery replaces the stopped computation">
+  `Effect.catchDefect` does not resume the code after a defect stops it. Its
+  handler supplies a new outcome for the `Effect` it wraps. Here, the payment
+  remains stopped and only the HTTP request completes with a `500` response.
 </Aside>
 
 ## Review typed errors and defects
