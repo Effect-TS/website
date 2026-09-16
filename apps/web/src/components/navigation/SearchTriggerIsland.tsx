@@ -119,7 +119,7 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
   return (
     <button
       type="button"
-      aria-label="Open search"
+      aria-label="Search"
       aria-keyshortcuts={shortcut.aria}
       onClick={onClick}
       className={cn(
@@ -128,7 +128,6 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
       )}
     >
       <Search className="h-4.5 w-4.5" aria-hidden="true" />
-      <span>Search</span>
       <kbd
         aria-hidden="true"
         className="inline-flex items-center justify-center gap-0.5 text-[12px] leading-none text-muted-foreground"
