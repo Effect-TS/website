@@ -607,7 +607,7 @@ await Effect.runPromise(outcome) // => "Provider unreachable, try again"
 Two more rules TypeScript enforces:
 
 1. Every key must be a `_tag` from the union. A typo does not compile.
-1. The result keeps what the table misses: `Effect.Effect<Authorization, InvalidTokenError>`.
+2. The result keeps what the table misses: `Effect.Effect<Authorization, InvalidTokenError>`.
 
 When all the errors are handled, the `Error` type parameter becomes `never`:
 
@@ -658,29 +658,22 @@ const handle = (token: PaymentToken) =>
 
 ## Modeling unexpected errors: defects
 
-Every error so far is one a caller can respond to. These are expected errors. But `never` does not mean the code cannot fail.
+Every error so far is one a caller can handle. These are expected errors. But `never` does not mean the code cannot fail.
 
-Some conditions must always hold, or the payment step charges a customer wrong. Each is an invariant:
+One condition must always hold: an authorization is captured once, never twice. This condition is an invariant. If it breaks, the payment step charges the customer twice.
 
-- An authorization is captured once, never twice.
-- The provider returns a status its contract promises.
+When an invariant breaks, no handler can respond. The safe action is to stop and report.
 
-When one breaks, no handler can respond, so the safe action is to stop and report.
+Effect calls this failure an **unexpected error**, or a **defect**: an impossible state, a broken invariant, or a bug in third-party code.
 
-Effect calls a failure like this an **unexpected error**, or a **defect**: an impossible state, a broken invariant, or a bug in third-party code.
+A defect is not tracked in the `Error` type parameter. The runtime records it in a `Cause`.
 
-Unlike an expected error, a defect is not tracked in the `Error` type parameter; the runtime records it in a `Cause`.
+The capture step enforces this invariant. The ledger fixture starts with the payment already captured. So this run is the retry, and the invariant breaks.
 
-The capture step enforces the first invariant. The ledger fixture starts with
-the payment already captured, so this run is the retry, and the invariant
-breaks.
-
-No caller can undo a double capture, so a typed error would promise a handler
-that cannot exist. The step dies instead: `Effect.die` sends the error to the
-`Cause`, and the `Error` type parameter stays empty.
+No caller can undo a double capture. A typed error would promise a handler that cannot exist. The step dies instead. `Effect.die` sends the error to the `Cause`, and the `Error` type parameter stays empty.
 
 ```ts twoslash import.meta.vitest collapse={3-12,18-45} ins={14-16}
-import { Data, Effect } from "effect"
+import { Effect, Data } from "effect"
 
 interface Authorization {
   readonly id: string
@@ -766,21 +759,13 @@ const program = Effect.gen(function* () {
 await Effect.runPromise(program) // => "terminated: pauth_123 already captured"
 ```
 
-The signature promises `Effect.Effect<Authorization>` with no `Error` type
-parameter, yet the double capture fails the run. The failure never entered the
-type: it became a defect, and `Effect.catchDefect` caught it. Without that
-handler, `Effect.runPromise` rejects. Unknown defects stay fatal, so the handler
-re-raises them with `Effect.die`.
+The signature promises `Effect.Effect<Authorization>` with no `Error` type parameter. Yet the double capture fails the run. The failure never entered the type. It became a defect, and `Effect.catchDefect` caught it. Without that handler, `Effect.runPromise` rejects. Unknown defects stay fatal, so the handler re-raises them with `Effect.die`.
 
 ### Remove errors no caller can handle from the type
 
-`Effect.orDie` is a modeling decision: no caller can do anything with these
-errors, so stop tracking them. Every typed error becomes a defect, and the
-`Error` type parameter disappears.
+`Effect.orDie` is a modeling decision. No caller can handle these errors, so stop tracking them. Every typed error becomes a defect, and the `Error` type parameter disappears.
 
-Apply it at the boundary between your Effect code and its callers: inside, the
-code still fails with typed errors, but the signature the caller sees has none
-left.
+Apply it at the boundary between your Effect code and its callers. Inside, the code still fails with typed errors. The signature the caller sees has none left.
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -834,25 +819,20 @@ try {
 }
 ```
 
-A nightly reconciliation job is one such boundary: when the card is expired, the
-job crashes and alerts whoever owns it. The failure crossed the boundary as a
-defect, so `Effect.runPromise` rejected with the `ExpiredCardError` itself.
+A nightly reconciliation job is one such boundary. When the card is expired, the job crashes and alerts its owner. The failure crossed the boundary as a defect. So `Effect.runPromise` rejected with the `ExpiredCardError` itself.
 
 ### Handle defects at the application boundary
 
-A defect is a bug. A handler cannot fix it. But the boundary decides what
-happens next, once, in one place: the job runner, the HTTP handler, the batch
-loop. For each defect, ask:
+A defect is a bug. A handler cannot fix it. But the boundary decides what happens next, once, in one place: the job runner, the HTTP handler, the batch loop. For each defect, choose:
 
-1. Could a caller respond to this? Then it is not a bug. Model it as a typed
-   error: a class with a `_tag`, named in the `Error` type parameter.
-1. Is it a bug? Report it, and let the program terminate.
-1. Can the program continue without it? Catch it, report it, and go on.
+1. Report it, and let the program stop.
+2. Or catch it, report it, and let the program continue.
+
+If a caller can respond to the failure, it is not a defect. Model it as a typed error instead.
 
 Inside the program, defects stay fatal. Only the boundary decides.
 
-`Effect.catchDefect` handles defects only. The next example shows that typed
-errors pass through unchanged.
+`Effect.catchDefect` handles defects only. The next example shows that typed errors pass through unchanged.
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -866,7 +846,7 @@ class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
-  readonly authorizationId: string
+  readonly id: string
 }> {}
 
 type PaymentToken =
@@ -901,7 +881,7 @@ const processPayment = (
 const outcome = processPayment("tok_expiredcard").pipe(
   Effect.catchDefect((defect) =>
     defect instanceof DoubleCaptureError
-      ? Effect.succeed(`reported: ${defect.authorizationId} already captured`)
+      ? Effect.succeed(`reported: ${defect.id} already captured`)
       : Effect.die(defect),
   ),
 )
@@ -913,10 +893,7 @@ try {
 }
 ```
 
-The `catchDefect` handler never ran. `catch (failure)`, not `catch (defect)`:
-the typed error was never a defect. It reached `runPromise` untouched,
-exactly as its type said, with all three members still in the `Error` type
-parameter.
+The `catchDefect` handler never ran. The result is `catch (failure)`, not `catch (defect)`. The typed error was never a defect. It reached `runPromise` unchanged, exactly as its type said, with all three members still in the `Error` type parameter.
 
 A rule of thumb for the whole section:
 
@@ -927,18 +904,18 @@ A rule of thumb for the whole section:
 
 <Aside type="note" title="Checkpoint">
   "Did I cover every case?" has two answers now. For the errors you modeled, the
-  `Error` type parameter answers: it shrinks as you handle them. For the ones
-  you didn't, the boundary answers: `catchDefect` sees them at the edge, where
-  you report them and let the program terminate.
+  `Error` type parameter answers. It shrinks as you handle them. For the errors
+  you did not model, the boundary answers. `catchDefect` sees them at the edge,
+  where you report them and let the program stop.
 </Aside>
 
 ## Let's review what we built
 
 You can now do five things. Each one maps to an operator you used.
 
-- Read an `Effect` signature as a contract. The `Success` type parameter names the result, and the `Error` type parameter names every error a caller can handle.
-- Make each error visible to TypeScript with `Data.TaggedError`, so TypeScript tracks it instead of losing it as `unknown` in a `catch`.
-- Return errors instead of throwing them. Inside `Effect.gen`, fail with `return yield* new XError()`, and the `Error` type parameter tracks each one.
+- Read an `Effect` signature as a contract. The `Success` type parameter names the result. The `Error` type parameter names every error a caller can handle.
+- Make each error visible to TypeScript with `Data.TaggedError`. TypeScript tracks it instead of losing it as `unknown` in a `catch`.
+- Return errors instead of throwing them. Inside `Effect.gen`, fail with `return yield* new XError()`. The `Error` type parameter tracks each one.
 - Handle one `_tag` with `Effect.catchTag`, and many with `Effect.catchTags`. Each handled tag leaves the `Error` union. An empty union is `never`.
 - Keep defects apart from typed errors. `Effect.die` records a defect in the `Cause`. `Effect.catchDefect` handles defects at the boundary. `Effect.orDie` converts tracked errors you no longer handle.
 
