@@ -807,13 +807,17 @@ sends unknown defects back to `Effect.die` because continuing would be unsafe.
 
 ## Review typed errors and defects
 
-You can now do five things. Each one maps to an operator you used.
+Read `Effect<Success, Error>` as a contract. `Success` is the result, and the
+`Error` union contains the expected errors still available to the caller. Use
+the situation to decide how that contract should change:
 
-- Read an `Effect` signature as a contract. The `Success` type parameter names the result. The `Error` type parameter names every error a caller can handle.
-- Make each error visible to TypeScript with `Data.TaggedError`. TypeScript tracks it instead of losing it as `unknown` in a `catch`.
-- Return errors instead of throwing them. Inside `Effect.fn`, fail with `return yield* new XError()`. The `Error` type parameter tracks each one.
-- Handle one `_tag` with `Effect.catchTag`, and many with `Effect.catchTags`. Each handled tag leaves the `Error` union. An empty union is `never`.
-- Keep defects apart from typed errors. `Effect.die` records a defect in the `Cause`. `Effect.catchDefect` handles defects at the boundary. `Effect.orDie` converts tracked errors you no longer handle.
+| When                                         | What to do                                                                                     | Effect on the type                                      |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| At least one caller may recover              | Model an expected error with `Data.TaggedError` and return it with `yield*`                    | The error enters the `Error` union                      |
+| A caller handles an expected error           | Use `Effect.catchTag` or `Effect.catchTags`                                                    | The handled error leaves the `Error` union              |
+| A boundary chooses not to recover            | Use `Effect.catchTag` with `Effect.die` for selected errors, or `Effect.orDie` for all of them | Those errors become defects and leave the `Error` union |
+| An invariant breaks                          | Use `Effect.die`                                                                               | The defect enters the `Cause`, not the `Error` union    |
+| A boundary can safely contain a known defect | Use `Effect.catchDefect` and send unknown defects back to `Effect.die`                         | Expected errors remain unchanged                        |
 
 ## Further reading
 
