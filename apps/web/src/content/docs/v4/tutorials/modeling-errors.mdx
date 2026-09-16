@@ -370,11 +370,15 @@ how to handle them.
 
 ## Handle the expected errors you modeled
 
-The signature of `authorizePayment` lists the expected errors. The caller uses the list to handle them.
+`processPayment` exposes the errors propagated from `authorizePayment`. Its
+caller can use that list to handle them.
 
 `Effect.catchTag` takes the `_tag` of one error and a handler. The handler is an `Effect` that receives the typed error as a parameter, not `unknown`.
 
-The example uses method `.pipe` (available to every `Effect`), to apply the handler to the `Effect`, like method chaining:
+The example uses method `.pipe` (available to every `Effect`), to apply the handler to the `Effect`, like method chaining.
+
+Creating an `Effect` does not run it. `Effect.runPromise` runs it and returns a
+`Promise` for its successful value:
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -395,36 +399,32 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 
-const processPayment = (
-  token: PaymentToken,
-): Effect.Effect<
-  Authorization,
-  ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
-
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
-
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
-    return { id: "pauth_123", status: "authorized" }
-  })
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
+  return Response.json({
+    id: token === "tok_declined" ? "pauth_456" : "pauth_123",
+    status: token === "tok_declined" ? "declined" : "authorized",
+  } satisfies Authorization)
+})
 // ---cut---
 const outcome = processPayment("tok_expiredcard").pipe(
   Effect.catchTag("ExpiredCardError", (error) =>
     //                                 └─ `ExpiredCardError`
-    Effect.succeed("Card expired, ask for another"),
+    Effect.succeed(new Response("Card expired", { status: 402 })),
   ),
 )
 
-await Effect.runPromise(outcome) // => "Card expired, ask for another"
+const response = await Effect.runPromise(outcome)
+response.status // => 402
+await response.text() // => "Card expired"
 ```
 
 The handled error leaves the `Error` type parameter. The others stay:
@@ -433,16 +433,11 @@ The handled error leaves the `Error` type parameter. The others stay:
 ```ts showLineNumbers=false
 //                                    ┌─ `ExpiredCardError` is removed
 //                                    ▼
-Effect.Effect<string | Authorization, InvalidTokenError | NetworkError>
+Effect.Effect<Response, InvalidTokenError | NetworkError>
 ```
 
-<Aside type="note" title="Success type widens too">
-  The handler returns `Effect.succeed("Card expired, ask for another")`, a
-  `string`, while the original success was an `Authorization`.
-
-So the `Success` type parameter now covers both: `string | Authorization`.
-
-</Aside>
+The handler also returns a `Response`, so the `Success` type parameter does not
+change.
 
 TypeScript now has another job: it won't compile a handler for a `_tag` that isn't in the union.
 
@@ -469,48 +464,47 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 
-const processPayment = (
-  token: PaymentToken,
-): Effect.Effect<
-  Authorization,
-  ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
-
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
-
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
-    return { id: "pauth_123", status: "authorized" }
-  })
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
+  return Response.json({
+    id: token === "tok_declined" ? "pauth_456" : "pauth_123",
+    status: token === "tok_declined" ? "declined" : "authorized",
+  } satisfies Authorization)
+})
 // ---cut---
 const outcome = processPayment("tok_timeout").pipe(
   Effect.catchTags({
     //                 ┌─ `ExpiredCardError`
     //                 ▼
     ExpiredCardError: (error) =>
-      Effect.succeed("Card expired, ask for another"),
+      Effect.succeed(new Response("Card expired", { status: 402 })),
 
     //             ┌─ `NetworkError`
     //             ▼
-    NetworkError: (error) => Effect.succeed("Provider unreachable, try again"),
+    NetworkError: (error) =>
+      Effect.succeed(
+        new Response("Payment provider unavailable", { status: 503 }),
+      ),
   }),
 )
 
-await Effect.runPromise(outcome) // => "Provider unreachable, try again"
+const response = await Effect.runPromise(outcome)
+response.status // => 503
+await response.text() // => "Payment provider unavailable"
 ```
 
 Two more rules TypeScript enforces:
 
 1. Every key must be a `_tag` from the union. A typo does not compile.
-2. The result keeps what the table misses: `Effect.Effect<Authorization, InvalidTokenError>`.
+2. The result keeps what the table misses: `Effect.Effect<Response, InvalidTokenError>`.
 
 When all the errors are handled, the `Error` type parameter becomes `never`:
 
@@ -536,18 +530,23 @@ type PaymentToken =
 declare const processPayment: (
   token: PaymentToken,
 ) => Effect.Effect<
-  Authorization,
+  Response,
   ExpiredCardError | InvalidTokenError | NetworkError
 >
 // ---cut---
-//    ┌─ (token: PaymentToken) => Effect.Effect<string | Authorization, never>
+//    ┌─ (token: PaymentToken) => Effect.Effect<Response, never>
 //    ▼
 const handle = (token: PaymentToken) =>
   processPayment(token).pipe(
     Effect.catchTags({
-      ExpiredCardError: () => Effect.succeed("..."),
-      InvalidTokenError: () => Effect.succeed("..."),
-      NetworkError: () => Effect.succeed("..."),
+      ExpiredCardError: () =>
+        Effect.succeed(new Response("Card expired", { status: 402 })),
+      InvalidTokenError: () =>
+        Effect.succeed(new Response("Invalid payment token", { status: 400 })),
+      NetworkError: () =>
+        Effect.succeed(
+          new Response("Payment provider unavailable", { status: 503 }),
+        ),
     }),
   )
 ```
@@ -575,7 +574,7 @@ The capture step enforces this invariant. The ledger fixture starts with the pay
 
 No caller can undo a double capture. A typed error would promise a handler that cannot exist. The step dies instead. `Effect.die` sends the error to the `Cause`, and the `Error` type parameter stays empty.
 
-```ts twoslash import.meta.vitest collapse={3-12,18-45} ins={14-16}
+```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
 
 interface Authorization {
@@ -600,69 +599,82 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 
-const processPayment = (
-  token: PaymentToken,
-): Effect.Effect<
-  Authorization,
-  ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
+const authorizePayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
 
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
 
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
 
-    return { id: "pauth_123", status: "authorized" }
-  })
+  const authorization: Authorization =
+    token === "tok_declined"
+      ? { id: "pauth_456", status: "declined" }
+      : { id: "pauth_123", status: "authorized" }
 
-// Tutorial fixture: an in-memory ledger, so captures are reproducible.
+  return authorization
+})
+
+// An in-memory ledger makes captures reproducible.
 // The first attempt already captured the payment. This run is the retry.
 const captured = new Set(["pauth_123"])
 
 //    ┌─ Effect.Effect<Authorization>: no `Error` type parameter
 //    ▼
-const capturePayment = (
-  authorization: Authorization,
-): Effect.Effect<Authorization> =>
-  Effect.gen(function* () {
-    if (captured.has(authorization.id)) {
-      // Invariant broken: the step dies instead of failing with a
-      // typed error no caller could handle.
-      return yield* Effect.die(
-        new DoubleCaptureError({
-          id: authorization.id,
-        }),
-      )
-    }
+const capturePayment = Effect.fn(function* (authorization: Authorization) {
+  if (captured.has(authorization.id)) {
+    // Invariant broken: the step dies instead of failing with a
+    // typed error no caller could handle.
+    return yield* Effect.die(
+      new DoubleCaptureError({
+        id: authorization.id,
+      }),
+    )
+  }
 
-    captured.add(authorization.id)
+  captured.add(authorization.id)
 
-    return authorization
-  })
-
-const program = Effect.gen(function* () {
-  const payment = yield* processPayment("tok_authorized")
-
-  return yield* capturePayment(payment).pipe(
-    Effect.catchDefect((defect) =>
-      defect instanceof DoubleCaptureError
-        ? Effect.succeed(`terminated: ${defect.id} already captured`)
-        : Effect.die(defect),
-    ),
-  )
+  return authorization
 })
 
-await Effect.runPromise(program) // => "terminated: pauth_123 already captured"
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  const authorization = yield* authorizePayment(token)
+
+  if (authorization.status === "authorized") {
+    yield* capturePayment(authorization)
+  }
+
+  return Response.json(authorization)
+})
+
+const outcome = processPayment("tok_authorized").pipe(
+  Effect.catchDefect((defect) =>
+    defect instanceof DoubleCaptureError
+      ? Effect.succeed(
+          new Response(`terminated: ${defect.id} already captured`, {
+            status: 500,
+          }),
+        )
+      : Effect.die(defect),
+  ),
+)
+
+const response = await Effect.runPromise(outcome)
+response.status // => 500
+await response.text() // => "terminated: pauth_123 already captured"
 ```
 
-The signature promises `Effect.Effect<Authorization>` with no `Error` type parameter. Yet the double capture fails the run. The failure never entered the type. It became a defect, and `Effect.catchDefect` caught it. Without that handler, `Effect.runPromise` rejects. Unknown defects stay fatal, so the handler re-raises them with `Effect.die`.
+`capturePayment` has no `Error` type parameter, and `processPayment` still lists
+only the three errors from `authorizePayment`. Yet the double capture fails the
+run. `DoubleCaptureError` never entered either type. It became a defect, and
+`Effect.catchDefect` caught it. Without that handler, `Effect.runPromise`
+rejects. Unknown defects stay fatal, so the handler re-raises them with
+`Effect.die`.
 
 ### Remove errors no caller can handle from the type
 
@@ -689,29 +701,23 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 
-const processPayment = (
-  token: PaymentToken,
-): Effect.Effect<
-  Authorization,
-  ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
-
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
-
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
-    return { id: "pauth_123", status: "authorized" }
-  })
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
+  return Response.json({
+    id: token === "tok_declined" ? "pauth_456" : "pauth_123",
+    status: token === "tok_declined" ? "declined" : "authorized",
+  } satisfies Authorization)
+})
 // ---cut---
-//    ┌─ Effect.Effect<Authorization>: `Error` type parameter is gone
+//    ┌─ Effect.Effect<Response>: `Error` type parameter is gone
 //    ▼
 const reconcile = processPayment("tok_expiredcard").pipe(Effect.orDie)
 
@@ -759,32 +765,30 @@ type PaymentToken =
   | "tok_invalid"
   | "tok_timeout"
 
-const processPayment = (
-  token: PaymentToken,
-): Effect.Effect<
-  Authorization,
-  ExpiredCardError | InvalidTokenError | NetworkError
-> =>
-  Effect.gen(function* () {
-    if (token === "tok_expiredcard") {
-      return yield* new ExpiredCardError()
-    }
-
-    if (token === "tok_invalid") {
-      return yield* new InvalidTokenError()
-    }
-
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
-    return { id: "pauth_123", status: "authorized" }
-  })
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  if (token === "tok_expiredcard") {
+    return yield* new ExpiredCardError()
+  }
+  if (token === "tok_invalid") {
+    return yield* new InvalidTokenError()
+  }
+  if (token === "tok_timeout") {
+    return yield* new NetworkError()
+  }
+  return Response.json({
+    id: token === "tok_declined" ? "pauth_456" : "pauth_123",
+    status: token === "tok_declined" ? "declined" : "authorized",
+  } satisfies Authorization)
+})
 // ---cut---
 const outcome = processPayment("tok_expiredcard").pipe(
   Effect.catchDefect((defect) =>
     defect instanceof DoubleCaptureError
-      ? Effect.succeed(`reported: ${defect.id} already captured`)
+      ? Effect.succeed(
+          new Response(`reported: ${defect.id} already captured`, {
+            status: 500,
+          }),
+        )
       : Effect.die(defect),
   ),
 )
@@ -818,7 +822,7 @@ You can now do five things. Each one maps to an operator you used.
 
 - Read an `Effect` signature as a contract. The `Success` type parameter names the result. The `Error` type parameter names every error a caller can handle.
 - Make each error visible to TypeScript with `Data.TaggedError`. TypeScript tracks it instead of losing it as `unknown` in a `catch`.
-- Return errors instead of throwing them. Inside `Effect.gen`, fail with `return yield* new XError()`. The `Error` type parameter tracks each one.
+- Return errors instead of throwing them. Inside `Effect.fn`, fail with `return yield* new XError()`. The `Error` type parameter tracks each one.
 - Handle one `_tag` with `Effect.catchTag`, and many with `Effect.catchTags`. Each handled tag leaves the `Error` union. An empty union is `never`.
 - Keep defects apart from typed errors. `Effect.die` records a defect in the `Cause`. `Effect.catchDefect` handles defects at the boundary. `Effect.orDie` converts tracked errors you no longer handle.
 
