@@ -6,7 +6,7 @@ import type { Element, Root } from "hast"
  * scoped docs folders.
  *
  * Expressive Code plugins have no per-file awareness and process every block
- * whose meta contains the `twoslash` token. Only the v4 guides snippets are
+ * whose meta contains the `twoslash` token. Only the v4 tutorials snippets are
  * written against the current `effect` types — v3 docs and blog posts predate
  * them — so the token is stripped everywhere else. The plugin must run before
  * the Expressive Code rehype plugin, which is appended after the rehype plugins
@@ -14,10 +14,7 @@ import type { Element, Root } from "hast"
  */
 
 /** Docs folders whose `twoslash` blocks are type-checked at build time. */
-const TWOSLASH_SCOPES: Array<RegExp> = [
-  /docs[/\\]v4[/\\]guides[/\\]/,
-  /docs[/\\]v4[/\\]tutorials[/\\]/,
-]
+const TWOSLASH_SCOPES: Array<RegExp> = [/docs[/\\]v4[/\\]tutorials[/\\]/]
 
 const HAS_TWOSLASH = /\btwoslash\b/
 const TWOSLASH_TOKEN = /(?<=^|\s)twoslash(?=\s|$)/g
