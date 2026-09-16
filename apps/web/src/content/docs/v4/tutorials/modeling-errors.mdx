@@ -590,6 +590,53 @@ const captureEffect: Effect.Effect<Authorization, never> = capturePayment({
 
 `Effect.die` stops `captureEffect` with `DoubleCaptureError`.
 
+Now add the capture step to `processPayment`:
+
+```ts twoslash import.meta.vitest showLineNumbers=false
+import { Effect, Data } from "effect"
+
+interface Authorization {
+  readonly id: string
+  readonly status: "authorized" | "declined"
+}
+
+class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
+class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
+class NetworkError extends Data.TaggedError("NetworkError") {}
+
+type PaymentToken =
+  | "tok_authorized"
+  | "tok_declined"
+  | "tok_expiredcard"
+  | "tok_invalid"
+  | "tok_timeout"
+
+declare const authorizePayment: (
+  token: PaymentToken,
+) => Effect.Effect<
+  Authorization,
+  ExpiredCardError | InvalidTokenError | NetworkError
+>
+
+declare const capturePayment: (
+  authorization: Authorization,
+) => Effect.Effect<Authorization>
+// ---cut---
+const processPayment = Effect.fn(function* (token: PaymentToken) {
+  const authorization = yield* authorizePayment(token)
+
+  if (authorization.status === "authorized") {
+    yield* capturePayment(authorization)
+  }
+
+  return Response.json(authorization)
+})
+```
+
+`processPayment` still has the three expected errors from `authorizePayment` in
+its `Error` type parameter. `DoubleCaptureError` remains a defect, so it does
+not enter that union.
+
 <Aside type="note" title="Defects stay outside the error type">
   Effect records defects in the `Cause`, not in the `Error` type parameter. An
   `Effect<Success, never>` has no expected errors, but it can still stop with a
@@ -638,7 +685,7 @@ const reconcile: Effect.Effect<Response, never> = processPayment(
   `Effect.die`, or convert the entire error channel with `Effect.orDie`.
 </Aside>
 
-### Handle defects at the application boundary
+### Handle defects only at a safe boundary
 
 Defects normally stop the affected computation. Most code should leave them
 alone. An application boundary, such as an HTTP handler or job runner, may use
