@@ -529,19 +529,27 @@ When all the errors are handled, the `Error` type parameter becomes `never`.
 
 ## Model unexpected errors as defects
 
-Every error so far is one a caller can handle. These are expected errors. But `never` does not mean the code cannot fail.
+The `Error` type parameter tracks failures a caller can recover from. Some
+failures do not belong there. A broken invariant or an impossible state should
+stop the computation because no handler can make it safe to continue.
 
-One condition must always hold: an authorization is captured once, never twice. This condition is an invariant. If it breaks, the payment step charges the customer twice.
+Effect calls such a failure an **unexpected error**, or a **defect**. Defects do
+not appear in the `Error` type parameter. At runtime, Effect stores the reason
+the computation stopped in a value called a `Cause`.
 
-When an invariant breaks, no handler can respond. The safe action is to stop and report.
+This is why an `Effect<Success, never>` can still stop with a defect. `never`
+means there are no expected errors, not that nothing can go wrong.
 
-Effect calls this failure an **unexpected error**, or a **defect**: an impossible state, a broken invariant, or a bug in third-party code.
+### Stop when an invariant breaks
 
-A defect is not tracked in the `Error` type parameter. The runtime records it in a `Cause`.
+So far, callers could respond to every expected error in the payment example.
+Now consider a problem they cannot recover from. In card payments, capturing
+an authorization completes the charge. Each authorization may be captured only
+once. A second capture may charge the customer twice. A caller cannot recover
+from this, so the computation must stop.
 
-The capture step enforces this invariant. The ledger fixture starts with the payment already captured. So this run is the retry, and the invariant breaks.
-
-No caller can undo a double capture. A typed error would promise a handler that cannot exist. The step dies instead. `Effect.die` sends the error to the `Cause`, and the `Error` type parameter stays empty.
+`Effect.die` stops a computation with a defect. The following `capturePayment`
+function uses it when it detects a second capture:
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -551,54 +559,16 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
-
-class NetworkError extends Data.TaggedError("NetworkError") {}
-
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
   readonly id: string
 }> {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-const authorizePayment = Effect.fn(function* (token: PaymentToken) {
-  if (token === "tok_expiredcard") {
-    return yield* new ExpiredCardError()
-  }
-
-  if (token === "tok_invalid") {
-    return yield* new InvalidTokenError()
-  }
-
-  if (token === "tok_timeout") {
-    return yield* new NetworkError()
-  }
-
-  const authorization: Authorization =
-    token === "tok_declined"
-      ? { id: "pauth_456", status: "declined" }
-      : { id: "pauth_123", status: "authorized" }
-
-  return authorization
-})
-
-// An in-memory ledger makes captures reproducible.
-// The first attempt already captured the payment. This run is the retry.
+// Simulate a retry: this authorization was already charged once.
 const captured = new Set(["pauth_123"])
 
-//    ┌─ Effect.Effect<Authorization>: no `Error` type parameter
-//    ▼
+// Complete the charge without charging the same authorization twice.
 const capturePayment = Effect.fn(function* (authorization: Authorization) {
   if (captured.has(authorization.id)) {
-    // Invariant broken: the step dies instead of failing with a
-    // typed error no caller could handle.
     return yield* Effect.die(
       new DoubleCaptureError({
         id: authorization.id,
@@ -611,146 +581,69 @@ const capturePayment = Effect.fn(function* (authorization: Authorization) {
   return authorization
 })
 
-const processPayment = Effect.fn(function* (token: PaymentToken) {
-  const authorization = yield* authorizePayment(token)
-
-  if (authorization.status === "authorized") {
-    yield* capturePayment(authorization)
-  }
-
-  return Response.json(authorization)
+// `DoubleCaptureError` does not enter the typed error channel.
+const captureEffect: Effect.Effect<Authorization, never> = capturePayment({
+  id: "pauth_123",
+  status: "authorized",
 })
-
-const paymentEffect = processPayment("tok_authorized").pipe(
-  Effect.catchDefect((defect) =>
-    defect instanceof DoubleCaptureError
-      ? Effect.succeed(
-          new Response(`terminated: ${defect.id} already captured`, {
-            status: 500,
-          }),
-        )
-      : Effect.die(defect),
-  ),
-)
-
-const res = await Effect.runPromise(paymentEffect)
-res.status // => 500
-await res.text() // => "terminated: pauth_123 already captured"
 ```
 
-`capturePayment` has no `Error` type parameter, and `processPayment` still lists
-only the three errors from `authorizePayment`. Yet the double capture fails the
-run. `DoubleCaptureError` never entered either type. It became a defect, and
-`Effect.catchDefect` caught it. Without that handler, `Effect.runPromise`
-rejects. Unknown defects stay fatal, so the handler re-raises them with
-`Effect.die`.
+`Effect.die` stops `captureEffect` with `DoubleCaptureError`.
+
+<Aside type="note" title="Defects stay outside the error type">
+  Effect records defects in the `Cause`, not in the `Error` type parameter. An
+  `Effect<Success, never>` has no expected errors, but it can still stop with a
+  defect.
+</Aside>
 
 ### Stop tracking errors no caller can handle
 
-`Effect.orDie` is a modeling decision. No caller can handle these errors, so stop tracking them. Every typed error becomes a defect, and the `Error` type parameter disappears.
+Sometimes a reusable function exposes typed errors, but a particular program
+has no useful way to recover from them. For example, a nightly reconciliation
+job may need to stop and alert its owner when any payment fails.
 
-Apply it at the boundary between your Effect code and its callers. Inside, the code still fails with typed errors. The signature the caller sees has none left.
+At that boundary, `Effect.orDie` converts every typed error into a defect. The
+resulting `Effect` has `never` as its `Error` type parameter:
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
-
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
 
 class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
 class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-const processPayment = Effect.fn(function* (token: PaymentToken) {
-  if (token === "tok_expiredcard") {
-    return yield* new ExpiredCardError()
-  }
-  if (token === "tok_invalid") {
-    return yield* new InvalidTokenError()
-  }
-  if (token === "tok_timeout") {
-    return yield* new NetworkError()
-  }
-  return Response.json({
-    id: token === "tok_declined" ? "pauth_456" : "pauth_123",
-    status: token === "tok_declined" ? "declined" : "authorized",
-  } satisfies Authorization)
-})
+const processPayment: (
+  token: string,
+) => Effect.Effect<
+  Response,
+  ExpiredCardError | InvalidTokenError | NetworkError
+> = () => Effect.fail(new ExpiredCardError())
 // ---cut---
-//    ┌─ Effect.Effect<Response>: `Error` type parameter is gone
-//    ▼
-const reconcile = processPayment("tok_expiredcard").pipe(Effect.orDie)
-
-try {
-  await Effect.runPromise(reconcile)
-} catch (defect) {
-  defect instanceof ExpiredCardError && defect._tag // => "ExpiredCardError"
-}
+const reconcile: Effect.Effect<Response, never> = processPayment(
+  "tok_expiredcard",
+).pipe(Effect.orDie)
 ```
 
-A nightly reconciliation job is one such boundary. When the card is expired, the job crashes and alerts its owner. The failure crossed the boundary as a defect. So `Effect.runPromise` rejected with the `ExpiredCardError` itself.
+Inside `processPayment`, the three errors remain typed. `Effect.orDie` changes
+only the `Effect` returned at this boundary. It does not turn an expired card
+into a bug. It says that `reconcile` has chosen not to recover from it.
 
 ### Handle defects at the application boundary
 
-A defect is a bug. A handler cannot fix it. But the boundary decides what happens next, once, in one place: the job runner, the HTTP handler, the batch loop. For each defect, choose:
-
-1. Report it, and let the program stop.
-2. Or catch it, report it, and let the program continue.
-
-If a caller can respond to the failure, it is not a defect. Model it as a typed error instead.
-
-Inside the program, defects stay fatal. Only the boundary decides.
-
-`Effect.catchDefect` handles defects only. The next example shows that typed errors pass through unchanged.
+Defects normally stop the affected computation. Most code should leave them
+alone. An application boundary, such as an HTTP handler or job runner, may use
+`Effect.catchDefect` when it can report a known defect and continue safely.
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
 
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
-class NetworkError extends Data.TaggedError("NetworkError") {}
 class DoubleCaptureError extends Data.TaggedError("DoubleCaptureError")<{
   readonly id: string
 }> {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-const processPayment = Effect.fn(function* (token: PaymentToken) {
-  if (token === "tok_expiredcard") {
-    return yield* new ExpiredCardError()
-  }
-  if (token === "tok_invalid") {
-    return yield* new InvalidTokenError()
-  }
-  if (token === "tok_timeout") {
-    return yield* new NetworkError()
-  }
-  return Response.json({
-    id: token === "tok_declined" ? "pauth_456" : "pauth_123",
-    status: token === "tok_declined" ? "declined" : "authorized",
-  } satisfies Authorization)
-})
-// ---cut---
-const paymentEffect = processPayment("tok_expiredcard").pipe(
+const paymentEffect = Effect.die(
+  new DoubleCaptureError({ id: "pauth_123" }),
+).pipe(
   Effect.catchDefect((defect) =>
     defect instanceof DoubleCaptureError
       ? Effect.succeed(
@@ -762,27 +655,26 @@ const paymentEffect = processPayment("tok_expiredcard").pipe(
   ),
 )
 
-try {
-  await Effect.runPromise(paymentEffect)
-} catch (failure) {
-  failure instanceof ExpiredCardError && failure._tag // => "ExpiredCardError"
-}
+const res = await Effect.runPromise(paymentEffect)
+res.status // => 500
+await res.text() // => "reported: pauth_123 already captured"
 ```
 
-The `catchDefect` handler never ran. The result is `catch (failure)`, not `catch (defect)`. The typed error was never a defect. It reached `runPromise` unchanged, exactly as its type said, with all three members still in the `Error` type parameter.
+`Effect.catchDefect` does not handle expected errors. They remain in the
+`Error` type parameter for `Effect.catchTag` or `Effect.catchTags`. The handler
+above also sends unknown defects back to `Effect.die`, because continuing after
+an unknown failure would be unsafe.
 
-A rule of thumb for the whole section:
+As a rule of thumb:
 
 - Prefer the typed operators for the errors you modeled: `Effect.catchTag`
   and `Effect.catchTags`.
-- Use `Effect.catchDefect` only where handling the unexpected is
-  intentional and safe.
+- Let defects stop the computation unless a boundary can continue safely.
 
 <Aside type="note" title="Checkpoint">
-  "Did I cover every case?" has two answers now. For the errors you modeled, the
-  `Error` type parameter answers. It shrinks as you handle them. For the errors
-  you did not model, the boundary answers. `catchDefect` sees them at the edge,
-  where you report them and let the program stop.
+  Expected errors appear in the `Error` type parameter and are handled as part
+  of normal control flow. Defects stay outside that type and normally stop the
+  computation. Inspect them only at application boundaries.
 </Aside>
 
 ## Review typed errors and defects
