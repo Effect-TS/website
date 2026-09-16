@@ -188,18 +188,20 @@ Its `Effect<Success, Error>` type records both possible outcomes:
 const authorizePayment: (token: PaymentToken) => Effect<Authorization, ExpiredCardError | InvalidTokenError | NetworkError>
 ```
 
-For now, focus on the return type. `Authorization` is the success value. The
-union contains the expected errors, which are failures a caller can handle.
-Effect puts them in the `Error` type parameter, and TypeScript tracks them
-through every caller.
+`Authorization` is the success value. The union lists the expected errors a
+caller can handle.
+
+<Aside type="note" title="Expected errors form a union">
+  Effect represents expected errors at the type level as a union. Each member is
+  one error a caller may need to handle, and the union is carried through every
+  caller.
+</Aside>
 
 ### Keep error types distinct
 
-The `Error` type parameter in `Effect<Success, Error>` can list several expected
-errors as a union. This tells callers which failures they may need to handle. At
-runtime, the program fails with one of them, and the caller may respond
-differently to each error, such as retrying a network request or asking for a
-different card.
+When the `Effect` fails, it produces one of the errors in the union. The caller
+needs to know which error it received, so TypeScript must be able to distinguish
+the error types.
 
 There is a problem, however, with the original error definitions:
 
@@ -370,15 +372,13 @@ how to handle them.
 
 ## Handle expected errors
 
-`processPayment` exposes the errors propagated from `authorizePayment`. Its
-caller can use that list to handle them.
+The `Effect` returned by `processPayment` has an `Error` type parameter that
+tells callers which errors they can handle. To handle one of them, pass its
+`_tag` to `Effect.catchTag`, along with a function that receives the
+corresponding error and returns an `Effect`.
 
-`Effect.catchTag` takes the `_tag` of one error and a handler. The handler is an `Effect` that receives the typed error as a parameter, not `unknown`.
-
-The example uses method `.pipe` (available to every `Effect`), to apply the handler to the `Effect`, like method chaining.
-
-Creating an `Effect` does not run it. `Effect.runPromise` runs it and returns a
-`Promise` for its successful value:
+The tagged union also guides you as you type: your editor suggests the
+available tags, and TypeScript rejects a tag that is not in the union.
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -415,35 +415,45 @@ const processPayment = Effect.fn(function* (token: PaymentToken) {
   } satisfies Authorization)
 })
 // ---cut---
-const outcome = processPayment("tok_expiredcard").pipe(
+const paymentEffect = processPayment("tok_expiredcard").pipe(
+  //                   ┌─ type-checked
+  //                   ▼
   Effect.catchTag("ExpiredCardError", (error) =>
-    //                                 └─ `ExpiredCardError`
+    // Handle `ExpiredCardError` with a successful Response.
     Effect.succeed(new Response("Card expired", { status: 402 })),
   ),
 )
 
-const response = await Effect.runPromise(outcome)
-response.status // => 402
-await response.text() // => "Card expired"
+// Creating an Effect does not run it.
+// `runPromise` runs it and returns a Promise for its successful value.
+const res = await Effect.runPromise(paymentEffect)
+res.status // => 402
+await res.text() // => "Card expired"
 ```
 
-The handled error leaves the `Error` type parameter. The others stay:
+`processPayment(...)` returns the `Effect` we want to handle. Calling `.pipe`
+on it passes that `Effect` to `Effect.catchTag`.
+
+`Effect.catchTag` returns a new `Effect` with `ExpiredCardError` handled. Its
+`Error` type parameter now lists only the errors that remain:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
-//                                    ┌─ `ExpiredCardError` is removed
-//                                    ▼
-Effect.Effect<Response, InvalidTokenError | NetworkError>
+//                                           ┌─ `ExpiredCardError` is removed
+//                                           ▼
+const paymentEffect: Effect.Effect<Response, InvalidTokenError | NetworkError>
 ```
 
-The handler also returns a `Response`, so the `Success` type parameter does not
-change.
+<Aside type="note" title="Errors flow through the type">
+  As errors move through an `Effect`, their types are collected in an error
+  union. When `Effect.catchTag` handles one, that error disappears from the
+  resulting union.
+</Aside>
 
-TypeScript now has another job: it won't compile a handler for a `_tag` that isn't in the union.
+### Handle several errors at once
 
-`Effect.catchTags` (notice the `s` at the end) handles several errors at once with one table: an object keyed by `_tag`.
-
-For each `_tag`, its handler receives the typed error:
+`Effect.catchTags` handles several errors with one object. Each key is an
+error's `_tag`, and each value is a handler for that error:
 
 ```ts twoslash import.meta.vitest
 import { Effect, Data } from "effect"
@@ -480,15 +490,13 @@ const processPayment = Effect.fn(function* (token: PaymentToken) {
   } satisfies Authorization)
 })
 // ---cut---
-const outcome = processPayment("tok_timeout").pipe(
+const paymentEffect = processPayment("tok_timeout").pipe(
   Effect.catchTags({
-    //                 ┌─ `ExpiredCardError`
-    //                 ▼
+    //  ┌─ type-checked
+    //  ▼
     ExpiredCardError: (error) =>
       Effect.succeed(new Response("Card expired", { status: 402 })),
 
-    //             ┌─ `NetworkError`
-    //             ▼
     NetworkError: (error) =>
       Effect.succeed(
         new Response("Payment provider unavailable", { status: 503 }),
@@ -496,66 +504,25 @@ const outcome = processPayment("tok_timeout").pipe(
   }),
 )
 
-const response = await Effect.runPromise(outcome)
-response.status // => 503
-await response.text() // => "Payment provider unavailable"
+const res = await Effect.runPromise(paymentEffect)
+res.status // => 503
+await res.text() // => "Payment provider unavailable"
 ```
 
-Two more rules TypeScript enforces:
+`Effect.catchTags` is checked against the error union. TypeScript rejects a tag
+that does not exist, and the resulting `Effect` still lists any errors that
+remain unhandled:
 
-1. Every key must be a `_tag` from the union. A typo does not compile.
-2. The result keeps what the table misses: `Effect.Effect<Response, InvalidTokenError>`.
-
-When all the errors are handled, the `Error` type parameter becomes `never`:
-
-```ts twoslash import.meta.vitest showLineNumbers=false
-import { Effect, Data } from "effect"
-
-interface Authorization {
-  readonly id: string
-  readonly status: "authorized" | "declined"
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
-class NetworkError extends Data.TaggedError("NetworkError") {}
-
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
-
-declare const processPayment: (
-  token: PaymentToken,
-) => Effect.Effect<
-  Response,
-  ExpiredCardError | InvalidTokenError | NetworkError
->
-// ---cut---
-//    ┌─ (token: PaymentToken) => Effect.Effect<Response, never>
-//    ▼
-const handle = (token: PaymentToken) =>
-  processPayment(token).pipe(
-    Effect.catchTags({
-      ExpiredCardError: () =>
-        Effect.succeed(new Response("Card expired", { status: 402 })),
-      InvalidTokenError: () =>
-        Effect.succeed(new Response("Invalid payment token", { status: 400 })),
-      NetworkError: () =>
-        Effect.succeed(
-          new Response("Payment provider unavailable", { status: 503 }),
-        ),
-    }),
-  )
+```ts showLineNumbers=false
+// `ExpiredCardError` and `NetworkError` have been removed from the union.
+const paymentEffect: Effect.Effect<Response, InvalidTokenError>
 ```
 
-<Aside type="note" title="Why `never`?">
-  `never` is TypeScript's empty type: the union with no members left. Each
-  handled tag drops out of the union, and once the last one is gone there is
-  nothing to name, so the type is `never`. It is the type-level way of saying
-  "this can no longer fail."
+When all the errors are handled, the `Error` type parameter becomes `never`.
+
+<Aside type="note" title="The error union is empty">
+  When an `Effect` has `never` as its `Error` type parameter, it has no expected
+  errors left for the caller to handle.
 </Aside>
 
 ## Model unexpected errors as defects
@@ -652,7 +619,7 @@ const processPayment = Effect.fn(function* (token: PaymentToken) {
   return Response.json(authorization)
 })
 
-const outcome = processPayment("tok_authorized").pipe(
+const paymentEffect = processPayment("tok_authorized").pipe(
   Effect.catchDefect((defect) =>
     defect instanceof DoubleCaptureError
       ? Effect.succeed(
@@ -664,9 +631,9 @@ const outcome = processPayment("tok_authorized").pipe(
   ),
 )
 
-const response = await Effect.runPromise(outcome)
-response.status // => 500
-await response.text() // => "terminated: pauth_123 already captured"
+const res = await Effect.runPromise(paymentEffect)
+res.status // => 500
+await res.text() // => "terminated: pauth_123 already captured"
 ```
 
 `capturePayment` has no `Error` type parameter, and `processPayment` still lists
@@ -781,7 +748,7 @@ const processPayment = Effect.fn(function* (token: PaymentToken) {
   } satisfies Authorization)
 })
 // ---cut---
-const outcome = processPayment("tok_expiredcard").pipe(
+const paymentEffect = processPayment("tok_expiredcard").pipe(
   Effect.catchDefect((defect) =>
     defect instanceof DoubleCaptureError
       ? Effect.succeed(
@@ -794,7 +761,7 @@ const outcome = processPayment("tok_expiredcard").pipe(
 )
 
 try {
-  await Effect.runPromise(outcome)
+  await Effect.runPromise(paymentEffect)
 } catch (failure) {
   failure instanceof ExpiredCardError && failure._tag // => "ExpiredCardError"
 }
