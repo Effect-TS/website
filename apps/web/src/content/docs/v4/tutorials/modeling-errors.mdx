@@ -105,6 +105,8 @@ const processPayment = async (token: PaymentToken): Promise<Response> => {
       return new Response("Payment provider unavailable", { status: 503 })
     }
 
+    // TypeScript cannot prove these are the only possible errors,
+    // so we must rethrow anything we do not recognize.
     throw error
   }
 }
