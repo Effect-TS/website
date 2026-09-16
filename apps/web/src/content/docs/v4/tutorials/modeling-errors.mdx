@@ -558,7 +558,7 @@ const handle = (token: PaymentToken) =>
   "this can no longer fail."
 </Aside>
 
-## Modeling unexpected errors: defects
+## Model unexpected errors as defects
 
 Every error so far is one a caller can handle. These are expected errors. But `never` does not mean the code cannot fail.
 
@@ -676,7 +676,7 @@ run. `DoubleCaptureError` never entered either type. It became a defect, and
 rejects. Unknown defects stay fatal, so the handler re-raises them with
 `Effect.die`.
 
-### Remove errors no caller can handle from the type
+### Stop tracking errors no caller can handle
 
 `Effect.orDie` is a modeling decision. No caller can handle these errors, so stop tracking them. Every typed error becomes a defect, and the `Error` type parameter disappears.
 
@@ -816,7 +816,7 @@ A rule of thumb for the whole section:
   where you report them and let the program stop.
 </Aside>
 
-## Let's review what we built
+## Review typed errors and defects
 
 You can now do five things. Each one maps to an operator you used.
 
