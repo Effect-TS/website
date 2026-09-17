@@ -175,17 +175,18 @@ SchemaError: Expected string
   its type-parameter schemas.
 </Aside>
 
-### Adding Interpreter Annotations
+### Adding interpreter annotations
 
-When defining a new data type, schema interpreters such as [Arbitrary](/docs/v4/schema/arbitrary) or [Formatter](/docs/v4/schema/formatter) may not know how to handle the new type.
-This can result in an error, as the interpreter may lack the necessary information for generating instances or producing readable output:
+Schema interpreters such as [Arbitrary](/docs/v4/schema/arbitrary) or
+[Formatter](/docs/v4/schema/formatter) need a representation for an opaque
+declaration. Without one, native Arbitrary derivation fails immediately:
 
-**Example** (Attempting to Generate Arbitrary Values Without Required Annotations)
+**Example** (Attempting to Generate an Opaque Declaration)
 
 ```ts twoslash
 import { Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
-// Define a schema for the File type
 const FileSchema = Schema.declare(
   (input: unknown): input is File => input instanceof File,
   {
@@ -193,52 +194,47 @@ const FileSchema = Schema.declare(
   },
 )
 
-// Try creating an Arbitrary instance for the schema
-const arb = Schema.toArbitrary(FileSchema)
+Arbitrary.schema(FileSchema)
 /*
 throws:
-Error: Missing annotation
-details: Generating an Arbitrary for this schema requires an "arbitrary" annotation
-schema (Declaration): File
+Error: Unable to derive an arbitrary for an unsupported Declaration
 */
 ```
 
-In the above example, attempting to generate arbitrary values for `FileSchema` fails because the interpreter lacks the necessary annotations. To resolve this, provide an annotation for generating arbitrary data:
+Use `toCodecArbitrary` to link the declaration to a Schema that Arbitrary can
+generate. The link decodes generated representation values into the declared
+type:
 
-**Example** (Adding Arbitrary Annotation for Custom `File` Schema)
+**Example** (Adding an Arbitrary Representation for `File`)
 
 ```ts twoslash import.meta.vitest name="adding-interpreter-annotations-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
+import { Effect, Schema, SchemaGetter } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
 const FileSchema = Schema.declare(
   (input: unknown): input is File => input instanceof File,
   {
     identifier: "File",
-    // Provide a function to generate random File instances
-    toArbitrary: () => (fc) =>
-      fc
-        .tuple(fc.string(), fc.string())
-        .map(([content, path]) => new File([content], path)),
+    toCodecArbitrary: () =>
+      Schema.link<File>()(Schema.String, {
+        decode: SchemaGetter.transform((name) => new File([], name)),
+        encode: SchemaGetter.transform((file) => file.name),
+      }),
   },
 )
 
-// Create an Arbitrary instance for the schema
-const arb = Schema.toArbitrary(FileSchema)
+const files = await Effect.runPromise(
+  Arbitrary.sampleEffect(Arbitrary.schema(FileSchema), {
+    count: 2,
+    seed: 1,
+  }),
+)
 
-// Generate sample files using the Arbitrary instance
-const files = FastCheck.sample(arb, 2)
-console.log(files)
-/*
-Example Output:
-[
-  File { size: 5, type: '', name: 'C', lastModified: 1706435571176 },
-  File { size: 1, type: '', name: '98Ggmc', lastModified: 1706435571176 }
-]
-*/
+files.every((file) => file instanceof File) // => true
 ```
 
-For more details on how to add annotations for the Arbitrary interpreter, refer to the [Arbitrary](/docs/v4/schema/arbitrary) documentation.
+For the native generation API and its customization options, see the
+[Arbitrary](/docs/v4/schema/arbitrary) documentation.
 
 ## Branded types
 
