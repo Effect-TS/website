@@ -22,7 +22,7 @@ import {
   normalizePath,
 } from "typedoc"
 import TypeScript from "typescript"
-import { isSemver } from "@website/domain/Changelog"
+import { splitChangelogSections } from "@website/domain/Changelog"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -300,36 +300,13 @@ function buildChangelogDocument(source: string, meta: ChangelogMeta): string {
     "---",
   ].join("\n")
 
-  const blocks = splitChangelogSections(source)
+  const blocks = splitChangelogSections(source).map((section) =>
+    [section.heading, ...section.body].join("\n").trim(),
+  )
   const body =
     blocks.length === 0 ? "No changelog entries." : blocks.join("\n\n")
 
   return `${frontmatter}\n\n${body}\n`
-}
-
-// Keep only released-version (semver `##`) entries; the heading itself carries
-// the anchor (rehype assigns ids and permalinks at render time).
-function splitChangelogSections(source: string): Array<string> {
-  const lines = source.split("\n")
-  const sections: Array<Array<string>> = []
-  let current: Array<string> | undefined
-  let fenced = false
-
-  for (const line of lines) {
-    if (/^\s*```/.test(line)) {
-      fenced = !fenced
-    }
-    const heading = fenced ? null : /^##\s+(.+?)\s*$/.exec(line)
-    const version = heading?.[1]?.trim()
-    if (version !== undefined && isSemver(version)) {
-      current = [line]
-      sections.push(current)
-    } else if (current !== undefined) {
-      current.push(line)
-    }
-  }
-
-  return sections.map((sectionLines) => sectionLines.join("\n").trim())
 }
 
 async function generatePackage(
