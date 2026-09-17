@@ -92,6 +92,35 @@ async function guidesItems(
     .map((r) => r.item)
 }
 
+// Flatten the ordered sidebar tree into the linear reading sequence used for
+// prev/next navigation.
+export function flattenDocsItems(
+  items: ReadonlyArray<DocsSidebarItem>,
+): CollectionEntry<"docs">[] {
+  return items.flatMap((item) =>
+    item.kind === "entry" ? [item.entry] : [...item.entries],
+  )
+}
+
+export type DocsNeighbor = { readonly id: string; readonly label: string }
+
+export function docsNeighbors(
+  items: ReadonlyArray<DocsSidebarItem>,
+  currentId: string,
+): { readonly prev: DocsNeighbor | null; readonly next: DocsNeighbor | null } {
+  const sequence = flattenDocsItems(items)
+  const index = sequence.findIndex((entry) => entry.id === currentId)
+  const toNeighbor = (entry: CollectionEntry<"docs"> | undefined) =>
+    entry ? { id: entry.id, label: entryLabel(entry) } : null
+  return {
+    prev: index > 0 ? toNeighbor(sequence[index - 1]) : null,
+    next:
+      index >= 0 && index < sequence.length - 1
+        ? toNeighbor(sequence[index + 1])
+        : null,
+  }
+}
+
 // The full sidebar for a docs page: onboarding groups, or the directory-derived
 // guides tree.
 export async function buildDocsSidebar(
