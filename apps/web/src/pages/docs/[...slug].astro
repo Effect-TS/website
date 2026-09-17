@@ -4,10 +4,11 @@ import { getCollection, getEntry, render } from "astro:content"
 import { ChevronDown, Menu } from "@lucide/astro"
 
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
+import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
-import { buildDocsSidebar } from "@/lib/docs-sections"
+import { buildDocsSidebar, docsNeighbors } from "@/lib/docs-sections"
 
 export const prerender = true
 
@@ -64,6 +65,11 @@ if (currentVersion === undefined) {
 const { section, items } = await buildDocsSidebar(currentVersion, entry.id)
 const currentLabel = entry.data.sidebar?.label ?? entry.data.title
 
+const { prev, next } = docsNeighbors(items, entry.id)
+const docHref = (id: string): string => `/docs/${id.replace(/\/index$/, "")}`
+const prevLink = prev ? { href: docHref(prev.id), label: prev.label } : null
+const nextLink = next ? { href: docHref(next.id), label: next.label } : null
+
 const tocItems = headings
   .filter((heading) => heading.depth >= 2 && heading.depth <= 3)
   .map((heading) => ({
@@ -118,6 +124,8 @@ const tocItems = headings
     <h1 class="mt-0!">{entry.data.title}</h1>
     <Content />
   </article>
+
+  <PrevNextNav prev={prevLink} next={nextLink} label="Document navigation" />
 
   <!-- Right TOC -->
   {tocItems.length > 0 && <TableOfContents slot="toc" items={tocItems} />}

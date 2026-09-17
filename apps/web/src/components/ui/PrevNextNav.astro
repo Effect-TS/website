@@ -1,0 +1,55 @@
+---
+import { ChevronLeft, ChevronRight } from "@lucide/astro"
+
+export type PrevNextLink = { readonly href: string; readonly label: string }
+
+interface Props {
+  readonly prev?: PrevNextLink | null
+  readonly next?: PrevNextLink | null
+  readonly label?: string
+}
+
+const { prev = null, next = null, label = "Navigation" } = Astro.props
+---
+
+{
+  (prev || next) && (
+    <nav
+      aria-label={label}
+      class="mt-16 grid grid-cols-1 gap-4 border-t border-border pt-10 sm:grid-cols-2"
+    >
+      {prev ? (
+        <a
+          href={prev.href}
+          class="group flex flex-col rounded-md border border-border p-4 transition-colors duration-200 hover:border-border-strong"
+        >
+          <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+            <ChevronLeft class="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+            Previous
+          </span>
+          <span class="mt-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+            {prev.label}
+          </span>
+        </a>
+      ) : (
+        <div />
+      )}
+      {next ? (
+        <a
+          href={next.href}
+          class="group flex flex-col items-end rounded-md border border-border p-4 text-right transition-colors duration-200 hover:border-border-strong"
+        >
+          <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+            Next
+            <ChevronRight class="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </span>
+          <span class="mt-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+            {next.label}
+          </span>
+        </a>
+      ) : (
+        <div />
+      )}
+    </nav>
+  )
+}

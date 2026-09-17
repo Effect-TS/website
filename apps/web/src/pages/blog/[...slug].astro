@@ -1,12 +1,13 @@
 ---
 import { Image } from "astro:assets"
 import { getCollection, getEntries, render } from "astro:content"
-import { ArrowRightIcon, ArrowUpRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@lucide/astro"
+import { ArrowRightIcon, ArrowUpRightIcon } from "@lucide/astro"
 import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
 import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
@@ -220,7 +221,7 @@ const shareShellClass =
           </div>
 
           <div
-            class="sticky top-[var(--sticky-header-height)] max-h-[calc(100dvh_-_var(--sticky-header-height))] overflow-y-auto pb-4"
+            class="sticky top-[var(--sticky-header-height)] max-h-[calc(100dvh_-_var(--sticky-header-height)_-_1rem)] overflow-y-auto pt-4 pb-4"
           >
             <TableOfContents
               items={tocItems}
@@ -314,44 +315,11 @@ const shareShellClass =
             </p>
           </div>
 
-          {
-            (prevPost || nextPost) && (
-              <div class="mt-16 grid grid-cols-1 gap-4 border-t border-border pt-10 sm:grid-cols-2">
-                {prevPost ? (
-                  <a
-                    href={`/blog/${prevPost.id}`}
-                    class="group flex flex-col rounded-md border border-border p-4 transition-colors duration-200 hover:border-border-strong"
-                  >
-                    <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
-                      <ChevronLeftIcon class="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
-                      Previous
-                    </span>
-                    <span class="mt-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-                      {prevPost.data.title}
-                    </span>
-                  </a>
-                ) : (
-                  <div />
-                )}
-                {nextPost ? (
-                  <a
-                    href={`/blog/${nextPost.id}`}
-                    class="group flex flex-col items-end rounded-md border border-border p-4 text-right transition-colors duration-200 hover:border-border-strong"
-                  >
-                    <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
-                      Next
-                      <ChevronRightIcon class="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                    </span>
-                    <span class="mt-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-                      {nextPost.data.title}
-                    </span>
-                  </a>
-                ) : (
-                  <div />
-                )}
-              </div>
-            )
-          }
+          <PrevNextNav
+            prev={prevPost ? { href: `/blog/${prevPost.id}`, label: prevPost.data.title } : null}
+            next={nextPost ? { href: `/blog/${nextPost.id}`, label: nextPost.data.title } : null}
+            label="Blog post navigation"
+          />
         </article>
       </div>
     </div>
