@@ -1,6 +1,6 @@
 ---
 title: Schema to Arbitrary
-description: Derive fast-check arbitraries from schemas and customize generation with filters, candidates, and annotations.
+description: Generate, sample, and shrink schema values with Effect's native Arbitrary module.
 sidebar:
   label: Arbitrary
   order: 15
@@ -8,56 +8,84 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-`Schema.toArbitrary` derives a [fast-check](https://fast-check.dev/) `Arbitrary` that generates values of a schema's `Type`.
+An `Arbitrary<A>` describes how to generate values of type `A` and how to shrink
+a failing value.
+
+Its main use is property-based testing. Instead of checking a rule against a few
+examples chosen by hand, the runner checks it against many generated inputs. If
+one input breaks the rule, shrinking searches for a smaller counterexample,
+which usually makes the bug easier to understand and reproduce.
+
+When an Arbitrary comes from a Schema, its generated inputs conform to the
+Schema's decoded `Type`. Sampling lets you inspect those inputs. Property checks
+let you verify rules such as encode/decode round trips across many values.
+
+`Arbitrary.schema` derives a native `Arbitrary` from a Schema's decoded `Type`.
+Use it to inspect generated values or run property checks with shrinking and
+replay.
+
+Import the module from `effect/unstable/arbitrary`:
+
+```ts showLineNumbers=false
+import { Arbitrary } from "effect/unstable/arbitrary"
+```
+
+<Aside type="caution" title="Unstable API">
+  The native Arbitrary module is unstable. Its API and replay token format may
+  change between releases.
+</Aside>
+
+## Generating values
+
+Call `Arbitrary.schema` to derive an `Arbitrary`, then pass it to
+`Arbitrary.sampleEffect`:
 
 **Example** (Generating Values from a Schema)
 
-```ts twoslash import.meta.vitest name="schema-to-arbitrary-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
+```ts twoslash import.meta.vitest name="arbitrary-generating-values-1"
+import { Effect, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
   age: Schema.Int.check(Schema.isBetween({ minimum: 18, maximum: 80 })),
 })
 
-const arbitrary = Schema.toArbitrary(Person)
+const arbitrary = Arbitrary.schema(Person)
 
-const samples = FastCheck.sample(arbitrary, 10)
+const samples = await Effect.runPromise(
+  Arbitrary.sampleEffect(arbitrary, {
+    count: 10,
+    seed: 1,
+  }),
+)
 
 samples.every(({ name, age }) => name.length > 0 && age >= 18 && age <= 80) // => true
 ```
 
-<Aside type="tip" title="FastCheck API">
-  Effect re-exports the complete fast-check API as `FastCheck` from
-  `effect/testing`.
-</Aside>
+`sampleEffect` accepts these options:
 
-Use `Schema.toArbitraryLazy` when the caller should provide the fast-check module.
+| Option        | Description                                                            |
+| ------------- | ---------------------------------------------------------------------- |
+| `count`       | Number of values to generate. The default is `10`.                     |
+| `size`        | Local complexity limit for strings, collections, and recursive values. |
+| `maxDiscards` | Maximum rejected candidates before sampling fails with `SampleError`.  |
+| `seed`        | A string or number that makes generation reproducible.                 |
 
-**Example** (Deferring Arbitrary Creation)
+`size` is not a global length limit. Each collection or property observes it
+independently. Explicit Schema bounds still apply.
 
-```ts twoslash import.meta.vitest name="schema-to-arbitrary-lazy-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
+## Constraints and filters
 
-const makeArbitrary = Schema.toArbitraryLazy(Schema.String)
-const arbitrary = makeArbitrary(FastCheck)
+Built-in Schema checks include generation constraints where possible. The
+Arbitrary compiler uses them to construct matching values instead of repeatedly
+generating and rejecting unrelated values.
 
-FastCheck.sample(arbitrary, 1).every((value) => typeof value === "string") // => true
-```
-
-`Schema.Never` and declaration schemas without a `toArbitrary` annotation cannot be derived automatically. Impossible constraints and recursive schemas without a finite terminal path also fail immediately.
-
-## Filters
-
-Generated values are always checked by the schema's type-side filters before they are returned. Built-in filters also provide metadata that lets derivation choose an efficient generator instead of relying only on fast-check discards.
-
-**Example** (Using Built-In Constraints)
+**Example** (Generating Values with Built-In Constraints)
 
 ```ts twoslash import.meta.vitest name="arbitrary-built-in-constraints-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
+import { Effect, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
 const Username = Schema.String.check(
   Schema.isMinLength(3),
@@ -65,7 +93,12 @@ const Username = Schema.String.check(
   Schema.isPattern(/^[a-z0-9_]+$/),
 )
 
-const samples = FastCheck.sample(Schema.toArbitrary(Username), 20)
+const samples = await Effect.runPromise(
+  Arbitrary.sampleEffect(Arbitrary.schema(Username), {
+    count: 20,
+    seed: 1,
+  }),
+)
 
 samples.every(
   (value) =>
@@ -73,139 +106,267 @@ samples.every(
 ) // => true
 ```
 
-Length, range, integer, pattern, uniqueness, and other built-in constraints are translated to the corresponding fast-check constraints where possible.
+The compiler understands built-in bounds for numbers, lengths, collection
+sizes, object property counts, regular expressions, and uniqueness. It still
+runs every Schema filter against generated roots and shrink candidates.
 
-### Opaque Filters and Reports
+### Custom filter constraints
 
-A custom filter without arbitrary metadata is still correct because every generated value is checked. It may be inefficient when valid values are rare.
+A custom filter can expose constructive information through the
+`arbitraryConstraint` annotation. The filter remains the final check.
 
-Pass `{ report: true }` to find filters that could not guide generation. An `OpaqueFilter` warning means that the predicate is enforced but does not help construct the base arbitrary.
+**Example** (Describing a Custom Numeric Constraint)
 
-**Example** (Inspecting Derivation Warnings)
+```ts twoslash import.meta.vitest name="arbitrary-custom-constraint-1"
+import { Effect, Order, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
-```ts twoslash import.meta.vitest name="arbitrary-report-1"
-import { Schema } from "effect"
-
-const isPalindrome = (value: string) =>
-  value === Array.from(value).reverse().join("")
-
-const Palindrome = Schema.String.check(
-  Schema.makeFilter(isPalindrome, { expected: "a palindrome" }),
+const isPort = Schema.makeFilter(
+  (value: number) => Number.isInteger(value) && value >= 0 && value <= 65_535,
+  {
+    expected: "a TCP port",
+    arbitraryConstraint: {
+      order: Order.Number,
+      minimum: 0,
+      maximum: 65_535,
+      number: "integer",
+    },
+  },
 )
 
-const result = Schema.toArbitrary(Palindrome, { report: true })
+const Port = Schema.Number.check(isPort)
 
-result.report.warnings[0]?._tag // => "OpaqueFilter"
+const ports = await Effect.runPromise(
+  Arbitrary.sampleEffect(Arbitrary.schema(Port), {
+    count: 20,
+    seed: 1,
+  }),
+)
+
+ports.every((port) => Number.isInteger(port) && port >= 0 && port <= 65_535) // => true
 ```
 
-Reports contain warnings only. Unsupported schemas, impossible constraints, invalid candidates, and invalid recursion still throw during derivation.
+### Opaque filters and discarded values
 
-### Custom Filters with Constraints
+A custom filter without `arbitraryConstraint` is still enforced, but it cannot
+guide construction. Rejected candidates consume the discard budget. Prefer
+built-in checks or constructive constraints when valid values are rare.
 
-If a custom filter can partially describe its valid values using normal generation constraints, attach an `arbitrary.constraint` annotation. The predicate remains the final authority.
+`sampleEffect` fails with `SampleError` after too many discards. Property checks
+return an `Exhausted` result instead. Both include the effective seed so the run
+can be reproduced.
 
-**Example** (Guiding a Prime Number Generator)
+## Transformations and decoded values
 
-```ts twoslash
-import { Order, Schema } from "effect"
+`Arbitrary.schema` generates a Schema's decoded `Type`, not its `Encoded` value.
+For a codec, derivation follows the type-side Schema and its constraints.
 
-const isPrime = (value: number) => {
-  if (!Number.isInteger(value) || value < 2) return false
-  for (let divisor = 2; divisor * divisor <= value; divisor++) {
-    if (value % divisor === 0) return false
-  }
-  return true
-}
+**Example** (Generating the Decoded Side of a Codec)
 
-const prime = Schema.makeFilter(isPrime, {
-  expected: "a prime number",
-  arbitrary: {
-    constraint: {
-      integer: true,
-      ordered: {
-        order: Order.Number,
-        minimum: 2,
-      },
-    },
-  },
-})
+```ts twoslash import.meta.vitest name="arbitrary-decoded-type-1"
+import { Effect, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
-const Prime = Schema.Finite.check(prime)
-```
-
-The constraint avoids non-integers and numbers below `2`; the filter still checks primality.
-
-### Custom Filters with Candidates
-
-Use a candidate when a filter cannot be expressed with the constraint vocabulary. Candidates are weighted alternatives to the base generator, and their values are still checked by every filter.
-
-**Example** (Supplying Palindrome Candidates)
-
-```ts twoslash import.meta.vitest name="arbitrary-candidate-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
-
-const reverse = (value: string) => Array.from(value).reverse().join("")
-const isPalindrome = (value: string) => value === reverse(value)
-
-const palindrome = Schema.makeFilter(isPalindrome, {
-  expected: "a palindrome",
-  arbitrary: {
-    candidate: {
-      weight: 5,
-      make: (fc) => fc.string().map((half) => `${half}${reverse(half)}`),
-    },
-  },
-})
-
-const Palindrome = Schema.String.check(palindrome)
-const samples = FastCheck.sample(Schema.toArbitrary(Palindrome), 20)
-
-samples.every(isPalindrome) // => true
-```
-
-The base generator has weight `1`; a candidate also defaults to `1` unless you provide another positive integer.
-
-## Transformations
-
-`Schema.toArbitrary` generates the schema's `Type`, not its `Encoded`. For a codec, derivation therefore follows the type-side schema and its constraints.
-
-**Example** (Generating the Type Side of a Codec)
-
-```ts twoslash import.meta.vitest name="arbitrary-codec-type-side-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
-
-const schema = Schema.FiniteFromString
-const samples = FastCheck.sample(Schema.toArbitrary(schema), 20)
+const samples = await Effect.runPromise(
+  Arbitrary.sampleEffect(Arbitrary.schema(Schema.FiniteFromString), {
+    count: 20,
+    seed: 1,
+  }),
+)
 
 samples.every((value) => typeof value === "number" && Number.isFinite(value)) // => true
 ```
 
-If you need encoded values, generate `Schema.toEncoded(schema)` instead.
+To generate encoded values, derive from `Schema.toEncoded(schema)` instead.
 
-## Schema-Level Overrides
+## Checking properties
 
-Use a `toArbitrary` annotation to replace the generator for a schema node. Put the override on the base schema when possible, before adding filters, so the filters remain independent final checks.
+`Arbitrary.checkEffect` evaluates a pure or effectful property. It stops at the
+first falsification, shrinks the generated value, and returns a `CheckResult`.
 
-**Example** (Providing a Custom Generator)
+**Example** (Shrinking and Replaying a Failure)
 
-```ts twoslash import.meta.vitest name="customizing-arbitrary-data-generation-1"
-import { Schema } from "effect"
-import { FastCheck } from "effect/testing"
+```ts twoslash import.meta.vitest name="arbitrary-checking-properties-1"
+import { Effect, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
 
-const Name = Schema.String.annotate({
-  toArbitrary: () => (fc) => fc.constantFrom("Alice", "Dante", "Marta"),
-}).check(Schema.isNonEmpty())
+const numbers = Arbitrary.schema(
+  Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 100 })),
+)
 
-const Person = Schema.Struct({
-  name: Name,
-  age: Schema.Int.check(Schema.isBetween({ minimum: 18, maximum: 80 })),
-})
+const result = await Effect.runPromise(
+  Arbitrary.checkEffect(numbers, (value) => value < 5, {
+    runs: 100,
+    seed: 42,
+  }),
+)
 
-const samples = FastCheck.sample(Schema.toArbitrary(Person), 20)
+if (result._tag !== "Falsified") {
+  throw new Error("Expected a falsification")
+}
 
-samples.every(({ name }) => ["Alice", "Dante", "Marta"].includes(name)) // => true
+result.shrunkInput // => 5
+Arbitrary.formatCheckFailure(result)?.includes("Shrunk input: 5") // => true
+
+const replayed = await Effect.runPromise(
+  Arbitrary.checkEffect(numbers, (value) => value < 5, {
+    replay: result.replay,
+  }),
+)
+
+replayed._tag // => "Falsified"
 ```
 
-Avoid placing an override after filters unless it intentionally handles those filters. For example, an override that always produces `""` cannot satisfy a preceding `Schema.isNonEmpty()` check and will exhaust fast-check's discard budget.
+A property may return `boolean` or `Effect<boolean, E, R>`. Returning `false`
+and failing the Effect are both shrinkable falsifications. Defects and
+interruption remain failures of the returned Effect.
+
+`CheckResult` has four cases:
+
+| Tag              | Meaning                                                                    |
+| ---------------- | -------------------------------------------------------------------------- |
+| `Passed`         | Every requested property run passed.                                       |
+| `Falsified`      | A generated input failed. The result contains the shrunk input and replay. |
+| `Exhausted`      | Generation exceeded the discard budget.                                    |
+| `ReplayMismatch` | A replay token no longer reproduces the recorded failure.                  |
+
+Use `Arbitrary.formatCheckFailure` when integrating with a test runner. It
+returns `undefined` for `Passed` and a diagnostic message for every other case.
+
+When `replay` is present, the token controls the seed, attempt, size, and shrink
+path. Other checking options are ignored.
+
+## Composing arbitraries
+
+The native module can construct generators that are not described by one
+Schema node.
+
+**Example** (Mapping and Combining Arbitraries)
+
+```ts twoslash import.meta.vitest name="arbitrary-composition-1"
+import { Effect, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
+
+const reverse = (value: string) => Array.from(value).reverse().join("")
+
+const palindrome = Arbitrary.schema(Schema.String).pipe(
+  Arbitrary.map((half) => `${half}${reverse(half)}`),
+)
+
+const profile = Arbitrary.all({
+  name: Arbitrary.schema(Schema.Literals(["Alice", "Dante", "Marta"])),
+  bio: palindrome,
+})
+
+const samples = await Effect.runPromise(
+  Arbitrary.sampleEffect(profile, { count: 20, seed: 1 }),
+)
+
+samples.every(({ bio }) => bio === reverse(bio)) // => true
+```
+
+The module provides these combinators:
+
+- `Constant` always generates the supplied value and has no shrink candidates.
+- `map` transforms generated values and their shrink candidates.
+- `filter` keeps values that satisfy a predicate or refinement.
+- `filterMap` transforms accepted values and discards rejected ones.
+- `flatMap` selects a dependent `Arbitrary` from a generated value.
+- `all` combines a tuple, iterable, or record of Arbitraries.
+
+Rejected values from `filter` and `filterMap` consume the discard budget. Use a
+Schema constraint when it can describe the valid domain directly.
+
+## Custom shrinking
+
+Pass a `shrink` function to `Arbitrary.schema` when a type has a simpler domain
+specific reduction strategy.
+
+**Example** (Replacing Schema-Derived Shrinking)
+
+```ts twoslash import.meta.vitest name="arbitrary-custom-shrinking-1"
+import { Effect, Schema } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
+
+const Count = Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 100 }))
+
+const count = Arbitrary.schema(Count, {
+  shrink: (value) => (value === 0 ? [] : [Math.floor(value / 2)]),
+})
+
+const result = await Effect.runPromise(
+  Arbitrary.checkEffect(count, (value) => value === 0, {
+    runs: 100,
+    seed: 42,
+  }),
+)
+
+if (result._tag !== "Falsified") {
+  throw new Error("Expected a falsification")
+}
+
+result.shrunkInput // => 1
+```
+
+The custom function replaces Schema-derived shrinking but does not change root
+generation. The runner validates every shrink candidate against `Count` before
+passing it to the property. A shrink function must be synchronous,
+deterministic, terminating, and free of mutation.
+
+## Custom declarations
+
+The compiler cannot derive an `Arbitrary` for an opaque declaration unless it
+has a generatable representation. Add `toCodecArbitrary` to describe that
+representation and how to decode it into the declared type.
+
+**Example** (Generating an Opaque Class)
+
+```ts twoslash import.meta.vitest name="arbitrary-custom-declaration-1"
+import { Effect, Schema, SchemaGetter } from "effect"
+import { Arbitrary } from "effect/unstable/arbitrary"
+
+class UserId {
+  constructor(readonly value: string) {}
+}
+
+const UserIdSchema = Schema.declare(
+  (input: unknown): input is UserId => input instanceof UserId,
+  {
+    expected: "UserId",
+    toCodecArbitrary: () =>
+      Schema.link<UserId>()(
+        Schema.String.check(Schema.isPattern(/^user_[a-z]+$/)),
+        {
+          decode: SchemaGetter.transform((value) => new UserId(value)),
+          encode: SchemaGetter.transform((id) => id.value),
+        },
+      ),
+  },
+)
+
+const ids = await Effect.runPromise(
+  Arbitrary.sampleEffect(Arbitrary.schema(UserIdSchema), {
+    count: 5,
+    seed: 1,
+  }),
+)
+
+ids.every((id) => id instanceof UserId && /^user_[a-z]+$/.test(id.value)) // => true
+```
+
+The annotation callback also receives decoded type-parameter schemas and any
+normalized generation constraint. This API is experimental while native
+Arbitrary remains unstable.
+
+## Derivation failures
+
+`Arbitrary.schema` compiles the Schema immediately. It throws when it encounters
+an impossible constraint, `Schema.Never`, an unsupported declaration, or a
+recursive Schema without a finite generation path.
+
+Generation can still discard candidates at runtime. This happens with opaque
+filters, partial declaration transformations, `filter`, and `filterMap`.
+Control this work with `maxDiscards`.
+
+Properties and Arbitrary callbacks must treat generated values as immutable.
+Shrinking and replay may evaluate them more than once.

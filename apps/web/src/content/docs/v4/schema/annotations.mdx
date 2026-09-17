@@ -46,24 +46,25 @@ const Password = Schema.String
 
 The available annotations depend on the kind of schema node. These are the most common ones:
 
-| Annotation             | Scope                 | Description                                                                                            |
-| ---------------------- | --------------------- | ------------------------------------------------------------------------------------------------------ |
-| `identifier`           | schema                | Stable name used by schema interpreters, including JSON Schema references and expected-value messages. |
-| `expected`             | schema or check       | Human-readable description used by the default error formatter.                                        |
-| `title`                | schema or key         | Short display title, also understood by JSON Schema tooling.                                           |
-| `description`          | schema or key         | Longer documentation for the represented value.                                                        |
-| `documentation`        | schema or key         | Additional developer-facing documentation.                                                             |
-| `examples`             | schema or key         | Example decoded values; this is metadata and does not validate them.                                   |
-| `default`              | schema or key         | A documented default value; it does not change decoding or construction behavior.                      |
-| `message`              | schema or check       | Replaces the default message for matching failures.                                                    |
-| `messageMissingKey`    | key                   | Replaces the error message when a required key is absent.                                              |
-| `messageUnexpectedKey` | schema                | Replaces the message for excess keys when `onExcessProperty` is `"error"`.                             |
-| `parseOptions`         | schema                | Overrides [parse options](/docs/v4/schema/getting-started#parse-options) for that schema node.         |
-| `toJsonSchema`         | check                 | Describes a custom check to the [JSON Schema](/docs/v4/schema/json-schema) interpreter.                |
-| `toArbitrary`          | schema or declaration | Customizes [Arbitrary](/docs/v4/schema/arbitrary) generation.                                          |
-| `toFormatter`          | declaration           | Defines [Formatter](/docs/v4/schema/formatter) behavior for a custom declaration.                      |
-| `toEquivalence`        | declaration           | Defines [Equivalence](/docs/v4/schema/equivalence) behavior for a custom declaration.                  |
-| `toCodecJson`          | declaration           | Defines how a custom declaration is represented by the JSON codec interpreter.                         |
+| Annotation             | Scope           | Description                                                                                            |
+| ---------------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
+| `identifier`           | schema          | Stable name used by schema interpreters, including JSON Schema references and expected-value messages. |
+| `expected`             | schema or check | Human-readable description used by the default error formatter.                                        |
+| `title`                | schema or key   | Short display title, also understood by JSON Schema tooling.                                           |
+| `description`          | schema or key   | Longer documentation for the represented value.                                                        |
+| `documentation`        | schema or key   | Additional developer-facing documentation.                                                             |
+| `examples`             | schema or key   | Example decoded values; this is metadata and does not validate them.                                   |
+| `default`              | schema or key   | A documented default value; it does not change decoding or construction behavior.                      |
+| `message`              | schema or check | Replaces the default message for matching failures.                                                    |
+| `messageMissingKey`    | key             | Replaces the error message when a required key is absent.                                              |
+| `messageUnexpectedKey` | schema          | Replaces the message for excess keys when `onExcessProperty` is `"error"`.                             |
+| `parseOptions`         | schema          | Overrides [parse options](/docs/v4/schema/getting-started#parse-options) for that schema node.         |
+| `toJsonSchema`         | check           | Describes a custom check to the [JSON Schema](/docs/v4/schema/json-schema) interpreter.                |
+| `arbitraryConstraint`  | check           | Guides native [Arbitrary](/docs/v4/schema/arbitrary) generation for a custom filter.                   |
+| `toCodecArbitrary`     | declaration     | Defines a generatable representation for a custom declaration.                                         |
+| `toFormatter`          | declaration     | Defines [Formatter](/docs/v4/schema/formatter) behavior for a custom declaration.                      |
+| `toEquivalence`        | declaration     | Defines [Equivalence](/docs/v4/schema/equivalence) behavior for a custom declaration.                  |
+| `toCodecJson`          | declaration     | Defines how a custom declaration is represented by the JSON codec interpreter.                         |
 
 ## Concurrency Parse Option
 
