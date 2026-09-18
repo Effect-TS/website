@@ -59,6 +59,7 @@ export const syncFiles = Effect.fn("ApiReferenceSync.sync")(
     readonly externalIdPrefix: string
     readonly files: ReadonlyArray<LocalFile>
     readonly label: string
+    readonly maxChunkSize?: number | undefined
     readonly store: MixedbreadClient.Store
     readonly stores: StoreClient
     readonly sync: SyncOptions
@@ -70,11 +71,18 @@ export const syncFiles = Effect.fn("ApiReferenceSync.sync")(
       externalIdPrefix,
       files,
       label,
+      maxChunkSize,
       store,
       stores,
       sync,
       version,
     } = options
+    // `max_chunk_size` is a supported upload option the SDK type omits; the CLI
+    // sync sets it, so preserve the same chunking for markdown content.
+    const config = {
+      parsing_strategy: "fast",
+      ...(maxChunkSize === undefined ? {} : { max_chunk_size: maxChunkSize }),
+    } as { parsing_strategy: "fast" }
     const duplicateIds = Map.groupBy(files, (file) => file.externalId)
       .entries()
       .filter(([, duplicates]) => duplicates.length > 1)
@@ -135,7 +143,7 @@ export const syncFiles = Effect.fn("ApiReferenceSync.sync")(
                 body: {
                   external_id: externalId,
                   overwrite: true,
-                  config: { parsing_strategy: "fast" },
+                  config,
                   metadata: {
                     ...metadata,
                     file_hash: fileHash,

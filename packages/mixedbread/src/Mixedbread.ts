@@ -9,12 +9,14 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Path from "effect/Path"
 import * as Redacted from "effect/Redacted"
-import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { syncFiles } from "./ApiReferenceSync.ts"
 import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
 import { generateChangelogFiles } from "./ChangelogFiles.ts"
+import {
+  generateBlogFiles,
+  generateDocumentationFiles,
+} from "./MarkdownFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
   DEFAULT_API_REFERENCE_DIRECTORY,
@@ -31,12 +33,6 @@ import {
   InvalidStoreError,
   UnknownError,
 } from "./Error.ts"
-import {
-  markdownSyncArguments,
-  markdownSyncMetadata,
-  stageBlog,
-  stageDocumentation,
-} from "./MarkdownSync.ts"
 import { makeStoreClient } from "./Store.ts"
 
 type MixedbreadError =
@@ -45,12 +41,11 @@ type MixedbreadError =
   | InvalidStoreError
   | UnknownError
 
-const DocumentationFileMetadata = Schema.Struct({
-  content_source: Schema.optional(
-    Schema.Union([Schema.Literal("docs"), Schema.Literal("documentation")]),
-  ),
-  file_path: Schema.String,
-})
+const isLegacyMarkdown = (metadata: unknown): boolean =>
+  typeof metadata === "object" &&
+  metadata !== null &&
+  "content_source" in metadata &&
+  (metadata as { content_source?: unknown }).content_source === "markdown"
 
 export class Mixedbread extends Context.Service<
   Mixedbread,
@@ -92,12 +87,6 @@ export class Mixedbread extends Context.Service<
     const apiReferenceDir = yield* Config.String(
       "API_REFERENCE_DIRECTORY",
     ).pipe(Config.withDefault(DEFAULT_API_REFERENCE_DIRECTORY))
-    const documentationStageDir = yield* Config.String(
-      "DOCUMENTATION_STAGE_DIRECTORY",
-    ).pipe(Config.withDefault(".data/mixedbread/documentation"))
-    const blogStageDir = yield* Config.String("BLOG_STAGE_DIRECTORY").pipe(
-      Config.withDefault(".data/mixedbread/blog"),
-    )
     const changelogContentDir = yield* Config.String(
       "CHANGELOG_CONTENT_DIRECTORY",
     ).pipe(Config.withDefault(DEFAULT_CHANGELOG_DIRECTORY))
@@ -108,7 +97,6 @@ export class Mixedbread extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const fs = yield* FileSystem.FileSystem
     const path = yield* Path.Path
-    const childProcesses = yield* ChildProcessSpawner.ChildProcessSpawner
     const client = new MixedbreadClient({ apiKey: Redacted.value(apiKey) })
     const stores = makeStoreClient({ client, repository, storePrefix })
 
@@ -119,98 +107,87 @@ export class Mixedbread extends Context.Service<
       return Encoding.encodeHex(digest)
     })
 
-    const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (
-      storeId: string,
-      options: SyncOptions,
-    ) {
-      const metadata = markdownSyncMetadata(options, version)
-      const command = ChildProcess.make(
-        "pnpm",
-        markdownSyncArguments({
-          blogStageDir,
-          documentationStageDir,
-          metadata,
-          storeId,
-        }),
-        {
-          env: { MXBAI_API_KEY: Redacted.value(apiKey) },
-          extendEnv: true,
-          stdout: "inherit",
-          stderr: "inherit",
-        },
-      )
-      const exitCode = yield* childProcesses
-        .exitCode(command)
-        .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-      if (exitCode !== 0) {
-        return yield* new FailedToIndexError({
-          externalId: `${documentationStageDir}, ${blogStageDir}`,
-          cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
-        })
-      }
-    })
-
-    const deleteLegacyDocumentation = Effect.fn(
-      "Mixedbread.deleteLegacyDocumentation",
-    )(function* (storeId: string) {
-      const stagePath = documentationStageDir
-        .replace(/\\/g, "/")
-        .replace(/^\.\//, "")
-      const files = yield* Stream.runCollect(stores.listFiles(storeId))
-      const legacyFiles = files.filter((file) => {
-        if (!Schema.is(DocumentationFileMetadata)(file.metadata)) return false
-        const filePath = file.metadata.file_path.replace(/\\/g, "/")
-        const isDocumentation =
-          file.metadata.content_source === "docs" ||
-          file.metadata.content_source === "documentation" ||
-          filePath.includes("/src/content/docs/") ||
-          filePath.startsWith("src/content/docs/")
-        return isDocumentation && !filePath.includes(stagePath)
-      })
-      yield* Effect.forEach(
-        legacyFiles,
-        Effect.fnUntraced(function* (file) {
-          yield* Effect.tryPromise({
-            try: () =>
-              client.stores.files.delete(file.id, {
-                store_identifier: storeId,
-              }),
-            catch: (cause) => new FailedToDeleteError({ file, cause }),
-          })
-          yield* Effect.log(
-            `Deleted legacy documentation file: ${file.external_id}`,
-          )
-        }),
-        { concurrency: UPLOAD_CONCURRENCY },
-      )
-    })
+    // Remove entries from the earlier CLI sync, which tagged every markdown file
+    // with `content_source: "markdown"`. New uploads use per-type sources
+    // (documentation/blog/changelog), so anything still tagged "markdown" is a
+    // stale duplicate under a different external id the reconcile cannot see.
+    const deleteLegacyMarkdown = Effect.fn("Mixedbread.deleteLegacyMarkdown")(
+      function* (storeId: string) {
+        const files = yield* Stream.runCollect(stores.listFiles(storeId))
+        const legacyFiles = files.filter((file) =>
+          isLegacyMarkdown(file.metadata),
+        )
+        yield* Effect.forEach(
+          legacyFiles,
+          Effect.fnUntraced(function* (file) {
+            yield* Effect.tryPromise({
+              try: () =>
+                client.stores.files.delete(file.id, {
+                  store_identifier: storeId,
+                }),
+              catch: (cause) => new FailedToDeleteError({ file, cause }),
+            })
+            yield* Effect.log(
+              `Deleted legacy markdown file: ${file.external_id}`,
+            )
+          }),
+          { concurrency: UPLOAD_CONCURRENCY },
+        )
+      },
+    )
 
     const apiReferenceFiles = () =>
       generateApiReferenceFiles(apiReferenceDir, hash)
 
     const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(
-      function* (storeId: string, options: SyncOptions) {
-        yield* Effect.all(
+      function* (store: MixedbreadClient.Store, options: SyncOptions) {
+        const [documentationFiles, blogFiles] = yield* Effect.all(
           [
-            stageDocumentation({
-              contentDir,
-              stageDir: documentationStageDir,
-            }).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
-            ),
-            stageBlog({
-              contentDir: blogContentDir,
-              stageDir: blogStageDir,
-            }).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
-            ),
+            generateDocumentationFiles(contentDir, hash),
+            generateBlogFiles(blogContentDir, hash),
           ],
           { concurrency: "unbounded" },
+        ).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+          Effect.provideService(Path.Path, path),
         )
-        yield* syncMarkdown(storeId, options)
-        yield* deleteLegacyDocumentation(storeId)
+        // Fail loudly on an empty set. An empty upload would make syncFiles treat
+        // every existing entry as stale and delete the whole corpus.
+        if (documentationFiles.length === 0) {
+          return yield* new UnknownError({
+            cause: new Error("No documentation files to index"),
+          })
+        }
+        if (blogFiles.length === 0) {
+          return yield* new UnknownError({
+            cause: new Error("No blog posts to index"),
+          })
+        }
+        yield* deleteLegacyMarkdown(store.id)
+        yield* syncFiles({
+          branch,
+          client,
+          externalIdPrefix: "documentation/",
+          maxChunkSize: 500,
+          files: documentationFiles,
+          label: "documentation",
+          store,
+          stores,
+          sync: options,
+          version,
+        })
+        yield* syncFiles({
+          branch,
+          client,
+          externalIdPrefix: "blog/",
+          maxChunkSize: 500,
+          files: blogFiles,
+          label: "blog",
+          store,
+          stores,
+          sync: options,
+          version,
+        })
       },
     )
 
@@ -250,6 +227,7 @@ export class Mixedbread extends Context.Service<
           branch,
           client,
           externalIdPrefix: "changelog/",
+          maxChunkSize: 500,
           files,
           label: "changelog",
           store,
@@ -260,27 +238,63 @@ export class Mixedbread extends Context.Service<
       },
     )
 
+    // Completeness gate: fail the sync if a file this run manages did not finish
+    // indexing, so a silently dropped document surfaces as a build failure
+    // instead of a gap in search results. Scoped to the synced prefixes so a
+    // partial sync never fails on an unrelated pre-existing failure.
+    const verifyStore = Effect.fn("Mixedbread.verifyStore")(function* (
+      storeId: string,
+      prefixes: ReadonlyArray<string>,
+    ) {
+      const files = yield* Stream.runCollect(stores.listFiles(storeId))
+      const broken = files.filter(
+        (file) =>
+          (file.status === "failed" || file.status === "cancelled") &&
+          prefixes.some((prefix) => file.external_id?.startsWith(prefix)),
+      )
+      if (broken.length > 0) {
+        return yield* new FailedToIndexError({
+          externalId: broken
+            .map((file) => file.external_id ?? file.id)
+            .slice(0, 20)
+            .join(", "),
+          cause: new Error(
+            `${broken.length} store file(s) failed indexing after sync`,
+          ),
+        })
+      }
+      yield* Effect.log(
+        `Verified ${files.length} store files; all indexed successfully`,
+      )
+    })
+
     const syncStore = Effect.fn("Mixedbread.syncStore")(function* (
       options: SyncOptions,
       scope: SyncScope = "all",
     ) {
       const store = yield* stores.resolve(options)
 
+      const syncsMarkdown = scope === "all" || scope === "markdown"
+      const syncsApiReference = scope === "all" || scope === "api-reference"
       const synchronizations = [
-        ...(scope === "all" || scope === "markdown"
+        ...(syncsMarkdown
           ? [
-              syncMarkdownStore(store.id, options),
+              syncMarkdownStore(store, options),
               syncChangelogStore(store, options),
             ]
           : []),
-        ...(scope === "all" || scope === "api-reference"
-          ? [syncApiReferenceStore(store, options)]
-          : []),
+        ...(syncsApiReference ? [syncApiReferenceStore(store, options)] : []),
       ]
       yield* Effect.all(synchronizations, {
         concurrency: "unbounded",
         discard: true,
       })
+
+      const verifiedPrefixes = [
+        ...(syncsMarkdown ? ["documentation/", "blog/", "changelog/"] : []),
+        ...(syncsApiReference ? ["api-reference/"] : []),
+      ]
+      yield* verifyStore(store.id, verifiedPrefixes)
 
       if (options.kind === "preview") {
         yield* stores.recordPreviewSync(store, options)
