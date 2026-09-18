@@ -35,6 +35,15 @@ export const ApiReferenceMetadata = Schema.Struct({
   package_slug: Schema.String,
 })
 
+export const ChangelogMetadata = Schema.Struct({
+  ...CommonMetadata,
+  content_source: Schema.Literal("changelog"),
+  package_name: Schema.String,
+  package_slug: Schema.String,
+  channel: Schema.String,
+  page_href: Schema.String,
+})
+
 export const BlogMetadata = Schema.Struct({
   ...CommonMetadata,
   content_source: Schema.Literal("blog"),
@@ -55,6 +64,7 @@ const UnclassifiedMetadata = Schema.Struct({
 export const Metadata = Schema.Union([
   DocumentationMetadata,
   ApiReferenceMetadata,
+  ChangelogMetadata,
   BlogMetadata,
   MarkdownMetadata,
   UnclassifiedMetadata,
@@ -212,3 +222,15 @@ export class SearchError extends Schema.TaggedError<SearchError>()(
   { cause: Schema.Defect() },
   { httpApiStatus: 500 },
 ) {}
+
+export const FacetValue = Schema.Struct({
+  value: Schema.String,
+  count: Schema.Number,
+})
+export type FacetValue = typeof FacetValue.Type
+
+export const ChangelogFacets = Schema.Struct({
+  packages: Schema.Array(FacetValue),
+  channels: Schema.Array(FacetValue),
+})
+export type ChangelogFacets = typeof ChangelogFacets.Type

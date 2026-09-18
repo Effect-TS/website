@@ -82,6 +82,10 @@ const pageVersionAtom = Atom.make(Option.none<DocsVersion>())
 
 const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
 
+const selectedPackageAtom = Atom.make<string | null>(null)
+
+const facetsAtom = SearchClient.query("search", "facets", {})
+
 const searchOpenSourceAtom = Atom.make<SearchOpenSource>("unknown")
 
 const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
@@ -198,9 +202,15 @@ const searchFailure = (
   return { reason: "http", httpStatus: 500 }
 }
 
-const searchRequestAtom = Atom.family((query: string) => {
+// Key encodes the package filter alongside the query so a filter change issues a
+// fresh request (and a fresh cache entry) instead of reusing unfiltered results.
+const searchRequestAtom = Atom.family((key: string) => {
+  const { query, package: pkg } = JSON.parse(key) as {
+    query: string
+    package: string | null
+  }
   const requestAtom = SearchClient.query("search", "search", {
-    query: { query },
+    query: { query, ...(pkg === null ? {} : { package: pkg }) },
   })
   let startedAt: number | undefined
 
@@ -265,7 +275,8 @@ export const allSearchResultsAtom = Atom.make((get) => {
     version: get(selectedVersionAtom),
   })
 
-  return get(searchRequestAtom(query))
+  const pkg = get(selectedPackageAtom)
+  return get(searchRequestAtom(JSON.stringify({ query, package: pkg })))
 })
 
 const versionResultsAtom = Atom.make((get) => {
@@ -490,6 +501,7 @@ function SearchDialogHeader() {
           select. Press Escape to close.
         </span>
         <SearchInput />
+        <SearchPackageMenu />
         <SearchVersionMenu />
         <DialogClose
           aria-label="Close search"
@@ -575,6 +587,66 @@ function SearchVersionMenu() {
               className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
             >
               {searchVersion}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+function SearchPackageMenu() {
+  const [selected, setSelected] = useAtom(selectedPackageAtom)
+  const facets = useAtomValue(facetsAtom)
+  const dialogElement = useAtomValue(dialogElementAtom)
+
+  const packages = AsyncResult.isSuccess(facets) ? facets.value.packages : []
+  // Nothing to filter until the store reports changelog packages.
+  if (packages.length === 0) return null
+
+  return (
+    <div className="relative shrink-0">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="outline"
+              className="inline-flex max-w-40 items-center gap-1 truncate rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:border-zinc-400 focus-visible:ring-0 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white dark:focus-visible:border-zinc-600"
+            >
+              <span className="truncate">{selected ?? "all packages"}</span>
+              <ChevronDown className="size-3 shrink-0 transition-transform group-aria-expanded/button:rotate-180" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent
+          portalContainer={Option.getOrNull(dialogElement)}
+          align="end"
+          className="max-h-72 min-w-40 overflow-y-auto scrollbar-thin rounded-md border border-zinc-200 bg-white px-0 py-1 shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
+        >
+          <DropdownMenuCheckboxItem
+            checked={selected === null}
+            closeOnClick
+            tabIndex={0}
+            onCheckedChange={() => setSelected(null)}
+            className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
+          >
+            all packages
+          </DropdownMenuCheckboxItem>
+          {packages.map((pkg) => (
+            <DropdownMenuCheckboxItem
+              key={pkg.value}
+              checked={selected === pkg.value}
+              closeOnClick
+              tabIndex={0}
+              onCheckedChange={() =>
+                setSelected(selected === pkg.value ? null : pkg.value)
+              }
+              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
+            >
+              <span className="truncate">{pkg.value}</span>
+              <span className="text-zinc-400 tabular-nums dark:text-zinc-500">
+                {pkg.count}
+              </span>
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>

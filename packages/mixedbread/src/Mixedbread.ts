@@ -12,8 +12,9 @@ import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
-import { syncApiReference } from "./ApiReferenceSync.ts"
+import { syncFiles } from "./ApiReferenceSync.ts"
 import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
+import { generateChangelogFiles } from "./ChangelogFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
   DEFAULT_API_REFERENCE_DIRECTORY,
@@ -34,7 +35,6 @@ import {
   markdownSyncArguments,
   markdownSyncMetadata,
   stageBlog,
-  stageChangelog,
   stageDocumentation,
 } from "./MarkdownSync.ts"
 import { makeStoreClient } from "./Store.ts"
@@ -101,11 +101,8 @@ export class Mixedbread extends Context.Service<
     const changelogContentDir = yield* Config.String(
       "CHANGELOG_CONTENT_DIRECTORY",
     ).pipe(Config.withDefault(DEFAULT_CHANGELOG_DIRECTORY))
-    const changelogStageDir = yield* Config.String(
-      "CHANGELOG_STAGE_DIRECTORY",
-    ).pipe(Config.withDefault(".data/mixedbread/changelog"))
     const version = yield* Config.Number("MXBAI_STORE_VERSION").pipe(
-      Config.withDefault(2),
+      Config.withDefault(3),
     )
 
     const crypto = yield* Crypto.Crypto
@@ -125,7 +122,6 @@ export class Mixedbread extends Context.Service<
     const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (
       storeId: string,
       options: SyncOptions,
-      includeChangelog: boolean,
     ) {
       const metadata = markdownSyncMetadata(options, version)
       const command = ChildProcess.make(
@@ -133,7 +129,6 @@ export class Mixedbread extends Context.Service<
         markdownSyncArguments({
           blogStageDir,
           documentationStageDir,
-          changelogStageDir: includeChangelog ? changelogStageDir : undefined,
           metadata,
           storeId,
         }),
@@ -195,7 +190,7 @@ export class Mixedbread extends Context.Service<
 
     const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(
       function* (storeId: string, options: SyncOptions) {
-        const [, , changelogCount] = yield* Effect.all(
+        yield* Effect.all(
           [
             stageDocumentation({
               contentDir,
@@ -211,17 +206,10 @@ export class Mixedbread extends Context.Service<
               Effect.provideService(FileSystem.FileSystem, fs),
               Effect.provideService(Path.Path, path),
             ),
-            stageChangelog({
-              contentDir: changelogContentDir,
-              stageDir: changelogStageDir,
-            }).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
-            ),
           ],
           { concurrency: "unbounded" },
         )
-        yield* syncMarkdown(storeId, options, changelogCount > 0)
+        yield* syncMarkdown(storeId, options)
         yield* deleteLegacyDocumentation(storeId)
       },
     )
@@ -229,10 +217,41 @@ export class Mixedbread extends Context.Service<
     const syncApiReferenceStore = Effect.fn("Mixedbread.syncApiReferenceStore")(
       function* (store: MixedbreadClient.Store, options: SyncOptions) {
         const files = yield* apiReferenceFiles()
-        yield* syncApiReference({
+        yield* syncFiles({
           branch,
           client,
+          externalIdPrefix: "api-reference/",
           files,
+          label: "API reference",
+          store,
+          stores,
+          sync: options,
+          version,
+        })
+      },
+    )
+
+    const syncChangelogStore = Effect.fn("Mixedbread.syncChangelogStore")(
+      function* (store: MixedbreadClient.Store, options: SyncOptions) {
+        const files = yield* generateChangelogFiles(
+          changelogContentDir,
+          hash,
+        ).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+          Effect.provideService(Path.Path, path),
+        )
+        // Skip when no changelog data is present so a partial sync never deletes
+        // an already-indexed changelog from the store.
+        if (files.length === 0) {
+          yield* Effect.log("No changelog files to index")
+          return
+        }
+        yield* syncFiles({
+          branch,
+          client,
+          externalIdPrefix: "changelog/",
+          files,
+          label: "changelog",
           store,
           stores,
           sync: options,
@@ -249,7 +268,10 @@ export class Mixedbread extends Context.Service<
 
       const synchronizations = [
         ...(scope === "all" || scope === "markdown"
-          ? [syncMarkdownStore(store.id, options)]
+          ? [
+              syncMarkdownStore(store.id, options),
+              syncChangelogStore(store, options),
+            ]
           : []),
         ...(scope === "all" || scope === "api-reference"
           ? [syncApiReferenceStore(store, options)]
