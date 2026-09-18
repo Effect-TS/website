@@ -8,15 +8,21 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
-import type { SearchResult } from "./domain"
+import type { ChangelogFacets, FacetValue, SearchResult } from "./domain"
 import {
   ApiReferenceGeneratedMetadata,
   ApiReferenceMetadata,
   BlogGeneratedMetadata,
+  ChangelogGeneratedMetadata,
   DocumentationGeneratedMetadata,
   SearchError,
   StoreSearchResponse,
 } from "./domain"
+
+export interface SearchOptions {
+  readonly package?: string | undefined
+  readonly channel?: string | undefined
+}
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
@@ -55,7 +61,8 @@ export class Search extends Context.Service<Search>()("app/Search", {
     function markdownSection(
       generated:
         | typeof DocumentationGeneratedMetadata.Type
-        | typeof BlogGeneratedMetadata.Type,
+        | typeof BlogGeneratedMetadata.Type
+        | typeof ChangelogGeneratedMetadata.Type,
     ) {
       const firstHeading = generated.chunk_headings[0]
       const endLine = generated.start_line + generated.num_lines
@@ -150,6 +157,37 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
+        if (Schema.is(ChangelogGeneratedMetadata)(generated)) {
+          const href = generated.search.page_href
+          if (!grouped.has(href)) {
+            grouped.set(href, {
+              kind: "changelog",
+              id: href,
+              title: generated.search.page_title,
+              description: `Changelog for ${generated.search.package_name}`,
+              href,
+              packageName: generated.search.package_name,
+              version: generated.search.docs_version,
+              chunks: [],
+            })
+          }
+
+          const result = grouped.get(href)
+          if (result === undefined || result.kind !== "changelog") return
+          const section = markdownSection(generated)
+          if (section === undefined || section.anchor.length === 0) return
+          const sectionHref = `${href}#${section.anchor}`
+          if (result.chunks.some((match) => match.href === sectionHref)) return
+          result.chunks.push({
+            id: `${chunk.file_id}-${chunk.chunk_index}`,
+            href: sectionHref,
+            title: section.title,
+            snippet: section.excerpt || extractSnippet(chunk.text),
+            score: chunk.score,
+          })
+          return
+        }
+
         if (!Schema.is(DocumentationGeneratedMetadata)(generated)) return
         const section = markdownSection(generated)
         if (section === undefined) return
@@ -194,7 +232,37 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
-    const search = Effect.fn("Search.search")(function* (query: string) {
+    // Build a metadata pre-filter from the caller's scope. Each condition runs
+    // as a structured WHERE before the vector step, so a package or channel
+    // filter is exact — not a hope that semantics rank the right chunks.
+    function buildFilters(options: SearchOptions) {
+      const conditions: Array<{
+        key: string
+        operator: "eq"
+        value: string
+      }> = []
+      if (options.package !== undefined) {
+        conditions.push({
+          key: "package_name",
+          operator: "eq",
+          value: options.package,
+        })
+      }
+      if (options.channel !== undefined) {
+        conditions.push({
+          key: "channel",
+          operator: "eq",
+          value: options.channel,
+        })
+      }
+      return conditions.length === 0 ? undefined : { all: conditions }
+    }
+
+    const search = Effect.fn("Search.search")(function* (
+      query: string,
+      options: SearchOptions = {},
+    ) {
+      const filters = buildFilters(options)
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
@@ -202,6 +270,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
               query,
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
+              ...(filters === undefined ? {} : { filters }),
               store_identifiers: [Redacted.value(storeId)],
             },
             { signal },
@@ -216,8 +285,49 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return groupSearchResults(response)
     })
 
+    // Enumerate the changelog packages and channels present in the store so the
+    // UI can offer exact filters instead of free-text guessing.
+    const facets = Effect.fn("Search.facets")(function* () {
+      const raw = yield* Effect.tryPromise({
+        try: (signal) =>
+          mxbai.stores.metadataFacets(
+            {
+              store_identifiers: [Redacted.value(storeId)],
+              facets: ["package_name", "channel"],
+              filters: {
+                all: [
+                  {
+                    key: "content_source",
+                    operator: "eq",
+                    value: "changelog",
+                  },
+                ],
+              },
+              max_values_per_field: 200,
+            },
+            { signal },
+          ),
+        catch: (cause) => new SearchError({ cause }),
+      })
+      const toValues = (field: string): ReadonlyArray<FacetValue> => {
+        const bucket = raw.facets[field]
+        if (bucket === undefined) return []
+        return Object.entries(bucket)
+          .map(([value, count]) => ({
+            value,
+            count: typeof count === "number" ? count : 0,
+          }))
+          .sort((a, b) => a.value.localeCompare(b.value))
+      }
+      return {
+        packages: toValues("package_name"),
+        channels: toValues("channel"),
+      } satisfies ChangelogFacets
+    })
+
     return {
       search,
+      facets,
     } as const
   }),
 }) {

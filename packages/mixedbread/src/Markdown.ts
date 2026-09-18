@@ -12,6 +12,11 @@ const processor = unified()
   .use(remarkParse)
   .use(remarkMdx)
   .use(remarkFrontmatter, ["yaml"])
+// Changelog bodies come verbatim from the Effect repo and are not MDX-safe
+// (unescaped `<T>` / `{x}` in prose), so parse them as plain CommonMark.
+const commonMarkProcessor = unified()
+  .use(remarkParse)
+  .use(remarkFrontmatter, ["yaml"])
 const MAX_EXCERPT_LENGTH = 240
 const MAX_SEARCH_METADATA_LENGTH = 64_000
 
@@ -26,6 +31,16 @@ export function parseMarkdown(
   missingFrontmatterMessage: string,
 ): ParsedMarkdown {
   const tree = processor.parse(source)
+  const yaml = tree.children.find(isYaml)
+  if (yaml === undefined) throw new Error(missingFrontmatterMessage)
+  return { tree, yaml, frontmatter: parseYaml(yaml.value) }
+}
+
+export function parseCommonMark(
+  source: string,
+  missingFrontmatterMessage: string,
+): ParsedMarkdown {
+  const tree = commonMarkProcessor.parse(source)
   const yaml = tree.children.find(isYaml)
   if (yaml === undefined) throw new Error(missingFrontmatterMessage)
   return { tree, yaml, frontmatter: parseYaml(yaml.value) }
