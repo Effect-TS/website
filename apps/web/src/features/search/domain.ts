@@ -222,15 +222,3 @@ export class SearchError extends Schema.TaggedError<SearchError>()(
   { cause: Schema.Defect() },
   { httpApiStatus: 500 },
 ) {}
-
-export const FacetValue = Schema.Struct({
-  value: Schema.String,
-  count: Schema.Number,
-})
-export type FacetValue = typeof FacetValue.Type
-
-export const ChangelogFacets = Schema.Struct({
-  packages: Schema.Array(FacetValue),
-  channels: Schema.Array(FacetValue),
-})
-export type ChangelogFacets = typeof ChangelogFacets.Type
