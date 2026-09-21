@@ -62,7 +62,7 @@ const program = Effect.gen(function* () {
   yield* Effect.repeat(task1, { times: 2 })
 
   // Ensures task2 is executed only once
-  const task2 = yield* Effect.cached(Console.log("task2"))
+  const task2 = yield* Effect.once(Console.log("task2"))
 
   // Attempts to repeat task2, but it will only execute once
   yield* Effect.repeat(task2, { times: 2 })
