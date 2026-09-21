@@ -1,0 +1,363 @@
+---
+title: Schedule cookbook
+description: Handle server-directed timing, hard deadlines, phased retries, and retry telemetry.
+sidebar:
+  order: 3
+---
+
+This page contains complete examples of common retrying and scheduling
+problems. Each recipe explains when the program stops.
+
+For an introduction to `Effect.repeat`, `Effect.schedule`, and `Effect.retry`,
+start with [Using schedules](/docs/v4/scheduling/using-schedules). To choose,
+limit, or combine schedules, see
+[Choosing and combining schedules](/docs/v4/scheduling/choosing-and-combining-schedules).
+
+Several examples use `TestClock` to advance time without waiting. They fork the
+program while it sleeps, advance the clock, then join the fiber to get its
+result.
+
+## Follow `Retry-After`
+
+A rate-limited server can return a different `Retry-After` value with every
+failed request. The client must compare that value with the backoff for the same
+retry and wait for whichever is longer.
+
+`Schedule.max` compares delays produced by two schedules. `Retry-After` is not
+a second schedule. It is data carried by the current `RateLimited` error.
+`Schedule.modifyDelay` provides both values to its callback: `duration` is the
+delay selected by the backoff, and `input.retryAfter` is the server's delay.
+
+**Example** (Respecting the server's retry delay)
+
+An application downloads a report. The simulated server returns
+`Retry-After: 2` on the first three requests, then allows the download.
+
+```ts twoslash import.meta.vitest name="cookbook-follow-retry-after"
+import { Clock, Data, Duration, Effect, Fiber, Schedule } from "effect"
+import { TestClock } from "effect/testing"
+
+class RateLimited extends Data.TaggedError("RateLimited")<{
+  readonly retryAfter: Duration.Duration
+}> {}
+
+// Simulated HTTP responses
+
+const requestTimes: Array<number> = []
+const downloadReport = Effect.gen(function* () {
+  requestTimes.push(yield* Clock.currentTimeMillis)
+  if (requestTimes.length <= 3) {
+    return yield* Effect.fail(
+      new RateLimited({ retryAfter: Duration.seconds(2) }),
+    )
+  }
+  return "downloaded"
+})
+
+const retryPolicy = Schedule.exponential("1 second").pipe(
+  // Give the callback's input the type of the request error.
+  Schedule.setInputType<RateLimited>(),
+  Schedule.modifyDelay(({ duration, input }) =>
+    Effect.succeed(Duration.max(duration, input.retryAfter)),
+  ),
+  Schedule.upTo({ times: 4 }),
+)
+
+const program = downloadReport.pipe(Effect.retry(retryPolicy))
+
+// Run with a test clock to verify the request times.
+
+const test = Effect.gen(function* () {
+  const fiber = yield* Effect.forkChild(program)
+  yield* TestClock.adjust("8 seconds")
+  const result = yield* Fiber.join(fiber)
+
+  requestTimes // => [0, 2000, 4000, 8000]
+  return result
+})
+
+const result = await Effect.runPromise(Effect.provide(test, TestClock.layer()))
+
+result // => "downloaded"
+```
+
+For the three retries in this example, the selected delays are:
+
+| Retry | Backoff | Server delay | Selected delay |
+| ----: | ------: | -----------: | -------------: |
+|     1 |     1 s |          2 s |        **2 s** |
+|     2 |     2 s |          2 s |        **2 s** |
+|     3 |     4 s |          2 s |        **4 s** |
+
+`Schedule.upTo({ times: 4 })` allows at most five requests, including the
+initial one. Success stops the retries. If all five requests are rate-limited,
+the Effect fails with the last `RateLimited` error.
+
+Parse `Retry-After` when handling the HTTP response and store the resulting
+duration in the error. The header can contain a number of seconds or an HTTP
+date. The schedule only needs the duration.
+
+## Poll at a server-directed interval
+
+Like `Retry-After`, a polling response can tell the client how long to wait.
+Here, however, `Pending` is a successful response. `Effect.repeat` passes it to
+the schedule, and `Schedule.modifyDelay` uses its `pollAfter` value for the next
+wait.
+
+**Example** (Waiting for an export to finish)
+
+An application polls an existing export. The simulated server asks it to wait
+one second, then two seconds, before returning a download URL.
+
+```ts twoslash import.meta.vitest name="cookbook-poll-at-a-server-directed-interval"
+import { Clock, Duration, Effect, Fiber, Schedule } from "effect"
+import { TestClock } from "effect/testing"
+
+interface Ready {
+  readonly _tag: "Ready"
+  readonly downloadUrl: string
+}
+
+type ExportStatus =
+  { readonly _tag: "Pending"; readonly pollAfter: Duration.Duration } | Ready
+
+// Simulated export status responses
+
+const checkTimes: Array<number> = []
+const getExportStatus = Effect.gen(
+  function* (): Effect.gen.Return<ExportStatus> {
+    checkTimes.push(yield* Clock.currentTimeMillis)
+    if (checkTimes.length === 1) {
+      return { _tag: "Pending", pollAfter: Duration.seconds(1) }
+    }
+    if (checkTimes.length === 2) {
+      return { _tag: "Pending", pollAfter: Duration.seconds(2) }
+    }
+    return { _tag: "Ready", downloadUrl: "/exports/orders.csv" }
+  },
+)
+
+const pollingDelay = Schedule.recurs(9).pipe(
+  Schedule.setInputType<ExportStatus>(),
+  Schedule.modifyDelay(({ input }) =>
+    Effect.succeed(input._tag === "Pending" ? input.pollAfter : Duration.zero),
+  ),
+)
+
+const program = getExportStatus.pipe(
+  Effect.repeat({
+    schedule: pollingDelay,
+    until: (status) => status._tag === "Ready",
+  }),
+  Effect.filterOrFail(
+    (status): status is Ready => status._tag === "Ready",
+    () => "Export did not become ready",
+  ),
+)
+
+// Run with a test clock to verify the polling intervals.
+
+const test = Effect.gen(function* () {
+  const fiber = yield* Effect.forkChild(program)
+  yield* TestClock.adjust("3 seconds")
+  const result = yield* Fiber.join(fiber)
+
+  checkTimes // => [0, 1000, 3000]
+  return result
+})
+
+const ready = await Effect.runPromise(Effect.provide(test, TestClock.layer()))
+
+ready.downloadUrl // => "/exports/orders.csv"
+```
+
+The first check runs immediately. Each `Pending` response supplies the next
+delay. The first `Ready` response stops polling without another wait.
+
+`Schedule.recurs(9)` allows at most ten checks, including the initial one. If
+the result is still `Pending` at that point, `Effect.filterOrFail` turns it into
+a failure.
+
+## Set a deadline for the entire retry operation
+
+A schedule decides whether another retry may start. `Schedule.upTo({ duration })`
+checks elapsed time only when the schedule prepares the next retry, so it cannot
+interrupt an attempt or scheduled wait already in progress.
+
+Wrap the complete retrying Effect in `Effect.timeout` when the initial attempt,
+scheduled waits, and retries must share a hard deadline.
+
+**Example** (Limiting an inventory lookup to 250 milliseconds)
+
+An application retries an unavailable inventory service, but stops waiting
+after 250 milliseconds.
+
+```ts twoslash import.meta.vitest name="cookbook-keep-all-retries-within-one-deadline"
+import { Data, Effect, Schedule } from "effect"
+
+class ServiceUnavailable extends Data.TaggedError("ServiceUnavailable") {}
+
+// Simulate an inventory service that remains unavailable.
+const loadInventory = Effect.fail(new ServiceUnavailable())
+
+const retryPolicy = Schedule.exponential("100 millis").pipe(
+  Schedule.upTo({ times: 4 }),
+)
+
+const program = loadInventory.pipe(
+  Effect.retry(retryPolicy),
+  // Apply the timeout to the whole operation, including waits.
+  Effect.timeout("250 millis"),
+)
+
+const error = await Effect.runPromise(Effect.flip(program))
+
+error._tag // => "TimeoutError"
+```
+
+A successful response ends the program. Otherwise, it fails when the timeout
+expires or the retry limit is reached, whichever happens first. In this example,
+the timeout expires during the wait for another retry.
+
+The position of `Effect.timeout` determines what it limits:
+
+| Placement             | Time budget applies to                |
+| --------------------- | ------------------------------------- |
+| After `Effect.retry`  | The entire operation, including waits |
+| Before `Effect.retry` | Each individual attempt               |
+
+`Effect.timeout` interrupts the retrying Effect when the deadline expires. See
+[Timing out](/docs/v4/error-management/timing-out) for details.
+
+## Retry quickly, then slow down
+
+A service may recover quickly from a brief interruption, but frequent retries
+should not continue during a longer outage. Use `Schedule.concat` to retry
+quickly a few times, then switch to a slower interval.
+
+**Example** (Reconnecting after a database restart)
+
+An application reconnects while its database restarts. The simulated connection
+fails four times, so the successful attempt uses the slower phase.
+
+```ts twoslash import.meta.vitest name="cookbook-retry-quickly-then-slow-down"
+import { Data, Effect, Schedule } from "effect"
+
+// Simulated connection attempts
+
+import { Clock, Fiber } from "effect"
+import { TestClock } from "effect/testing"
+
+class ConnectionError extends Data.TaggedError("ConnectionError") {}
+
+const attemptTimes: Array<number> = []
+const connect = Effect.gen(function* () {
+  attemptTimes.push(yield* Clock.currentTimeMillis)
+  if (attemptTimes.length < 5) {
+    return yield* Effect.fail(new ConnectionError())
+  }
+  return "connected"
+})
+
+const quickRetries = Schedule.spaced("100 millis").pipe(
+  Schedule.upTo({ times: 3 }),
+)
+
+const slowRetries = Schedule.spaced("5 seconds").pipe(
+  Schedule.upTo({ times: 10 }),
+)
+
+const reconnect = quickRetries.pipe(Schedule.concat(slowRetries))
+const program = connect.pipe(Effect.retry(reconnect))
+
+// Run with a test clock to verify the switch to the slower phase.
+
+const test = Effect.gen(function* () {
+  const fiber = yield* Effect.forkChild(program)
+  yield* TestClock.adjust("5300 millis")
+  const result = yield* Fiber.join(fiber)
+
+  attemptTimes // => [0, 100, 200, 300, 5300]
+  return result
+})
+
+const result = await Effect.runPromise(Effect.provide(test, TestClock.layer()))
+
+result // => "connected"
+```
+
+After the initial immediate attempt, the policy allows these retries:
+
+| Phase | Maximum retries | Wait before each retry |
+| ----- | --------------: | ---------------------: |
+| Quick |               3 |                 100 ms |
+| Slow  |              10 |                    5 s |
+
+This is the same policy used in
+[Choosing and combining schedules](/docs/v4/scheduling/choosing-and-combining-schedules#run-rules-in-phases-with-scheduleconcat).
+It allows at most fourteen connection attempts in total. A successful connection
+stops immediately. If every attempt fails, the Effect fails with the last
+`ConnectionError`.
+
+## Record scheduled retries
+
+Use `Schedule.tap` to record a retry after the policy accepts it and before the
+wait begins. Place it after the retry limit so it records only permitted
+retries, together with the error and selected delay.
+
+**Example** (Recording retries of an invoice request)
+
+A simulated invoice request fails twice with HTTP 502, then succeeds. An array
+collects the retry events so you can inspect their contents.
+
+```ts twoslash import.meta.vitest name="cookbook-record-scheduled-retries"
+import { Data, Duration, Effect, Schedule } from "effect"
+
+class GatewayError extends Data.TaggedError("GatewayError")<{
+  readonly status: number
+}> {}
+
+// Simulated invoice requests
+
+let attempts = 0
+const fetchInvoice = Effect.suspend(() => {
+  attempts++
+  return attempts < 3
+    ? Effect.fail(new GatewayError({ status: 502 }))
+    : Effect.succeed({ id: "inv_123", status: "Paid" })
+})
+
+const events: Array<{ retry: number; status: number; delayMs: number }> = []
+
+const observedRetries = Schedule.exponential("100 millis").pipe(
+  Schedule.setInputType<GatewayError>(),
+  Schedule.upTo({ times: 4 }),
+  Schedule.tap(({ attempt, duration, input }) =>
+    Effect.sync(() => {
+      events.push({
+        retry: attempt,
+        status: input.status,
+        delayMs: Duration.toMillis(duration),
+      })
+    }),
+  ),
+)
+
+const program = fetchInvoice.pipe(Effect.retry(observedRetries))
+await Effect.runPromise(program)
+
+events[0] // => { retry: 1, status: 502, delayMs: 100 }
+events[1] // => { retry: 2, status: 502, delayMs: 200 }
+events.length // => 2
+```
+
+`attempt` counts retries starting at one. The event for retry 1 therefore
+precedes the second execution of `fetchInvoice`. The callback runs before the
+wait, so an event describes a planned retry, not a request that has already run.
+
+The policy permits four retries, for at most five requests. Success stops the
+retries. If all requests fail, the Effect fails with the last `GatewayError`.
+
+Replace the array with the application's logger or metrics service. A failure
+in the `tap` callback also fails the retrying Effect. Handle telemetry errors
+inside the callback if they must not stop the request.

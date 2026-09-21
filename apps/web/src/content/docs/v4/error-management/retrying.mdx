@@ -75,7 +75,7 @@ attempts // => 2
 
 ### Using a Schedule
 
-A [`Schedule`](/docs/v4/scheduling/introduction/) can define delays, backoff, jitter, and retry limits. `Schedule.recurs(3)`, for example, permits three retries after the initial attempt.
+A [`Schedule`](/docs/v4/scheduling/using-schedules/) can define delays, backoff, jitter, and retry limits. `Schedule.recurs(3)`, for example, permits three retries after the initial attempt.
 
 ```ts twoslash import.meta.vitest name="retrying-with-a-schedule-1"
 import { Effect, Schedule } from "effect"
@@ -91,7 +91,7 @@ const program = request.pipe(Effect.retry(Schedule.recurs(3)))
 Effect.runSync(program) // => "ok"
 ```
 
-Use [`Effect.repeat`](/docs/v4/scheduling/repetition/) instead when repetition depends on successful values rather than errors.
+Use [`Effect.repeat`](/docs/v4/scheduling/using-schedules/#repeat-after-success) instead when repetition depends on successful values rather than errors.
 
 ## retryOrElse
 
