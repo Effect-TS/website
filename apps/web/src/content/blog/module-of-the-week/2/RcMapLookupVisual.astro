@@ -1,0 +1,806 @@
+---
+import { RotateCcw } from "@lucide/astro"
+import "./RcMapVisualTheme.css"
+
+interface Props {
+  scopes?: boolean
+  idle?: "ttl" | "compare"
+}
+
+const { scopes = false, idle } = Astro.props
+---
+
+<figure
+  class="lookup-demo"
+  data-lookup-demo
+  data-route="none"
+  data-stage="idle"
+  data-directory="absent"
+  data-idle-mode={idle}
+>
+  <div class="request-control">
+    <button type="button" class="request">Get checkout</button>
+    <code class="request-key">RcMap.get("acme/api")</code>
+    {
+      idle === "compare" && (
+        <>
+          <button type="button" class="request option-request">
+            Get existing
+          </button>
+          <code class="request-key">RcMap.getOption("acme/api")</code>
+          <span class="option-result" aria-live="polite" />
+        </>
+      )
+    }
+  </div>
+
+  <svg
+    class="flow desktop-flow"
+    viewBox="0 0 500 230"
+    role="img"
+    aria-label="Get checks whether the key exists. Missing keys go through lookup; existing keys go directly to the checkout."
+  >
+    <path class="connector incoming" d="M0 115 H30 M24 110 L30 115 L24 120"></path>
+    <text class="question" x="85" y="120">Key exists?</text>
+    <g class="branch missing">
+      <path class="connector" d="M85 98 V48 Q85 38 95 38 H190 M184 33 L190 38 L184 43"></path>
+      <text x="145" y="42" class="answer">No</text>
+      <rect class="lookup-box" x="200" y="8" width="116" height="60" rx="8"></rect>
+      <text class="code" x="258" y="42">lookup(key)</text>
+      <path
+        class="connector outgoing"
+        d="M316 38 H350 Q360 38 360 48 V115 H390 M384 110 L390 115 L384 120"></path>
+    </g>
+    <g class="branch existing">
+      <path
+        class="connector"
+        d="M85 136 V182 Q85 192 95 192 H350 Q360 192 360 182 V115 H390 M384 110 L390 115 L384 120"
+      ></path>
+      <text x="145" y="196" class="answer">Yes</text>
+      <text x="258" y="180" class="small">Reuse</text>
+    </g>
+    <g class="checkout" transform="translate(400 89)">
+      <path
+        class="folder"
+        d="M2 44 V8 Q2 3 7 3 H25 L33 12 H63 Q68 12 68 17 V44 Q68 49 63 49 H7 Q2 49 2 44Z M3 19 H67"
+      ></path>
+      <text class="count" x="35" y="40" data-references>0</text>
+      <path class="clone-progress" d="M11 44 H59"></path>
+    </g>
+    <text class="small checkout-label" x="435" y="160" data-directory-label>No checkout</text>
+    <text class="small checkout-label" x="435" y="176" data-directory-detail>yet</text>
+    {idle && <path class="idle-meter" d="M402 192 H468" pathLength="1" />}
+  </svg>
+
+  <svg
+    class="flow mobile-flow"
+    viewBox={idle ? "0 0 320 350" : "0 0 320 330"}
+    role="img"
+    aria-label="Get checks whether the key exists. Missing keys go through lookup; existing keys go directly to the checkout."
+  >
+    <path class="connector incoming" d="M160 0 V30 M155 24 L160 30 L165 24"></path>
+    <text class="question" x="160" y="55">Key exists?</text>
+
+    <g class="branch missing">
+      <path class="connector" d="M125 70 H70 V125 M65 119 L70 125 L75 119"></path>
+      <text x="70" y="101" class="answer">No</text>
+      <rect class="lookup-box" x="12" y="136" width="116" height="60" rx="8"></rect>
+      <text class="code" x="70" y="170">lookup(key)</text>
+      <path
+        class="connector outgoing"
+        d="M70 196 V222 Q70 232 80 232 H160 V251 M155 245 L160 251 L165 245"></path>
+    </g>
+
+    <g class="branch existing">
+      <path
+        class="connector"
+        d="M195 70 H250 V222 Q250 232 240 232 H160 V251 M155 245 L160 251 L165 245"></path>
+      <text x="250" y="101" class="answer">Yes</text>
+      <text x="246" y="167" class="small reuse-label">Reuse</text>
+    </g>
+
+    <g class="checkout" transform="translate(125 256)">
+      <path
+        class="folder"
+        d="M2 44 V8 Q2 3 7 3 H25 L33 12 H63 Q68 12 68 17 V44 Q68 49 63 49 H7 Q2 49 2 44Z M3 19 H67"
+      ></path>
+      <text class="count" x="35" y="40" data-references>0</text>
+      <path class="clone-progress" d="M11 44 H59"></path>
+    </g>
+    <text class="small checkout-label" x="160" y="326" data-checkout-label>No checkout yet</text>
+    {idle && <path class="idle-meter" d="M127 342 H193" pathLength="1" />}
+  </svg>
+
+  <p class="outcome" aria-live="polite" aria-atomic="true">Click to request your first checkout.</p>
+  {
+    (scopes || idle) && (
+      <div class="scope-bar">
+        <span class="scope-heading">
+          Scopes <span>Click to close</span>
+        </span>
+        <div
+          class="scope-list"
+          role="group"
+          aria-label="Active scopes. Click a scope to close it."
+        />
+        <span class="empty-scopes">No active scopes</span>
+      </div>
+    )
+  }
+  <button type="button" class="reset" aria-label="Reset">
+    <RotateCcw size={18} stroke-width={1.75} aria-hidden="true" />
+    <span class="reset-tooltip" aria-hidden="true">Reset</span>
+  </button>
+</figure>
+
+<script>
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-lookup-demo]")) {
+    const request = visual.querySelector<HTMLButtonElement>(".request")
+    const optionRequest = visual.querySelector<HTMLButtonElement>(".option-request")
+    const optionResult = visual.querySelector(".option-result")
+    const reset = visual.querySelector<HTMLButtonElement>(".reset")
+    const counts = visual.querySelectorAll("[data-references]")
+    const label = visual.querySelector("[data-checkout-label]")
+    const directoryLabel = visual.querySelector("[data-directory-label]")
+    const directoryDetail = visual.querySelector("[data-directory-detail]")
+    const outcome = visual.querySelector(".outcome")
+    const scopeList = visual.querySelector<HTMLElement>(".scope-list")
+    const emptyScopes = visual.querySelector<HTMLElement>(".empty-scopes")
+    if (!request || !reset || !label || !directoryLabel || !directoryDetail || !outcome) continue
+
+    let references = 0
+    let nextScope = 0
+    const idleTtl = visual.dataset.idleMode ? 5000 : 0
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const stopIdle = () => {
+      clearTimeout(idleTimer)
+      idleTimer = undefined
+      visual.removeAttribute("data-idling")
+    }
+    const updateReferences = () => {
+      for (const count of counts) count.textContent = String(references)
+      if (visual.dataset.directory === "ready") {
+        label.textContent = `Temporary checkout · ${references} ${references === 1 ? "reference" : "references"}`
+      }
+    }
+    const clearDirectory = () => {
+      visual.classList.remove("has-checkout")
+      label.textContent = "No checkout yet"
+      directoryLabel.textContent = "No checkout"
+      directoryDetail.textContent = "yet"
+      visual.dataset.directory = "absent"
+      visual.dataset.route = "none"
+      visual.dataset.stage = "idle"
+    }
+    const timers = new Set<ReturnType<typeof setTimeout>>()
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const later = (delay: number, action: () => void) => {
+      const timer = setTimeout(
+        () => {
+          timers.delete(timer)
+          action()
+        },
+        reducedMotion.matches ? 0 : delay,
+      )
+      timers.add(timer)
+    }
+
+    const removeDirectory = () => {
+      stopIdle()
+      for (const timer of timers) clearTimeout(timer)
+      timers.clear()
+      request.disabled = true
+      if (optionRequest) optionRequest.disabled = true
+      visual.dataset.directory = "deleting"
+      visual.dataset.route = "none"
+      label.textContent = "Removing directory…"
+      directoryLabel.textContent = "Removing"
+      directoryDetail.textContent = "directory…"
+      later(450, () => {
+        clearDirectory()
+        request.disabled = false
+        if (optionRequest) optionRequest.disabled = false
+        outcome.textContent = "The temporary directory has been removed."
+      })
+    }
+    const startIdle = () => {
+      stopIdle()
+      const expiresAt = performance.now() + idleTtl
+      visual.dataset.idling = "true"
+      const tick = () => {
+        const remaining = Math.max(0, expiresAt - performance.now())
+        visual.style.setProperty("--idle-remaining", String(remaining / idleTtl))
+        label.textContent = `Idle · ${(remaining / 1000).toFixed(1)}s left`
+        directoryLabel.textContent = "Idle"
+        directoryDetail.textContent = `${(remaining / 1000).toFixed(1)}s left`
+        if (remaining === 0) {
+          removeDirectory()
+        } else {
+          idleTimer = setTimeout(tick, Math.min(100, remaining))
+        }
+      }
+      tick()
+    }
+
+    const acquire = (existingOnly: boolean) => {
+      if (request.disabled) return
+      const missing = visual.dataset.directory === "absent"
+      if (existingOnly && missing) {
+        visual.dataset.route = "none"
+        if (optionResult) optionResult.textContent = "None"
+        outcome.textContent = "No entry. getOption returns None without running lookup."
+        return
+      }
+      stopIdle()
+      if (optionResult)
+        optionResult.textContent = existingOnly
+          ? visual.dataset.directory === "ready"
+            ? "Some(checkout)"
+            : "Waiting…"
+          : ""
+      references++
+      updateReferences()
+      if (visual.dataset.directory === "ready") {
+        directoryLabel.textContent = "Temporary"
+        directoryDetail.textContent = "checkout"
+      }
+      visual.dataset.route = missing ? "missing" : "existing"
+
+      if (scopeList) {
+        const scope = document.createElement("button")
+        const id = ++nextScope
+        scope.type = "button"
+        scope.dataset.scopeId = String(id)
+        scope.textContent = "Scope"
+        const status = document.createElement("span")
+        status.className = "scope-status"
+        status.setAttribute("aria-hidden", "true")
+        const close = document.createElement("span")
+        close.className = "scope-close"
+        close.textContent = "×"
+        const indicator = document.createElement("span")
+        indicator.className = "scope-waiting"
+        indicator.setAttribute("aria-hidden", "true")
+        for (let index = 0; index < 6; index++) {
+          const dot = document.createElement("span")
+          dot.style.setProperty("--dot-delay", `${index * 100}ms`)
+          indicator.append(dot)
+        }
+        status.append(indicator, close)
+        scope.append(status)
+        scope.dataset.state = visual.dataset.directory === "ready" ? "ready" : "waiting"
+        scope.setAttribute(
+          "aria-label",
+          `Close scope ${id}${scope.dataset.state === "waiting" ? ", waiting for checkout" : ""}`,
+        )
+        scope.addEventListener("click", () => {
+          scope.remove()
+          references--
+          updateReferences()
+          if (emptyScopes) emptyScopes.hidden = references > 0
+          outcome.textContent = `Scope ${id} closed. ${references} references remain.`
+          if (references > 0) return
+          if (idleTtl > 0) startIdle()
+          else removeDirectory()
+        })
+        scopeList.append(scope)
+        if (emptyScopes) emptyScopes.hidden = true
+      }
+
+      if (!missing) {
+        outcome.textContent =
+          visual.dataset.directory === "ready"
+            ? "Key found. Reusing the checkout."
+            : "Key found. Waiting for the shared checkout to finish loading."
+        return
+      }
+
+      visual.dataset.stage = "acquiring"
+      visual.dataset.directory = "creating"
+      label.textContent = "Creating directory…"
+      directoryLabel.textContent = "Creating"
+      directoryDetail.textContent = "directory…"
+      outcome.textContent = "Key missing. Running lookup to create the checkout…"
+      later(450, () => {
+        visual.dataset.directory = "cloning"
+        label.textContent = "git clone…"
+        directoryLabel.textContent = "git clone…"
+        directoryDetail.textContent = ""
+      })
+      later(1300, () => {
+        visual.classList.add("has-checkout")
+        visual.dataset.directory = "ready"
+        visual.dataset.stage = "ready"
+        updateReferences()
+        directoryLabel.textContent = "Temporary"
+        directoryDetail.textContent = "checkout"
+        for (const scope of scopeList?.querySelectorAll("button") ?? []) {
+          scope.dataset.state = "ready"
+          scope.setAttribute("aria-label", `Close scope ${scope.dataset.scopeId}`)
+        }
+        outcome.textContent = `Checkout ready. ${references} requests share the same directory.`
+        if (optionResult?.textContent === "Waiting…") optionResult.textContent = "Some(checkout)"
+      })
+    }
+    request.addEventListener("click", () => acquire(false))
+    optionRequest?.addEventListener("click", () => acquire(true))
+
+    const initializeScopes = () => {
+      if (visual.dataset.idleMode !== "ttl") return
+      visual.classList.add("has-checkout")
+      visual.dataset.directory = "ready"
+      visual.dataset.stage = "ready"
+      for (let index = 0; index < 3; index++) acquire(false)
+      visual.dataset.route = "none"
+      outcome.textContent =
+        "Three scopes share this checkout. Close them to start the idle countdown."
+    }
+
+    reset.addEventListener("click", () => {
+      stopIdle()
+      for (const timer of timers) clearTimeout(timer)
+      timers.clear()
+      references = 0
+      nextScope = 0
+      scopeList?.replaceChildren()
+      if (emptyScopes) emptyScopes.hidden = false
+      for (const count of counts) count.textContent = "0"
+      clearDirectory()
+      request.disabled = false
+      if (optionRequest) optionRequest.disabled = false
+      if (optionResult) optionResult.textContent = ""
+      outcome.textContent = "Map reset. Click to request your first checkout."
+      initializeScopes()
+    })
+    initializeScopes()
+  }
+</script>
+
+<style>
+  .lookup-demo {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0 2rem;
+    padding-top: 36px;
+  }
+  .request-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .option-request {
+    margin-top: 14px;
+  }
+  .option-result {
+    min-height: 18px;
+    margin-top: 6px;
+    color: var(--purple);
+    font:
+      700 12px/1.5 ui-monospace,
+      monospace;
+  }
+  .idle-meter {
+    visibility: hidden;
+    stroke: var(--amber);
+    stroke-width: 3;
+    stroke-dasharray: 1;
+    stroke-dashoffset: calc(1 - var(--idle-remaining, 1));
+    stroke-linecap: round;
+  }
+  [data-idling] .idle-meter {
+    visibility: visible;
+  }
+  [data-idling] .checkout-label {
+    fill: var(--amber);
+  }
+  .scope-bar {
+    width: 100%;
+    flex-basis: 100%;
+    box-sizing: border-box;
+    margin-top: 24px;
+    padding: 12px 16px;
+    border-left: 2px solid var(--blue);
+    background: color-mix(in srgb, var(--blue) 4%, transparent);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  .scope-heading {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+  .scope-heading > span,
+  .empty-scopes {
+    color: var(--diagram-muted);
+    font-size: 11px;
+  }
+  .scope-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .scope-list:empty {
+    display: none;
+  }
+  .scope-list :global(button) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    color: var(--blue);
+    cursor: pointer;
+    font:
+      12px/1.5 ui-monospace,
+      monospace;
+  }
+  .scope-list :global(button:focus-visible) {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+  }
+  .scope-list :global(button:hover) {
+    background: color-mix(in srgb, var(--blue) 16%, transparent);
+  }
+  .scope-list :global(button:disabled) {
+    cursor: wait;
+  }
+  .scope-list :global(button[data-state="waiting"]) {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 8%, transparent);
+  }
+  .scope-list :global(button[data-state="waiting"]:hover) {
+    background: color-mix(in srgb, var(--amber) 16%, transparent);
+  }
+  .scope-list :global(.scope-waiting) {
+    display: grid;
+    grid-template-columns: repeat(3, 3px);
+    gap: 2px;
+    width: max-content;
+    visibility: hidden;
+  }
+  .scope-list :global(.scope-status) {
+    display: grid;
+    place-items: center;
+    width: 13px;
+    height: 18px;
+  }
+  .scope-list :global(.scope-status > span) {
+    grid-area: 1 / 1;
+  }
+  .scope-list :global(button[data-state="waiting"] .scope-close) {
+    visibility: hidden;
+  }
+  .scope-list :global(.scope-waiting > span) {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .scope-list :global(button[data-state="waiting"] .scope-waiting) {
+    visibility: visible;
+  }
+  .scope-list :global(button[data-state="waiting"] .scope-waiting > span) {
+    animation: waiting-dot 900ms ease-in-out var(--dot-delay) infinite;
+  }
+  @keyframes waiting-dot {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scope-list :global(button[data-state="waiting"] .scope-waiting > span) {
+      animation: none;
+    }
+  }
+  [data-directory="deleting"] .folder {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: delete-folder 450ms ease-in forwards;
+  }
+  [data-directory="deleting"] .count {
+    visibility: hidden;
+  }
+  @keyframes delete-folder {
+    to {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-directory="deleting"] .folder {
+      animation: none;
+    }
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 4px;
+  }
+  .request {
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    padding: 10px 20px;
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    color: var(--blue);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .request:disabled {
+    cursor: wait;
+  }
+  .request-key {
+    margin-top: 8px;
+    padding: 0;
+    background: none;
+    color: var(--diagram-muted);
+    font:
+      12px/1.5 ui-monospace,
+      monospace;
+  }
+  .flow {
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    overflow: visible;
+  }
+  .desktop-flow {
+    display: none;
+  }
+  text {
+    fill: currentColor;
+    text-anchor: middle;
+    font:
+      14px system-ui,
+      sans-serif;
+  }
+  .question {
+    font-weight: 600;
+  }
+  .connector {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .incoming {
+    color: var(--diagram-border);
+  }
+  .branch {
+    color: var(--diagram-muted);
+  }
+  .branch .connector {
+    stroke: var(--diagram-border);
+  }
+  .answer {
+    paint-order: stroke;
+    stroke: var(--diagram-surface);
+    stroke-width: 10px;
+    stroke-linejoin: round;
+  }
+  .lookup-box {
+    fill: var(--diagram-surface);
+    stroke: var(--diagram-border);
+  }
+  .code {
+    font:
+      13px ui-monospace,
+      monospace;
+  }
+  .small {
+    font-size: 12px;
+  }
+  .reuse-label {
+    transform: translateX(-30px);
+  }
+  .checkout {
+    color: var(--diagram-ghost);
+  }
+  .folder {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+    stroke-dasharray: 4 4;
+  }
+  .count {
+    visibility: hidden;
+    font:
+      600 20px ui-monospace,
+      monospace;
+  }
+  .checkout-label {
+    fill: var(--diagram-muted);
+  }
+  [data-stage="checking"] .incoming {
+    color: var(--blue);
+    stroke-width: 3;
+  }
+  [data-route="missing"] .missing {
+    color: var(--amber);
+  }
+  [data-route="existing"] .existing {
+    color: var(--blue);
+  }
+  [data-route="missing"] .missing .connector,
+  [data-route="existing"] .existing .connector {
+    stroke: currentColor;
+    stroke-width: 3;
+  }
+  [data-route="missing"] .lookup-box {
+    stroke: var(--amber);
+    stroke-width: 2;
+    fill: color-mix(in srgb, var(--amber) 8%, var(--diagram-surface));
+  }
+  [data-stage="acquiring"] .missing .outgoing {
+    stroke: var(--diagram-border);
+    stroke-width: 1.5;
+  }
+  .has-checkout .checkout {
+    color: var(--amber);
+  }
+  .has-checkout .folder {
+    stroke-dasharray: none;
+    fill: color-mix(in srgb, var(--amber) 12%, transparent);
+  }
+  .has-checkout .count {
+    visibility: visible;
+  }
+  [data-directory="creating"] .count,
+  [data-directory="cloning"] .count {
+    visibility: visible;
+  }
+  [data-directory="creating"] .checkout,
+  [data-directory="cloning"] .checkout {
+    color: var(--amber);
+  }
+  [data-directory="creating"] .folder,
+  [data-directory="cloning"] .folder {
+    stroke-dasharray: none;
+    fill: color-mix(in srgb, var(--amber) 12%, transparent);
+  }
+  [data-directory="creating"] .folder {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: create-folder 450ms ease-out;
+  }
+  .clone-progress {
+    fill: none;
+    stroke: var(--amber);
+    stroke-width: 2;
+    transform-box: fill-box;
+    transform-origin: left;
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  [data-directory="cloning"] .clone-progress {
+    opacity: 1;
+    animation: clone-progress 850ms linear forwards;
+  }
+  @keyframes create-folder {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes clone-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-directory="creating"] .folder,
+    [data-directory="cloning"] .clone-progress {
+      animation: none;
+    }
+    [data-directory="cloning"] .clone-progress {
+      transform: scaleX(1);
+    }
+  }
+  .outcome {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .reset {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 7px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--diagram-muted);
+  }
+  .reset svg {
+    width: 18px;
+    height: 18px;
+  }
+  .reset:hover {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+  }
+  .reset-tooltip {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 4px);
+    padding: 4px 8px;
+    border: 1px solid var(--diagram-border);
+    border-radius: 4px;
+    background: var(--diagram-surface);
+    color: var(--diagram-muted);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+    pointer-events: none;
+    visibility: hidden;
+  }
+  .reset:hover .reset-tooltip,
+  .reset:focus-visible .reset-tooltip {
+    visibility: visible;
+  }
+  @media (min-width: 768px) {
+    .lookup-demo {
+      flex-wrap: wrap;
+    }
+    .scope-bar {
+      border-left: 0;
+      border-top: 2px solid var(--blue);
+    }
+    .scope-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    .lookup-demo {
+      flex-direction: row;
+      justify-content: center;
+    }
+    .request-control {
+      flex-shrink: 0;
+      transform: translateY(14px);
+    }
+    .request {
+      padding-inline: 12px;
+    }
+    .mobile-flow {
+      display: none;
+    }
+    .desktop-flow {
+      display: block;
+      flex: 1;
+      width: 0;
+      max-width: 550px;
+      min-width: 0;
+    }
+  }
+</style>

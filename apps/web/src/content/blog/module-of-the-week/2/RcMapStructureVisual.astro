@@ -1,0 +1,546 @@
+---
+import "./RcMapVisualTheme.css"
+
+const reviewers = [
+  { id: "A", color: "var(--blue)", y: 76 },
+  { id: "B", color: "var(--purple)", y: 246 },
+]
+const repositories = [
+  { id: "api", label: "acme/api", key: "acme/api@a1b2c3d" },
+  { id: "website", label: "acme/website", key: "acme/website@e4f5a6b" },
+]
+---
+
+<figure class="map-structure" data-map-structure>
+  <div class="diagram" role="region" aria-label="Interactive map structure">
+    <svg
+      viewBox="0 0 720 377"
+      role="group"
+      aria-label="Choose a repository beneath either reviewer to acquire or release a checkout"
+    >
+      <text x="210" y="24" class="heading">Map</text>
+      <rect class="boundary frame" x="190" y="44" width="514" height="321" rx="12"></rect>
+      <path class="boundary header-rule" d="M190 84 H704"></path>
+      <path class="boundary columns" d="M464 44 V84"></path>
+      <path class="boundary row-divider" d="M190 254 H704" opacity="0"></path>
+      <text x="230" y="69" class="column key-heading">Key</text>
+      <text x="584" y="69" text-anchor="middle" class="column value-heading">Value</text>
+      <text class="empty-map" x="447" y="229.5" text-anchor="middle">Empty</text>
+
+      <g class="wires" fill="none" stroke-width="3" aria-hidden="true">
+        {
+          reviewers.map(({ id, color, y }) => (
+            <g data-wire={id}>
+              <path d={`M104 ${y} H212`} stroke={color} />
+              <circle cx="212" cy={y} r="4" fill={color} />
+            </g>
+          ))
+        }
+      </g>
+
+      {
+        reviewers.map(({ id, color, y }) => (
+          <g color={color} data-reviewer-layout={id}>
+            <g transform={`translate(40 ${y - 32})`} aria-hidden="true">
+              <rect
+                width="64"
+                height="64"
+                rx="18"
+                fill={color}
+                fill-opacity="0.12"
+                stroke={color}
+                stroke-width="2"
+              />
+              <g
+                transform="translate(10 10) scale(0.92)"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="8" y="13" width="32" height="26" rx="8" />
+                <path d="M24 13 V7 M4 23 V29 M44 23 V29 M19 32 H29" />
+                <circle cx="17" cy="24" r="2" fill="currentColor" stroke="none" />
+                <circle cx="31" cy="24" r="2" fill="currentColor" stroke="none" />
+              </g>
+            </g>
+            <text x="72" y={y + 53} text-anchor="middle" fill={color} class="reviewer">
+              Reviewer {id}
+            </text>
+            <g role="group" aria-label={`Repository for Reviewer ${id}`}>
+              {repositories.map(({ id: repo, label }, index) => (
+                <g
+                  class="repo-choice"
+                  data-reviewer={id}
+                  data-choice={repo}
+                  role="checkbox"
+                  tabindex="0"
+                  aria-checked="false"
+                  aria-label={`Connect Reviewer ${id} to acme/${repo}`}
+                  transform={`translate(16 ${y + 63 + index * 30})`}
+                >
+                  <rect class="choice-hit" width="112" height="26" rx="5" />
+                  <rect class="checkbox" x="2" y="5" width="16" height="16" rx="4" />
+                  <path
+                    class="checkmark"
+                    d="M6 13 L9 16 L14 10"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <text x="26" y="17" fill={color}>
+                    {label}
+                  </text>
+                </g>
+              ))}
+            </g>
+          </g>
+        ))
+      }
+
+      {
+        repositories.map(({ id, label, key }) => (
+          <g
+            class="entry"
+            data-repo={id}
+            data-state="absent"
+            transform="translate(0 169)"
+            aria-hidden="true"
+          >
+            <text x="230" y="5" class="key">
+              <>
+                <tspan>{label}</tspan>
+                <tspan class="commit">{key.slice(label.length)}</tspan>
+              </>
+            </text>
+            <g class="resource" transform="translate(544 -32)">
+              <g
+                class="folder"
+                fill="var(--amber)"
+                fill-opacity="0.15"
+                stroke="var(--amber)"
+                stroke-width="2"
+                stroke-linejoin="round"
+              >
+                <path d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z" />
+                <path d="M6 25 H74" />
+              </g>
+              <text x="40" y="47" text-anchor="middle" fill="var(--amber)" class="count">
+                0
+              </text>
+              <path
+                class="progress"
+                d="M13 54 H67"
+                stroke="var(--amber)"
+                stroke-width="2"
+                pathLength="1"
+              />
+            </g>
+            <text x="584" y="43" text-anchor="middle" class="column status" />
+          </g>
+        ))
+      }
+    </svg>
+  </div>
+  <p class="hint">Choose a repository beneath a reviewer. Click it again to release.</p>
+  <p class="sr-only" aria-live="polite" aria-atomic="true">
+    The map is empty. Choose a repository beneath either reviewer to create a checkout.
+  </p>
+</figure>
+
+<script>
+  type Reviewer = "A" | "B"
+  type Repo = "api" | "website"
+  type State = "creating" | "cloning" | "present" | "deleting" | "deleted"
+  interface Entry {
+    state: State
+    timer: ReturnType<typeof setTimeout> | undefined
+  }
+  const labels: Record<State, string> = {
+    creating: "Creating directory…",
+    cloning: "git clone…",
+    present: "Temporary checkout",
+    deleting: "Checkout deleted",
+    deleted: "Checkout deleted",
+  }
+
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-map-structure]")) {
+    const connections = new Map<Reviewer, Repo>()
+    // Insertion order determines row positions; absent resources have no entry.
+    const entries = new Map<Repo, Entry>()
+    const choices = visual.querySelectorAll<SVGGElement>("[data-choice]")
+    const rows = visual.querySelectorAll<SVGGElement>("[data-repo]")
+    const announcement = visual.querySelector("[aria-live]")
+    const frame = visual.querySelector(".frame")
+    const columns = visual.querySelector(".columns")
+    const divider = visual.querySelector(".row-divider")
+    const empty = visual.querySelector<SVGElement>(".empty-map")
+    const svg = visual.querySelector<SVGSVGElement>("svg")
+    const count = (repo: Repo) =>
+      Array.from(connections.values()).filter((value) => value === repo).length
+
+    const render = () => {
+      const order = Array.from(entries.keys())
+      const width = visual.getBoundingClientRect().width
+      const mobile = width < 560
+      const mapX = mobile ? 16 : 190
+      const mapY = mobile ? 232 : 44
+      const mapWidth = mobile ? width - 32 : 514
+      const columnX = mobile ? mapX + mapWidth * 0.56 : 464
+      const valueX = mobile ? (columnX + mapX + mapWidth) / 2 : 584
+      const keyX = mobile ? 30 : 230
+      // The desktop frame spans the reviewer column, from y=44 to y=365.
+      // Reserve both rows even when the map is empty.
+      const height = mobile ? 300 : 321
+      const rowHeight = (height - 40) / 2
+      const firstRow = mapY + 40 + rowHeight / 2
+      const position = (selector: string, x: number, y: number) => {
+        const element = visual.querySelector(selector)
+        element?.setAttribute("x", String(x))
+        element?.setAttribute("y", String(y))
+      }
+      const contentBottom = Math.max(mobile ? 183 : 365, mapY + height)
+      svg?.setAttribute("viewBox", `0 0 ${mobile ? width : 720} ${contentBottom + 12}`)
+      frame?.setAttribute("x", String(mapX))
+      frame?.setAttribute("y", String(mapY))
+      frame?.setAttribute("width", String(mapWidth))
+      frame?.setAttribute("height", String(height))
+      visual
+        .querySelector(".header-rule")
+        ?.setAttribute("d", `M${mapX} ${mapY + 40} H${mapX + mapWidth}`)
+      columns?.setAttribute(
+        "d",
+        `M${columnX} ${mapY} V${entries.size === 0 ? mapY + 40 : mapY + height}`,
+      )
+      divider?.setAttribute("d", `M${mapX} ${mapY + 40 + rowHeight} H${mapX + mapWidth}`)
+      divider?.setAttribute("opacity", entries.size > 1 ? "1" : "0")
+      position(".heading", mobile ? 30 : 210, mapY - 20)
+      position(".key-heading", keyX, mapY + 25)
+      position(".value-heading", valueX, mapY + 25)
+      position(".empty-map", mapX + mapWidth / 2, mapY + 40 + (height - 40) / 2 + 5)
+      if (empty) empty.style.opacity = entries.size === 0 ? "1" : "0"
+
+      for (const group of visual.querySelectorAll<SVGGElement>("[data-reviewer-layout]")) {
+        const first = group.dataset.reviewerLayout === "A"
+        const x = width * (first ? 0.25 : 0.75)
+        group.setAttribute(
+          "transform",
+          mobile ? `translate(${x - 72} ${32 - ((first ? 76 : 246) - 32)})` : "translate(0 0)",
+        )
+      }
+
+      for (const choice of choices) {
+        const reviewer = choice.dataset.reviewer
+        const repo = choice.dataset.choice
+        if ((reviewer !== "A" && reviewer !== "B") || (repo !== "api" && repo !== "website"))
+          continue
+        const connected = connections.get(reviewer) === repo
+        choice.setAttribute("aria-checked", String(connected))
+        choice.setAttribute(
+          "aria-label",
+          `${connected ? "Release" : "Connect"} Reviewer ${reviewer} ${connected ? "from" : "to"} acme/${repo}`,
+        )
+      }
+
+      for (const row of rows) {
+        const repo = row.dataset.repo
+        if (repo !== "api" && repo !== "website") continue
+        const entry = entries.get(repo)
+        row.dataset.state = entry?.state ?? "absent"
+        row.setAttribute("aria-hidden", String(entry === undefined))
+        if (entry === undefined) continue
+        row.setAttribute("transform", `translate(0 ${firstRow + order.indexOf(repo) * rowHeight})`)
+        const key = row.querySelector(".key")
+        key?.setAttribute("x", String(keyX))
+        key?.setAttribute("y", mobile ? "-5" : "5")
+        const commit = row.querySelector(".commit")
+        if (mobile) {
+          commit?.setAttribute("x", String(keyX))
+          commit?.setAttribute("dy", "18")
+        } else {
+          commit?.removeAttribute("x")
+          commit?.removeAttribute("dy")
+        }
+        row.querySelector(".resource")?.setAttribute("transform", `translate(${valueX - 40} -32)`)
+        const number = row.querySelector(".count")
+        const status = row.querySelector(".status")
+        status?.setAttribute("x", String(valueX))
+        const references = count(repo)
+        if (number) number.textContent = String(references)
+        if (status) status.textContent = labels[entry.state]
+      }
+
+      for (const wire of visual.querySelectorAll<SVGGElement>("[data-wire]")) {
+        const reviewer = wire.dataset.wire
+        if (reviewer !== "A" && reviewer !== "B") continue
+        const repo = connections.get(reviewer)
+        wire.style.opacity = repo === undefined ? "0" : "1"
+        if (repo === undefined) continue
+        const first = reviewer === "A"
+        const from = mobile ? 64 : first ? 76 : 246
+        const to = firstRow + order.indexOf(repo) * rowHeight + (first ? -10 : 10)
+        const endX = mobile ? (first ? mapX : mapX + mapWidth) : 212
+        const startX = mobile ? width * (first ? 0.25 : 0.75) + (first ? -32 : 32) : 104
+        const bendX = mobile ? (first ? 4 : width - 4) : 158
+        wire
+          .querySelector("path")
+          ?.setAttribute("d", `M${startX} ${from} C${bendX} ${from} ${bendX} ${to} ${endX} ${to}`)
+        wire.querySelector("circle")?.setAttribute("cx", String(endX))
+        wire.querySelector("circle")?.setAttribute("cy", String(to))
+      }
+
+      if (announcement) {
+        announcement.textContent =
+          entries.size === 0
+            ? "The map is empty."
+            : Array.from(
+                entries,
+                ([repo, entry]) =>
+                  `acme/${repo}: ${count(repo)} references. ${entry.state === "present" ? "Checkout ready." : labels[entry.state]}`,
+              ).join(" ")
+      }
+    }
+
+    const update = (repo: Repo) => {
+      const entry = entries.get(repo)
+      if (count(repo) === 0) {
+        if (entry === undefined || entry.state === "deleting" || entry.state === "deleted") return
+        clearTimeout(entry.timer)
+        entry.state = "deleting"
+        entry.timer = setTimeout(() => {
+          entry.state = "deleted"
+          render()
+          entry.timer = setTimeout(() => {
+            entries.delete(repo)
+            render()
+          }, 350)
+        }, 500)
+      } else if (entry === undefined || entry.state === "deleting" || entry.state === "deleted") {
+        clearTimeout(entry?.timer)
+        const acquired: Entry = { state: "creating", timer: undefined }
+        entries.set(repo, acquired)
+        acquired.timer = setTimeout(() => {
+          acquired.state = "cloning"
+          render()
+          acquired.timer = setTimeout(() => {
+            acquired.state = "present"
+            render()
+          }, 850)
+        }, 450)
+      }
+    }
+
+    let previousWidth = 0
+    new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width !== previousWidth) {
+        previousWidth = entry.contentRect.width
+        render()
+      }
+    }).observe(visual)
+    render()
+
+    for (const choice of choices) {
+      const activate = () => {
+        const reviewer = choice.dataset.reviewer
+        const repo = choice.dataset.choice
+        if ((reviewer !== "A" && reviewer !== "B") || (repo !== "api" && repo !== "website")) return
+        const previous = connections.get(reviewer)
+        if (previous === repo) connections.delete(reviewer)
+        else connections.set(reviewer, repo)
+        if (previous !== undefined) update(previous)
+        update(repo)
+        render()
+      }
+      choice.addEventListener("click", activate)
+      choice.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          activate()
+        }
+      })
+    }
+  }
+</script>
+
+<style>
+  .map-structure {
+    margin: 0 0 2rem;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  text:not([fill]) {
+    fill: var(--text-color, currentColor);
+  }
+  .heading {
+    font:
+      500 13px system-ui,
+      sans-serif;
+  }
+  .boundary {
+    fill: none;
+    stroke: var(--diagram-border);
+  }
+  .frame {
+    transition: height 250ms ease;
+  }
+  .column {
+    font:
+      12px system-ui,
+      sans-serif;
+    --text-color: var(--diagram-muted);
+  }
+  .status {
+    font-size: 11px;
+  }
+  .reviewer {
+    font:
+      500 12px system-ui,
+      sans-serif;
+  }
+  .key {
+    font:
+      12px ui-monospace,
+      monospace;
+  }
+  .count {
+    font:
+      600 18px ui-monospace,
+      monospace;
+  }
+  .empty-map {
+    font:
+      12px system-ui,
+      sans-serif;
+    --text-color: var(--diagram-muted);
+    transition: opacity 200ms ease;
+  }
+  .repo-choice {
+    cursor: pointer;
+  }
+  .choice-hit {
+    fill: transparent;
+  }
+  .checkbox {
+    fill: currentColor;
+    fill-opacity: 0.04;
+    stroke: currentColor;
+    stroke-opacity: 0.8;
+  }
+  .repo-choice text {
+    font:
+      500 11px ui-monospace,
+      monospace;
+  }
+  .repo-choice:hover .checkbox {
+    fill-opacity: 0.12;
+  }
+  .repo-choice[aria-checked="true"] .checkbox {
+    fill-opacity: 0.2;
+    stroke-opacity: 1;
+    stroke-width: 2;
+  }
+  .checkmark {
+    opacity: 0;
+  }
+  .repo-choice[aria-checked="true"] .checkmark {
+    opacity: 1;
+  }
+  .repo-choice:focus {
+    outline: none;
+  }
+  .repo-choice:focus-visible .choice-hit {
+    stroke: currentColor;
+    stroke-width: 1;
+  }
+  .wires {
+    pointer-events: none;
+  }
+  .wires > g {
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .entry {
+    transition:
+      opacity 250ms ease,
+      transform 250ms ease;
+  }
+  .entry[data-state="absent"] {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .entry[data-state="deleted"] {
+    opacity: 0;
+  }
+  .progress {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  [data-state="creating"] .folder {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: create 450ms ease-out;
+  }
+  [data-state="cloning"] .progress {
+    opacity: 1;
+    animation: clone 850ms linear forwards;
+  }
+  @keyframes create {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes clone {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .hint {
+    margin: 0.75rem 0 0;
+    text-align: center;
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+    color: var(--diagram-muted);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .frame,
+    .empty-map,
+    .wires > g,
+    .entry {
+      transition: none;
+    }
+    [data-state="creating"] .folder,
+    [data-state="cloning"] .progress {
+      animation: none;
+    }
+    [data-state="cloning"] .progress {
+      stroke-dashoffset: 0;
+    }
+  }
+</style>

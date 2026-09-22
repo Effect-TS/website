@@ -1,0 +1,523 @@
+---
+import "./RcMapVisualTheme.css"
+
+const reviewers = ["A", "B"] as const
+const repositories = [
+  { id: "api", key: "acme/api@a1b2c3d" },
+  { id: "website", key: "acme/website@e4f5a6b" },
+] as const
+---
+
+<div class="map-visual" data-map-visual>
+  <div class="stage">
+    <svg
+      class="wires"
+      viewBox="0 0 480 300"
+      preserveAspectRatio="none"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path data-wire="A-api" class="a" d="M126 75 H336"></path>
+      <path data-wire="A-website" class="a" d="M126 75 C230 75 230 215 336 215"></path>
+      <path data-wire="B-api" class="b" d="M126 225 C230 225 230 95 336 95"></path>
+      <path data-wire="B-website" class="b" d="M126 225 H336"></path>
+      {
+        reviewers.flatMap((reviewer) =>
+          repositories.map(({ id }) => (
+            <circle
+              data-wire={`${reviewer}-${id}`}
+              data-endpoint={`${reviewer}-${id}`}
+              class={reviewer === "A" ? "a" : "b"}
+              r="4"
+            />
+          )),
+        )
+      }
+    </svg>
+    <div role="group" aria-label="Select a reviewer">
+      {
+        reviewers.map((reviewer) => (
+          <button
+            class:list={["reviewer", reviewer === "A" ? "a" : "b"]}
+            type="button"
+            data-reviewer={reviewer}
+            aria-pressed={reviewer === "A" ? "true" : "false"}
+          >
+            <span class="avatar">
+              <svg
+                viewBox="0 0 48 48"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="8" y="13" width="32" height="26" rx="8" />
+                <path d="M24 13 V7 M4 23 V29 M44 23 V29 M19 32 H29" />
+                <circle cx="17" cy="24" r="2" fill="currentColor" stroke="none" />
+                <circle cx="31" cy="24" r="2" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <span>Reviewer {reviewer}</span>
+          </button>
+        ))
+      }
+    </div>
+    <div role="group" aria-label="Connect or release the selected reviewer's repository">
+      {
+        repositories.map(({ id, key }) => (
+          <button
+            class="repository"
+            type="button"
+            data-repo={id}
+            data-state="absent"
+            aria-label={`Connect Reviewer A to ${key}`}
+          >
+            <span class="folder-space">
+              <svg
+                class="folder"
+                viewBox="0 0 80 64"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z" />
+                <path d="M6 25 H74" />
+              </svg>
+              <span class="count" aria-hidden="true">
+                <span class="tape">
+                  <>
+                    <span>0</span>
+                    <span>1</span>
+                    <span>2</span>
+                  </>
+                </span>
+              </span>
+              <span class="progress" aria-hidden="true" />
+              <svg
+                class="empty"
+                viewBox="0 0 80 64"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path
+                  class="ghost"
+                  d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z M6 25 H74"
+                />
+                <>
+                  <circle cx="40" cy="41" r="7" />
+                  <path d="M35 46 L45 36" />
+                </>
+              </svg>
+            </span>
+            <code>{key}</code>
+            <span class="status">No checkout</span>
+          </button>
+        ))
+      }
+    </div>
+  </div>
+  <p class="hint">Select a reviewer, then click a repository to connect or release.</p>
+  <p class="sr-only" aria-live="polite" aria-atomic="true">
+    Reviewer A selected. Neither repository has a checkout.
+  </p>
+</div>
+
+<script>
+  for (const visual of document.querySelectorAll<HTMLElement>(".map-visual")) {
+    const stage = visual.querySelector<HTMLElement>(".stage")
+    const svg = visual.querySelector<SVGSVGElement>(".wires")
+    if (!stage || !svg) continue
+    const connect = () => {
+      const bounds = stage.getBoundingClientRect()
+      svg.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`)
+      for (const reviewer of ["A", "B"] as const) {
+        const avatar = visual.querySelector<HTMLElement>(`[data-reviewer="${reviewer}"] .avatar`)
+        if (!avatar) continue
+        const source = avatar.getBoundingClientRect()
+        for (const repo of ["api", "website"] as const) {
+          const folder = visual.querySelector<HTMLElement>(`[data-repo="${repo}"] .folder-space`)
+          if (!folder) continue
+          const target = folder.getBoundingClientRect()
+          const x = source.right - bounds.left
+          const y = source.top + source.height / 2 - bounds.top
+          const endX = target.left - 4 - bounds.left
+          const endY = target.top + target.height / 2 + (reviewer === "A" ? -10 : 10) - bounds.top
+          const middle = (x + endX) / 2
+          svg
+            .querySelector(`[data-wire="${reviewer}-${repo}"]`)
+            ?.setAttribute("d", `M${x} ${y} C${middle} ${y} ${middle} ${endY} ${endX} ${endY}`)
+          const endpoint = svg.querySelector(`[data-endpoint="${reviewer}-${repo}"]`)
+          endpoint?.setAttribute("cx", String(endX))
+          endpoint?.setAttribute("cy", String(endY))
+        }
+      }
+    }
+    new ResizeObserver(connect).observe(stage)
+    connect()
+  }
+
+  type Reviewer = "A" | "B"
+  type Repo = "api" | "website"
+  type State = "absent" | "creating" | "cloning" | "present" | "deleting"
+  const labels: Record<State, string> = {
+    absent: "No checkout",
+    creating: "Creating directory…",
+    cloning: "git clone…",
+    present: "Temporary checkout",
+    deleting: "Checkout deleted",
+  }
+
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-map-visual]")) {
+    let selected: Reviewer = "A"
+    const connections = new Map<Reviewer, Repo>()
+    const entries: Record<
+      Repo,
+      { state: State; timer: ReturnType<typeof setTimeout> | undefined }
+    > = {
+      api: { state: "absent", timer: undefined },
+      website: { state: "absent", timer: undefined },
+    }
+    const reviewers = visual.querySelectorAll<HTMLButtonElement>("[data-reviewer]")
+    const repos = visual.querySelectorAll<HTMLButtonElement>("[data-repo]")
+    const announcement = visual.querySelector("[aria-live]")
+    const count = (repo: Repo) =>
+      Array.from(connections.values()).filter((value) => value === repo).length
+
+    const render = () => {
+      for (const button of reviewers) {
+        button.setAttribute("aria-pressed", String(button.dataset.reviewer === selected))
+      }
+      for (const button of repos) {
+        const repo = button.dataset.repo
+        if (repo !== "api" && repo !== "website") continue
+        button.dataset.state = entries[repo].state
+        const tape = button.querySelector<HTMLElement>(".tape")
+        const status = button.querySelector(".status")
+        if (tape) tape.style.transform = `translateY(-${count(repo) * 28}px)`
+        if (status) status.textContent = labels[entries[repo].state]
+        const action = connections.get(selected) === repo ? "Release" : "Connect"
+        button.setAttribute(
+          "aria-label",
+          `${action} Reviewer ${selected} ${action === "Release" ? "from" : "to"} acme/${repo}. ${count(repo)} references. ${labels[entries[repo].state]}.`,
+        )
+      }
+      for (const wire of visual.querySelectorAll<SVGElement>("[data-wire]")) {
+        wire.style.opacity = Array.from(connections).some(
+          ([reviewer, repo]) => wire.dataset.wire === `${reviewer}-${repo}`,
+        )
+          ? "1"
+          : "0"
+      }
+    }
+
+    const update = (repo: Repo) => {
+      const entry = entries[repo]
+      if (count(repo) === 0 && entry.state !== "absent" && entry.state !== "deleting") {
+        clearTimeout(entry.timer)
+        entry.state = "deleting"
+        entry.timer = setTimeout(() => {
+          entry.state = "absent"
+          render()
+        }, 1200)
+      } else if (count(repo) > 0 && (entry.state === "absent" || entry.state === "deleting")) {
+        clearTimeout(entry.timer)
+        entry.state = "creating"
+        entry.timer = setTimeout(() => {
+          entry.state = "cloning"
+          render()
+          entry.timer = setTimeout(() => {
+            entry.state = "present"
+            render()
+          }, 850)
+        }, 450)
+      }
+    }
+
+    for (const button of reviewers) {
+      button.addEventListener("click", () => {
+        const reviewer = button.dataset.reviewer
+        if (reviewer !== "A" && reviewer !== "B") return
+        selected = reviewer
+        render()
+        if (announcement)
+          announcement.textContent = `Reviewer ${selected} selected. Click a repository to connect or release.`
+      })
+    }
+    for (const button of repos) {
+      button.addEventListener("click", () => {
+        const repo = button.dataset.repo
+        if (repo !== "api" && repo !== "website") return
+        const previous = connections.get(selected)
+        if (previous === repo) connections.delete(selected)
+        else connections.set(selected, repo)
+        if (previous !== undefined) update(previous)
+        update(repo)
+        render()
+        if (announcement)
+          announcement.textContent = `Reviewer ${selected} ${previous === repo ? "released" : "connected to"} acme/${repo}. API: ${count("api")} references. Website: ${count("website")} references.`
+      })
+    }
+  }
+</script>
+
+<style>
+  .map-visual {
+    max-width: 520px;
+    margin: 0 auto 2rem;
+  }
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 480 / 300;
+    min-height: 300px;
+  }
+  .wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .wires path,
+  .wires circle {
+    stroke: currentColor;
+    stroke-width: 3;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .wires circle {
+    fill: currentColor;
+    stroke: none;
+  }
+  .a {
+    color: var(--blue);
+  }
+  .b {
+    color: var(--purple);
+  }
+  button {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font:
+      500 12px/1.4 system-ui,
+      sans-serif;
+    cursor: pointer;
+    transform: translate(-50%, -32px);
+  }
+  button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 8px;
+    border-radius: 12px;
+  }
+  .reviewer {
+    left: 20%;
+    width: 28%;
+  }
+  .reviewer.a {
+    top: 25%;
+    color: var(--blue);
+  }
+  .reviewer.b {
+    top: 75%;
+    color: var(--purple);
+  }
+  .avatar {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border: 2px solid currentColor;
+    border-radius: 18px;
+    background: color-mix(in srgb, currentColor 12%, var(--diagram-surface));
+  }
+  .avatar::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 24px;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease;
+  }
+  .reviewer:is(:hover, :focus-visible) .avatar::before {
+    opacity: 0.16;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .avatar::before {
+      transition: none;
+    }
+  }
+  .avatar svg {
+    width: 44px;
+    height: 44px;
+  }
+  [aria-pressed="true"] .avatar {
+    outline: 2px solid currentColor;
+    outline-offset: 5px;
+  }
+  .repository {
+    left: 77%;
+    width: 44%;
+  }
+  [data-repo="api"] {
+    top: 25%;
+  }
+  [data-repo="website"] {
+    top: 75%;
+  }
+  .repository code {
+    overflow-wrap: anywhere;
+    text-align: center;
+    font:
+      11px/1.4 ui-monospace,
+      monospace;
+    background: none;
+    padding: 0;
+  }
+  .status {
+    font-size: 11px;
+    color: var(--diagram-muted);
+  }
+  .folder-space {
+    position: relative;
+    width: 80px;
+    height: 64px;
+  }
+  .folder {
+    width: 100%;
+    height: 100%;
+    color: var(--amber);
+    fill: color-mix(in srgb, var(--amber) 15%, transparent);
+    transition: opacity 200ms ease;
+  }
+  .empty {
+    color: var(--diagram-ghost);
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .ghost {
+    stroke-dasharray: 3 4;
+    opacity: 0.55;
+  }
+  .count {
+    position: absolute;
+    top: 27px;
+    left: 26px;
+    width: 28px;
+    height: 28px;
+    overflow: hidden;
+    color: var(--amber);
+    font:
+      600 18px/1 ui-monospace,
+      monospace;
+    transition: opacity 200ms ease;
+  }
+  .tape {
+    display: flex;
+    flex-direction: column;
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .tape > span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 28px;
+  }
+  [data-state="absent"] .folder,
+  [data-state="absent"] .count {
+    opacity: 0;
+  }
+  [data-state="absent"] .empty {
+    opacity: 1;
+  }
+  .progress {
+    position: absolute;
+    left: 13px;
+    right: 13px;
+    bottom: 10px;
+    height: 2px;
+    background: var(--amber);
+    transform: scaleX(0);
+    transform-origin: left;
+    opacity: 0;
+  }
+  [data-state="creating"] .folder {
+    animation: create 450ms ease-out;
+  }
+  [data-state="cloning"] .progress {
+    opacity: 1;
+    animation: clone 850ms linear forwards;
+  }
+  @keyframes create {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes clone {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .hint {
+    margin: 1.5rem 0 0;
+    text-align: center;
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+    color: var(--diagram-muted);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wires path,
+    .folder,
+    .empty,
+    .count,
+    .tape {
+      transition: none;
+    }
+    [data-state="creating"] .folder,
+    [data-state="cloning"] .progress {
+      animation: none;
+    }
+    [data-state="cloning"] .progress {
+      transform: scaleX(1);
+    }
+  }
+</style>

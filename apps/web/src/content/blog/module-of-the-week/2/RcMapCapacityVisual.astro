@@ -1,0 +1,407 @@
+---
+import { RotateCcw } from "@lucide/astro"
+import "./RcMapVisualTheme.css"
+
+const repositories = ["api", "website", "docs"]
+---
+
+<figure class="lookup-demo capacity-demo" data-capacity-demo>
+  <div class="requests" role="group" aria-label="Request a repository checkout">
+    {
+      repositories.map((repo) => (
+        <button type="button" data-request={repo}>
+          <code>get("acme/{repo}")</code>
+        </button>
+      ))
+    }
+    <button type="button" class="reset" aria-label="Reset">
+      <RotateCcw size={18} stroke-width={1.75} aria-hidden="true" />
+      <span class="tooltip" aria-hidden="true">Reset</span>
+    </button>
+  </div>
+  <div class="map">
+    <div class="heading">Map <span><strong data-size>0</strong> / 2 entries</span></div>
+    <div class="slots">
+      {
+        [0, 1].map(() => (
+          <div class="slot">
+            <span class="empty">Empty slot</span>
+            <div class="entry" hidden>
+              <div class="resource">
+                <code class="key" />
+                <div class="folder">
+                  <svg
+                    viewBox="0 0 80 64"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z M6 25 H74" />
+                  </svg>
+                  <span class="count">0</span>
+                </div>
+                <span class="status" />
+              </div>
+              <div class="scopes" role="group" aria-label="Scopes. Click to close." />
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+  <p class="result" aria-live="polite" aria-atomic="true">
+    Choose a repository to acquire a checkout.
+  </p>
+  <p class="hint">Click scopes to close them. Idle time to live: 5 seconds.</p>
+</figure>
+
+<script>
+  type Repo = "api" | "website" | "docs"
+  interface Entry {
+    readonly slot: HTMLElement
+    readonly scopes: Map<number, HTMLButtonElement>
+    state: "acquiring" | "ready"
+    acquisition: ReturnType<typeof setTimeout> | undefined
+    idle: ReturnType<typeof setTimeout> | undefined
+  }
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-capacity-demo]")) {
+    const slots = [...visual.querySelectorAll<HTMLElement>(".slot")]
+    const size = visual.querySelector("[data-size]")
+    const result = visual.querySelector<HTMLElement>(".result")
+    if (!size || !result) continue
+    const entries = new Map<Repo, Entry>()
+    let nextScope = 0
+    const render = () => {
+      size.textContent = String(entries.size)
+      for (const slot of slots) {
+        const match = [...entries].find(([, entry]) => entry.slot === slot)
+        const empty = slot.querySelector<HTMLElement>(".empty")
+        const content = slot.querySelector<HTMLElement>(".entry")
+        if (empty) empty.hidden = match !== undefined
+        if (content) content.hidden = match === undefined
+        if (!match) continue
+        const [repo, entry] = match
+        slot.dataset.state = entry.state
+        const key = slot.querySelector(".key")
+        const count = slot.querySelector(".count")
+        if (key) key.textContent = `acme/${repo}`
+        if (count) count.textContent = String(entry.scopes.size)
+      }
+    }
+    const status = (entry: Entry, text: string) => {
+      const label = entry.slot.querySelector(".status")
+      if (label) label.textContent = text
+    }
+    const release = (repo: Repo, entry: Entry) => {
+      clearTimeout(entry.acquisition)
+      clearTimeout(entry.idle)
+      entries.delete(repo)
+      entry.slot.removeAttribute("data-state")
+      render()
+    }
+    const startIdle = (repo: Repo, entry: Entry) => {
+      const deadline = performance.now() + 5000
+      const tick = () => {
+        const remaining = Math.max(0, deadline - performance.now())
+        status(entry, `Idle · ${(remaining / 1000).toFixed(1)}s left`)
+        if (remaining === 0) {
+          release(repo, entry)
+          result.textContent = `acme/${repo} removed. There is room for another entry.`
+          result.removeAttribute("data-error")
+        } else entry.idle = setTimeout(tick, Math.min(100, remaining))
+      }
+      tick()
+    }
+    for (const request of visual.querySelectorAll<HTMLButtonElement>("[data-request]")) {
+      request.addEventListener("click", () => {
+        const repo = request.dataset.request
+        if (repo !== "api" && repo !== "website" && repo !== "docs") return
+        let entry = entries.get(repo)
+        const existing = entry !== undefined
+        if (!entry) {
+          const slot = slots.find(
+            (slot) => ![...entries.values()].some((entry) => entry.slot === slot),
+          )
+          if (!slot) {
+            result.textContent = "ExceededCapacityError · Both entries are occupied."
+            result.dataset.error = "true"
+            return
+          }
+          const acquired: Entry = {
+            slot,
+            scopes: new Map(),
+            state: "acquiring",
+            acquisition: undefined,
+            idle: undefined,
+          }
+          entries.set(repo, acquired)
+          entry = acquired
+          acquired.acquisition = setTimeout(
+            () => {
+              acquired.state = "ready"
+              if (acquired.scopes.size > 0) status(acquired, "Temporary checkout")
+              render()
+            },
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 850,
+          )
+        }
+        const retained = entry
+        clearTimeout(retained.idle)
+        retained.idle = undefined
+        status(
+          retained,
+          retained.state === "acquiring" ? "Acquiring checkout…" : "Temporary checkout",
+        )
+        const id = ++nextScope
+        const scope = document.createElement("button")
+        scope.type = "button"
+        scope.textContent = "Scope ×"
+        scope.setAttribute("aria-label", `Close scope ${id} for acme/${repo}`)
+        scope.addEventListener("click", () => {
+          scope.remove()
+          retained.scopes.delete(id)
+          if (retained.scopes.size === 0) startIdle(repo, retained)
+          render()
+        })
+        retained.scopes.set(id, scope)
+        retained.slot.querySelector(".scopes")?.append(scope)
+        result.removeAttribute("data-error")
+        result.textContent = existing ? `Reusing acme/${repo}.` : `Running lookup for acme/${repo}.`
+        render()
+      })
+    }
+    visual.querySelector(".reset")?.addEventListener("click", () => {
+      for (const [repo, entry] of entries) release(repo, entry)
+      for (const slot of slots) slot.querySelector(".scopes")?.replaceChildren()
+      nextScope = 0
+      result.textContent = "Map reset. Choose a repository to acquire a checkout."
+      result.removeAttribute("data-error")
+    })
+  }
+</script>
+
+<style>
+  .capacity-demo {
+    position: relative;
+    margin: 0 0 2rem;
+    padding-top: 36px;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 4px;
+  }
+  .requests {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .requests [data-request] {
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  code {
+    color: inherit;
+    padding: 0;
+    background: none;
+    font:
+      12px/1.5 ui-monospace,
+      monospace;
+  }
+  .map {
+    border: 1px solid var(--diagram-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .heading {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--diagram-border);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  .heading span {
+    color: var(--diagram-muted);
+  }
+  .slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .slot {
+    min-width: 0;
+    padding: 16px;
+    min-height: 182px;
+  }
+  .slot + .slot {
+    border-left: 1px solid var(--diagram-border);
+  }
+  .empty {
+    display: block;
+    padding-top: 64px;
+    color: var(--diagram-muted);
+    text-align: center;
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  [hidden] {
+    display: none;
+  }
+  .resource {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .folder {
+    position: relative;
+    width: 80px;
+    height: 64px;
+    color: var(--amber);
+  }
+  .folder svg {
+    width: 100%;
+    height: 100%;
+    fill: color-mix(in srgb, var(--amber) 12%, transparent);
+  }
+  .count {
+    position: absolute;
+    top: 27px;
+    left: 26px;
+    width: 28px;
+    text-align: center;
+    font:
+      600 20px/28px ui-monospace,
+      monospace;
+  }
+  .status {
+    color: var(--diagram-muted);
+    font:
+      11px/1.5 system-ui,
+      sans-serif;
+  }
+  .scopes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .scopes :global(button) {
+    cursor: pointer;
+    padding: 7px 10px;
+    color: var(--blue);
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    font:
+      12px/1.5 ui-monospace,
+      monospace;
+  }
+  .scopes :global(button:focus-visible) {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+  }
+  [data-state="acquiring"] .folder {
+    animation: create-folder 450ms ease-out;
+  }
+  @keyframes create-folder {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .result {
+    margin: 16px 0 0;
+    min-height: 3em;
+    text-align: center;
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  .result[data-error] {
+    color: var(--purple);
+    font-weight: 700;
+  }
+  .result:not([data-error]) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .hint {
+    color: var(--diagram-muted);
+    margin: 4px 0 0;
+    text-align: center;
+    font:
+      11px/1.5 system-ui,
+      sans-serif;
+  }
+  .reset {
+    position: absolute;
+    top: 0;
+    right: 0;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 7px;
+    border: 0;
+    border-radius: 50%;
+    color: var(--diagram-muted);
+    background: transparent;
+  }
+  .tooltip {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 4px);
+    visibility: hidden;
+    pointer-events: none;
+    padding: 4px 8px;
+    border: 1px solid var(--diagram-border);
+    border-radius: 4px;
+    background: var(--diagram-surface);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  .reset:hover .tooltip,
+  .reset:focus-visible .tooltip {
+    visibility: visible;
+  }
+  @media (max-width: 600px) {
+    .slots {
+      grid-template-columns: 1fr;
+    }
+    .slot + .slot {
+      border-left: 0;
+      border-top: 1px solid var(--diagram-border);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-state="acquiring"] .folder {
+      animation: none;
+    }
+  }
+</style>

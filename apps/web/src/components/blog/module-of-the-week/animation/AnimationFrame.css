@@ -1,0 +1,57 @@
+.animation-demo {
+  container-type: inline-size;
+  --animation-bg: light-dark(#faf9f6, #171714);
+  --animation-panel: light-dark(#ffffff, #1f1f1b);
+  --animation-border: light-dark(#d9d6cc, #383830);
+  --animation-muted: light-dark(#686459, #a09e91);
+  --animation-ink: light-dark(#292820, #eeede5);
+  --animation-accent: light-dark(#a85b20, #eaa36d);
+  margin: 0;
+  color: var(--animation-ink);
+  background: var(--animation-bg);
+  border: 1px solid var(--animation-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+  color-scheme: light;
+  transition:
+    border-color 250ms ease,
+    box-shadow 250ms ease;
+}
+
+.animation-demo[data-running="true"] {
+  border-color: color-mix(
+    in srgb,
+    var(--animation-accent) 60%,
+    var(--animation-border)
+  );
+  box-shadow: 0 0 12px
+    color-mix(in srgb, var(--animation-accent) 18%, transparent);
+}
+
+.dark .animation-demo {
+  color-scheme: dark;
+}
+
+.animation-demo * {
+  box-sizing: border-box;
+}
+
+.animation-demo button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.animation-demo button:focus-visible {
+  outline: 2px solid var(--animation-accent);
+  outline-offset: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animation-demo,
+  .animation-demo * {
+    transition: none !important;
+  }
+}
