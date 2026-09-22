@@ -1,6 +1,6 @@
 ---
-import { renderMermaidSVG } from "beautiful-mermaid"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { renderMermaidDiagram } from "@/features/mermaid/render"
 
 interface Props {
   title: string
@@ -9,26 +9,7 @@ interface Props {
 }
 
 const { title, description, code } = Astro.props
-const svg = renderMermaidSVG(code, {
-  bg: "var(--background)",
-  fg: "var(--prose-foreground)",
-  line: "var(--muted-foreground)",
-  accent: "color-mix(in srgb, var(--brand) 60%, var(--foreground))",
-  muted: "var(--muted-foreground)",
-  surface: "var(--card)",
-  border: "var(--muted-foreground)",
-  transparent: true,
-  padding: 16,
-})
-  // Use the site's fonts and keep the generated styles inside Mermaid diagrams.
-  .replace(/@import url\([^)]*\);/g, "")
-  .replace("<svg ", "<svg data-mermaid ")
-  .replace(
-    "text { font-family: 'Inter', system-ui, sans-serif; }",
-    "svg[data-mermaid] text { font-family: var(--font-inter), Inter, sans-serif; }",
-  )
-  .replace(".mono {", "svg[data-mermaid] .mono {")
-  .replace("svg {", "svg[data-mermaid] {")
+const svg = renderMermaidDiagram(code)
 ---
 
 <figure class="not-prose my-10 overflow-hidden rounded-lg border border-border bg-card/60">

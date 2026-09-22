@@ -70,6 +70,11 @@ test("reduces code fence info strings to the language", () => {
     "diagram",
     "```",
     "",
+    '```mermaid title="Request flow"',
+    "flowchart TD",
+    "  A --> B",
+    "```",
+    "",
     "```",
     "bare fence",
     "```",
@@ -77,7 +82,18 @@ test("reduces code fence info strings to the language", () => {
 
   assert.deepEqual(
     [...docsBodyToMarkdown(body).matchAll(/^(`{3}.*)$/gm)].map((m) => m[1]),
-    ["```ts", "```", "```sh", "```", "```text", "```", "```", "```"],
+    [
+      "```ts",
+      "```",
+      "```sh",
+      "```",
+      "```text",
+      "```",
+      "```mermaid",
+      "```",
+      "```",
+      "```",
+    ],
   )
 })
 
