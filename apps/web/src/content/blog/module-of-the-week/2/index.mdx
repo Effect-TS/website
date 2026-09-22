@@ -1,0 +1,71 @@
+---
+pagefind: false
+title: Module of the Week - RcMap
+slug: module-of-the-week/rcmap
+excerpt: TODO
+date: 2026-09-21
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import RcMapVisual from "./RcMapVisual.astro"
+import RcMapEntriesVisual from "./RcMapEntriesVisual.astro"
+import RcMapStructureVisual from "./RcMapStructureVisual.astro"
+import Aside from "../../../../components/docs/Aside.astro"
+
+On Effect Office Hours, people often ask me to "roast" their Effect codebases. This takes some nerve on my part, given that my GitHub profile is public.
+
+Rather than give anyone a reason to look at my code, let's outsource the roasting. We'll build "Roast My Repo", a hypothetical app with AI reviewers trained to bring out your inner imposter syndrome.
+
+The app clones your repository into a temporary folder for the reviewers to inspect. One examines your dependency choices. Another reviews the code. Both need the same code, so they share a checkout instead of cloning it twice.
+
+<RcMapVisual static />
+
+But how do we know when we can delete the checkout?
+
+We can track this with a count. Each reviewer adds one when it starts using the checkout and subtracts one when it's done. When the count reaches zero, nobody needs the files anymore, so we can safely delete the checkout.
+
+Try connecting and disconnecting the reviewers below to see this in action.
+
+<RcMapVisual />
+
+This is called _reference counting_.
+
+<Aside type="note" title="Reference Counting">
+
+<blockquote style="margin-bottom: 0;">
+  <p>
+    In computer science, reference counting is a programming technique of
+    storing the number of references, pointers, or handles to a resource, such
+    as an object, a block of memory, disk space, and others.
+  </p>
+</blockquote>
+
+<span>
+  Source:{" "}
+  <a href="https://en.wikipedia.org/wiki/Reference_counting">Wikipedia</a>
+</span>
+
+</Aside>
+
+## Why a Map?
+
+So far, everyone has been reviewing the same repository. What happens when someone submits a different one?
+
+Suppose we're reviewing `acme/api` and `acme/website`. They need separate checkouts, each with its own reference count. Try connecting a reviewer to each repository below, then disconnecting one. Its checkout is deleted while the other stays available.
+
+<RcMapEntriesVisual />
+
+We can keep track of these checkouts in a map, using the repository URL and commit as the key. Each entry holds a checkout and its reference count. Reviewers requesting the same key share that checkout. When its count reaches zero, we delete the checkout and remove the entry.
+
+<RcMapStructureVisual />
+
+The map tells us _which checkout_ to use. The reference count tells us _when we can delete it_.
+
+## Later
+
+That's what Effect's `RcMap` gives us, a reference-counted map. We supply the code to create a resource and clean it up. `RcMap` acquires it on the first request for a key and shares it with other callers requesting that key. Effect's scopes track when each caller is done. By default, when the last caller's scope closes, `RcMap` runs the resource's cleanup.
+
+For Roast My Repo, that means sharing a checkout while reviewers need it, then deleting it once everyone has finished judging you.

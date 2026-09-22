@@ -1,0 +1,467 @@
+---
+const entries = [
+  { reviewer: "A", repo: "api", key: "acme/api@a1b2c3d", color: "#3b82f6", y: 144 },
+  { reviewer: "B", repo: "website", key: "acme/website@e4f5a6b", color: "#a78bfa", y: 264 },
+]
+---
+
+<figure class="map-structure" data-map-structure>
+  <div
+    class="scroll"
+    tabindex="0"
+    role="region"
+    aria-label="Map structure diagram, horizontally scrollable"
+  >
+    <svg
+      viewBox="0 0 720 344"
+      role="group"
+      aria-label="Select a reviewer, then select a map row to connect or release its checkout"
+    >
+      <text x="210" y="24" class="heading">Map</text>
+      <rect x="190" y="44" width="514" height="280" rx="12" class="boundary"></rect>
+      <path d="M190 84 H704 M190 204 H704 M464 44 V324" class="boundary"></path>
+      <text x="230" y="69" class="column">Key</text>
+      <text x="486" y="69" class="column">Value</text>
+      <g fill="none" stroke-width="3" aria-hidden="true" class="wires">
+        <path data-wire="A-api" d="M104 144 C152 144 160 134 212 134" stroke="#3b82f6"></path>
+        <path data-wire="A-website" d="M104 144 C158 144 156 254 212 254" stroke="#3b82f6"></path>
+        <path data-wire="B-api" d="M104 264 C158 264 156 154 212 154" stroke="#a78bfa"></path>
+        <path data-wire="B-website" d="M104 264 C152 264 160 274 212 274" stroke="#a78bfa"></path>
+        <circle data-wire="A-api" cx="212" cy="134" r="4" fill="#3b82f6"></circle>
+        <circle data-wire="A-website" cx="212" cy="254" r="4" fill="#3b82f6"></circle>
+        <circle data-wire="B-api" cx="212" cy="154" r="4" fill="#a78bfa"></circle>
+        <circle data-wire="B-website" cx="212" cy="274" r="4" fill="#a78bfa"></circle>
+      </g>
+      {
+        entries.map(({ reviewer, repo, key, color, y }) => (
+          <g>
+            <g
+              class="reviewer-control"
+              data-reviewer={reviewer}
+              role="button"
+              tabindex="0"
+              aria-label={`Select Reviewer ${reviewer}`}
+              aria-pressed={reviewer === "A" ? "true" : "false"}
+              transform={`translate(40 ${y - 32})`}
+              color={color}
+            >
+              <rect
+                class="selection"
+                x="-6"
+                y="-6"
+                width="76"
+                height="76"
+                rx="23"
+                fill="none"
+                stroke={color}
+                stroke-width="2"
+              />
+              <rect
+                width="64"
+                height="64"
+                rx="18"
+                fill={color}
+                fill-opacity="0.12"
+                stroke={color}
+                stroke-width="2"
+              />
+              <g
+                transform="translate(10 10) scale(0.92)"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="8" y="13" width="32" height="26" rx="8" />
+                <path d="M24 13 V7 M4 23 V29 M44 23 V29 M19 32 H29" />
+                <circle cx="17" cy="24" r="2" fill="currentColor" stroke="none" />
+                <circle cx="31" cy="24" r="2" fill="currentColor" stroke="none" />
+              </g>
+              <text x="32" y="85" text-anchor="middle" fill={color} class="reviewer">
+                Reviewer {reviewer}
+              </text>
+            </g>
+            <g
+              class="entry"
+              data-repo={repo}
+              data-count="0"
+              data-state="absent"
+              role="button"
+              tabindex="0"
+              aria-label={`Connect Reviewer A to ${key}. No checkout.`}
+            >
+              <rect class="hit-area" x="194" y={y - 56} width="506" height="112" rx="8" />
+              <text x="230" y={y + 5} class="key">
+                {key}
+              </text>
+              <g transform={`translate(480 ${y - 32})`}>
+                <g
+                  class="folder"
+                  fill="#d99a22"
+                  fill-opacity="0.15"
+                  stroke="#d99a22"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                >
+                  <path d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z" />
+                  <path d="M6 25 H74" />
+                </g>
+                <text x="40" y="47" text-anchor="middle" fill="#d99a22" class="count">
+                  0
+                </text>
+                <path
+                  class="progress"
+                  d="M13 54 H67"
+                  stroke="#d99a22"
+                  stroke-width="2"
+                  pathLength="1"
+                />
+                <g
+                  class="empty"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <>
+                    <circle cx="40" cy="41" r="7" />
+                    <path d="M35 46 L45 36" />
+                  </>
+                </g>
+              </g>
+              <text x="576" y={y + 5} class="column status">
+                No checkout
+              </text>
+            </g>
+          </g>
+        ))
+      }
+    </svg>
+    <p class="hint">Select a reviewer, then click a map row to connect or release.</p>
+  </div>
+  <p class="sr-only" aria-live="polite" aria-atomic="true">
+    Reviewer A selected. Neither repository has a checkout.
+  </p>
+</figure>
+
+<script>
+  type Reviewer = "A" | "B"
+  type Repo = "api" | "website"
+  type State = "absent" | "creating" | "cloning" | "present" | "deleting" | "deleted"
+  const labels: Record<State, string> = {
+    absent: "No checkout",
+    creating: "Creating directory…",
+    cloning: "git clone…",
+    present: "",
+    deleting: "Checkout deleted",
+    deleted: "Checkout deleted",
+  }
+  const repositories = {
+    api: { key: "acme/api@a1b2c3d" },
+    website: { key: "acme/website@e4f5a6b" },
+  }
+
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-map-structure]")) {
+    let selected: Reviewer = "A"
+    const connections = new Map<Reviewer, Repo>()
+    const entries: Record<
+      Repo,
+      { state: State; timer: ReturnType<typeof setTimeout> | undefined }
+    > = {
+      api: { state: "absent", timer: undefined },
+      website: { state: "absent", timer: undefined },
+    }
+    const reviewers = visual.querySelectorAll<SVGGElement>("[data-reviewer]")
+    const rows = visual.querySelectorAll<SVGGElement>("[data-repo]")
+    const announcement = visual.querySelector("[aria-live]")
+    const count = (repo: Repo) =>
+      Array.from(connections.values()).filter((value) => value === repo).length
+
+    const render = () => {
+      for (const reviewer of reviewers) {
+        reviewer.setAttribute("aria-pressed", String(reviewer.dataset.reviewer === selected))
+      }
+      for (const row of rows) {
+        const repo = row.dataset.repo
+        if (repo !== "api" && repo !== "website") continue
+        const references = count(repo)
+        row.dataset.count = String(references)
+        row.dataset.state = entries[repo].state
+        const number = row.querySelector(".count")
+        const status = row.querySelector(".status")
+        if (number) number.textContent = String(references)
+        if (status)
+          status.textContent =
+            entries[repo].state === "present"
+              ? references === 1
+                ? "reference"
+                : "references"
+              : labels[entries[repo].state]
+        const connected = connections.get(selected) === repo
+        row.setAttribute(
+          "aria-label",
+          `${connected ? "Release" : "Connect"} Reviewer ${selected} ${connected ? "from" : "to"} ${repositories[repo].key}. ${references} references. ${labels[entries[repo].state]}`,
+        )
+      }
+      for (const wire of visual.querySelectorAll<SVGElement>("[data-wire]")) {
+        wire.style.opacity = Array.from(connections).some(
+          ([reviewer, repo]) => wire.dataset.wire === `${reviewer}-${repo}`,
+        )
+          ? "1"
+          : "0"
+      }
+    }
+
+    const update = (repo: Repo) => {
+      const entry = entries[repo]
+      if (
+        count(repo) === 0 &&
+        (entry.state === "creating" || entry.state === "cloning" || entry.state === "present")
+      ) {
+        clearTimeout(entry.timer)
+        entry.state = "deleting"
+        entry.timer = setTimeout(() => {
+          entry.state = "deleted"
+          render()
+          entry.timer = setTimeout(() => {
+            entry.state = "absent"
+            render()
+          }, 700)
+        }, 500)
+      } else if (
+        count(repo) > 0 &&
+        (entry.state === "absent" || entry.state === "deleting" || entry.state === "deleted")
+      ) {
+        clearTimeout(entry.timer)
+        entry.state = "creating"
+        entry.timer = setTimeout(() => {
+          entry.state = "cloning"
+          render()
+          entry.timer = setTimeout(() => {
+            entry.state = "present"
+            render()
+          }, 850)
+        }, 450)
+      }
+    }
+
+    const activate = (control: SVGGElement, action: () => void) => {
+      control.addEventListener("click", action)
+      control.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          action()
+        }
+      })
+    }
+    for (const reviewer of reviewers) {
+      activate(reviewer, () => {
+        const id = reviewer.dataset.reviewer
+        if (id !== "A" && id !== "B") return
+        selected = id
+        render()
+        if (announcement)
+          announcement.textContent = `Reviewer ${selected} selected. Choose a map row to connect or release.`
+      })
+    }
+    for (const row of rows) {
+      activate(row, () => {
+        const repo = row.dataset.repo
+        if (repo !== "api" && repo !== "website") return
+        const previous = connections.get(selected)
+        if (previous === repo) connections.delete(selected)
+        else connections.set(selected, repo)
+        if (previous !== undefined) update(previous)
+        update(repo)
+        render()
+        if (announcement)
+          announcement.textContent = `API: ${count("api")} references. Website: ${count("website")} references. Entries with no references are removed from the map.`
+      })
+    }
+  }
+</script>
+
+<style>
+  .map-structure {
+    margin: 2rem 0;
+  }
+  .scroll {
+    overflow-x: auto;
+  }
+  .scroll:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 5px;
+    border-radius: 8px;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 580px;
+    height: auto;
+  }
+  text:not([fill]) {
+    fill: currentColor;
+  }
+  .heading {
+    font:
+      500 13px system-ui,
+      sans-serif;
+  }
+  .boundary {
+    fill: none;
+    stroke: currentColor;
+    stroke-opacity: 0.18;
+  }
+  .column {
+    font:
+      12px system-ui,
+      sans-serif;
+    opacity: 0.6;
+  }
+  .status {
+    font-size: 11px;
+  }
+  .reviewer {
+    font:
+      500 12px system-ui,
+      sans-serif;
+  }
+  .key {
+    font:
+      12px ui-monospace,
+      monospace;
+  }
+  .count {
+    font:
+      600 18px ui-monospace,
+      monospace;
+  }
+  .reviewer-control,
+  .entry {
+    cursor: pointer;
+  }
+  .selection {
+    opacity: 0;
+  }
+  [aria-pressed="true"] .selection {
+    opacity: 1;
+  }
+  .hit-area {
+    fill: currentColor;
+    fill-opacity: 0;
+  }
+  .entry:hover .hit-area,
+  .entry:focus-visible .hit-area {
+    fill-opacity: 0.05;
+  }
+  .reviewer-control:focus,
+  .entry:focus {
+    outline: none;
+  }
+  .reviewer-control:focus-visible .selection {
+    opacity: 1;
+    stroke-dasharray: 3 3;
+  }
+  .entry:focus-visible .hit-area {
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-opacity: 0.65;
+  }
+  .wires {
+    pointer-events: none;
+  }
+  .wires > * {
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .folder,
+  .count,
+  .empty {
+    transition: opacity 200ms ease;
+  }
+  .empty {
+    opacity: 0;
+  }
+  :is([data-state="absent"], [data-state="deleted"]) .empty {
+    opacity: 0.35;
+  }
+  :is([data-state="absent"], [data-state="deleted"]) .folder {
+    fill-opacity: 0;
+    stroke: currentColor;
+    stroke-dasharray: 3 4;
+    opacity: 0.2;
+  }
+  :is([data-state="absent"], [data-state="deleted"]) .count {
+    opacity: 0;
+  }
+  :is([data-state="absent"], [data-state="deleted"]) .key {
+    opacity: 0.4;
+  }
+  .progress {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  [data-state="creating"] .folder {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: create 450ms ease-out;
+  }
+  [data-state="cloning"] .progress {
+    opacity: 1;
+    animation: clone 850ms linear forwards;
+  }
+  @keyframes create {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes clone {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .hint {
+    margin: 0.75rem 0 0;
+    text-align: center;
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+    opacity: 0.6;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wires > *,
+    .folder,
+    .count,
+    .empty {
+      transition: none;
+    }
+    [data-state="creating"] .folder,
+    [data-state="cloning"] .progress {
+      animation: none;
+    }
+    [data-state="cloning"] .progress {
+      stroke-dashoffset: 0;
+    }
+  }
+</style>

@@ -1,0 +1,489 @@
+---
+interface Props {
+  static?: boolean
+  showHint?: boolean
+}
+
+const { static: isStatic = false, showHint = true } = Astro.props
+const Reviewer = isStatic ? "div" : "button"
+---
+
+<div
+  class="rc-map-visual"
+  data-rc-map-visual={isStatic ? undefined : ""}
+  data-static={isStatic ? "" : undefined}
+  data-first={isStatic ? "connected" : "disconnected"}
+  data-second={isStatic ? "connected" : "disconnected"}
+  data-checkout={isStatic ? "present" : "absent"}
+>
+  <div
+    class="stage"
+    role="group"
+    aria-label={isStatic
+      ? "Two reviewers share one temporary checkout"
+      : "Toggle reviewers to share or release a temporary checkout"}
+  >
+    <svg class="wires" viewBox="0 0 480 280" fill="none" aria-hidden="true">
+      <path class="wire first" d="M152 76 H220 Q240 76 240 96 V112 Q240 130 258 130 H330"></path>
+      <path class="wire second" d="M152 204 H220 Q240 204 240 184 V168 Q240 150 258 150 H330"
+      ></path>
+      <circle class="endpoint first" cx="330" cy="130" r="4"></circle>
+      <circle class="endpoint second" cx="330" cy="150" r="4"></circle>
+    </svg>
+
+    <Reviewer
+      class="reviewer first"
+      type={isStatic ? undefined : "button"}
+      data-reviewer="first"
+      aria-pressed={isStatic ? undefined : "false"}
+      aria-label="Reviewer A"
+    >
+      <span class="avatar">
+        <svg
+          viewBox="0 0 48 48"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="8" y="13" width="32" height="26" rx="8"></rect>
+          <path d="M24 13 V7 M4 23 V29 M44 23 V29 M19 32 H29"></path>
+          <circle cx="17" cy="24" r="2" fill="currentColor" stroke="none"></circle>
+          <circle cx="31" cy="24" r="2" fill="currentColor" stroke="none"></circle>
+        </svg>
+        {!isStatic && <span class="toggle" aria-hidden="true" />}
+      </span>
+      <span class="label">Reviewer A</span>
+    </Reviewer>
+
+    <Reviewer
+      class="reviewer second"
+      type={isStatic ? undefined : "button"}
+      data-reviewer="second"
+      aria-pressed={isStatic ? undefined : "false"}
+      aria-label="Reviewer B"
+    >
+      <span class="avatar">
+        <svg
+          viewBox="0 0 48 48"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="8" y="13" width="32" height="26" rx="8"></rect>
+          <path d="M24 13 V7 M4 23 V29 M44 23 V29 M19 32 H29"></path>
+          <circle cx="17" cy="24" r="2" fill="currentColor" stroke="none"></circle>
+          <circle cx="31" cy="24" r="2" fill="currentColor" stroke="none"></circle>
+        </svg>
+        {!isStatic && <span class="toggle" aria-hidden="true" />}
+      </span>
+      <span class="label">Reviewer B</span>
+    </Reviewer>
+
+    <div class="checkout">
+      <div class="folder-space">
+        <svg
+          class="folder"
+          viewBox="0 0 80 64"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z"
+          ></path>
+          <path d="M6 25 H74"></path>
+        </svg>
+        {!isStatic && <span class="clone-progress" aria-hidden="true" />}
+        {
+          !isStatic && (
+            <span class="count" aria-hidden="true">
+              <span class="count-value">
+                <span class="count-tape">
+                  <span>0</span>
+                  <span>1</span>
+                  <span>2</span>
+                </span>
+              </span>
+            </span>
+          )
+        }
+        <svg
+          class="empty"
+          viewBox="0 0 80 64"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            class="ghost-folder"
+            d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z"
+          ></path>
+          <path class="ghost-folder" d="M6 25 H74"></path>
+          <circle cx="40" cy="41" r="7"></circle>
+          <path d="M35 46 L45 36"></path>
+        </svg>
+      </div>
+      <span class="checkout-label">{isStatic ? "Temporary checkout" : "No checkout"}</span>
+    </div>
+  </div>
+  {!isStatic && showHint && <p class="hint">Click a reviewer to connect or release.</p>}
+  {
+    !isStatic && (
+      <p class="sr-only" aria-live="polite" aria-atomic="true">
+        No checkout. Reference count: 0. Connect a reviewer to create a checkout.
+      </p>
+    )
+  }
+</div>
+
+<script>
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-rc-map-visual]")) {
+    const buttons = visual.querySelectorAll<HTMLButtonElement>("[data-reviewer]")
+    const count = visual.querySelector<HTMLElement>(".count-tape")
+    const label = visual.querySelector(".checkout-label")
+    const announcement = visual.querySelector("[aria-live]")
+    let deletionTimer: ReturnType<typeof setTimeout> | undefined
+    let acquisitionTimer: ReturnType<typeof setTimeout> | undefined
+    let state: "absent" | "creating" | "cloning" | "present" | "deleting" = "absent"
+
+    const render = () => {
+      const references = Array.from(buttons).filter(
+        (reviewer) => reviewer.getAttribute("aria-pressed") === "true",
+      ).length
+      const labels = {
+        absent: "No checkout",
+        creating: "Creating directory…",
+        cloning: "git clone…",
+        present: "Temporary checkout",
+        deleting: "Checkout deleted",
+      }
+      visual.dataset.checkout = state
+      if (count) count.style.transform = `translateY(-${references * 28}px)`
+      if (label) label.textContent = labels[state]
+      if (announcement)
+        announcement.textContent = `${labels[state]}. Reference count: ${references}.`
+    }
+
+    for (const button of buttons) {
+      button.addEventListener("click", () => {
+        const reviewer = button.dataset.reviewer
+        if (reviewer !== "first" && reviewer !== "second") return
+
+        clearTimeout(deletionTimer)
+
+        const connected = button.getAttribute("aria-pressed") !== "true"
+        button.setAttribute("aria-pressed", String(connected))
+        visual.dataset[reviewer] = connected ? "connected" : "disconnected"
+
+        const references = Array.from(buttons).filter(
+          (reviewer) => reviewer.getAttribute("aria-pressed") === "true",
+        ).length
+        if (references === 0) {
+          clearTimeout(acquisitionTimer)
+          state = "deleting"
+          deletionTimer = setTimeout(() => {
+            visual.dataset.checkout = "absent"
+            deletionTimer = setTimeout(() => {
+              state = "absent"
+              render()
+            }, 700)
+          }, 500)
+        } else if (state === "absent" || state === "deleting") {
+          state = "creating"
+          acquisitionTimer = setTimeout(() => {
+            state = "cloning"
+            render()
+            acquisitionTimer = setTimeout(() => {
+              state = "present"
+              render()
+            }, 850)
+          }, 450)
+        }
+        render()
+      })
+    }
+  }
+</script>
+
+<style>
+  .rc-map-visual {
+    --blue: #3b82f6;
+    --purple: #a78bfa;
+    --amber: #d99a22;
+    max-width: 520px;
+    margin: 2rem auto;
+  }
+  .stage {
+    position: relative;
+    aspect-ratio: 480 / 280;
+  }
+  .wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .wire {
+    stroke: currentColor;
+    stroke-width: 3;
+    transition: opacity 200ms ease;
+  }
+  .first {
+    color: var(--blue);
+  }
+  .second {
+    color: var(--purple);
+  }
+  .endpoint {
+    fill: currentColor;
+    transition: opacity 200ms ease;
+  }
+  [data-first="disconnected"] .wires .first,
+  [data-second="disconnected"] .wires .second {
+    opacity: 0;
+  }
+  .reviewer {
+    position: absolute;
+    left: 25%;
+    width: 28%;
+    transform: translate(-50%, -32px);
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .reviewer.first {
+    top: 27.143%;
+  }
+  .reviewer.second {
+    top: 72.857%;
+  }
+  .avatar {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border: 2px solid currentColor;
+    border-radius: 18px;
+    background: color-mix(in srgb, currentColor 12%, Canvas);
+    transition:
+      transform 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease;
+  }
+  .avatar svg {
+    width: 44px;
+    height: 44px;
+  }
+  .reviewer[aria-pressed="true"] .avatar {
+    box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 10%, transparent);
+  }
+  .reviewer[aria-pressed="false"] .avatar {
+    border-style: dashed;
+    background: Canvas;
+  }
+  button.reviewer:hover .avatar {
+    transform: translateY(-3px);
+  }
+  [data-static] .reviewer {
+    cursor: default;
+  }
+  .reviewer:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 8px;
+    border-radius: 12px;
+  }
+  .toggle {
+    position: absolute;
+    right: -7px;
+    bottom: -7px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: 2px solid Canvas;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .toggle::after {
+    content: "+";
+    color: #fff;
+    font: 600 16px/1 system-ui;
+  }
+  [aria-pressed="true"] .toggle::after {
+    content: "✓";
+  }
+  .label,
+  .checkout-label {
+    font:
+      500 12px/1.4 system-ui,
+      sans-serif;
+  }
+  .checkout {
+    position: absolute;
+    top: 50%;
+    left: 76%;
+    width: 38%;
+    transform: translate(-50%, -32px);
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .folder-space {
+    position: relative;
+    width: 80px;
+    height: 64px;
+  }
+  .clone-progress {
+    position: absolute;
+    left: 13px;
+    right: 13px;
+    bottom: 10px;
+    height: 2px;
+    background: var(--amber);
+    transform: scaleX(0);
+    transform-origin: left;
+    opacity: 0;
+  }
+  [data-checkout="creating"] .folder {
+    animation: create-folder 450ms ease-out;
+  }
+  [data-checkout="cloning"] .clone-progress {
+    opacity: 1;
+    animation: clone-progress 850ms linear forwards;
+  }
+  @keyframes create-folder {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes clone-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .folder {
+    width: 100%;
+    height: 100%;
+    color: var(--amber);
+    fill: color-mix(in srgb, var(--amber) 15%, transparent);
+    transition:
+      opacity 200ms ease,
+      transform 200ms ease;
+  }
+  .empty {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .ghost-folder {
+    stroke-dasharray: 3 4;
+    opacity: 0.55;
+  }
+  .count {
+    position: absolute;
+    top: 27px;
+    left: 26px;
+    color: var(--amber);
+    transition: opacity 200ms ease;
+  }
+  .count-value {
+    display: block;
+    overflow: hidden;
+    width: 28px;
+    height: 28px;
+    color: inherit;
+    font:
+      600 18px/1 ui-monospace,
+      monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .count-tape {
+    display: flex;
+    flex-direction: column;
+    transform: translateY(0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .count-tape > span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 28px;
+  }
+  [data-checkout="absent"] .folder {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  [data-checkout="absent"] .empty {
+    opacity: 0.35;
+  }
+  [data-checkout="absent"] .count {
+    opacity: 0;
+  }
+  .hint {
+    margin: 1rem 0 0;
+    text-align: center;
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+    opacity: 0.6;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-checkout="creating"] .folder,
+    [data-checkout="cloning"] .clone-progress {
+      animation: none;
+    }
+    [data-checkout="cloning"] .clone-progress {
+      transform: scaleX(1);
+    }
+    .wire,
+    .endpoint,
+    .avatar,
+    .folder,
+    .empty,
+    .count,
+    .count-tape {
+      transition: none;
+    }
+  }
+</style>
