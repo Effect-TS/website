@@ -1,4 +1,6 @@
 ---
+import "./RcMapVisualTheme.css"
+
 interface Props {
   static?: boolean
   showHint?: boolean
@@ -147,6 +149,41 @@ const Reviewer = isStatic ? "div" : "button"
 </div>
 
 <script>
+  // Icons stay readable at small widths, so measure their edges rather than
+  // scaling connector coordinates independently of them.
+  for (const visual of document.querySelectorAll<HTMLElement>(".rc-map-visual")) {
+    const stage = visual.querySelector<HTMLElement>(".stage")
+    const svg = visual.querySelector<SVGSVGElement>(".wires")
+    const folder = visual.querySelector<HTMLElement>(".folder-space")
+    if (!stage || !svg || !folder) continue
+    const connect = () => {
+      const bounds = stage.getBoundingClientRect()
+      const target = folder.getBoundingClientRect()
+      svg.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`)
+      for (const [name, offset] of [
+        ["first", -10],
+        ["second", 10],
+      ] as const) {
+        const avatar = visual.querySelector<HTMLElement>(`.reviewer.${name} .avatar`)
+        if (!avatar) continue
+        const source = avatar.getBoundingClientRect()
+        const x = source.right - bounds.left
+        const y = source.top + source.height / 2 - bounds.top
+        const endX = target.left - 4 - bounds.left
+        const endY = target.top + target.height / 2 + offset - bounds.top
+        const middle = (x + endX) / 2
+        svg
+          .querySelector(`.wire.${name}`)
+          ?.setAttribute("d", `M${x} ${y} C${middle} ${y} ${middle} ${endY} ${endX} ${endY}`)
+        const endpoint = svg.querySelector(`.endpoint.${name}`)
+        endpoint?.setAttribute("cx", String(endX))
+        endpoint?.setAttribute("cy", String(endY))
+      }
+    }
+    new ResizeObserver(connect).observe(stage)
+    connect()
+  }
+
   for (const visual of document.querySelectorAll<HTMLElement>("[data-rc-map-visual]")) {
     const buttons = visual.querySelectorAll<HTMLButtonElement>("[data-reviewer]")
     const count = visual.querySelector<HTMLElement>(".count-tape")
@@ -217,15 +254,14 @@ const Reviewer = isStatic ? "div" : "button"
 
 <style>
   .rc-map-visual {
-    --blue: #3b82f6;
-    --purple: #a78bfa;
-    --amber: #d99a22;
     max-width: 520px;
-    margin: 2rem auto;
+    margin: 0 auto 2rem;
   }
   .stage {
     position: relative;
+    width: 100%;
     aspect-ratio: 480 / 280;
+    min-height: 240px;
   }
   .wires {
     position: absolute;
@@ -283,25 +319,31 @@ const Reviewer = isStatic ? "div" : "button"
     height: 64px;
     border: 2px solid currentColor;
     border-radius: 18px;
-    background: color-mix(in srgb, currentColor 12%, Canvas);
-    transition:
-      transform 160ms ease,
-      background 160ms ease,
-      box-shadow 160ms ease;
+    background: color-mix(in srgb, currentColor 12%, var(--diagram-surface));
+  }
+  .avatar::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 24px;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease;
   }
   .avatar svg {
     width: 44px;
     height: 44px;
   }
-  .reviewer[aria-pressed="true"] .avatar {
-    box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 10%, transparent);
+  .reviewer[aria-pressed="true"] .avatar::before {
+    opacity: 0.08;
   }
   .reviewer[aria-pressed="false"] .avatar {
     border-style: dashed;
-    background: Canvas;
+    background: var(--diagram-surface);
   }
-  button.reviewer:hover .avatar {
-    transform: translateY(-3px);
+  [data-rc-map-visual] .reviewer:is(:hover, :focus-visible) .avatar::before {
+    opacity: 0.16;
   }
   [data-static] .reviewer {
     cursor: default;
@@ -319,13 +361,13 @@ const Reviewer = isStatic ? "div" : "button"
     place-items: center;
     width: 22px;
     height: 22px;
-    border: 2px solid Canvas;
+    border: 2px solid var(--diagram-surface);
     border-radius: 50%;
     background: currentColor;
   }
   .toggle::after {
     content: "+";
-    color: #fff;
+    color: var(--diagram-checkmark);
     font: 600 16px/1 system-ui;
   }
   [aria-pressed="true"] .toggle::after {
@@ -399,6 +441,7 @@ const Reviewer = isStatic ? "div" : "button"
       transform 200ms ease;
   }
   .empty {
+    color: var(--diagram-ghost);
     position: absolute;
     inset: 0;
     width: 100%;
@@ -444,7 +487,7 @@ const Reviewer = isStatic ? "div" : "button"
     transform: scale(0.85);
   }
   [data-checkout="absent"] .empty {
-    opacity: 0.35;
+    opacity: 1;
   }
   [data-checkout="absent"] .count {
     opacity: 0;
@@ -455,7 +498,7 @@ const Reviewer = isStatic ? "div" : "button"
     font:
       12px/1.5 system-ui,
       sans-serif;
-    opacity: 0.6;
+    color: var(--diagram-muted);
   }
   .sr-only {
     position: absolute;
@@ -479,6 +522,7 @@ const Reviewer = isStatic ? "div" : "button"
     .wire,
     .endpoint,
     .avatar,
+    .avatar::before,
     .folder,
     .empty,
     .count,

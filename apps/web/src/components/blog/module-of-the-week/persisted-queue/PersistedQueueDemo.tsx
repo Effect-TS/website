@@ -1,8 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react"
+import { useId, useState } from "react"
 import {
   AnimatePresence,
   motion,
-  useMotionValue,
   useTransform,
   type MotionValue,
 } from "motion/react"
@@ -15,6 +14,9 @@ import {
 import { CrashDiagram, crashFrame, crashDuration } from "./PersistedQueueCrash"
 import { SimpleDiagram } from "./PersistedQueueSimple"
 import { LockDiagram } from "./PersistedQueueLock"
+import { AnimationFrame } from "../animation/AnimationFrame"
+import { AnimationControls } from "../animation/AnimationControls"
+import { useAnimationPlayback } from "../animation/useAnimationPlayback"
 import "./PersistedQueueDemo.css"
 
 type Mode = "fan-out" | "fan-in" | "many-to-many" | "failure" | "crash" | "lock"
@@ -80,15 +82,6 @@ export default function PersistedQueueDemo({
   const [selectedMode, setMode] = useState<Mode>("fan-out")
   const mode = scenario ?? selectedMode
   const multipleWorkers = mode !== "fan-in"
-  const [time, setTime] = useState(0)
-  const replicas =
-    mode === "many-to-many" ? workerCount(time) : multipleWorkers ? 3 : 1
-  const [playing, setPlaying] = useState(false)
-  const [visible, setVisible] = useState(false)
-  const [compact, setCompact] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(false)
-  const figure = useRef<HTMLElement>(null)
-  const clock = useMotionValue(0)
   const id = useId()
   const duration = simple
     ? 12
@@ -101,6 +94,11 @@ export default function PersistedQueueDemo({
           : mode === "failure"
             ? failureDuration
             : claimTime(mode, 2) + 5.7
+  const playback = useAnimationPlayback(duration)
+  const { time, clock, figure, playing, compact, reducedMotion, restart } =
+    playback
+  const replicas =
+    mode === "many-to-many" ? workerCount(time) : multipleWorkers ? 3 : 1
   const failure = failureFrame(time)
   const crash = crashFrame(time)
   const states = jobs.map((_, i) => frame(mode, time, i))
@@ -144,77 +142,16 @@ export default function PersistedQueueDemo({
                 ? "Three worker processes claim different jobs and create thumbnails in parallel."
                 : "One worker claims each job, creates its thumbnail, and acknowledges completion before taking another."
 
-  useEffect(() => {
-    const element = figure.current
-    if (!element) return
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setCompact(entry.contentRect.width <= 640)
-    })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    const preference = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const update = () => {
-      setReducedMotion(preference.matches)
-      setPlaying(!preference.matches)
-    }
-    update()
-    preference.addEventListener("change", update)
-    return () => preference.removeEventListener("change", update)
-  }, [])
-
-  useEffect(() => {
-    let inView = false
-    const update = () => setVisible(inView && !document.hidden)
-    const observer = new IntersectionObserver(([entry]) => {
-      inView = entry?.isIntersecting ?? false
-      update()
-    })
-    if (figure.current) observer.observe(figure.current)
-    document.addEventListener("visibilitychange", update)
-    return () => {
-      observer.disconnect()
-      document.removeEventListener("visibilitychange", update)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!playing || !visible) return
-    let previous: number | undefined
-    let request: number
-    const tick = (now: number) => {
-      if (previous !== undefined) {
-        const next = (clock.get() + (now - previous) / 1000) % duration
-        clock.set(next)
-        // Text and queue states need only 10 updates per second.
-        setTime((old) =>
-          Math.floor(old * 10) === Math.floor(next * 10) ? old : next,
-        )
-      }
-      previous = now
-      request = requestAnimationFrame(tick)
-    }
-    request = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(request)
-  }, [playing, visible, clock, duration])
-
-  function restart() {
-    clock.set(0)
-    setTime(0)
-  }
-
   function selectMode(next: Mode) {
     setMode(next)
     restart()
   }
 
   return (
-    <figure
+    <AnimationFrame
       ref={figure}
       className="pq-demo"
-      data-running={playing && visible}
+      data-running={playback.running}
       aria-label="Persisted queue across processes"
     >
       <div className="pq-toolbar">
@@ -579,21 +516,11 @@ export default function PersistedQueueDemo({
           </div>
         </>
       )}
-      <div className="pq-controls">
-        <div>
-          <button aria-label="Restart animation" onClick={restart}>
-            ↻ Restart
-          </button>
-          <button
-            className="pq-play"
-            onClick={() => {
-              setPlaying((p) => !p)
-            }}
-          >
-            {playing ? "Ⅱ Pause" : "▷ Play"}
-          </button>
-        </div>
-      </div>
-    </figure>
+      <AnimationControls
+        playing={playing}
+        onRestart={restart}
+        onToggle={playback.toggle}
+      />
+    </AnimationFrame>
   )
 }

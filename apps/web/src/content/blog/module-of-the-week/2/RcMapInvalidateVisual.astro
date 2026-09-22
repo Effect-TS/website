@@ -1,0 +1,490 @@
+---
+import { RotateCcw } from "@lucide/astro"
+import "./RcMapVisualTheme.css"
+---
+
+<figure class="lookup-demo invalidate-demo" data-invalidate-demo>
+  <div class="controls">
+    <button type="button" data-get>Get checkout</button>
+    <button type="button" data-invalidate>Invalidate</button>
+  </div>
+  <div class="map">
+    <div class="map-heading">Map <code>acme/api @ a1b2c3d</code></div>
+    <div class="current"></div>
+    <p class="empty">No entry</p>
+  </div>
+  <div class="retained" hidden>
+    <div class="retained-heading">Removed from map · still in use</div>
+    <div class="previous"></div>
+  </div>
+  <template>
+    <div class="checkout" data-phase="ready">
+      <div class="resource">
+        <div class="folder">
+          <svg
+            viewBox="0 0 80 64"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M5 51 V13 Q5 8 10 8 H29 L38 18 H69 Q75 18 75 24 V51 Q75 57 69 57 H11 Q5 57 5 51Z M6 25 H74"
+            ></path>
+          </svg>
+          <span class="count">0</span>
+          <span class="clone-progress"></span>
+        </div>
+        <div><code class="path"></code><span class="status">Temporary checkout</span></div>
+      </div>
+      <div class="scopes" role="group" aria-label="Scopes. Click to close."></div>
+    </div>
+  </template>
+  <p class="hint">Click a scope to close it. Idle time to live: 5 seconds.</p>
+  <p class="announcement" aria-live="polite" aria-atomic="true"></p>
+  <button type="button" class="reset" aria-label="Reset">
+    <RotateCcw size={18} stroke-width={1.75} aria-hidden="true" />
+    <span class="tooltip" aria-hidden="true">Reset</span>
+  </button>
+</figure>
+
+<script>
+  interface Checkout {
+    readonly id: number
+    readonly node: HTMLElement
+    readonly references: Set<number>
+    readonly timers: Set<ReturnType<typeof setTimeout>>
+    phase: "creating" | "cloning" | "ready" | "deleting"
+    idleTimer: ReturnType<typeof setTimeout> | undefined
+  }
+
+  for (const visual of document.querySelectorAll<HTMLElement>("[data-invalidate-demo]")) {
+    const currentContainer = visual.querySelector(".current")
+    const previous = visual.querySelector(".previous")
+    const retained = visual.querySelector<HTMLElement>(".retained")
+    const empty = visual.querySelector<HTMLElement>(".empty")
+    const template = visual.querySelector("template")
+    const announcement = visual.querySelector(".announcement")
+    if (!currentContainer || !previous || !retained || !empty || !template || !announcement)
+      continue
+
+    const checkouts = new Map<number, Checkout>()
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    let current: Checkout | undefined
+    let nextCheckout = 0
+    let nextScope = 0
+
+    const render = () => {
+      empty.hidden = currentContainer.childElementCount > 0
+      retained.hidden = previous.childElementCount === 0
+      for (const checkout of checkouts.values()) {
+        checkout.node.dataset.phase = checkout.phase
+        const count = checkout.node.querySelector(".count")
+        if (count) count.textContent = String(checkout.references.size)
+        for (const scope of checkout.node.querySelectorAll<HTMLButtonElement>(".scopes button")) {
+          scope.dataset.waiting = String(checkout.phase !== "ready")
+        }
+      }
+    }
+    const status = (checkout: Checkout, text: string) => {
+      const label = checkout.node.querySelector(".status")
+      if (label) label.textContent = text
+    }
+    const later = (checkout: Checkout, delay: number, action: () => void) => {
+      const timer = setTimeout(
+        () => {
+          checkout.timers.delete(timer)
+          action()
+        },
+        reducedMotion.matches ? 0 : delay,
+      )
+      checkout.timers.add(timer)
+    }
+    const stopIdle = (checkout: Checkout) => {
+      clearTimeout(checkout.idleTimer)
+      checkout.idleTimer = undefined
+    }
+    const remove = (checkout: Checkout) => {
+      stopIdle(checkout)
+      for (const timer of checkout.timers) clearTimeout(timer)
+      checkout.timers.clear()
+      checkout.phase = "deleting"
+      status(checkout, "Removing directory…")
+      later(checkout, 450, () => {
+        checkout.node.remove()
+        checkouts.delete(checkout.id)
+        render()
+      })
+      render()
+    }
+    const startIdle = (checkout: Checkout) => {
+      const deadline = performance.now() + 5000
+      const tick = () => {
+        const remaining = Math.max(0, deadline - performance.now())
+        status(checkout, `Idle · ${(remaining / 1000).toFixed(1)}s left`)
+        if (remaining === 0) {
+          if (current === checkout) current = undefined
+          remove(checkout)
+        } else {
+          checkout.idleTimer = setTimeout(tick, Math.min(100, remaining))
+        }
+      }
+      tick()
+    }
+    const addScope = (checkout: Checkout) => {
+      stopIdle(checkout)
+      if (checkout.phase === "ready") status(checkout, "Temporary checkout")
+      const id = ++nextScope
+      checkout.references.add(id)
+      const button = document.createElement("button")
+      button.type = "button"
+      button.textContent = "Scope ×"
+      button.setAttribute("aria-label", `Close scope ${id} using checkout ${checkout.id}`)
+      button.addEventListener("click", () => {
+        checkout.references.delete(id)
+        button.remove()
+        if (checkout.references.size === 0) {
+          if (current === checkout) startIdle(checkout)
+          else remove(checkout)
+        }
+        announcement.textContent = `Scope closed. Checkout ${checkout.id} has ${checkout.references.size} references.`
+        render()
+      })
+      checkout.node.querySelector(".scopes")?.append(button)
+      render()
+    }
+    const create = (animate: boolean) => {
+      const node = template.content.firstElementChild?.cloneNode(true)
+      if (!(node instanceof HTMLElement)) return
+      const checkout: Checkout = {
+        id: ++nextCheckout,
+        node,
+        references: new Set(),
+        timers: new Set(),
+        phase: animate ? "creating" : "ready",
+        idleTimer: undefined,
+      }
+      const path = node.querySelector(".path")
+      if (path) path.textContent = `checkout-${checkout.id}`
+      node.dataset.checkout = String(checkout.id)
+      checkouts.set(checkout.id, checkout)
+      current = checkout
+      currentContainer.append(node)
+      addScope(checkout)
+      if (animate) {
+        status(checkout, "Creating directory…")
+        later(checkout, 450, () => {
+          checkout.phase = "cloning"
+          if (checkout.references.size > 0) status(checkout, "git clone…")
+          render()
+        })
+        later(checkout, 1300, () => {
+          checkout.phase = "ready"
+          if (checkout.references.size > 0) status(checkout, "Temporary checkout")
+          render()
+        })
+      }
+      return checkout
+    }
+    visual.querySelector("[data-get]")?.addEventListener("click", () => {
+      if (current) {
+        addScope(current)
+        announcement.textContent = `Reusing checkout ${current.id}.`
+      } else {
+        create(true)
+        announcement.textContent = "No map entry. Lookup creates a new checkout."
+      }
+    })
+    visual.querySelector("[data-invalidate]")?.addEventListener("click", () => {
+      if (!current) {
+        announcement.textContent = "No map entry to invalidate."
+        return
+      }
+      const checkout = current
+      current = undefined
+      stopIdle(checkout)
+      previous.append(checkout.node)
+      if (checkout.references.size === 0) remove(checkout)
+      render()
+      announcement.textContent = `Checkout ${checkout.id} removed from the map. ${checkout.references.size} existing references remain.`
+    })
+    const reset = () => {
+      for (const checkout of checkouts.values()) {
+        stopIdle(checkout)
+        for (const timer of checkout.timers) clearTimeout(timer)
+      }
+      checkouts.clear()
+      current = undefined
+      currentContainer.replaceChildren()
+      previous.replaceChildren()
+      nextCheckout = 0
+      nextScope = 0
+      const checkout = create(false)
+      if (checkout) addScope(checkout)
+      announcement.textContent =
+        "Two scopes share checkout 1. Invalidate its map entry to stop new requests from reusing it."
+      render()
+    }
+    visual.querySelector(".reset")?.addEventListener("click", reset)
+    reset()
+  }
+</script>
+
+<style>
+  .invalidate-demo {
+    position: relative;
+    margin: 0 0 2rem;
+    padding-top: 36px;
+  }
+  button {
+    cursor: pointer;
+    font: inherit;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 4px;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .controls button {
+    padding: 10px 16px;
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    color: var(--blue);
+    font:
+      600 13px/1.5 system-ui,
+      sans-serif;
+  }
+  .controls [data-invalidate] {
+    color: var(--purple);
+    border-color: var(--purple);
+    background: color-mix(in srgb, var(--purple) 8%, transparent);
+  }
+  .map {
+    border: 1px solid var(--diagram-border);
+    border-radius: 10px;
+  }
+  .map-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--diagram-border);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  code {
+    padding: 0;
+    background: none;
+    color: inherit;
+    font:
+      12px/1.5 ui-monospace,
+      monospace;
+  }
+  .empty {
+    margin: 0;
+    padding: 36px 16px;
+    text-align: center;
+    color: var(--diagram-muted);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  .retained {
+    margin-top: 20px;
+    border-left: 2px dashed var(--purple);
+    padding-left: 12px;
+  }
+  .retained-heading {
+    color: var(--diagram-muted);
+    font:
+      11px/1.5 system-ui,
+      sans-serif;
+  }
+  .empty[hidden],
+  .retained[hidden] {
+    display: none;
+  }
+  .invalidate-demo :global(.checkout) {
+    --scope-color: var(--blue);
+    padding: 16px;
+  }
+  .previous :global(.checkout) {
+    --scope-color: var(--purple);
+  }
+  .invalidate-demo :global(.resource) {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .invalidate-demo :global(.folder) {
+    position: relative;
+    width: 80px;
+    height: 64px;
+    flex-shrink: 0;
+    color: var(--amber);
+  }
+  .invalidate-demo :global(.folder svg) {
+    width: 100%;
+    height: 100%;
+    fill: color-mix(in srgb, var(--amber) 12%, transparent);
+  }
+  .invalidate-demo :global(.count) {
+    position: absolute;
+    top: 27px;
+    left: 26px;
+    width: 28px;
+    text-align: center;
+    font:
+      600 20px/28px ui-monospace,
+      monospace;
+  }
+  .invalidate-demo :global(.status) {
+    display: block;
+    margin-top: 4px;
+    color: var(--diagram-muted);
+    font:
+      11px/1.5 system-ui,
+      sans-serif;
+  }
+  .invalidate-demo :global(.scopes) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-top: 1px solid var(--scope-color);
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+  .invalidate-demo :global(.scopes:empty) {
+    display: none;
+  }
+  .invalidate-demo :global(.scopes button) {
+    padding: 7px 12px;
+    border: 1px solid var(--scope-color);
+    border-radius: 6px;
+    color: var(--scope-color);
+    background: color-mix(in srgb, var(--scope-color) 8%, transparent);
+    cursor: pointer;
+    font:
+      12px/1.5 ui-monospace,
+      monospace;
+  }
+  .invalidate-demo :global(.scopes button:focus-visible) {
+    outline: 2px solid var(--scope-color);
+    outline-offset: 3px;
+  }
+  .invalidate-demo :global(.scopes button[data-waiting="true"]) {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+  .invalidate-demo :global(.clone-progress) {
+    position: absolute;
+    bottom: 10px;
+    left: 13px;
+    right: 13px;
+    height: 2px;
+    background: var(--amber);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .invalidate-demo :global([data-phase="creating"] .folder) {
+    animation: create-folder 450ms ease-out;
+  }
+  .invalidate-demo :global([data-phase="cloning"] .clone-progress) {
+    opacity: 1;
+    animation: clone-progress 850ms linear forwards;
+  }
+  .invalidate-demo :global([data-phase="deleting"] .folder) {
+    animation: create-folder 450ms ease-in reverse forwards;
+  }
+  @keyframes create-folder {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes clone-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .hint {
+    margin: 12px 0 0;
+    color: var(--diagram-muted);
+    text-align: center;
+    font:
+      11px/1.5 system-ui,
+      sans-serif;
+  }
+  .announcement {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .reset {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 7px;
+    border: 0;
+    border-radius: 50%;
+    color: var(--diagram-muted);
+    background: transparent;
+  }
+  .tooltip {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 4px);
+    visibility: hidden;
+    pointer-events: none;
+    padding: 4px 8px;
+    border: 1px solid var(--diagram-border);
+    border-radius: 4px;
+    background: var(--diagram-surface);
+    font:
+      12px/1.5 system-ui,
+      sans-serif;
+  }
+  .reset:hover .tooltip,
+  .reset:focus-visible .tooltip {
+    visibility: visible;
+  }
+  @media (max-width: 600px) {
+    .invalidate-demo :global(.scopes) {
+      flex-direction: column;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .invalidate-demo :global([data-phase="creating"] .folder),
+    .invalidate-demo :global([data-phase="deleting"] .folder),
+    .invalidate-demo :global([data-phase="cloning"] .clone-progress) {
+      animation: none;
+    }
+    .invalidate-demo :global([data-phase="cloning"] .clone-progress) {
+      transform: scaleX(1);
+    }
+  }
+</style>

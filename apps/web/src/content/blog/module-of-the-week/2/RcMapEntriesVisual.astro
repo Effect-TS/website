@@ -1,4 +1,6 @@
 ---
+import "./RcMapVisualTheme.css"
+
 const reviewers = ["A", "B"] as const
 const repositories = [
   { id: "api", key: "acme/api@a1b2c3d" },
@@ -19,6 +21,18 @@ const repositories = [
       <path data-wire="A-website" class="a" d="M126 75 C230 75 230 215 336 215"></path>
       <path data-wire="B-api" class="b" d="M126 225 C230 225 230 95 336 95"></path>
       <path data-wire="B-website" class="b" d="M126 225 H336"></path>
+      {
+        reviewers.flatMap((reviewer) =>
+          repositories.map(({ id }) => (
+            <circle
+              data-wire={`${reviewer}-${id}`}
+              data-endpoint={`${reviewer}-${id}`}
+              class={reviewer === "A" ? "a" : "b"}
+              r="4"
+            />
+          )),
+        )
+      }
     </svg>
     <div role="group" aria-label="Select a reviewer">
       {
@@ -116,6 +130,39 @@ const repositories = [
 </div>
 
 <script>
+  for (const visual of document.querySelectorAll<HTMLElement>(".map-visual")) {
+    const stage = visual.querySelector<HTMLElement>(".stage")
+    const svg = visual.querySelector<SVGSVGElement>(".wires")
+    if (!stage || !svg) continue
+    const connect = () => {
+      const bounds = stage.getBoundingClientRect()
+      svg.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`)
+      for (const reviewer of ["A", "B"] as const) {
+        const avatar = visual.querySelector<HTMLElement>(`[data-reviewer="${reviewer}"] .avatar`)
+        if (!avatar) continue
+        const source = avatar.getBoundingClientRect()
+        for (const repo of ["api", "website"] as const) {
+          const folder = visual.querySelector<HTMLElement>(`[data-repo="${repo}"] .folder-space`)
+          if (!folder) continue
+          const target = folder.getBoundingClientRect()
+          const x = source.right - bounds.left
+          const y = source.top + source.height / 2 - bounds.top
+          const endX = target.left - 4 - bounds.left
+          const endY = target.top + target.height / 2 + (reviewer === "A" ? -10 : 10) - bounds.top
+          const middle = (x + endX) / 2
+          svg
+            .querySelector(`[data-wire="${reviewer}-${repo}"]`)
+            ?.setAttribute("d", `M${x} ${y} C${middle} ${y} ${middle} ${endY} ${endX} ${endY}`)
+          const endpoint = svg.querySelector(`[data-endpoint="${reviewer}-${repo}"]`)
+          endpoint?.setAttribute("cx", String(endX))
+          endpoint?.setAttribute("cy", String(endY))
+        }
+      }
+    }
+    new ResizeObserver(connect).observe(stage)
+    connect()
+  }
+
   type Reviewer = "A" | "B"
   type Repo = "api" | "website"
   type State = "absent" | "creating" | "cloning" | "present" | "deleting"
@@ -222,13 +269,14 @@ const repositories = [
 
 <style>
   .map-visual {
-    --amber: #d99a22;
     max-width: 520px;
-    margin: 2rem auto;
+    margin: 0 auto 2rem;
   }
   .stage {
     position: relative;
+    width: 100%;
     aspect-ratio: 480 / 300;
+    min-height: 300px;
   }
   .wires {
     position: absolute;
@@ -237,17 +285,22 @@ const repositories = [
     height: 100%;
     pointer-events: none;
   }
-  .wires path {
+  .wires path,
+  .wires circle {
     stroke: currentColor;
     stroke-width: 3;
     opacity: 0;
     transition: opacity 200ms ease;
   }
+  .wires circle {
+    fill: currentColor;
+    stroke: none;
+  }
   .a {
-    color: #3b82f6;
+    color: var(--blue);
   }
   .b {
-    color: #a78bfa;
+    color: var(--purple);
   }
   button {
     position: absolute;
@@ -276,20 +329,39 @@ const repositories = [
   }
   .reviewer.a {
     top: 25%;
-    color: #3b82f6;
+    color: var(--blue);
   }
   .reviewer.b {
     top: 75%;
-    color: #a78bfa;
+    color: var(--purple);
   }
   .avatar {
+    position: relative;
     display: grid;
     place-items: center;
     width: 64px;
     height: 64px;
     border: 2px solid currentColor;
     border-radius: 18px;
-    background: color-mix(in srgb, currentColor 12%, Canvas);
+    background: color-mix(in srgb, currentColor 12%, var(--diagram-surface));
+  }
+  .avatar::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 24px;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease;
+  }
+  .reviewer:is(:hover, :focus-visible) .avatar::before {
+    opacity: 0.16;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .avatar::before {
+      transition: none;
+    }
   }
   .avatar svg {
     width: 44px;
@@ -310,6 +382,8 @@ const repositories = [
     top: 75%;
   }
   .repository code {
+    overflow-wrap: anywhere;
+    text-align: center;
     font:
       11px/1.4 ui-monospace,
       monospace;
@@ -318,7 +392,7 @@ const repositories = [
   }
   .status {
     font-size: 11px;
-    opacity: 0.65;
+    color: var(--diagram-muted);
   }
   .folder-space {
     position: relative;
@@ -333,6 +407,7 @@ const repositories = [
     transition: opacity 200ms ease;
   }
   .empty {
+    color: var(--diagram-ghost);
     position: absolute;
     inset: 0;
     width: 100%;
@@ -372,7 +447,7 @@ const repositories = [
     opacity: 0;
   }
   [data-state="absent"] .empty {
-    opacity: 0.35;
+    opacity: 1;
   }
   .progress {
     position: absolute;
@@ -416,7 +491,7 @@ const repositories = [
     font:
       12px/1.5 system-ui,
       sans-serif;
-    opacity: 0.6;
+    color: var(--diagram-muted);
   }
   .sr-only {
     position: absolute;
@@ -428,14 +503,6 @@ const repositories = [
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
-  }
-  @media (max-width: 400px) {
-    .stage {
-      min-height: 260px;
-    }
-    .wires {
-      height: 100%;
-    }
   }
   @media (prefers-reduced-motion: reduce) {
     .wires path,

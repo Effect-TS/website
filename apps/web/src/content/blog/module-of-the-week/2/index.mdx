@@ -13,34 +13,37 @@ tags:
 import RcMapVisual from "./RcMapVisual.astro"
 import RcMapEntriesVisual from "./RcMapEntriesVisual.astro"
 import RcMapStructureVisual from "./RcMapStructureVisual.astro"
+import RcMapLookupVisual from "./RcMapLookupVisual.astro"
+import RcMapInvalidateVisual from "./RcMapInvalidateVisual.astro"
+import RcMapCapacityVisual from "./RcMapCapacityVisual.astro"
 import Aside from "../../../../components/docs/Aside.astro"
 
-On Effect Office Hours, people often ask me to "roast" their Effect codebases. This takes some nerve on my part, given that my GitHub profile is public.
+On Effect Office Hours, people often ask me to "roast" their Effect codebases. This takes some nerve on my part, given that my own GitHub profile is public.
 
 Rather than give anyone a reason to look at my code, let's outsource the roasting. We'll build "Roast My Repo", a hypothetical app with AI reviewers trained to bring out your inner imposter syndrome.
 
-The app clones your repository into a temporary folder for the reviewers to inspect. One examines your dependency choices. Another reviews the code. Both need the same code, so they share a checkout instead of cloning it twice.
+## Reference Counting
+
+To gain access to your code, the app will clone your repository into a temporary folder. We will start with two AI reviewers: one examines your dependency graph and the other reviews your code. Both will need to access the same repository, so they will share a checkout instead of cloning the repository twice.
 
 <RcMapVisual static />
 
-But how do we know when we can delete the checkout?
+But if both review agents are sharing one checkout, how do we know when we can delete it?
 
-We can track this with a count. Each reviewer adds one when it starts using the checkout and subtracts one when it's done. When the count reaches zero, nobody needs the files anymore, so we can safely delete the checkout.
+We can track this with a count. Each reviewer adds one when it starts using the checkout and subtracts one when it's done. When the count reaches zero, nobody needs the files anymore, so we can safely remove the directory.
 
 Try connecting and disconnecting the reviewers below to see this in action.
 
 <RcMapVisual />
 
-This is called _reference counting_.
+This is called **reference counting**.
 
 <Aside type="note" title="Reference Counting">
 
-<blockquote style="margin-bottom: 0;">
-  <p>
-    In computer science, reference counting is a programming technique of
-    storing the number of references, pointers, or handles to a resource, such
-    as an object, a block of memory, disk space, and others.
-  </p>
+<blockquote style="font-weight: 400; margin-bottom: 0;">
+  In computer science, reference counting is a programming technique of storing
+  the number of references, pointers, or handles to a resource, such as an
+  object, a block of memory, disk space, and others.
 </blockquote>
 
 <span>
@@ -52,20 +55,286 @@ This is called _reference counting_.
 
 ## Why a Map?
 
-So far, everyone has been reviewing the same repository. What happens when someone submits a different one?
+So far, our reviewers have all been reviewing the same repository. But what happens when a user submits a different one?
 
-Suppose we're reviewing `acme/api` and `acme/website`. They need separate checkouts, each with its own reference count. Try connecting a reviewer to each repository below, then disconnecting one. Its checkout is deleted while the other stays available.
+Suppose we're reviewing `acme/api` and `acme/website`. They need separate checkouts, each with its own reference count.
+
+Select **Reviewer A**, then click `acme/api` to connect them. Do the same with **Reviewer B** and `acme/website`. Now click `acme/website` again to release Reviewer B's checkout. Watch it disappear while Reviewer A's checkout stays available.
 
 <RcMapEntriesVisual />
 
 We can keep track of these checkouts in a map, using the repository URL and commit as the key. Each entry holds a checkout and its reference count. Reviewers requesting the same key share that checkout. When its count reaches zero, we delete the checkout and remove the entry.
 
+Select `acme/api` beneath **Reviewer A** to add it to the map. Select it beneath **Reviewer B** too: the reference count increases, but there's still only one entry. Deselect it beneath both reviewers and watch the entry disappear.
+
 <RcMapStructureVisual />
 
-The map tells us _which checkout_ to use. The reference count tells us _when we can delete it_.
+Using a map allows us to access shared resources by key. Reference counting lets us automatically clean them up when they're no longer in use. Effect's `RcMap` combines these two ideas into a single data structure.
 
-## Later
+Let's use `RcMap` to implement the checkout sharing we've just seen.
 
-That's what Effect's `RcMap` gives us, a reference-counted map. We supply the code to create a resource and clean it up. `RcMap` acquires it on the first request for a key and shares it with other callers requesting that key. Effect's scopes track when each caller is done. By default, when the last caller's scope closes, `RcMap` runs the resource's cleanup.
+## The Git Service
 
-For Roast My Repo, that means sharing a checkout while reviewers need it, then deleting it once everyone has finished judging you.
+### Defining the service
+
+Let's put our checkouts behind a `Git` service. Its `checkout` method takes a repository URL and desired commit and returns the path to a local checkout.
+
+We'll group the URL and commit in a `Repository` class. This is what we'll pass to `checkout` and use as the key in our map:
+
+```ts title="repository.ts"
+import { Data } from "effect"
+
+export class Repository extends Data.Class<{
+  readonly url: string
+  readonly commit: string
+}> {
+  get identifier(): string {
+    return `${this.url}@${this.commit}`
+  }
+}
+```
+
+`RcMap` compares keys using Effect's equality rules. Two separately created `Repository` values with the same URL and commit count as the same key. In Effect v4, plain objects also have structural equality by default, so we could use those instead, but `Data.Class` is useful here for grouping the fields and getter together.
+
+<Aside type="note" title="Equality in Effect">
+  <p>
+    For more on structural equality and `Data.Class`, see the [Data
+    documentation](/docs/v4/data-types/data/). If you need to customize your
+    equality checks, the [Equal documentation](/docs/v4/trait/equal/) explains
+    how to do it.
+  </p>
+</Aside>
+
+Inside the `Git` service, we create the map using the `RcMap.make` constructor. We must define a `lookup` function, which will receives a `Repository` and returns an `Effect` that acquires the checkout.
+
+For this example, we'll create a temporary directory and log where the clone would go. A full implementation would run Git before returning the path.
+
+```ts {19-25} title="git.ts"
+import { Context, Data, Effect, FileSystem, Layer, RcMap, Scope } from "effect"
+import { Repository } from "./repository.ts"
+
+export class GitError extends Data.TaggedError("GitError")<{
+  readonly repository: Repository
+  readonly cause: unknown
+}> {}
+
+export interface GitService {
+  readonly checkout: (
+    repository: Repository,
+  ) => Effect.Effect<string, GitError, Scope.Scope>
+}
+
+export class Git extends Context.Service<Git, GitService>()("Git", {
+  make: Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+
+    const checkouts = yield* RcMap.make({
+      lookup: (repository: Repository) =>
+        fs.makeTempDirectoryScoped({ prefix: repository.identifier }).pipe(
+          Effect.tap((dir) => Effect.log(`Cloning to: ${dir}`)),
+          Effect.mapError((cause) => new GitError({ repository, cause })),
+        ),
+    })
+
+    return {
+      checkout: (repository) => RcMap.get(checkouts, repository),
+    }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}
+```
+
+### Acquiring a checkout
+
+Constructing the map doesn't create any directories yet. When `checkout` is invoked, it delegates to `RcMap.get`. If the key isn't in the map, `RcMap` runs the `lookup` function which will create the checkout and insert an entry into the map. Otherwise, the reviewer shares the existing checkout.
+
+<RcMapLookupVisual />
+
+Notice that the `checkout` method provided by the `Git` service requires a `Scope`.
+
+```ts /Scope.Scope/
+export interface GitService {
+  readonly checkout: (
+    repository: Repository,
+  ) => Effect.Effect<string, GitError, Scope.Scope>
+}
+```
+
+That's how `RcMap` tracks how long each reviewer needs the files. When the `Scope` associated with a given call to `checkout` closes, the reference count for that map entry is decremented. When no references remain, the temporary directory is removed.
+
+<RcMapLookupVisual scopes />
+
+### Running reviews
+
+Let's run two reviews against the same repository. Each review gets its own scope, so it can release the checkout as soon as it's done.
+
+```ts
+import { NodeRuntime, NodeServices } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { Git } from "./git.ts"
+import { Repository } from "./repository.ts"
+
+declare const reviewDependencies: (path: string) => Effect.Effect<void, Error>
+declare const reviewCode: (path: string) => Effect.Effect<void, Error>
+
+const MainLayer = Git.layer.pipe(Layer.provide(NodeServices.layer))
+
+const program = Effect.gen(function* () {
+  const git = yield* Git
+
+  const repository = new Repository({
+    url: "https://github.com/acme/api.git",
+    commit: "a1b2c3d",
+  })
+
+  const dependencyReview = git.checkout(repository).pipe(
+    Effect.flatMap(reviewDependencies),
+    Effect.scoped, // Close the scope after the review completes
+  )
+
+  const codeReview = git.checkout(repository).pipe(
+    Effect.flatMap(reviewCode),
+    Effect.scoped, // Close the scope after the review completes
+  )
+
+  // Run the reviews concurrently
+  yield* Effect.all([dependencyReview, codeReview], {
+    concurrency: "unbounded",
+  })
+})
+
+program.pipe(Effect.provide(MainLayer), NodeRuntime.runMain)
+```
+
+`Effect.all` runs both reviews concurrently against the same repository, so if one is still acquiring the checkout, the other waits for it. Once it's ready, both receive the same directory path.
+
+Placing `Effect.scoped` after `Effect.flatMap` keeps the scope open while the review runs. When the review finishes, the scope closes and releases its reference to the checkout.
+
+Say the dependency review finishes first. Its scope closes, taking the reference count from two to one. The code review carries on using the directory. When that finishes, the count reaches zero and `RcMap` removes the directory. Neither review needs to know what the other is doing.
+
+### Keeping checkouts alive
+
+Both reviews finish, their associated `Scope`s are closed, and the checkout directory is deleted from the file system. A second later, another reviewer asks for the same repository. Now we have to re-clone the entire repository again.
+
+This is pretty inefficient.
+
+Luckily, `RcMap` provides us with the ability to keep entries around for a little while before cleaning them up. Let's set the map's `idleTimeToLive` to five seconds, giving another review a chance to reuse the same checkout before it's deleted:
+
+```ts {7}
+const checkouts =
+  yield *
+  RcMap.make({
+    lookup: (repository: Repository) =>
+      fs.makeTempDirectoryScoped({ prefix: repository.identifier }).pipe(
+        Effect.tap((dir) => Effect.log(`Cloning to: ${dir}`)),
+        Effect.mapError((cause) => new GitError({ repository, cause })),
+      ),
+    idleTimeToLive: "5 seconds",
+  })
+```
+
+Now, when the reference count for a given checkout reaches zero, the checkout sticks around for five more seconds before being cleaned up.
+
+Close all three scopes below to start the countdown, then click **Get checkout** before it reaches zero. You'll get the same directory back. Close the new scope and wait five seconds to see it removed.
+
+<RcMapLookupVisual idle="ttl" />
+
+### Reusing existing checkouts
+
+Suppose we only want to run an optional review if there's already a checkout for that repository. If there isn't, we'll skip the review. Calling `get` won't work here: it creates a checkout when the key is missing. We need a way to request an existing entry without creating one.
+
+`RcMap.getOption` does exactly that. It returns `Some(path)` for an existing checkout, or `None` if the key is missing. If the checkout is still being acquired, it waits for the path rather than returning `None`.
+
+Try clicking **Get existing** below with an empty map. Then, click **Get checkout** followed by **Get existing** and observe the difference.
+
+<RcMapLookupVisual idle="compare" />
+
+### Extending the idle window
+
+Suppose we added a scheduler that assigns reviews to a pool of AI workers. The dependency review has finished, but the code review is still queued, waiting for a free worker. Nothing is using the checkout, so its idle countdown has started. We'd like to keep those files around for the queued review rather than clone the repository again.
+
+The scheduler can call `RcMap.touch` periodically to reset the idle countdown while the review waits for a worker:
+
+```ts
+yield * RcMap.touch(checkouts, repository)
+```
+
+### Limiting checkouts
+
+Keeping idle checkouts around saves us from cloning them again, but they still take up disk space. We can limit how many entries the map holds by setting the map's `capacity`:
+
+```ts {8}
+const checkouts =
+  yield *
+  RcMap.make({
+    lookup: (repository: Repository) =>
+      fs.makeTempDirectoryScoped({ prefix: repository.identifier }).pipe(
+        Effect.tap((dir) => Effect.log(`Cloning to: ${dir}`)),
+        Effect.mapError((cause) => new GitError({ repository, cause })),
+      ),
+    idleTimeToLive: "5 seconds",
+    capacity: 10,
+  })
+```
+
+<Aside>
+  <p>
+    Keep in mind that a capacity of `10` means ten _entries_, not ten _reviews_
+    (reviews that share a key will reference the same entry in the map). Idle
+    checkouts count against the capacity too, as do checkouts still being
+    acquired.
+  </p>
+</Aside>
+
+Attempting to add a new entry to a map that is at capacity will fail with a `Cause.ExceededCapacityError`.
+
+The map below has a capacity of two entries. Request `acme/api` and `acme/website`, then try `acme/docs`. The third request fails, but requesting `acme/api` again still works because it shares an existing entry.
+
+<RcMapCapacityVisual />
+
+With a capacity set, `RcMap.get` can fail with `Cause.ExceededCapacityError` when a new entry would exceed the limit. Our `GitService.checkout` signature needs to include that error unless we map it to our existing `GitError`:
+
+```ts
+import { Cause, Effect, Scope } from "effect"
+
+export interface GitService {
+  readonly checkout: (
+    repository: Repository,
+  ) => Effect.Effect<
+    string,
+    GitError | Cause.ExceededCapacityError,
+    Scope.Scope
+  >
+}
+```
+
+I'd keep `ExceededCapacityError` in the signature so callers can decide what to do when the map is full, such as re-queueing the review or retrying after a delay.
+
+### Invalidating checkouts
+
+Suppose a review runs a tool that modifies files in the checkout. The repository URL and commit haven't changed, but the files on disk have. We'd like the next review to get a clean copy.
+
+Inside our `Git` service, we can remove the entry from the map with `RcMap.invalidate`:
+
+```ts
+yield * RcMap.invalidate(checkouts, repository)
+```
+
+The next time `get` is invoked for that repository, the map's `lookup` function will be called and a new checkout will be created.
+
+But what happens to reviews that were using the checkout we invalidated? Let's take a look.
+
+Click **Invalidate** below, then **Get checkout**. Notice what happens to the scopes referencing the invalidated checkout.
+
+<RcMapInvalidateVisual />
+
+Invalidated map entries keep their references, so in our case the old checkout will remain on the file system until the last `Scope` associated with it is closed.
+
+## Conclusion
+
+Effect's reference-counted data structures are exceptionally useful in situations where you have multiple consumers that all need shared access to the same scoped resource.
+
+We focused on `RcMap` in this post, which manages shared resources by key. Effect also provides `RcRef` for when you only need to share a single resource.
+
+We hope you enjoyed this edition of Module of the Week! Until the next one - Happy Effecting!
