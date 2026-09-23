@@ -221,7 +221,7 @@ This is pretty inefficient.
 
 Luckily, `RcMap` provides us with the ability to keep entries around for a little while before cleaning them up. Let's set the map's `idleTimeToLive` to five seconds, giving another review a chance to reuse the same checkout before it's deleted:
 
-```ts {7}
+```ts {9}
 const checkouts =
   yield *
   RcMap.make({
@@ -264,7 +264,7 @@ yield * RcMap.touch(checkouts, repository)
 
 Keeping idle checkouts around saves us from cloning them again, but they still take up disk space. We can limit how many entries the map holds by setting the map's `capacity`:
 
-```ts {8}
+```ts {10}
 const checkouts =
   yield *
   RcMap.make({
@@ -295,7 +295,7 @@ The map below has a capacity of two entries. Request `acme/api` and `acme/websit
 
 With a capacity set, `RcMap.get` can fail with `Cause.ExceededCapacityError` when a new entry would exceed the limit. Our `GitService.checkout` signature needs to include that error unless we map it to our existing `GitError`:
 
-```ts
+```ts /Cause.ExceededCapacityError/
 import { Cause, Effect, Scope } from "effect"
 
 export interface GitService {
