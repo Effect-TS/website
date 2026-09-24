@@ -84,7 +84,25 @@ const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
 
 const selectedPackageAtom = Atom.make<string | null>(null)
 
-const facetsAtom = SearchClient.query("search", "facets", {})
+// Distinct changelog packages in the current results, before the package filter
+// narrows them. The reranker only returns changelog entries for changelog-intent
+// queries, so this is empty for unrelated searches and hides the refinement.
+const changelogPackagesAtom = Atom.make((get): ReadonlyArray<string> => {
+  const packages = new Set<string>()
+  for (const result of get(versionResultsAtom)) {
+    if (result.kind === "changelog") packages.add(result.packageName)
+  }
+  return Array.from(packages).sort()
+})
+
+// A package selection only applies while the query still surfaces that package.
+// When the query moves away from changelog, the stale selection is ignored, so
+// the filter never silently empties unrelated results.
+const effectivePackageAtom = Atom.make((get): string | null => {
+  const selected = get(selectedPackageAtom)
+  if (selected === null) return null
+  return get(changelogPackagesAtom).includes(selected) ? selected : null
+})
 
 const searchOpenSourceAtom = Atom.make<SearchOpenSource>("unknown")
 
@@ -202,15 +220,9 @@ const searchFailure = (
   return { reason: "http", httpStatus: 500 }
 }
 
-// Key encodes the package filter alongside the query so a filter change issues a
-// fresh request (and a fresh cache entry) instead of reusing unfiltered results.
-const searchRequestAtom = Atom.family((key: string) => {
-  const { query, package: pkg } = JSON.parse(key) as {
-    query: string
-    package: string | null
-  }
+const searchRequestAtom = Atom.family((query: string) => {
   const requestAtom = SearchClient.query("search", "search", {
-    query: { query, ...(pkg === null ? {} : { package: pkg }) },
+    query: { query },
   })
   let startedAt: number | undefined
 
@@ -275,8 +287,7 @@ export const allSearchResultsAtom = Atom.make((get) => {
     version: get(selectedVersionAtom),
   })
 
-  const pkg = get(selectedPackageAtom)
-  return get(searchRequestAtom(JSON.stringify({ query, package: pkg })))
+  return get(searchRequestAtom(query))
 })
 
 const versionResultsAtom = Atom.make((get) => {
@@ -295,9 +306,12 @@ const versionResultsAtom = Atom.make((get) => {
 
 const searchResultsAtom = Atom.make((get) => {
   const groups = get(selectedGroupsAtom)
+  const pkg = get(effectivePackageAtom)
 
   return get(versionResultsAtom).filter(
-    (result) => groups.length === 0 || groups.includes(result.kind),
+    (result) =>
+      (groups.length === 0 || groups.includes(result.kind)) &&
+      (pkg === null || ("packageName" in result && result.packageName === pkg)),
   )
 })
 
@@ -596,13 +610,14 @@ function SearchVersionMenu() {
 }
 
 function SearchPackageMenu() {
-  const [selected, setSelected] = useAtom(selectedPackageAtom)
-  const facets = useAtomValue(facetsAtom)
+  const setSelected = useAtomSet(selectedPackageAtom)
+  const selected = useAtomValue(effectivePackageAtom)
+  const packages = useAtomValue(changelogPackagesAtom)
   const dialogElement = useAtomValue(dialogElementAtom)
 
-  const packages = AsyncResult.isSuccess(facets) ? facets.value.packages : []
-  // Nothing to filter until the store reports changelog packages.
-  if (packages.length === 0) return null
+  // Show only when the query surfaces more than one changelog package to narrow
+  // between. Keep it mounted while a package is selected so it can be cleared.
+  if (packages.length < 2 && selected === null) return null
 
   return (
     <div className="relative shrink-0">
@@ -634,19 +649,14 @@ function SearchPackageMenu() {
           </DropdownMenuCheckboxItem>
           {packages.map((pkg) => (
             <DropdownMenuCheckboxItem
-              key={pkg.value}
-              checked={selected === pkg.value}
+              key={pkg}
+              checked={selected === pkg}
               closeOnClick
               tabIndex={0}
-              onCheckedChange={() =>
-                setSelected(selected === pkg.value ? null : pkg.value)
-              }
-              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
+              onCheckedChange={() => setSelected(selected === pkg ? null : pkg)}
+              className="flex w-full cursor-pointer items-center rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
             >
-              <span className="truncate">{pkg.value}</span>
-              <span className="text-zinc-400 tabular-nums dark:text-zinc-500">
-                {pkg.count}
-              </span>
+              <span className="truncate">{pkg}</span>
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>

@@ -9,14 +9,7 @@ const SearchHandlers = HttpApiBuilder.group(
   "search",
   Effect.fn(function* (handlers) {
     const search = yield* Search
-    return handlers
-      .handle("search", ({ query }) =>
-        search.search(query.query, {
-          package: query.package,
-          channel: query.channel,
-        }),
-      )
-      .handle("facets", () => search.facets())
+    return handlers.handle("search", ({ query }) => search.search(query.query))
   }),
 ).pipe(Layer.provide(Search.layer))
 
