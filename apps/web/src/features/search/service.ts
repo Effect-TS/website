@@ -8,7 +8,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
-import type { ChangelogFacets, FacetValue, SearchResult } from "./domain"
+import type { SearchResult } from "./domain"
 import {
   ApiReferenceGeneratedMetadata,
   ApiReferenceMetadata,
@@ -18,11 +18,6 @@ import {
   SearchError,
   StoreSearchResponse,
 } from "./domain"
-
-export interface SearchOptions {
-  readonly package?: string | undefined
-  readonly channel?: string | undefined
-}
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
@@ -232,37 +227,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
-    // Build a metadata pre-filter from the caller's scope. Each condition runs
-    // as a structured WHERE before the vector step, so a package or channel
-    // filter is exact — not a hope that semantics rank the right chunks.
-    function buildFilters(options: SearchOptions) {
-      const conditions: Array<{
-        key: string
-        operator: "eq"
-        value: string
-      }> = []
-      if (options.package !== undefined) {
-        conditions.push({
-          key: "package_name",
-          operator: "eq",
-          value: options.package,
-        })
-      }
-      if (options.channel !== undefined) {
-        conditions.push({
-          key: "channel",
-          operator: "eq",
-          value: options.channel,
-        })
-      }
-      return conditions.length === 0 ? undefined : { all: conditions }
-    }
-
-    const search = Effect.fn("Search.search")(function* (
-      query: string,
-      options: SearchOptions = {},
-    ) {
-      const filters = buildFilters(options)
+    const search = Effect.fn("Search.search")(function* (query: string) {
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
@@ -270,7 +235,6 @@ export class Search extends Context.Service<Search>()("app/Search", {
               query,
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
-              ...(filters === undefined ? {} : { filters }),
               store_identifiers: [Redacted.value(storeId)],
             },
             { signal },
@@ -285,49 +249,8 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return groupSearchResults(response)
     })
 
-    // Enumerate the changelog packages and channels present in the store so the
-    // UI can offer exact filters instead of free-text guessing.
-    const facets = Effect.fn("Search.facets")(function* () {
-      const raw = yield* Effect.tryPromise({
-        try: (signal) =>
-          mxbai.stores.metadataFacets(
-            {
-              store_identifiers: [Redacted.value(storeId)],
-              facets: ["package_name", "channel"],
-              filters: {
-                all: [
-                  {
-                    key: "content_source",
-                    operator: "eq",
-                    value: "changelog",
-                  },
-                ],
-              },
-              max_values_per_field: 200,
-            },
-            { signal },
-          ),
-        catch: (cause) => new SearchError({ cause }),
-      })
-      const toValues = (field: string): ReadonlyArray<FacetValue> => {
-        const bucket = raw.facets[field]
-        if (bucket === undefined) return []
-        return Object.entries(bucket)
-          .map(([value, count]) => ({
-            value,
-            count: typeof count === "number" ? count : 0,
-          }))
-          .sort((a, b) => a.value.localeCompare(b.value))
-      }
-      return {
-        packages: toValues("package_name"),
-        channels: toValues("channel"),
-      } satisfies ChangelogFacets
-    })
-
     return {
       search,
-      facets,
     } as const
   }),
 }) {
