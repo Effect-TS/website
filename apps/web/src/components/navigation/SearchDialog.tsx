@@ -220,9 +220,13 @@ const searchFailure = (
   return { reason: "http", httpStatus: 500 }
 }
 
-const searchRequestAtom = Atom.family((query: string) => {
+const searchRequestAtom = Atom.family((key: string) => {
+  const { query, package: pkg } = JSON.parse(key) as {
+    query: string
+    package: string | null
+  }
   const requestAtom = SearchClient.query("search", "search", {
-    query: { query },
+    query: pkg === null ? { query } : { query, package: pkg },
   })
   let startedAt: number | undefined
 
@@ -287,20 +291,44 @@ export const allSearchResultsAtom = Atom.make((get) => {
     version: get(selectedVersionAtom),
   })
 
-  return get(searchRequestAtom(query))
+  return get(searchRequestAtom(JSON.stringify({ query, package: null })))
 })
+
+const filterByVersion = (
+  results: ReadonlyArray<SearchResult>,
+  version: string,
+): Array<SearchResult> =>
+  results.filter(
+    (result) =>
+      result.kind === "blog" || result.version.toLowerCase() === version,
+  )
 
 const versionResultsAtom = Atom.make((get) => {
   const version = get(selectedVersionAtom)
 
   return get(allSearchResultsAtom).pipe(
-    AsyncResult.map((results) =>
-      results.filter(
-        (result) =>
-          result.kind === "blog" || result.version.toLowerCase() === version,
-      ),
-    ),
+    AsyncResult.map((results) => filterByVersion(results, version)),
     AsyncResult.getOrElse<Array<SearchResult>>(() => []),
+  )
+})
+
+// When a package is selected we re-query scoped to it, so its entries are exact
+// and never lost to the base top-k cut. The base query still drives the package
+// list, so other packages stay selectable.
+const scopedResultsAtom = Atom.make((get): Array<SearchResult> => {
+  const pkg = get(effectivePackageAtom)
+  if (pkg === null) return get(versionResultsAtom)
+
+  const query = get(searchQueryAtom)
+  const debouncedQuery = get(debouncedSearchQueryAtom)
+  if (query.trim().length === 0 || query !== debouncedQuery) {
+    return get(versionResultsAtom)
+  }
+
+  const version = get(selectedVersionAtom)
+  return get(searchRequestAtom(JSON.stringify({ query, package: pkg }))).pipe(
+    AsyncResult.map((results) => filterByVersion(results, version)),
+    AsyncResult.getOrElse<Array<SearchResult>>(() => get(versionResultsAtom)),
   )
 })
 
@@ -308,7 +336,7 @@ const searchResultsAtom = Atom.make((get) => {
   const groups = get(selectedGroupsAtom)
   const pkg = get(effectivePackageAtom)
 
-  return get(versionResultsAtom).filter(
+  return get(scopedResultsAtom).filter(
     (result) =>
       (groups.length === 0 || groups.includes(result.kind)) &&
       (pkg === null || ("packageName" in result && result.packageName === pkg)),
