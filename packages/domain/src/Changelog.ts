@@ -8,6 +8,8 @@ export interface ChangelogSection {
   readonly version: string
   readonly heading: string
   readonly body: Array<string>
+  // A Changesets `### Major Changes` block marks a breaking release.
+  readonly breaking: boolean
 }
 
 // Split a changelog into per-version blocks. Keep only released-version
@@ -17,10 +19,14 @@ export function splitChangelogSections(
   source: string,
 ): Array<ChangelogSection> {
   const lines = source.split("\n")
-  const sections: Array<ChangelogSection> = []
-  let current:
-    | { version: string; heading: string; body: Array<string> }
-    | undefined
+  // Mutable while building; returned as readonly ChangelogSection[].
+  type MutableSection = {
+    version: string
+    heading: string
+    body: Array<string>
+    breaking: boolean
+  }
+  const sections: Array<MutableSection> = []
   let fenced = false
 
   for (const line of lines) {
@@ -30,11 +36,15 @@ export function splitChangelogSections(
     const heading = fenced ? null : /^##\s+(.+?)\s*$/.exec(line)
     const version = heading?.[1]?.trim()
     if (version !== undefined && isSemver(version)) {
-      current = { version, heading: line, body: [] }
-      sections.push(current)
-    } else if (current !== undefined) {
-      current.body.push(line)
+      sections.push({ version, heading: line, body: [], breaking: false })
+      continue
     }
+    const current = sections.at(-1)
+    if (current === undefined) continue
+    if (!fenced && /^###\s+Major Changes\s*$/.test(line)) {
+      current.breaking = true
+    }
+    current.body.push(line)
   }
 
   return sections
