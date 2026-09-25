@@ -227,7 +227,24 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
-    const search = Effect.fn("Search.search")(function* (query: string) {
+    const search = Effect.fn("Search.search")(function* (
+      query: string,
+      packageName?: string,
+    ) {
+      // A package filter runs as a structured pre-filter before the vector
+      // step, so scoping to a package is exact and never lost to the top-k cut.
+      const filters =
+        packageName === undefined
+          ? undefined
+          : {
+              all: [
+                {
+                  key: "package_name",
+                  operator: "eq" as const,
+                  value: packageName,
+                },
+              ],
+            }
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
@@ -236,6 +253,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
               store_identifiers: [Redacted.value(storeId)],
+              ...(filters === undefined ? {} : { filters }),
             },
             { signal },
           ),
