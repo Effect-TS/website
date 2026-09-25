@@ -264,16 +264,19 @@ function generateChangelogs(
     const relativePath = toPosixPath(
       relative(repositoryDirectory, packageInfo.directory),
     )
-    const document = buildChangelogDocument(
-      readFileSync(changelogPath, "utf8"),
-      {
-        name: packageInfo.manifest.name,
-        slug,
-        channel: options.version,
-        packageVersion: packageInfo.manifest.version,
-        sourceUrl: `https://github.com/Effect-TS/effect/blob/${sourceRef}/${relativePath}/CHANGELOG.md`,
-      },
+    const source = readFileSync(changelogPath, "utf8")
+    const sections = splitChangelogSections(source)
+    const dates = readVersionDates(
+      repositoryDirectory,
+      packageInfo.manifest.name,
     )
+    const document = buildChangelogDocument(sections, dates, {
+      name: packageInfo.manifest.name,
+      slug,
+      channel: options.version,
+      packageVersion: packageInfo.manifest.version,
+      sourceUrl: `https://github.com/Effect-TS/effect/blob/${sourceRef}/${relativePath}/CHANGELOG.md`,
+    })
     writeFileSync(join(outputDirectory, `${slug}.md`), document)
     written += 1
   }
@@ -289,7 +292,19 @@ interface ChangelogMeta {
   readonly sourceUrl: string
 }
 
-function buildChangelogDocument(source: string, meta: ChangelogMeta): string {
+function buildChangelogDocument(
+  sections: ReturnType<typeof splitChangelogSections>,
+  dates: ReadonlyMap<string, string>,
+  meta: ChangelogMeta,
+): string {
+  const versionLines = sections.flatMap((section) => {
+    const date = dates.get(section.version)
+    return [
+      `  - version: ${JSON.stringify(section.version)}`,
+      ...(date === undefined ? [] : [`    date: ${JSON.stringify(date)}`]),
+      `    breaking: ${section.breaking}`,
+    ]
+  })
   const frontmatter = [
     "---",
     `package: ${JSON.stringify(meta.name)}`,
@@ -297,16 +312,48 @@ function buildChangelogDocument(source: string, meta: ChangelogMeta): string {
     `channel: ${JSON.stringify(meta.channel)}`,
     `packageVersion: ${JSON.stringify(meta.packageVersion)}`,
     `sourceUrl: ${JSON.stringify(meta.sourceUrl)}`,
+    ...(versionLines.length === 0 ? [] : ["versions:", ...versionLines]),
     "---",
   ].join("\n")
 
-  const blocks = splitChangelogSections(source).map((section) =>
+  const blocks = sections.map((section) =>
     [section.heading, ...section.body].join("\n").trim(),
   )
   const body =
     blocks.length === 0 ? "No changelog entries." : blocks.join("\n\n")
 
   return `${frontmatter}\n\n${body}\n`
+}
+
+// Map each released version to its git tag date (`<package>@<version>`).
+// Effect tags every publish, so one ref scan covers a package's whole history.
+// A shallow checkout without tags yields an empty map and dates are omitted.
+function readVersionDates(
+  repository: string,
+  packageName: string,
+): Map<string, string> {
+  const dates = new Map<string, string>()
+  try {
+    const output = execFileSync(
+      "git",
+      [
+        "for-each-ref",
+        "--format=%(refname:short)\t%(creatordate:format:%Y-%m-%d)",
+        `refs/tags/${packageName}@*`,
+      ],
+      { cwd: repository, encoding: "utf8" },
+    )
+    const prefix = `${packageName}@`
+    for (const line of output.split("\n")) {
+      if (line.length === 0) continue
+      const [ref, date] = line.split("\t")
+      if (ref === undefined || date === undefined) continue
+      dates.set(ref.slice(prefix.length), date)
+    }
+  } catch {
+    // No tags available (shallow checkout); dates stay omitted.
+  }
+  return dates
 }
 
 async function generatePackage(
