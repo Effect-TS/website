@@ -25,7 +25,9 @@ runs:
         repository: Effect-TS/effect
         ref: ${{ inputs.v3-revision }}
         path: .effect-source-v3
-        fetch-depth: 1
+        # Full history and tags: changelog dates come from release tags, and v4
+        # rc tags are lightweight, so their dates need the pointed-to commits.
+        fetch-depth: 0
 
     - name: Checkout Effect v4
       id: checkout-v4
@@ -34,7 +36,9 @@ runs:
         repository: Effect-TS/effect
         ref: ${{ inputs.v4-revision }}
         path: .effect-source-v4
-        fetch-depth: 1
+        # Full history and tags: changelog dates come from release tags, and v4
+        # rc tags are lightweight, so their dates need the pointed-to commits.
+        fetch-depth: 0
 
     - name: Restore v3 API reference cache
       if: inputs.cache == 'true'
