@@ -2,12 +2,14 @@
 import type { GetStaticPaths } from "astro"
 import { getCollection, render, type CollectionEntry } from "astro:content"
 
-import { Search } from "@lucide/astro"
+import { Rss, Search } from "@lucide/astro"
 
 import { isSemver } from "@website/domain/Changelog"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import DocShell from "@/layouts/DocShell.astro"
+import SidebarGroup from "@/components/ui/sidebar/SidebarGroup.astro"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
 
 interface StaticPathEntry {
   readonly params: {
@@ -37,9 +39,62 @@ const { version, package: packageSlug } = Astro.params
 const { Content, headings } = await render(entry)
 
 const displayName = entry.data.package.replace("@effect/", "")
+const versionMeta = new Map(entry.data.versions.map((item) => [item.version, item]))
 const versions = headings
   .filter((heading) => heading.depth === 2 && isSemver(heading.text))
-  .map((heading) => ({ label: heading.text, href: `#${heading.slug}` }))
+  .map((heading) => ({
+    label: heading.text,
+    href: `#${heading.slug}`,
+    breaking: versionMeta.get(heading.text)?.breaking ?? false,
+  }))
+// Group versions by release phase (Alpha/Beta/Release Candidate/…) so a long
+// pre-release channel collapses into a few semantic sections. Stable versions
+// (no pre-release tag) fall back to `major.minor`, so a stable line still splits
+// into minor series instead of one giant "Stable" bucket. Source order is
+// newest-first, so the first group is the latest phase and opens by default.
+type VersionItem = (typeof versions)[number]
+const PHASE_LABELS: Record<string, string> = {
+  alpha: "Alpha",
+  beta: "Beta",
+  rc: "Release Candidate",
+  next: "Next",
+  snapshot: "Snapshot",
+}
+// The leading pre-release identifier, e.g. `4.0.0-rc.117` → "rc".
+const phaseOf = (v: string): string | undefined => {
+  const dash = v.indexOf("-")
+  return dash === -1
+    ? undefined
+    : v
+        .slice(dash + 1)
+        .split(/[.-]/)[0]!
+        .toLowerCase()
+}
+const groupOf = (v: string): { key: string; label: string } => {
+  const phase = phaseOf(v)
+  if (phase === undefined) {
+    const minor = v.split(".").slice(0, 2).join(".")
+    return { key: `stable-${minor}`, label: minor }
+  }
+  return { key: phase, label: PHASE_LABELS[phase] ?? phase }
+}
+
+const versionGroups: Array<{
+  key: string
+  label: string
+  items: Array<VersionItem>
+}> = []
+const groupByKey = new Map<string, (typeof versionGroups)[number]>()
+for (const item of versions) {
+  const { key, label } = groupOf(item.label)
+  let group = groupByKey.get(key)
+  if (group === undefined) {
+    group = { key, label, items: [] }
+    groupByKey.set(key, group)
+    versionGroups.push(group)
+  }
+  group.items.push(item)
+}
 ---
 
 <DocShell
@@ -48,12 +103,7 @@ const versions = headings
   activeSlug="api"
   version={version}
 >
-  <nav
-    slot="sidebar"
-    aria-label="Changelog navigation"
-    data-changelog-sidebar
-    class="flex max-h-[calc(100vh_-_var(--sticky-header-height)_-_4rem)] flex-col"
-  >
+  <nav slot="sidebar" aria-label="Changelog navigation" data-changelog-sidebar>
     <header class="mb-4">
       <a
         href={`/docs/${version}/api`}
@@ -68,12 +118,6 @@ const versions = headings
       </h2>
       <p class="font-mono text-xs text-muted-foreground">{entry.data.packageVersion}</p>
     </header>
-
-    <h3
-      class="mb-2 pt-2.5 font-mono text-sm font-semibold tracking-widest text-foreground uppercase"
-    >
-      Version
-    </h3>
 
     <label for="version-filter" class="relative mb-3 block">
       <span class="sr-only">Filter versions</span>
@@ -91,16 +135,33 @@ const versions = headings
       />
     </label>
 
-    <ul class="min-h-0 flex-1 space-y-1 overflow-y-auto" data-version-list>
+    <ul class="flex flex-col gap-0.5" data-version-list>
       {
-        versions.map((item) => (
-          <li data-version={item.label.toLowerCase()}>
-            <a
-              href={item.href}
-              class="block truncate rounded px-2 py-1 font-mono text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              {item.label}
-            </a>
+        versionGroups.map((group, index) => (
+          <li
+            class="mb-1 last:mb-0"
+            data-version-group
+            data-default-open={index === 0 ? "true" : "false"}
+          >
+            <SidebarGroup label={group.label} open={index === 0}>
+              {group.items.map((item) => (
+                <li data-version={item.label.toLowerCase()}>
+                  <SidebarLink
+                    href={item.href}
+                    class="flex items-center gap-2 py-1.5 pl-3 font-mono text-xs"
+                  >
+                    {item.breaking && (
+                      <span
+                        class="size-1.5 shrink-0 rounded-full bg-destructive"
+                        title="Breaking change"
+                        aria-label="Breaking change"
+                      />
+                    )}
+                    <span class="truncate">{item.label}</span>
+                  </SidebarLink>
+                </li>
+              ))}
+            </SidebarGroup>
           </li>
         ))
       }
@@ -145,6 +206,12 @@ const versions = headings
       >
         <GitHubLogo class="mr-1 inline size-4" aria-hidden="true" /> Source
       </a>
+      <a
+        href={`/docs/${version}/api/${packageSlug}/changelog.xml`}
+        class="transition-colors hover:text-foreground"
+      >
+        <Rss class="mr-1 inline size-4" aria-hidden="true" /> RSS
+      </a>
     </div>
 
     <div class="changelog-body">
@@ -152,12 +219,6 @@ const versions = headings
     </div>
   </article>
 </DocShell>
-
-<style is:global>
-  .changelog-body :is(h2, h3) {
-    scroll-margin-top: 6rem;
-  }
-</style>
 
 <style>
   [data-version-filter]::-webkit-search-cancel-button {
@@ -182,13 +243,54 @@ const versions = headings
       const query = input.value.trim().toLowerCase()
       let visible = 0
 
-      for (const item of list.querySelectorAll<HTMLElement>("[data-version]")) {
-        const match = item.dataset.version?.includes(query) ?? false
-        item.hidden = !match
-        if (match) visible += 1
+      for (const group of list.querySelectorAll<HTMLElement>("[data-version-group]")) {
+        let groupVisible = 0
+        for (const item of group.querySelectorAll<HTMLElement>("[data-version]")) {
+          const match = item.dataset.version?.includes(query) ?? false
+          item.hidden = !match
+          if (match) groupVisible += 1
+        }
+
+        group.hidden = groupVisible === 0
+        visible += groupVisible
+
+        const details = group.querySelector("details")
+        if (details !== null) {
+          // Expand groups with matches while filtering; restore defaults when cleared.
+          details.open =
+            query.length === 0 ? group.dataset.defaultOpen === "true" : groupVisible > 0
+        }
       }
 
       empty.classList.toggle("hidden", visible > 0)
     })
   }
 </script>
+
+<style is:global>
+  .changelog-body :is(h2, h3) {
+    scroll-margin-top: 6rem;
+  }
+  .changelog-body :is(h2) .changelog-badge {
+    margin-left: 0.75rem;
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.4rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .changelog-body :is(h2) .changelog-badge-breaking {
+    background-color: color-mix(in oklab, var(--color-destructive) 15%, transparent);
+    color: var(--color-destructive);
+  }
+  .changelog-body :is(h2) .changelog-date {
+    margin-left: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-muted-foreground);
+    vertical-align: middle;
+  }
+</style>
