@@ -17,6 +17,7 @@ import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 import { remarkMermaid } from "./src/features/docs/remark-mermaid"
+import { rehypeChangelogVersions } from "./src/features/api-reference/rehype-changelog-versions"
 
 const FontsourceProvider = fontProviders.fontsource()
 
@@ -37,7 +38,11 @@ const config = defineConfig({
   markdown: {
     processor: unified({
       remarkPlugins: [remarkMermaid],
-      rehypePlugins: [rehypeHeadingIds, rehypeHeadingLinks],
+      rehypePlugins: [
+        rehypeHeadingIds,
+        rehypeHeadingLinks,
+        rehypeChangelogVersions,
+      ],
     }),
   },
 

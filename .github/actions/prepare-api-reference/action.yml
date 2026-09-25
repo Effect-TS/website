@@ -25,7 +25,9 @@ runs:
         repository: Effect-TS/effect
         ref: ${{ inputs.v3-revision }}
         path: .effect-source-v3
-        fetch-depth: 1
+        # Full history and tags: changelog dates come from release tags, and v4
+        # rc tags are lightweight, so their dates need the pointed-to commits.
+        fetch-depth: 0
 
     - name: Checkout Effect v4
       id: checkout-v4
@@ -34,23 +36,29 @@ runs:
         repository: Effect-TS/effect
         ref: ${{ inputs.v4-revision }}
         path: .effect-source-v4
-        fetch-depth: 1
+        # Full history and tags: changelog dates come from release tags, and v4
+        # rc tags are lightweight, so their dates need the pointed-to commits.
+        fetch-depth: 0
 
     - name: Restore v3 API reference cache
       if: inputs.cache == 'true'
       id: cache-v3
       uses: actions/cache@v5
       with:
-        path: apps/web/.data/api-reference/v3
-        key: api-reference-v3-${{ runner.os }}-${{ steps.checkout-v3.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+        path: |
+          apps/web/.data/api-reference/v3
+          apps/web/.data/changelog/v3
+        key: api-reference-v3-${{ runner.os }}-${{ steps.checkout-v3.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'packages/domain/src/Changelog.ts', 'pnpm-lock.yaml') }}
 
     - name: Restore v4 API reference cache
       if: inputs.cache == 'true'
       id: cache-v4
       uses: actions/cache@v5
       with:
-        path: apps/web/.data/api-reference/v4
-        key: api-reference-v4-${{ runner.os }}-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+        path: |
+          apps/web/.data/api-reference/v4
+          apps/web/.data/changelog/v4
+        key: api-reference-v4-${{ runner.os }}-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'packages/domain/src/Changelog.ts', 'pnpm-lock.yaml') }}
 
     - name: Generate v3 API reference
       if: inputs.cache != 'true' || steps.cache-v3.outputs.cache-hit != 'true'

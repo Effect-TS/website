@@ -23,6 +23,7 @@ const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
           include: [
             ".alchemy-build-input.json",
             ".data/api-reference/**",
+            ".data/changelog/**",
             "src/**",
             "public/**",
             "astro.config.ts",
@@ -114,6 +115,7 @@ export default Alchemy.Stack(
             "apps/web/src/content/blog/**",
             "apps/web/src/content.config.ts",
             "apps/web/.data/api-reference/**",
+            "apps/web/.data/changelog/**",
             "apps/web/src/features/api-reference/**",
             "apps/web/src/features/search/domain.ts",
             "packages/api-reference/**",
