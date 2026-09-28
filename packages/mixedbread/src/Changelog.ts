@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+import { stringify as stringifyYaml } from "yaml"
 import {
   countLines,
   frontmatterLines,
@@ -7,7 +8,11 @@ import {
   serializeSearchFrontmatter,
   spliceFrontmatter,
 } from "./Markdown.ts"
-import { isSemver } from "@website/domain/Changelog"
+import {
+  type ChangelogSection,
+  isSemver,
+  splitChangelogSections,
+} from "@website/domain/Changelog"
 import { ChangelogStagedSearchMetadata } from "@website/domain/SearchMetadata"
 
 export const SearchMetadata = ChangelogStagedSearchMetadata
@@ -24,6 +29,53 @@ const FrontmatterRecord = Schema.Record(Schema.String, Schema.Unknown)
 export interface StagedChangelog {
   readonly source: string
   readonly metadata: SearchMetadata
+}
+
+export interface StagedChangelogRelease extends StagedChangelog {
+  readonly version: string
+}
+
+// Index one document per release instead of one per package. A package-wide
+// document carries a section table and a `versions` list that both grow with
+// release count, so a long history overflows the Mixedbread metadata cap. A
+// release-scoped document keeps its frontmatter bounded and only re-uploads
+// when that single release changes.
+export function stageChangelogReleases(
+  source: string,
+  relativePath: string,
+): ReadonlyArray<StagedChangelogRelease> {
+  const parsed = parseCommonMark(
+    source,
+    "Changelog file must have YAML frontmatter",
+  )
+  const frontmatter = Schema.decodeUnknownSync(Frontmatter)(parsed.frontmatter)
+  const result: Array<StagedChangelogRelease> = []
+  for (const release of splitChangelogSections(source)) {
+    const staged = stageChangelog(
+      releaseSource(frontmatter, release),
+      `${relativePath}#${release.version}`,
+    )
+    if (staged === undefined) continue
+    result.push({ ...staged, version: release.version })
+  }
+  return result
+}
+
+function releaseSource(
+  frontmatter: typeof Frontmatter.Type,
+  release: ChangelogSection,
+): string {
+  const yaml = stringifyYaml(
+    {
+      package: frontmatter.package,
+      slug: frontmatter.slug,
+      channel: frontmatter.channel,
+      packageVersion: release.version,
+    },
+    { lineWidth: 0 },
+  ).trimEnd()
+  const body = [release.heading, ...release.body].join("\n").trimEnd()
+  return `---\n${yaml}\n---\n\n${body}\n`
 }
 
 export function stageChangelog(
