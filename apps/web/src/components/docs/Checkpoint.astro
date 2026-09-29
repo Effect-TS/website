@@ -1,0 +1,173 @@
+---
+import Check from "@/assets/icons/lucide/check.svg"
+
+interface Props {
+  title?: string
+  label?: string
+}
+
+const { title, label = "Checkpoint" } = Astro.props
+const slug = Astro.params.slug ?? Astro.url.pathname
+---
+
+<section class="checkpoint" data-checkpoint data-tutorial={slug} aria-label={title ?? label}>
+  <div class="checkpoint-header">
+    <button
+      type="button"
+      class="checkpoint-toggle"
+      data-checkpoint-toggle
+      aria-pressed="false"
+      aria-label="Mark this checkpoint as reached"
+    >
+      <Check width={16} height={16} aria-hidden="true" />
+    </button>
+    <span class="checkpoint-heading">
+      <span class="checkpoint-eyebrow">{label}</span>
+      {title && <span class="checkpoint-title">{title}</span>}
+    </span>
+    <span class="checkpoint-count" data-checkpoint-count></span>
+  </div>
+  <div class="checkpoint-content">
+    <slot />
+  </div>
+</section>
+
+<script>
+  import { currentCheckpointAtom } from "@/features/checkpoints/atoms"
+  import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-checkpoint]"))
+
+  if (sections.length > 0) {
+    const registry = AtomRegistry.make()
+    const slug = sections[0]!.dataset.tutorial ?? ""
+    const atom = currentCheckpointAtom(slug)
+    const total = sections.length
+
+    sections.forEach((section, i) => {
+      const index = i + 1
+      const count = section.querySelector<HTMLElement>("[data-checkpoint-count]")
+      if (count !== null) count.textContent = `${index} of ${total}`
+
+      const toggle = section.querySelector<HTMLButtonElement>("[data-checkpoint-toggle]")
+      toggle?.addEventListener("click", () => {
+        registry.update(atom, (currentValue) => (currentValue === index ? 0 : index))
+      })
+    })
+
+    let didInitialScroll = false
+    registry.subscribe(
+      atom,
+      (currentValue) => {
+        sections.forEach((section, i) => {
+          const marked = currentValue === i + 1
+          section.setAttribute("data-current", String(marked))
+          section
+            .querySelector<HTMLButtonElement>("[data-checkpoint-toggle]")
+            ?.setAttribute("aria-pressed", String(marked))
+        })
+
+        if (!didInitialScroll && currentValue > 0) {
+          didInitialScroll = true
+          sections[currentValue - 1]?.scrollIntoView({ block: "center" })
+        }
+      },
+      { immediate: true },
+    )
+  }
+</script>
+
+<style>
+  .checkpoint {
+    position: relative;
+    margin-block: 1.75rem;
+    padding: 1.125rem 1.25rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background-color: var(--card);
+    scroll-margin-block: 6rem;
+  }
+
+  .checkpoint[data-current="true"] {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand);
+  }
+
+  .checkpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .checkpoint-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1.5px solid var(--brand);
+    border-radius: 9999px;
+    background-color: transparent;
+    color: var(--brand);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .checkpoint-toggle:hover {
+    background-color: color-mix(in oklch, var(--brand) 12%, transparent);
+  }
+
+  .checkpoint-toggle:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .checkpoint-toggle[aria-pressed="true"] {
+    background-color: var(--brand);
+    color: var(--background);
+  }
+
+  .checkpoint-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .checkpoint-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand);
+  }
+
+  .checkpoint-title {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--foreground);
+  }
+
+  .checkpoint-count {
+    margin-inline-start: auto;
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground);
+  }
+
+  .checkpoint-content :global(> :first-child) {
+    margin-top: 0;
+  }
+  .checkpoint-content :global(> :last-child) {
+    margin-bottom: 0;
+  }
+</style>
