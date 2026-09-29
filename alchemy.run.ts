@@ -91,6 +91,7 @@ export default Alchemy.Stack(
         name: `effect-website-pr-${pullRequest.value}`,
         description: `Effect website search preview for PR ${pullRequest.value}`,
         expiresAfter: { anchor: "last_active_at", days: 7 },
+        tags: ["effect-website-preview"],
         // Start from production's index so the sync below only uploads what
         // the pull request changed and deletes what it doesn't have.
         copyFrom: Config.Redacted("MXBAI_VECTOR_STORE_ID"),

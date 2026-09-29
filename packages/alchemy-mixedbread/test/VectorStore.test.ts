@@ -1,5 +1,4 @@
 import { NotFoundError } from "@mixedbread/sdk"
-import type { Store } from "@mixedbread/sdk/resources/stores/stores"
 import { Unowned } from "alchemy/AdoptPolicy"
 import type { ScopedPlanStatusSession } from "alchemy/Report"
 import type { Provider } from "alchemy/Provider"
@@ -13,6 +12,7 @@ import { assert, test } from "vite-plus/test"
 import {
   MixedbreadClient,
   type MixedbreadManagementClient,
+  type TaggedStore as Store,
 } from "../src/Client.ts"
 import { MixedbreadApiError } from "../src/Error.ts"
 import {
@@ -57,6 +57,7 @@ const makeClient = (
           id: `copy-${copies}`,
           name: props.name,
           metadata: props.metadata ?? origin.metadata,
+          tags: props.tags ?? origin.tags ?? [],
           status: "in_progress",
           copy_state: {
             role: "target",
@@ -88,11 +89,14 @@ const makeClient = (
     createStore: (props) =>
       Effect.sync(() => {
         creates += 1
-        const store = makeStore(
-          `store-${creates}`,
-          props.name ?? `store-${creates}`,
-          props.metadata,
-        )
+        const store: Store = {
+          ...makeStore(
+            `store-${creates}`,
+            props.name ?? `store-${creates}`,
+            props.metadata,
+          ),
+          ...(props.tags == null ? {} : { tags: props.tags }),
+        }
         stores.set(store.id, store)
         return store
       }),
@@ -128,6 +132,7 @@ const makeClient = (
           ...(props.expires_after === undefined
             ? {}
             : { expires_after: props.expires_after }),
+          ...(props.tags == null ? {} : { tags: props.tags }),
           updated_at: "2026-01-02T00:00:00.000Z",
         }
         stores.set(id, updated)
@@ -460,6 +465,7 @@ test("recreates a preview store returned with expired status", async () => {
 
 const production: Store = {
   ...makeStore("production", "effect-website"),
+  tags: ["production"],
   config: { contextualization: true },
   expires_after: null,
   file_counts: { completed: 10, pending: 0, in_progress: 0 },
@@ -511,6 +517,7 @@ test("copies the source store and applies the preview settings", async () => {
           assert.equal(fake.creates(), 0)
           assert.equal(copied.status, "completed")
           assert.deepEqual(copied.expiresAfter, copyProps.expiresAfter)
+          assert.deepEqual(copied.tags, [])
           assert.deepEqual(copied.metadata, {
             ...props.metadata,
             alchemy: {
@@ -639,6 +646,7 @@ test("waits for a copy left running by a cancelled workflow", async () => {
             metadata: ownedMetadata,
             config: null,
             expiresAfter: null,
+            tags: [],
             expiresAt: null,
             createdAt: inProgress.created_at,
             updatedAt: inProgress.updated_at,
@@ -696,6 +704,69 @@ test("does not update or replace a store when only the copy source changes", asy
           { action: "noop" },
         )
       }),
+    ),
+  )
+})
+
+test("tags new stores, copies, and stores created before tags", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+  const tags = ["effect-website-preview"]
+  const tagged: VectorStoreProps = { ...props, tags }
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+
+          const created = yield* provider.reconcile(reconcileArgs(tagged))
+          assert.deepEqual(created.tags, ["effect-website-preview"])
+
+          // A copy replaces the tags it would inherit from the source.
+          const copied = yield* provider.reconcile(
+            reconcileArgs({
+              ...copyProps,
+              name: "effect-website-pr-456",
+              tags,
+            }),
+          )
+          assert.deepEqual(copied.tags, ["effect-website-preview"])
+          assert.deepEqual(fake.stores.get(production.id)?.tags, ["production"])
+
+          // Stores from before tags were managed pick them up on the next run.
+          const untagged = yield* provider.reconcile(
+            reconcileArgs({ ...props, name: "effect-website-pr-789" }),
+          )
+          assert.deepEqual(untagged.tags, [])
+          const backfilled = yield* provider.reconcile(
+            reconcileArgs(
+              { ...tagged, name: "effect-website-pr-789" },
+              untagged,
+            ),
+          )
+          assert.equal(backfilled.id, untagged.id)
+          assert.deepEqual(backfilled.tags, ["effect-website-preview"])
+
+          // Tags the API returned normalized don't cause another update.
+          fake.stores.set(backfilled.id, {
+            ...fake.stores.get(backfilled.id)!,
+            updated_at: "2026-01-03T00:00:00.000Z",
+          })
+          const unchanged = yield* provider.reconcile(
+            reconcileArgs(
+              {
+                ...tagged,
+                name: "effect-website-pr-789",
+                tags: [" Effect-Website-Preview "],
+              },
+              backfilled,
+            ),
+          )
+          assert.equal(unchanged.updatedAt, "2026-01-03T00:00:00.000Z")
+        }),
+      ),
     ),
   )
 })
