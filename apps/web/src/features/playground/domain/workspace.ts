@@ -517,7 +517,7 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 const devToolsV4 = makeFile(
   "DevTools.ts",
   `import { NodeSocket } from "@effect/platform-node"
-import { DevTools } from "effect/unstable/devtools"
+import { DevTools } from "effect/devtools"
 import { Layer, Logger } from "effect"
 
 export const DevToolsLayer = DevTools.layerSocket.pipe(
