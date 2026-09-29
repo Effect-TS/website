@@ -35,6 +35,7 @@ export type NavigationActiveSlug =
   | "api"
   | "blog"
   | "podcast"
+  | "jobs"
   | "docs"
   | "playground"
   | "community"
@@ -70,6 +71,14 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     kind: "internal",
     label: "Podcast",
     href: "/podcast",
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
+  {
+    id: "jobs",
+    kind: "internal",
+    label: "Jobs",
+    href: "/effect-jobs",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
