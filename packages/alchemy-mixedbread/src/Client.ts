@@ -1,6 +1,7 @@
 import MixedbreadSdk, { ConflictError, NotFoundError } from "@mixedbread/sdk"
 import type {
   Store,
+  StoreCopyParams,
   StoreCreateParams,
   StoreUpdateParams,
 } from "@mixedbread/sdk/resources/stores/stores"
@@ -14,6 +15,10 @@ import { MixedbreadApiError } from "./Error.ts"
 export interface MixedbreadManagementClient {
   readonly createStore: (
     props: StoreCreateParams,
+  ) => Effect.Effect<Store, MixedbreadApiError>
+  readonly copyStore: (
+    source: string,
+    props: StoreCopyParams,
   ) => Effect.Effect<Store, MixedbreadApiError>
   readonly retrieveStore: (
     id: string,
@@ -71,6 +76,10 @@ const make = Effect.gen(function* () {
     createStore: (props) =>
       request("createStore", (client, signal) =>
         client.stores.create(props, { signal, maxRetries: 0 }),
+      ),
+    copyStore: (source, props) =>
+      request("copyStore", (client, signal) =>
+        client.stores.copy(source, props, { signal, maxRetries: 0 }),
       ),
     retrieveStore: (id) =>
       request("retrieveStore", (client, signal) =>

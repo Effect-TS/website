@@ -11,6 +11,7 @@ import { Resource, type ResourceClassLike } from "alchemy/Resource"
 import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
+import * as Redacted from "effect/Redacted"
 import { isConflict, isNotFound, MixedbreadClient } from "./Client.ts"
 import type { Providers } from "./Providers.ts"
 
@@ -25,6 +26,15 @@ export interface VectorStoreProps {
     readonly contextualization?: boolean | ContextualizationConfig
     readonly save_content?: boolean
   }
+  /**
+   * ID or name of a store to copy when this resource creates the store.
+   *
+   * The copy keeps the source's files and indexed chunks, so it is only used
+   * when the source's configuration matches `config`. Any copy failure falls
+   * back to creating an empty store. Changing this prop never replaces an
+   * existing store.
+   */
+  readonly copyFrom?: string | Redacted.Redacted<string>
 }
 
 export type VectorStore = Resource<
@@ -40,7 +50,12 @@ export type VectorStore = Resource<
     readonly expiresAt: string | null
     readonly createdAt: string
     readonly updatedAt: string
-    readonly status: "expired" | "in_progress" | "completed" | undefined
+    readonly status:
+      | "expired"
+      | "in_progress"
+      | "completed"
+      | "failed"
+      | undefined
   },
   never,
   Providers
@@ -63,6 +78,32 @@ export const VectorStoreRegistration: ResourceClassLike<VectorStore> = {
   Self: VectorStore.Self,
   Provider: VectorStore.Provider,
 }
+
+// Only consulted when creating a store, so it never forces an update or a
+// replacement of one that already exists.
+const withoutCopySource = ({
+  copyFrom: _,
+  ...props
+}: VectorStoreProps): Omit<VectorStoreProps, "copyFrom"> => props
+
+// A copy target reports `in_progress` until the copy finishes; neither store
+// accepts file changes before then.
+const isCopying = (store: Store): boolean =>
+  store.copy_state?.role === "target" && store.status === "in_progress"
+
+const COPY_POLL_INTERVAL = "2 seconds"
+const COPY_TIMEOUT = "20 minutes"
+
+// The settings the copy carries over and that `createStore` would otherwise
+// set from `config`. Mixedbread applies `save_content: true` and no
+// contextualization by default.
+const effectiveConfig = (
+  config: VectorStoreProps["config"] | StoreConfig | null | undefined,
+) => ({
+  contextualization: config?.contextualization ?? false,
+  save_content: config?.save_content ?? true,
+  lsf: (config as StoreConfig | null | undefined)?.lsf ?? null,
+})
 
 interface Ownership {
   readonly stack: string
@@ -144,6 +185,113 @@ export const VectorStoreProvider = Provider.effect(
   Effect.gen(function* () {
     const client = yield* MixedbreadClient
 
+    const retrieveOptional = (id: string) =>
+      client
+        .retrieveStore(id)
+        .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+
+    const deleteOptional = (id: string) =>
+      client.deleteStore(id).pipe(Effect.catchIf(isNotFound, () => Effect.void))
+
+    // A workflow cancelled mid-copy leaves the target copying; wait for it
+    // rather than writing to a store that rejects file changes.
+    const awaitCopy = Effect.fn("Mixedbread.awaitCopy")(function* (
+      store: Store,
+    ) {
+      let current: Store | undefined = store
+      while (current !== undefined && isCopying(current)) {
+        yield* Effect.sleep(COPY_POLL_INTERVAL)
+        current = yield* retrieveOptional(current.id)
+      }
+      return current
+    }, Effect.timeout(COPY_TIMEOUT))
+
+    // Resolves a found store to one that can be updated in place, or to
+    // `undefined` when it has to be created again.
+    const settle = Effect.fn("Mixedbread.settle")(function* (
+      store: Store | undefined,
+      ownership: Ownership,
+    ) {
+      const current = store === undefined ? undefined : yield* awaitCopy(store)
+      if (current?.status === "expired") {
+        yield* deleteOptional(current.id)
+        return undefined
+      }
+      if (current?.status === "failed") {
+        if (!hasOwnership(current.metadata, ownership)) {
+          return yield* Effect.fail(
+            new Error(
+              `Mixedbread store '${current.name}' is a failed copy that is not owned by this Alchemy resource.`,
+            ),
+          )
+        }
+        // A failed copy can only be deleted.
+        yield* deleteOptional(current.id)
+        return undefined
+      }
+      return current
+    })
+
+    // Copying only saves indexing work, so anything that makes it unsafe or
+    // unsuccessful falls back to an empty store. The caller's full sync
+    // reconciles the copy with its own content either way.
+    const copyStore = Effect.fn("Mixedbread.copyStore")(
+      function* (
+        source: string,
+        news: VectorStoreProps,
+        metadata: Record<string, unknown>,
+      ) {
+        const origin = yield* client.retrieveStore(source)
+        if (
+          !deepEqual(
+            effectiveConfig(origin.config),
+            effectiveConfig(news.config),
+          )
+        ) {
+          yield* Effect.logWarning(
+            `Not copying Mixedbread store '${origin.name}': its configuration differs from '${news.name}'`,
+          )
+          return undefined
+        }
+        const counts = origin.file_counts
+        if (
+          (counts?.pending ?? 0) > 0 ||
+          (counts?.in_progress ?? 0) > 0 ||
+          origin.copy_state?.status === "in_progress"
+        ) {
+          yield* Effect.logWarning(
+            `Not copying Mixedbread store '${origin.name}': it is still processing files or being copied`,
+          )
+          return undefined
+        }
+        const copy = yield* client.copyStore(origin.id, {
+          name: news.name,
+          ...(news.description === undefined
+            ? {}
+            : { description: news.description }),
+          metadata,
+        })
+        yield* Effect.log(
+          `Copying Mixedbread store '${origin.name}' into '${news.name}'`,
+        )
+        const copied = yield* awaitCopy(copy)
+        if (copied?.status === "failed") {
+          yield* Effect.logWarning(
+            `Copy into Mixedbread store '${news.name}' failed: ${copied.copy_state?.error ?? "unknown error"}`,
+          )
+          yield* deleteOptional(copied.id)
+          return undefined
+        }
+        return copied
+      },
+      Effect.catchTag("MixedbreadApiError", (error) =>
+        Effect.logWarning(
+          `Falling back to an empty Mixedbread store: ${error.message}`,
+          error.cause,
+        ).pipe(Effect.as(undefined)),
+      ),
+    )
+
     return {
       stables: ["id", "name"],
       list: () =>
@@ -175,12 +323,18 @@ export const VectorStoreProvider = Provider.effect(
           const store = yield* client
             .retrieveStore(output.id)
             .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
-          if (store === undefined || store.status === "expired") {
+          // A copy in progress can still fail and be recreated with a new id.
+          if (
+            store === undefined ||
+            store.status === "expired" ||
+            store.status === "failed" ||
+            isCopying(store)
+          ) {
             return { action: "update", stables: [] } as const
           }
         }
 
-        return deepEqual(olds, news)
+        return deepEqual(withoutCopySource(olds), withoutCopySource(news))
           ? { action: "noop" as const }
           : { action: "update" as const }
       }),
@@ -193,7 +347,13 @@ export const VectorStoreProvider = Provider.effect(
               .retrieveStore(output.id)
               .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
           : yield* exactStoreByName(olds.name)
-        if (store === undefined || store.status === "expired") return undefined
+        if (
+          store === undefined ||
+          store.status === "expired" ||
+          store.status === "failed"
+        ) {
+          return undefined
+        }
         const attributes = toAttributes(store)
         return hasOwnership(store.metadata, ownership) ||
           hasLegacyOwnership(store.metadata, olds.metadata)
@@ -205,55 +365,66 @@ export const VectorStoreProvider = Provider.effect(
         const stage = yield* Stage
         const ownership = { stack: stack.name, stage, resource: id }
         const metadata = withOwnership(news.metadata, ownership)
-        let store = output
-          ? yield* client
-              .retrieveStore(output.id)
-              .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
-          : yield* exactStoreByName(news.name)
+        let store = yield* settle(
+          output
+            ? yield* retrieveOptional(output.id)
+            : yield* exactStoreByName(news.name),
+          ownership,
+        )
 
-        if (store?.status === "expired") {
-          yield* client
-            .deleteStore(store.id)
-            .pipe(Effect.catchIf(isNotFound, () => Effect.void))
-          store = undefined
+        if (store === undefined && news.copyFrom !== undefined) {
+          store = yield* copyStore(
+            Redacted.isRedacted(news.copyFrom)
+              ? Redacted.value(news.copyFrom)
+              : news.copyFrom,
+            news,
+            metadata,
+          )
         }
 
         if (store === undefined) {
-          store = yield* client
-            .createStore({
-              name: news.name,
-              ...(news.description === undefined
-                ? {}
-                : { description: news.description }),
-              ...(news.isPublic === undefined
-                ? {}
-                : { is_public: news.isPublic }),
-              ...(news.license === undefined ? {} : { license: news.license }),
-              metadata,
-              ...(news.expiresAfter === undefined
-                ? {}
-                : { expires_after: news.expiresAfter }),
-              ...(news.config === undefined ? {} : { config: news.config }),
-            })
-            .pipe(
-              Effect.catchIf(isConflict, () =>
-                exactStoreByName(news.name).pipe(
-                  Effect.flatMap((existing) =>
-                    existing !== undefined &&
-                    hasOwnership(existing.metadata, ownership)
-                      ? Effect.succeed(existing)
-                      : Effect.fail(
-                          new Error(
-                            `Mixedbread store '${news.name}' appeared during creation but is not owned by this Alchemy resource.`,
-                          ),
+          const create = client.createStore({
+            name: news.name,
+            ...(news.description === undefined
+              ? {}
+              : { description: news.description }),
+            ...(news.isPublic === undefined
+              ? {}
+              : { is_public: news.isPublic }),
+            ...(news.license === undefined ? {} : { license: news.license }),
+            metadata,
+            ...(news.expiresAfter === undefined
+              ? {}
+              : { expires_after: news.expiresAfter }),
+            ...(news.config === undefined ? {} : { config: news.config }),
+          })
+          store = yield* create.pipe(
+            Effect.catchIf(isConflict, () =>
+              exactStoreByName(news.name).pipe(
+                Effect.flatMap((existing) =>
+                  existing !== undefined &&
+                  hasOwnership(existing.metadata, ownership)
+                    ? // A copy whose response never arrived still owns the
+                      // name; settle it, then create again if it failed.
+                      settle(existing, ownership).pipe(
+                        Effect.flatMap((settled) =>
+                          settled === undefined
+                            ? create
+                            : Effect.succeed(settled),
                         ),
-                  ),
+                      )
+                    : Effect.fail(
+                        new Error(
+                          `Mixedbread store '${news.name}' appeared during creation but is not owned by this Alchemy resource.`,
+                        ),
+                      ),
                 ),
               ),
-            )
-          return toAttributes(store)
+            ),
+          )
         }
 
+        // A copy keeps the source's visibility, license, and expiration.
         const desired = {
           description: news.description ?? null,
           isPublic: news.isPublic,
