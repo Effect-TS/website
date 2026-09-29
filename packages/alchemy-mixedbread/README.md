@@ -18,8 +18,8 @@ const store =
 ```
 
 `name` and `config` changes replace the store. Description, metadata,
-visibility, license, and expiration changes update it in place. Destroying the
-stack deletes the store and its indexed content.
+visibility, license, expiration, and tag changes update it in place. Destroying
+the stack deletes the store and its indexed content.
 
 ### Copying another store
 

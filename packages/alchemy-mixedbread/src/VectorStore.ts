@@ -1,7 +1,6 @@
 import type {
   ContextualizationConfig,
   ExpiresAfter,
-  Store,
   StoreConfig,
 } from "@mixedbread/sdk/resources/stores/stores"
 import { Unowned } from "alchemy/AdoptPolicy"
@@ -12,7 +11,12 @@ import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
 import * as Redacted from "effect/Redacted"
-import { isConflict, isNotFound, MixedbreadClient } from "./Client.ts"
+import {
+  isConflict,
+  isNotFound,
+  MixedbreadClient,
+  type TaggedStore as Store,
+} from "./Client.ts"
 import type { Providers } from "./Providers.ts"
 
 export interface VectorStoreProps {
@@ -22,6 +26,11 @@ export interface VectorStoreProps {
   readonly license?: string
   readonly metadata?: Readonly<Record<string, unknown>>
   readonly expiresAfter?: ExpiresAfter
+  /**
+   * Tags for finding and organizing the store. They replace the store's
+   * current tags, including any a copy inherits from its source.
+   */
+  readonly tags?: ReadonlyArray<string>
   readonly config?: {
     readonly contextualization?: boolean | ContextualizationConfig
     readonly save_content?: boolean
@@ -47,6 +56,7 @@ export type VectorStore = Resource<
     readonly metadata: unknown
     readonly config: StoreConfig | null
     readonly expiresAfter: ExpiresAfter | null
+    readonly tags: ReadonlyArray<string>
     readonly expiresAt: string | null
     readonly createdAt: string
     readonly updatedAt: string
@@ -65,7 +75,7 @@ export type VectorStore = Resource<
  * A Mixedbread vector store managed by Alchemy.
  *
  * Store names and configuration are replacement-only. Description, metadata,
- * visibility, license, and expiration are updated in place.
+ * visibility, license, expiration, and tags are updated in place.
  * @resource
  */
 export const VectorStore = Resource<VectorStore>("Mixedbread.VectorStore")
@@ -104,6 +114,14 @@ const effectiveConfig = (
   save_content: config?.save_content ?? true,
   lsf: (config as StoreConfig | null | undefined)?.lsf ?? null,
 })
+
+// Mixedbread trims, lowercases, and deduplicates tags, and may reorder them.
+const normalizeTags = (
+  tags: ReadonlyArray<string> | null | undefined,
+): ReadonlyArray<string> =>
+  Array.from(
+    new Set((tags ?? []).map((tag) => tag.trim().toLowerCase())),
+  ).sort()
 
 interface Ownership {
   readonly stack: string
@@ -157,6 +175,7 @@ const toAttributes = (store: Store): VectorStore["Attributes"] => ({
   metadata: store.metadata,
   config: store.config ?? null,
   expiresAfter: store.expires_after ?? null,
+  tags: store.tags ?? [],
   expiresAt: store.expires_at ?? null,
   createdAt: store.created_at,
   updatedAt: store.updated_at,
@@ -270,6 +289,8 @@ export const VectorStoreProvider = Provider.effect(
             ? {}
             : { description: news.description }),
           metadata,
+          // Without this the copy would carry the source's tags.
+          tags: news.tags ?? [],
         })
         yield* Effect.log(
           `Copying Mixedbread store '${origin.name}' into '${news.name}'`,
@@ -396,6 +417,7 @@ export const VectorStoreProvider = Provider.effect(
             ...(news.expiresAfter === undefined
               ? {}
               : { expires_after: news.expiresAfter }),
+            ...(news.tags === undefined ? {} : { tags: news.tags }),
             ...(news.config === undefined ? {} : { config: news.config }),
           })
           store = yield* create.pipe(
@@ -424,13 +446,15 @@ export const VectorStoreProvider = Provider.effect(
           )
         }
 
-        // A copy keeps the source's visibility, license, and expiration.
+        // A copy keeps the source's visibility, license, and expiration, and
+        // stores created before tags were managed have none.
         const desired = {
           description: news.description ?? null,
           isPublic: news.isPublic,
           license: news.license ?? null,
           metadata,
           expiresAfter: news.expiresAfter ?? null,
+          tags: normalizeTags(news.tags),
         }
         const current = {
           description: store.description ?? null,
@@ -438,6 +462,7 @@ export const VectorStoreProvider = Provider.effect(
           license: store.license ?? null,
           metadata: store.metadata,
           expiresAfter: store.expires_after ?? null,
+          tags: normalizeTags(store.tags),
         }
         if (!deepEqual(current, desired)) {
           store = yield* client.updateStore(store.id, {
@@ -446,6 +471,7 @@ export const VectorStoreProvider = Provider.effect(
             license: news.license ?? null,
             metadata,
             expires_after: news.expiresAfter ?? null,
+            tags: news.tags ?? [],
           })
         }
         return toAttributes(store)
