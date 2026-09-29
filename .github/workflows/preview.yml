@@ -36,7 +36,16 @@ jobs:
           changed=$(vp exec mixedbread search-changes --base "$BASE_SHA" --head "$HEAD_SHA")
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
+      # Pull requests that leave the generator alone preview the same API
+      # reference production serves, without generating it.
+      - name: Restore API reference snapshot
+        id: api-reference-snapshot
+        uses: ./.github/actions/restore-api-reference-snapshot
+        with:
+          match-generator: true
+
       - name: Prepare API reference
+        if: steps.api-reference-snapshot.outputs.restored != 'true'
         uses: ./.github/actions/prepare-api-reference
         with:
           cache: true

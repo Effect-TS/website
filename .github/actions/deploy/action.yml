@@ -45,10 +45,6 @@ inputs:
     description: Public PostHog API host
     required: false
     default: https://us.i.posthog.com
-  synchronize-mixedbread:
-    description: Synchronize the Mixedbread production store after deployment
-    required: false
-    default: "true"
 
 runs:
   using: composite
@@ -56,49 +52,10 @@ runs:
     - name: Install dependencies
       uses: ./.github/actions/setup
 
-    - name: Resolve API reference snapshot
-      id: api-reference-snapshot
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        REQUESTED_SNAPSHOT: ${{ inputs.api-reference-snapshot }}
-      run: |
-        snapshot=$(vp exec api-reference snapshot resolve \
-          --repository "$GITHUB_REPOSITORY" \
-          --tag "$REQUESTED_SNAPSHOT")
-        echo "tag=$snapshot" >> "$GITHUB_OUTPUT"
-
     - name: Restore API reference snapshot
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SNAPSHOT_TAG: ${{ steps.api-reference-snapshot.outputs.tag }}
-      run: |
-        snapshot_dir="$RUNNER_TEMP/api-reference-snapshot"
-        mkdir -p "$snapshot_dir"
-        gh release download "$SNAPSHOT_TAG" \
-          --dir "$snapshot_dir" \
-          --pattern api-reference.tar.gz \
-          --pattern api-reference.sha256 \
-          --pattern manifest.json
-
-        expected=$(cut -d ' ' -f 1 "$snapshot_dir/api-reference.sha256")
-        actual=$(sha256sum "$snapshot_dir/api-reference.tar.gz" | cut -d ' ' -f 1)
-        if [[ "$actual" != "$expected" ]]; then
-          echo "::error::API reference snapshot checksum mismatch: expected $expected, received $actual"
-          exit 1
-        fi
-
-        rm -rf apps/web/.data/api-reference
-        mkdir -p apps/web/.data
-        tar -xzf "$snapshot_dir/api-reference.tar.gz" -C apps/web/.data
-        snapshot_id=$(vp exec api-reference snapshot validate \
-          --data apps/web/.data/api-reference \
-          --manifest "$snapshot_dir/manifest.json")
-        if [[ "$SNAPSHOT_TAG" != "api-reference-$snapshot_id" ]]; then
-          echo "::error::API reference snapshot tag does not match its manifest"
-          exit 1
-        fi
+      uses: ./.github/actions/restore-api-reference-snapshot
+      with:
+        snapshot: ${{ inputs.api-reference-snapshot }}
 
     - name: Restore Astro incremental build cache
       if: inputs.force-full-build != 'true'
@@ -190,15 +147,8 @@ runs:
         key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
 
     - name: Synchronize Mixedbread production store
-      if: inputs.synchronize-mixedbread == 'true'
       shell: bash
       run: vp exec mixedbread sync --scope "${{ inputs.mixedbread-scope }}" --sha "${{ inputs.website-ref }}"
       env:
         MXBAI_ADMIN_API_KEY: ${{ inputs.mxbai-admin-api-key }}
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
-
-    - name: Print rollback instructions
-      if: failure()
-      shell: bash
-      run: |
-        echo "::error::Deployment validation failed. Run the protected Rollback Production workflow with the recorded known-good commit and API snapshot."
