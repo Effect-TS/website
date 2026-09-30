@@ -1,0 +1,96 @@
+name: Restore API reference snapshot
+description: Download, verify, and extract a published API reference snapshot.
+
+inputs:
+  snapshot:
+    description: Exact API reference snapshot tag; latest published snapshot when omitted
+    required: false
+    default: ""
+  match-generator:
+    description: Only restore the snapshot when this checkout's generator built it
+    required: false
+    default: "false"
+
+outputs:
+  tag:
+    description: Resolved snapshot release tag
+    value: ${{ steps.resolve.outputs.tag }}
+  restored:
+    description: Whether apps/web/.data/api-reference holds the snapshot
+    value: ${{ steps.restore.outputs.restored == 'true' }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve API reference snapshot
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REQUESTED_SNAPSHOT: ${{ inputs.snapshot }}
+      run: |
+        snapshot=$(vp exec api-reference snapshot resolve \
+          --repository "$GITHUB_REPOSITORY" \
+          --tag "$REQUESTED_SNAPSHOT")
+        echo "tag=$snapshot" >> "$GITHUB_OUTPUT"
+
+    - name: Download API reference snapshot
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SNAPSHOT_TAG: ${{ steps.resolve.outputs.tag }}
+      run: |
+        snapshot_dir="$RUNNER_TEMP/api-reference-snapshot"
+        mkdir -p "$snapshot_dir"
+        gh release download "$SNAPSHOT_TAG" \
+          --dir "$snapshot_dir" \
+          --pattern api-reference.tar.gz \
+          --pattern api-reference.sha256 \
+          --pattern manifest.json
+
+    # A snapshot ID covers the generator digest, so recomputing it from the
+    # manifest's revisions with this checkout's generator only reproduces the
+    # ID when the generator is unchanged.
+    - name: Compare API reference generator
+      id: generator
+      if: inputs.match-generator == 'true'
+      shell: bash
+      run: |
+        manifest="$RUNNER_TEMP/api-reference-snapshot/manifest.json"
+        published=$(jq -r .snapshotId "$manifest")
+        local=$(vp exec api-reference snapshot id \
+          --v3 "$(jq -r .channels.v3.revision "$manifest")" \
+          --v4 "$(jq -r .channels.v4.revision "$manifest")")
+        if [[ "$local" == "$published" ]]; then
+          echo "matches=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "::notice::The API reference generator changed since the latest snapshot; generating from source."
+          echo "matches=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Restore API reference snapshot
+      id: restore
+      if: inputs.match-generator != 'true' || steps.generator.outputs.matches == 'true'
+      shell: bash
+      env:
+        SNAPSHOT_TAG: ${{ steps.resolve.outputs.tag }}
+      run: |
+        snapshot_dir="$RUNNER_TEMP/api-reference-snapshot"
+        expected=$(cut -d ' ' -f 1 "$snapshot_dir/api-reference.sha256")
+        actual=$(sha256sum "$snapshot_dir/api-reference.tar.gz" | cut -d ' ' -f 1)
+        if [[ "$actual" != "$expected" ]]; then
+          echo "::error::API reference snapshot checksum mismatch: expected $expected, received $actual"
+          exit 1
+        fi
+
+        rm -rf apps/web/.data/api-reference
+        mkdir -p apps/web/.data
+        tar -xzf "$snapshot_dir/api-reference.tar.gz" -C apps/web/.data
+        snapshot_id=$(vp exec api-reference snapshot validate \
+          --data apps/web/.data/api-reference \
+          --manifest "$snapshot_dir/manifest.json")
+        if [[ "$SNAPSHOT_TAG" != "api-reference-$snapshot_id" ]]; then
+          echo "::error::API reference snapshot tag does not match its manifest"
+          exit 1
+        fi
+        echo "restored=true" >> "$GITHUB_OUTPUT"
