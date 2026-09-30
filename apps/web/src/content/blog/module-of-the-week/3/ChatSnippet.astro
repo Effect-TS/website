@@ -1,0 +1,85 @@
+---
+// A tiny, static chat window for showing DadBot in the wild.
+import { people, type Person } from "./palette"
+
+interface Message {
+  from: string
+  text: string
+  time: string
+  bot?: boolean
+}
+
+interface Props {
+  platform: "Slack" | "Discord"
+  channel: string
+  messages: Array<Message>
+}
+
+const { platform, channel, messages } = Astro.props
+
+// Slack labels bots "APP", Discord labels them "BOT". Discord avatars are round.
+const badge = platform === "Slack" ? "APP" : "BOT"
+const accent = platform === "Slack" ? "#611f69" : "#5865f2"
+const avatarShape = platform === "Slack" ? "rounded-lg" : "rounded-full"
+// Known names get their color from the shared, colorblind-friendly palette.
+const colorFor = (name: string) => (name in people ? people[name as Person].avatar : "#52525b")
+---
+
+<figure class="not-prose m-0 overflow-hidden rounded-xl border border-border bg-card/60">
+  <figcaption
+    class="flex items-center gap-2 border-b border-border px-4 py-2 text-xs text-muted-foreground"
+  >
+    <span class="size-2.5 rounded-full" style={`background: ${accent}`} aria-hidden="true"></span>
+    <span class="font-semibold text-foreground">{platform}</span>
+    <span>{channel}</span>
+  </figcaption>
+  <ol class="m-0 flex list-none flex-col gap-3 p-4">
+    {
+      messages.map((m) => (
+        <li class="m-0 flex gap-3 p-0">
+          {m.bot ? (
+            <svg viewBox="-10 -10 20 20" class="size-9 shrink-0" aria-hidden="true">
+              <circle r="9.4" fill="#fde7c8" stroke="#3f3f46" stroke-width="1.1" />
+              <path
+                d="M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6"
+                fill="none"
+                stroke="#3f3f46"
+                stroke-width="1.1"
+                stroke-linecap="round"
+              />
+              <circle cx="-3.2" cy="-1.6" r="1.15" fill="#3f3f46" />
+              <circle cx="3.2" cy="-1.6" r="1.15" fill="#3f3f46" />
+              <path
+                d="M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z"
+                fill="#3f3f46"
+              />
+            </svg>
+          ) : (
+            <span
+              class={`flex size-9 shrink-0 items-center justify-center ${avatarShape} text-sm font-semibold text-white`}
+              style={`background: ${colorFor(m.from)}`}
+              aria-hidden="true"
+            >
+              {m.from[0]}
+            </span>
+          )}
+          <div class="min-w-0">
+            <p class="m-0 flex items-baseline gap-2 text-sm leading-tight">
+              <span class="font-semibold text-foreground">{m.from}</span>
+              {m.bot && (
+                <span
+                  class="rounded px-1 py-px text-[0.6rem] font-semibold leading-none text-white"
+                  style={`background: ${accent}`}
+                >
+                  {badge}
+                </span>
+              )}
+              <span class="text-xs text-muted-foreground">{m.time}</span>
+            </p>
+            <p class="m-0 mt-1 text-sm leading-relaxed text-prose-foreground">{m.text}</p>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+</figure>

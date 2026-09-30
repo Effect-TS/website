@@ -1,0 +1,719 @@
+---
+// The physical layout of a cluster: nodes run runners, runners own shards,
+// shards hold entities. Runners share a SQL database and talk over the network.
+//
+// Shard ownership is real: it's what Effect's HashRing assigns for these three
+// runner addresses with the default 300 shards. Family -> shard is real too.
+//
+// The diagram grows over the post. `stage` picks how much of it to show:
+// - "intro": nodes, runners, shards and dads only. Four shards per runner and
+//   made-up shard numbers, trading accuracy for something you can take in at once.
+// - "full": the real thing, with 300 shards, the database, and the network.
+
+interface Props {
+  stage?: "intro" | "full"
+  // Intro only: how deep to draw. 1 = nodes, 2 = + runners, 3 = + shards and dads.
+  layers?: 1 | 2 | 3
+}
+const { stage = "full", layers = 3 } = Astro.props
+
+type Runner = {
+  address: string
+  port: number
+  node: number
+  color: string
+  shards: Array<number>
+}
+
+// prettier-ignore
+const runners: Array<Runner> = [
+  { address: "10.0.0.1:34431", port: 34431, node: 0, color: "var(--ca-blue)", shards: [4,5,6,9,11,22,26,27,28,29,30,37,38,44,53,60,61,71,74,76,77,79,80,81,87,90,95,99,101,103,105,110,113,114,115,116,118,122,124,126,130,138,140,143,146,148,161,164,166,167,171,173,175,178,179,180,183,185,190,193,194,197,198,199,200,201,202,206,208,209,212,216,222,223,224,226,230,231,232,235,236,242,251,254,255,260,261,271,274,275,276,279,282,283,284,286,290,291,292,295] },
+  { address: "10.0.0.1:34432", port: 34432, node: 0, color: "var(--ca-purple)", shards: [2,7,8,10,14,15,19,20,21,32,42,46,47,48,50,52,54,56,59,62,63,64,65,66,67,69,70,72,75,82,83,84,89,93,96,102,109,111,112,119,121,129,132,133,134,136,139,141,145,147,149,151,153,154,155,157,158,162,168,170,174,182,188,189,191,192,195,196,203,204,205,207,210,213,228,229,234,237,241,244,246,247,249,252,253,258,259,263,265,266,270,273,280,288,293,294,296,297,298,300] },
+  { address: "10.0.0.2:34431", port: 34431, node: 1, color: "var(--ca-amber)", shards: [1,3,12,13,16,17,18,23,24,25,31,33,34,35,36,39,40,41,43,45,49,51,55,57,58,68,73,78,85,86,88,91,92,94,97,98,100,104,106,107,108,117,120,123,125,127,128,131,135,137,142,144,150,152,156,159,160,163,165,169,172,176,177,181,184,186,187,211,214,215,217,218,219,220,221,225,227,233,238,239,240,243,245,248,250,256,257,262,264,267,268,269,272,277,278,281,285,287,289,299] },
+]
+const nodes = [
+  { name: "Node 1", host: "10.0.0.1" },
+  { name: "Node 2", host: "10.0.0.2" },
+]
+
+// Which families' dads are awake, by shard. Computed with Cluster's own hash.
+const families: Record<number, Array<string>> = {
+  61: ["the-hendersons"],
+  200: ["the-garcias"],
+  9: ["the-nguyens"],
+  71: ["the-patels"],
+  180: ["the-smiths"],
+  87: ["the-lees"],
+  208: ["the-murphys"],
+  173: ["the-browns"],
+  204: ["the-cohens"],
+  47: ["the-rossis"],
+  10: ["the-yamamotos"],
+  120: ["the-kowalskis"],
+  165: ["the-okafors", "the-andersons"],
+  152: ["the-johnsons"],
+  34: ["the-silvas"],
+  31: ["the-tanakas"],
+  49: ["the-muellers"],
+  108: ["the-obriens"],
+}
+const initialShard = 165
+
+// Layout
+const cell = 12
+const pitch = 15
+const grid = 10 * pitch - (pitch - cell)
+const runnerW = 12 * 2 + grid
+const runnerH = 26 + grid + 30
+const runnerGap = 12
+const machinePad = 16
+const machineTop = 128
+const machineHeader = 30
+const machineH = machineHeader + runnerH + machinePad
+const machineGap = 24
+const machines = nodes.map((node, i) => {
+  const count = runners.filter((r) => r.node === i).length
+  return { ...node, w: machinePad * 2 + count * runnerW + (count - 1) * runnerGap }
+})
+const totalW = machines.reduce((a, m) => a + m.w, 0) + machineGap * (machines.length - 1)
+let cursor = (720 - totalW) / 2
+const machineX = machines.map((m) => {
+  const x = cursor
+  cursor += m.w + machineGap
+  return x
+})
+const runnerBoxes = runners.map((runner, i) => {
+  const siblings = runners.filter((r) => r.node === runner.node)
+  const index = siblings.indexOf(runner)
+  return {
+    ...runner,
+    index: i,
+    x: machineX[runner.node]! + machinePad + index * (runnerW + runnerGap),
+    y: machineTop + machineHeader,
+  }
+})
+const cellPos = (r: (typeof runnerBoxes)[number], i: number) => ({
+  x: r.x + 12 + (i % 10) * pitch,
+  y: r.y + 26 + Math.floor(i / 10) * pitch,
+})
+const runnerBottom = machineTop + machineHeader + runnerH
+const machineBottom = machineTop + machineH
+const busY = machineBottom + 24
+const clusterBottom = busY + 18
+const panelY = clusterBottom + 20
+const panelH = 96
+const viewH = panelY + panelH + 4
+const db = { cx: 300, top: 18, h: 44, rx: 54, ry: 10 }
+const dbBusY = 86
+// Where each runner's database line drops in: right of the node and runner labels.
+const dropX = (r: { x: number }) => r.x + runnerW - 24
+
+const shardInfo = Object.fromEntries(
+  Object.entries(families).map(([shard, names]) => {
+    const owner = runnerBoxes.find((r) => r.shards.includes(Number(shard)))!
+    return [
+      shard,
+      { names, runner: owner.address, node: nodes[owner.node]!.name, color: owner.color },
+    ]
+  }),
+)
+const initial = shardInfo[initialShard]!
+
+const introLabels = {
+  1: "A cluster of three computers, called nodes.",
+  2: "A cluster of three nodes. Each node runs one runner.",
+  3: "A cluster of three nodes. Each node runs one runner. Each runner holds a stack of shards, and each shard holds a few entities, one dad per chat.",
+}
+
+// Intro stage layout: three computers, one runner each, shards stacked inside.
+const intro = (() => {
+  const nodeW = 210
+  const nodeGap = 18
+  const top = 38
+  const chassisHeader = 32
+  const runnerInset = 14
+  const runW = nodeW - runnerInset * 2
+  const runHeader = 28
+  const shardH = 44
+  const shardGap = 8
+  const shardPad = 12
+  const shardW = runW - shardPad * 2
+  // Scattered on purpose: shards are assigned by hashing, not in ranges.
+  const shardIds = [
+    [3, 7, 10, 12],
+    [1, 5, 8, 11],
+    [2, 4, 6, 9],
+  ]
+  const dadCounts = [
+    [2, 1, 0, 3],
+    [1, 2, 1, 1],
+    [1, 3, 1, 0],
+  ]
+  const names = [
+    "the-hendersons",
+    "the-garcias",
+    "the-nguyens",
+    "the-patels",
+    "the-smiths",
+    "the-lees",
+    "the-murphys",
+    "the-browns",
+    "the-cohens",
+    "the-rossis",
+    "the-okafors",
+    "the-andersons",
+    "the-silvas",
+    "the-tanakas",
+    "the-muellers",
+    "the-obriens",
+  ]
+  const runH = runHeader + shardIds[0]!.length * (shardH + shardGap) - shardGap + shardPad
+  const nodeH = chassisHeader + 12 + runH + runnerInset
+  const left = (720 - (nodeW * 3 + nodeGap * 2)) / 2
+  let nameIndex = 0
+  const machines = shardIds.map((ids, ni) => {
+    const x = left + ni * (nodeW + nodeGap)
+    const rx = x + runnerInset
+    const ry = top + chassisHeader + 12
+    return {
+      name: `Node ${ni + 1}`,
+      path: `n${ni}`,
+      x,
+      runner: {
+        name: `Runner ${ni + 1}`,
+        path: `n${ni}.r${ni}`,
+        color: runners[ni]!.color,
+        x: rx,
+        y: ry,
+        shards: ids.map((id, si) => {
+          const sx = rx + shardPad
+          const sy = ry + runHeader + si * (shardH + shardGap)
+          return {
+            id,
+            path: `n${ni}.r${ni}.s${id}`,
+            x: sx,
+            y: sy,
+            dads: Array.from({ length: dadCounts[ni]![si]! }, (_, di) => ({
+              name: names[nameIndex++],
+              path: `n${ni}.r${ni}.s${id}.e${di}`,
+              x: sx + 82 + di * 28,
+              y: sy + shardH / 2,
+            })),
+          }
+        }),
+      },
+    }
+  })
+  return {
+    nodeW,
+    nodeH,
+    top,
+    chassisHeader,
+    runW,
+    runH,
+    shardW,
+    shardH,
+    machines,
+    viewH: top + nodeH + 26,
+  }
+})()
+---
+
+<figure class="ca" data-cluster-arch>
+  <svg width="0" height="0" class="ca-defs" aria-hidden="true">
+    <defs>
+      {/* A dad, drawn in a 20x20 box centered on 0,0. The moustache does the work. */}
+      <symbol id="ca-dad" viewBox="-10 -10 20 20" overflow="visible">
+        <circle r="9" style="fill: var(--ca-skin); stroke: var(--ca-dad-ink); stroke-width: 1.2"
+        ></circle>
+        <path
+          style="fill: none; stroke: var(--ca-dad-ink); stroke-width: 1.2; stroke-linecap: round"
+          d="M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6"></path>
+        <circle cx="-3.2" cy="-1.6" r="1.15" style="fill: var(--ca-dad-ink)"></circle>
+        <circle cx="3.2" cy="-1.6" r="1.15" style="fill: var(--ca-dad-ink)"></circle>
+        <path
+          style="fill: var(--ca-dad-ink)"
+          d="M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z"></path>
+      </symbol>
+    </defs>
+  </svg>
+
+  {
+    stage === "intro" && (
+      <Fragment>
+        <svg
+          viewBox={`0 0 720 ${intro.viewH}`}
+          class="ca-diagram"
+          data-intro
+          role="img"
+          aria-label={introLabels[layers]}
+        >
+          <rect x="12" y="4" width="696" height={intro.viewH - 8} rx="16" class="cluster" />
+          <text x="28" y="26" class="label cluster-label">
+            Cluster
+          </text>
+
+          {intro.machines.map((m) => (
+            <g data-path={m.path}>
+              <rect
+                x={m.x + 22}
+                y={intro.top + intro.nodeH - 2}
+                width="20"
+                height="9"
+                rx="2"
+                class="chassis-foot"
+              />
+              <rect
+                x={m.x + intro.nodeW - 42}
+                y={intro.top + intro.nodeH - 2}
+                width="20"
+                height="9"
+                rx="2"
+                class="chassis-foot"
+              />
+              <rect
+                x={m.x}
+                y={intro.top}
+                width={intro.nodeW}
+                height={intro.nodeH}
+                rx="12"
+                class="machine-box"
+              />
+              <path
+                d={`M${m.x} ${intro.top + intro.chassisHeader} H${m.x + intro.nodeW}`}
+                class="chassis-rule"
+              />
+              {[0, 1, 2].map((i) => (
+                <circle
+                  cx={m.x + 16 + i * 12}
+                  cy={intro.top + 16}
+                  r="3.5"
+                  class={i === 0 ? "led led-on" : "led"}
+                />
+              ))}
+              <text x={m.x + 58} y={intro.top + 20.5} class="label strong">
+                {m.name}
+              </text>
+              {[0, 1, 2].map((i) => (
+                <path
+                  d={`M${m.x + intro.nodeW - 40 + i * 9} ${intro.top + 10} v12`}
+                  class="chassis-vent"
+                />
+              ))}
+
+              {layers >= 2 && (
+                <g data-path={m.runner.path} style={`--c: ${m.runner.color}`}>
+                  <rect
+                    x={m.runner.x}
+                    y={m.runner.y}
+                    width={intro.runW}
+                    height={intro.runH}
+                    rx="10"
+                    class="runner-box"
+                  />
+                  <text x={m.runner.x + 12} y={m.runner.y + 19} class="label strong">
+                    {m.runner.name}
+                  </text>
+                  {layers >= 3 &&
+                    m.runner.shards.map((sh) => (
+                      <g data-path={sh.path}>
+                        <rect
+                          x={sh.x}
+                          y={sh.y}
+                          width={intro.shardW}
+                          height={intro.shardH}
+                          rx="8"
+                          class="intro-shard"
+                        />
+                        <text
+                          x={sh.x + 10}
+                          y={sh.y + intro.shardH / 2 + 4}
+                          class="label muted small"
+                        >
+                          Shard {sh.id}
+                        </text>
+                        {sh.dads.map((d) => (
+                          <g data-path={d.path} class="intro-dad">
+                            <use href="#ca-dad" x={d.x - 13} y={d.y - 13} width="26" height="26" />
+                          </g>
+                        ))}
+                      </g>
+                    ))}
+                </g>
+              )}
+            </g>
+          ))}
+        </svg>
+      </Fragment>
+    )
+  }
+  {
+    stage === "full" && (
+      <Fragment>
+        <svg
+          viewBox={`0 0 720 ${viewH}`}
+          class="ca-diagram"
+          role="group"
+          aria-label="A cluster of two nodes. Node 1 runs two runners and node 2 runs one. Each runner owns 100 of the 300 shards. All runners share a SQL database and message each other over the network."
+        >
+          {/* Shared SQL database */}
+          <g class="db">
+            <path
+              d={`M${db.cx - db.rx} ${db.top} V${db.top + db.h} A${db.rx} ${db.ry} 0 0 0 ${db.cx + db.rx} ${db.top + db.h} V${db.top}`}
+              class="db-body"
+            />
+            <ellipse cx={db.cx} cy={db.top} rx={db.rx} ry={db.ry} class="db-lid" />
+            <path
+              d={`M${db.cx - db.rx} ${db.top + db.h / 2} A${db.rx} ${db.ry} 0 0 0 ${db.cx + db.rx} ${db.top + db.h / 2}`}
+              class="db-band"
+            />
+            <text x={db.cx + db.rx + 14} y={db.top + 16} class="label strong">
+              SQL database
+            </text>
+            <text x={db.cx + db.rx + 14} y={db.top + 34} class="label muted">
+              runners · shard locks · messages
+            </text>
+          </g>
+
+          {/* The cluster */}
+          <rect x="16" y="98" width="688" height={clusterBottom - 98} rx="16" class="cluster" />
+          <text x="32" y="118" class="label cluster-label">
+            Cluster
+          </text>
+
+          {/* Network */}
+          <path d={`M40 ${busY} H680`} class="bus" />
+          <text x="40" y={busY - 7} class="label muted">
+            network
+          </text>
+          {runnerBoxes.map((r) => (
+            <path d={`M${r.x + runnerW / 2} ${runnerBottom} V${busY}`} class="bus-stub" />
+          ))}
+          {runnerBoxes.map((r) => (
+            <circle cx={r.x + runnerW / 2} cy={busY} r="3.5" class="bus-dot" />
+          ))}
+
+          {/* Nodes */}
+          {machines.map((m, i) => (
+            <g class="machine">
+              <rect
+                x={machineX[i]}
+                y={machineTop}
+                width={m.w}
+                height={machineH}
+                rx="12"
+                class="machine-box"
+              />
+              <text x={machineX[i]! + 14} y={machineTop + 20} class="label strong">
+                {m.name}
+                <tspan class="mono muted" dx="6">
+                  {m.host}
+                </tspan>
+              </text>
+            </g>
+          ))}
+
+          {/* Every runner connects to the database */}
+          <path
+            d={`M${db.cx} ${db.top + db.h + db.ry} V${dbBusY} M${dropX(runnerBoxes[0]!)} ${dbBusY} H${dropX(runnerBoxes[runnerBoxes.length - 1]!)}`}
+            class="db-link"
+          />
+          {runnerBoxes.map((r) => (
+            <path d={`M${dropX(r)} ${dbBusY} V${r.y}`} class="db-link" />
+          ))}
+
+          {/* Runners and their shards */}
+          {runnerBoxes.map((r) => (
+            <g class="runner" style={`--c: ${r.color}`}>
+              <rect x={r.x} y={r.y} width={runnerW} height={runnerH} rx="10" class="runner-box" />
+              <text x={r.x + 12} y={r.y + 17} class="label strong">
+                Runner
+                <tspan class="mono muted" dx="5">
+                  :{r.port}
+                </tspan>
+              </text>
+              {r.shards.map((shard, i) => {
+                const p = cellPos(r, i)
+                const has = families[shard] !== undefined
+                return has ? (
+                  <rect
+                    x={p.x}
+                    y={p.y}
+                    width={cell}
+                    height={cell}
+                    rx="2.5"
+                    class="shard has-dads"
+                    data-shard={shard}
+                    role="button"
+                    tabindex="0"
+                    aria-label={`Shard ${shard}`}
+                    aria-pressed={shard === initialShard ? "true" : "false"}
+                  >
+                    <title>Shard {shard}</title>
+                  </rect>
+                ) : (
+                  <rect x={p.x} y={p.y} width={cell} height={cell} rx="2.5" class="shard">
+                    <title>Shard {shard}</title>
+                  </rect>
+                )
+              })}
+              <text x={r.x + 12} y={r.y + 26 + grid + 19} class="label muted small">
+                100 shards
+              </text>
+            </g>
+          ))}
+
+          {/* Detail for the selected shard */}
+          <g class="panel" data-panel style={`--c: ${initial.color}`}>
+            <rect x="16" y={panelY} width="688" height={panelH} rx="12" class="panel-box" />
+            <text x="40" y={panelY + 42} class="panel-title mono" data-panel-title>
+              Shard {initialShard}
+            </text>
+            <text x="40" y={panelY + 66} class="label muted" data-panel-owner>
+              {`on runner ${initial.runner}, ${initial.node}`}
+            </text>
+            {[0, 1].map((i) => (
+              <g data-panel-dad={i} opacity={initial.names[i] ? 1 : 0}>
+                <use href="#ca-dad" x={290 + i * 200} y={panelY + 24} width="48" height="48" />
+                <text x={290 + i * 200 + 58} y={panelY + 44} class="label muted small">
+                  Dad
+                </text>
+                <text x={290 + i * 200 + 58} y={panelY + 62} class="label mono" data-panel-name>
+                  {initial.names[i] ?? ""}
+                </text>
+              </g>
+            ))}
+          </g>
+        </svg>
+        <figcaption>Click a colored shard to see which dads live in it.</figcaption>
+        <script type="application/json" data-shard-info set:html={JSON.stringify(shardInfo)} />
+      </Fragment>
+    )
+  }
+</figure>
+
+<script>
+  type Info = { names: Array<string>; runner: string; node: string; color: string }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-cluster-arch]")) {
+    // The intro stage is a static picture.
+    if (root.querySelector("[data-intro]")) continue
+
+    const info: Record<string, Info> = JSON.parse(
+      root.querySelector("[data-shard-info]")!.textContent!,
+    )
+    const panel = root.querySelector<SVGGElement>("[data-panel]")!
+    const title = panel.querySelector("[data-panel-title]")!
+    const owner = panel.querySelector("[data-panel-owner]")!
+    const dads = panel.querySelectorAll<SVGGElement>("[data-panel-dad]")
+    const cells = root.querySelectorAll<SVGRectElement>(".has-dads")
+
+    const select = (cell: SVGRectElement) => {
+      const shard = cell.dataset.shard!
+      const { names, runner, node, color } = info[shard]!
+      for (const c of cells) c.setAttribute("aria-pressed", String(c === cell))
+      panel.style.setProperty("--c", color)
+      title.textContent = `Shard ${shard}`
+      owner.textContent = `on runner ${runner}, ${node}`
+      dads.forEach((dad, i) => {
+        dad.setAttribute("opacity", names[i] ? "1" : "0")
+        dad.querySelector("[data-panel-name]")!.textContent = names[i] ?? ""
+      })
+    }
+
+    for (const cell of cells) {
+      cell.addEventListener("click", () => select(cell))
+      cell.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          select(cell)
+        }
+      })
+    }
+  }
+</script>
+
+<style is:global>
+  /* Runner colors are from the Okabe-Ito palette, which stays distinguishable
+     with the common kinds of color blindness. */
+  .ca {
+    --ca-blue: #0072b2;
+    --ca-purple: #cc79a7;
+    --ca-amber: #e69f00;
+    --ca-ink: #3f3f46;
+    --ca-muted: #71717a;
+    --ca-line: #a1a1aa;
+    --ca-surface: #ffffff;
+    --ca-skin: #fde7c8;
+    --ca-dad-ink: #3f3f46;
+    margin: 1.25rem 0;
+  }
+  html.dark .ca {
+    --ca-blue: #56b4e9;
+    --ca-purple: #cc79a7;
+    --ca-amber: #e69f00;
+    --ca-ink: #d4d4d8;
+    --ca-muted: #a1a1aa;
+    --ca-line: #52525b;
+    --ca-surface: #09090b;
+    --ca-skin: #f1d3ac;
+    --ca-dad-ink: #27272a;
+  }
+  .ca-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .ca .ca-diagram {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .ca figcaption {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--ca-muted);
+  }
+
+  .ca .label {
+    font:
+      12px system-ui,
+      sans-serif;
+    fill: var(--ca-ink);
+  }
+  .ca .strong {
+    font-weight: 600;
+  }
+  .ca .muted,
+  .ca tspan.muted {
+    fill: var(--ca-muted);
+    font-weight: 400;
+  }
+  .ca .small {
+    font-size: 11px;
+  }
+  .ca .mono,
+  .ca tspan.mono {
+    font-family: ui-monospace, monospace;
+  }
+
+  .ca .db-body,
+  .ca .db-lid {
+    fill: color-mix(in oklab, var(--ca-ink) 6%, var(--ca-surface));
+    stroke: var(--ca-ink);
+    stroke-width: 1.8;
+  }
+  .ca .db-band {
+    fill: none;
+    stroke: var(--ca-ink);
+    stroke-width: 1.2;
+    opacity: 0.4;
+  }
+  .ca .db-link {
+    fill: none;
+    stroke: var(--ca-line);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+  }
+
+  .ca .cluster {
+    fill: none;
+    stroke: var(--ca-line);
+    stroke-width: 1.5;
+    stroke-dasharray: 7 6;
+  }
+  .ca .cluster-label {
+    fill: var(--ca-muted);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+
+  .ca .bus {
+    stroke: var(--ca-ink);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .ca .bus-stub {
+    stroke: var(--ca-ink);
+    stroke-width: 1.5;
+  }
+  .ca .bus-dot {
+    fill: var(--ca-ink);
+  }
+
+  .ca .machine-box {
+    fill: color-mix(in oklab, var(--ca-ink) 5%, var(--ca-surface));
+    stroke: var(--ca-ink);
+    stroke-width: 2;
+  }
+
+  .ca .runner-box {
+    fill: color-mix(in oklab, var(--c) 12%, var(--ca-surface));
+    stroke: var(--c);
+    stroke-width: 2;
+  }
+  .ca .shard {
+    fill: var(--ca-surface);
+    stroke: color-mix(in oklab, var(--c) 45%, var(--ca-surface));
+    stroke-width: 1;
+  }
+  .ca .shard.has-dads {
+    fill: var(--c);
+    stroke: var(--c);
+    cursor: pointer;
+    outline: none;
+  }
+  .ca .shard.has-dads:hover,
+  .ca .shard.has-dads:focus-visible {
+    stroke: var(--ca-ink);
+    stroke-width: 1.5;
+  }
+  .ca .shard.has-dads[aria-pressed="true"] {
+    stroke: var(--ca-ink);
+    stroke-width: 2.5;
+  }
+
+  .ca .panel-box {
+    fill: color-mix(in oklab, var(--c) 8%, var(--ca-surface));
+    stroke: var(--c);
+    stroke-width: 2;
+    transition: fill 200ms ease;
+  }
+  .ca .panel-title {
+    font-size: 20px;
+    font-weight: 600;
+    fill: var(--ca-ink);
+  }
+  .ca .chassis-foot {
+    fill: var(--ca-ink);
+  }
+  .ca .chassis-rule {
+    stroke: var(--ca-ink);
+    stroke-width: 1.5;
+    opacity: 0.3;
+  }
+  .ca .chassis-vent {
+    stroke: var(--ca-ink);
+    stroke-width: 2;
+    stroke-linecap: round;
+    opacity: 0.35;
+  }
+  .ca .led {
+    fill: var(--ca-line);
+  }
+  .ca .led-on {
+    fill: #22c55e;
+  }
+  .ca .intro-shard {
+    fill: var(--ca-surface);
+    stroke: color-mix(in oklab, var(--c) 65%, var(--ca-surface));
+    stroke-width: 1.5;
+  }
+  .ca [data-panel-dad] {
+    transition: opacity 200ms ease;
+  }
+</style>

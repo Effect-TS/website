@@ -33,6 +33,7 @@ export interface ApiDeclaration {
   signature: string | undefined
   since: string | undefined
   sourceUrl: string | undefined
+  stability: string | undefined
   typeKind: string | undefined
 }
 
@@ -50,6 +51,7 @@ export interface ApiModule {
   groups: ReadonlyArray<ApiDeclarationGroup>
   since: string | undefined
   sourceUrl: string | undefined
+  stability: string | undefined
 }
 
 export interface ApiReferenceOptions {
@@ -115,6 +117,7 @@ function moduleView(
       signature: declarationSignature(child),
       since: blockTagText(comment?.blockTags, "@since"),
       sourceUrl: firstSourceUrl(child.sources),
+      stability: blockTagText(comment?.blockTags, "@stability"),
     }
   })
   const anchorCounts = Map.groupBy(
@@ -170,6 +173,7 @@ function moduleView(
     sourceUrl: declarations.find(
       (declaration) => declaration.sourceUrl !== undefined,
     )?.sourceUrl,
+    stability: blockTagText(moduleReflection?.comment?.blockTags, "@stability"),
   }
 }
 
