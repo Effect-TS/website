@@ -1,6 +1,7 @@
 import MixedbreadSdk, { ConflictError, NotFoundError } from "@mixedbread/sdk"
 import type {
   Store,
+  StoreCopyParams,
   StoreCreateParams,
   StoreUpdateParams,
 } from "@mixedbread/sdk/resources/stores/stores"
@@ -11,20 +12,29 @@ import * as Redacted from "effect/Redacted"
 import { Credentials } from "./Credentials.ts"
 import { MixedbreadApiError } from "./Error.ts"
 
+// SDK 0.78.0 predates store tags, but the API accepts and returns them and the
+// SDK sends request bodies as given. Drop these once a release includes tags.
+export type Tagged<T> = T & { readonly tags?: ReadonlyArray<string> | null }
+export type TaggedStore = Tagged<Store>
+
 export interface MixedbreadManagementClient {
   readonly createStore: (
-    props: StoreCreateParams,
-  ) => Effect.Effect<Store, MixedbreadApiError>
+    props: Tagged<StoreCreateParams>,
+  ) => Effect.Effect<TaggedStore, MixedbreadApiError>
+  readonly copyStore: (
+    source: string,
+    props: Tagged<StoreCopyParams>,
+  ) => Effect.Effect<TaggedStore, MixedbreadApiError>
   readonly retrieveStore: (
     id: string,
-  ) => Effect.Effect<Store, MixedbreadApiError>
+  ) => Effect.Effect<TaggedStore, MixedbreadApiError>
   readonly updateStore: (
     id: string,
-    props: StoreUpdateParams,
-  ) => Effect.Effect<Store, MixedbreadApiError>
+    props: Tagged<StoreUpdateParams>,
+  ) => Effect.Effect<TaggedStore, MixedbreadApiError>
   readonly listStores: (
     query?: string,
-  ) => Effect.Effect<ReadonlyArray<Store>, MixedbreadApiError>
+  ) => Effect.Effect<ReadonlyArray<TaggedStore>, MixedbreadApiError>
   readonly deleteStore: (id: string) => Effect.Effect<void, MixedbreadApiError>
 }
 
@@ -72,6 +82,10 @@ const make = Effect.gen(function* () {
       request("createStore", (client, signal) =>
         client.stores.create(props, { signal, maxRetries: 0 }),
       ),
+    copyStore: (source, props) =>
+      request("copyStore", (client, signal) =>
+        client.stores.copy(source, props, { signal, maxRetries: 0 }),
+      ),
     retrieveStore: (id) =>
       request("retrieveStore", (client, signal) =>
         client.stores.retrieve(id, { signal }),
@@ -82,7 +96,7 @@ const make = Effect.gen(function* () {
       ),
     listStores: (query) =>
       request("listStores", async (client, signal) => {
-        const stores: Array<Store> = []
+        const stores: Array<TaggedStore> = []
         for await (const store of client.stores.list(
           { limit: 100, ...(query === undefined ? {} : { q: query }) },
           { signal },

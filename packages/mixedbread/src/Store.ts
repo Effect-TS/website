@@ -118,10 +118,22 @@ export function makeStoreClient(options: {
 
   const resolve: StoreClient["resolve"] = Effect.fn("Store.resolve")(
     function* (sync) {
-      const store = yield* Effect.tryPromise({
+      const retrieve = Effect.tryPromise({
         try: () => client.stores.retrieve(sync.storeId),
         catch: (cause) => new UnknownError({ cause }),
       })
+      let store = yield* retrieve
+      // Preview stores are copied from production, and neither side of a
+      // copy accepts file changes until it finishes.
+      if (store.copy_state?.status === "in_progress") {
+        yield* Effect.log(
+          `Waiting for the copy involving store ${store.name} to finish`,
+        )
+        while (store.copy_state?.status === "in_progress") {
+          yield* Effect.sleep("5 seconds")
+          store = yield* retrieve
+        }
+      }
       if (sync.kind === "preview") {
         if (store.name !== storeName(sync.pullRequest)) {
           return yield* new InvalidStoreError({

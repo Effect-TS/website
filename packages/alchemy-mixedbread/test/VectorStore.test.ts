@@ -1,16 +1,18 @@
 import { NotFoundError } from "@mixedbread/sdk"
-import type { Store } from "@mixedbread/sdk/resources/stores/stores"
 import { Unowned } from "alchemy/AdoptPolicy"
 import type { ScopedPlanStatusSession } from "alchemy/Report"
 import type { Provider } from "alchemy/Provider"
 import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
+import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
+import { TestClock } from "effect/testing"
 import { assert, test } from "vite-plus/test"
 import {
   MixedbreadClient,
   type MixedbreadManagementClient,
+  type TaggedStore as Store,
 } from "../src/Client.ts"
 import { MixedbreadApiError } from "../src/Error.ts"
 import {
@@ -33,22 +35,81 @@ const notFound = (operation: string) =>
     cause: new NotFoundError(404, {}, undefined, new Headers()),
   })
 
-const makeClient = () => {
+const makeClient = (
+  options: { readonly copyOutcome?: "completed" | "failed" } = {},
+) => {
   const stores = new Map<string, Store>()
+  // Copies in progress, with the retrieves left before each one settles.
+  const copying = new Map<string, { retrieves: number; settled: Store }>()
   let creates = 0
+  let copies = 0
   const client: MixedbreadManagementClient = {
+    // Copies report `in_progress` and settle on the next retrieve.
+    copyStore: (source, props) =>
+      Effect.gen(function* () {
+        const origin = stores.get(source)
+        if (origin === undefined) {
+          return yield* Effect.fail(notFound("copy store"))
+        }
+        copies += 1
+        const copy: Store = {
+          ...origin,
+          id: `copy-${copies}`,
+          name: props.name,
+          metadata: props.metadata ?? origin.metadata,
+          tags: props.tags ?? origin.tags ?? [],
+          status: "in_progress",
+          copy_state: {
+            role: "target",
+            status: "in_progress",
+            peer_store_id: origin.id,
+            started_at: "2026-01-01T00:00:00.000Z",
+          },
+        }
+        const failed = options.copyOutcome === "failed"
+        stores.set(copy.id, copy)
+        copying.set(copy.id, {
+          retrieves: 1,
+          settled: {
+            ...copy,
+            status: failed ? "failed" : "completed",
+            copy_state: failed
+              ? {
+                  role: "target",
+                  status: "failed",
+                  peer_store_id: origin.id,
+                  started_at: "2026-01-01T00:00:00.000Z",
+                  error: "copy failed",
+                }
+              : null,
+          },
+        })
+        return copy
+      }),
     createStore: (props) =>
       Effect.sync(() => {
         creates += 1
-        const store = makeStore(
-          `store-${creates}`,
-          props.name ?? `store-${creates}`,
-          props.metadata,
-        )
+        const store: Store = {
+          ...makeStore(
+            `store-${creates}`,
+            props.name ?? `store-${creates}`,
+            props.metadata,
+          ),
+          ...(props.tags == null ? {} : { tags: props.tags }),
+        }
         stores.set(store.id, store)
         return store
       }),
     retrieveStore: (id) => {
+      const pending = copying.get(id)
+      if (pending !== undefined && stores.has(id)) {
+        if (pending.retrieves === 0) {
+          stores.set(id, pending.settled)
+          copying.delete(id)
+        } else {
+          pending.retrieves -= 1
+        }
+      }
       const store = stores.get(id)
       return store === undefined
         ? Effect.fail(notFound("retrieve store"))
@@ -71,6 +132,7 @@ const makeClient = () => {
           ...(props.expires_after === undefined
             ? {}
             : { expires_after: props.expires_after }),
+          ...(props.tags == null ? {} : { tags: props.tags }),
           updated_at: "2026-01-02T00:00:00.000Z",
         }
         stores.set(id, updated)
@@ -85,7 +147,17 @@ const makeClient = () => {
     deleteStore: (id) =>
       stores.delete(id) ? Effect.void : Effect.fail(notFound("delete store")),
   }
-  return { client, creates: () => creates, stores }
+  return {
+    client,
+    copies: () => copies,
+    creates: () => creates,
+    stores,
+    // Keeps a copy in progress for this many more retrieves.
+    holdCopy: (id: string, retrieves: number) => {
+      const pending = copying.get(id)
+      if (pending !== undefined) pending.retrieves = retrieves
+    },
+  }
 }
 
 const session: ScopedPlanStatusSession = {
@@ -387,6 +459,314 @@ test("recreates a preview store returned with expired status", async () => {
         assert.equal(fake.creates(), 2)
         assert.equal(fake.stores.has(created.id), false)
       }),
+    ),
+  )
+})
+
+const production: Store = {
+  ...makeStore("production", "effect-website"),
+  tags: ["production"],
+  config: { contextualization: true },
+  expires_after: null,
+  file_counts: { completed: 10, pending: 0, in_progress: 0 },
+}
+
+const copyProps: VectorStoreProps = {
+  ...props,
+  expiresAfter: { anchor: "last_active_at", days: 7 },
+  config: { contextualization: true },
+  copyFrom: "production",
+}
+
+const reconcileArgs = (
+  news: VectorStoreProps,
+  output?: VectorStore["Attributes"],
+) => ({
+  id: "PreviewSearchStore",
+  fqn: "PreviewSearchStore",
+  instanceId: "instance-1",
+  news,
+  olds: output === undefined ? undefined : news,
+  output,
+  session,
+  bindings: [],
+})
+
+// Copies are polled on the clock, so run against a test clock and advance it
+// until the reconcile finishes.
+const withTestClock = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const fiber = yield* Effect.forkChild(effect)
+    yield* TestClock.adjust("1 minute")
+    return yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestClock.layer()))
+
+test("copies the source store and applies the preview settings", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          const copied = yield* provider.reconcile(reconcileArgs(copyProps))
+
+          assert.equal(fake.copies(), 1)
+          assert.equal(fake.creates(), 0)
+          assert.equal(copied.status, "completed")
+          assert.deepEqual(copied.expiresAfter, copyProps.expiresAfter)
+          assert.deepEqual(copied.tags, [])
+          assert.deepEqual(copied.metadata, {
+            ...props.metadata,
+            alchemy: {
+              stack: "EffectWebsite",
+              stage: "pr-123",
+              resource: "PreviewSearchStore",
+            },
+          })
+
+          // Later runs reuse the preview store instead of copying again.
+          const reused = yield* provider.reconcile(
+            reconcileArgs(copyProps, copied),
+          )
+          assert.equal(reused.id, copied.id)
+          assert.equal(fake.copies(), 1)
+          assert.equal(fake.stores.get(production.id), production)
+        }),
+      ),
+    ),
+  )
+})
+
+test("creates an empty store when the source configuration differs", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, {
+    ...production,
+    config: { contextualization: false },
+  })
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      Effect.gen(function* () {
+        const provider = yield* VectorStore.Provider
+        yield* provider.reconcile(reconcileArgs(copyProps))
+        assert.equal(fake.copies(), 0)
+        assert.equal(fake.creates(), 1)
+      }),
+    ),
+  )
+})
+
+test("creates an empty store when the source is still processing files", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, {
+    ...production,
+    file_counts: { completed: 9, pending: 1 },
+  })
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      Effect.gen(function* () {
+        const provider = yield* VectorStore.Provider
+        yield* provider.reconcile(reconcileArgs(copyProps))
+        assert.equal(fake.copies(), 0)
+        assert.equal(fake.creates(), 1)
+      }),
+    ),
+  )
+})
+
+test("creates an empty store when the source cannot be copied", async () => {
+  const fake = makeClient()
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      Effect.gen(function* () {
+        const provider = yield* VectorStore.Provider
+        yield* provider.reconcile(reconcileArgs(copyProps))
+        assert.equal(fake.creates(), 1)
+      }),
+    ),
+  )
+})
+
+test("deletes a failed copy and creates an empty store", async () => {
+  const fake = makeClient({ copyOutcome: "failed" })
+  fake.stores.set(production.id, production)
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          const created = yield* provider.reconcile(reconcileArgs(copyProps))
+          assert.equal(fake.copies(), 1)
+          assert.equal(fake.creates(), 1)
+          assert.equal(created.id, "store-1")
+          assert.equal(fake.stores.has("copy-1"), false)
+        }),
+      ),
+    ),
+  )
+})
+
+test("waits for a copy left running by a cancelled workflow", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+  const ownedMetadata = {
+    ...props.metadata,
+    alchemy: {
+      stack: "EffectWebsite",
+      stage: "pr-123",
+      resource: "PreviewSearchStore",
+    },
+  }
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          // What a run cancelled after starting the copy leaves behind.
+          const inProgress = yield* fake.client.copyStore(production.id, {
+            name: copyProps.name,
+            metadata: ownedMetadata,
+          })
+          const output: VectorStore["Attributes"] = {
+            id: inProgress.id,
+            name: inProgress.name,
+            description: null,
+            metadata: ownedMetadata,
+            config: null,
+            expiresAfter: null,
+            tags: [],
+            expiresAt: null,
+            createdAt: inProgress.created_at,
+            updatedAt: inProgress.updated_at,
+            status: "in_progress",
+          }
+
+          fake.holdCopy(inProgress.id, 3)
+          assert.deepEqual(
+            yield* provider.diff!({
+              id: "PreviewSearchStore",
+              fqn: "PreviewSearchStore",
+              instanceId: "instance-1",
+              olds: copyProps,
+              news: copyProps,
+              oldBindings: [],
+              newBindings: [],
+              output,
+            }),
+            { action: "update", stables: [] },
+          )
+
+          const resumed = yield* provider.reconcile(
+            reconcileArgs(copyProps, output),
+          )
+          assert.equal(resumed.id, inProgress.id)
+          assert.equal(resumed.status, "completed")
+          assert.deepEqual(resumed.expiresAfter, copyProps.expiresAfter)
+          assert.equal(fake.copies(), 1)
+          assert.equal(fake.creates(), 0)
+        }),
+      ),
+    ),
+  )
+})
+
+test("does not update or replace a store when only the copy source changes", async () => {
+  const fake = makeClient()
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      Effect.gen(function* () {
+        const provider = yield* VectorStore.Provider
+        const created = yield* provider.reconcile(reconcileArgs(props))
+        assert.deepEqual(
+          yield* provider.diff!({
+            id: "PreviewSearchStore",
+            fqn: "PreviewSearchStore",
+            instanceId: "instance-1",
+            olds: props,
+            news: { ...props, copyFrom: "production" },
+            oldBindings: [],
+            newBindings: [],
+            output: created,
+          }),
+          { action: "noop" },
+        )
+      }),
+    ),
+  )
+})
+
+test("tags new stores, copies, and stores created before tags", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+  const tags = ["effect-website-preview"]
+  const tagged: VectorStoreProps = { ...props, tags }
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+
+          const created = yield* provider.reconcile(reconcileArgs(tagged))
+          assert.deepEqual(created.tags, ["effect-website-preview"])
+
+          // A copy replaces the tags it would inherit from the source.
+          const copied = yield* provider.reconcile(
+            reconcileArgs({
+              ...copyProps,
+              name: "effect-website-pr-456",
+              tags,
+            }),
+          )
+          assert.deepEqual(copied.tags, ["effect-website-preview"])
+          assert.deepEqual(fake.stores.get(production.id)?.tags, ["production"])
+
+          // Stores from before tags were managed pick them up on the next run.
+          const untagged = yield* provider.reconcile(
+            reconcileArgs({ ...props, name: "effect-website-pr-789" }),
+          )
+          assert.deepEqual(untagged.tags, [])
+          const backfilled = yield* provider.reconcile(
+            reconcileArgs(
+              { ...tagged, name: "effect-website-pr-789" },
+              untagged,
+            ),
+          )
+          assert.equal(backfilled.id, untagged.id)
+          assert.deepEqual(backfilled.tags, ["effect-website-preview"])
+
+          // Tags the API returned normalized don't cause another update.
+          fake.stores.set(backfilled.id, {
+            ...fake.stores.get(backfilled.id)!,
+            updated_at: "2026-01-03T00:00:00.000Z",
+          })
+          const unchanged = yield* provider.reconcile(
+            reconcileArgs(
+              {
+                ...tagged,
+                name: "effect-website-pr-789",
+                tags: [" Effect-Website-Preview "],
+              },
+              backfilled,
+            ),
+          )
+          assert.equal(unchanged.updatedAt, "2026-01-03T00:00:00.000Z")
+        }),
+      ),
     ),
   )
 })
