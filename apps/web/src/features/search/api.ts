@@ -4,7 +4,7 @@ import { SearchError, SearchResult } from "./domain"
 
 export class SearchApiGroup extends HttpApiGroup.make("search").add(
   HttpApiEndpoint.get("search", "/api/search", {
-    query: { query: Schema.String },
+    query: { query: Schema.String, package: Schema.optional(Schema.String) },
     success: Schema.Array(SearchResult),
     error: [SearchError],
   }),
