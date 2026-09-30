@@ -1,0 +1,230 @@
+---
+pagefind: false
+title: Module of the Week - Cluster, Part 1
+slug: module-of-the-week/cluster-actors
+excerpt: The first in a series on Effect Cluster. We look at the actor model and how a cluster is laid out.
+date: 2026-09-28
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import ChatSnippet from "./ChatSnippet.astro"
+import ClusterArchitectureVisual from "./ClusterArchitectureVisual.astro"
+import DadSays from "./DadSays.astro"
+import TwoMessagesVisual from "./TwoMessagesVisual.astro"
+
+Last week, in a moment of unbridled confidence that I can no longer explain, I [offered to write a series on Effect Cluster](https://x.com/maxwellbrown/status/2103215582254452870). I don't know why I did that, but I'm committed now I guess.
+
+The problem is that cluster is far too large to cover in a single post, so this will be a series. That means that not every Module of the Week post will map cleanly to a single module.
+
+I'm still calling it Module of the Week.
+
+Deal with it.
+
+## Overview
+
+This week we'll stay at a higher level and focus on the architecture of cluster. Later posts will dig into how each piece works. To keep things concrete, we'll ground our discussion in a hypothetical example app I've wanted for years. I apologize for it in advance.
+
+### The app
+
+First, some context. I'm a dad. Like most dads, I have a condition. When someone sets up a dad joke, even by accident, I cannot let it go. I've tried. It comes out anyway.
+
+At home, this is fine. My family has built up a tolerance. The problem is elsewhere. Slack, code review, GitHub issues, the neighborhood group chat. There's a whole internet of people setting up perfectly good puns, and I just can't be everywhere at once.
+
+To address this problem, we will build **Dadbot** - my sense of humor, packaged up as a bot you can bring into any chat.
+
+<div class="not-prose my-6 grid gap-4 sm:grid-cols-2">
+  <ChatSnippet
+    platform="Discord"
+    channel="#help"
+    messages={[
+      {
+        from: "Mike",
+        time: "10:41 AM",
+        text: "Anyone know why this test is flaky?",
+      },
+      {
+        from: "DadBot",
+        time: "10:41 AM",
+        bot: true,
+        text: "I'd tell you a UDP joke, but you might not get it.",
+      },
+      { from: "Mike", time: "10:42 AM", text: "..." },
+    ]}
+  />
+  <ChatSnippet
+    platform="Slack"
+    channel="#code-review"
+    messages={[
+      {
+        from: "Tim",
+        time: "2:17 PM",
+        text: "Can you split this into smaller commits?",
+      },
+      {
+        from: "DadBot",
+        time: "2:17 PM",
+        bot: true,
+        text: "I could, but I'm not ready to make that kind of commitment.",
+      },
+      {
+        from: "Tim",
+        time: "2:18 PM",
+        text: "I'm requesting changes ... to your personality.",
+      },
+    ]}
+  />
+</div>
+
+DadBot makes one promise. He never tells the same joke twice in the same chat. No real dad could possibly keep that promise. Just ask my family.
+
+But DadBot is going to live in millions of chats at once, with a dad in every one of them. Keeping that promise turns out to be a distributed systems problem, which is convenient, because that's exactly what Effect Cluster was built for.
+
+### What you'll learn
+
+By the end of this post, you'll know:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>What problem the actor model solves</li>
+  <li>How Effect Cluster works as an actor system</li>
+  <li>The pieces of a cluster: nodes, runners, shards, and entities</li>
+</ol>
+
+## Shared state
+
+Let's start by building DadBot the obvious way.
+
+Every chat has its own dad, and every dad remembers the jokes he's told in that chat. When someone posts a message, the chat app calls a webhook, and our handler does three things:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>Loads the jokes he's already told</li>
+  <li>Asks the pun generator for one he hasn't</li>
+  <li>Saves the new list and post the reply</li>
+</ol>
+
+```ts showLineNumbers=false
+async function onMessage(chatId: string, message: string) {
+  const told = await db.getJokesTold(chatId)
+  const joke = await punGenerator.generate(message, {
+    exclude: told,
+  })
+  await db.setJokesTold(chatId, [...told, joke])
+  await chat.reply(chatId, joke)
+}
+```
+
+### Concurrent messages
+
+This works if messages are handled _sequentially_. Our Dadbot webhook handles them _concurrently_, so two handlers can read and write Dad's joke list at the same time.
+
+Click **Play** below to observe this behavior.
+
+<TwoMessagesVisual />
+
+Both handlers read Dadbot's joke list before either one saved, so both picked the same joke. We've already broken the sacred Dadbot promise.
+
+<DadSays>In my defense, redundancy _is_ a best practice.</DadSays>
+
+This is a race condition. Whether Dadbot repeats itself depends on how the two handlers happen to line up, and the two seconds that it takes to generate a pun gives plenty of time for handlers to overlap.
+
+### Using locks
+
+The usual way to stop two handlers from stepping on each other is a lock. A handler locks the chat's joke list before reading it and unlocks it after saving. If another handler wants the list in the meantime, it has to wait.
+
+Click **Play** below to observe this behavior.
+
+<TwoMessagesVisual modes={["lock"]} />
+
+The lock fixes the repeats, but now Dadbot replies three times, like someone who hasn't read the rest of the thread. Clearly he needs to work on his delivery.
+
+A lock can't do that on its own. Each handler only knows about its own message. You would have to add more infrastructure, like a queue and maybe a scheduler that keeps track of busy chats, but that's a lot of machinery just to know when to tell a joke ... right?
+
+What we want is for each chat to get its own Dad. One long-lived worker that receives every message, keeps its own memory, and decides for itself when to reply. Luckily, systems like this have existed since 1973.
+
+## The actor model
+
+In 1973, Carl Hewitt described the [actor model](https://en.wikipedia.org/wiki/Actor_model). An actor is a small, independent worker with three properties:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>An address, so other code can send it messages</li>
+  <li>A mailbox, where those messages wait their turn</li>
+  <li>Some private state that nothing else can touch</li>
+</ul>
+
+An actor handles one message from its mailbox at a time, and the only way to change its state is to send it a message.
+
+### One actor per chat
+
+Let's give each chat its own Dad. His joke list becomes his private state, and every message in the chat will arrive in his mailbox. Internally, he will track the time between messages in the chat so that he can deliver a joke at the most opportune moment.
+
+Click **Play** below to observe this behavior.
+
+<TwoMessagesVisual modes={["actor"]} />
+
+By modeling the chat's Dad as an actor with his own internal state, he can retain specific memory between messages and decide for himself when to talk.
+
+<DadSays>So I'm an actor now?</DadSays>
+
+Don't let it go to your head.
+
+### Messaging by address
+
+So far, every Dad lives on one server. But DadBot is going to be in millions of chats, and millions of Dads won't fit on one machine. So when a message comes in from `#engineering`, which machine gets it?
+
+The webhook doesn't need to know. Every actor has an address, and that's all you need to send it a message. The webhook sends the message to "Dad for `#engineering`", and the actor system routes it to him, whichever machine he's on. Actors message each other the same way.
+
+<DadSays>Which machine am I on? Sorry, that's on a need-to-node basis.</DadSays>
+
+Plenty of systems work this way. Erlang runs telephone switches on it, and Akka brought it to the JVM. Microsoft's Orleans added _virtual actors_, which start the moment someone sends them a message. Nobody ever creates Dad for `#engineering`. You send him a message and he shows up, the same way a real dad appears the second anyone touches the thermostat.
+
+That's exactly how Effect Cluster works.
+
+## Effect Cluster
+
+Effect Cluster is an actor system for Effect, but cluster calls its actors **entities**. They start the first time someone sends them a message, and passivate (shut down) once they've been idle for a while. More on that later.
+
+<DadSays>First an actor, now an entity. I'm having an identity crisis.</DadSays>
+
+DadBot has a single entity type, `Dad`, and every chat gets its own `Dad` entity. An entity's address is its type plus an identifier, so "Dad for `#engineering`" is the entity with type `Dad` and identifier `#engineering`.
+
+### Architecture
+
+So where does Dad actually live? A cluster starts with a few machines, called **nodes**.
+
+<ClusterArchitectureVisual stage="intro" layers={1} />
+
+Each node hosts one or more **runners**, the processes that run your entities.
+
+<ClusterArchitectureVisual stage="intro" layers={2} />
+
+DadBot could have millions of dads, and keeping track of which runner has each one would be a lot of bookkeeping. So cluster splits entities into a fixed number of **shards** (300 by default), and works out each entity's shard from its identifier. Every shard belongs to one runner, so cluster only has to keep track of 300 things.
+
+<ClusterArchitectureVisual stage="intro" layers={3} />
+
+That means finding Dad comes down to two questions. Which shard is he in, and which runner owns that shard?
+
+## Wrapping up
+
+That's it for this week! Here's what we covered:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    <strong>The actor model:</strong> each chat gets its own Dad, with private
+    memory and a mailbox he works through one message at a time
+  </li>
+  <li>
+    <strong>Effect Cluster:</strong> an actor system where actors are called
+    entities, and you reach each one by its address, like "Dad for{" "}
+    <code>#engineering</code>"
+  </li>
+  <li>
+    <strong>The pieces of a cluster:</strong> nodes host runners, runners own
+    shards, and shards hold entities
+  </li>
+</ul>
+
+Next week, we'll answer those two questions. How does cluster work out which shard Dad is in? And how do the runners agree on who owns which shard without anyone in charge?
+
+Until then, Happy Effecting!

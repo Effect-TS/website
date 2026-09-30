@@ -1,0 +1,942 @@
+---
+// Three versions of DadBot handling a busy chat.
+// - stateless: Sebastian and Mattia post at once. Both handlers read the same
+//   (empty) joke list and pick the same joke.
+// - lock: Sebastian, Mattia, and Tim post in a burst. The lock makes the
+//   handlers take turns, so there are no repeats, but Dad replies three times.
+// - actor: the same burst lands in Dad's mailbox. He waits for the chat to go
+//   quiet (the timer resets with each message), then replies once to everyone.
+
+import { people, warning } from "./palette"
+
+type Mode = "stateless" | "lock" | "actor"
+interface Props {
+  // Which versions to offer. With one mode there's no toggle.
+  modes?: Array<Mode>
+}
+const { modes = ["stateless"] } = Astro.props
+const modeLabels: Record<Mode, string> = {
+  stateless: "Stateless handlers",
+  lock: "Database lock",
+  actor: "Dad as an actor",
+}
+
+const jokes = [
+  { short: "assert-ive", text: "Sounds like a case of assert-ive behavior." },
+  { short: "finding themselves", text: "They're not failing. They're just finding themselves." },
+  {
+    short: "failing phase",
+    text: "Don't be so hard on them. They're just going through a failing phase.",
+  },
+  { short: "assert-ive", text: "Sounds like a case of assert-ive behavior for all three of you." },
+]
+---
+
+<figure
+  class="tm"
+  data-two-messages
+  data-initial-mode={modes[0]}
+  style={[
+    `--tm-sebastian-light: ${people.Sebastian.light}`,
+    `--tm-sebastian-dark: ${people.Sebastian.dark}`,
+    `--tm-mattia-light: ${people.Mattia.light}`,
+    `--tm-mattia-dark: ${people.Mattia.dark}`,
+    `--tm-tim-light: ${people.Tim.light}`,
+    `--tm-tim-dark: ${people.Tim.dark}`,
+    `--tm-warning-bg: ${warning.background}`,
+    `--tm-warning-text: ${warning.text}`,
+  ].join("; ")}
+>
+  {
+    modes.length > 1 && (
+      <div class="tm-modes" role="radiogroup" aria-label="How DadBot handles messages">
+        {modes.map((m, i) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={i === 0 ? "true" : "false"}
+            data-mode={m}
+          >
+            {modeLabels[m]}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  <div class="tm-body">
+    <div class="tm-chat">
+      <p class="tm-chat-title">
+        <span class="tm-dot" aria-hidden="true"></span>Slack <span>#engineering</span>
+      </p>
+      <ol class="tm-messages" data-messages aria-live="polite"></ol>
+    </div>
+
+    <div class="tm-side">
+      <div class="tm-box">
+        <p class="tm-box-title">DadBot server</p>
+        <div class="tm-proc" data-proc>
+          <p class="tm-proc-label">
+            <span>Dad · #engineering</span><span class="tm-proc-kind">Actor</span>
+          </p>
+          <ol class="tm-jobs" data-jobs>
+            <li class="tm-empty" data-jobs-empty>Waiting for messages</li>
+          </ol>
+          <dl class="tm-fields" data-mailbox hidden>
+            <dt>Mailbox</dt>
+            <dd data-mailbox-items>–</dd>
+            <dt>State</dt>
+            <dd><span class="tm-state" data-state="idle" data-actor-state>Idle</span></dd>
+          </dl>
+        </div>
+      </div>
+      <div class="tm-box" data-store>
+        <p class="tm-box-title">
+          <svg viewBox="0 0 16 18" class="tm-db-icon" aria-hidden="true">
+            <ellipse cx="8" cy="3.5" rx="6.5" ry="2.5"></ellipse>
+            <path d="M1.5 3.5 V14.5 A6.5 2.5 0 0 0 14.5 14.5 V3.5 M1.5 9 A6.5 2.5 0 0 0 14.5 9"
+            ></path>
+          </svg>
+          <span data-store-title>Database</span>
+          <span class="tm-lock" data-lock hidden>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="7" rx="1.5"></rect>
+              <path d="M5.5 7 V5 a2.5 2.5 0 0 1 5 0 V7" data-shackle></path>
+            </svg>
+            <span data-lock-text>Unlocked</span>
+          </span>
+        </p>
+        <table class="tm-table">
+          <thead>
+            <tr><th>Joke told</th><th data-col-by>Saved by</th></tr>
+          </thead>
+          <tbody data-rows>
+            <tr><td>–</td><td>–</td></tr>
+            <tr><td>–</td><td>–</td></tr>
+            <tr><td>–</td><td>–</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tm-controls">
+    <button type="button" class="tm-button tm-primary" data-play>Play</button>
+    <button type="button" class="tm-button" data-reset>Reset</button>
+  </div>
+  <script type="application/json" data-jokes set:html={JSON.stringify(jokes)} />
+</figure>
+
+<script>
+  type Joke = { short: string; text: string }
+  type Mode = "stateless" | "lock" | "actor"
+
+  const GENERATE_MS = 2000
+  // How long the chat has to be quiet before Dad (the actor) replies.
+  const QUIET_MS = 2500
+  // Time between messages in the actor version's burst.
+  const BURST_GAP_MS = 1400
+  const WEBHOOK_MS = 900
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms))
+  const escape = (text: string) =>
+    text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  import { people as palette } from "./palette"
+
+  // `color` switches with the theme (see the CSS variables), `avatar` doesn't.
+  const people = {
+    Sebastian: {
+      color: "var(--tm-sebastian)",
+      avatar: palette.Sebastian.avatar,
+      text: "The tests are failing again.",
+    },
+    Mattia: {
+      color: "var(--tm-mattia)",
+      avatar: palette.Mattia.avatar,
+      text: "Yeah, CI is failing for me too.",
+    },
+    Tim: {
+      color: "var(--tm-tim)",
+      avatar: palette.Tim.avatar,
+      text: "Same here.",
+    },
+  }
+  type Person = keyof typeof people
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-two-messages]")) {
+    const [jokeA, jokeB, jokeC, jokeGroup] = JSON.parse(
+      root.querySelector("[data-jokes]")!.textContent!,
+    ) as Array<Joke>
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const modeButtons = root.querySelectorAll<HTMLButtonElement>("[data-mode]")
+    const messages = q<HTMLOListElement>("[data-messages]")
+    const jobs = q<HTMLOListElement>("[data-jobs]")
+    const proc = q<HTMLElement>("[data-proc]")
+    const actorState = q<HTMLElement>("[data-actor-state]")
+    type ActorState = "idle" | "waiting" | "generating"
+    const stateLabels: Record<ActorState, string> = {
+      idle: "Idle",
+      waiting: "Waiting",
+      generating: "Generating",
+    }
+    const setState = (state: ActorState) => {
+      actorState.dataset.state = state
+      actorState.textContent = stateLabels[state]
+    }
+    const jobsEmpty = q<HTMLElement>("[data-jobs-empty]")
+    const storeTitle = q<HTMLElement>("[data-store-title]")
+    const lockEl = q<HTMLElement>("[data-lock]")
+    const lockText = q<HTMLElement>("[data-lock-text]")
+    const rowsEl = q<HTMLTableSectionElement>("[data-rows]")
+    const colBy = q<HTMLElement>("[data-col-by]")
+    const mailboxEl = q<HTMLElement>("[data-mailbox]")
+    const mailboxItems = q<HTMLElement>("[data-mailbox-items]")
+    const play = q<HTMLButtonElement>("[data-play]")
+    const reset = q<HTMLButtonElement>("[data-reset]")
+
+    let mode = (root.dataset.initialMode ?? "stateless") as Mode
+    // Bumped on reset or mode change, so a running animation knows to stop.
+    let generation = 0
+
+    const post = (from: string, text: string, bot = false, tag = "") => {
+      const item = document.createElement("li")
+      item.className = "tm-msg"
+      const style = bot ? "" : `background:${people[from as Person].avatar}`
+      item.innerHTML = `<span class="tm-avatar${bot ? " is-dad" : ""}" style="${style}" aria-hidden="true">${
+        bot ? "" : escape(from[0])
+      }</span><div><p class="tm-from">${escape(from)}${
+        bot ? ` <span class="tm-badge">APP</span>` : ""
+      }</p><p class="tm-text">${escape(text)}${tag ? ` <span class="tm-tag">${tag}</span>` : ""}</p></div>`
+      messages.append(item)
+      messages.scrollTop = messages.scrollHeight
+      return item
+    }
+
+    // A little envelope flies from a chat message to the server: the webhook.
+    const webhook = (from: HTMLElement, to: HTMLElement, color: string) =>
+      new Promise<void>((resolve) => {
+        if (reduceMotion) return resolve()
+        const box = root.getBoundingClientRect()
+        const a = from.getBoundingClientRect()
+        const b = to.getBoundingClientRect()
+        const env = document.createElement("span")
+        env.className = "tm-hook"
+        env.style.setProperty("--c", color)
+        env.innerHTML = `<svg viewBox="0 0 22 16" aria-hidden="true"><rect x="0.75" y="0.75" width="20.5" height="14.5" rx="2.5"></rect><path d="M1.5 2 L11 9 L20.5 2"></path></svg>`
+        root.append(env)
+        const x1 = a.left - box.left + Math.min(a.width * 0.6, 200)
+        const y1 = a.top - box.top + a.height / 2 - 8
+        const x2 = b.left - box.left + 20
+        const y2 = b.top - box.top + 6
+        const anim = env.animate(
+          [
+            { transform: `translate(${x1}px, ${y1}px) scale(0.6)`, opacity: 0 },
+            { transform: `translate(${x1}px, ${y1}px) scale(1)`, opacity: 1, offset: 0.15 },
+            { transform: `translate(${x2}px, ${y2}px) scale(1)`, opacity: 1, offset: 0.85 },
+            { transform: `translate(${x2}px, ${y2}px) scale(0.6)`, opacity: 0 },
+          ],
+          { duration: WEBHOOK_MS, easing: "ease-in-out" },
+        )
+        anim.onfinish = () => {
+          env.remove()
+          resolve()
+        }
+        anim.oncancel = () => {
+          env.remove()
+          resolve()
+        }
+      })
+
+    // Someone posts, and their message travels to the server as a webhook.
+    const arrive = async (who: Person, to: HTMLElement) => {
+      const item = post(who, people[who].text)
+      await webhook(item, to, people[who].color)
+    }
+
+    // The jokes-told table always has three rows, so the box never changes size.
+    type Saved = { joke: string; by: string; color: string }
+    const setRows = (saved: Array<Saved>, flash: number) => {
+      rowsEl.querySelectorAll("tr").forEach((tr, i) => {
+        const row = saved[i]
+        tr.innerHTML = row
+          ? `<td>"${escape(row.joke)}"</td><td style="color:${row.color}">${escape(row.by)}</td>`
+          : `<td>–</td><td>–</td>`
+        tr.classList.remove("is-flash")
+        if (i === flash) {
+          void tr.offsetWidth
+          tr.classList.add("is-flash")
+        }
+      })
+    }
+    const bySeb = (joke: string): Saved => ({
+      joke,
+      by: "Sebastian",
+      color: people.Sebastian.color,
+    })
+    const byMattia = (joke: string): Saved => ({ joke, by: "Mattia", color: people.Mattia.color })
+    const byTim = (joke: string): Saved => ({ joke, by: "Tim", color: people.Tim.color })
+
+    // Dad's mailbox, shown in the actor version.
+    const showMailbox = (who: Array<Person>) => {
+      mailboxItems.innerHTML = who.length
+        ? who
+            .map((p) => `<span class="tm-mail" style="--c:${people[p].color}">${p}</span>`)
+            .join("")
+        : "–"
+    }
+
+    // A row in the server box: who it's for, a status, and a progress bar.
+    const addJob = (label: string, color: string, status: string) => {
+      jobsEmpty.hidden = true
+      const row = document.createElement("li")
+      row.className = "tm-job"
+      row.style.setProperty("--c", color)
+      row.innerHTML = `<span class="tm-job-name">${escape(label)}</span><span class="tm-job-status">${status}</span><span class="tm-bar"><span></span></span>`
+      jobs.append(row)
+      const bar = row.querySelector<HTMLElement>(".tm-bar > span")!
+      return {
+        // Drain the bar from full to empty. Calling it again starts over.
+        countdown: (ms: number) => {
+          bar.style.transition = "none"
+          bar.style.width = "100%"
+          void bar.offsetWidth
+          bar.style.transition = reduceMotion ? "none" : `width ${ms}ms linear`
+          bar.style.width = "0%"
+        },
+        status: (text: string) => (row.querySelector(".tm-job-status")!.textContent = text),
+        fill: (ms: number) =>
+          new Promise<void>((resolve) => {
+            bar.style.transition = "none"
+            bar.style.width = "0%"
+            // Lay out the empty bar first. Otherwise the browser can skip the
+            // 0% state and jump straight to full.
+            void bar.offsetWidth
+            bar.style.transition = reduceMotion ? "none" : `width ${ms}ms linear`
+            bar.style.width = "100%"
+            setTimeout(resolve, reduceMotion ? 0 : ms)
+          }),
+        done: () => row.classList.add("is-done"),
+      }
+    }
+
+    const statelessRun = async (run: number) => {
+      const alive = () => run === generation
+      await arrive("Sebastian", proc)
+      if (!alive()) return
+      const a = addJob("Sebastian", people.Sebastian.color, "Generating a joke")
+      const first = a.fill(GENERATE_MS)
+      await sleep(400)
+      if (!alive()) return
+      await arrive("Mattia", proc)
+      if (!alive()) return
+      const b = addJob("Mattia", people.Mattia.color, "Generating a joke")
+      const second = b.fill(GENERATE_MS)
+
+      // Both handlers read the list before either has saved, so both pick
+      // the same joke.
+      await first
+      if (!alive()) return
+      a.status(`Picked "${jokeA.short}"`)
+      a.done()
+      setRows([bySeb(jokeA.short)], 0)
+      post("DadBot", jokeA.text, true)
+
+      await second
+      if (!alive()) return
+      b.status(`Picked "${jokeA.short}"`)
+      b.done()
+      // Mattia's handler writes the list it read (empty) plus its joke, right
+      // over the top of Sebastian's save.
+      setRows([byMattia(jokeA.short)], 0)
+      post("DadBot", jokeA.text, true, "Told twice")
+    }
+
+    // Who holds the lock on the chat's joke list, if anyone.
+    const setLock = (who: Person | null) => {
+      lockEl.classList.toggle("is-locked", who !== null)
+      lockEl.style.setProperty("--c", who ? people[who].color : "")
+      lockText.textContent = who ? `Locked by ${who}` : "Unlocked"
+    }
+
+    const lockRun = async (run: number) => {
+      const alive = () => run === generation
+      await arrive("Sebastian", proc)
+      if (!alive()) return
+      setLock("Sebastian")
+      const a = addJob("Sebastian", people.Sebastian.color, "Generating a joke")
+      const first = a.fill(GENERATE_MS)
+      await sleep(300)
+      if (!alive()) return
+      await arrive("Mattia", proc)
+      if (!alive()) return
+      const b = addJob("Mattia", people.Mattia.color, "Waiting for the lock")
+      await sleep(300)
+      if (!alive()) return
+      await arrive("Tim", proc)
+      if (!alive()) return
+      const c = addJob("Tim", people.Tim.color, "Waiting for the lock")
+
+      await first
+      if (!alive()) return
+      a.status(`Picked "${jokeA.short}"`)
+      a.done()
+      setRows([bySeb(jokeA.short)], 0)
+      post("DadBot", jokeA.text, true)
+      setLock(null)
+      await sleep(250)
+      if (!alive()) return
+
+      setLock("Mattia")
+      b.status("Generating a joke")
+      await b.fill(GENERATE_MS)
+      if (!alive()) return
+      b.status(`Picked "${jokeB.short}"`)
+      b.done()
+      setRows([bySeb(jokeA.short), byMattia(jokeB.short)], 1)
+      post("DadBot", jokeB.text, true)
+      setLock(null)
+      await sleep(250)
+      if (!alive()) return
+
+      // No repeats, but each handler only knows about its own message, so
+      // Dad replies to every one of them.
+      setLock("Tim")
+      c.status("Generating a joke")
+      await c.fill(GENERATE_MS)
+      if (!alive()) return
+      c.status(`Picked "${jokeC.short}"`)
+      c.done()
+      setRows([bySeb(jokeA.short), byMattia(jokeB.short), byTim(jokeC.short)], 2)
+      post("DadBot", jokeC.text, true, "Talking over himself")
+      setLock(null)
+    }
+
+    const actorRun = async (run: number) => {
+      const alive = () => run === generation
+      // Dad is one long-lived owner. Every message lands in his mailbox, and
+      // each one resets his "wait for a quiet moment" timer.
+      const dad = addJob("Dad", "var(--tm-ink)", "")
+      const inbox: Array<Person> = []
+      for (const [i, who] of (["Sebastian", "Mattia", "Tim"] as const).entries()) {
+        if (i > 0) await sleep(BURST_GAP_MS)
+        if (!alive()) return
+        await arrive(who, mailboxEl)
+        if (!alive()) return
+        inbox.push(who)
+        showMailbox(inbox)
+        setState("waiting")
+        dad.countdown(QUIET_MS)
+      }
+      await sleep(QUIET_MS)
+      if (!alive()) return
+
+      // Quiet at last. One joke for the whole burst.
+      showMailbox([])
+      setState("generating")
+      await dad.fill(GENERATE_MS)
+      if (!alive()) return
+      // Done with the burst, so Dad goes back to idle until the next message.
+      setState("idle")
+      dad.done()
+      setRows([{ joke: jokeGroup.short, by: "Sebastian, Mattia, Tim", color: "var(--tm-ink)" }], 0)
+      post("DadBot", jokeGroup.text, true)
+    }
+
+    const render = () => {
+      generation++
+      for (const env of root.querySelectorAll(".tm-hook")) env.remove()
+      messages.innerHTML = ""
+      for (const row of jobs.querySelectorAll(".tm-job")) row.remove()
+      jobsEmpty.hidden = false
+      setRows([], -1)
+      storeTitle.textContent = mode === "actor" ? "Dad's memory" : "Database"
+      // Dad's memory lives with Dad, not in a database, so drop the icon.
+      root.querySelector<SVGElement>(".tm-db-icon")!.style.display = mode === "actor" ? "none" : ""
+      lockEl.hidden = mode !== "lock"
+      mailboxEl.hidden = mode !== "actor"
+      setState("idle")
+      root.dataset.mode = mode
+      showMailbox([])
+      colBy.textContent = mode === "actor" ? "Told to" : "Saved by"
+      setLock(null)
+      for (const b of modeButtons) b.setAttribute("aria-checked", String(b.dataset.mode === mode))
+      play.disabled = false
+    }
+
+    play.addEventListener("click", async () => {
+      render()
+      const run = generation
+      play.disabled = true
+      await (mode === "actor" ? actorRun(run) : mode === "lock" ? lockRun(run) : statelessRun(run))
+      if (run !== generation) return
+      play.disabled = false
+      play.textContent = "Play again"
+    })
+    reset.addEventListener("click", () => {
+      play.textContent = "Play"
+      render()
+    })
+    for (const b of modeButtons) {
+      b.addEventListener("click", () => {
+        mode = b.dataset.mode as Mode
+        play.textContent = "Play"
+        render()
+      })
+    }
+    render()
+  }
+</script>
+
+<style is:global>
+  .tm {
+    position: relative;
+    --tm-ink: #3f3f46;
+    --tm-muted: #71717a;
+    --tm-line: #d4d4d8;
+    --tm-surface: #ffffff;
+    --tm-panel: #fafafa;
+    --tm-sebastian: var(--tm-sebastian-light);
+    --tm-mattia: var(--tm-mattia-light);
+    --tm-tim: var(--tm-tim-light);
+    --tm-slack: #611f69;
+    --tm-flash: #fbbf24;
+    --tm-dad: #b45309;
+    margin: 1.5rem 0;
+  }
+  html.dark .tm {
+    --tm-ink: #e4e4e7;
+    --tm-muted: #a1a1aa;
+    --tm-line: #3f3f46;
+    --tm-surface: #09090b;
+    --tm-panel: #111113;
+    --tm-sebastian: var(--tm-sebastian-dark);
+    --tm-mattia: var(--tm-mattia-dark);
+    --tm-tim: var(--tm-tim-dark);
+    --tm-slack: #c084fc;
+    --tm-dad: #fbbf24;
+  }
+  .tm p {
+    margin: 0;
+  }
+
+  .tm-modes {
+    display: inline-flex;
+    margin-bottom: 0.75rem;
+    padding: 0.2rem;
+    border: 1px solid var(--tm-line);
+    border-radius: 0.6rem;
+    font-size: 0.8rem;
+  }
+  .tm-modes button {
+    padding: 0.3rem 0.75rem;
+    border-radius: 0.45rem;
+    color: var(--tm-muted);
+    cursor: pointer;
+  }
+  .tm-modes button[aria-checked="true"] {
+    background: var(--tm-ink);
+    color: var(--tm-surface);
+  }
+
+  .tm-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 640px) {
+    .tm-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Chat. On desktop it's exactly as tall as the server and database column.
+     `contain: size` stops new messages from stretching it; they scroll instead. */
+  .tm-chat {
+    display: flex;
+    flex-direction: column;
+    contain: size;
+    min-height: 18rem;
+    border: 1px solid var(--tm-line);
+    border-radius: 0.75rem;
+    background: var(--tm-panel);
+    overflow: hidden;
+  }
+  @media (max-width: 640px) {
+    .tm-chat {
+      height: 15rem;
+    }
+  }
+  .tm .tm-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--tm-line);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--tm-ink);
+  }
+  .tm-chat-title span:last-child {
+    font-weight: 400;
+    color: var(--tm-muted);
+  }
+  .tm-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--tm-slack);
+  }
+  .tm .tm-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0.75rem;
+    list-style: none;
+    overflow-y: auto;
+  }
+  .tm .tm-msg {
+    display: flex;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+    animation: tm-in 250ms ease;
+  }
+  .tm .tm-msg::before,
+  .tm .tm-msg::marker,
+  .tm .tm-job::before,
+  .tm .tm-job::marker {
+    content: none;
+  }
+  @keyframes tm-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  .tm-avatar {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.4rem;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .tm-avatar.is-dad {
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+  .tm .tm-from {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--tm-ink);
+  }
+  .tm-badge {
+    padding: 0 0.25rem;
+    border-radius: 0.2rem;
+    background: var(--tm-slack);
+    color: #fff;
+    font-size: 0.55rem;
+    vertical-align: 1px;
+  }
+  .tm .tm-text {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--tm-ink);
+  }
+  .tm-tag {
+    display: inline-block;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--tm-warning-bg);
+    color: var(--tm-warning-text);
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  /* Server and database */
+  /* Server and database. Equal-height rows, each as tall as the taller box. */
+  .tm-side {
+    display: grid;
+    grid-auto-rows: 1fr;
+    gap: 1rem;
+    min-width: 0;
+  }
+  .tm-box {
+    padding: 0.75rem;
+    border: 1px solid var(--tm-line);
+    border-radius: 0.75rem;
+  }
+  .tm .tm-box-title {
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tm-muted);
+  }
+  .tm .tm-jobs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 8.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tm .tm-job {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.6rem;
+    margin: 0;
+    padding: 0;
+    animation: tm-in 250ms ease;
+  }
+  .tm-job-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--c);
+  }
+  .tm-job-status {
+    font-size: 0.75rem;
+    color: var(--tm-muted);
+    text-align: right;
+  }
+  .tm-bar {
+    grid-column: 1 / -1;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--tm-ink) 8%, transparent);
+    overflow: hidden;
+  }
+  .tm-bar > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--c);
+  }
+  .tm .tm-job.is-done .tm-job-status {
+    color: var(--tm-ink);
+  }
+  .tm .tm-box-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .tm-db-icon {
+    width: 0.85rem;
+    height: 0.95rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+  }
+  .tm-hook {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 22px;
+    height: 16px;
+    pointer-events: none;
+  }
+  .tm-hook svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--c);
+    stroke: var(--tm-surface);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .tm-hook path {
+    fill: none;
+  }
+
+  /* In the actor version, the rows live inside a card that is Dad himself,
+     running on the server. Elsewhere the card is invisible. */
+  .tm .tm-proc-label {
+    display: none;
+  }
+  .tm[data-mode="actor"] .tm-proc {
+    padding: 0.6rem 0.7rem;
+    border: 1.5px dashed var(--tm-ink);
+    border-radius: 0.6rem;
+  }
+  .tm[data-mode="actor"] .tm-proc-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tm-ink);
+  }
+  .tm-proc-kind {
+    color: var(--tm-muted);
+  }
+  .tm[data-mode="actor"] [data-jobs-empty] {
+    display: none;
+  }
+  .tm .tm-fields {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    margin: 0.6rem 0 0;
+    font-size: 0.75rem;
+  }
+  .tm .tm-fields[hidden] {
+    display: none;
+  }
+  .tm .tm-fields dt {
+    margin: 0;
+    font-weight: 600;
+    color: var(--tm-muted);
+  }
+  .tm .tm-fields dd {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    color: var(--tm-muted);
+  }
+  /* In the actor version the badge carries the status, so the row only needs its bar. */
+  .tm[data-mode="actor"] .tm-job-name,
+  .tm[data-mode="actor"] .tm-job-status {
+    display: none;
+  }
+  .tm .tm-state {
+    font-weight: 600;
+    color: var(--tm-ink);
+  }
+  .tm .tm-state[data-state="idle"] {
+    font-weight: 400;
+    color: var(--tm-muted);
+  }
+
+  /* The actor version only ever has Dad's row, so it doesn't need room for three. */
+  .tm[data-mode="actor"] .tm-jobs {
+    min-height: 0;
+  }
+  .tm-mail {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid var(--c);
+    color: var(--c);
+    font-weight: 600;
+    animation: tm-in 250ms ease;
+  }
+  .tm .tm-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    table-layout: fixed;
+  }
+  .tm .tm-table th,
+  .tm .tm-table td {
+    padding: 0.4rem 0.5rem;
+    border: 0;
+    border-bottom: 1px solid var(--tm-line);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--tm-ink);
+  }
+  .tm .tm-table th {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--tm-muted);
+  }
+  .tm .tm-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .tm .tm-table tr.is-flash td {
+    animation: tm-row-flash 900ms ease;
+  }
+  @keyframes tm-row-flash {
+    from {
+      background: color-mix(in oklab, var(--tm-flash) 40%, transparent);
+    }
+  }
+  .tm .tm-lock {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--tm-muted);
+  }
+  .tm .tm-lock[hidden] {
+    display: none;
+  }
+  .tm-lock svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .tm-lock [data-shackle] {
+    transform: translateY(-1.5px);
+    transition: transform 200ms ease;
+  }
+  .tm .tm-lock.is-locked {
+    font-weight: 600;
+    color: var(--c);
+  }
+  .tm-lock.is-locked [data-shackle] {
+    transform: none;
+  }
+  .tm .tm-empty {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--tm-muted);
+  }
+
+  .tm-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+  .tm .tm-button {
+    padding: 0.4rem 0.9rem;
+    border: 1.5px solid var(--tm-ink);
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--tm-ink);
+    cursor: pointer;
+  }
+  .tm .tm-button.tm-primary {
+    background: var(--tm-ink);
+    color: var(--tm-surface);
+  }
+  .tm .tm-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tm .tm-msg,
+    .tm .tm-job,
+    .tm .tm-table tr.is-flash td {
+      animation: none;
+    }
+  }
+</style>
