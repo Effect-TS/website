@@ -88,7 +88,7 @@ const runnerBoxes = runners.map((runner, i) => {
   return {
     ...runner,
     index: i,
-    x: machineX[runner.node] + machinePad + index * (runnerW + runnerGap),
+    x: machineX[runner.node]! + machinePad + index * (runnerW + runnerGap),
     y: machineTop + machineHeader,
   }
 })
@@ -113,11 +113,11 @@ const shardInfo = Object.fromEntries(
     const owner = runnerBoxes.find((r) => r.shards.includes(Number(shard)))!
     return [
       shard,
-      { names, runner: owner.address, node: nodes[owner.node].name, color: owner.color },
+      { names, runner: owner.address, node: nodes[owner.node]!.name, color: owner.color },
     ]
   }),
 )
-const initial = shardInfo[initialShard]
+const initial = shardInfo[initialShard]!
 
 const introLabels = {
   1: "A cluster of three computers, called nodes.",
@@ -167,7 +167,7 @@ const intro = (() => {
     "the-muellers",
     "the-obriens",
   ]
-  const runH = runHeader + shardIds[0].length * (shardH + shardGap) - shardGap + shardPad
+  const runH = runHeader + shardIds[0]!.length * (shardH + shardGap) - shardGap + shardPad
   const nodeH = chassisHeader + 12 + runH + runnerInset
   const left = (720 - (nodeW * 3 + nodeGap * 2)) / 2
   let nameIndex = 0
@@ -182,7 +182,7 @@ const intro = (() => {
       runner: {
         name: `Runner ${ni + 1}`,
         path: `n${ni}.r${ni}`,
-        color: runners[ni].color,
+        color: runners[ni]!.color,
         x: rx,
         y: ry,
         shards: ids.map((id, si) => {
@@ -193,7 +193,7 @@ const intro = (() => {
             path: `n${ni}.r${ni}.s${id}`,
             x: sx,
             y: sy,
-            dads: Array.from({ length: dadCounts[ni][si] }, (_, di) => ({
+            dads: Array.from({ length: dadCounts[ni]![si]! }, (_, di) => ({
               name: names[nameIndex++],
               path: `n${ni}.r${ni}.s${id}.e${di}`,
               x: sx + 82 + di * 28,
@@ -404,7 +404,7 @@ const intro = (() => {
                 rx="12"
                 class="machine-box"
               />
-              <text x={machineX[i] + 14} y={machineTop + 20} class="label strong">
+              <text x={machineX[i]! + 14} y={machineTop + 20} class="label strong">
                 {m.name}
                 <tspan class="mono muted" dx="6">
                   {m.host}
@@ -415,7 +415,7 @@ const intro = (() => {
 
           {/* Every runner connects to the database */}
           <path
-            d={`M${db.cx} ${db.top + db.h + db.ry} V${dbBusY} M${dropX(runnerBoxes[0])} ${dbBusY} H${dropX(runnerBoxes[runnerBoxes.length - 1])}`}
+            d={`M${db.cx} ${db.top + db.h + db.ry} V${dbBusY} M${dropX(runnerBoxes[0]!)} ${dbBusY} H${dropX(runnerBoxes[runnerBoxes.length - 1]!)}`}
             class="db-link"
           />
           {runnerBoxes.map((r) => (
@@ -510,7 +510,7 @@ const intro = (() => {
 
     const select = (cell: SVGRectElement) => {
       const shard = cell.dataset.shard!
-      const { names, runner, node, color } = info[shard]
+      const { names, runner, node, color } = info[shard]!
       for (const c of cells) c.setAttribute("aria-pressed", String(c === cell))
       panel.style.setProperty("--c", color)
       title.textContent = `Shard ${shard}`

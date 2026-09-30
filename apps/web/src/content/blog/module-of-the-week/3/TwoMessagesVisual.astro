@@ -166,7 +166,7 @@ const jokes = [
   for (const root of document.querySelectorAll<HTMLElement>("[data-two-messages]")) {
     const [jokeA, jokeB, jokeC, jokeGroup] = JSON.parse(
       root.querySelector("[data-jokes]")!.textContent!,
-    ) as Array<Joke>
+    ) as [Joke, Joke, Joke, Joke]
     const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
     const modeButtons = root.querySelectorAll<HTMLButtonElement>("[data-mode]")
     const messages = q<HTMLOListElement>("[data-messages]")
@@ -203,7 +203,7 @@ const jokes = [
       item.className = "tm-msg"
       const style = bot ? "" : `background:${people[from as Person].avatar}`
       item.innerHTML = `<span class="tm-avatar${bot ? " is-dad" : ""}" style="${style}" aria-hidden="true">${
-        bot ? "" : escape(from[0])
+        bot ? "" : escape(from.charAt(0))
       }</span><div><p class="tm-from">${escape(from)}${
         bot ? ` <span class="tm-badge">APP</span>` : ""
       }</p><p class="tm-text">${escape(text)}${tag ? ` <span class="tm-tag">${tag}</span>` : ""}</p></div>`
