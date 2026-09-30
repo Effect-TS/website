@@ -5,15 +5,16 @@ sidebar:
   order: 2
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+import { Aside, Checkpoint } from "@astrojs/starlight/components"
 
-Imported dependencies work, but they hide one thing: when you call a function,
-**what does it need to run**?
+A function reads its services from the module around it. Those reads never
+appear in its signature: the code compiles without naming a single one. So when
+you call it, **what does it need to run**?
 
-This tutorial shows how Effect makes each service a function uses part of its
-return type, so TypeScript tracks it through every caller.
+This tutorial shows how Effect adds each service a function uses to its return
+type, so TypeScript follows the service from the first caller to the last.
 
-You use the same two functions from the previous tutorial:
+You work with two functions throughout this tutorial:
 
 | Function           | Description                                                                            |
 | ------------------ | -------------------------------------------------------------------------------------- |
@@ -23,31 +24,19 @@ You use the same two functions from the previous tutorial:
 `authorizePayment` cannot connect to the provider on its own. It needs one
 thing: a client that connects to the provider. Call it the **gateway**.
 
-The provider can fail three ways:
+Keep the gateway in mind. TypeScript makes it visible later.
 
-- The card is expired.
-- The token is not valid.
-- The provider is unreachable.
+## Imports hide the services a function uses
 
-`authorizePayment` turns each provider result into an authorization or a typed
-error. Keep the gateway in mind. It becomes visible to TypeScript later.
+Read a function's signature and you learn its arguments and its result. The
+services it reaches for through imports leave no mark there.
 
-## Imported dependencies are invisible
-
-A typical TypeScript function signature says what it needs as arguments and what
-it returns. It says nothing about the services it uses.
-
-Here are common implementations of `authorizePayment` and `processPayment`. Both
-use a shared `gateway` created once when the module loads:
+The code below implements `authorizePayment` and `processPayment` the usual way.
+A single `gateway`, built once at module load, backs both functions:
 
 ```ts twoslash import.meta.vitest
 // Input: sandbox tokens make results reproducible
-type PaymentToken =
-  | "tok_authorized" // The provider authorizes the payment
-  | "tok_declined" // The provider declines the payment
-  | "tok_expiredcard" // The card is expired
-  | "tok_invalid" // The token is not valid
-  | "tok_timeout" // The provider is unreachable
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 // Output
 interface Authorization {
@@ -55,40 +44,18 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-// The raw response from the provider
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
-  readonly id: string
-}
-
-// Errors
-class ExpiredCardError extends Error {}
-
-class InvalidTokenError extends Error {}
-
-class NetworkError extends Error {}
-
-// The provider client. It sends the token to the payment provider.
+// The provider client. It connects to the payment provider.
 interface Gateway {
-  charge(token: PaymentToken): Promise<ProviderResponse>
+  charge(token: PaymentToken): Promise<Authorization>
 }
 
 // One client, created when the module loads and shared by every function below.
 const gateway: Gateway = {
   charge: async (token) => {
-    if (token === "tok_timeout") {
-      throw new NetworkError()
-    }
-    if (token === "tok_expiredcard") {
-      return { code: "expired_card", id: "pauth_000" }
-    }
-    if (token === "tok_invalid") {
-      return { code: "invalid_token", id: "pauth_000" }
-    }
-    if (token === "tok_declined") {
-      return { code: "declined", id: "pauth_456" }
-    }
-    return { code: "authorized", id: "pauth_123" }
+    // A real client sends an HTTP request to the provider here.
+    return token === "tok_declined"
+      ? { id: "pauth_456", status: "declined" }
+      : { id: "pauth_123", status: "authorized" }
   },
 }
 
@@ -96,39 +63,19 @@ const gateway: Gateway = {
 const authorizePayment = async (
   token: PaymentToken,
 ): Promise<Authorization> => {
-  const response = await gateway.charge(token)
-  if (response.code === "expired_card") {
-    throw new ExpiredCardError()
-  }
-  if (response.code === "invalid_token") {
-    throw new InvalidTokenError()
-  }
-  return { id: response.id, status: response.code }
+  return gateway.charge(token)
 }
 
 // Turns the provider result into an HTTP response
 const processPayment = async (token: PaymentToken): Promise<Response> => {
-  try {
-    const authorization = await authorizePayment(token)
-    return Response.json(authorization)
-  } catch (error) {
-    if (error instanceof ExpiredCardError) {
-      return new Response("Card expired", { status: 402 })
-    }
-    if (error instanceof InvalidTokenError) {
-      return new Response("Invalid payment token", { status: 400 })
-    }
-    if (error instanceof NetworkError) {
-      return new Response("Payment provider unavailable", { status: 503 })
-    }
-    throw error
-  }
+  const authorization = await authorizePayment(token)
+  return Response.json(authorization)
 }
 ```
 
-`authorizePayment` needs the `gateway` to run, but its return type is only
-`Promise<Authorization>`. To discover that dependency, a caller must read the
-implementation.
+The return type of `authorizePayment` is only `Promise<Authorization>`, so it
+never mentions the `gateway` the function needs. A caller finds the dependency
+only by reading the function body.
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
@@ -139,32 +86,32 @@ const authorizePayment: (token: PaymentToken) => Promise<Authorization>
 //                                               └─ What does it need to run?
 ```
 
-Because the signature does not name the gateway, TypeScript cannot check how a
-caller supplies it. The missing type information causes four problems:
+The gateway stays out of the type, so TypeScript cannot check that a caller
+supplies one. Four problems follow from that gap:
 
-- **Blindness**: at the call site, TypeScript cannot tell that `authorizePayment`
-  uses the `gateway`.
-- **Rigidity**: `authorizePayment` is tied to one `gateway`. A test cannot supply
-  a different one without editing the module.
-- **Unsafe setup**: nothing makes sure the `gateway` is ready before use. A
-  missing or unavailable `gateway` fails at runtime, not at compile time.
-- **Drift**: if `authorizePayment` starts using a second service, callers and
-  tests fall out of sync without causing a compile error.
+- **Locked in**: `authorizePayment` binds to the one `gateway` in the module. A
+  test cannot swap in another without editing the source.
+- **No signal at the call site**: the caller sees a plain
+  `Promise<Authorization>` and cannot tell the `gateway` is in use.
+- **Late failure**: no check confirms the `gateway` is ready. A missing or broken
+  one fails at runtime instead of at compile time.
+- **Silent drift**: add a second service inside `authorizePayment` and every
+  caller still compiles, now out of step with what the function needs.
 
-## Make each dependency visible to TypeScript
+## Give each service a place in the type
 
-A caller needs three pieces of information about a function:
+A caller needs three facts about a function:
 
-1. What it returns on success.
-2. How it can fail.
-3. Which services it uses.
+1. What it returns when it succeeds.
+2. Which errors it can raise.
+3. Which services it needs to run.
 
-The previous tutorial made the first two visible with `Effect<Success, Error>`.
-The `Effect` type has a third slot for the last one:
+The `Effect` type carries all three. The success value and the error union sit
+in the first two slots. A third slot holds the services:
 
 ```ts showLineNumbers=false "Requirements"
-                       ┌─── The services the function needs
-                       ▼
+//                     ┌─── The services the function needs
+//                     ▼
 Effect<Success, Error, Requirements>
 ```
 
@@ -190,8 +137,8 @@ callers, the same way it collects errors. Its `Requirements` type parameter
 records each service a function needs.
 
 <Aside type="note" title="Requirements form a union">
-  Effect represents required services at the type level as a union. Each member
-  is one service the function needs, and the union is carried through every
+  Effect shows all required services at the type level as a union. Each member
+  is one service the function uses, and the union is carried through every
   caller.
 </Aside>
 
@@ -204,33 +151,28 @@ To place a dependency in the `Requirements` union, you name it two ways:
 
 The Effect library gives you both with `Context.Service`. It creates a **service
 key**: a single declaration that is both the type to name in a signature and the
-value to get and provide. Give it an identifier that is unique across your
+value to get and provide. Give it a string identifier, unique across your
 application:
 
 ```ts twoslash import.meta.vitest showLineNumbers=false
 import { Effect, Context, Data } from "effect"
 
-// The raw response from the provider
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
+interface Authorization {
   readonly id: string
+  readonly status: "authorized" | "declined"
 }
 
+// The gateway connects over the network, so its operation can fail.
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentGateway extends Context.Service<
   PaymentGateway,
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 
@@ -261,10 +203,10 @@ The syntax maps to the imported-global code:
 | Use the dependency | `gateway.charge(token)` | `yield* gateway.charge(token)`          |
 
 Unlike an import, the `yield*` in the first row adds the service to the returned
-`Effect` type. `authorizePayment` keeps the same error logic from the previous
-tutorial: it turns each provider code into an authorization or a typed error.
-`Effect.fn` infers the success, error, and requirements types from the function
-body:
+`Effect` type. `authorizePayment` gets the gateway and calls `charge`. Because
+the gateway connects over the network, `charge` can fail with `NetworkError`.
+From the function body, `Effect.fn` works out all three types: the success value,
+the error, and the required service:
 
 ```ts twoslash
 import { Effect, Context, Data } from "effect"
@@ -274,63 +216,32 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
-  readonly id: string
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentGateway extends Context.Service<
   PaymentGateway,
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 // ---cut---
 const authorizePayment = Effect.fn(function* (token: PaymentToken) {
   const gateway = yield* PaymentGateway
-  const response = yield* gateway.charge(token)
-
-  if (response.code === "expired_card") {
-    return yield* new ExpiredCardError()
-  }
-
-  if (response.code === "invalid_token") {
-    return yield* new InvalidTokenError()
-  }
-
-  const authorization: Authorization = {
-    id: response.id,
-    status: response.code,
-  }
-
-  return authorization
+  return yield* gateway.charge(token)
 })
 ```
 
-From the gateway it gets and the errors it returns, TypeScript infers this
-signature:
+From the service it gets and the error `charge` can produce, TypeScript infers
+this signature:
 
 ```ts showLineNumbers=false
 declare const authorizePayment: (
   token: PaymentToken,
-) => Effect.Effect<
-  Authorization,
-  NetworkError | ExpiredCardError | InvalidTokenError,
-  PaymentGateway
->
+) => Effect.Effect<Authorization, NetworkError, PaymentGateway>
 ```
 
 Now rewrite `processPayment`. It does not get the gateway itself. If
@@ -345,36 +256,22 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentGateway extends Context.Service<
   PaymentGateway,
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<
-      { readonly code: string; readonly id: string },
-      NetworkError
-    >
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 
 declare const authorizePayment: (
   token: PaymentToken,
-) => Effect.Effect<
-  Authorization,
-  NetworkError | ExpiredCardError | InvalidTokenError,
-  PaymentGateway
->
+) => Effect.Effect<Authorization, NetworkError, PaymentGateway>
 // ---cut---
 const processPayment = Effect.fn(function* (token: PaymentToken) {
   const authorization = yield* authorizePayment(token)
@@ -382,32 +279,33 @@ const processPayment = Effect.fn(function* (token: PaymentToken) {
 })
 ```
 
-The success type changes to `Response`, and the same `PaymentGateway` requirement
-propagates:
+The success type becomes `Response`, and the `PaymentGateway` requirement carries
+through unchanged:
 
 ```ts showLineNumbers=false
 declare const processPayment: (
   token: PaymentToken,
-) => Effect.Effect<
-  Response,
-  NetworkError | ExpiredCardError | InvalidTokenError,
-  PaymentGateway
->
+) => Effect.Effect<Response, NetworkError, PaymentGateway>
 ```
 
-`processPayment` still leaves the requirement unmet. The next section shows how
-to provide it.
+`processPayment` still leaves the requirement unmet. The next section provides
+it.
 
 <Aside type="note" title="Requirements flow through the type">
   As a function gets services, their keys are collected in the `Requirements`
   union. When you provide one, that service disappears from the union.
 </Aside>
 
+<Checkpoint title="The gateway is visible in the type">
+  Both functions return an `Effect` that lists `PaymentGateway`. TypeScript now
+  tracks the dependency through every caller.
+</Checkpoint>
+
 ## Provide a service implementation
 
-The `Effect` returned by `processPayment` has a `Requirements` type parameter
-that tells callers which services they must provide. To provide one, pass its
-service key and an implementation to `Effect.provideService`.
+The `Requirements` parameter on `processPayment`'s `Effect` lists the services a
+caller must provide before the program runs. To provide one, pass its service key
+and an implementation to `Effect.provideService`.
 
 ```ts twoslash import.meta.vitest
 import { Effect, Context, Data } from "effect"
@@ -417,41 +315,22 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
-  readonly id: string
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentGateway extends Context.Service<
   PaymentGateway,
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 
 const authorizePayment = Effect.fn(function* (token: PaymentToken) {
   const gateway = yield* PaymentGateway
-  const response = yield* gateway.charge(token)
-  if (response.code === "expired_card") return yield* new ExpiredCardError()
-  if (response.code === "invalid_token") return yield* new InvalidTokenError()
-  const authorization: Authorization = {
-    id: response.id,
-    status: response.code,
-  }
-  return authorization
+  return yield* gateway.charge(token)
 })
 
 const processPayment = Effect.fn(function* (token: PaymentToken) {
@@ -459,24 +338,10 @@ const processPayment = Effect.fn(function* (token: PaymentToken) {
   return Response.json(authorization)
 })
 // ---cut---
-// A sandbox gateway. It returns a canned response for each token.
+// A sandbox gateway with a fixed response, enough to run the program.
 const sandboxGateway = {
-  charge: Effect.fn(function* (token: PaymentToken) {
-    if (token === "tok_timeout") {
-      return yield* new NetworkError()
-    }
-
-    const response: ProviderResponse =
-      token === "tok_expiredcard"
-        ? { code: "expired_card", id: "pauth_000" }
-        : token === "tok_invalid"
-          ? { code: "invalid_token", id: "pauth_000" }
-          : token === "tok_declined"
-            ? { code: "declined", id: "pauth_456" }
-            : { code: "authorized", id: "pauth_123" }
-
-    return response
-  }),
+  charge: () =>
+    Effect.succeed<Authorization>({ id: "pauth_123", status: "authorized" }),
 }
 
 const runnable = processPayment("tok_authorized").pipe(
@@ -495,13 +360,18 @@ the `Requirements` union:
 
 {/* prettier-ignore */}
 ```ts showLineNumbers=false
-//                                                                                           ┌─ `PaymentGateway` is removed
-//                                                                                           ▼
-const runnable: Effect.Effect<Response, NetworkError | ExpiredCardError | InvalidTokenError, never>
+//                                                    ┌─ `PaymentGateway` is removed
+//                                                    ▼
+const runnable: Effect.Effect<Response, NetworkError, never>
 ```
 
 To supply a different gateway, for example in a test, pass a different
 implementation to `Effect.provideService`. The rest of the code does not change.
+
+<Checkpoint title="You can run the program">
+  You provide `PaymentGateway` with `Effect.provideService`. The `Requirements`
+  union becomes `never`, and `Effect.runPromise` runs the effect.
+</Checkpoint>
 
 ### Provide several services at once
 
@@ -516,41 +386,22 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
-  readonly id: string
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentGateway extends Context.Service<
   PaymentGateway,
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 
 const authorizePayment = Effect.fn(function* (token: PaymentToken) {
   const gateway = yield* PaymentGateway
-  const response = yield* gateway.charge(token)
-  if (response.code === "expired_card") return yield* new ExpiredCardError()
-  if (response.code === "invalid_token") return yield* new InvalidTokenError()
-  const authorization: Authorization = {
-    id: response.id,
-    status: response.code,
-  }
-  return authorization
+  return yield* gateway.charge(token)
 })
 // ---cut---
 class Logger extends Context.Service<
@@ -571,17 +422,13 @@ The `Requirements` union now lists both services:
 ```ts showLineNumbers=false "PaymentGateway | Logger"
 declare const processPayment: (
   token: PaymentToken,
-) => Effect.Effect<
-  Response,
-  NetworkError | ExpiredCardError | InvalidTokenError,
-  PaymentGateway | Logger
->
+) => Effect.Effect<Response, NetworkError, PaymentGateway | Logger>
 ```
 
 To provide several services with one call, combine the implementations into a
 `Context` and pass it to `Effect.provide`. Each `Context.add` adds one service:
 
-```ts twoslash import.meta.vitest collapse={3-64}
+```ts twoslash import.meta.vitest
 import { Effect, Context, Data } from "effect"
 
 interface Authorization {
@@ -589,28 +436,16 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
-  readonly id: string
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentGateway extends Context.Service<
   PaymentGateway,
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 
@@ -621,29 +456,12 @@ class Logger extends Context.Service<
 
 const authorizePayment = Effect.fn(function* (token: PaymentToken) {
   const gateway = yield* PaymentGateway
-  const response = yield* gateway.charge(token)
-  if (response.code === "expired_card") return yield* new ExpiredCardError()
-  if (response.code === "invalid_token") return yield* new InvalidTokenError()
-  const authorization: Authorization = {
-    id: response.id,
-    status: response.code,
-  }
-  return authorization
+  return yield* gateway.charge(token)
 })
 
 const sandboxGateway = {
-  charge: Effect.fn(function* (token: PaymentToken) {
-    if (token === "tok_timeout") return yield* new NetworkError()
-    const response: ProviderResponse =
-      token === "tok_expiredcard"
-        ? { code: "expired_card", id: "pauth_000" }
-        : token === "tok_invalid"
-          ? { code: "invalid_token", id: "pauth_000" }
-          : token === "tok_declined"
-            ? { code: "declined", id: "pauth_456" }
-            : { code: "authorized", id: "pauth_123" }
-    return response
-  }),
+  charge: () =>
+    Effect.succeed<Authorization>({ id: "pauth_123", status: "authorized" }),
 }
 
 const processPayment = Effect.fn(function* (token: PaymentToken) {
@@ -672,17 +490,18 @@ res.status // => 200
 `never`:
 
 ```ts showLineNumbers=false
-const runnable: Effect.Effect<
-  Response,
-  NetworkError | ExpiredCardError | InvalidTokenError,
-  never
->
+const runnable: Effect.Effect<Response, NetworkError, never>
 ```
 
 <Aside type="note" title="The requirements union is empty">
   When an `Effect` has `never` as its `Requirements` type parameter, it needs no
   services. It is ready to run.
 </Aside>
+
+<Checkpoint title="You can provide several services">
+  You combine services in a `Context` and provide them in one `Effect.provide`
+  call.
+</Checkpoint>
 
 ## Construct a service that needs another service
 
@@ -701,19 +520,14 @@ the dependency into every caller:
 ```ts twoslash import.meta.vitest showLineNumbers=false
 import { Effect, Context, Data } from "effect"
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
+interface Authorization {
   readonly id: string
+  readonly status: "authorized" | "declined"
 }
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 // ---cut---
 class PaymentConfig extends Context.Service<
   PaymentConfig,
@@ -726,7 +540,7 @@ class PaymentGateway extends Context.Service<
     // ❌ Avoid exposing PaymentConfig as a requirement
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError, PaymentConfig>
+    ) => Effect.Effect<Authorization, NetworkError, PaymentConfig>
   }
 >()("PaymentGateway") {}
 ```
@@ -740,11 +554,11 @@ A `Layer` is a **constructor for a service**. It resolves dependencies during
 construction, so the service interface stays clean. Its type shows what it builds
 and what it needs to build it:
 
-```text showLineNumbers=false
-      ┌─── The service it builds
-      │                ┌─── How construction can fail
-      │                │      ┌─── The services it needs to build
-      ▼                ▼      ▼
+```ts showLineNumbers=false
+//    ┌─── The service it builds
+//    │                ┌─── How construction can fail
+//    │                │      ┌─── The services it needs to build
+//    ▼                ▼      ▼
 Layer<RequirementsOut, Error, RequirementsIn>
 ```
 
@@ -754,19 +568,14 @@ the key, and returns a `charge` operation with no requirement of its own:
 ```ts twoslash import.meta.vitest
 import { Effect, Context, Data, Layer } from "effect"
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
+interface Authorization {
   readonly id: string
+  readonly status: "authorized" | "declined"
 }
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentConfig extends Context.Service<
   PaymentConfig,
@@ -778,7 +587,7 @@ class PaymentGateway extends Context.Service<
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 // ---cut---
@@ -790,19 +599,12 @@ const PaymentGatewayLive = Layer.effect(
     const apiKey = yield* config.apiKey
 
     return {
-      charge: Effect.fn(function* (token: PaymentToken) {
-        // The `apiKey` is captured here. Callers never see it.
-        if (token === "tok_timeout") return yield* new NetworkError()
-        const response: ProviderResponse =
-          token === "tok_expiredcard"
-            ? { code: "expired_card", id: `${apiKey}_000` }
-            : token === "tok_invalid"
-              ? { code: "invalid_token", id: `${apiKey}_000` }
-              : token === "tok_declined"
-                ? { code: "declined", id: "pauth_456" }
-                : { code: "authorized", id: "pauth_123" }
-        return response
-      }),
+      // The `apiKey` is captured here. Callers never see it.
+      charge: (token: PaymentToken) =>
+        Effect.succeed<Authorization>({
+          id: `${apiKey}_123`,
+          status: token === "tok_declined" ? "declined" : "authorized",
+        }),
     }
   }),
 )
@@ -823,7 +625,7 @@ layer's `RequirementsIn` slot.
 it to `PaymentGatewayLive` with `Layer.provide`. The result builds
 `PaymentGateway` and needs nothing:
 
-```ts twoslash import.meta.vitest collapse={3-73}
+```ts twoslash import.meta.vitest
 import { Effect, Context, Data, Layer } from "effect"
 
 interface Authorization {
@@ -831,21 +633,9 @@ interface Authorization {
   readonly status: "authorized" | "declined"
 }
 
-interface ProviderResponse {
-  readonly code: "authorized" | "declined" | "expired_card" | "invalid_token"
-  readonly id: string
-}
-
-class ExpiredCardError extends Data.TaggedError("ExpiredCardError") {}
-class InvalidTokenError extends Data.TaggedError("InvalidTokenError") {}
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
-type PaymentToken =
-  | "tok_authorized"
-  | "tok_declined"
-  | "tok_expiredcard"
-  | "tok_invalid"
-  | "tok_timeout"
+type PaymentToken = "tok_authorized" | "tok_declined"
 
 class PaymentConfig extends Context.Service<
   PaymentConfig,
@@ -857,7 +647,7 @@ class PaymentGateway extends Context.Service<
   {
     readonly charge: (
       token: PaymentToken,
-    ) => Effect.Effect<ProviderResponse, NetworkError>
+    ) => Effect.Effect<Authorization, NetworkError>
   }
 >()("PaymentGateway") {}
 
@@ -867,32 +657,18 @@ const PaymentGatewayLive = Layer.effect(
     const config = yield* PaymentConfig
     const apiKey = yield* config.apiKey
     return {
-      charge: Effect.fn(function* (token: PaymentToken) {
-        if (token === "tok_timeout") return yield* new NetworkError()
-        const response: ProviderResponse =
-          token === "tok_expiredcard"
-            ? { code: "expired_card", id: `${apiKey}_000` }
-            : token === "tok_invalid"
-              ? { code: "invalid_token", id: `${apiKey}_000` }
-              : token === "tok_declined"
-                ? { code: "declined", id: "pauth_456" }
-                : { code: "authorized", id: "pauth_123" }
-        return response
-      }),
+      charge: (token: PaymentToken) =>
+        Effect.succeed<Authorization>({
+          id: `${apiKey}_123`,
+          status: token === "tok_declined" ? "declined" : "authorized",
+        }),
     }
   }),
 )
 
 const authorizePayment = Effect.fn(function* (token: PaymentToken) {
   const gateway = yield* PaymentGateway
-  const response = yield* gateway.charge(token)
-  if (response.code === "expired_card") return yield* new ExpiredCardError()
-  if (response.code === "invalid_token") return yield* new InvalidTokenError()
-  const authorization: Authorization = {
-    id: response.id,
-    status: response.code,
-  }
-  return authorization
+  return yield* gateway.charge(token)
 })
 
 const processPayment = Effect.fn(function* (token: PaymentToken) {
@@ -925,12 +701,17 @@ to the program, and the `Requirements` union becomes `never`.
   `Effect.provide`.
 </Aside>
 
+<Checkpoint title="You can build a service from another service">
+  A `Layer` builds `PaymentGateway` from `PaymentConfig`. `Layer.provide` feeds
+  the dependency, so the program needs nothing to run.
+</Checkpoint>
+
 ## Review requirements
 
-Read `Effect<Success, Error, Requirements>` as a contract. `Success` is the
-result, the `Error` union contains the expected errors, and the `Requirements`
-union contains the services a caller must still provide. Use the situation to
-decide how the `Requirements` union should change:
+Treat `Effect<Success, Error, Requirements>` as a contract between a function and
+its caller. `Success` is the result. The `Error` union holds the expected errors.
+The `Requirements` union holds every service the caller must still provide. Match
+your case to the table to see how that last union changes:
 
 | When                                          | What to do                                                | Effect on the type                                |
 | --------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- |
