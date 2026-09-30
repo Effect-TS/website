@@ -112,6 +112,74 @@ test("renders GFM module comments without empty table rows", () => {
   assert.equal(/module:/.test(html), false)
 })
 
+test("surfaces @stability from module and declaration comments", () => {
+  const reflection = Schema.decodeUnknownSync(TypeDocProjectReflection)({
+    schemaVersion: "2.0",
+    id: 1,
+    name: "effect/http/HttpClient",
+    variant: "project",
+    kind: ReflectionKind.Project,
+    flags: {},
+    children: [
+      {
+        id: 2,
+        name: "HttpClient",
+        variant: "declaration",
+        kind: ReflectionKind.Module,
+        flags: {},
+        comment: {
+          summary: [{ kind: "text", text: "The HTTP client service." }],
+          blockTags: [
+            {
+              tag: "@stability",
+              content: [{ kind: "text", text: "unstable" }],
+            },
+          ],
+        },
+        children: [
+          {
+            id: 3,
+            name: "make",
+            variant: "declaration",
+            kind: ReflectionKind.Function,
+            flags: {},
+            comment: {
+              summary: [{ kind: "text", text: "Build a client." }],
+              blockTags: [
+                {
+                  tag: "@stability",
+                  content: [{ kind: "text", text: "unstable" }],
+                },
+              ],
+            },
+          },
+          {
+            id: 4,
+            name: "stable",
+            variant: "declaration",
+            kind: ReflectionKind.Function,
+            flags: {},
+          },
+        ],
+      },
+    ],
+  })
+
+  const view = ApiReference.moduleView(reflection)
+  assert.equal(view.stability, "unstable")
+
+  const declarations = view.groups.flatMap((group) => group.declarations)
+  assert.equal(
+    declarations.find((declaration) => declaration.name === "make")?.stability,
+    "unstable",
+  )
+  assert.equal(
+    declarations.find((declaration) => declaration.name === "stable")
+      ?.stability,
+    undefined,
+  )
+})
+
 test("extracts module, declaration, and signature examples without losing prose", () => {
   const reflection = Schema.decodeUnknownSync(TypeDocProjectReflection)({
     schemaVersion: "2.0",

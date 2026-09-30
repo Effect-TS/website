@@ -1,0 +1,23 @@
+---
+interface Props {
+  stability: string | undefined
+  class?: string
+}
+
+const { stability, class: className } = Astro.props
+const label = stability === undefined ? undefined : stability.trim()
+---
+
+{
+  label && (
+    <span
+      class:list={[
+        "inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-amber-800 uppercase dark:bg-amber-500/15 dark:text-amber-300",
+        className,
+      ]}
+      title={`This API is marked ${label}. Its signature may change in a future release.`}
+    >
+      {label}
+    </span>
+  )
+}

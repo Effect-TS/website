@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
+import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
@@ -174,6 +175,7 @@ const config = defineConfig({
   redirects: {
     ...twieRedirectList,
     ...docsLegacyRedirectList,
+    ...apiUnstableRedirectList,
     "/events/effect-days": {
       status: 308,
       destination: "/effect-days",
