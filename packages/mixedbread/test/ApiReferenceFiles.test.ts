@@ -25,6 +25,7 @@ test("includes resolved comment links and examples in API search Markdown", () =
     signature: undefined,
     since: undefined,
     sourceUrl: undefined,
+    stability: undefined,
     typeKind: undefined,
   }
 
