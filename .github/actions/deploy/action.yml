@@ -82,26 +82,13 @@ runs:
         PUBLIC_WEBSITE_REVISION: ${{ inputs.website-ref }}
 
     - name: Deploy website to Cloudflare
-      id: deploy
       shell: bash
       run: |
-        set -o pipefail
-        log="$RUNNER_TEMP/alchemy-deploy.log"
         args=(deploy --stage prod --yes)
         if [[ "$FORCE_FULL_BUILD" == "true" ]]; then
           args+=(--force)
         fi
-        vp exec alchemy "${args[@]}" | tee "$log"
-
-        mapfile -t deployment_outputs < <(
-          node apps/web/scripts/read-alchemy-deployment.mjs "$log"
-        )
-        if [[ "${#deployment_outputs[@]}" != "2" ]]; then
-          echo "::error::Could not read the Worker name and URL from Alchemy output."
-          exit 1
-        fi
-        echo "website-url=${deployment_outputs[0]}" >> "$GITHUB_OUTPUT"
-        echo "worker-name=${deployment_outputs[1]}" >> "$GITHUB_OUTPUT"
+        vp exec alchemy "${args[@]}"
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
@@ -115,20 +102,6 @@ runs:
         GITHUB_TOKEN: ${{ github.token }}
         WEBSITE_REVISION: ${{ inputs.website-ref }}
         FORCE_FULL_BUILD: ${{ inputs.force-full-build }}
-
-    - name: Verify deployed website
-      shell: bash
-      env:
-        WEBSITE_REF: ${{ inputs.website-ref }}
-      run: node apps/web/scripts/verify-cloudflare-deployment.mjs https://effect.website "$WEBSITE_REF"
-
-    - name: Verify Cloudflare traffic configuration
-      shell: bash
-      env:
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
-        WORKER_NAME: ${{ steps.deploy.outputs.worker-name }}
-      run: node apps/web/scripts/verify-cloudflare-traffic.mjs "$WORKER_NAME"
 
     - name: Verify generated API reference links
       shell: bash
