@@ -5,7 +5,9 @@ import {
   type CollectionEntry,
 } from "astro:content"
 
-export type DocsNavSection = "onboarding" | "guides" | "api"
+export type DocsNavSection = "onboarding" | "tutorials" | "guides" | "api"
+
+const TUTORIALS_DIR = "tutorials"
 
 export type DocsSidebarItem =
   | { readonly kind: "entry"; readonly entry: CollectionEntry<"docs"> }
@@ -54,7 +56,7 @@ async function guidesItems(
     if (!entry.id.startsWith(`${version}/`) || onboardingIds.has(entry.id))
       continue
     const [dir, ...rest] = entry.id.slice(version.length + 1).split("/")
-    if (dir === undefined) continue
+    if (dir === undefined || dir === TUTORIALS_DIR) continue
     if (rest.length === 0) {
       roots.push(entry)
     } else {
@@ -123,6 +125,23 @@ export function docsNeighbors(
 
 // The full sidebar for a docs page: onboarding groups, or the directory-derived
 // guides tree.
+// Tutorials = the docs in the version's `tutorials` directory, listed flat and
+// ordered by `sidebar.order`.
+async function tutorialsItems(version: string): Promise<DocsSidebarItem[]> {
+  const entries = (await getCollection("docs")).filter((entry) =>
+    entry.id.startsWith(`${version}/${TUTORIALS_DIR}/`),
+  )
+  return entries
+    .sort(
+      (a, b) =>
+        entryOrder(a) - entryOrder(b) ||
+        entryLabel(a).localeCompare(entryLabel(b)),
+    )
+    .map((entry) => ({ kind: "entry", entry }))
+}
+
+// The full sidebar for a docs page: tutorials list, onboarding groups, or the
+// directory-derived guides tree.
 export async function buildDocsSidebar(
   version: string,
   currentId: string,
@@ -130,6 +149,10 @@ export async function buildDocsSidebar(
   readonly section: DocsNavSection
   readonly items: DocsSidebarItem[]
 }> {
+  if (currentId.startsWith(`${version}/${TUTORIALS_DIR}/`)) {
+    return { section: "tutorials", items: await tutorialsItems(version) }
+  }
+
   const config = await onboardingConfig(version)
   const isOnboarding = config.some((group) =>
     group.items.some((ref) => ref.id === currentId),
