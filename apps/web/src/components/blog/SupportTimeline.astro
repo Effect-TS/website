@@ -1,0 +1,185 @@
+---
+import ChartCard from "@/components/blog/ChartCard.astro"
+
+interface Props {
+  title: string
+  /** Name of the supported version. */
+  version: string
+  /** Release month of the supported version, as `YYYY-MM`. */
+  release: string
+  /** Name of the next major version, used to label its release marker. */
+  next: string
+  /** Guaranteed support from `release`, in years. */
+  minimum: number
+  /** Bug fix support after the next major version ships, in years. */
+  bugFixes: number
+  /** Security fix support after the next major version ships, in years. */
+  securityFixes: number
+  /** Possible release months of the next major version, as `YYYY-MM`. */
+  scenarios: Array<string>
+  note?: string
+}
+
+const { title, version, release, next, minimum, bugFixes, securityFixes, scenarios, note } =
+  Astro.props
+
+// Dates are counted in months so that yearly offsets stay exact.
+const toMonth = (date: string) => {
+  const [year, month] = date.split("-").map(Number)
+  return year! * 12 + month! - 1
+}
+const formatMonth = (month: number) =>
+  new Intl.DateTimeFormat("en", { month: "short", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(Math.floor(month / 12), month % 12)),
+  )
+
+const start = toMonth(release)
+const floor = start + minimum * 12
+const rows = scenarios.map((scenario) => {
+  const shipped = toMonth(scenario)
+  return {
+    shipped,
+    bugFixesUntil: Math.max(floor, shipped + bugFixes * 12),
+    securityFixesUntil: Math.max(floor, shipped + securityFixes * 12),
+  }
+})
+
+const describe = (row: (typeof rows)[number]) =>
+  row.securityFixesUntil === row.bugFixesUntil
+    ? `${version} gets bug and security fixes until ${formatMonth(row.bugFixesUntil)}`
+    : `${version} gets bug fixes until ${formatMonth(row.bugFixesUntil)} and security fixes until ${formatMonth(row.securityFixesUntil)}`
+
+const years = Math.ceil((Math.max(...rows.map((row) => row.securityFixesUntil)) - start) / 12)
+const ticks = Array.from({ length: years + 1 }, (_, index) => Math.floor(start / 12) + index)
+const x = (month: number) => ((month - start) / (years * 12)) * 100
+---
+
+<ChartCard title={title} note={note}>
+  <span
+    slot="legend"
+    class="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground"
+    aria-hidden="true"
+  >
+    <span class="flex items-center gap-1.5">
+      <span class="full inline-block size-2.5 rounded-sm"></span>Bug and security fixes
+    </span>
+    <span class="flex items-center gap-1.5">
+      <span class="security inline-block size-2.5 rounded-sm"></span>Security fixes only
+    </span>
+  </span>
+  <div
+    class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-4 border-t border-border px-5 py-6 sm:grid-cols-[7rem_1fr] sm:gap-x-4"
+  >
+    <span class="max-w-14 self-end text-xs leading-tight font-medium text-foreground sm:max-w-none">
+      If {next} ships in
+    </span>
+    <div class="relative h-4 self-end" aria-hidden="true">
+      {
+        ticks.map((tick, index) => (
+          <span
+            class:list={[
+              "absolute top-0 font-mono text-xs whitespace-nowrap text-muted-foreground",
+              index === ticks.length - 1 ? "-translate-x-full" : index > 0 && "-translate-x-1/2",
+              index % 2 === 1 && index < ticks.length - 1 && "hidden sm:inline",
+            ]}
+            style={{ left: `${(index / years) * 100}%` }}
+          >
+            {tick}
+          </span>
+        ))
+      }
+    </div>
+    {
+      rows.map((row) => (
+        <>
+          <span class="pt-1.5 font-mono text-xs whitespace-nowrap text-muted-foreground sm:pt-1 sm:text-sm">
+            {formatMonth(row.shipped)}
+          </span>
+          <div>
+            <span class="sr-only">{describe(row)}</span>
+            <div class="relative" aria-hidden="true">
+              <div class="relative h-7 overflow-hidden rounded-md bg-muted">
+                {ticks.slice(1, -1).map((_, index) => (
+                  <span
+                    class="absolute inset-y-0 w-px bg-border"
+                    style={{ left: `${((index + 1) / years) * 100}%` }}
+                  />
+                ))}
+                <span
+                  class="full absolute inset-y-0 left-0 flex items-center justify-end rounded-md px-2.5 font-mono text-xs font-medium whitespace-nowrap"
+                  style={{ width: `${x(row.bugFixesUntil)}%` }}
+                >
+                  <span class="hidden sm:inline">{formatMonth(row.bugFixesUntil)}</span>
+                </span>
+                {row.securityFixesUntil > row.bugFixesUntil && (
+                  <span
+                    class="security absolute inset-y-0 flex items-center justify-end rounded-md px-2.5 font-mono text-xs font-medium whitespace-nowrap"
+                    style={{
+                      left: `calc(${x(row.bugFixesUntil)}% + 2px)`,
+                      width: `calc(${x(row.securityFixesUntil) - x(row.bugFixesUntil)}% - 2px)`,
+                    }}
+                  >
+                    <span class="label hidden rounded-sm px-1 sm:inline">
+                      {formatMonth(row.securityFixesUntil)}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <span class="floor absolute -top-1.5 -bottom-1.5" style={{ left: `${x(floor)}%` }} />
+            </div>
+            <div class="relative mt-1 h-4" aria-hidden="true">
+              <span
+                class="marker absolute top-0.5 -translate-x-1/2"
+                style={{ left: `${x(row.shipped)}%` }}
+              />
+              <span
+                class="absolute top-0 mx-2 font-mono text-xs whitespace-nowrap text-muted-foreground"
+                style={
+                  x(row.shipped) > 50
+                    ? { right: `${100 - x(row.shipped)}%` }
+                    : { left: `${x(row.shipped)}%` }
+                }
+              >
+                {next} ships
+              </span>
+            </div>
+          </div>
+        </>
+      ))
+    }
+  </div>
+</ChartCard>
+
+<style>
+  .full {
+    background-color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+    color: var(--background);
+  }
+
+  .security {
+    background-color: color-mix(in srgb, var(--brand) 16%, transparent);
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brand) 60%, var(--foreground)) 0 1.5px,
+      transparent 1.5px 6px
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 60%, var(--foreground));
+  }
+
+  .security .label {
+    background-color: var(--card);
+    color: var(--foreground);
+  }
+
+  .marker {
+    width: 0;
+    height: 0;
+    border-inline: 4px solid transparent;
+    border-bottom: 6px solid var(--muted-foreground);
+  }
+
+  .floor {
+    border-left: 1.5px dashed var(--foreground);
+    opacity: 0.55;
+  }
+</style>
