@@ -33,7 +33,7 @@ First, some context. I'm a dad. Like most dads, I have a condition. When someone
 
 At home, this is fine. My family has built up a tolerance. The problem is elsewhere. Slack, code review, GitHub issues, the neighborhood group chat. There's a whole internet of people setting up perfectly good puns, and I just can't be everywhere at once.
 
-To address this problem, we will build **Dadbot** - my sense of humor, packaged up as a bot you can bring into any chat.
+To address this problem, we will build **DadBot** - my sense of humor, packaged up as a bot you can bring into any chat.
 
 <div class="not-prose my-6 grid gap-4 sm:grid-cols-2">
   <ChatSnippet
@@ -117,17 +117,17 @@ async function onMessage(chatId: string, message: string) {
 
 ### Concurrent messages
 
-This works if messages are handled _sequentially_. Our Dadbot webhook handles them _concurrently_, so two handlers can read and write Dad's joke list at the same time.
+This works if messages are handled _sequentially_. Our DadBot webhook handles them _concurrently_, so two handlers can read and write Dad's joke list at the same time.
 
 Click **Play** below to observe this behavior.
 
 <TwoMessagesVisual />
 
-Both handlers read Dadbot's joke list before either one saved, so both picked the same joke. We've already broken the sacred Dadbot promise.
+Both handlers read DadBot's joke list before either one saved, so both picked the same joke. We've already broken the sacred DadBot promise.
 
 <DadSays>In my defense, redundancy _is_ a best practice.</DadSays>
 
-This is a race condition. Whether Dadbot repeats itself depends on how the two handlers happen to line up, and the two seconds that it takes to generate a pun gives plenty of time for handlers to overlap.
+This is a race condition. Whether DadBot repeats itself depends on how the two handlers happen to line up, and the two seconds that it takes to generate a pun gives plenty of time for handlers to overlap.
 
 ### Using locks
 
@@ -137,11 +137,15 @@ Click **Play** below to observe this behavior.
 
 <TwoMessagesVisual modes={["lock"]} />
 
-The lock fixes the repeats, but now Dadbot replies three times, like someone who hasn't read the rest of the thread. Clearly he needs to work on his delivery.
+The lock fixes the repeats, but now DadBot replies three times, like someone who hasn't read the rest of the thread. Clearly he needs to work on his delivery.
 
-A lock can't do that on its own. Each handler only knows about its own message. You would have to add more infrastructure, like a queue and maybe a scheduler that keeps track of busy chats, but that's a lot of machinery just to know when to tell a joke ... right?
+A lock can't do that on its own. Each handler only knows about its own message. You would have to add more infrastructure, like a queue and maybe a scheduler that keeps track of busy chats.
 
-What we want is for each chat to get its own Dad. One long-lived worker that receives every message, keeps its own memory, and decides for itself when to reply. Luckily, systems like this have existed since 1973.
+And that's all on one server. When DadBot goes viral, we'll have to spread it across a fleet of machines, and messages from the same chat will land on different ones. The queue and the scheduler have to be shared between all of them. Every message waits on the database for a lock, and if a server dies mid-pun while holding one, the whole chat waits for it to time out.
+
+That's a lot of machinery just to know when to tell a joke ... right?
+
+What we want is for each chat to get its own Dad. One long-lived worker that receives every message, keeps its own memory, and decides for itself when to reply. Luckily, people have been solving distributed systems problems like this for over fifty years.
 
 ## The actor model
 
@@ -171,7 +175,7 @@ Don't let it go to your head.
 
 ### Messaging by address
 
-So far, every Dad lives on one server. But DadBot is going to be in millions of chats, and millions of Dads won't fit on one machine. So when a message comes in from `#engineering`, which machine gets it?
+Actors also solve the scaling problem from earlier. When a message comes in from `#engineering`, which machine gets it?
 
 The webhook doesn't need to know. Every actor has an address, and that's all you need to send it a message. The webhook sends the message to "Dad for `#engineering`", and the actor system routes it to him, whichever machine he's on. Actors message each other the same way.
 
@@ -195,15 +199,15 @@ So where does Dad actually live? A cluster starts with a few machines, called **
 
 <ClusterArchitectureVisual stage="intro" layers={1} />
 
-Each node hosts one or more **runners**, the processes that run your entities.
+Each node hosts one or more **runners**. A runner is your application: an ordinary Node.js or Bun process, started from your own code. It's where your entity handlers actually execute. Every joke Dad tells gets dreamed up inside a runner.
 
 <ClusterArchitectureVisual stage="intro" layers={2} />
 
-DadBot could have millions of dads, and keeping track of which runner has each one would be a lot of bookkeeping. So cluster splits entities into a fixed number of **shards** (300 by default), and works out each entity's shard from its identifier. Every shard belongs to one runner, so cluster only has to keep track of 300 things.
+To deliver a message, cluster needs to know which runner a Dad is on. Tracking that for millions of dads, one by one, would mean a huge routing table. So cluster groups entities into **shards**, a fixed set of buckets, and gives each shard to a runner. An entity's identifier decides which shard it lands in, so to route a message, cluster only needs to know who owns each shard.
 
 <ClusterArchitectureVisual stage="intro" layers={3} />
 
-That means finding Dad comes down to two questions. Which shard is he in, and which runner owns that shard?
+That means finding Dad comes down to two questions. Which shard is he in, and which runner owns that shard? We will cover that and more next time!
 
 ## Wrapping up
 
@@ -225,6 +229,6 @@ That's it for this week! Here's what we covered:
   </li>
 </ul>
 
-Next week, we'll answer those two questions. How does cluster work out which shard Dad is in? And how do the runners agree on who owns which shard without anyone in charge?
+Next week, we'll dig into how cluster works out which shard Dad is in, and how the runners agree on who owns which shard without anyone in charge.
 
 Until then, Happy Effecting!
