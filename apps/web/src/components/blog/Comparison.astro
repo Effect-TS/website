@@ -1,0 +1,101 @@
+---
+import ChartCard from "@/components/blog/ChartCard.astro"
+import StatGrid from "@/components/blog/StatGrid.astro"
+
+interface Measurement {
+  value: number
+  display: string
+}
+
+interface Props {
+  title: string
+  baseline: string
+  candidate: string
+  stats: Array<{
+    value: string
+    label: string
+  }>
+  groups: Array<{
+    label: string
+    hint?: string
+    baseline: Measurement
+    candidate: Measurement
+  }>
+  note?: string
+}
+
+const { title, baseline, candidate, stats, groups, note } = Astro.props
+---
+
+<ChartCard title={title} note={note}>
+  <span
+    slot="legend"
+    class="flex items-center gap-4 font-mono text-xs text-muted-foreground"
+    aria-hidden="true"
+  >
+    <span class="flex items-center gap-1.5">
+      <span class="baseline inline-block size-2.5 rounded-sm"></span>{baseline}
+    </span>
+    <span class="flex items-center gap-1.5">
+      <span class="candidate inline-block size-2.5 rounded-sm"></span>{candidate}
+    </span>
+  </span>
+  <StatGrid stats={stats} />
+  <div
+    class:list={[
+      "grid gap-x-8 gap-y-7 border-t border-border px-5 py-6",
+      groups.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2",
+    ]}
+  >
+    {
+      groups.map((group) => {
+        const maximum = Math.max(group.baseline.value, group.candidate.value)
+        const rows = [
+          { name: baseline, measurement: group.baseline, kind: "baseline" },
+          { name: candidate, measurement: group.candidate, kind: "candidate" },
+        ]
+        return (
+          <div>
+            <p class="m-0 mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+              <span class="font-medium text-foreground">{group.label}</span>
+              {group.hint && <span class="text-xs text-muted-foreground">{group.hint}</span>}
+            </p>
+            <dl class="m-0 space-y-2">
+              {rows.map(({ name, measurement, kind }) => (
+                <div class="flex items-center gap-3 text-xs">
+                  <dt class="w-7 shrink-0 font-mono text-muted-foreground">{name}</dt>
+                  <dd class="m-0 flex min-w-0 flex-1 items-center gap-3">
+                    <span
+                      class="h-2.5 flex-1 overflow-hidden rounded-sm bg-muted"
+                      aria-hidden="true"
+                    >
+                      <span
+                        class:list={["block h-full rounded-sm", kind]}
+                        style={{
+                          width: `${maximum > 0 ? (measurement.value / maximum) * 100 : 0}%`,
+                        }}
+                      />
+                    </span>
+                    <span class="w-16 shrink-0 text-right font-mono text-foreground tabular-nums">
+                      {measurement.display}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )
+      })
+    }
+  </div>
+</ChartCard>
+
+<style>
+  .candidate {
+    background-color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+  }
+
+  .baseline {
+    background-color: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+  }
+</style>

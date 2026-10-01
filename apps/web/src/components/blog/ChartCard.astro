@@ -1,0 +1,25 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  title: string
+  note?: string | undefined
+}
+
+const { title, note } = Astro.props
+---
+
+<figure class="not-prose my-10 overflow-hidden rounded-lg border border-border bg-card/60">
+  <figcaption class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+    <Eyebrow as="span" class="text-xs">{title}</Eyebrow>
+    <slot name="legend" />
+  </figcaption>
+  <slot />
+  {
+    note && (
+      <p class="m-0 border-t border-border px-5 py-4 text-xs leading-relaxed text-muted-foreground">
+        {note}
+      </p>
+    )
+  }
+</figure>
