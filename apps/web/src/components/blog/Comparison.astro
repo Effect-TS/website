@@ -60,25 +60,20 @@ const { title, baseline, candidate, stats, groups, note } = Astro.props
               <span class="font-medium text-foreground">{group.label}</span>
               {group.hint && <span class="text-xs text-muted-foreground">{group.hint}</span>}
             </p>
-            <dl class="m-0 space-y-2">
+            <dl class="m-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 text-xs">
               {rows.map(({ name, measurement, kind }) => (
-                <div class="flex items-center gap-3 text-xs">
-                  <dt class="w-7 shrink-0 font-mono text-muted-foreground">{name}</dt>
-                  <dd class="m-0 flex min-w-0 flex-1 items-center gap-3">
+                <div class="contents">
+                  <dt class="font-mono whitespace-nowrap text-muted-foreground">{name}</dt>
+                  <dd class="m-0 h-2.5 overflow-hidden rounded-sm bg-muted" aria-hidden="true">
                     <span
-                      class="h-2.5 flex-1 overflow-hidden rounded-sm bg-muted"
-                      aria-hidden="true"
-                    >
-                      <span
-                        class:list={["block h-full rounded-sm", kind]}
-                        style={{
-                          width: `${maximum > 0 ? (measurement.value / maximum) * 100 : 0}%`,
-                        }}
-                      />
-                    </span>
-                    <span class="w-16 shrink-0 text-right font-mono text-foreground tabular-nums">
-                      {measurement.display}
-                    </span>
+                      class:list={["block h-full rounded-sm", kind]}
+                      style={{
+                        width: `${maximum > 0 ? (measurement.value / maximum) * 100 : 0}%`,
+                      }}
+                    />
+                  </dd>
+                  <dd class="m-0 text-right font-mono whitespace-nowrap text-foreground tabular-nums">
+                    {measurement.display}
                   </dd>
                 </div>
               ))}
