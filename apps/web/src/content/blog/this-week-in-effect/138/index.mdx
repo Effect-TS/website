@@ -1,0 +1,185 @@
+---
+pagefind: false
+title: This Week in Effect - 138
+excerpt: "Effect v4 is officially stable 🚀, merged live at Effect San Francisco. Module of the Week 3: Cluster. XState ships an experimental Effect integration for XState v6."
+date: 2026-10-02
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+New [Module of the Week](https://effect.website/blog/module-of-the-week/cluster-actors) post by [Maxwell Brown](https://x.com/maxwellbrown), featuring **Cluster**.
+
+<Tweet id="2105281958456774970" />
+
+### Effect v4 Stable Release Announcement.
+
+This week marks a major milestone for Effect and its community. Effect 4.0, our most ambitious release yet, **has been declared stable**. Read about the stable release notes in the [announcement post](https://effect.website/blog/releases/effect/40) and start migrating your projects from v3 to v4 following our [migration guide](https://github.com/Effect-TS/effect/blob/main/MIGRATION.md).
+
+<Tweet id="2105474537051865570" />
+
+### Effect v4 RC final updates.
+
+This was the final week of the Release Candidate cycle. The last stretch of RC hardening focused on concurrency correctness, Schema internals, and cluster reliability.
+
+- **Concurrency correctness**: Fixed `Effect.race` losers being left running when the race ends during startup, fixed a lost failure during concurrent layer interruption, fixed the `Queue` batch taker wake loop on partial offers, and fixed `AtomRegistry` missing updates through stale nodes and leaked superseded builds.
+
+- **Schema**: Stopped Schema unions from resolving candidate parsers on every decode, inlined checked sources of Schema JIT transformations, fixed Schema projection check preservation, fixed Schema brand identifier typing, and made `Schema.brand` type-only. Also clarified schema branding guidance in the v3-to-v4 migration reference.
+- **Cluster & workflow**: Guarded workflow replies against stale concurrent resets, retried failed cluster workflow run resets, and treated infinite `PubSub` capacity as unbounded.
+
+- **RPC**: Failed in-flight RPC streams after a missed socket pong, fixed flat RPC client and `AtomRpc` inference for a union of tags, and fixed synchronous concurrent `Atom.fn` results.
+
+- **HttpApi**: Added per-slot `ParseOptions` annotations with a `ParseOptions` fallback, and closed server WebSockets according to handler exit.
+
+- **Other fixes**: Fixed `MutableHashMap` key retention on equal-key cache refresh, fixed the encoded RPC interrupt fiber ID type for JSON null, and normalized partition result order across all modules.
+
+And with that, the RC cycle wraps up. Thank you to everyone who tested the beta and RC builds and helped shape the release with bug reports, feedback, and contributions.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [Effect v4 Updates](https://www.effect.website/blog?category=effect-v4-updates), starting from the recently published [Effect v4 RC: August 2026 Updates](https://www.effect.website/blog/effect-v4-rc-august-recap).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Isolate RPC stream chunk decoding failures](https://github.com/Effect-TS/effect/pull/8627) (Bug Fix)
+- [Keep shards acquired during an in-flight lock refresh](https://github.com/Effect-TS/effect/pull/8644) (Bug Fix)
+
+## Community Events
+
+- Effect San Francisco is where we merged the 4.0 stable release live. Thanks to Andre Landgraf and Erik Thorelli for organizing, to [CodeRabbit](https://www.coderabbit.ai/) for hosting us on their rooftop, and all the Effecters who joined us there!
+
+  <Tweet id="2105090591357014435" />
+
+  <Tweet id="2105474173569323062" />
+
+  <Tweet id="2105479666052235547" />
+
+- [Effect Paris 🇫🇷](https://www.meetup.com/effect-paris/events/316600366/) meetup is scheduled for Tuesday, Oct 13!
+
+- Only a few 2-day passes left for [Effect Days 2026](https://effect.website/effect-days)! The conference is scheduled for December 9–11 in Livorno, Italy.
+
+  <Tweet id="2096992094174765175" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## Community Highlights
+
+- Looks like Rhys threw down the gauntlet.
+
+<Tweet id="2104631274048807227" />
+
+- Thanks, Lucas!
+
+<Tweet id="2104651227367657581" />
+
+- The question...
+
+<Tweet id="2105020514070880494" />
+
+- ...and the answer🤍
+
+<Tweet id="2105035085800226849" />
+
+<Tweet id="2105547727275003919" />
+
+- [effect-resonate](https://github.com/cl0ckwork/effect-resonate) - use Effect services, typed errors, and Layers with [Resonate](https://resonatehq.io/) durable execution, where Resonate handles workflow orchestration, replay, timers, and retries while Effect runs the application work inside registered steps. By Luke B.
+
+- [Bye](https://github.com/chr33s/bye) - an open-source email and calendar platform inspired by HEY, built in TypeScript on Cloudflare primitives with Effect v4 and Alchemy, shipping a PWA, CLI/TUI, and React Native apps for mobile and desktop. By chr33s.
+
+- [harbor-effect](https://github.com/hbouhadji/harbor-effect) - an experimental framework that wraps [Harbor](https://github.com/harbor-framework/harbor) with Effect to run agent evaluations, collecting KPIs such as output tokens as structured data. By Hakim.
+
+- [stack-effect](https://github.com/lloydrichards/stack-effect) - a scaffolding CLI for full-stack TypeScript apps built on Effect, generating an Effect-first monorepo with community-aligned conventions and composable modules. By Lloyd Richards.
+
+- [XState Effect](https://stately.ai/docs/xstate/v6/effect/quick-start) - the new experimental `@xstate/effect` package for XState v6 alpha combines event-driven state machines with Effect services, scoped lifetimes, cancellation, and testing. By Stately.
+
+<Tweet id="2105547727275003919" />
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 48 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/HaIKtnCFjUk?si=OHkgGmDVHRYeHm8y"
+  title="Effect Office Hours 48 🔥"
+/>
+
+- Schema performance improvements in Effect v4
+
+<YouTube
+  id="https://www.youtube.com/embed/tFvP02NxmPM?si=HgFxUiApUiwM6Oex"
+  title="Schema performance improvements in Effect v4"
+/>
+
+- PersistedQueue | Module of the Week #1 by Maxwell Brown.
+
+<YouTube
+  id="https://www.youtube.com/embed/tNAzvWgyf8k?si=FwkWvRcVimP84Nxl"
+  title="Oxlint rules for Effect LSP"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
