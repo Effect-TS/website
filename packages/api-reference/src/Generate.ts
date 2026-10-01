@@ -247,6 +247,7 @@ async function generatePackage(
     excludePrivate: true,
     excludeProtected: true,
     blockTags: [...OptionDefaults.blockTags, "@stability"],
+    inlineTags: [...OptionDefaults.inlineTags, "@see"],
     // Effect uses TypeScript 7, while TypeDoc currently requires TypeScript 6.
     skipErrorChecking: true,
     gitRevision: revision,
