@@ -17,6 +17,7 @@ import {
   Comment,
   CommentTag,
   MinimalSourceFile,
+  OptionDefaults,
   type ProjectReflection,
   ReflectionKind,
   normalizePath,
@@ -245,6 +246,7 @@ async function generatePackage(
     excludeInternal: true,
     excludePrivate: true,
     excludeProtected: true,
+    blockTags: [...OptionDefaults.blockTags, "@stability"],
     // Effect uses TypeScript 7, while TypeDoc currently requires TypeScript 6.
     skipErrorChecking: true,
     gitRevision: revision,
