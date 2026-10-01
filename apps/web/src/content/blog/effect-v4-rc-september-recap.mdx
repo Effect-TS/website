@@ -1,0 +1,181 @@
+---
+pagefind: false
+title: "Effect v4 RC: September 2026 Updates"
+excerpt: "The final month of the RC cycle. A major runtime performance pass, systematic correctness sweeps, and the stable release of Effect 4.0."
+date: 2026-10-01
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - effect-v4-updates
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+September was the final stretch of the Effect v4 RC cycle. The month opened with an intense correctness sweep across nearly every module, deepened into a major runtime and Schema performance pass, and closed with the stable release of **[Effect 4.0](https://effect.website/blog/releases/effect/40)**.
+
+This is the last monthly recap in the series. Thank you to everyone who tested the beta and RC builds and helped shape the release with bug reports, feedback, and contributions.
+
+## What landed in September
+
+### Performance pass
+
+The most significant technical event of the month was a broad runtime and Schema performance pass that landed in the fourth week of the RC:
+
+- stopped the Effect run loop from building a success `Exit` between continuations
+- stopped `Queue`/`TxPriorityQueue` from doing unnecessary re-sorting and traversal work
+- stopped `MutableList` from retaining a slot for every element that ever passed through a never-emptying list
+- stopped forked `Scope`s from registering a finalizer just to leave their parent
+- fixed `Stream.forever`/`Stream.repeat` slowing down and leaking memory on every repetition.
+
+On the Schema side: compiled recursive Schema equivalence once instead of per value, stopped Schema compilation from re-analyzing every sub-schema for each enclosing schema, stopped rebuilding parser wrappers on every `SchemaParser.asserts` call, stopped compiled Schema structs retaining an unused parse traversal, and stopped a recursive Schema formatter holding one compiled body per level.
+
+### Systematic correctness sweep
+
+The team continued the codebase audit that began in August, with the vast majority of commits being narrow, targeted correctness fixes across nearly every module. Notable areas:
+
+- `Schema`, `SchemaBinary`, `Stream`, `Sink`, `Chunk`, `Struct`, `Headers`, `Prompt`, `Socket`, `IndexedDb`, `McpServer`, `Effect`, `Types`, `Context`, `Metric`, `HttpClient`, `Tuple`, `Number`, `SqlModel`, `RequestResolver`, and several AI provider integrations.
+
+### Schema
+
+**API rename** - `Schema.transformOrFail` has been renamed to `Schema.transformEffect` for clarity. This is a search-and-replace across schema transformations for anyone building on the RC.
+
+**Service declarations** - `Reactivity`, `LanguageModel`, `EmbeddingModel`, and `Chat` are now declared as `interface + Context.Service`, aligning with the rest of the service module conventions.
+
+**New APIs** - added `Schema.StringForLiteralAutocomplete`, improved JSON Schema generation, fixed arbitrary generation and shrinking for index signatures, centralized JSON Pointer URI fragment handling, and added `Arbitrary.array` with structural shrinking.
+
+### Concurrency correctness
+
+- fixed `Queue` takers and offers parking forever after a yield
+- fixed a lost wakeup during taker registration
+- fixed cleanup registration interruption gaps
+- fixed spans that never end when a traced region is interrupted as it starts
+- fixed `Layer.MemoMap` hanging or leaking a shared layer when a requester is interrupted
+- made `awaitAllChildren` interruptible
+- fixed `Effect.race` losers being left running when the race ends during startup
+- fixed a lost failure during concurrent layer interruption
+- fixed the `Queue` batch taker wake loop on partial offers
+- fixed `AtomRegistry` missing updates through stale nodes and leaked superseded builds.
+
+### Cluster & Durable Execution
+
+- fixed mailbox starvation caused by unrelated workflow deferreds
+- fixed lost durable deferred wakes in discarded cluster workflows
+- fixed deferred handover wake-ups and interrupted RPC stream writes
+- fixed deferred self-completion in the memory workflow engine
+- fixed `RunnerServer` request leaks on caller disconnect
+- fixed workflow execution ID collisions from ambiguous hash inputs
+- bounded local entity registration waits
+- guarded workflow replies against stale concurrent resets
+- retried failed cluster workflow run resets
+- treated infinite `PubSub` capacity as unbounded.
+
+### RPC
+
+- failed in-flight RPC streams after a missed socket pong
+- fixed flat RPC client and `AtomRpc` inference for a union of tags
+- fixed synchronous concurrent `Atom.fn` results.
+
+### HTTP & HttpApi
+
+**New capabilities** - added support for the `QUERY` HTTP method, exposed `HttpApi.ParseOptions` for finer control over schema decoding and encoding at the endpoint level, and added per-slot `ParseOptions` annotations with a `ParseOptions` fallback.
+
+**Fixes** - preserved `Content-Type` on file responses and in `HttpStaticServer`, fixed literal action suffixes across `HttpApi`, kept raw Web Response bodies readable in `toClientResponse`, closed server WebSockets according to handler exit.
+
+**File-serving hardening** - fixed file body content-length precision and range errors, rejected file seeks before the start of a file, clamped `HttpPlatform` file responses to available bytes, fixed oversized byte ranges in `HttpStaticServer`, and fixed invalid `File.readAlloc` sizes on Node and Deno.
+
+### SQL & Durable Objects
+
+**sql-pg** - added support for startup parameters and opaque connection options, decoded `timestamp`/`timestamptz` columns as `Date`, decoded unregistered scalar OIDs as UTF-8 text, added support for Effect-based password providers, preserved `SqlError` when `LISTEN` connections fail, fixed pool cleanup after failed readiness probes.
+
+**sqlite-do** - added support for nested storage transactions and propagated native transaction completion failures correctly.
+
+**Other** - fixed Kysely result plugins with Effect SQL clients.
+
+### Performance
+
+- reduced HTTP server overhead across response headers, routing, `HttpApi` errors, and `Effect.cached`
+- reduced web handler cold start on Cloudflare
+- optimized `OtlpTracer` span creation and export
+- reduced `BigDecimal` bundle size
+- built `Mime` lookup tables lazily on first use instead of eagerly.
+
+### Platform & Runtime
+
+- added in-place TLS socket upgrade support with `NodeSocket.makeTls` and `NodeSocketServer.makeTls`
+- dispatched WebSocket events directly instead of through an intermediate queue
+- added shared network address values
+- fixed `MutableHashMap` key retention on equal-key cache refresh
+- fixed the encoded RPC interrupt fiber ID type for JSON null
+- normalized partition result order across all modules.
+
+### AI
+
+- added support for raw JSON Schema dynamic tool calls
+- fixed Anthropic gateway 4xx error mapping
+- retried OpenAI WebSocket turns after a `previous_response_not_found` error
+- preserved streamed text and tool arguments for nullable delta role and tool call IDs
+- reported MCP toolkit failures before recovery
+- fixed several MCP server issues around tool strictness, server instructions, and prompt titles
+- fixed OpenAI web search to support API sources.
+
+### New Core APIs
+
+- added `Config.flatMap`
+- added family-aware `NetAddress` type helpers
+- added `isPubSub`, `isTxChunk`, and `isPlatformError` type guards
+- added dual forms to several existing APIs.
+
+### Module reorganization
+
+- moved `Arbitrary` to the top-level module
+- moved several unstable Effect modules to top-level paths
+- split encoding formats into dedicated modules
+- renamed the HTTP API module path.
+
+### ByteSize
+
+Refactored `ByteSize` as a branded `bigint` and added an exact-value constructor module, improving precision for byte-size arithmetic.
+
+### PersistedQueue
+
+Completed a dedicated hardening and optimization pass on `PersistedQueue`.
+
+### CLI
+
+- aligned CLI constructor names with Schema and Config conventions
+- fixed key=value pair splitting to use the first separator
+- fixed quotes escaping in generated shell completion descriptions
+- fixed OpenTelemetry propagation through skipped spans.
+
+### Documentation
+
+Updated the v3-to-v4 migration guidance throughout the month: `Socket` changes, typeclass changes, `transformEffect` rename, MCP handlers, tool results, byte sizes, `PlatformError`, JSON Schema decoding with the canonical codec. Also clarified schema branding guidance.
+
+---
+
+## Effect 4.0 is here
+
+Effect v4 has shipped as a stable release. Read the [announcement post](https://effect.website/blog/releases/effect/40) for the full story.
+
+If you're migrating from v3, the [migration guide](https://github.com/Effect-TS/effect/blob/main/MIGRATION.md) covers package changes, interface renames, and core behavioral changes in enough detail to support a near-fully automated migration with a coding agent.
+
+---
+
+To install Effect 4.0:
+
+<Tabs syncKey="package-manager">
+  <TabItem label="npm" icon="seti:npm">
+    ```bash showLineNumbers=false npm install effect ```
+  </TabItem>
+  <TabItem label="pnpm" icon="pnpm">
+    ```bash showLineNumbers=false pnpm add effect ```
+  </TabItem>
+  <TabItem label="Yarn" icon="yarn">
+    ```bash showLineNumbers=false yarn add effect ```
+  </TabItem>
+  <TabItem label="Bun" icon="bun">
+    ```bash showLineNumbers=false bun add effect ```
+  </TabItem>
+</Tabs>
+Happy Effecting. 🚀
