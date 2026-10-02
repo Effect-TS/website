@@ -477,7 +477,7 @@ program.pipe(
 
 const mainV4 = makeFile(
   "main.ts",
-  `import { NodeRuntime } from "@effect/platform-node"
+  `import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as Effect from "effect/Effect"
 import { DevToolsLayer } from "./DevTools.js"
 
