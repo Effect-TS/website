@@ -1,5 +1,6 @@
 import { useAtomValue } from "@effect/atom-react"
-import { Duration, Option } from "effect"
+import * as Duration from "effect/Duration"
+import * as Option from "effect/Option"
 import { useMemo } from "react"
 import { selectedSpanAtom } from "../../atoms/devtools"
 import { formatDuration, getTotalSpans } from "./utils"

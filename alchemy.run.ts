@@ -2,7 +2,6 @@ import * as Alchemy from "alchemy"
 import * as Cloudflare from "alchemy/Cloudflare"
 import * as Command from "alchemy/Command"
 import * as GitHub from "alchemy/GitHub"
-import type { Input } from "alchemy/Input"
 import * as Output from "alchemy/Output"
 import * as Mixedbread from "@website/alchemy-mixedbread"
 import * as Config from "effect/Config"
@@ -11,7 +10,9 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import type * as Redacted from "effect/Redacted"
 
-const Website = (storeId: Input<string | Redacted.Redacted<string>>) =>
+type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
+
+const Website = (storeId: StoreId) =>
   Cloudflare.Website.Astro(
     "WebsiteWorker",
     Effect.gen(function* () {
@@ -82,9 +83,7 @@ export default Alchemy.Stack(
       "MXBAI_PREVIEW_STORE_ENABLED",
     ).pipe(Config.withDefault(false))
     const sha = yield* Config.String("WEBSITE_REVISION")
-    let storeId: Input<string | Redacted.Redacted<string>> = Config.Redacted(
-      "MXBAI_VECTOR_STORE_ID",
-    )
+    let storeId: StoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
 
     if (previewStoreEnabled && Option.isSome(pullRequest)) {
       const store = yield* Mixedbread.VectorStore("PreviewSearchStore", {

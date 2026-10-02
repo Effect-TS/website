@@ -4,11 +4,11 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as CliConfig from "effect/unstable/cli/CliConfig"
-import * as Argument from "effect/unstable/cli/Argument"
-import * as Command from "effect/unstable/cli/Command"
-import * as Flag from "effect/unstable/cli/Flag"
-import { Help } from "effect/unstable/cli/GlobalFlag"
+import * as CliConfig from "effect/cli/CliConfig"
+import * as Argument from "effect/cli/Argument"
+import * as Command from "effect/cli/Command"
+import * as Flag from "effect/cli/Flag"
+import * as GlobalFlag from "effect/cli/GlobalFlag"
 import * as IconGenerator from "./IconGenerator.ts"
 
 const icons = Argument.String("icon").pipe(
@@ -36,7 +36,7 @@ export const command = Command.make("icon-generator").pipe(
 const program = Command.run(command, { version: "0.0.0" })
 
 const MainLayer = Layer.mergeAll(
-  CliConfig.layer({ builtIns: [Help] }),
+  CliConfig.layer({ builtIns: [GlobalFlag.Help] }),
   NodeServices.layer,
 )
 

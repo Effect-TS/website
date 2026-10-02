@@ -1,6 +1,6 @@
 import type * as Cause from "effect/Cause"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
+import * as AsyncResult from "effect/reactivity/AsyncResult"
 import { useCallback, Fragment, Suspense } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
 import {

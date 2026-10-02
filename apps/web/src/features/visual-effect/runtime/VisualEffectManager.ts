@@ -9,7 +9,7 @@ import * as FiberMap from "effect/FiberMap"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Tracer from "effect/Tracer"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import type { ExampleDefinition } from "@/features/visual-effect/model/example-definition"
 import {
   InitialState,

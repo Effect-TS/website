@@ -24,10 +24,10 @@ let you verify rules such as encode/decode round trips across many values.
 Use it to inspect generated values or run property checks with shrinking and
 replay.
 
-Import the module from `effect/unstable/arbitrary`:
+Import the module from `effect`:
 
 ```ts showLineNumbers=false
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary } from "effect"
 ```
 
 <Aside type="caution" title="Unstable API">
@@ -43,8 +43,7 @@ Call `Arbitrary.schema` to derive an `Arbitrary`, then pass it to
 **Example** (Generating Values from a Schema)
 
 ```ts twoslash import.meta.vitest name="arbitrary-generating-values-1"
-import { Effect, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
@@ -84,8 +83,7 @@ generating and rejecting unrelated values.
 **Example** (Generating Values with Built-In Constraints)
 
 ```ts twoslash import.meta.vitest name="arbitrary-built-in-constraints-1"
-import { Effect, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema } from "effect"
 
 const Username = Schema.String.check(
   Schema.isMinLength(3),
@@ -118,8 +116,7 @@ A custom filter can expose constructive information through the
 **Example** (Describing a Custom Numeric Constraint)
 
 ```ts twoslash import.meta.vitest name="arbitrary-custom-constraint-1"
-import { Effect, Order, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Order, Schema } from "effect"
 
 const isPort = Schema.makeFilter(
   (value: number) => Number.isInteger(value) && value >= 0 && value <= 65_535,
@@ -164,8 +161,7 @@ For a codec, derivation follows the type-side Schema and its constraints.
 **Example** (Generating the Decoded Side of a Codec)
 
 ```ts twoslash import.meta.vitest name="arbitrary-decoded-type-1"
-import { Effect, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema } from "effect"
 
 const samples = await Effect.runPromise(
   Arbitrary.sampleEffect(Arbitrary.schema(Schema.FiniteFromString), {
@@ -187,8 +183,7 @@ first falsification, shrinks the generated value, and returns a `CheckResult`.
 **Example** (Shrinking and Replaying a Failure)
 
 ```ts twoslash import.meta.vitest name="arbitrary-checking-properties-1"
-import { Effect, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema } from "effect"
 
 const numbers = Arbitrary.schema(
   Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 100 })),
@@ -244,8 +239,7 @@ Schema node.
 **Example** (Mapping and Combining Arbitraries)
 
 ```ts twoslash import.meta.vitest name="arbitrary-composition-1"
-import { Effect, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema } from "effect"
 
 const reverse = (value: string) => Array.from(value).reverse().join("")
 
@@ -285,8 +279,7 @@ specific reduction strategy.
 **Example** (Replacing Schema-Derived Shrinking)
 
 ```ts twoslash import.meta.vitest name="arbitrary-custom-shrinking-1"
-import { Effect, Schema } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema } from "effect"
 
 const Count = Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 100 }))
 
@@ -322,8 +315,7 @@ representation and how to decode it into the declared type.
 **Example** (Generating an Opaque Class)
 
 ```ts twoslash import.meta.vitest name="arbitrary-custom-declaration-1"
-import { Effect, Schema, SchemaGetter } from "effect"
-import { Arbitrary } from "effect/unstable/arbitrary"
+import { Arbitrary, Effect, Schema, SchemaGetter } from "effect"
 
 class UserId {
   constructor(readonly value: string) {}

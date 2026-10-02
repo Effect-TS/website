@@ -243,7 +243,12 @@ Stream scanning allows you to apply a function cumulatively to each element in t
 ```ts twoslash import.meta.vitest name="scanning-1"
 import { Stream, Effect } from "effect"
 
-const stream = Stream.range(1, 5).pipe(Stream.scan(0, (a, b) => a + b))
+const stream = Stream.range(1, 5).pipe(
+  Stream.scan(
+    () => 0,
+    (a, b) => a + b,
+  ),
+)
 
 await Effect.runPromise(Stream.runCollect(stream)) // => [0, 1, 3, 6, 10, 15]
 ```
@@ -450,18 +455,18 @@ import { Stream, Effect, Filter } from "effect"
 const program = Stream.range(1, 9).pipe(
   Stream.partition(
     Filter.fromPredicate((n) => n % 2 === 0),
-    { bufferSize: 5 },
+    { capacity: 5 },
   ),
 )
 
 await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const [odds, evens] = yield* program
-      return [yield* Stream.runCollect(odds), yield* Stream.runCollect(evens)]
+      const [evens, odds] = yield* program
+      return [yield* Stream.runCollect(evens), yield* Stream.runCollect(odds)]
     }),
   ),
-) // => [[1, 3, 5, 7, 9], [2, 4, 6, 8]]
+) // => [[2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 
 ### partitionEffect
@@ -489,10 +494,10 @@ await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const [evens, odds] = yield* program
-      return [yield* Stream.runCollect(odds), yield* Stream.runCollect(evens)]
+      return [yield* Stream.runCollect(evens), yield* Stream.runCollect(odds)]
     }),
   ),
-) // => [[1, 3, 5, 7, 9], [2, 4, 6, 8]]
+) // => [[2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 
 ## Grouping

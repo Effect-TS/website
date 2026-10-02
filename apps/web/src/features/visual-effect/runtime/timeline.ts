@@ -1,6 +1,6 @@
 import * as Array from "effect/Array"
 import * as Effect from "effect/Effect"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import * as Atom from "effect/reactivity/Atom"
 import type { ExampleDefinition } from "@/features/visual-effect/model/example-definition"
 import {
   makeTimelineSegment,
