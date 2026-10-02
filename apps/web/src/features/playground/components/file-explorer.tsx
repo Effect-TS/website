@@ -1,6 +1,6 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as Data from "effect/Data"
-import { Atom } from "effect/reactivity"
+import * as Atom from "effect/reactivity/Atom"
 import { useCallback } from "react"
 import { useWorkspaceHandle, useWorkspaceTree } from "../context/workspace"
 import { Directory, File, Workspace } from "../domain/workspace"

@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { HttpApiBuilder } from "effect/http-api"
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
 import { SearchApi } from "./api"
 import { Search } from "./service"
 

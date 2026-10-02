@@ -1,6 +1,6 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as Option from "effect/Option"
-import { Atom } from "effect/reactivity"
+import * as Atom from "effect/reactivity/Atom"
 import * as React from "react"
 
 export const useContainerWidth = () => {

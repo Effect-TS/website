@@ -1,8 +1,9 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import { HttpRouter, HttpServer } from "effect/http"
-import { HttpApiBuilder } from "effect/http-api"
+import * as HttpRouter from "effect/http/HttpRouter"
+import * as HttpServer from "effect/http/HttpServer"
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
 import { ShortenApi } from "./api"
 import { Shorten } from "./service"
 

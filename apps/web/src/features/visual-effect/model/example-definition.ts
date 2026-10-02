@@ -2,7 +2,7 @@ import * as Context from "effect/Context"
 import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Scope from "effect/Scope"
-import { Atom } from "effect/reactivity"
+import * as Atom from "effect/reactivity/Atom"
 import * as React from "react"
 import type { RenderableResult } from "./domain"
 import type {

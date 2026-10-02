@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro"
 import * as Layer from "effect/Layer"
-import { HttpRouter } from "effect/http"
-import { HttpServer } from "effect/http"
+import * as HttpRouter from "effect/http/HttpRouter"
+import * as HttpServer from "effect/http/HttpServer"
 import * as OpenGraphRoute from "@/features/open-graph/http"
 import * as OpenGraphFonts from "@/features/open-graph/fonts"
 

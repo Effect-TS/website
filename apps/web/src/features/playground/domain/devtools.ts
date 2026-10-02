@@ -2,8 +2,7 @@ import * as Array from "effect/Array"
 import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
-import { DevToolsSchema } from "effect/devtools"
-
+import * as DevToolsSchema from "effect/devtools/DevToolsSchema"
 type ParentSpan = DevToolsSchema.ParentSpan
 type SpanEvent = DevToolsSchema.SpanEvent
 

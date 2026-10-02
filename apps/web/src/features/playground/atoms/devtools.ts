@@ -1,4 +1,4 @@
-import { Atom } from "effect/reactivity"
+import * as Atom from "effect/reactivity/Atom"
 import { Span } from "../domain/devtools"
 import { rootSpansAtom } from "../services/devtools"
 

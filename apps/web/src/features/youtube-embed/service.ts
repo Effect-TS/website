@@ -1,4 +1,4 @@
-import { Latch } from "effect"
+import * as Latch from "effect/Latch"
 import * as Array from "effect/Array"
 import * as Context from "effect/Context"
 import * as Duration from "effect/Duration"
@@ -8,8 +8,8 @@ import * as Queue from "effect/Queue"
 import * as RcRef from "effect/RcRef"
 import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
-import { Atom } from "effect/reactivity"
-import { AtomRegistry } from "effect/reactivity"
+import * as Atom from "effect/reactivity/Atom"
+import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import { YOUTUBE_NOCOOKIE_URL } from "./constants"
 import {
   EmbedCommand,

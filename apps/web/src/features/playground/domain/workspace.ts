@@ -478,7 +478,7 @@ program.pipe(
 const mainV4 = makeFile(
   "main.ts",
   `import { NodeRuntime } from "@effect/platform-node"
-import { Effect } from "effect"
+import * as Effect from "effect/Effect"
 import { DevToolsLayer } from "./DevTools.js"
 
 const program = Effect.gen(function*() {
@@ -517,8 +517,9 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 const devToolsV4 = makeFile(
   "DevTools.ts",
   `import { NodeSocket } from "@effect/platform-node"
-import { DevTools } from "effect/devtools"
-import { Layer, Logger } from "effect"
+import * as DevTools from "effect/devtools/DevTools"
+import * as Layer from "effect/Layer"
+import * as Logger from "effect/Logger"
 
 export const DevToolsLayer = DevTools.layerSocket.pipe(
   Layer.provide(NodeSocket.layerNet({ port: 34437 })),
