@@ -21,9 +21,10 @@ interface Props {
     }>
   }
   note?: string
+  label?: string
 }
 
-const { title, description, data, stats = [], split, note } = Astro.props
+const { title, description, data, stats = [], split, note, label } = Astro.props
 const splitTotal = split?.parts.reduce((total, part) => total + part.value, 0) ?? 0
 
 const width = 1000
@@ -55,25 +56,34 @@ const latest = data[data.length - 1]![1]
 ---
 
 <ChartCard title={title} note={note}>
+  {
+    label && (
+      <span slot="legend" class="font-mono text-[13px] text-muted-foreground">
+        {label}
+      </span>
+    )
+  }
   {stats.length > 0 && <StatGrid stats={stats} />}
   {
     split && (
-      <div class="border-t border-border px-5 py-5">
-        <p class="m-0 mb-3 flex items-baseline justify-between gap-3 text-sm">
-          <span class="font-medium text-foreground">{split.label}</span>
-          {split.hint && <span class="text-xs text-muted-foreground">{split.hint}</span>}
+      <div class="border-t border-border px-6 pt-[22px] pb-6">
+        <p class="m-0 mb-3 flex items-baseline justify-between gap-3 leading-snug">
+          <span class="text-[16px] font-semibold text-foreground">{split.label}</span>
+          {split.hint && (
+            <span class="font-mono text-[13px] text-muted-foreground">{split.hint}</span>
+          )}
         </p>
-        <div class="flex h-2.5 gap-0.5 overflow-hidden rounded-sm" aria-hidden="true">
+        <div class="flex h-1.5 gap-0.5" aria-hidden="true">
           {split.parts.map((part) => (
             <span
-              class:list={["h-full", part.highlight ? "highlight-fill" : "muted-fill"]}
+              class:list={["h-full rounded-full", part.highlight ? "highlight-fill" : "muted-fill"]}
               style={{ width: `${splitTotal > 0 ? (part.value / splitTotal) * 100 : 0}%` }}
             />
           ))}
         </div>
-        <dl class="m-0 mt-2 flex justify-between gap-3 font-mono text-xs">
+        <dl class="m-0 mt-2 flex justify-between gap-3 font-mono text-[13px] leading-5">
           {split.parts.map((part) => (
-            <div class="flex gap-2">
+            <div class="flex gap-3.5">
               <dt class="text-muted-foreground">{part.label}</dt>
               <dd class="m-0 text-foreground tabular-nums">{part.display}</dd>
             </div>
@@ -82,12 +92,12 @@ const latest = data[data.length - 1]![1]
       </div>
     )
   }
-  <div class="border-t border-border py-6 pr-6 pb-12 pl-5" role="img" aria-label={description}>
-    <div class="relative ml-9 h-56 sm:h-64" aria-hidden="true">
+  <div class="border-t border-border pt-7 pr-[39px] pb-12 pl-6" role="img" aria-label={description}>
+    <div class="relative ml-11 h-56 sm:h-[264px]" aria-hidden="true">
       {
         ticks.map((tick) => (
           <span
-            class="absolute right-full mr-3 -translate-y-1/2 font-mono text-xs text-muted-foreground tabular-nums"
+            class="absolute -left-11 -translate-y-1/2 font-mono text-[13px] text-muted-foreground tabular-nums"
             style={{ top: `${(y(tick) / height) * 100}%` }}
           >
             {compact.format(tick)}
@@ -106,22 +116,28 @@ const latest = data[data.length - 1]![1]
               x2={width}
               y1={y(tick)}
               y2={y(tick)}
-              class="stroke-border"
+              class="stroke-border/60"
               vector-effect="non-scaling-stroke"
             />
           ))
         }
-        <path d={area} class="area"></path>
+        <defs>
+          <linearGradient id="trend-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" class="area-top"></stop>
+            <stop offset="1" class="area-bottom"></stop>
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#trend-area)"></path>
         <path d={line} class="line" vector-effect="non-scaling-stroke"></path>
       </svg>
       <span
-        class="dot absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        class="dot absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{ left: "100%", top: `${(y(latest) / height) * 100}%` }}></span>
       {
         labels.map((label, index) => (
           <span
             class:list={[
-              "absolute top-full mt-3 font-mono text-xs whitespace-nowrap text-muted-foreground",
+              "absolute top-full mt-2 font-mono text-[13px] whitespace-nowrap text-muted-foreground",
               index === labels.length - 1 ? "-translate-x-full" : index > 0 && "-translate-x-1/2",
               index > 0 && index < labels.length - 1 && "hidden sm:inline",
             ]}
@@ -136,27 +152,32 @@ const latest = data[data.length - 1]![1]
 </ChartCard>
 
 <style>
-  .area {
-    fill: color-mix(in srgb, var(--brand) 14%, transparent);
+  .area-top {
+    stop-color: #34d399;
+    stop-opacity: 0.12;
+  }
+
+  .area-bottom {
+    stop-color: #34d399;
+    stop-opacity: 0;
   }
 
   .line {
     fill: none;
-    stroke: color-mix(in srgb, var(--brand) 60%, var(--foreground));
-    stroke-width: 2;
+    stroke: #34d399;
+    stroke-width: 1.5;
     stroke-linejoin: round;
   }
 
   .highlight-fill {
-    background-color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
+    background-color: #34d399;
   }
 
   .muted-fill {
-    background-color: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+    background-color: color-mix(in srgb, var(--muted-foreground) 48%, var(--background));
   }
 
   .dot {
-    background-color: color-mix(in srgb, var(--brand) 60%, var(--foreground));
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 22%, transparent);
+    background-color: #34d399;
   }
 </style>
