@@ -1,10 +1,10 @@
 import * as Effect from "effect/Effect"
-import * as Encoding from "effect/Encoding"
+import * as Encoding from "effect/encoding"
 import * as Context from "effect/Context"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import * as Atom from "effect/unstable/reactivity/Atom"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import { Atom } from "effect/reactivity"
+import { AtomRegistry } from "effect/reactivity"
 import { assert, test, vi } from "vite-plus/test"
 
 vi.mock("../../../src/features/playground/services/webcontainer.ts", () => {
@@ -231,7 +231,7 @@ test("autosave snapshots the latest workspace after models flush", async () => {
 
 async function importCodeLink(code: string, version?: "v3" | "v4") {
   const search = new URLSearchParams({
-    code: Encoding.encodeBase64Url(code),
+    code: Encoding.Base64Url.encode(code),
   })
   if (version !== undefined) {
     search.set("version", version)

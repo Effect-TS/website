@@ -10,9 +10,9 @@ import { constVoid } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Schema from "effect/Schema"
-import { HttpClientError } from "effect/unstable/http"
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { HttpClientError } from "effect/http"
+import { AsyncResult } from "effect/reactivity"
+import { Atom } from "effect/reactivity"
 import {
   Braces,
   ChevronDown,

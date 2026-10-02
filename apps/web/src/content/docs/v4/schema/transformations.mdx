@@ -10,7 +10,7 @@ import { Aside } from "@astrojs/starlight/components"
 
 Transformations are important when working with schemas. They allow you to change data from one type to another. For example, you might parse a string into a number or convert a date string into a `Date` object.
 
-Use `Schema.decodeTo` to connect a source schema to a target schema. Provide `SchemaTransformation.transform` for an infallible conversion, or `SchemaGetter.transformOrFail` when either direction may fail or require services.
+Use `Schema.decodeTo` to connect a source schema to a target schema. Provide `SchemaTransformation.transform` for an infallible conversion, or `SchemaGetter.transformEffect` when either direction may fail or require services.
 
 ## Infallible Transformations
 
@@ -209,7 +209,7 @@ Schema.encodeSync(schema)(new Set(["a", "b", "c"])) // => ["a", "b", "c"]
 
 ## Fallible Transformations
 
-Use `SchemaGetter.transformOrFail` inside `Schema.decodeTo` when decoding or encoding can fail, run asynchronously, or require Effect services.
+Use `SchemaGetter.transformEffect` inside `Schema.decodeTo` when decoding or encoding can fail, run asynchronously, or require Effect services.
 
 This function enables decoding/encoding functions to return either a successful result or an error,
 making it particularly useful for validating and processing data that might not always conform to expected formats.
@@ -229,7 +229,7 @@ const Color = Schema.Literals(["red", "green", "blue"])
 
 export const ColorFromString = Schema.String.pipe(
   Schema.decodeTo(Color, {
-    decode: SchemaGetter.transformOrFail((input) => {
+    decode: SchemaGetter.transformEffect((input) => {
       const normalized = input.toLowerCase()
       if (
         normalized === "red" ||
@@ -264,11 +264,11 @@ SchemaError: Unsupported color
 */
 ```
 
-The function passed to `SchemaGetter.transformOrFail` receives the value and the active [parse options](/docs/v4/schema/getting-started#parse-options).
+The function passed to `SchemaGetter.transformEffect` receives the value and the active [parse options](/docs/v4/schema/getting-started#parse-options).
 
 ### Async Transformations
 
-In modern applications, especially those interacting with external APIs, you might need to transform data asynchronously. `SchemaGetter.transformOrFail` supports this by returning an `Effect`.
+In modern applications, especially those interacting with external APIs, you might need to transform data asynchronously. `SchemaGetter.transformEffect` supports this by returning an `Effect`.
 
 **Example** (Validating Data with an API Call)
 
@@ -296,7 +296,7 @@ const PeopleId = Schema.String.pipe(Schema.brand("PeopleId"))
 // Define a schema with async transformation
 const PeopleIdFromString = Schema.String.pipe(
   Schema.decodeTo(PeopleId, {
-    decode: SchemaGetter.transformOrFail((s) =>
+    decode: SchemaGetter.transformEffect((s) =>
       // Make an API call to validate the ID
       Effect.mapBoth(get(`https://swapi.dev/api/people/${s}`), {
         // Error handling for failed API call
@@ -379,7 +379,7 @@ const PeopleId = Schema.String.pipe(Schema.brand("PeopleId"))
 // using an external validation service
 const PeopleIdFromString = Schema.String.pipe(
   Schema.decodeTo(PeopleId, {
-    decode: SchemaGetter.transformOrFail((s) =>
+    decode: SchemaGetter.transformEffect((s) =>
       // Asynchronously validate the ID using the injected service
       Effect.gen(function* () {
         // Access the validation service

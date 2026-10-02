@@ -3,7 +3,7 @@ import * as Config from "effect/Config"
 import * as Context from "effect/Context"
 import * as Crypto from "effect/Crypto"
 import * as Effect from "effect/Effect"
-import * as Encoding from "effect/Encoding"
+import * as Encoding from "effect/encoding"
 import * as FileSystem from "effect/FileSystem"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
@@ -11,7 +11,7 @@ import * as Path from "effect/Path"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
+import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { syncApiReference } from "./ApiReferenceSync.ts"
 import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
 import {
@@ -111,7 +111,7 @@ export class Mixedbread extends Context.Service<
       const digest = yield* crypto
         .digest("SHA-256", bytes)
         .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-      return Encoding.encodeHex(digest)
+      return Encoding.Hex.encode(digest)
     })
 
     const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (

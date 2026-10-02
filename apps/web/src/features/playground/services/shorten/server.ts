@@ -1,8 +1,8 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import { HttpRouter, HttpServer } from "effect/unstable/http"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpRouter, HttpServer } from "effect/http"
+import { HttpApiBuilder } from "effect/http-api"
 import { ShortenApi } from "./api"
 import { Shorten } from "./service"
 

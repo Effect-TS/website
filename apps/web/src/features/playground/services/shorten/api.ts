@@ -1,5 +1,5 @@
 import * as Schema from "effect/Schema"
-import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
 import { ShortenError } from "./domain"
 
 export class ShortenApiGroup extends HttpApiGroup.make("shorten", {

@@ -1,5 +1,5 @@
 import * as Data from "effect/Data"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 import type { YouTubeVideo } from "./domain"
 import { EmbedManager, type EmbedManagerOptions } from "./service"
 

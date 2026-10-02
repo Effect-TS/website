@@ -1,4 +1,4 @@
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 import type {
   ExampleDefinition,
   StepDefinition,

@@ -2,7 +2,7 @@ import * as Config from "effect/Config"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
-import * as KeyValueStore from "effect/unstable/persistence/KeyValueStore"
+import { KeyValueStore } from "effect/persistence"
 
 const UpstashKVS = Layer.unwrap(
   Effect.gen(function* () {

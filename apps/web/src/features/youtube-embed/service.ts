@@ -8,8 +8,8 @@ import * as Queue from "effect/Queue"
 import * as RcRef from "effect/RcRef"
 import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
-import * as Atom from "effect/unstable/reactivity/Atom"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import { Atom } from "effect/reactivity"
+import { AtomRegistry } from "effect/reactivity"
 import { YOUTUBE_NOCOOKIE_URL } from "./constants"
 import {
   EmbedCommand,

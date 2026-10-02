@@ -1,4 +1,4 @@
-import * as Encoding from "effect/Encoding"
+import * as Encoding from "effect/encoding"
 
 /**
  * Handles clicks on a single copy button.
@@ -10,7 +10,7 @@ function clickHandler(event: Event) {
     ?.querySelector(".copy button") as HTMLButtonElement
   const dataset = copyButton.dataset as { code: string }
   const code = dataset.code.replace(/\u007f/g, "\n")
-  const base64 = Encoding.encodeBase64Url(code)
+  const base64 = Encoding.Base64Url.encode(code)
   const version = window.location.pathname.startsWith("/docs/v4") ? "v4" : "v3"
   window.open(
     `${window.location.origin}/play?code=${base64}&version=${version}`,

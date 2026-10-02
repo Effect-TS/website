@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect"
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { AsyncResult } from "effect/reactivity"
+import { Atom } from "effect/reactivity"
 import { Loader } from "../services/loader"
 
 const runtime = Atom.runtime(Loader.layer)

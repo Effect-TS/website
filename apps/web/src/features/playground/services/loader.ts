@@ -8,8 +8,8 @@ import * as Layer from "effect/Layer"
 import * as Queue from "effect/Queue"
 import * as Ref from "effect/Ref"
 import * as Stream from "effect/Stream"
-import * as Atom from "effect/unstable/reactivity/Atom"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import { Atom } from "effect/reactivity"
+import { AtomRegistry } from "effect/reactivity"
 
 export class Step extends Data.Class<{
   readonly id: number

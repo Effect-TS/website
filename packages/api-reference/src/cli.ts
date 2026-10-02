@@ -7,10 +7,10 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stdio from "effect/Stdio"
 import * as Stream from "effect/Stream"
-import * as CliConfig from "effect/unstable/cli/CliConfig"
-import * as Command from "effect/unstable/cli/Command"
-import * as Flag from "effect/unstable/cli/Flag"
-import { Help } from "effect/unstable/cli/GlobalFlag"
+import { CliConfig } from "effect/cli"
+import { Command } from "effect/cli"
+import { Flag } from "effect/cli"
+import { GlobalFlag } from "effect/cli"
 import { Snapshot } from "./Snapshot.ts"
 
 const write = Effect.fn("cli.write")(function* (value: string) {
@@ -247,7 +247,7 @@ const indexCommand = Command.make("api-reference").pipe(
 
 const program = Command.run(indexCommand, { version: "0.0.0" })
 const MainLayer = Layer.mergeAll(
-  CliConfig.layer({ builtIns: [Help] }),
+  CliConfig.layer({ builtIns: [GlobalFlag.Help] }),
   NodeServices.layer,
 )
 

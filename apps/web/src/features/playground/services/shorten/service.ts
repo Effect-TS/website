@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect"
-import * as KeyValueStore from "effect/unstable/persistence/KeyValueStore"
+import { KeyValueStore } from "effect/persistence"
 import * as Crypto from "node:crypto"
 import { ShortenKVS } from "../kvs"
 import { ShortenError } from "./domain"

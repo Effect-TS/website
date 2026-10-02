@@ -2,8 +2,8 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
-import * as ChildProcess from "effect/unstable/process/ChildProcess"
-import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner"
+import { ChildProcess } from "effect/process"
+import { ChildProcessSpawner } from "effect/process"
 
 const DIRECTORIES_OF_INTEREST = [
   "apps/web/src/content/docs/",

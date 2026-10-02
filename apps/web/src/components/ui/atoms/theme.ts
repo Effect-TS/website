@@ -1,6 +1,6 @@
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
 import * as Schema from "effect/Schema"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 
 const ThemeSchema = Schema.Literals(["light", "dark", "system"])
 

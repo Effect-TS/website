@@ -1,7 +1,7 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as Effect from "effect/Effect"
 import * as Schedule from "effect/Schedule"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 import { ChevronDownIcon, PlayIcon } from "lucide-react"
 import * as React from "react"
 import {

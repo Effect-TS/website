@@ -1,5 +1,5 @@
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 import { SoundPreference } from "@/features/visual-effect/model/sound"
 import { soundPreferenceKey } from "@/lib/sound-preference"
 

@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect"
 import * as Data from "effect/Data"
-import * as Encoding from "effect/Encoding"
+import * as Encoding from "effect/encoding"
 import { flow, pipe } from "effect/Function"
 import * as Schema from "effect/Schema"
 import { Workspace, normalizeWorkspace } from "../domain/workspace"
@@ -28,7 +28,7 @@ export class Compression extends Context.Service<Compression>()(
         })
 
       const compressBase64 = (content: string) =>
-        compress(content).pipe(Effect.map(Encoding.encodeBase64))
+        compress(content).pipe(Effect.map(Encoding.Base64.encode))
 
       const decompress = (buffer: Uint8Array) =>
         Effect.tryPromise({
@@ -46,9 +46,9 @@ export class Compression extends Context.Service<Compression>()(
         })
 
       const decompressBase64 = (base64: string) =>
-        Effect.fromResult(Encoding.decodeBase64(base64)).pipe(
+        Effect.fromResult(Encoding.Base64.decode(base64)).pipe(
           Effect.catch(() =>
-            Effect.fromResult(Encoding.decodeBase64Url(base64)),
+            Effect.fromResult(Encoding.Base64Url.decode(base64)),
           ),
           Effect.mapError(
             (cause) => new CompressionError({ method: "decompress", cause }),

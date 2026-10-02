@@ -10,10 +10,10 @@ import * as Queue from "effect/Queue"
 import * as Schema from "effect/Schema"
 import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
-import * as DevToolsSchema from "effect/unstable/devtools/DevToolsSchema"
-import * as Ndjson from "effect/unstable/encoding/Ndjson"
-import * as Atom from "effect/unstable/reactivity/Atom"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import { DevToolsSchema } from "effect/devtools"
+import { Ndjson } from "effect/encoding"
+import { Atom } from "effect/reactivity"
+import { AtomRegistry } from "effect/reactivity"
 import {
   FileAlreadyExistsError,
   FileNotFoundError,

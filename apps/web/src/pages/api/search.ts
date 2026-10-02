@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro"
 import * as Layer from "effect/Layer"
-import { HttpRouter, HttpServer } from "effect/unstable/http"
+import { HttpRouter, HttpServer } from "effect/http"
 import { SearchLayer } from "@/features/search/server"
 
 export const prerender = false

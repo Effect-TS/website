@@ -3,7 +3,7 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import { AtomRegistry } from "effect/reactivity"
 import { isSoundEnabled } from "@/lib/sound-preference"
 import {
   soundCueKey,

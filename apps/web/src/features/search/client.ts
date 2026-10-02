@@ -1,11 +1,7 @@
 import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
-import {
-  FetchHttpClient,
-  HttpClient,
-  HttpClientError,
-} from "effect/unstable/http"
-import * as AtomHttpApi from "effect/unstable/reactivity/AtomHttpApi"
+import { FetchHttpClient, HttpClient, HttpClientError } from "effect/http"
+import { AtomHttpApi } from "effect/reactivity"
 import { SearchApi } from "./api"
 
 export class SearchClient extends AtomHttpApi.Service<SearchClient>()(

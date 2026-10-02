@@ -1,6 +1,6 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as Effect from "effect/Effect"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 
 const delayedSnippetHoverAtom = Atom.family((scopeKey: string) =>
   Atom.make<string | null>(null).pipe(

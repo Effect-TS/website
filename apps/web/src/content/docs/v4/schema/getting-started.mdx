@@ -295,12 +295,12 @@ const Person = Schema.Struct({
 const asyncSchema = PersonId.pipe(
   Schema.decodeTo(Person, {
     // Decode with simulated async transformation
-    decode: SchemaGetter.transformOrFail((id) =>
+    decode: SchemaGetter.transformEffect((id) =>
       Effect.succeed({ id, name: "name", age: 18 }).pipe(
         Effect.delay("10 millis"),
       ),
     ),
-    encode: SchemaGetter.transformOrFail((person) =>
+    encode: SchemaGetter.transformEffect((person) =>
       Effect.succeed(person.id).pipe(Effect.delay("10 millis")),
     ),
   }),
@@ -446,27 +446,27 @@ SchemaError: Expected no excess property
 */
 ```
 
-To retain extra properties, set `onExcessProperty` to `"preserve"`.
+To retain extra properties, describe them explicitly with `Schema.StructWithRest`
+and a record schema.
 
-**Example** (Setting `onExcessProperty` to `"preserve"`)
+**Example** (Retaining Additional Properties)
 
 ```ts twoslash import.meta.vitest name="managing-excess-properties-1"
 import { Schema } from "effect"
 
-const Person = Schema.Struct({
-  name: Schema.String,
-  age: Schema.Finite,
-})
+const Person = Schema.StructWithRest(
+  Schema.Struct({
+    name: Schema.String,
+    age: Schema.Finite,
+  }),
+  [Schema.Record(Schema.String, Schema.Unknown)],
+)
 
-// Excess properties are preserved in the output
-Schema.decodeUnknownSync(Person)(
-  {
-    name: "Bob",
-    age: 40,
-    email: "bob@example.com",
-  },
-  { onExcessProperty: "preserve" },
-) // => { email: "bob@example.com", name: "Bob", age: 40 }
+Schema.decodeUnknownSync(Person)({
+  name: "Bob",
+  age: 40,
+  email: "bob@example.com",
+}) // => { name: "Bob", age: 40, email: "bob@example.com" }
 ```
 
 ### Receiving All Errors
@@ -501,118 +501,12 @@ Expected number
 */
 ```
 
-### Managing Property Order
+### Scope of Parse Options
 
-The `propertyOrder` option provides control over the order of object fields in the output. This feature is particularly useful when the sequence of keys is important for the consuming processes or when maintaining the input order enhances readability and usability.
-
-By default, the `propertyOrder` option is set to `"none"`. This means that the internal system decides the order of keys to optimize parsing speed.
-The order of keys in this mode should not be considered stable, and it's recommended not to rely on key ordering as it may change in future updates.
-
-Setting `propertyOrder` to `"original"` ensures that the keys are ordered as they appear in the input during the decoding/encoding process.
-
-**Example** (Synchronous Decoding)
-
-```ts twoslash import.meta.vitest name="managing-property-order-1"
-import { Schema } from "effect"
-
-const schema = Schema.Struct({
-  a: Schema.Finite,
-  b: Schema.Literal("b"),
-  c: Schema.Finite,
-})
-
-// Default decoding, where property order is system-defined
-Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }) // => { a: 1, b: "b", c: 2 }
-
-// Decoding while preserving input order
-Schema.decodeUnknownSync(schema)(
-  { b: "b", c: 2, a: 1 },
-  { propertyOrder: "original" },
-) // => { b: "b", c: 2, a: 1 }
-```
-
-**Example** (Asynchronous Decoding)
-
-```ts twoslash
-import type { Duration } from "effect"
-import { Effect, Schema, SchemaGetter } from "effect"
-
-// Helper function to simulate an async operation in schema
-const effectify = (duration: Duration.Input) =>
-  Schema.Finite.pipe(
-    Schema.decodeTo(Schema.Finite, {
-      decode: SchemaGetter.transformOrFail((x) =>
-        Effect.sleep(duration).pipe(Effect.andThen(Effect.succeed(x))),
-      ),
-      encode: SchemaGetter.passthrough(),
-    }),
-  )
-
-// Define a structure with asynchronous behavior in each field
-const schema = Schema.Struct({
-  a: effectify("200 millis"),
-  b: effectify("300 millis"),
-  c: effectify("100 millis"),
-})
-
-// Default decoding, where property order is system-defined
-Schema.decodeEffect(schema)({ a: 1, b: 2, c: 3 }, { concurrency: 3 })
-  .pipe(Effect.runPromise)
-  .then(console.log)
-// Output decided internally: { a: 1, b: 2, c: 3 }
-
-// Decoding while preserving input order
-Schema.decodeEffect(schema)(
-  { a: 1, b: 2, c: 3 },
-  { concurrency: 3, propertyOrder: "original" },
-)
-  .pipe(Effect.runPromise)
-  .then(console.log)
-// Output preserving input order: { a: 1, b: 2, c: 3 }
-```
-
-### Customizing Parsing Behavior at the Schema Level
-
-The `parseOptions` annotation allows you to customize parsing behavior at different schema levels, enabling you to apply unique parsing settings to nested schemas within a structure. Options defined within a schema override parent-level settings and apply to all nested schemas.
-
-**Example** (Using `parseOptions` to Customize Error Handling)
-
-```ts twoslash import.meta.vitest name="customizing-parsing-behavior-at-the-schema-level-1"
-import { Result, Schema } from "effect"
-
-const schema = Schema.Struct({
-  a: Schema.Struct({
-    b: Schema.String,
-    c: Schema.String,
-  }).annotate({
-    title: "first error only",
-    // Limit errors to the first in this sub-schema
-    parseOptions: { errors: "first" },
-  }),
-  d: Schema.String,
-}).annotate({
-  title: "all errors",
-  // Capture all errors for the main schema
-  parseOptions: { errors: "all" },
-})
-
-// Decode input with custom error-handling behavior
-const result = Schema.decodeUnknownResult(schema)(
-  { a: {} },
-  { errors: "first" },
-)
-if (Result.isFailure(result)) {
-  console.log(result.failure.message)
-  result.failure.message // => 'Missing key\n  at ["a"]["b"]\nMissing key\n  at ["d"]'
-}
-```
-
-**Detailed Output Explanation:**
-
-In this example:
-
-- The main schema is configured to display all errors. Hence, you will see errors related to both the `d` field (since it's missing) and any errors from the `a` subschema.
-- The subschema (`a`) is set to display only the first error. Although both `b` and `c` fields are missing, only the first missing field (`b`) is reported.
+Parse options apply to the entire decoding or encoding operation. Schema
+annotations do not override them for nested schemas. Pass the options when
+creating or applying the parser; options supplied when applying it take
+precedence.
 
 ## Type Guards
 
@@ -664,7 +558,9 @@ const isPerson: <Input>(input: Input) => input is Input & {
 ## Assertions
 
 While type guards verify whether a value conforms to a specific type, the `Schema.asserts` function goes further by asserting that an input matches the decoded type `T` described by the schema.
-If the input does not match the schema, it throws a detailed error, making it useful for runtime validation.
+If the input does not match the schema, it throws an `Error` with the generic
+message `"Schema validation failed"`. The error's `cause` contains the
+`SchemaIssue.Issue` with the validation details.
 
 <Aside type="note" title="Role of the Encoded Type in Assertions">
   The encoded type `E`, which is often used in schema transformations, does not
@@ -675,7 +571,7 @@ If the input does not match the schema, it throws a detailed error, making it us
 **Example** (Creating and Using an Assertion)
 
 ```ts twoslash import.meta.vitest name="assertions-1"
-import { Schema } from "effect"
+import { Schema, SchemaIssue } from "effect"
 
 // Define a schema for a Person object
 const Person = Schema.Struct({
@@ -695,7 +591,10 @@ try {
 } catch (e: any) {
   console.error("The input does not match the schema:")
   console.error(e.message)
-  e.message // => 'Expected number\n  at ["age"]'
+  e.message // => "Schema validation failed"
+  if (SchemaIssue.isIssue(e.cause)) {
+    SchemaIssue.makeFormatterDefault()(e.cause) // => 'Expected number\n  at ["age"]'
+  }
 }
 
 // This input matches the schema and will not throw an error

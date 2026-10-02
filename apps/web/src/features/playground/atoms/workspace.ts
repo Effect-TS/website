@@ -10,7 +10,7 @@ import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 import {
   Directory,
   File,

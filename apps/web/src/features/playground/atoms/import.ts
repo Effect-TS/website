@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 import { ShortenClient } from "@/features/playground/services/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import {

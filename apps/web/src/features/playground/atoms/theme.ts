@@ -1,4 +1,4 @@
-import * as Atom from "effect/unstable/reactivity/Atom"
+import { Atom } from "effect/reactivity"
 
 function getTheme(): "light" | "dark" {
   const stored = localStorage?.getItem("theme")

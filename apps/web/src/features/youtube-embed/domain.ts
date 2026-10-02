@@ -90,7 +90,7 @@ const stateCode = <N extends number, C extends string>(n: N, c: C) =>
   Schema.Literal(n).pipe(
     Schema.decodeTo(
       Schema.Literal(c),
-      SchemaTransformation.make({
+      SchemaTransformation.makeTransformation({
         decode: SchemaGetter.succeed(c),
         encode: SchemaGetter.succeed(n),
       }),
@@ -111,7 +111,7 @@ const errorCode = <N extends number, C extends string>(n: N, c: C) =>
   Schema.Literal(n).pipe(
     Schema.decodeTo(
       Schema.Literal(c),
-      SchemaTransformation.make({
+      SchemaTransformation.makeTransformation({
         decode: SchemaGetter.succeed(c),
         encode: SchemaGetter.succeed(n),
       }),

@@ -2,7 +2,10 @@ import * as Array from "effect/Array"
 import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
-import { ParentSpan, SpanEvent } from "effect/unstable/devtools/DevToolsSchema"
+import { DevToolsSchema } from "effect/devtools"
+
+type ParentSpan = DevToolsSchema.ParentSpan
+type SpanEvent = DevToolsSchema.SpanEvent
 
 export class Span {
   static fromSpan(span: ParentSpan): Span {

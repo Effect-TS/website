@@ -1,5 +1,5 @@
 import { useAtomSet, useAtomValue, useAtom } from "@effect/atom-react"
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
+import { AsyncResult } from "effect/reactivity"
 import { CheckIcon, CopyIcon, DownloadIcon, Loader2Icon } from "lucide-react"
 import { useCallback, useState, useRef, useEffect } from "react"
 import { copyLinkAtom, downloadAtom, shareAtom } from "../atoms/share"
