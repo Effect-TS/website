@@ -1,8 +1,11 @@
 import type { Row } from "@tanstack/react-table"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Span } from "../../domain/devtools"
+import type { features } from "./trace-waterfall"
 
-export function TraceTree({ row }: { readonly row: Row<Span> }) {
+type SpanRow = Row<typeof features, Span>
+
+export function TraceTree({ row }: { readonly row: SpanRow }) {
   const ref = useRef<SVGSVGElement>(null)
   const [height, setHeight] = useState(32)
 
@@ -127,7 +130,7 @@ function VerticalBranchConnectors({
   row,
 }: {
   readonly height: number
-  readonly row: Row<Span>
+  readonly row: SpanRow
 }) {
   const depthsWithChildren = useMemo(() => getDepthsWithChildren(row), [row])
   return Array.from({ length: row.depth }, (_, index) => {
@@ -160,7 +163,7 @@ function VerticalBranchConnectors({
 }
 
 function getDepthsWithChildren(
-  row: Row<Span>,
+  row: SpanRow,
   depths: Array<number> = [],
 ): ReadonlyArray<number> {
   const parentRow = row.getParentRow()

@@ -1,9 +1,14 @@
 import { useAtomValue } from "@effect/atom-react"
 import {
+  columnResizingFeature,
+  columnSizingFeature,
+  createExpandedRowModel,
   flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  useReactTable,
+  metaHelper,
+  rowExpandingFeature,
+  rowSelectionFeature,
+  tableFeatures,
+  useTable,
   type CellContext,
   type ColumnDef,
   type ExpandedState,
@@ -19,7 +24,18 @@ import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
 
-const columns: Array<ColumnDef<Span>> = [
+export const features = tableFeatures({
+  columnResizingFeature,
+  columnSizingFeature,
+  rowExpandingFeature,
+  rowSelectionFeature,
+  expandedRowModel: createExpandedRowModel(),
+  columnMeta: metaHelper<{ grow: boolean }>(),
+})
+
+type SpanCellContext = CellContext<typeof features, Span, unknown>
+
+const columns: Array<ColumnDef<typeof features, Span>> = [
   {
     id: "name",
     accessorFn: (node) => node,
@@ -56,26 +72,21 @@ export function TraceWaterfall() {
     [selectedSpan],
   )
 
-  const table = useReactTable<Span>({
+  const table = useTable({
+    features,
     data,
     columns,
     state: {
-      columnVisibility: {
-        attributes: false,
-        duration: false,
-        events: false,
-      },
       expanded,
       rowSelection,
     },
     columnResizeMode: "onChange",
     enableRowSelection: true,
     enableSubRowSelection: false,
+    autoResetExpanded: false,
     onExpandedChange: setExpanded,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (span) => span.children as Array<Span>,
+    getSubRows: (span: Span) => span.children as Array<Span>,
   })
 
   const columnSizeVars = React.useMemo(() => {
@@ -87,7 +98,7 @@ export function TraceWaterfall() {
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize()
     }
     return colSizes
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing])
+  }, [table.state.columnResizing, table.state.columnSizing])
 
   return (
     <div className="h-full w-full overflow-auto">
@@ -147,7 +158,7 @@ export function TraceWaterfall() {
                       "bg-red-500/30 hover:bg-red-500/40 data-[state=selected]:bg-red-500/30",
                   )}
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <td
                       key={cell.id}
                       style={{
@@ -186,7 +197,7 @@ export function TraceWaterfall() {
   )
 }
 
-function NameCell({ getValue, row }: CellContext<Span, unknown>) {
+function NameCell({ getValue, row }: SpanCellContext) {
   const node = getValue<Span>()
   return (
     <div className="ml-2 flex h-full items-start overflow-hidden text-ellipsis whitespace-nowrap">
@@ -209,7 +220,7 @@ function NameCell({ getValue, row }: CellContext<Span, unknown>) {
   )
 }
 
-function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
+function DurationCell({ getValue, row, column }: SpanCellContext) {
   const currentSpan = getValue<Span>()
   const root = currentSpan.isRoot
     ? currentSpan
