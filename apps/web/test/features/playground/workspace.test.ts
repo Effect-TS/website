@@ -11,9 +11,32 @@ test("recognizes published v4 dist-tags", () => {
   }
 })
 
+test("treats latest with legacy v3 packages as v3", () => {
+  const workspace = makeDefaultWorkspace("v3")
+  const [packageJson] = workspace
+    .findFile("package.json")
+    .pipe(Option.getOrThrow)
+  const legacy = workspace.replaceNode(
+    packageJson,
+    makeFile(
+      "package.json",
+      JSON.stringify({
+        dependencies: { effect: "latest", "@effect/platform": "latest" },
+      }),
+      false,
+    ),
+  )
+  assert.equal(legacy.effectVersion, "v3")
+})
+
+test("default workspaces pin their own major version", () => {
+  assert.equal(makeDefaultWorkspace("v3").effectVersion, "v3")
+  assert.equal(makeDefaultWorkspace("v4").effectVersion, "v4")
+})
+
 test("does not classify unpublished or v3 tags as v4", () => {
   assert.equal(workspaceWithEffectVersion("next").effectVersion, "v3")
-  assert.equal(workspaceWithEffectVersion("latest").effectVersion, "v3")
+  assert.equal(workspaceWithEffectVersion("latest").effectVersion, "v4")
 })
 
 test("default workspaces use NodeNext ESM conventions", () => {

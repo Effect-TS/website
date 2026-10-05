@@ -28,23 +28,25 @@ export function TraceSelector() {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex min-w-[350px] cursor-pointer items-center justify-between rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+        className="flex w-72 cursor-pointer items-center justify-between rounded-md border border-border bg-card px-3 py-1.5 font-mono text-xs text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <span className="truncate">{span?.traceId || "Select a trace..."}</span>
-        <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-80" />
+        <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-[350px] overflow-auto rounded-md border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-72 overflow-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg">
           {rootSpans.length === 0 ? (
-            <div className="p-3 text-sm text-zinc-500">No traces found.</div>
+            <div className="p-3 text-xs text-muted-foreground">
+              No traces found.
+            </div>
           ) : (
             rootSpans.map((root, index) => (
               <button
                 key={root.traceId}
                 type="button"
                 className={cn(
-                  "flex w-full cursor-pointer items-center px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700",
-                  selectedSpanIndex === index && "bg-zinc-100 dark:bg-zinc-700",
+                  "flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-left font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground",
+                  selectedSpanIndex === index && "bg-accent text-foreground",
                 )}
                 onClick={() => {
                   setSelectedSpan(index)

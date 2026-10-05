@@ -1,8 +1,11 @@
 import type { Row } from "@tanstack/react-table"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Span } from "../../domain/devtools"
+import type { features } from "./trace-waterfall"
 
-export function TraceTree({ row }: { readonly row: Row<Span> }) {
+type SpanRow = Row<typeof features, Span>
+
+export function TraceTree({ row }: { readonly row: SpanRow }) {
   const ref = useRef<SVGSVGElement>(null)
   const [height, setHeight] = useState(32)
 
@@ -64,7 +67,7 @@ function BranchNode({
         y="8"
         rx="3px"
         ry="3px"
-        className="cursor-pointer fill-zinc-50 stroke-zinc-400 stroke-1 dark:fill-zinc-900 dark:stroke-zinc-600"
+        className="cursor-pointer fill-card stroke-border-strong stroke-1"
       />
       {isExpanded && (
         <line
@@ -72,14 +75,14 @@ function BranchNode({
           y1="24"
           x2={12 + depth * 16}
           y2={height}
-          className="stroke-zinc-400 stroke-1 dark:stroke-zinc-600"
+          className="stroke-border-strong stroke-1"
         />
       )}
       <text
         x={12 + depth * 16}
         y="20"
         textAnchor="middle"
-        className="fill-zinc-900 text-[10px] font-medium dark:fill-white"
+        className="fill-foreground font-mono text-[10px] font-medium"
       >
         {branches}
       </text>
@@ -90,7 +93,7 @@ function BranchNode({
         y="8"
         rx="3px"
         ry="3px"
-        className="cursor-pointer fill-transparent stroke-zinc-400 stroke-1 dark:stroke-zinc-600"
+        className="cursor-pointer fill-transparent stroke-border-strong stroke-1"
       />
     </>
   )
@@ -103,7 +106,7 @@ function LeafNode({ depth }: { readonly depth: number }) {
       cx={cx}
       cy="16"
       r="3"
-      className="fill-zinc-50 stroke-zinc-400 stroke-1 dark:fill-zinc-900 dark:stroke-zinc-600"
+      className="fill-card stroke-border-strong stroke-1"
     />
   )
 }
@@ -117,7 +120,7 @@ function HorizontalBranchConnector({ depth }: { readonly depth: number }) {
       x2={x2}
       y1="16"
       y2="16"
-      className="stroke-zinc-400 stroke-1 dark:stroke-zinc-600"
+      className="stroke-border-strong stroke-1"
     />
   )
 }
@@ -127,7 +130,7 @@ function VerticalBranchConnectors({
   row,
 }: {
   readonly height: number
-  readonly row: Row<Span>
+  readonly row: SpanRow
 }) {
   const depthsWithChildren = useMemo(() => getDepthsWithChildren(row), [row])
   return Array.from({ length: row.depth }, (_, index) => {
@@ -151,7 +154,7 @@ function VerticalBranchConnectors({
           x2={x}
           y1={0}
           y2={y}
-          className="stroke-zinc-400 stroke-1 dark:stroke-zinc-600"
+          className="stroke-border-strong stroke-1"
         />
       )
     }
@@ -160,7 +163,7 @@ function VerticalBranchConnectors({
 }
 
 function getDepthsWithChildren(
-  row: Row<Span>,
+  row: SpanRow,
   depths: Array<number> = [],
 ): ReadonlyArray<number> {
   const parentRow = row.getParentRow()

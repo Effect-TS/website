@@ -329,7 +329,7 @@ function setupWorkspaceTypeAcquisition(
       return Effect.gen(function* () {
         const path = packagePath ?? `${storePath}/node_modules`
 
-        const [files, directories] = yield* container
+        const [directories, files] = yield* container
           .readDirectory(path)
           .pipe(
             Effect.map((entries) =>

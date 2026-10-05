@@ -29,6 +29,7 @@ import {
 export function CodeEditor() {
   const result = useAtomValue(importAtom)
   return AsyncResult.builder(result)
+    .onInitial(() => <PlaygroundLoader />)
     .onSuccess((workspace) => (
       <>
         <PlaygroundLoader />

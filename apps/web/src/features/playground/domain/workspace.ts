@@ -7,6 +7,7 @@ import * as Hash from "effect/Hash"
 import * as Iterable from "effect/Iterable"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Record from "effect/Record"
 import * as Schema from "effect/Schema"
 import { DocsVersion, defaultDocsVersion } from "@/lib/versions"
 
@@ -27,6 +28,21 @@ export function effectVersionForCodeLink(
 ): EffectVersion {
   return Option.getOrElse(version, () => "v3" as const)
 }
+
+/** Only the old v3 default used these, back when `latest` meant v3. */
+const isLegacyV3 = (dependencies: object) =>
+  "@effect/platform" in dependencies || "@effect/experimental" in dependencies
+
+const v4Range = /^(rc|beta)$|^\D*4(\.|$)/
+
+const effectVersionOf = (dependencies: Record<string, string>): EffectVersion =>
+  Record.get(dependencies, "effect").pipe(
+    Option.map((range) =>
+      range === "latest" ? !isLegacyV3(dependencies) : v4Range.test(range),
+    ),
+    Option.getOrElse(() => false),
+    (isV4) => (isV4 ? "v4" : "v3"),
+  )
 
 export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
   "WorkspaceShell",
@@ -267,18 +283,12 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
    * The Effect major version this workspace runs on, derived from the `effect`
    * entry in `package.json`. Handles the published v4 dist-tags (`rc`, `beta`),
    * exact versions written back by `pnpm install -E`, and ranges.
-   * `latest` and missing entries map to v3, the version the playground shipped
-   * with before the toggle existed.
+   * Missing entries map to v3, the version the playground shipped with before
+   * the toggle existed. `latest` is v4 unless the dependencies match the old
+   * v3 default (`@effect/platform` or `@effect/experimental`).
    */
   get effectVersion(): EffectVersion {
-    const effect = this.dependencies["effect"]
-    if (effect === undefined) {
-      return "v3"
-    }
-    if (effect === "rc" || effect === "beta") {
-      return "v4"
-    }
-    return /^\D*4(\.|$)/.test(effect) ? "v4" : "v3"
+    return effectVersionOf(this.dependencies)
   }
   pathTo(file: File | Directory) {
     return Option.fromNullishOr(this.filePaths.get(file))
@@ -529,6 +539,21 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 )
 
 /**
+ * npm `latest` resolves to v4, so v4 follows it and v3 pins its own major
+ * range. `pnpm install -E` rewrites both to exact versions after install.
+ */
+const v3Dependencies: Readonly<Record<string, string>> = {
+  "@effect/experimental": "^0.61.1",
+  "@effect/platform": "^0.97.2",
+  "@effect/platform-node": "^0.108.2",
+  effect: "^3.22.2",
+}
+const v4Dependencies: Readonly<Record<string, string>> = {
+  "@effect/platform-node": "latest",
+  effect: "latest",
+}
+
+/**
  * The v3 workspace keeps the pre-toggle name "playground" so existing
  * autosaves and share links keep working. The names must differ between
  * versions: switching swaps the workspace handle, and the outgoing handle's
@@ -539,11 +564,8 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
   v3: Workspace.new({
     name: "playground",
     dependencies: {
-      "@effect/experimental": "latest",
-      "@effect/platform": "latest",
-      "@effect/platform-node": "latest",
+      ...v3Dependencies,
       "@types/node": "latest",
-      effect: "latest",
       typescript: "6.0.2",
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
@@ -553,9 +575,8 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
   v4: Workspace.new({
     name: "playground-v4",
     dependencies: {
-      "@effect/platform-node": "rc",
+      ...v4Dependencies,
       "@types/node": "latest",
-      effect: "rc",
       typescript: "6.0.2",
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
@@ -576,19 +597,37 @@ const encodeJson = Schema.encodeUnknownSync(
 )
 const parseJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Json))
 
-function patchPackageJson(content: string): string | undefined {
-  // Invalid JSON (e.g. a mid-edit autosave) is left alone so the next save
-  // captures the finished edit instead of discarding it.
-  const parsed = Option.getOrUndefined(parseJson(content))
-  if (!Predicate.isObject(parsed)) {
-    return undefined
-  }
-  if (parsed["type"] === "module") {
-    return undefined
-  }
-  parsed["type"] = "module"
-  return encodeJson(parsed)
+const distTags = ["latest", "rc", "beta"]
+
+/**
+ * Replaces dist-tags with the default range for that package: legacy v3
+ * workspaces move to the v3 pins, and everything else follows v4 `latest`.
+ */
+const migrateDependencies = (dependencies: Record<string, unknown>) => {
+  const defaults = isLegacyV3(dependencies) ? v3Dependencies : v4Dependencies
+  return Record.map(dependencies, (range, name) =>
+    Predicate.isString(range) && distTags.includes(range)
+      ? Record.get(defaults, name).pipe(Option.getOrElse(() => range))
+      : range,
+  )
 }
+
+// Invalid JSON (e.g. a mid-edit autosave) yields undefined, so the next save
+// captures the finished edit instead of discarding it.
+const patchPackageJson = (content: string) =>
+  parseJson(content).pipe(
+    Option.filter(Predicate.isObject),
+    Option.flatMap((pkg) => {
+      const dependencies = Predicate.isObject(pkg["dependencies"])
+        ? { dependencies: migrateDependencies(pkg["dependencies"]) }
+        : {}
+      return Option.liftPredicate(
+        encodeJson({ ...pkg, type: "module", ...dependencies }),
+        (patched) => patched !== encodeJson(pkg),
+      )
+    }),
+    Option.getOrUndefined,
+  )
 
 function patchTsConfig(content: string): string | undefined {
   const parsed = Option.getOrUndefined(parseJson(content))

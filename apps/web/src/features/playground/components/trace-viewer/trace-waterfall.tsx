@@ -1,9 +1,14 @@
 import { useAtomValue } from "@effect/atom-react"
 import {
+  columnResizingFeature,
+  columnSizingFeature,
+  createExpandedRowModel,
   flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  useReactTable,
+  metaHelper,
+  rowExpandingFeature,
+  rowSelectionFeature,
+  tableFeatures,
+  useTable,
   type CellContext,
   type ColumnDef,
   type ExpandedState,
@@ -19,12 +24,26 @@ import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
 
-const columns: Array<ColumnDef<Span>> = [
+export const features = tableFeatures({
+  columnResizingFeature,
+  columnSizingFeature,
+  rowExpandingFeature,
+  rowSelectionFeature,
+  expandedRowModel: createExpandedRowModel(),
+  columnMeta: metaHelper<{ grow: boolean }>(),
+})
+
+type SpanCellContext = CellContext<typeof features, Span, unknown>
+
+const columns: Array<ColumnDef<typeof features, Span>> = [
   {
     id: "name",
     accessorFn: (node) => node,
     header: () => (
-      <h5 role="columnheader" className="ml-2 text-sm font-bold">
+      <h5
+        role="columnheader"
+        className="ml-4 font-mono text-xs tracking-wider text-subtle-foreground uppercase"
+      >
         Name
       </h5>
     ),
@@ -35,7 +54,10 @@ const columns: Array<ColumnDef<Span>> = [
     id: "span",
     accessorFn: (node) => node,
     header: () => (
-      <h5 role="columnheader" className="ml-2 grow text-sm font-bold">
+      <h5
+        role="columnheader"
+        className="ml-2 grow font-mono text-xs tracking-wider text-subtle-foreground uppercase"
+      >
         Duration
       </h5>
     ),
@@ -56,26 +78,21 @@ export function TraceWaterfall() {
     [selectedSpan],
   )
 
-  const table = useReactTable<Span>({
+  const table = useTable({
+    features,
     data,
     columns,
     state: {
-      columnVisibility: {
-        attributes: false,
-        duration: false,
-        events: false,
-      },
       expanded,
       rowSelection,
     },
     columnResizeMode: "onChange",
     enableRowSelection: true,
     enableSubRowSelection: false,
+    autoResetExpanded: false,
     onExpandedChange: setExpanded,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (span) => span.children as Array<Span>,
+    getSubRows: (span: Span) => span.children as Array<Span>,
   })
 
   const columnSizeVars = React.useMemo(() => {
@@ -87,19 +104,19 @@ export function TraceWaterfall() {
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize()
     }
     return colSizes
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing])
+  }, [table.state.columnResizing, table.state.columnSizing])
 
   return (
-    <div className="h-full w-full overflow-auto">
+    <div className="min-h-0 flex-1 overflow-auto">
       <table
         style={columnSizeVars as any}
-        className="w-full border-collapse border-spacing-0 border-b border-zinc-300 dark:border-zinc-700"
+        className="w-full border-collapse border-spacing-0"
       >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr
               key={headerGroup.id}
-              className="flex border-x border-zinc-300 transition-none hover:bg-transparent dark:border-zinc-700"
+              className="sticky top-0 z-10 flex border-b border-border bg-background"
             >
               {headerGroup.headers.map((header) => (
                 <th
@@ -108,7 +125,7 @@ export function TraceWaterfall() {
                     width: `calc(var(--header-${header?.id}-size) * 1px)`,
                   }}
                   className={cn(
-                    "grid grid-cols-[minmax(150px,1fr)_8px] items-center border-t border-zinc-300 p-0 text-left font-normal dark:border-zinc-700",
+                    "grid h-8 grid-cols-[minmax(150px,1fr)_8px] items-center p-0 text-left font-normal",
                     header.column.columnDef.meta?.grow && "grow",
                   )}
                 >
@@ -125,7 +142,7 @@ export function TraceWaterfall() {
                       onDoubleClick={() => header.column.resetSize()}
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
-                      className="h-full w-px cursor-ew-resize border-l border-zinc-300 px-0.75 dark:border-zinc-700"
+                      className="h-full w-px cursor-ew-resize border-l border-border px-0.75 transition-colors hover:border-brand"
                     />
                   )}
                 </th>
@@ -142,12 +159,12 @@ export function TraceWaterfall() {
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className={cn(
-                    "flex border-x border-zinc-300 hover:bg-zinc-100 data-[state=selected]:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:data-[state=selected]:bg-zinc-800",
+                    "flex border-b border-border transition-colors hover:bg-muted/40 data-[state=selected]:bg-card",
                     span.hasError &&
-                      "bg-red-500/30 hover:bg-red-500/40 data-[state=selected]:bg-red-500/30",
+                      "bg-destructive/10 hover:bg-destructive/15 data-[state=selected]:bg-destructive/10",
                   )}
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <td
                       key={cell.id}
                       style={{
@@ -165,7 +182,7 @@ export function TraceWaterfall() {
                       {cell.column.getCanResize() && (
                         <div
                           role="separator"
-                          className="h-full w-px border-l border-zinc-300 px-0.75 dark:border-zinc-700"
+                          className="h-full w-px border-l border-border px-0.75"
                         />
                       )}
                     </td>
@@ -175,8 +192,11 @@ export function TraceWaterfall() {
             })
           ) : (
             <tr>
-              <td colSpan={columns.length} className="h-24 w-auto text-center">
-                No results.
+              <td
+                colSpan={columns.length}
+                className="h-24 w-auto text-center text-sm text-muted-foreground"
+              >
+                No spans yet. Run your code to see a trace.
               </td>
             </tr>
           )}
@@ -186,10 +206,10 @@ export function TraceWaterfall() {
   )
 }
 
-function NameCell({ getValue, row }: CellContext<Span, unknown>) {
+function NameCell({ getValue, row }: SpanCellContext) {
   const node = getValue<Span>()
   return (
-    <div className="ml-2 flex h-full items-start overflow-hidden text-ellipsis whitespace-nowrap">
+    <div className="ml-2 flex h-full items-start overflow-hidden text-sm text-ellipsis whitespace-nowrap text-foreground">
       <button
         type="button"
         className="flex h-full items-start bg-transparent p-0"
@@ -203,13 +223,15 @@ function NameCell({ getValue, row }: CellContext<Span, unknown>) {
           row.subRows.length > 0 && "ml-1.5",
         )}
       >
-        <span className="overflow-hidden text-ellipsis">{node.label}</span>
+        <span className="overflow-hidden font-mono text-xs text-ellipsis">
+          {node.label}
+        </span>
       </div>
     </div>
   )
 }
 
-function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
+function DurationCell({ getValue, row, column }: SpanCellContext) {
   const currentSpan = getValue<Span>()
   const root = currentSpan.isRoot
     ? currentSpan
@@ -221,7 +243,7 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
 
   if (currentSpan.span._tag === "ExternalSpan") {
     return (
-      <div className="text-xs text-zinc-500">
+      <div className="px-2 font-mono text-xs text-subtle-foreground">
         &lt;&lt; External Span &gt;&gt;
       </div>
     )
@@ -242,23 +264,20 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
         className={cn(
           "flex h-6 w-full items-center justify-start px-2",
           currentSpan.isRoot &&
-            "my-1 rounded-sm outline-2 outline-black/40 outline-dashed dark:outline-zinc-500",
+            "my-1 rounded-sm border border-dashed border-border-strong",
         )}
       >
         {currentSpan.isRoot ? (
-          <div
-            className={cn(
-              "rounded-sm bg-white/90 px-2 leading-3 text-black",
-              pillColors,
-            )}
-          >
-            <span className="text-xs">In-Progress</span>
+          <div className={cn("rounded-sm px-2 leading-5", pillColors)}>
+            <span className="font-mono text-xs">In-Progress</span>
           </div>
         ) : (
           <div>
-            <span className="text-xs">In-Progress</span>
-            <span className="mx-2">...</span>
-            <span className="text-xs font-medium text-zinc-500">
+            <span className="font-mono text-xs text-foreground">
+              In-Progress
+            </span>
+            <span className="mx-2 text-subtle-foreground">...</span>
+            <span className="font-mono text-xs text-muted-foreground">
               Started: {formatDuration(relativeStartTime)} after trace start
             </span>
           </div>
@@ -290,12 +309,22 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
           type="button"
           aria-label="select table row"
           style={{ width }}
-          className="my-1 flex h-6 cursor-pointer rounded-sm border border-zinc-900 bg-transparent dark:border-white"
+          className={cn(
+            "my-1 flex h-6 min-w-1 cursor-pointer items-center rounded-sm border bg-transparent transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            currentSpan.hasError
+              ? "border-destructive/60 bg-destructive/20 hover:bg-destructive/30"
+              : "border-brand/50 bg-brand/15 hover:bg-brand/25",
+          )}
           onClick={row.getToggleSelectedHandler()}
         >
-          <div className={cn("my-0.5 ml-2 rounded-sm leading-3", pillColors)}>
-            <span className="px-1 text-xs">{formatDuration(spanDuration)}</span>
-          </div>
+          <span
+            className={cn(
+              "ml-2 font-mono text-xs whitespace-nowrap",
+              pillColors,
+            )}
+          >
+            {formatDuration(spanDuration)}
+          </span>
         </button>
         {row.getIsSelected() && <TraceDetails span={currentSpan} />}
       </div>
@@ -329,7 +358,7 @@ const processOrPerformanceNow = (function () {
 
 function getPillColors(span: Span) {
   if (span.hasError) {
-    return "bg-red-600 text-white font-bold"
+    return "text-destructive"
   }
-  return "bg-zinc-900 text-white dark:bg-white dark:text-black font-bold"
+  return "text-foreground"
 }
