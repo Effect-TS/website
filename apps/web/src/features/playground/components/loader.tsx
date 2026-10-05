@@ -3,16 +3,21 @@ import { motion, AnimatePresence } from "framer-motion"
 import { CircleCheck, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { isLoadedAtom } from "../atoms/loader"
-import { loaderStepsAtom } from "../services/loader"
+import { loaderStepsAtom, type Step } from "../services/loader"
+
+export const INITIAL_STEPS: ReadonlyArray<
+  Pick<Step, "id" | "message" | "done">
+> = [{ id: -1, message: "Booting webcontainer", done: false }]
 
 export function PlaygroundLoader() {
   const isReady = useAtomValue(isLoadedAtom)
   const [isVisible, setIsVisible] = useState(true)
-  const steps = useAtomValue(loaderStepsAtom, (steps) => {
+  const atomSteps = useAtomValue(loaderStepsAtom, (steps) => {
     return steps.every((step) => step.done)
       ? steps
       : steps.slice(0, steps.findIndex((step) => !step.done) + 1)
   })
+  const steps = atomSteps.length > 0 ? atomSteps : INITIAL_STEPS
 
   // Keep the overlay mounted for the commit where `isReady` first becomes true.
   // The final loader steps can be added and completed in the same React batch;
@@ -70,5 +75,29 @@ export function PlaygroundLoader() {
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+/** Static server-rendered twin of the loader, shown until React hydrates. */
+export function PlaygroundLoaderShell() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+      <div className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <p className="font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+          Loading Playground
+        </p>
+        <div className="mt-4 mb-5 h-px bg-zinc-200 dark:bg-zinc-800" />
+        <div className="flex flex-col space-y-3">
+          {INITIAL_STEPS.map((step) => (
+            <div key={step.id} className="flex w-full items-center space-x-2.5">
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-zinc-400 dark:text-zinc-500" />
+              <span className="font-mono text-[13px] text-zinc-900 dark:text-white">
+                {step.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }

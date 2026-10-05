@@ -3,6 +3,7 @@ import Navigation from "@/components/navigation/Navigation.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import { CodeEditor } from "@/features/playground/index"
+import { PlaygroundLoaderShell } from "@/features/playground/components/loader"
 
 export const prerender = false
 
@@ -18,7 +19,9 @@ Astro.response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
 
     <div id={PAGE_TITLE_ID} class="flex flex-1 overflow-hidden">
       <div class="js-editor h-full w-full">
-        <CodeEditor client:only="react" />
+        <CodeEditor client:only="react">
+          <PlaygroundLoaderShell slot="fallback" />
+        </CodeEditor>
       </div>
     </div>
   </div>
