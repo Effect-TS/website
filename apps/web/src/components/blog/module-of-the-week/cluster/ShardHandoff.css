@@ -1,0 +1,324 @@
+/* Zinc neutrals and Okabe-Ito runner colors, to match the other cluster
+   visuals. The shared animation pieces read the --animation-* variables. */
+.hk.animation-demo {
+  --animation-bg: light-dark(#f1f1f3, #0f0f12);
+  --animation-panel: light-dark(#ffffff, #09090b);
+  /* Every outline, solid or dashed, uses this one color */
+  --animation-border: light-dark(#a1a1aa, #3f3f46);
+  --animation-muted: light-dark(#52525b, #a1a1aa);
+  --animation-ink: light-dark(#27272a, #e4e4e7);
+  --animation-accent: light-dark(#71717a, #a1a1aa);
+  --hk-warn: #f0e442;
+  --hk-warn-ink: #1f1f1f;
+  --hk-r1: light-dark(#0072b2, #56b4e9);
+  --hk-r2: light-dark(#d55e00, #e69f00);
+  margin: 1.5rem 0;
+}
+.hk .hk-c1 {
+  --c: var(--hk-r1);
+}
+.hk .hk-c2 {
+  --c: var(--hk-r2);
+}
+
+.hk-hint {
+  margin: 0;
+  padding: 14px 18px 0;
+  font-size: 13px;
+  color: var(--animation-muted);
+}
+
+.hk-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 10px 12px 14px;
+}
+.hk svg text {
+  fill: var(--animation-ink);
+  font-size: 12px;
+}
+.hk-dot {
+  fill: var(--c);
+}
+
+/* Runner cards, which start and stop the runner when clicked */
+.hk-runner {
+  cursor: pointer;
+  outline: none;
+}
+.hk-runner.is-busy {
+  cursor: default;
+}
+.hk-card {
+  /* Clickable everywhere, even while the card has no fill */
+  pointer-events: all;
+  fill: var(--animation-panel);
+  stroke: var(--animation-border);
+  stroke-width: 1.5;
+  transition:
+    fill 300ms ease,
+    stroke 200ms ease;
+}
+.hk-runner:not(.is-busy):hover .hk-card {
+  stroke: var(--animation-muted);
+}
+.hk-runner:focus-visible .hk-card {
+  stroke: var(--animation-ink);
+  stroke-width: 2.5;
+}
+/* A runner that isn't running: just a faint dashed outline */
+.hk-card.is-off {
+  fill: none;
+  stroke: var(--animation-border);
+  stroke-dasharray: 5 4;
+}
+.hk svg .hk-runner-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.hk-dim {
+  opacity: 0.45;
+}
+.hk-pill rect {
+  fill: none;
+  stroke: var(--animation-border);
+}
+.hk svg .hk-pill text {
+  fill: var(--animation-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.hk-pill.is-on rect {
+  fill: color-mix(in oklab, var(--animation-ink) 8%, var(--animation-panel));
+}
+.hk svg .hk-pill.is-on text {
+  fill: var(--animation-ink);
+}
+.hk svg .hk-off {
+  fill: var(--animation-muted);
+  font-size: 12px;
+}
+.hk-belief {
+  fill: var(--animation-bg);
+  transition: fill 250ms ease;
+}
+.hk-belief.is-alert {
+  fill: color-mix(in oklab, var(--hk-warn) 22%, var(--animation-panel));
+}
+.hk-state-row {
+  fill: var(--animation-panel);
+  stroke: var(--animation-border);
+}
+.hk svg .hk-state-key {
+  fill: var(--animation-muted);
+  font-size: 10.5px;
+}
+.hk svg .hk-state-value {
+  font-weight: 600;
+}
+.hk svg .hk-state-empty {
+  fill: var(--animation-muted);
+}
+.hk svg .hk-num {
+  fill: var(--animation-panel);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.hk svg .hk-pane-label {
+  fill: var(--animation-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.hk-slot {
+  fill: none;
+  stroke: var(--animation-border);
+  stroke-dasharray: 3 3;
+}
+
+/* "Taken" */
+.hk-no {
+  fill: var(--hk-warn);
+}
+.hk svg .hk-no-text {
+  fill: var(--hk-warn-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* The database */
+.hk-db {
+  fill: var(--animation-panel);
+  stroke: var(--animation-border);
+  stroke-width: 1.5;
+}
+.hk svg .hk-table-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.hk-table {
+  fill: var(--animation-bg);
+}
+.hk-flash {
+  fill: none;
+  stroke: var(--animation-ink);
+  stroke-width: 1.5;
+  animation: hk-flash 600ms ease-out both;
+}
+@keyframes hk-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.hk svg .hk-empty {
+  fill: var(--animation-muted);
+}
+.hk-row rect {
+  fill: var(--animation-panel);
+  stroke: var(--animation-border);
+}
+.hk svg .hk-row text {
+  font-weight: 600;
+}
+
+/* cluster_locks column headings */
+.hk svg .hk-lock-label {
+  fill: var(--animation-muted);
+  font-size: 10.5px;
+}
+
+/* Dad */
+.hk-dad {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.hk-dad.is-on {
+  opacity: 1;
+}
+.hk-dad-skin {
+  fill: #fde7c8;
+}
+.hk-dad-line {
+  fill: none;
+  stroke: #3f3f46;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+.hk-dad-ink {
+  fill: #3f3f46;
+}
+.hk svg .hk-dad-name {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Messages */
+.hk .animation-packet rect {
+  fill: var(--animation-panel);
+  stroke: var(--animation-border);
+}
+.hk svg .animation-packet text {
+  fill: var(--animation-ink);
+  font-size: 11px;
+}
+.hk .hk-packet-no rect {
+  fill: var(--hk-warn);
+  stroke: var(--hk-warn);
+}
+.hk svg .hk-packet-no text {
+  fill: var(--hk-warn-ink);
+}
+.hk .hk-packet-register rect {
+  stroke: var(--c);
+  stroke-width: 1.5;
+}
+.hk .hk-packet-list rect {
+  fill: var(--animation-bg);
+  stroke-dasharray: 3 2;
+}
+
+/* Recomputing assignments */
+.hk-ring {
+  fill: none;
+  stroke: var(--animation-border);
+  stroke-width: 1.5;
+}
+.hk-spin {
+  transform-box: view-box;
+  animation: hk-spin 1.2s linear infinite;
+}
+@keyframes hk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.hk svg .hk-recompute {
+  fill: var(--animation-muted);
+  font-size: 10.5px;
+  font-style: italic;
+}
+
+/* Changes */
+.hk-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hk-pop 350ms ease-out;
+}
+@keyframes hk-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+.hk-shake {
+  animation:
+    hk-pop 350ms ease-out,
+    hk-shake 400ms ease-in-out 350ms;
+}
+@keyframes hk-shake {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@container (max-width: 640px) {
+  .hk-svg {
+    padding-inline: 6px;
+  }
+  .hk svg .hk-table-name {
+    font-size: 10.5px;
+  }
+  .hk svg .hk-pill text {
+    font-size: 9.5px;
+  }
+  .hk svg .hk-state-key,
+  .hk svg .hk-lock-label {
+    font-size: 9.5px;
+  }
+  .hk svg .hk-state-value,
+  .hk svg .hk-state-empty,
+  .hk svg .hk-row text {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-pop,
+  .hk-shake,
+  .hk-flash,
+  .hk-spin {
+    animation: none;
+  }
+  .hk-flash {
+    display: none;
+  }
+}

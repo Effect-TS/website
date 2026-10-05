@@ -1,0 +1,526 @@
+---
+// DadBot's architecture, before any message moves: Slack calls a webhook, a
+// load balancer hands the request to any of three identical runners. Each
+// runner is one process with two parts: an HTTP server for the webhook, and
+// cluster, which hosts some of the Dads. The webhook handler reaches the Dads
+// through cluster, never directly.
+//
+// Which runner hosts which Dad is computed at build time with the same hash
+// and hash ring as MessageTripVisual, so the picture matches the trip later.
+
+import * as Hash from "effect/Hash"
+import * as HashRing from "effect/HashRing"
+import * as PrimaryKey from "effect/PrimaryKey"
+
+const SHARDS = 300
+const entityId = "#engineering"
+const chats = [
+  "#engineering",
+  "#help",
+  "#oncall",
+  "#random",
+  "#design",
+  "#lunch",
+  "#general",
+  "#support",
+  "#backend",
+]
+// The chats listed on the Slack side. The rest are only on the runners.
+const shownChats = ["#engineering", "#random", "#general"]
+
+const runners = [1, 2, 3].map((n) => ({
+  n,
+  address: `runner-${n}:34431`,
+  [PrimaryKey.symbol]() {
+    return this.address
+  },
+}))
+const ring = HashRing.make<(typeof runners)[number]>()
+for (const r of runners) HashRing.add(ring, r)
+const assignment = HashRing.getShards(ring, SHARDS)!
+const ownerOf = (chat: string) => assignment[Math.abs(Hash.string(chat) % SHARDS)]!.n
+const dadsOn = (n: number) =>
+  chats
+    .filter((c) => ownerOf(c) === n)
+    .sort((a, b) => (a === entityId ? -1 : b === entityId ? 1 : 0))
+
+const runnerColors = [
+  { light: "#0072b2", dark: "#56b4e9" },
+  { light: "#d55e00", dark: "#e69f00" },
+  { light: "#007a5e", dark: "#3cc39b" },
+]
+---
+
+<figure
+  class="da"
+  data-dadbot-architecture
+  aria-label="Diagram: Slack sends messages to a load balancer, which can hand each one to any of three runners. Every runner serves the webhook and hosts some of the Dads, one per chat."
+  style={runnerColors
+    .flatMap((c, i) => [`--da-r${i + 1}-light: ${c.light}`, `--da-r${i + 1}-dark: ${c.dark}`])
+    .join("; ")}
+>
+  <div class="da-stage" data-stage>
+    <svg class="da-wires" data-wires aria-hidden="true">
+      <defs>
+        <marker
+          id="da-arrow"
+          viewBox="0 0 8 8"
+          refX="7"
+          refY="4"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path d="M0 0 L8 4 L0 8 Z"></path>
+        </marker>
+      </defs>
+      <path data-wire="hook" marker-end="url(#da-arrow)"></path>
+      <path data-wire="1" marker-end="url(#da-arrow)"></path>
+      <path data-wire="2" marker-end="url(#da-arrow)"></path>
+      <path data-wire="3" marker-end="url(#da-arrow)"></path>
+    </svg>
+
+    <div class="da-chat" data-chat>
+      <p class="da-chat-title"><span class="da-dot" aria-hidden="true"></span>Slack</p>
+      <ul class="da-channels">
+        {
+          shownChats.map((c) => (
+            <li class:list={["da-channel", { "is-target": c === entityId }]} data-channel={c}>
+              <span class="da-channel-name">{c}</span>
+              {c === entityId && <span class="da-preview">Sebastian: Why is this test flaky?</span>}
+            </li>
+          ))
+        }
+        <li class="da-channel da-more">…and a million more</li>
+      </ul>
+    </div>
+
+    <div class="da-lb" data-lb>
+      <span class="da-lb-title">Load balancer</span>
+    </div>
+
+    <div class="da-runners">
+      {
+        runners.map(({ n }) => (
+          <div class="da-node" data-node={n}>
+            <p class="da-node-title">Node {n}</p>
+            <section class="da-runner" style={`--c: var(--da-r${n})`} data-runner={n}>
+              <p class="da-runner-title">Runner {n}</p>
+              <div class="da-part" data-webhook>
+                <p class="da-label">HTTP server</p>
+                <p class="da-route">
+                  <span class="da-method">POST</span> /webhook
+                </p>
+              </div>
+              <p class="da-call">
+                <svg viewBox="0 0 10 16" aria-hidden="true">
+                  <path d="M5 0 V12" />
+                  <path d="M1.5 9.5 L5 14 L8.5 9.5" />
+                </svg>
+              </p>
+              <div class="da-part">
+                <p class="da-label">Cluster</p>
+                <ul class="da-dads" aria-label="Entities">
+                  {dadsOn(n).map((c) => (
+                    <li class:list={["da-dad", { "is-target": c === entityId }]}>
+                      <span class="da-face" aria-hidden="true" />
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</figure>
+
+<script>
+  type Point = { x: number; y: number }
+
+  const path = (points: Array<Point>) =>
+    points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ")
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-dadbot-architecture]")) {
+    const stage = root.querySelector<HTMLElement>("[data-stage]")!
+    const lb = root.querySelector<HTMLElement>("[data-lb]")!
+    const target = root.querySelector<HTMLElement>(".da-channel.is-target")!
+    const hook = root.querySelector<SVGPathElement>('[data-wire="hook"]')!
+    const runners = [...root.querySelectorAll<HTMLElement>("[data-runner]")]
+
+    const rel = (el: Element) => {
+      const s = stage.getBoundingClientRect()
+      const r = el.getBoundingClientRect()
+      return {
+        left: r.left - s.left,
+        right: r.right - s.left,
+        top: r.top - s.top,
+        bottom: r.bottom - s.top,
+      }
+    }
+
+    const draw = () => {
+      const l = rel(lb)
+      const t = rel(target)
+      const y = (t.top + t.bottom) / 2
+      hook.setAttribute(
+        "d",
+        path([
+          { x: t.right, y },
+          { x: l.left, y },
+        ]),
+      )
+      for (const runner of runners) {
+        const n = runner.dataset.runner
+        const wire = root.querySelector<SVGPathElement>(`[data-wire="${n}"]`)!
+        const r = rel(runner)
+        // Side by side: straight across from the load balancer to the webhook
+        if (r.left >= l.right) {
+          const w = rel(runner.querySelector("[data-webhook]")!)
+          const wy = (w.top + w.bottom) / 2
+          wire.setAttribute(
+            "d",
+            path([
+              { x: l.right, y: wy },
+              { x: r.left, y: wy },
+            ]),
+          )
+          continue
+        }
+        // Narrow screens: the nodes sit in a row under the load balancer, and
+        // each wire drops into the middle of its node
+        const node = rel(root.querySelector(`[data-node="${n}"]`)!)
+        const x = (l.left + l.right) / 2
+        const mid = (l.bottom + node.top) / 2
+        const rx = (node.left + node.right) / 2
+        wire.setAttribute(
+          "d",
+          path([
+            { x, y: l.bottom },
+            { x, y: mid },
+            { x: rx, y: mid },
+            { x: rx, y: node.top },
+          ]),
+        )
+      }
+    }
+
+    new ResizeObserver(draw).observe(stage)
+    draw()
+  }
+</script>
+
+<style is:global>
+  .da {
+    --da-ink: #3f3f46;
+    --da-muted: #71717a;
+    --da-line: #d4d4d8;
+    --da-wire: #a1a1aa;
+    --da-surface: #ffffff;
+    --da-panel: #fafafa;
+    --da-slack: #611f69;
+    --da-dad: #b45309;
+    --da-r1: var(--da-r1-light);
+    --da-r2: var(--da-r2-light);
+    --da-r3: var(--da-r3-light);
+    margin: 1.5rem 0;
+  }
+  html.dark .da {
+    --da-ink: #e4e4e7;
+    --da-muted: #a1a1aa;
+    --da-line: #3f3f46;
+    --da-wire: #71717a;
+    --da-surface: #09090b;
+    --da-panel: #111113;
+    --da-slack: #c084fc;
+    --da-dad: #fbbf24;
+    --da-r1: var(--da-r1-dark);
+    --da-r2: var(--da-r2-dark);
+    --da-r3: var(--da-r3-dark);
+  }
+  .da p {
+    margin: 0;
+  }
+  .da ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .da li {
+    margin: 0;
+    padding: 0;
+  }
+  .da li::before,
+  .da li::marker {
+    content: none;
+  }
+
+  /* Chat on the left, the load balancer, then the runners on the right */
+  .da-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 0.7fr) 2.5rem minmax(0, 1.3fr);
+    gap: 1rem 1.5rem;
+  }
+  .da-wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .da-wires path {
+    fill: none;
+    stroke: var(--da-wire);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .da-wires marker path {
+    fill: var(--da-wire);
+    stroke: none;
+  }
+
+  /* Slack */
+  .da-chat {
+    align-self: center;
+    border: 1px solid var(--da-line);
+    border-radius: 0.75rem;
+    background: var(--da-panel);
+    overflow: hidden;
+  }
+  .da .da-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--da-line);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--da-ink);
+  }
+  .da-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--da-slack);
+  }
+  .da .da-channels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.4rem;
+  }
+  .da .da-channel {
+    display: flex;
+    flex-direction: column;
+    padding: 0.3rem 0.45rem;
+    border-radius: 0.45rem;
+    font-size: 0.78rem;
+    color: var(--da-muted);
+  }
+  .da .da-channel.is-target {
+    background: var(--da-surface);
+    box-shadow: inset 0 0 0 1px var(--da-line);
+    color: var(--da-ink);
+  }
+  .da-channel-name {
+    font-weight: 600;
+  }
+  .da-preview {
+    font-size: 0.72rem;
+    color: var(--da-muted);
+  }
+  .da .da-more {
+    font-size: 0.72rem;
+    font-style: italic;
+  }
+
+  /* The load balancer: a tall, narrow box between Slack and the runners */
+  .da-lb {
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--da-line);
+    border-radius: 0.75rem;
+    background: var(--da-panel);
+  }
+  .da-lb-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--da-ink);
+  }
+
+  /* Nodes, each a machine with one runner on it */
+  .da-runners {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .da-node {
+    padding: 0.3rem 0.4rem 0.4rem;
+    border: 1px dashed var(--da-wire);
+    border-radius: 0.9rem;
+  }
+  .da .da-node-title {
+    margin: 0 0 0.25rem 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--da-muted);
+  }
+  .da-runner {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.6rem 0.6rem;
+    border: 1px solid var(--da-line);
+    border-radius: 0.75rem;
+    background: var(--da-surface);
+  }
+  .da .da-runner-title {
+    margin-bottom: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--c);
+  }
+  /* The runner's two parts: its HTTP server and cluster */
+  .da-part {
+    display: grid;
+    /* Fixed first column, so every part's label lines up */
+    grid-template-columns: 4.75rem 1fr;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--da-line);
+    border-radius: 0.5rem;
+    background: var(--da-panel);
+  }
+  /* The handler passing the message to the runner */
+  .da .da-call {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 1.3rem;
+    padding-left: 2.25rem;
+    color: var(--da-wire);
+  }
+  .da-call svg {
+    width: 10px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .da .da-route {
+    justify-self: start;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid var(--da-line);
+    border-radius: 999px;
+    background: var(--da-surface);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--da-ink);
+  }
+  .da-method {
+    font-weight: 700;
+  }
+  .da .da-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--da-muted);
+  }
+  .da .da-dads {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .da .da-dad {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.1rem 0.45rem 0.1rem 0.15rem;
+    border: 1px solid var(--da-line);
+    border-radius: 999px;
+    background: var(--da-surface);
+    font-size: 0.72rem;
+    color: var(--da-ink);
+  }
+  .da .da-dad.is-target {
+    border-color: var(--da-dad);
+    box-shadow: 0 0 0 1px var(--da-dad);
+    font-weight: 600;
+  }
+  .da-face {
+    flex-shrink: 0;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+
+  /* Narrow screens: Slack and the load balancer side by side, with the
+     runners in a row under them */
+  @media (max-width: 640px) {
+    .da-stage {
+      grid-template-columns: minmax(0, 1fr) 2.25rem;
+      gap: 1.75rem 1rem;
+    }
+    .da-runners {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      gap: 0.4rem;
+    }
+    .da-node {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0.25rem 0.25rem 0.25rem;
+    }
+    .da .da-node-title {
+      margin-left: 0.25rem;
+    }
+    .da-runner {
+      padding: 0.45rem 0.3rem;
+    }
+    .da-part {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.3rem;
+      padding: 0.3rem 0.25rem;
+    }
+    .da .da-call {
+      padding-left: 0.6rem;
+      gap: 0.2rem;
+    }
+    .da .da-route {
+      padding: 0.05rem 0.3rem;
+      font-size: 0.56rem;
+      white-space: nowrap;
+    }
+    .da .da-dads {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+    .da .da-dad {
+      max-width: 100%;
+      gap: 0.2rem;
+      padding: 0.05rem 0.35rem 0.05rem 0.1rem;
+      font-size: 0.58rem;
+    }
+    .da-face {
+      width: 0.9rem;
+      height: 0.9rem;
+    }
+  }
+</style>

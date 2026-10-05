@@ -1,0 +1,592 @@
+---
+// Which runner owns each of the 300 shards, and how many move when runners
+// join or leave. Three ways to assign them:
+// - modulo: shard s goes to runner (s % N) + 1. Simple, and most shards move.
+// - ring: nearest point on Effect's HashRing, no load cap.
+// - bounded: HashRing.getShards, what Cluster actually does (with the cap).
+//
+// Laid out as one card: the controls and the moved count on top, then a box
+// per runner holding its shards as little squares. When something changes,
+// shards that change owner fly to their new box and light up in its color,
+// while the rest go quiet. Switching strategy replays the last runner change
+// under the new one, so the two moved counts can be compared directly.
+//
+// Everything is computed here at build time with the real effect/HashRing, for
+// 1 to 6 runners with addresses runner-k:34431. Dad for #engineering lives in
+// shard 276.
+
+import * as HashRing from "effect/HashRing"
+import * as PrimaryKey from "effect/PrimaryKey"
+
+type Mode = "modulo" | "ring" | "bounded"
+interface Props {
+  // Which strategies to offer. With one mode there's no toggle.
+  modes?: Array<Mode>
+}
+const { modes = ["modulo"] } = Astro.props
+const modeLabels: Record<Mode, string> = {
+  modulo: "Modulo",
+  ring: "Hash ring",
+  bounded: "Hash ring + cap",
+}
+
+const SHARDS = 300
+const MIN_RUNNERS = 1
+const MAX_RUNNERS = 6
+const START_RUNNERS = 3
+const DAD_SHARD = 276
+
+class Runner implements PrimaryKey.PrimaryKey {
+  readonly index: number
+  constructor(index: number) {
+    this.index = index
+  }
+  [PrimaryKey.symbol]() {
+    return `runner-${this.index}:34431`
+  }
+}
+
+// For each mode and runner count, a 300-character string: character s - 1 is
+// the runner number (1-6) that owns shard s.
+const assignments: Partial<Record<Mode, Record<number, string>>> = {}
+for (const mode of modes) {
+  const byCount: Record<number, string> = {}
+  for (let n = MIN_RUNNERS; n <= MAX_RUNNERS; n++) {
+    let ring = HashRing.make<Runner>()
+    for (let k = 1; k <= n; k++) ring = HashRing.add(ring, new Runner(k), { weight: 1 })
+    const bounded = mode === "bounded" ? HashRing.getShards(ring, SHARDS)! : []
+    let owners = ""
+    for (let s = 1; s <= SHARDS; s++) {
+      const owner =
+        mode === "modulo"
+          ? (s % n) + 1
+          : mode === "ring"
+            ? HashRing.get(ring, `shard-${s - 1}`)!.index
+            : bounded[s - 1]!.index
+      owners += String(owner)
+    }
+    byCount[n] = owners
+  }
+  assignments[mode] = byCount
+}
+
+const data = {
+  assignments,
+  start: START_RUNNERS,
+}
+const shards = Array.from({ length: SHARDS }, (_, i) => i + 1)
+const runnerSlots = Array.from({ length: MAX_RUNNERS }, (_, i) => i + 1)
+const startOwners = assignments[modes[0]!]![START_RUNNERS]!
+---
+
+<figure class="sa" data-shard-assignment data-initial-mode={modes[0]}>
+  <div class="sa-band sa-controls">
+    {
+      modes.length > 1 && (
+        <div class="sa-modes" role="radiogroup" aria-label="How shards are assigned to runners">
+          {modes.map((m, i) => (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={i === 0 ? "true" : "false"}
+              data-mode={m}
+            >
+              {modeLabels[m]}
+            </button>
+          ))}
+        </div>
+      )
+    }
+    <div class="sa-runners-row">
+      <label class="sa-runners">
+        <span class="sa-label">Number of Runners</span>
+        <span class="sa-slider" style={`--stops: ${MAX_RUNNERS - MIN_RUNNERS}`}>
+          <input
+            type="range"
+            min={MIN_RUNNERS}
+            max={MAX_RUNNERS}
+            step="1"
+            value={START_RUNNERS}
+            data-slider
+          />
+          <span class="sa-ticks" aria-hidden="true">
+            {runnerSlots.map((k, i) => <span style={`--i: ${i}`}>{k}</span>)}
+          </span>
+        </span>
+      </label>
+      <p class="sa-aside" aria-live="polite">
+        <span class="sa-stat"><strong data-moved>0</strong> shards moved</span>
+        <span class="sa-key"><span class="sa-swatch" aria-hidden="true"></span>Didn't move</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="sa-band sa-boxes" data-boxes>
+    {
+      runnerSlots.map((k) => (
+        <section
+          class="sa-box"
+          data-box={k}
+          style={`--c: var(--sa-r${k})`}
+          hidden={k > START_RUNNERS}
+        >
+          <header class="sa-box-head">
+            <span class="sa-box-name">Runner {k}</span>
+            <span class="sa-box-count" data-box-count />
+          </header>
+          <div class="sa-squares" data-squares>
+            {shards
+              .filter((s) => k <= START_RUNNERS && startOwners.charAt(s - 1) === String(k))
+              .map((s) => (
+                <span
+                  class:list={["sa-sq", s === DAD_SHARD && "is-dad"]}
+                  data-shard={s}
+                  data-owner={k}
+                  title={s === DAD_SHARD ? "Shard 276, Dad for #engineering" : `Shard ${s}`}
+                />
+              ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+
+  <script type="application/json" data-assignments set:html={JSON.stringify(data)} />
+</figure>
+
+<script>
+  type Mode = "modulo" | "ring" | "bounded"
+  type Data = {
+    assignments: Partial<Record<Mode, Record<string, string>>>
+    start: number
+  }
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)")
+  const narrow = matchMedia("(max-width: 560px)")
+  // Columns per runner count, so boxes split the width evenly (4 is 2 x 2).
+  const columnsFor = (n: number) => (narrow.matches ? Math.min(n, 2) : n === 4 ? 2 : Math.min(n, 3))
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-shard-assignment]")) {
+    const data = JSON.parse(root.querySelector("[data-assignments]")!.textContent!) as Data
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const modeButtons = root.querySelectorAll<HTMLButtonElement>("[data-mode]")
+    const slider = q<HTMLInputElement>("[data-slider]")
+    const boxesEl = q<HTMLElement>("[data-boxes]")
+    const movedEl = q<HTMLElement>("[data-moved]")
+    const boxes = Array.from(root.querySelectorAll<HTMLElement>("[data-box]"))
+    const squares = new Map<number, HTMLElement>()
+    for (const el of root.querySelectorAll<HTMLElement>("[data-squares] [data-shard]")) {
+      squares.set(Number(el.dataset.shard), el)
+    }
+
+    let mode = (root.dataset.initialMode ?? "modulo") as Mode
+    let runners = data.start
+    // The runner count before the last slider change, if there's been one
+    let lastFrom: number | null = null
+
+    const owners = (m: Mode, n: number) => data.assignments[m]![String(n)]!
+
+    // Shows `n` runner boxes and puts every square in its owner's box, in
+    // shard order.
+    const arrange = (m: Mode, n: number) => {
+      const now = owners(m, n)
+      boxes.forEach((box, i) => {
+        box.hidden = i + 1 > n
+      })
+      boxesEl.style.setProperty("--cols", String(columnsFor(n)))
+      for (let s = 1; s <= 300; s++) {
+        const el = squares.get(s)!
+        const owner = now.charAt(s - 1)
+        el.dataset.owner = owner
+        boxes[Number(owner) - 1]!.querySelector("[data-squares]")!.appendChild(el)
+      }
+    }
+
+    // Reserves room for the tallest arrangement any mode and runner count can
+    // produce at this width, so the page doesn't jump as the slider moves.
+    const reserveHeight = () => {
+      for (const el of squares.values()) el.getAnimations().forEach((a) => a.cancel())
+      boxesEl.style.minHeight = ""
+      let tallest = 0
+      for (const m of Object.keys(data.assignments) as Array<Mode>) {
+        for (let n = 1; n <= boxes.length; n++) {
+          arrange(m, n)
+          tallest = Math.max(tallest, boxesEl.offsetHeight)
+        }
+      }
+      arrange(mode, runners)
+      boxesEl.style.minHeight = `${tallest}px`
+    }
+
+    // Moves every square to its owner's box. `before` is the previous
+    // assignment string, or null for no change to report. `fly` animates the
+    // squares from where they were on screen.
+    const place = (before: string | null, fly: boolean) => {
+      const now = owners(mode, runners)
+      const animate = fly && before !== null && !reduceMotion.matches
+
+      // First: where everything is on screen right now, mid-flight included.
+      const first = new Map<HTMLElement, DOMRect>()
+      if (animate) for (const el of squares.values()) first.set(el, el.getBoundingClientRect())
+      const boxWasHidden = boxes.map((b) => b.hidden)
+
+      for (const el of squares.values()) el.getAnimations().forEach((a) => a.cancel())
+      arrange(mode, runners)
+      let moved = 0
+      for (let s = 1; s <= 300; s++) {
+        const didMove = before !== null && before.charAt(s - 1) !== now.charAt(s - 1)
+        if (didMove) moved++
+        squares.get(s)!.classList.toggle("is-moved", didMove)
+      }
+
+      // Last, then invert: slide each square from where it was to where it is.
+      if (animate) {
+        let order = 0
+        for (let s = 1; s <= 300; s++) {
+          const el = squares.get(s)!
+          const a = first.get(el)!
+          const b = el.getBoundingClientRect()
+          const dx = a.left - b.left
+          const dy = a.top - b.top
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue
+          const isMove = el.classList.contains("is-moved")
+          el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+            duration: isMove ? 700 : 400,
+            delay: isMove ? Math.min(order++ * 2, 250) : 0,
+            easing: "cubic-bezier(0.3, 0.7, 0.2, 1)",
+            fill: "backwards",
+          })
+        }
+        boxes.forEach((box, i) => {
+          if (boxWasHidden[i] && !box.hidden) {
+            box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" })
+          }
+        })
+      }
+
+      for (const box of boxes) {
+        const count = box.querySelectorAll("[data-shard]").length
+        box.querySelector("[data-box-count]")!.textContent = String(count)
+      }
+      return moved
+    }
+
+    const render = (before: string | null, fly = true) => {
+      movedEl.textContent = String(place(before, fly))
+      slider.value = String(runners)
+      root.classList.toggle("has-moves", before !== null)
+      for (const b of modeButtons) b.setAttribute("aria-checked", String(b.dataset.mode === mode))
+    }
+
+    slider.addEventListener("input", () => {
+      const next = Number(slider.value)
+      if (next === runners) return
+      const before = owners(mode, runners)
+      lastFrom = runners
+      runners = next
+      render(before)
+    })
+    for (const b of modeButtons) {
+      b.addEventListener("click", () => {
+        const next = b.dataset.mode as Mode
+        if (next === mode) return
+        mode = next
+        render(lastFrom === null ? null : owners(mode, lastFrom), false)
+      })
+    }
+    let width = 0
+    new ResizeObserver(([entry]) => {
+      const w = entry!.contentRect.width
+      if (w === width) return
+      width = w
+      reserveHeight()
+    }).observe(root)
+    render(null)
+  }
+</script>
+
+<style is:global>
+  .sa {
+    --sa-ink: #3f3f46;
+    --sa-muted: #71717a;
+    --sa-line: #e4e4e7;
+    --sa-surface: #ffffff;
+    --sa-card: #fafafa;
+    --sa-r1: #0072b2;
+    --sa-r2: #d55e00;
+    --sa-r3: #007a5e;
+    --sa-r4: #a3527f;
+    --sa-r5: #8a6d00;
+    --sa-r6: #52525b;
+    margin: 1.5rem 0;
+    border: 1px solid var(--sa-line);
+    border-radius: 0.9rem;
+    background: var(--sa-card);
+    overflow: hidden;
+  }
+  html.dark .sa {
+    --sa-ink: #e4e4e7;
+    --sa-muted: #a1a1aa;
+    --sa-line: #27272a;
+    --sa-surface: #09090b;
+    --sa-card: #0f0f12;
+    --sa-r1: #56b4e9;
+    --sa-r2: #e69f00;
+    --sa-r3: #3cc39b;
+    --sa-r4: #cc79a7;
+    --sa-r5: #f0e442;
+    --sa-r6: #a1a1aa;
+  }
+  .sa p {
+    margin: 0;
+  }
+  .sa-band {
+    padding: 0.9rem 1rem;
+  }
+  .sa-band + .sa-band {
+    border-top: 1px solid var(--sa-line);
+  }
+
+  /* Controls */
+  .sa-controls {
+    display: grid;
+    gap: 0.85rem;
+  }
+  .sa-modes {
+    display: inline-flex;
+    justify-self: start;
+    padding: 0.2rem;
+    border: 1px solid var(--sa-line);
+    border-radius: 0.6rem;
+    background: var(--sa-surface);
+    font-size: 0.8rem;
+  }
+  .sa-modes button {
+    padding: 0.3rem 0.75rem;
+    border-radius: 0.45rem;
+    color: var(--sa-muted);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .sa-modes button[aria-checked="true"] {
+    background: var(--sa-ink);
+    color: var(--sa-surface);
+  }
+  .sa-runners {
+    display: grid;
+    gap: 0.3rem;
+    max-width: 22rem;
+  }
+  .sa-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sa-muted);
+  }
+
+  /* A slider drawn to match: a thin track with a dot at each stop, and the
+     numbers sitting exactly under the stops. The thumb is 16px wide, so stop i
+     is at 8px + (100% - 16px) * i / stops. */
+  .sa-slider {
+    position: relative;
+    display: block;
+    padding-bottom: 1.1rem;
+    --stop: calc((100% - 16px) / var(--stops));
+  }
+  .sa-slider input {
+    display: block;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+  }
+  .sa-slider input::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--sa-line);
+  }
+  .sa-slider input::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--sa-line);
+  }
+  .sa-slider input::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border: 2px solid var(--sa-surface);
+    border-radius: 999px;
+    background: var(--sa-ink);
+    box-shadow: 0 0 0 1px var(--sa-ink);
+    appearance: none;
+  }
+  .sa-slider input::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--sa-surface);
+    border-radius: 999px;
+    background: var(--sa-ink);
+    box-shadow: 0 0 0 1px var(--sa-ink);
+  }
+  .sa-slider input:focus-visible {
+    outline: none;
+  }
+  .sa-slider input:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 1px var(--sa-ink),
+      0 0 0 4px color-mix(in oklab, var(--sa-ink) 30%, transparent);
+  }
+  .sa-ticks span {
+    position: absolute;
+    top: 22px;
+    left: calc(8px + var(--stop) * var(--i));
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--sa-muted);
+    transform: translateX(-50%);
+  }
+
+  /* Boxes */
+  .sa-boxes {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+  .sa-box {
+    margin: 0;
+    padding: 0.5rem 0.55rem 0.6rem;
+    border: 1px solid color-mix(in oklab, var(--c) 55%, var(--sa-card));
+    border-radius: 0.6rem;
+    background: color-mix(in oklab, var(--c) 6%, var(--sa-surface));
+  }
+  .sa-box[hidden] {
+    display: none;
+  }
+  .sa-box-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.75rem;
+  }
+  .sa-box-name {
+    font-weight: 600;
+    color: var(--c);
+  }
+  .sa-box-count {
+    font-variant-numeric: tabular-nums;
+    color: var(--sa-muted);
+  }
+  .sa-squares {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 2px;
+    min-height: 10px;
+  }
+
+  .sa-sq {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--sq, var(--sa-line));
+  }
+  .sa-sq[data-owner="1"] {
+    --sq: var(--sa-r1);
+  }
+  .sa-sq[data-owner="2"] {
+    --sq: var(--sa-r2);
+  }
+  .sa-sq[data-owner="3"] {
+    --sq: var(--sa-r3);
+  }
+  .sa-sq[data-owner="4"] {
+    --sq: var(--sa-r4);
+  }
+  .sa-sq[data-owner="5"] {
+    --sq: var(--sa-r5);
+  }
+  .sa-sq[data-owner="6"] {
+    --sq: var(--sa-r6);
+  }
+  /* After a change, shards that stayed put fade back so the movers stand out. */
+  .sa.has-moves .sa-squares .sa-sq:not(.is-moved, .is-dad) {
+    background: color-mix(in oklab, var(--sq) 35%, var(--sa-surface));
+  }
+
+  /* Dad's shard: bigger, outlined, and wearing his face, whatever else is
+     going on. */
+  .sa .sa-sq.is-dad {
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    margin: -2px 0;
+    border-radius: 999px;
+    outline: 2px solid var(--sa-ink);
+    outline-offset: 1px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+
+  /* Controls row: the slider, with the moved count and key beside it */
+  .sa-runners-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+  }
+  .sa-runners {
+    flex: 0 1 22rem;
+  }
+  .sa .sa-aside {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+    padding-bottom: 1.1rem;
+    font-size: 0.85rem;
+    color: var(--sa-muted);
+  }
+
+  .sa-stat strong {
+    display: inline-block;
+    min-width: 3ch;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--sa-ink);
+  }
+  .sa-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .sa-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: color-mix(in oklab, var(--sa-muted) 45%, var(--sa-surface));
+  }
+
+  @media (max-width: 560px) {
+    .sa-band {
+      padding: 0.75rem;
+    }
+    .sa-modes {
+      display: flex;
+      justify-self: stretch;
+      font-size: 0.72rem;
+    }
+    .sa-modes button {
+      flex: 1 1 auto;
+      padding: 0.3rem 0.35rem;
+    }
+  }
+</style>
