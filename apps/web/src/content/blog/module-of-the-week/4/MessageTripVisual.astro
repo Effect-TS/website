@@ -75,9 +75,16 @@ const steps = (
   <ol class="mt-steps" aria-label="Steps">
     {
       steps.map((s, i) => (
-        <li data-step-pill={i + 1}>
-          <span class="mt-step-num">{i + 1}</span>
-          <span class="mt-step-label">{s.label}</span>
+        <li>
+          <button
+            type="button"
+            class="mt-step"
+            data-step-pill={i + 1}
+            aria-label={`Go to step ${i + 1}: ${s.label}`}
+          >
+            <span class="mt-step-num">{i + 1}</span>
+            <span class="mt-step-label">{s.label}</span>
+          </button>
         </li>
       ))
     }
@@ -723,6 +730,27 @@ const steps = (
       stop()
       apply(0)
     })
+    // Clicking a step pill jumps there. Going forward, everything up to the
+    // step before it is laid out at once, and only the last hop animates.
+    // Going back just lays out the earlier step.
+    for (const pill of pills) {
+      pill.addEventListener("click", async () => {
+        const target = Number(pill.dataset.stepPill) + 1
+        if (target === current && !busy) return
+        stop()
+        if (target <= current) {
+          apply(target)
+          return
+        }
+        apply(target - 1)
+        const run = generation
+        setBusy(true)
+        await advance(run)
+        if (run !== generation) return
+        setBusy(false)
+        apply(current)
+      })
+    }
 
     new ResizeObserver(() => {
       drawWires(current)
@@ -774,6 +802,11 @@ const steps = (
     list-style: none;
   }
   .mt .mt-steps li {
+    margin: 0;
+    padding: 0;
+  }
+  /* Each pill is a button that jumps to its step */
+  .mt .mt-step {
     display: flex;
     align-items: center;
     gap: 0.3rem;
@@ -781,8 +814,21 @@ const steps = (
     padding: 0.15rem 0.55rem 0.15rem 0.2rem;
     border: 1px solid var(--mt-line);
     border-radius: 999px;
+    background: none;
+    font: inherit;
     font-size: 0.72rem;
     color: var(--mt-muted);
+    cursor: pointer;
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease;
+  }
+  .mt .mt-step:hover {
+    border-color: color-mix(in oklab, var(--mt-ink) 60%, transparent);
+  }
+  .mt .mt-step:focus-visible {
+    outline: 2px solid var(--mt-ink);
+    outline-offset: 2px;
   }
   .mt .mt-steps li::before,
   .mt .mt-steps li::marker,
@@ -800,20 +846,20 @@ const steps = (
     font-weight: 600;
     font-size: 0.68rem;
   }
-  .mt .mt-steps li.is-done {
+  .mt .mt-step.is-done {
     border-color: color-mix(in oklab, var(--mt-ink) 45%, transparent);
     color: var(--mt-ink);
   }
-  .mt .mt-steps li.is-done .mt-step-num {
+  .mt .mt-step.is-done .mt-step-num {
     background: color-mix(in oklab, var(--mt-ink) 22%, transparent);
   }
-  .mt .mt-steps li[aria-current="step"] {
+  .mt .mt-step[aria-current="step"] {
     border-color: var(--mt-ink);
     background: var(--mt-ink);
     color: var(--mt-surface);
     font-weight: 600;
   }
-  .mt .mt-steps li[aria-current="step"] .mt-step-num {
+  .mt .mt-step[aria-current="step"] .mt-step-num {
     background: var(--mt-surface);
     color: var(--mt-ink);
   }
@@ -1418,10 +1464,10 @@ const steps = (
       flex-wrap: nowrap;
       margin-bottom: 0.7rem;
     }
-    .mt .mt-steps li:not([aria-current="step"]) {
+    .mt .mt-step:not([aria-current="step"]) {
       padding-right: 0.2rem;
     }
-    .mt .mt-steps li:not([aria-current="step"]) .mt-step-label {
+    .mt .mt-step:not([aria-current="step"]) .mt-step-label {
       display: none;
     }
     .mt .mt-owns-extra {

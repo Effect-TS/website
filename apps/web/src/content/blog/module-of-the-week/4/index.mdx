@@ -60,9 +60,14 @@ import { Schema } from "effect"
 import { Entity } from "effect/cluster"
 import { Rpc } from "effect/rpc"
 
+// "Dad" is the entity type. There's one definition, but one Dad per chat.
 export const Dad = Entity.make("Dad", [
+  // The only message Dad understands: someone posted in his chat
   Rpc.make("NewMessage", {
+    // Who said it, and what they said
     payload: { from: Schema.String, text: Schema.String },
+    // No `success` schema, so the sender gets nothing back. Dad replies
+    // in the chat himself, when he's ready.
   }),
 ])
 ```
@@ -81,37 +86,58 @@ With Dad's protocol defined, we can write a handler for each of his messages. We
 
 ```ts showLineNumbers=false
 export const DadLayer = Dad.toLayer(
+  // This effect runs once every time a Dad starts up, so every chat's Dad
+  // gets his own copy of everything below
   Effect.gen(function* () {
+    // This Dad's address:
+    //   - entityType: "Dad"
+    //   - entityId: the chat, like "#engineering"
+    //   - shardId: the shard he lives in
     const address = yield* Entity.CurrentAddress
     const punGenerator = yield* PunGenerator
     const chat = yield* Chat
+
+    // Dad's state. Only this Dad can see it, so it needs no locks.
+    // Every joke he's told in this chat:
     const told = new Set<string>()
+    // Messages he hasn't answered yet:
     const unread = yield* Queue.unbounded<{ from: string; text: string }>()
 
     yield* Effect.log(`Dad for ${address.entityId} has entered the chat`)
 
-    // Wait for a message, then keep reading until the chat goes quiet
+    // Wait for one message, then keep collecting until nobody has posted
+    // for 2.5 seconds
     const nextBatch = Effect.gen(function* () {
-      const batch = [yield* Queue.take(unread)]
+      const batch = [yield* Queue.take(unread)] // waits for the first message
       while (true) {
+        // Wait up to 2.5 seconds for another one
         const next = yield* Queue.take(unread).pipe(
           Effect.timeoutOption("2500 millis"),
         )
+        // Silence. Everyone's stopped typing. Dad clears his throat.
+        // This is the moment he's been waiting for.
         if (Option.isNone(next)) return batch
         batch.push(next.value)
       }
     })
 
+    // The joke loop, running in the background for as long as Dad is alive
     yield* Effect.gen(function* () {
       const messages = yield* nextBatch
+      // Ask for a pun about the whole batch that he hasn't told yet
       const joke = yield* punGenerator.generate(messages, { told })
       told.add(joke)
+      // Post it to the chat. Nothing goes back to whoever sent the messages.
       yield* chat.reply(address.entityId, joke)
-    }).pipe(Effect.forever, Effect.forkScoped)
+    }).pipe(
+      Effect.forever, // then wait for the next batch, forever
+      Effect.forkScoped, // in the background, stopping when Dad stops
+    )
 
+    // One handler per message in the protocol. NewMessage just queues the
+    // message and returns, so the sender never waits for a joke.
     return {
-      NewMessage: ({ payload }) =>
-        Queue.offer(unread, payload).pipe(Effect.asVoid),
+      NewMessage: ({ payload }) => Effect.asVoid(Queue.offer(unread, payload)),
     }
   }),
 )
@@ -148,11 +174,16 @@ Here's what DadBot's webhook handler does when Sebastian's message comes in:
 
 ```ts showLineNumbers=false
 const handleMessage = Effect.gen(function* () {
+  // A function from an entity ID to a client for that entity
   const makeDad = yield* Dad.client
+
+  // The Dad for #engineering. We say *which* Dad, never *where* he is.
   const dad = makeDad("#engineering")
 
+  // Cluster finds the runner that owns this Dad and delivers the message
   yield* dad.NewMessage(
     { from: "Sebastian", text: "Why is this test flaky?" },
+    // Fire and forget: don't wait for Dad's handler to finish
     { discard: true },
   )
 })
@@ -170,25 +201,32 @@ You don't need a fleet of machines to try this. `TestRunner.layer` gives you a w
 const program = Effect.gen(function* () {
   const makeDad = yield* Dad.client
 
+  // Someone posts in a chat: log it, then send it to that chat's Dad
   const post = (chat: string, from: string, text: string) =>
     Effect.gen(function* () {
       yield* Effect.log(`${chat} · ${from}: ${text}`)
       yield* makeDad(chat).NewMessage({ from, text }, { discard: true })
     })
 
+  // Two messages in #engineering, a second apart. Dad should answer
+  // them both with one joke once the chat goes quiet.
   yield* post("#engineering", "Sebastian", "Why is this test flaky?")
   yield* Effect.sleep("1 second")
   yield* post("#engineering", "Mattia", "It's flaky for me too")
+
+  // A different chat, so a different Dad
   yield* post("#random", "Tim", "Is CI down?")
 
-  // Give the Dads time to think
+  // Give the Dads time to think before the program exits
   yield* Effect.sleep("10 seconds")
 })
 
+// The services Dad depends on
 const ServicesLayer = Layer.mergeAll(ChatLayer, PunGeneratorLayer)
 
 const MainLayer = DadLayer.pipe(
   Layer.provide(ServicesLayer),
+  // A whole cluster in one process, with in-memory storage
   Layer.provideMerge(TestRunner.layer),
 )
 
@@ -234,6 +272,7 @@ Leaving works the same way. A runner that shuts down cleanly deletes itself from
 The first step in routing a message is working out which shard its entity belongs to. That part is easy. Cluster hashes the entity ID and takes the remainder:
 
 ```ts showLineNumbers=false
+// Same ID, same hash, same shard, on every runner, every time
 shard = (hash("#engineering") % shardsPerGroup) + 1
 ```
 
