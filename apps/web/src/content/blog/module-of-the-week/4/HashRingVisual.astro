@@ -1,0 +1,1150 @@
+---
+// Consistent hashing, drawn as a ring. Runners drop points on the ring, shards
+// land on it too, and each shard belongs to the nearest runner point.
+//
+// The post builds the idea up in stages, each one the previous plus one thing:
+//
+// - line: the hash values laid out flat, before they get bent into a ring.
+//   Nearest point wins with no wrap, so the runner with the lowest point gets
+//   everything below it
+// - points: three runners, one point each, gray shards, and a line from Dad's
+//   shard to the nearest runner point
+// - territory: the ring split into the stretch each runner owns
+// - join: a switch adds Runner 4; the shards it takes turn its color and the
+//   rest go muted
+// - virtual: a slider for points per runner (1 to 128, doubling) and bars
+//   for the three runners
+// - full: the slider, plus bar rows that add or remove runners 1 to 6
+// - weight: three runners at 128 points each, and a picker for Runner 1's
+//   weight. Weight w means round(128 × w) points, keyed `:1` up to `:128w`,
+//   so raising it keeps the existing points and adds more
+//
+// The ring draws every tenth shard (with Dad's in place of 275); the counts
+// cover all 300.
+//
+// Positions are real: each one is Effect's `Hash.string` of the same strings
+// Cluster hashes (`runner-1:34431:1`, ..., and `shard-0` for shard 1).
+// `Hash.string` copies bit 31 into bit 30, so its results fall in
+// [-2^30, 2^30). That range is the whole ring.
+//
+// This is the textbook version: the nearest point wins, and the ring wraps.
+// The post covers Cluster's no-wrap detail separately. With 128 points per
+// runner it gives the same answer for Dad's shard as Cluster does (Runner 3,
+// then Runner 4).
+
+import * as Hash from "effect/Hash"
+import { arcsFor, C, markerFor, ownerOf, pointsFor, polar, R, SIZE } from "./hashRing"
+
+type Stage = "line" | "points" | "territory" | "join" | "virtual" | "full" | "weight"
+interface Props {
+  stage?: Stage
+}
+const { stage = "full" } = Astro.props
+
+const colored = stage !== "points"
+const isLine = stage === "line"
+const hasSlider = stage === "virtual" || stage === "full"
+const isWeight = stage === "weight"
+const hasBars = hasSlider || isWeight
+const toggles = stage === "full"
+
+const STOPS = [1, 2, 4, 8, 16, 32, 64, 128]
+const RUNNERS = [1, 2, 3, 4, 5, 6]
+const START_RUNNERS = [1, 2, 3]
+const SHARDS = 300
+const DAD_SHARD = 276
+// The weight stage: which runner gets the weight, and the weights to pick from
+const WEIGHTED = 1
+const WEIGHTS = [0.5, 1, 2, 3]
+const BASE_POINTS = 128
+const weightLabel = (w: number) => (w === 0.5 ? "½" : String(w))
+
+const hashAngle = (input: string) => ((Hash.string(input) + 2 ** 30) / 2 ** 31) * 360
+
+// Only the weighted runner needs points past the 128th
+const pointCount = (k: number) =>
+  isWeight && k === WEIGHTED
+    ? Math.round(BASE_POINTS * Math.max(...WEIGHTS))
+    : STOPS[STOPS.length - 1]!
+const angles = RUNNERS.map((k) =>
+  Array.from({ length: pointCount(k) }, (_, i) => hashAngle(`runner-${k}:34431:${i + 1}`)),
+)
+const shardAngles = Array.from({ length: SHARDS }, (_, i) => hashAngle(`shard-${i}`))
+// Every tenth shard, with Dad's shard standing in for its neighbor 275.
+const drawn = Array.from({ length: 30 }, (_, i) => (i * 10 + 5 === 275 ? DAD_SHARD : i * 10 + 5))
+
+// The starting picture, so the page makes sense before the script runs.
+const startPoints = pointsFor(angles, START_RUNNERS, isWeight ? BASE_POINTS : 1)
+const startOwners = shardAngles.map((a) => ownerOf(a, startPoints))
+const startCounts = RUNNERS.map((k) => startOwners.filter((o) => o === k).length)
+const fair = SHARDS / START_RUNNERS.length
+const markers = RUNNERS.map((k) => ({ k, ...markerFor(angles[k - 1]![0]!) }))
+const barRunners = toggles ? RUNNERS : START_RUNNERS
+
+const dad = polar(shardAngles[DAD_SHARD - 1]!, R - 8)
+const dadLabel = polar(shardAngles[DAD_SHARD - 1]!, R - 46)
+const f = (n: number) => n.toFixed(2)
+
+// The "points" stage draws the hop from Dad's shard to the nearest runner
+// point, along the inside of the ring the short way round.
+const dadAngle = shardAngles[DAD_SHARD - 1]!
+const dadOwner = startOwners[DAD_SHARD - 1]!
+const nearest = (() => {
+  const to = angles[dadOwner - 1]![0]!
+  let d = (((to - dadAngle) % 360) + 360) % 360
+  if (d > 180) d -= 360
+  const r = R - 14
+  const a = polar(dadAngle, r)
+  const b = polar(dadAngle + d, r)
+  return `M${f(a.x)} ${f(a.y)} A${r} ${r} 0 0 ${d > 0 ? 1 : 0} ${f(b.x)} ${f(b.y)}`
+})()
+
+// The "line" stage: the same hashes, the same three runner points and the
+// same 30 shards, laid along a line instead. Nearest point wins, and nothing
+// wraps, so each end belongs to whichever runner sits closest to it.
+const LW = 400
+const LH = 124
+const X0 = 22
+const X1 = 378
+const LY = 58
+const lx = (angle: number) => X0 + (angle / 360) * (X1 - X0)
+const lineOwner = (angle: number) =>
+  startPoints.reduce((best, p) =>
+    Math.abs(angle - p.angle) < Math.abs(angle - best.angle) ? p : best,
+  ).runner
+const lineSegments = (() => {
+  const sorted = [...startPoints].sort((a, b) => a.angle - b.angle)
+  return sorted.map((p, i) => {
+    const prev = sorted[i - 1]
+    const next = sorted[i + 1]
+    return {
+      runner: p.runner,
+      from: prev ? lx((prev.angle + p.angle) / 2) : X0,
+      to: next ? lx((p.angle + next.angle) / 2) : X1,
+    }
+  })
+})()
+const lineMarkers = START_RUNNERS.map((k) => ({ k, x: lx(angles[k - 1]![0]!) }))
+const lineDad = { x: lx(dadAngle), owner: lineOwner(dadAngle) }
+
+const labels: Record<Stage, string> = {
+  line: "Every hash value laid out on a line, with one point for each of three runners and 30 sample shards colored by the nearest runner. Runner 2 has the lowest point, so it gets everything below it",
+  points:
+    "A hash ring with one point for each of three runners and 30 sample shards. A dashed line runs from Dad's shard to the nearest runner point",
+  territory:
+    "A hash ring split into the stretch each of three runners owns, with 30 sample shards colored by owner",
+  join: "A hash ring with three runners. A switch adds Runner 4, which takes only the shards nearest its point",
+  virtual:
+    "A hash ring with three runners and 30 sample shards colored by owner, next to a bar chart of shards per runner",
+  full: "A hash ring with runner points and 30 sample shards, each shard colored by the runner that owns it",
+  weight:
+    "A hash ring with three runners at 128 points each and 30 sample shards colored by owner. Buttons set Runner 1's weight, which gives it more or fewer points, and bars show shards per runner",
+}
+---
+
+<figure
+  class:list={["hr", `hr--${stage}`, { "hr--plain": !colored, "hr--solo": !hasBars }]}
+  data-hash-ring
+  data-stage={stage}
+>
+  <div class="hr-body">
+    {
+      hasSlider && (
+        <label class="hr-points">
+          <span class="hr-label">Points per runner</span>
+          <span class="hr-slider" style={`--stops: ${STOPS.length - 1}`}>
+            <input type="range" min="0" max={STOPS.length - 1} step="1" value="0" data-points />
+            <span class="hr-ticks" aria-hidden="true">
+              {STOPS.map((n, i) => (
+                <span style={`--i: ${i}`}>{n}</span>
+              ))}
+            </span>
+          </span>
+        </label>
+      )
+    }
+    {
+      stage === "join" && (
+        <div class="hr-points hr-join">
+          <button
+            type="button"
+            class="hr-switch hr-c4"
+            role="switch"
+            aria-checked="false"
+            data-join
+          >
+            <span class="hr-track-ui" aria-hidden="true">
+              <span class="hr-knob" />
+            </span>
+            Add Runner 4
+          </button>
+          <p class="hr-aside" aria-live="polite">
+            <span class="hr-stat">
+              <strong data-moved>0</strong> shards moved
+            </span>
+            <span class="hr-key">
+              <span class="hr-key-dot" aria-hidden="true" />
+              Didn't move
+            </span>
+          </p>
+        </div>
+      )
+    }
+    {
+      isWeight && (
+        <div class="hr-points hr-join">
+          <div class="hr-weight">
+            <span class="hr-weight-label">Runner {WEIGHTED} weight</span>
+            <div
+              class={`hr-weights hr-c${WEIGHTED}`}
+              role="radiogroup"
+              aria-label={`Runner ${WEIGHTED} weight`}
+            >
+              {WEIGHTS.map((w) => (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={w === 1 ? "true" : "false"}
+                  data-weight={w}
+                >
+                  {weightLabel(w)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p class="hr-aside" aria-live="polite">
+            <span class="hr-stat">
+              <strong data-moved>0</strong>{" "}
+              <span class="hr-stat-labels">
+                <span data-moved-label="add">shards added to Runner {WEIGHTED}</span>
+                <span data-moved-label="remove">shards removed from Runner {WEIGHTED}</span>
+              </span>
+            </span>
+            <span class="hr-key">
+              <span class="hr-key-dot" aria-hidden="true" />
+              Didn't move
+            </span>
+          </p>
+        </div>
+      )
+    }
+    {
+      isLine && (
+        <svg
+          viewBox={`0 0 ${LW} ${LH}`}
+          class="hr-svg hr-line"
+          role="img"
+          aria-label={labels[stage]}
+        >
+          <line x1={X0} y1={LY} x2={X1} y2={LY} class="hr-track" />
+          {lineSegments.map((g) => (
+            <line x1={f(g.from)} y1={LY} x2={f(g.to)} y2={LY} class={`hr-arc hr-c${g.runner}`} />
+          ))}
+          <line x1={X0} y1={LY + 6} x2={X0} y2={LY + 12} class="hr-wrap-tick" />
+          <line x1={X1} y1={LY + 6} x2={X1} y2={LY + 12} class="hr-wrap-tick" />
+          <text x={X0} y={LY + 22} class="hr-wrap">
+            lowest hash
+          </text>
+          <text x={X1} y={LY + 22} class="hr-wrap" text-anchor="end">
+            highest hash
+          </text>
+          {lineMarkers.map((m) => (
+            <g class={`hr-marker hr-c${m.k}`}>
+              <line x1={f(m.x)} y1={LY - 10} x2={f(m.x)} y2={LY + 10} class="hr-tick" />
+              <circle cx={f(m.x)} cy={LY - 26} r="11" class="hr-badge" />
+              <text x={f(m.x)} y={LY - 26} class="hr-badge-text" text-anchor="middle" dy="0.35em">
+                {m.k}
+              </text>
+            </g>
+          ))}
+          <line x1={f(lineDad.x)} y1={LY + 8} x2={f(lineDad.x)} y2={LY + 26} class="hr-leader" />
+          <text x={f(lineDad.x)} y={LY + 40} class="hr-dad" text-anchor="middle">
+            <tspan x={f(lineDad.x)} class="hr-dad-name">
+              Dad for #engineering
+            </tspan>
+            <tspan x={f(lineDad.x)} dy="1.2em" class="hr-dad-owner">
+              Shard {DAD_SHARD} · Runner {lineDad.owner}
+            </tspan>
+          </text>
+          {drawn.map((id) => {
+            const a = shardAngles[id - 1]!
+            return (
+              <circle
+                cx={f(lx(a))}
+                cy={LY}
+                r={id === DAD_SHARD ? 6 : 4.5}
+                class={`hr-dot hr-c${lineOwner(a)}`}
+              >
+                <title>
+                  Shard {id}, Runner {lineOwner(a)}
+                </title>
+              </circle>
+            )
+          })}
+        </svg>
+      )
+    }
+    {
+      !isLine && (
+        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} class="hr-svg" role="img" aria-label={labels[stage]}>
+          <circle cx={C} cy={C} r={R} class="hr-track" />
+          <g data-arcs>
+            {colored &&
+              arcsFor(startPoints).map((a) => <path d={a.d} class={`hr-arc hr-c${a.runner}`} />)}
+          </g>
+          <text x={C} y={C - R + 22} class="hr-wrap" text-anchor="middle">
+            hash wraps here
+          </text>
+          <line x1={C} y1={C - R + 6} x2={C} y2={C - R + 12} class="hr-wrap-tick" />
+
+          <g data-ticks>
+            {RUNNERS.map((k) => (
+              <path class={`hr-vnodes hr-c${k}`} data-ticks-for={k} d="" />
+            ))}
+          </g>
+          {markers.map((m) => (
+            <g
+              class:list={["hr-marker", `hr-c${m.k}`, { "is-off": !START_RUNNERS.includes(m.k) }]}
+              data-marker={m.k}
+            >
+              <line x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} class="hr-tick" />
+              <circle cx={m.cx} cy={m.cy} r="11" class="hr-badge" />
+              <text x={m.cx} y={m.cy} class="hr-badge-text" text-anchor="middle" dy="0.35em">
+                {m.k}
+              </text>
+            </g>
+          ))}
+
+          {stage === "points" && <path d={nearest} class="hr-nearest" />}
+          <line
+            x1={f(dad.x)}
+            y1={f(dad.y)}
+            x2={f(dadLabel.x)}
+            y2={f(dadLabel.y + 4)}
+            class="hr-leader"
+          />
+          <text x={f(dadLabel.x)} y={f(dadLabel.y - 14)} class="hr-dad" text-anchor="middle">
+            <tspan x={f(dadLabel.x)} class="hr-dad-name">
+              Dad for #engineering
+            </tspan>
+            <tspan x={f(dadLabel.x)} dy="1.2em" class="hr-dad-owner">
+              Shard {DAD_SHARD} · <tspan data-dad-owner>Runner {startOwners[DAD_SHARD - 1]}</tspan>
+            </tspan>
+          </text>
+
+          {drawn.map((id) => {
+            const p = polar(shardAngles[id - 1]!, R)
+            return (
+              <g class:list={["hr-shard", { "is-dad": id === DAD_SHARD }]} data-shard={id}>
+                <circle cx={f(p.x)} cy={f(p.y)} r="9" class="hr-moved" />
+                <circle
+                  cx={f(p.x)}
+                  cy={f(p.y)}
+                  r={id === DAD_SHARD ? 6 : 4.5}
+                  class={colored ? `hr-dot hr-c${startOwners[id - 1]}` : "hr-dot"}
+                  data-dot
+                />
+                <title data-shard-title>
+                  {colored ? `Shard ${id}, Runner ${startOwners[id - 1]}` : `Shard ${id}`}
+                </title>
+              </g>
+            )
+          })}
+        </svg>
+      )
+    }
+
+    {
+      hasBars && (
+        <div class="hr-side">
+          <p class="hr-side-title">
+            Shards per runner {toggles && <span>· click to add or remove</span>}
+          </p>
+          <ul class="hr-legend">
+            {barRunners.map((k) => {
+              const on = START_RUNNERS.includes(k)
+              const count = startCounts[k - 1]!
+              const inner = (
+                <>
+                  <span class="hr-swatch" aria-hidden="true">
+                    {k}
+                  </span>
+                  <span class="hr-name">
+                    Runner {k}
+                    {isWeight && k === WEIGHTED && <span class="hr-weight-tag" data-weight-tag />}
+                  </span>
+                  <span class="hr-bar" aria-hidden="true">
+                    <span style={`width: ${(count / (2 * fair)) * 100}%`} data-bar />
+                  </span>
+                  <span class="hr-count" data-count>
+                    {on ? count : ""}
+                  </span>
+                </>
+              )
+              return (
+                <li>
+                  {toggles ? (
+                    <button
+                      type="button"
+                      class={`hr-runner hr-c${k}`}
+                      aria-pressed={on ? "true" : "false"}
+                      data-runner={k}
+                    >
+                      {inner}
+                      <span class="hr-action" aria-hidden="true">
+                        {on ? "×" : "+"}
+                      </span>
+                    </button>
+                  ) : (
+                    <div class={`hr-runner hr-c${k}`} data-runner={k}>
+                      {inner}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )
+    }
+  </div>
+
+  <script
+    type="application/json"
+    data-hr-data
+    set:html={JSON.stringify({
+      stops: STOPS,
+      angles,
+      shardAngles,
+      drawn,
+      start: START_RUNNERS,
+      dad: DAD_SHARD,
+      weighted: WEIGHTED,
+      basePoints: BASE_POINTS,
+    })}
+  />
+</figure>
+
+<script>
+  import { arcsFor, ownerOf, pointsFor, ticksFor } from "./hashRing"
+
+  type Data = {
+    stops: Array<number>
+    angles: Array<Array<number>>
+    shardAngles: Array<number>
+    drawn: Array<number>
+    start: Array<number>
+    dad: number
+    weighted: number
+    basePoints: number
+  }
+  const SVG = "http://www.w3.org/2000/svg"
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-hash-ring]")) {
+    // The first two stages are pictures; the build already drew them.
+    const stage = root.dataset.stage
+    if (stage === "line" || stage === "points" || stage === "territory") continue
+
+    const data = JSON.parse(root.querySelector("[data-hr-data]")!.textContent!) as Data
+    const slider = root.querySelector<HTMLInputElement>("[data-points]")
+    const join = root.querySelector<HTMLButtonElement>("[data-join]")
+    const weightButtons = [...root.querySelectorAll<HTMLButtonElement>("[data-weight]")]
+    const weightTag = root.querySelector<HTMLElement>("[data-weight-tag]")
+    const movedEl = root.querySelector<HTMLElement>("[data-moved]")
+    const movedLabels = [...root.querySelectorAll<HTMLElement>("[data-moved-label]")]
+    const arcsEl = root.querySelector<SVGGElement>("[data-arcs]")!
+    const tickEls = [...root.querySelectorAll<SVGPathElement>("[data-ticks-for]")]
+    const markerEls = [...root.querySelectorAll<SVGGElement>("[data-marker]")]
+    const shardEls = [...root.querySelectorAll<SVGGElement>("[data-shard]")]
+    const rows = [...root.querySelectorAll<HTMLElement>("[data-runner]")]
+    const dadOwner = root.querySelector<SVGTSpanElement>("[data-dad-owner]")!
+
+    // Points per runner. The weight stage gives every runner 128, times the
+    // weighted runner's weight.
+    let n = slider ? data.stops[Number(slider.value)]! : stage === "weight" ? data.basePoints : 1
+    let weight = 1
+    const countFor = (k: number) => (k === data.weighted ? Math.round(n * weight) : n)
+    const active = new Set(data.start)
+    let previous: Array<number> | null = null
+    // The weight stage compares against weight 1, so stepping back toward it
+    // clears circles instead of drawing new ones
+    let baseline: Array<number> | null = null
+
+    // `highlight` marks the shards that changed owner. Only adding a runner
+    // asks for it, so the circled shards are the ones the newcomer took.
+    // Removing a runner would circle shards in their new owners' colors, and
+    // the points slider reshuffles too much to be useful. In the join stage
+    // the shards that stayed put also fade back, like the modulo visual. The
+    // weight stage circles the shards that differ from weight 1 instead.
+    const render = (highlight: boolean) => {
+      const runners = [...active].sort((a, b) => a - b)
+      const points = runners.flatMap((k) => pointsFor(data.angles, [k], countFor(k)))
+      const owners = data.shardAngles.map((a) => ownerOf(a, points))
+
+      arcsEl.replaceChildren(
+        ...arcsFor(points).map((a) => {
+          const path = document.createElementNS(SVG, "path")
+          path.setAttribute("d", a.d)
+          path.setAttribute("class", `hr-arc hr-c${a.runner}`)
+          return path
+        }),
+      )
+      tickEls.forEach((el, i) => {
+        el.setAttribute("d", active.has(i + 1) ? ticksFor(data.angles[i]!, countFor(i + 1)) : "")
+      })
+      markerEls.forEach((el, i) => {
+        el.classList.toggle("is-off", !active.has(i + 1))
+      })
+
+      if (stage === "weight" && baseline === null) baseline = owners
+      const against = stage === "weight" ? baseline : previous
+      const changed = owners.map((o, i) => against !== null && against[i] !== o)
+      const still = highlight && (stage === "join" || stage === "weight")
+      root.classList.toggle("has-moves", still)
+      // The weight stage shows its count whenever the weight isn't 1, even
+      // when it has nothing to circle
+      root.classList.toggle("has-count", stage === "weight" && weight !== 1)
+      if (movedEl) movedEl.textContent = String(changed.filter(Boolean).length)
+      // Every shard that moves goes to or from the weighted runner, so the
+      // count is how many it gained or gave away compared to weight 1
+      for (const label of movedLabels) {
+        label.classList.toggle(
+          "is-on",
+          label.dataset.movedLabel === (weight < 1 ? "remove" : "add"),
+        )
+      }
+
+      for (const el of shardEls) {
+        const id = Number(el.dataset.shard)
+        const owner = owners[id - 1]!
+        const moved = highlight && changed[id - 1]!
+        const wasMoved = el.classList.contains("is-moved")
+        el.querySelector("[data-dot]")!.setAttribute("class", `hr-dot hr-c${owner}`)
+        el.querySelector("[data-shard-title]")!.textContent =
+          `Shard ${id}, Runner ${owner}` +
+          (moved ? (stage === "weight" ? " (moved from weight 1)" : " (just moved)") : "")
+        el.classList.toggle("is-moved", moved)
+        el.classList.toggle("is-still", still && !moved)
+        // Shards already circled keep their circle without pulsing again
+        if (stage === "weight" && moved && wasMoved) continue
+        el.classList.remove("is-pulse")
+        if (moved) {
+          void el.getBoundingClientRect()
+          el.classList.add("is-pulse")
+        }
+      }
+      dadOwner.textContent = `Runner ${owners[data.dad - 1]}`
+      if (weightTag)
+        weightTag.textContent = weight === 1 ? "" : ` ×${weight === 0.5 ? "½" : weight}`
+      for (const b of weightButtons)
+        b.setAttribute("aria-checked", String(Number(b.dataset.weight) === weight))
+
+      // Bars are drawn so a fair share sits halfway along.
+      const fair = owners.length / runners.length
+      for (const row of rows) {
+        const k = Number(row.dataset.runner)
+        const on = active.has(k)
+        const count = owners.filter((o) => o === k).length
+        row.querySelector("[data-count]")!.textContent = on ? String(count) : ""
+        row.querySelector<HTMLElement>("[data-bar]")!.style.width =
+          `${Math.min(1, count / (2 * fair)) * 100}%`
+        if (row instanceof HTMLButtonElement) {
+          row.setAttribute("aria-pressed", String(on))
+          row.disabled = on && active.size === 1
+          row.querySelector(".hr-action")!.textContent = on ? "×" : "+"
+          row.title = on ? `Remove Runner ${k}` : `Add Runner ${k}`
+        }
+      }
+      previous = owners
+    }
+
+    slider?.addEventListener("input", () => {
+      n = data.stops[Number(slider.value)]!
+      render(false)
+    })
+    join?.addEventListener("click", () => {
+      const adding = !active.has(4)
+      if (adding) active.add(4)
+      else active.delete(4)
+      join.setAttribute("aria-checked", String(adding))
+      render(adding)
+    })
+    for (const b of weightButtons) {
+      b.addEventListener("click", () => {
+        const next = Number(b.dataset.weight)
+        if (next === weight) return
+        weight = next
+        // Only gains are circled. Below weight 1 the shards Runner 1 gives
+        // away would be circled in other runners' colors.
+        render(weight > 1)
+      })
+    }
+    for (const row of rows) {
+      if (!(row instanceof HTMLButtonElement)) continue
+      row.addEventListener("click", () => {
+        const k = Number(row.dataset.runner)
+        const adding = !active.has(k)
+        if (adding) active.add(k)
+        else if (active.size > 1) active.delete(k)
+        render(adding)
+      })
+    }
+    render(false)
+  }
+</script>
+
+<style is:global>
+  .hr {
+    --hr-ink: #3f3f46;
+    --hr-muted: #71717a;
+    --hr-line: #d4d4d8;
+    --hr-surface: #ffffff;
+    --hr-r1: #0072b2;
+    --hr-r2: #d55e00;
+    --hr-r3: #007a5e;
+    --hr-r4: #a3527f;
+    --hr-r5: #8a6d00;
+    --hr-r6: #52525b;
+    margin: 1.5rem 0;
+  }
+  html.dark .hr {
+    --hr-ink: #e4e4e7;
+    --hr-muted: #a1a1aa;
+    --hr-line: #3f3f46;
+    --hr-surface: #09090b;
+    --hr-r1: #56b4e9;
+    --hr-r2: #e69f00;
+    --hr-r3: #3cc39b;
+    --hr-r4: #cc79a7;
+    --hr-r5: #f0e442;
+    --hr-r6: #a1a1aa;
+  }
+  .hr p {
+    margin: 0;
+  }
+  .hr .hr-c1 {
+    --c: var(--hr-r1);
+  }
+  .hr .hr-c2 {
+    --c: var(--hr-r2);
+  }
+  .hr .hr-c3 {
+    --c: var(--hr-r3);
+  }
+  .hr .hr-c4 {
+    --c: var(--hr-r4);
+  }
+  .hr .hr-c5 {
+    --c: var(--hr-r5);
+  }
+  .hr .hr-c6 {
+    --c: var(--hr-r6);
+  }
+
+  /* Points slider: a thin track with the numbers sitting exactly under the
+     stops. The thumb is 16px wide, so stop i is at 8px + (100% - 16px) * i /
+     stops. */
+  .hr-points {
+    display: grid;
+    gap: 0.3rem;
+    max-width: 22rem;
+    margin: 0 auto 0.75rem;
+    padding: 0 0.6rem;
+  }
+  .hr-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--hr-muted);
+  }
+  .hr-slider {
+    position: relative;
+    display: block;
+    padding-bottom: 1.1rem;
+    --stop: calc((100% - 16px) / var(--stops));
+  }
+  .hr-slider input {
+    display: block;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+  }
+  .hr-slider input::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--hr-line);
+  }
+  .hr-slider input::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--hr-line);
+  }
+  .hr-slider input::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border: 2px solid var(--hr-surface);
+    border-radius: 999px;
+    background: var(--hr-ink);
+    box-shadow: 0 0 0 1px var(--hr-ink);
+    appearance: none;
+  }
+  .hr-slider input::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--hr-surface);
+    border-radius: 999px;
+    background: var(--hr-ink);
+    box-shadow: 0 0 0 1px var(--hr-ink);
+  }
+  .hr-slider input:focus-visible {
+    outline: none;
+  }
+  .hr-slider input:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 1px var(--hr-ink),
+      0 0 0 4px color-mix(in oklab, var(--hr-ink) 30%, transparent);
+  }
+  .hr-ticks span {
+    position: absolute;
+    top: 22px;
+    left: calc(8px + var(--stop) * var(--i));
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--hr-muted);
+    transform: translateX(-50%);
+  }
+
+  /* Layout: the slider, ring and bars are placed by grid area */
+  .hr-body {
+    display: grid;
+    grid-template-areas:
+      "points points"
+      "ring side";
+    grid-template-columns: minmax(0, 340px) minmax(0, 16rem);
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem 1.5rem;
+  }
+  .hr-body > .hr-points {
+    grid-area: points;
+    justify-self: center;
+    width: 100%;
+  }
+  .hr-body > .hr-svg {
+    grid-area: ring;
+  }
+  .hr-body > .hr-side {
+    grid-area: side;
+  }
+
+  /* Stages without bars: just the ring, with any controls above it */
+  .hr.hr--solo .hr-body {
+    grid-template-areas:
+      "points"
+      "ring";
+    grid-template-columns: minmax(0, 340px);
+  }
+
+  /* Line stage: drawn at the same scale as the ring, so dots, badges and
+     text match */
+  .hr.hr--line .hr-body {
+    grid-template-columns: minmax(0, 400px);
+  }
+
+  /* Join stage: the Runner 4 switch and the moved count, in one row */
+  .hr .hr-join {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem 1.25rem;
+    max-width: none;
+    margin-bottom: 0.25rem;
+  }
+  .hr-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--hr-ink);
+    cursor: pointer;
+  }
+  .hr-track-ui {
+    position: relative;
+    width: 2.4rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--hr-line);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hr-muted) 40%, transparent);
+    transition: background 200ms;
+  }
+  .hr-knob {
+    position: absolute;
+    top: 0.175rem;
+    left: 0.175rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    background: var(--hr-surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    transition: transform 200ms;
+  }
+  .hr-switch[aria-checked="true"] .hr-track-ui {
+    background: var(--c);
+  }
+  .hr-switch[aria-checked="true"] .hr-knob {
+    transform: translateX(1.05rem);
+  }
+  .hr-switch:focus-visible {
+    outline: none;
+  }
+  .hr-switch:focus-visible .hr-track-ui {
+    outline: 2px solid var(--hr-ink);
+    outline-offset: 2px;
+  }
+  /* Weight stage: a segmented picker for the weighted runner */
+  .hr-weight {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .hr-weight-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--hr-ink);
+  }
+  .hr-weights {
+    display: inline-flex;
+    padding: 0.2rem;
+    border: 1px solid var(--hr-line);
+    border-radius: 0.6rem;
+    background: var(--hr-surface);
+  }
+  .hr-weights button {
+    min-width: 2.1rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.45rem;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--hr-muted);
+    cursor: pointer;
+  }
+  .hr-weights button[aria-checked="true"] {
+    background: var(--c);
+    color: var(--hr-surface);
+    font-weight: 600;
+  }
+  .hr-weights button:focus-visible {
+    outline: 2px solid var(--hr-ink);
+    outline-offset: 1px;
+  }
+  .hr-weight-tag {
+    color: var(--hr-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .hr .hr-aside {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--hr-muted);
+    visibility: hidden;
+  }
+  .hr.has-moves .hr-aside,
+  .hr.has-count .hr-aside {
+    visibility: visible;
+  }
+  /* A count with nothing circled: no key needed */
+  .hr.has-count:not(.has-moves) .hr-key {
+    visibility: hidden;
+  }
+  /* Both labels share one cell, so switching between them doesn't change
+     the row's width */
+  .hr-stat-labels {
+    display: inline-grid;
+  }
+  .hr-stat-labels > span {
+    grid-area: 1 / 1;
+    visibility: hidden;
+  }
+  .hr .hr-stat-labels > span.is-on {
+    visibility: inherit;
+  }
+  .hr-stat strong {
+    display: inline-block;
+    min-width: 2ch;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--hr-ink);
+  }
+  .hr-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .hr-key-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--hr-muted) 45%, var(--hr-surface));
+  }
+
+  @media (max-width: 600px) {
+    .hr .hr-body {
+      grid-template-areas:
+        "points"
+        "ring"
+        "side";
+      grid-template-columns: minmax(0, 340px);
+    }
+  }
+  .hr-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Ring */
+  .hr-track {
+    fill: none;
+    stroke: var(--hr-line);
+    stroke-width: 1;
+  }
+  .hr-arc {
+    fill: none;
+    stroke: var(--c);
+    stroke-width: 8;
+    stroke-opacity: 0.28;
+  }
+  .hr-wrap {
+    fill: var(--hr-muted);
+    font-size: 9px;
+  }
+  .hr-wrap-tick {
+    stroke: var(--hr-muted);
+    stroke-width: 1;
+  }
+
+  /* Runner points: every runner keeps its numbered marker on its first point;
+     the rest are thin ticks outside the ring. */
+  .hr-vnodes {
+    fill: none;
+    stroke: var(--c);
+    stroke-width: 1;
+  }
+  .hr-marker.is-off {
+    display: none;
+  }
+  .hr-marker .hr-tick {
+    stroke: var(--c);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+  .hr-badge {
+    fill: var(--c);
+    stroke: var(--hr-surface);
+    stroke-width: 2;
+  }
+  .hr-badge-text {
+    fill: var(--hr-surface);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* Shards */
+  .hr-dot {
+    fill: var(--c);
+    stroke: var(--hr-surface);
+    stroke-width: 1.5;
+    transition: fill 300ms ease;
+  }
+  /* Points stage: shards have no owner yet, apart from Dad's hop to the
+     nearest runner point */
+  .hr--plain .hr-dot {
+    fill: color-mix(in oklab, var(--hr-muted) 70%, var(--hr-surface));
+  }
+  .hr--plain .hr-shard.is-dad .hr-dot {
+    fill: var(--hr-ink);
+  }
+  .hr-nearest {
+    fill: none;
+    stroke: var(--hr-ink);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
+    stroke-linecap: round;
+  }
+  /* Join stage: after Runner 4 joins, the shards that stayed put fade back */
+  .hr.has-moves .hr-shard.is-still .hr-dot {
+    fill: color-mix(in oklab, var(--c) 35%, var(--hr-surface));
+  }
+  .hr-moved {
+    fill: none;
+    stroke: var(--hr-ink);
+    stroke-width: 1.5;
+    stroke-dasharray: 2.5 2;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .hr-shard.is-moved .hr-moved {
+    opacity: 1;
+  }
+  .hr-shard.is-pulse .hr-moved {
+    animation: hr-pulse 700ms ease-out;
+  }
+  @keyframes hr-pulse {
+    from {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
+  .hr-leader {
+    stroke: var(--hr-muted);
+    stroke-width: 1;
+  }
+  .hr-dad {
+    font-size: 11px;
+  }
+  .hr-dad-name {
+    fill: var(--hr-ink);
+    font-weight: 600;
+  }
+  .hr-dad-owner {
+    fill: var(--hr-muted);
+  }
+
+  /* Bar chart, where each row also adds or removes its runner */
+  .hr .hr-side-title {
+    margin-bottom: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--hr-muted);
+  }
+  .hr-side-title span {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .hr .hr-legend {
+    display: grid;
+    gap: 0.2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .hr .hr-legend li {
+    margin: 0;
+    padding: 0;
+  }
+  .hr .hr-legend li::before,
+  .hr .hr-legend li::marker {
+    content: none;
+  }
+  .hr-runner {
+    display: grid;
+    grid-template-columns: auto 4.2rem 1fr 1.6rem 1rem;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--hr-ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  /* Room for Runner 1's weight next to its name */
+  .hr--weight .hr-runner {
+    grid-template-columns: auto 5.4rem 1fr 1.6rem;
+  }
+  button.hr-runner:hover:not(:disabled) {
+    border-color: var(--hr-line);
+  }
+  .hr-runner:disabled,
+  div.hr-runner {
+    cursor: default;
+  }
+  .hr-runner[aria-pressed="false"] {
+    color: var(--hr-muted);
+  }
+  .hr-runner[aria-pressed="false"] .hr-swatch {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--c);
+    color: var(--c);
+  }
+  .hr-runner[aria-pressed="false"] .hr-bar {
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--hr-line);
+  }
+  .hr-runner[aria-pressed="false"] .hr-bar::after {
+    display: none;
+  }
+  .hr-swatch {
+    display: grid;
+    place-items: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    background: var(--c);
+    color: var(--hr-surface);
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+  .hr-bar {
+    position: relative;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--hr-ink) 8%, transparent);
+    overflow: hidden;
+  }
+  .hr-bar::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--hr-ink);
+    opacity: 0.75;
+  }
+  .hr-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--c);
+    transition: width 300ms ease;
+  }
+  .hr-count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+  }
+  .hr-action {
+    font-size: 0.9rem;
+    line-height: 1;
+    text-align: center;
+    color: var(--hr-muted);
+  }
+  .hr-runner:disabled .hr-action {
+    visibility: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hr *,
+    .hr *::before {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+</style>
