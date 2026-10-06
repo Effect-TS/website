@@ -3,11 +3,8 @@ import "../styles/global.css"
 
 import { Font } from "astro:assets"
 import { SEO } from "astro-seo"
-import {
-  PUBLIC_POSTHOG_API_HOST,
-  PUBLIC_POSTHOG_KEY,
-  PUBLIC_WEBSITE_REVISION,
-} from "astro:env/client"
+import { PUBLIC_POSTHOG_API_HOST, PUBLIC_POSTHOG_KEY } from "astro:env/client"
+import openGraphRendererVersion from "virtual:open-graph-renderer-version"
 
 import SkipLink from "@/components/SkipLink.astro"
 import {
@@ -38,11 +35,27 @@ const getOgImagePath = () => {
 
 const ogImagePath = getOgImagePath()
 const ogImageUrl = new URL(ogImagePath, Astro.url.origin)
+// `v` makes the image immutable at the edge, so it must change whenever the
+// image does. The image is drawn from the page's own metadata (covered by its
+// title, description and `ogImageVersion`) and the renderer. Never key it on
+// the deploy revision: that changes every prerendered page on every commit,
+// which defeats the incremental build and re-uploads every HTML asset.
+const ogImageDigest = await crypto.subtle.digest(
+  "SHA-256",
+  new TextEncoder().encode(
+    JSON.stringify([
+      openGraphRendererVersion,
+      title,
+      description ?? null,
+      ogImageVersion ?? null,
+    ]),
+  ),
+)
 ogImageUrl.searchParams.set(
   "v",
-  ogImageVersion === undefined
-    ? PUBLIC_WEBSITE_REVISION
-    : `${PUBLIC_WEBSITE_REVISION}.${ogImageVersion}`,
+  Array.from(new Uint8Array(ogImageDigest).slice(0, 8), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join(""),
 )
 
 const pagePathname = Astro.url.pathname.replace(/\/$/, "")
@@ -60,7 +73,6 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <meta name="effect-website-revision" content={PUBLIC_WEBSITE_REVISION} />
 
     {/* Tint Firefox's initial canvas before first paint (bug 1488384). */}
     <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />

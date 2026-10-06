@@ -3,12 +3,32 @@ import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as FileSystem from "effect/FileSystem"
 import * as Schema from "effect/Schema"
+import { createHash } from "node:crypto"
 import { fileURLToPath } from "node:url"
 import { parse } from "devalue"
 import type { Plugin } from "vite"
 
 const moduleId = "virtual:open-graph-metadata"
 const resolvedModuleId = `\0${moduleId}`
+
+const rendererVersionModuleId = "virtual:open-graph-renderer-version"
+const resolvedRendererVersionModuleId = `\0${rendererVersionModuleId}`
+
+const repositoryRoot = new URL("../../../../../", import.meta.url)
+
+/**
+ * Everything besides a page's own metadata that decides how its Open Graph
+ * image looks: the renderer, its background assets, and (through the lockfile)
+ * the Satori and resvg versions. Pages key the image URL on a digest of these
+ * instead of the deploy revision, so an unchanged page renders byte-identical
+ * HTML across commits and the incremental build can reuse it.
+ */
+const RENDERER_INPUTS = [
+  "apps/web/src/features/open-graph",
+  "apps/web/src/assets/og",
+  "packages/open-graph/src",
+  "pnpm-lock.yaml",
+]
 
 class OpenGraphMetadataPluginError extends Data.TaggedError(
   "OpenGraphMetadataPluginError",
@@ -157,6 +177,38 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
   },
 )
 
+const listFiles = Effect.fn("OpenGraphMetadataPlugin.listFiles")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem
+  const info = yield* fs.stat(path)
+  if (info.type !== "Directory") return [path]
+  const entries = yield* fs.readDirectory(path, { recursive: true })
+  return yield* Effect.filter(
+    entries.map((entry) => `${path}/${entry}`),
+    (file) => fs.stat(file).pipe(Effect.map((stat) => stat.type === "File")),
+  )
+})
+
+const loadRendererVersion = Effect.fn(
+  "OpenGraphMetadataPlugin.loadRendererVersion",
+)(function* () {
+  const fs = yield* FileSystem.FileSystem
+  const root = fileURLToPath(repositoryRoot)
+  const files = yield* Effect.forEach(RENDERER_INPUTS, (input) =>
+    listFiles(`${root}${input}`),
+  ).pipe(Effect.map((groups) => groups.flat().sort()))
+  const hash = createHash("sha256")
+  for (const file of files) {
+    hash.update(file.slice(root.length))
+    hash.update("\0")
+    hash.update(yield* fs.readFile(file))
+    hash.update("\0")
+  }
+  const version = hash.digest("hex").slice(0, 16)
+  return `export default ${JSON.stringify(version)}`
+})
+
 export interface OpenGraphMetadataPluginOptions {
   /**
    * Astro's resolved `cacheDir`, where the content layer writes
@@ -173,9 +225,16 @@ export const openGraphMetadataPlugin = (
 ): Plugin => ({
   name: "open-graph-metadata",
   resolveId(id) {
-    return id === moduleId ? resolvedModuleId : undefined
+    if (id === moduleId) return resolvedModuleId
+    if (id === rendererVersionModuleId) return resolvedRendererVersionModuleId
+    return undefined
   },
   async load(id) {
+    if (id === resolvedRendererVersionModuleId) {
+      return Effect.runPromise(
+        loadRendererVersion().pipe(Effect.provide(NodeFileSystem.layer)),
+      )
+    }
     if (id !== resolvedModuleId) return undefined
     // Dev keeps its own copy under `.astro/` and never consults `cacheDir`.
     const storeUrl =
