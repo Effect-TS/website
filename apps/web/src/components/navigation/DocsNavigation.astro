@@ -1,5 +1,5 @@
 ---
-import { X } from "@lucide/astro"
+import { Search, X } from "@lucide/astro"
 import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
@@ -114,6 +114,22 @@ const navItemClass = (active: boolean) =>
             class="fixed inset-x-0 top-full z-90 hidden border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
           >
             <ul class="mx-auto w-full max-w-352 px-4 py-3">
+              <li class="pb-3">
+                <button
+                  type="button"
+                  data-role="search"
+                  aria-label="Open search"
+                  class="flex w-full appearance-none items-center gap-3 rounded-md border border-zinc-300 bg-transparent px-3 py-2.5 text-zinc-500 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-white"
+                >
+                  <Search class="h-4.5 w-4.5" aria-hidden="true" />
+                  <span class="text-sm">Search</span>
+                  <kbd
+                    data-role="search-kbd"
+                    aria-hidden="true"
+                    class="ml-auto inline-flex items-center gap-0.5 text-xs text-muted-foreground"
+                  ></kbd>
+                </button>
+              </li>
               <li class="border-b border-zinc-200 dark:border-zinc-800">
                 <a
                   href={DOCS_HOME.href}
@@ -152,11 +168,35 @@ const navItemClass = (active: boolean) =>
 <SearchDialog client:load version={version} />
 
 <script>
+  import { NAVIGATION_EVENTS } from "@/lib/navigation"
+
+  const isApplePlatform = (): boolean => {
+    const userAgentData = Reflect.get(navigator, "userAgentData") as
+      | {
+          platform?: string
+        }
+      | undefined
+
+    const platform = (userAgentData?.platform ?? navigator.platform).toLowerCase()
+    const userAgent = navigator.userAgent.toLowerCase()
+
+    return (
+      platform.includes("mac") ||
+      platform.includes("iphone") ||
+      platform.includes("ipad") ||
+      platform.includes("ipod") ||
+      userAgent.includes("mac os") ||
+      userAgent.includes("iphone") ||
+      userAgent.includes("ipad")
+    )
+  }
+
   class DocsMobileMenuElement extends HTMLElement {
     #toggle: HTMLButtonElement | null = null
     #iconOpen: SVGElement | null = null
     #iconClose: SVGElement | null = null
     #panel: HTMLElement | null = null
+    #search: HTMLButtonElement | null = null
     #open = false
 
     connectedCallback() {
@@ -164,9 +204,17 @@ const navItemClass = (active: boolean) =>
       this.#iconOpen = this.querySelector("[data-role='icon-open']")
       this.#iconClose = this.querySelector("[data-role='icon-close']")
       this.#panel = this.querySelector("[data-role='panel']")
+      this.#search = this.querySelector("[data-role='search']")
 
       if (!(this.#toggle instanceof HTMLButtonElement)) return
       if (!(this.#panel instanceof HTMLElement)) return
+
+      const searchKbd = this.querySelector("[data-role='search-kbd']")
+      if (this.#search instanceof HTMLButtonElement && searchKbd) {
+        searchKbd.textContent = isApplePlatform() ? "⌘K" : "Ctrl+K"
+        this.#search.setAttribute("aria-keyshortcuts", isApplePlatform() ? "Meta+K" : "Control+K")
+        this.#search.addEventListener("click", this.#onSearchClick)
+      }
 
       this.#toggle.addEventListener("click", this.#onToggle)
       this.#panel.querySelectorAll("[data-role='link']").forEach((link) => {
@@ -178,6 +226,7 @@ const navItemClass = (active: boolean) =>
 
     disconnectedCallback() {
       this.#toggle?.removeEventListener("click", this.#onToggle)
+      this.#search?.removeEventListener("click", this.#onSearchClick)
       this.#panel?.querySelectorAll("[data-role='link']").forEach((link) => {
         link.removeEventListener("click", this.#onLinkClick)
       })
@@ -197,6 +246,13 @@ const navItemClass = (active: boolean) =>
 
     #onToggle = () => this.#setOpen(!this.#open)
     #onLinkClick = () => this.#setOpen(false)
+
+    #onSearchClick = () => {
+      this.#setOpen(false)
+      window.dispatchEvent(
+        new CustomEvent(NAVIGATION_EVENTS.SEARCH_OPEN, { detail: { source: "mobile" } }),
+      )
+    }
 
     #onOutsidePointer = (event: MouseEvent) => {
       if (this.#open && event.target instanceof Node && !this.contains(event.target)) {

@@ -4,9 +4,9 @@ import { pipe } from "effect/Function"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
-import * as DevToolsSchema from "effect/unstable/devtools/DevToolsSchema"
-import * as Atom from "effect/unstable/reactivity/Atom"
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
+import * as DevToolsSchema from "effect/devtools/DevToolsSchema"
+import * as Atom from "effect/reactivity/Atom"
+import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import { Span } from "../domain/devtools"
 import { WebContainer } from "./webcontainer"
 
@@ -19,40 +19,36 @@ export const DevToolsLayer = Layer.effectDiscard(
 
     function registerSpan(span: DevToolsSchema.ParentSpan) {
       return Effect.sync(() =>
-        registry.update(
-          rootSpansAtom,
-          (rootSpans): ReadonlyArray<Span> =>
-            pipe(
-              rootSpans,
-              Array.findFirstIndex((root) => root.traceId === span.traceId),
-              Option.flatMap((index) =>
-                Array.modify(rootSpans as Array<Span>, index, (root: Span) =>
-                  root.addSpan(span),
-                ),
-              ),
-              Option.getOrElse(() =>
-                Array.prepend(rootSpans, Span.fromSpan(span)),
+        registry.update(rootSpansAtom, (rootSpans): ReadonlyArray<Span> =>
+          pipe(
+            rootSpans,
+            Array.findFirstIndex((root) => root.traceId === span.traceId),
+            Option.flatMap((index) =>
+              Array.modify(rootSpans as Array<Span>, index, (root: Span) =>
+                root.addSpan(span),
               ),
             ),
+            Option.getOrElse(() =>
+              Array.prepend(rootSpans, Span.fromSpan(span)),
+            ),
+          ),
         ),
       )
     }
 
     function registerSpanEvent(event: DevToolsSchema.SpanEvent) {
       return Effect.sync(() =>
-        registry.update(
-          rootSpansAtom,
-          (rootSpans): ReadonlyArray<Span> =>
-            pipe(
-              rootSpans,
-              Array.findFirstIndex((root) => root.traceId === event.traceId),
-              Option.flatMap((index) =>
-                Array.modify(rootSpans as Array<Span>, index, (root: Span) =>
-                  root.addEvent(event),
-                ),
+        registry.update(rootSpansAtom, (rootSpans): ReadonlyArray<Span> =>
+          pipe(
+            rootSpans,
+            Array.findFirstIndex((root) => root.traceId === event.traceId),
+            Option.flatMap((index) =>
+              Array.modify(rootSpans as Array<Span>, index, (root: Span) =>
+                root.addEvent(event),
               ),
-              Option.getOrElse(() => rootSpans),
             ),
+            Option.getOrElse(() => rootSpans),
+          ),
         ),
       )
     }

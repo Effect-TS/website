@@ -1,66 +1,44 @@
 ---
-import { ArrowRight, X } from "@lucide/astro"
+import { ArrowRight } from "@lucide/astro"
 
-// Dismissible site-wide banner sharing the navbar's sticky wrapper. Shown by
-// default; hidden before first paint for a visitor who dismissed it via the
-// head script in BaseLayout (both keyed off the localStorage key below).
-interface Props {
-  readonly href?: string | undefined
-}
-
-const { href = "/effect-days" } = Astro.props
+// Permanent site-wide banner sharing the navbar's sticky wrapper. Not
+// dismissible. The home hero dispatches `hero-grid-pulse-complete`; the banner
+// answers with a light sweep along its bottom border.
 ---
 
-<effect-days-announcement
+<effect-announcement
   data-announcement
   role="region"
   aria-label="Announcement"
-  class="group relative flex min-h-10 items-center justify-center border-b border-zinc-700/60 bg-zinc-900 px-12 py-2 text-zinc-100"
+  class="group relative flex min-h-10 items-center justify-center border-b border-zinc-700/60 bg-zinc-900 px-10 py-2 text-zinc-100 transition-colors has-[a:hover]:bg-zinc-800"
 >
   <span
     aria-hidden="true"
     class="announcement-sweep pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.9)_50%,transparent_100%)] opacity-0"
   ></span>
+  <span
+    aria-hidden="true"
+    class="announcement-glint pointer-events-none absolute inset-x-0 bottom-[-1px] hidden h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.9),transparent)] group-data-[glint]:block motion-reduce:hidden"
+  ></span>
 
   <a
-    href={href}
-    aria-label="Effect Days 2026, December 9–11: get your ticket"
+    href="/blog/releases/effect/40"
+    aria-label="Effect 4.0 is here: read the announcement"
     class="absolute inset-0"></a>
 
   <div
-    class="pointer-events-none flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm"
+    class="pointer-events-none flex min-w-0 items-center justify-center gap-2 text-sm font-medium"
   >
-    <span>
-      <span class="font-medium text-zinc-100">Effect Days 2026</span>
-      <span aria-hidden="true" class="hidden px-2 text-zinc-600 sm:inline">·</span>
-      <span class="hidden text-zinc-400 sm:inline">Dec 9–11</span>
-    </span>
-    <span aria-hidden="true" class="shrink-0 text-zinc-600">·</span>
-    <span class="flex shrink-0 items-center gap-1.5 font-medium text-white">
-      Get your ticket
-      <ArrowRight
-        size={16}
-        class="transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </span>
+    <span class="truncate">Effect 4.0 is here. One ecosystem. Zero dependencies.</span>
+    <ArrowRight
+      size={16}
+      class="shrink-0 transition-transform group-hover:translate-x-0.5"
+      aria-hidden="true"
+    />
   </div>
-
-  <button
-    type="button"
-    data-role="dismiss"
-    aria-label="Dismiss announcement"
-    class="absolute top-1/2 right-3 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-  >
-    <X size={16} aria-hidden="true" />
-  </button>
-</effect-days-announcement>
+</effect-announcement>
 
 <style is:global>
-  :root.announcement-dismissed [data-announcement] {
-    display: none;
-  }
-
   @keyframes announcement-sweep {
     0% {
       transform: scaleX(0);
@@ -77,6 +55,32 @@ const { href = "/effect-days" } = Astro.props
   [data-announcement]:has(a:hover) .announcement-sweep {
     animation: announcement-sweep 1600ms ease-in-out;
   }
+
+  /* Sweep (~1.9s), fade, then stay quiet for the rest of the 12s cycle.
+     Animates transform + opacity only, so it stays off the layout path. */
+  @keyframes announcement-glint {
+    0% {
+      transform: scaleX(0);
+      opacity: 1;
+    }
+    18% {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+    28% {
+      transform: scaleX(1);
+      opacity: 0;
+    }
+    28.1%,
+    100% {
+      transform: scaleX(0);
+      opacity: 0;
+    }
+  }
+  [data-announcement][data-glint] .announcement-glint {
+    animation: announcement-glint 12s ease-out 0.1s infinite both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-announcement]:has(a:hover) .announcement-sweep {
       animation: none;
@@ -85,9 +89,7 @@ const { href = "/effect-days" } = Astro.props
 </style>
 
 <script>
-  const STORAGE_KEY = "effect-days-2026-banner-dismissed"
-
-  class EffectDaysAnnouncementElement extends HTMLElement {
+  class AnnouncementElement extends HTMLElement {
     #resize = new ResizeObserver(() => {
       const height = this.getBoundingClientRect().height
       document.documentElement.style.setProperty("--announcement-height", `${height}px`)
@@ -97,27 +99,20 @@ const { href = "/effect-days" } = Astro.props
       )
     })
 
-    #dismiss = () => {
-      document.documentElement.classList.add("announcement-dismissed")
-      try {
-        localStorage.setItem(STORAGE_KEY, "1")
-      } catch {
-        /* Private mode or storage disabled — the banner returns next visit. */
-      }
-    }
+    #glint = () => this.setAttribute("data-glint", "")
 
     connectedCallback() {
       this.#resize.observe(this)
-      this.querySelector("[data-role='dismiss']")?.addEventListener("click", this.#dismiss)
+      document.addEventListener("hero-grid-pulse-complete", this.#glint)
     }
 
     disconnectedCallback() {
       this.#resize.disconnect()
-      this.querySelector("[data-role='dismiss']")?.removeEventListener("click", this.#dismiss)
+      document.removeEventListener("hero-grid-pulse-complete", this.#glint)
     }
   }
 
-  if (!customElements.get("effect-days-announcement")) {
-    customElements.define("effect-days-announcement", EffectDaysAnnouncementElement)
+  if (!customElements.get("effect-announcement")) {
+    customElements.define("effect-announcement", AnnouncementElement)
   }
 </script>

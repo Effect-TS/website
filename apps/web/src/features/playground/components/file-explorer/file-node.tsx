@@ -1,5 +1,5 @@
 import { useAtom } from "@effect/atom-react"
-import { Equal } from "effect"
+import * as Equal from "effect/Equal"
 import {
   ChevronDown,
   ChevronRight,

@@ -10,7 +10,7 @@ import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import * as Atom from "effect/reactivity/Atom"
 import {
   Directory,
   File,
@@ -329,7 +329,7 @@ function setupWorkspaceTypeAcquisition(
       return Effect.gen(function* () {
         const path = packagePath ?? `${storePath}/node_modules`
 
-        const [files, directories] = yield* container
+        const [directories, files] = yield* container
           .readDirectory(path)
           .pipe(
             Effect.map((entries) =>

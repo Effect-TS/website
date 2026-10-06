@@ -1,0 +1,118 @@
+---
+import ChartCard from "@/components/blog/ChartCard.astro"
+
+interface Measurement {
+  value: number
+  display: string
+}
+
+interface Props {
+  title: string
+  baseline: string
+  candidate: string
+  stats: Array<{
+    value: string
+    label: string
+  }>
+  groups: Array<{
+    label: string
+    hint?: string
+    baseline: Measurement
+    candidate: Measurement
+  }>
+  note?: string
+}
+
+const { title, baseline, candidate, stats, groups, note } = Astro.props
+const lines = note?.split(/(?<=\.)\s+/)
+---
+
+<ChartCard title={title} note={lines}>
+  <span
+    slot="legend"
+    class="flex items-center gap-4 font-mono text-[13px] text-muted-foreground"
+    aria-hidden="true"
+  >
+    <span class="flex items-center gap-1.5">
+      <span class="baseline inline-block size-2.5 rounded-[2px]"></span>{baseline}
+    </span>
+    <span class="flex items-center gap-1.5">
+      <span class="candidate inline-block size-2.5 rounded-[2px]"></span>{candidate}
+    </span>
+  </span>
+  <div
+    class:list={[
+      "grid divide-y divide-border border-t border-border sm:divide-x sm:divide-y-0",
+      stats.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3",
+    ]}
+  >
+    {
+      stats.map(({ value, label }, index) => {
+        const group = groups[index]
+        const maximum = group ? Math.max(group.baseline.value, group.candidate.value) : 0
+        const rows = group
+          ? [
+              { name: baseline, measurement: group.baseline, kind: "baseline" },
+              { name: candidate, measurement: group.candidate, kind: "candidate" },
+            ]
+          : []
+        return (
+          <div class="row-span-2 grid grid-rows-subgrid px-6 pt-6 pb-7">
+            <dl class="m-0 flex flex-col gap-2">
+              <dt class="order-2 text-[15px] leading-snug text-muted-foreground">{label}</dt>
+              <dd class="m-0 text-[36px] leading-none font-semibold tracking-tight text-foreground tabular-nums">
+                {value}
+              </dd>
+            </dl>
+            {group && (
+              <div class="mt-7 self-start border-t border-border pt-5">
+                <p class="m-0 text-[15px] leading-snug">
+                  <span class="block font-medium text-foreground">{group.label}</span>
+                  {group.hint && (
+                    <span class="block text-sm text-muted-foreground">{group.hint}</span>
+                  )}
+                </p>
+                <dl class="m-0 mt-1.5 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-[7px] text-[13px] leading-5">
+                  {rows.map(({ name, measurement, kind }) => (
+                    <div class="contents">
+                      <dt class="font-mono whitespace-nowrap text-muted-foreground">{name}</dt>
+                      <dd
+                        class="m-0 h-1.5 overflow-hidden rounded-full bg-muted/70"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class:list={["block h-full rounded-full", kind]}
+                          style={{
+                            width: `${maximum > 0 ? (measurement.value / maximum) * 100 : 0}%`,
+                          }}
+                        />
+                      </dd>
+                      <dd
+                        class:list={[
+                          "m-0 text-right font-mono whitespace-nowrap tabular-nums",
+                          kind === "candidate" ? "text-foreground" : "text-muted-foreground",
+                        ]}
+                      >
+                        {measurement.display}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+          </div>
+        )
+      })
+    }
+  </div>
+</ChartCard>
+
+<style>
+  .candidate {
+    background-color: #34d399;
+  }
+
+  .baseline {
+    background-color: color-mix(in srgb, var(--muted-foreground) 48%, var(--background));
+  }
+</style>

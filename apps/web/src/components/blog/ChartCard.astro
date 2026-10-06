@@ -1,0 +1,28 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  title: string
+  note?: string | readonly string[] | undefined
+}
+
+const { title, note } = Astro.props
+const lines = typeof note === "string" ? [note] : note
+---
+
+<figure class="not-prose my-10 overflow-hidden rounded-xl border border-border bg-card/30">
+  <figcaption class="flex flex-wrap items-center justify-between gap-3 px-6 py-5 leading-5">
+    <Eyebrow as="span" class="text-[13px]">{title}</Eyebrow>
+    <slot name="legend" />
+  </figcaption>
+  <slot />
+  {
+    lines && lines.length > 0 && (
+      <p class="m-0 border-t border-border px-6 py-5 text-sm leading-normal text-muted-foreground">
+        {lines.map((line) => (
+          <span class="block">{line}</span>
+        ))}
+      </p>
+    )
+  }
+</figure>

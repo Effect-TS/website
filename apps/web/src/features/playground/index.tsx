@@ -1,6 +1,6 @@
 import type * as Cause from "effect/Cause"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
+import * as AsyncResult from "effect/reactivity/AsyncResult"
 import { useCallback, Fragment, Suspense } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
 import {
@@ -29,6 +29,7 @@ import {
 export function CodeEditor() {
   const result = useAtomValue(importAtom)
   return AsyncResult.builder(result)
+    .onInitial(() => <PlaygroundLoader />)
     .onSuccess((workspace) => (
       <>
         <PlaygroundLoader />

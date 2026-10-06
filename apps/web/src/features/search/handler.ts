@@ -1,5 +1,6 @@
 import * as Layer from "effect/Layer"
-import { HttpRouter, HttpServer } from "effect/unstable/http"
+import * as HttpRouter from "effect/http/HttpRouter"
+import * as HttpServer from "effect/http/HttpServer"
 import { SearchLayer } from "./server"
 
 const { handler, dispose } = HttpRouter.toWebHandler(

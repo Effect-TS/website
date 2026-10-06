@@ -1,0 +1,1519 @@
+---
+// One message's whole trip through a three-runner cluster, step by step:
+// Slack's webhook goes through a load balancer, which hands it to Runner 1.
+// Runner 1 hashes the entity ID to a shard, looks up the shard's owner
+// (Runner 3), and sends the message straight there. Runner 3 checks its lock,
+// wakes Dad up, and once the chat goes quiet, Dad posts his joke to Slack
+// himself.
+//
+// With `persisted`, the same trip for a persisted message, as Sharding and
+// Runners handle it: Runner 1 saves the message to the database and notifies
+// Runner 3, which reads it back from the database. Nobody waits for a reply,
+// so the rest is the same.
+//
+// The shard and its owner are computed at build time with the same hash and
+// hash ring that Cluster uses.
+
+import * as Hash from "effect/Hash"
+import * as HashRing from "effect/HashRing"
+import * as PrimaryKey from "effect/PrimaryKey"
+import { people } from "../3/palette"
+
+interface Props {
+  persisted?: boolean
+}
+const { persisted = false } = Astro.props
+
+const SHARDS = 300
+const entityId = "#engineering"
+
+const runners = [1, 2, 3].map((n) => ({
+  n,
+  address: `runner-${n}:34431`,
+  [PrimaryKey.symbol]() {
+    return this.address
+  },
+}))
+const ring = HashRing.make<(typeof runners)[number]>()
+for (const r of runners) HashRing.add(ring, r)
+const assignment = HashRing.getShards(ring, SHARDS)!
+const shard = Math.abs(Hash.string(entityId) % SHARDS) + 1
+const owner = assignment[shard - 1]!.n
+// The layout below draws the trip as Runner 1 -> Runner 3.
+if (owner !== 3) throw new Error(`Expected shard ${shard} to be owned by Runner 3, got ${owner}`)
+const shardCount = (n: number) => assignment.filter((r) => r.n === n).length
+
+const runnerColors = [
+  { light: "#0072b2", dark: "#56b4e9" },
+  { light: "#d55e00", dark: "#e69f00" },
+  { light: "#007a5e", dark: "#3cc39b" },
+]
+
+const steps = (
+  persisted
+    ? ["Hash", "Look up", "Save", "Notify", "Read", "Wake", "Post"]
+    : ["Hash", "Look up", "Send", "Lock", "Wake", "Post"]
+).map((label) => ({ label }))
+---
+
+<figure
+  class="mt"
+  data-message-trip
+  data-shard={shard}
+  data-persisted={String(persisted)}
+  aria-label={persisted
+    ? `Animated diagram: a persisted Slack message to Dad in ${entityId} goes through the database on its way through a three-runner cluster and back`
+    : `Animated diagram: a Slack message to Dad in ${entityId} travels through a three-runner cluster and back`}
+  style={[
+    ...runnerColors.flatMap((c, i) => [
+      `--mt-r${i + 1}-light: ${c.light}`,
+      `--mt-r${i + 1}-dark: ${c.dark}`,
+    ]),
+    `--mt-sebastian-avatar: ${people.Sebastian.avatar}`,
+  ].join("; ")}
+>
+  <ol class="mt-steps" aria-label="Steps">
+    {
+      steps.map((s, i) => (
+        <li>
+          <button
+            type="button"
+            class="mt-step"
+            data-step-pill={i + 1}
+            aria-label={`Go to step ${i + 1}: ${s.label}`}
+          >
+            <span class="mt-step-num">{i + 1}</span>
+            <span class="mt-step-label">{s.label}</span>
+          </button>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="mt-stage" data-stage>
+    <svg class="mt-wires" data-wires aria-hidden="true">
+      <path data-wire="hook"></path>
+      <path data-wire="pick"></path>
+      <path data-wire="send"></path>
+      <path data-wire="post"></path>
+      {persisted && <path data-wire="save" />}
+      {persisted && <path data-wire="load" />}
+    </svg>
+
+    <div class="mt-chat" data-chat>
+      <p class="mt-chat-title">
+        <span class="mt-dot" aria-hidden="true"></span>Slack <span>{entityId}</span>
+      </p>
+      <ol class="mt-messages">
+        <li class="mt-msg" data-anchor-chat>
+          <span class="mt-avatar" aria-hidden="true">S</span>
+          <div>
+            <p class="mt-from">Sebastian</p>
+            <p class="mt-text">Why is this test flaky?</p>
+          </div>
+        </li>
+        <li class="mt-msg" data-reply hidden>
+          <span class="mt-avatar is-dad" aria-hidden="true"></span>
+          <div>
+            <p class="mt-from">DadBot <span class="mt-badge">APP</span></p>
+            <p class="mt-text">I'd tell you a UDP joke, but you might not get it.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="mt-lb" data-lb>
+      <span class="mt-lb-title">Load balancer</span>
+    </div>
+
+    <div class="mt-runners">
+      <section class="mt-runner" style="--c: var(--mt-r1)" data-runner="1">
+        <p class="mt-runner-title">
+          <span>Runner 1</span>
+        </p>
+        <p class="mt-owns mt-owns-extra">Owns {shardCount(1)} shards</p>
+        <div class="mt-readout" data-readout>
+          <code
+            ><span>hash("{entityId}") % {SHARDS} + 1 =</span>
+            <b data-hash-result>?</b></code
+          >
+          <code
+            ><span>shard</span>
+            <b data-lookup-shard>?</b> →
+            <b data-lookup-owner>?</b></code
+          >
+        </div>
+      </section>
+
+      <section class="mt-runner is-bystander" style="--c: var(--mt-r2)" data-runner="2">
+        <p class="mt-runner-title">
+          <span>Runner 2</span>
+        </p>
+        <p class="mt-owns mt-owns-extra">Owns {shardCount(2)} shards. Not on this trip</p>
+      </section>
+
+      <section class="mt-runner" style="--c: var(--mt-r3)" data-runner="3">
+        <p class="mt-runner-title">
+          <span>Runner 3</span>
+        </p>
+        <p class="mt-owns">Owns {shardCount(3)} shards, including {shard}</p>
+        <div class="mt-shard">
+          <p class="mt-shard-head">
+            <span class="mt-shard-name">Shard {shard}</span>
+            <span class="mt-lock" data-lock>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="3" y="7" width="10" height="7" rx="1.5"></rect>
+                <path d="M5.5 7 V5 a2.5 2.5 0 0 1 5 0 V7"></path>
+              </svg>
+              <span data-lock-text>Lock</span>
+            </span>
+          </p>
+          <div class="mt-dad" data-dad data-state="off">
+            <p class="mt-dad-head">
+              <span class="mt-avatar is-dad mt-dad-face" aria-hidden="true"></span>
+              <span>Dad · {entityId}</span>
+            </p>
+            <dl class="mt-fields">
+              <dt>State</dt>
+              <dd data-dad-state>Not running</dd>
+              <dt>Mailbox</dt>
+              <dd data-mailbox>–</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    {
+      persisted && (
+        <div class="mt-db" data-db>
+          <p class="mt-db-title">Database</p>
+          <div class="mt-db-tables">
+            <div class="mt-db-table">
+              <p class="mt-db-name">cluster_messages</p>
+              <p class="mt-db-row" data-db-request hidden>
+                <span class="mt-db-text">NewMessage: "Why is this test flaky?"</span>
+                <span class="mt-db-status" data-db-request-status />
+              </p>
+              <p class="mt-db-empty" data-db-request-empty>
+                No rows
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    <div class="mt-callout" data-callout aria-hidden="true" hidden>
+      <p class="mt-callout-head">
+        <span class="mt-callout-num" data-callout-num></span>
+        <span data-callout-title></span>
+      </p>
+      <p class="mt-callout-text" data-callout-text></p>
+    </div>
+  </div>
+
+  <p class="mt-caption" data-caption aria-live="polite"></p>
+
+  <div class="mt-controls">
+    <button type="button" class="mt-button mt-primary" data-step>Step</button>
+    <button type="button" class="mt-button" data-reset>Reset</button>
+  </div>
+</figure>
+
+<script>
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  type Point = { x: number; y: number }
+  type Wire = "hook" | "pick" | "send" | "save" | "load" | "post"
+  // The states each version steps through. The first two set the scene, and
+  // the rest are the post's numbered steps.
+  type State =
+    | "start"
+    | "webhook"
+    | "hash"
+    | "lookup"
+    | "send"
+    | "lock"
+    | "save"
+    | "notify"
+    | "read"
+    | "wake"
+    | "post"
+  const PLAIN: Array<State> = ["start", "webhook", "hash", "lookup", "send", "lock", "wake", "post"]
+  const PERSISTED: Array<State> = [
+    "start",
+    "webhook",
+    "hash",
+    "lookup",
+    "save",
+    "notify",
+    "read",
+    "wake",
+    "post",
+  ]
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-message-trip]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const persisted = root.dataset.persisted === "true"
+    const states = persisted ? PERSISTED : PLAIN
+    const LAST = states.length - 1
+    const shard = root.dataset.shard!
+    const stage = q<HTMLElement>("[data-stage]")
+    const chat = q<HTMLElement>("[data-chat]")
+    const chatAnchor = q<HTMLElement>("[data-anchor-chat]")
+    const lb = q<HTMLElement>("[data-lb]")
+    const r1 = q<HTMLElement>('[data-runner="1"]')
+    const r3 = q<HTMLElement>('[data-runner="3"]')
+    const readout = q<HTMLElement>("[data-readout]")
+    const wires = q<SVGSVGElement>("[data-wires]")
+    const wire = (w: Wire) => root.querySelector<SVGPathElement>(`[data-wire="${w}"]`)
+    const reply = q<HTMLElement>("[data-reply]")
+    const hashResult = q<HTMLElement>("[data-hash-result]")
+    const lookupShard = q<HTMLElement>("[data-lookup-shard]")
+    const lookupOwner = q<HTMLElement>("[data-lookup-owner]")
+    const lock = q<HTMLElement>("[data-lock]")
+    const lockText = q<HTMLElement>("[data-lock-text]")
+    const dad = q<HTMLElement>("[data-dad]")
+    const dadState = q<HTMLElement>("[data-dad-state]")
+    const mailbox = q<HTMLElement>("[data-mailbox]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const callout = q<HTMLElement>("[data-callout]")
+    const calloutText = q<HTMLElement>("[data-callout-text]")
+    const calloutNum = q<HTMLElement>("[data-callout-num]")
+    const calloutTitle = q<HTMLElement>("[data-callout-title]")
+    const pills = root.querySelectorAll<HTMLElement>("[data-step-pill]")
+    const step = q<HTMLButtonElement>("[data-step]")
+    const reset = q<HTMLButtonElement>("[data-reset]")
+    // The database, in the persisted version only
+    const db = root.querySelector<HTMLElement>("[data-db]")
+    const dbRequest = root.querySelector<HTMLElement>("[data-db-request]")
+    const dbRequestStatus = root.querySelector<HTMLElement>("[data-db-request-status]")
+    const dbRequestEmpty = root.querySelector<HTMLElement>("[data-db-request-empty]")
+
+    // What each state says
+    const notes: Record<State, { title: string; text: string }> = {
+      start: { title: "Start", text: "Sebastian asks a question. Press Step to follow it" },
+      webhook: {
+        title: "Webhook",
+        text: "The load balancer picks a runner for the message",
+      },
+      hash: {
+        title: "Hash",
+        text: `Hashing the entity ID, #engineering, gives shard ${shard}`,
+      },
+      lookup: {
+        title: "Look up shard assignments",
+        text: `Runner 3 owns shard ${shard}`,
+      },
+      send: { title: "Send", text: "Route the message to Runner 3" },
+      lock: { title: "Lock", text: `Runner 3 holds the lock on shard ${shard}` },
+      save: { title: "Save", text: "Runner 1 writes the message to the database first" },
+      notify: {
+        title: "Notify",
+        text: "A poke to Runner 3: there's mail. If it gets lost, Runner 3 checks every 10 seconds anyway",
+      },
+      read: {
+        title: "Read",
+        text: `Runner 3 holds the lock on shard ${shard}, so it reads the message from the database`,
+      },
+      wake: {
+        title: "Wake",
+        text: "Runner 3 starts Dad, and he waits for the chat to go quiet",
+      },
+      post: {
+        title: "Post",
+        text: "Dad posts his joke to the Slack chat",
+      },
+    }
+    // The post's step number for state k, if it's one of the numbered steps
+    const numberOf = (k: number) => (k >= 2 ? k - 1 : undefined)
+    const captions = states.map((name, k) => {
+      const n = numberOf(k)
+      return n ? `${n}. ${notes[name].text}` : notes[name].text
+    })
+
+    // Where state k sits relative to a named state. A state this version
+    // doesn't have counts as never reached.
+    const at = (name: State) => states.indexOf(name)
+    const reached = (k: number, name: State) => at(name) !== -1 && k >= at(name)
+    const is = (k: number, ...names: Array<State>) => names.includes(states[k]!)
+
+    let current = 0
+    // Bumped on reset, so a running animation knows to stop.
+    let generation = 0
+    let busy = false
+
+    // Points are relative to the stage, which the wires and envelopes share.
+    const rel = (el: Element) => {
+      const s = stage.getBoundingClientRect()
+      const r = el.getBoundingClientRect()
+      return {
+        left: r.left - s.left,
+        right: r.right - s.left,
+        top: r.top - s.top,
+        bottom: r.bottom - s.top,
+      }
+    }
+    const route = (w: Wire): Array<Point> =>
+      w === "hook" || w === "pick"
+        ? routeIn(w)
+        : w === "send"
+          ? routeSend()
+          : w === "save"
+            ? routeSave()
+            : w === "load"
+              ? routeLoad()
+              : routePost()
+    // Slack to Runner 1, through the load balancer
+    const routeIn = (w: "hook" | "pick"): Array<Point> => {
+      const a = rel(r1)
+      const l = rel(lb)
+      const c = rel(chat)
+      // Side by side: chat, load balancer and runners in three columns. The
+      // message crosses into the load balancer, runs through it, and leaves
+      // level with Runner 1. The wire inside is hidden behind the box.
+      if (l.left >= c.right) {
+        const m = rel(chatAnchor)
+        const y1 = (m.top + m.bottom) / 2
+        const x = (l.left + l.right) / 2
+        if (w === "hook") {
+          return [
+            { x: c.right, y: y1 },
+            { x, y: y1 },
+          ]
+        }
+        // Narrow screens: the runners sit under the chat and load balancer, so
+        // drop out of the load balancer's bottom and into Runner 1's top
+        if (a.top >= l.bottom) {
+          const mid = (l.bottom + a.top) / 2
+          const x2 = Math.min(x, a.right - 28)
+          return [
+            { x, y: y1 },
+            { x, y: mid },
+            { x: x2, y: mid },
+            { x: x2, y: a.top },
+          ]
+        }
+        const y2 = a.top + 18
+        return [
+          { x, y: y1 },
+          { x, y: y2 },
+          { x: a.left, y: y2 },
+        ]
+      }
+      // Stacked: straight down from the chat, through the load balancer, into
+      // Runner 1
+      const x = a.left + 28
+      const y = (l.top + l.bottom) / 2
+      return w === "hook"
+        ? [
+            { x, y: c.bottom },
+            { x, y },
+          ]
+        : [
+            { x, y },
+            { x, y: a.top },
+          ]
+    }
+    // The gutter right of the runners carries two wires in the persisted
+    // version, so they get a lane each
+    const lane = (n: 0 | 1) => {
+      const a = rel(r1)
+      const room = stage.clientWidth - a.right
+      return persisted ? a.right + room * (n === 0 ? 0.32 : 0.72) : a.right + room / 2
+    }
+    // Runner 1 to Runner 3 around the outside, skipping Runner 2.
+    const routeSend = (): Array<Point> => {
+      const a = rel(r1)
+      const b = rel(r3)
+      const x = lane(0)
+      const y1 = a.top + 18
+      const y2 = b.top + 18
+      return [
+        { x: a.right, y: y1 },
+        { x, y: y1 },
+        { x, y: y2 },
+        { x: b.right, y: y2 },
+      ]
+    }
+    // Runner 1 down the outer lane, then in through the gap above the
+    // database, under Runner 3
+    const routeSave = (): Array<Point> => {
+      const a = rel(r1)
+      const b = rel(r3)
+      const d = rel(db!)
+      const x = lane(1)
+      const y = a.top + 42
+      const gapY = (b.bottom + d.top) / 2
+      const x2 = b.right - 48
+      return [
+        { x: a.right, y },
+        { x, y },
+        { x, y: gapY },
+        { x: x2, y: gapY },
+        { x: x2, y: d.top },
+      ]
+    }
+    // Runner 3 straight down into the database
+    const routeLoad = (): Array<Point> => {
+      const b = rel(r3)
+      const d = rel(db!)
+      const x = b.left + 48
+      return [
+        { x, y: b.bottom },
+        { x, y: d.top },
+      ]
+    }
+    // Dad straight to Slack. Outgoing calls don't go through the load
+    // balancer, so the wire passes behind it.
+    const routePost = (): Array<Point> => {
+      const c = rel(chat)
+      const d = rel(dad)
+      const b = rel(r3)
+      // Stacked: the runners sit under the chat, so go straight up behind them
+      if (rel(r1).left < rel(lb).right) {
+        const x = c.left + 28
+        return [
+          { x, y: b.top },
+          { x, y: c.bottom },
+        ]
+      }
+      // Side by side: across behind the load balancer, then up into the chat.
+      // The climb hugs the chat's right edge, clear of the callout under it.
+      const y = (d.top + d.bottom) / 2
+      const x = c.right - 16
+      return [
+        { x: b.left, y },
+        { x, y },
+        { x, y: c.bottom },
+      ]
+    }
+    const toPath = (pts: Array<Point>) =>
+      pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ")
+
+    // Each step's note as a callout right next to what it's about, with an
+    // arrow pointing at it. The caption under the figure stays for screen
+    // readers, and stacked layouts, which have no room, use it instead.
+    // Where the callout goes: under, left of, or above its target
+    type Place = "below" | "left" | "above"
+    const calloutTargets: Record<State, { el: HTMLElement; place: Place }> = {
+      start: { el: chat, place: "below" },
+      webhook: { el: lb, place: "left" },
+      hash: { el: readout, place: "below" },
+      lookup: { el: readout, place: "below" },
+      send: { el: r3, place: "left" },
+      lock: { el: lock, place: "above" },
+      save: { el: dbRequest ?? chat, place: "above" },
+      notify: { el: r3, place: "left" },
+      read: { el: lock, place: "above" },
+      wake: { el: dad, place: "left" },
+      post: { el: chat, place: "below" },
+    }
+    const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi))
+    const placeCallout = (k: number) => {
+      const c = rel(chat)
+      // Only with the runners to the right of the load balancer is there room
+      const on = rel(r1).left >= rel(lb).right
+      callout.hidden = !on
+      root.classList.toggle("has-callouts", on)
+      if (!on) return
+      const { el, place } = calloutTargets[states[k]!]
+      const t = rel(el)
+      const sw = stage.clientWidth
+      const sh = stage.clientHeight
+      const w = Math.min(place === "below" && el === readout ? t.right - t.left : 230, sw)
+      callout.style.width = `${w}px`
+      const h = callout.offsetHeight
+      const gap = 12
+      // Database rows are pointed at from above their left end
+      const inDb = db !== null && db.contains(el)
+      let left: number
+      let top: number
+      let arrow: number
+      if (place === "below") {
+        top = t.bottom + gap
+        left = clamp(t.left, 0, sw - w)
+        arrow = clamp(t.left + 26 - left, 14, w - 14)
+      } else if (place === "above") {
+        // Database rows: sit above the whole database, not over its tables
+        top = (inDb ? rel(db!).top : t.top) - h - gap
+        left = clamp(inDb ? t.left : t.right - w, 0, sw - w)
+        arrow = clamp(inDb ? t.left + 26 - left : (t.left + t.right) / 2 - left, 14, w - 14)
+      } else {
+        // The load balancer runs the full height, so sit just under the chat
+        const y =
+          el === lb ? c.bottom + gap + h / 2 : el === r3 ? t.top + 18 : (t.top + t.bottom) / 2
+        // Things inside Runner 3 are pointed at from outside its card
+        const edge = el === dad ? rel(r3).left : t.left
+        left = clamp(edge - gap - w, 0, sw - w)
+        top = clamp(y - h / 2, 0, sh - h)
+        arrow = clamp(y - top, 14, h - 14)
+      }
+      callout.style.left = `${left}px`
+      callout.style.top = `${top}px`
+      callout.dataset.place = place
+      callout.style.setProperty("--arrow", `${arrow}px`)
+    }
+    const showCallout = (k: number) => {
+      const note = notes[states[k]!]
+      const n = numberOf(k)
+      const changed = calloutText.textContent !== note.text
+      calloutText.textContent = note.text
+      calloutTitle.textContent = note.title
+      calloutNum.textContent = n ? String(n) : ""
+      calloutNum.hidden = !n
+      placeCallout(k)
+      if (changed && !reduceMotion) {
+        callout.classList.remove("is-in")
+        void callout.offsetWidth
+        callout.classList.add("is-in")
+      }
+    }
+
+    // Which wires have been used by state k
+    const wiresFor = (k: number): Record<Wire, boolean> => ({
+      hook: reached(k, "webhook"),
+      pick: reached(k, "webhook"),
+      send: reached(k, "send") || reached(k, "notify"),
+      save: reached(k, "save"),
+      load: reached(k, "read"),
+      post: reached(k, "post"),
+    })
+    const drawWires = (k: number) => {
+      wires.setAttribute("viewBox", `0 0 ${stage.clientWidth} ${stage.clientHeight}`)
+      const on = wiresFor(k)
+      for (const w of ["hook", "pick", "send", "save", "load", "post"] as const) {
+        const path = wire(w)
+        if (!path) continue
+        path.setAttribute("d", toPath(route(w)))
+        path.classList.toggle("is-on", on[w])
+      }
+    }
+
+    const running = new Set<Animation>()
+    // Something travels along a wire: Sebastian's message, Dad's reply, or a
+    // notification that there's mail waiting
+    type Cargo = "message" | "reply" | "nudge"
+    const travel = (w: Wire, back: boolean, cargo: Cargo = back ? "reply" : "message") =>
+      new Promise<void>((resolve) => {
+        if (reduceMotion) return resolve()
+        const pts = route(w)
+        if (back) pts.reverse()
+        const lengths = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i]!.x, p.y - pts[i]!.y))
+        const total = lengths.reduce((a, b) => a + b, 0) || 1
+        let acc = 0
+        const frames = pts.map((p, i) => {
+          if (i > 0) acc += lengths[i - 1]!
+          return { transform: `translate(${p.x - 10}px, ${p.y - 7}px)`, offset: acc / total }
+        })
+        const env = document.createElement("span")
+        env.className = `mt-env is-${cargo}`
+        env.innerHTML =
+          cargo === "nudge"
+            ? `<svg viewBox="0 0 22 16" aria-hidden="true"><circle cx="11" cy="8" r="6.5"></circle><path d="M11 4.5 V8.5 M11 11 V11.2"></path></svg>`
+            : `<svg viewBox="0 0 22 16" aria-hidden="true"><rect x="0.75" y="0.75" width="20.5" height="14.5" rx="2.5"></rect><path d="M1.5 2 L11 9 L20.5 2"></path></svg>`
+        stage.append(env)
+        const anim = env.animate(frames, {
+          duration: Math.min(1100, Math.max(600, total * 3)),
+          easing: "ease-in-out",
+        })
+        running.add(anim)
+        const done = () => {
+          running.delete(anim)
+          env.remove()
+          resolve()
+        }
+        anim.onfinish = done
+        anim.oncancel = done
+      })
+
+    // Lays out state k from scratch, so Step and Reset agree.
+    const apply = (k: number) => {
+      current = k
+      root.dataset.step = String(k)
+      r1.classList.toggle("is-active", is(k, "webhook", "hash", "lookup", "save", "notify"))
+      lb.classList.toggle("is-active", is(k, "webhook"))
+      r3.classList.toggle("is-active", is(k, "send", "lock", "notify", "read", "wake", "post"))
+      readout.classList.toggle("is-on", reached(k, "hash"))
+      hashResult.textContent = reached(k, "hash") ? shard : "?"
+      lookupShard.textContent = reached(k, "lookup") ? shard : "?"
+      lookupOwner.textContent = reached(k, "lookup") ? "Runner 3" : "?"
+      hashResult.classList.toggle("is-new", is(k, "hash"))
+      lookupOwner.classList.toggle("is-new", is(k, "lookup"))
+      const held = reached(k, "lock") || reached(k, "read")
+      lock.classList.toggle("is-held", held)
+      lock.classList.toggle("is-new", is(k, "lock", "read"))
+      lockText.textContent = held ? "Lock held ✓" : "Lock"
+      const awake = reached(k, "wake")
+      dad.dataset.state = !awake ? "off" : is(k, "wake") ? "thinking" : "awake"
+      dadState.innerHTML = !awake
+        ? "Not running"
+        : is(k, "wake")
+          ? `Waiting for quiet<span class="mt-dots" aria-hidden="true"><i></i><i></i><i></i></span>`
+          : "Running, waiting for mail"
+      mailbox.innerHTML = is(k, "wake")
+        ? `<span class="mt-mail">Why is this test flaky?</span>`
+        : "–"
+      reply.hidden = k < LAST
+      if (db) {
+        const saved = reached(k, "save")
+        dbRequest!.hidden = !saved
+        dbRequestEmpty!.hidden = saved
+        dbRequestStatus!.textContent = reached(k, "read") ? "delivered" : "waiting"
+        dbRequest!.classList.toggle("is-new", is(k, "save", "read"))
+        db.classList.toggle("is-active", is(k, "save", "read"))
+      }
+      caption.textContent = captions[k]!
+      // Drawn after the reply shows or hides, since the chat's height decides
+      // where the wire from Dad ends
+      drawWires(k)
+      showCallout(k)
+      for (const p of pills) {
+        const n = Number(p.dataset.stepPill)
+        if (n === k - 1) p.setAttribute("aria-current", "step")
+        else p.removeAttribute("aria-current")
+        p.classList.toggle("is-done", n < k - 1)
+      }
+      step.disabled = busy || k >= LAST
+    }
+
+    // Moves from the current state to the next, with travel in between.
+    const advance = async (run: number) => {
+      const next = current + 1
+      const name = states[next]!
+      const alive = () => run === generation
+      drawWires(next)
+      if (name === "webhook") {
+        lb.classList.add("is-active")
+        await travel("hook", false)
+        if (!alive()) return
+        await travel("pick", false)
+      } else if (name === "send") {
+        await travel("send", false)
+      } else if (name === "save") {
+        db?.classList.add("is-active")
+        await travel("save", false)
+      } else if (name === "notify") {
+        await travel("send", false, "nudge")
+      } else if (name === "read") {
+        db?.classList.add("is-active")
+        await travel("load", true, "message")
+      } else if (name === "post") {
+        await travel("post", false, "reply")
+      }
+      if (!alive()) return
+      apply(next)
+    }
+
+    const setBusy = (b: boolean) => {
+      busy = b
+      step.disabled = b || current >= LAST
+    }
+
+    const stop = () => {
+      generation++
+      for (const a of [...running]) a.cancel()
+      setBusy(false)
+    }
+
+    step.addEventListener("click", async () => {
+      if (busy || current >= LAST) return
+      const run = generation
+      setBusy(true)
+      await advance(run)
+      if (run !== generation) return
+      setBusy(false)
+      apply(current)
+    })
+    reset.addEventListener("click", () => {
+      stop()
+      apply(0)
+    })
+    // Clicking a step pill jumps there. Going forward, everything up to the
+    // step before it is laid out at once, and only the last hop animates.
+    // Going back just lays out the earlier step.
+    for (const pill of pills) {
+      pill.addEventListener("click", async () => {
+        const target = Number(pill.dataset.stepPill) + 1
+        if (target === current && !busy) return
+        stop()
+        if (target <= current) {
+          apply(target)
+          return
+        }
+        apply(target - 1)
+        const run = generation
+        setBusy(true)
+        await advance(run)
+        if (run !== generation) return
+        setBusy(false)
+        apply(current)
+      })
+    }
+
+    new ResizeObserver(() => {
+      drawWires(current)
+      placeCallout(current)
+    }).observe(stage)
+    apply(0)
+  }
+</script>
+
+<style is:global>
+  .mt {
+    --mt-ink: #3f3f46;
+    --mt-muted: #71717a;
+    --mt-line: #d4d4d8;
+    --mt-surface: #ffffff;
+    --mt-panel: #fafafa;
+    --mt-slack: #611f69;
+    --mt-dad: #b45309;
+    --mt-r1: var(--mt-r1-light);
+    --mt-r2: var(--mt-r2-light);
+    --mt-r3: var(--mt-r3-light);
+    margin: 1.5rem 0;
+  }
+  html.dark .mt {
+    --mt-ink: #e4e4e7;
+    --mt-muted: #a1a1aa;
+    --mt-line: #3f3f46;
+    --mt-surface: #09090b;
+    --mt-panel: #111113;
+    --mt-slack: #c084fc;
+    --mt-dad: #fbbf24;
+    --mt-r1: var(--mt-r1-dark);
+    --mt-r2: var(--mt-r2-dark);
+    --mt-r3: var(--mt-r3-dark);
+  }
+  .mt p {
+    margin: 0;
+  }
+
+  /* Progress through the post's six steps */
+  .mt .mt-steps {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0 0 0.9rem;
+    padding: 0;
+    list-style: none;
+  }
+  .mt .mt-steps li {
+    margin: 0;
+    padding: 0;
+  }
+  /* Each pill is a button that jumps to its step */
+  .mt .mt-step {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0.15rem 0.55rem 0.15rem 0.2rem;
+    border: 1px solid var(--mt-line);
+    border-radius: 999px;
+    background: none;
+    font: inherit;
+    font-size: 0.72rem;
+    color: var(--mt-muted);
+    cursor: pointer;
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease;
+  }
+  .mt .mt-step:hover {
+    border-color: color-mix(in oklab, var(--mt-ink) 60%, transparent);
+  }
+  .mt .mt-step:focus-visible {
+    outline: 2px solid var(--mt-ink);
+    outline-offset: 2px;
+  }
+  .mt .mt-steps li::before,
+  .mt .mt-steps li::marker,
+  .mt .mt-msg::before,
+  .mt .mt-msg::marker {
+    content: none;
+  }
+  .mt-step-num {
+    display: grid;
+    place-items: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--mt-ink) 10%, transparent);
+    font-weight: 600;
+    font-size: 0.68rem;
+  }
+  .mt .mt-step.is-done {
+    border-color: color-mix(in oklab, var(--mt-ink) 45%, transparent);
+    color: var(--mt-ink);
+  }
+  .mt .mt-step.is-done .mt-step-num {
+    background: color-mix(in oklab, var(--mt-ink) 22%, transparent);
+  }
+  .mt .mt-step[aria-current="step"] {
+    border-color: var(--mt-ink);
+    background: var(--mt-ink);
+    color: var(--mt-surface);
+    font-weight: 600;
+  }
+  .mt .mt-step[aria-current="step"] .mt-step-num {
+    background: var(--mt-surface);
+    color: var(--mt-ink);
+  }
+
+  /* Stage: chat on the left, the load balancer, then runners on the right.
+     Wires and envelopes sit on top. */
+  .mt-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) 2.5rem minmax(0, 1.15fr);
+    gap: 1rem 1.5rem;
+  }
+  /* Narrow screens: the chat and load balancer side by side, with the
+     runners full width under them */
+  @media (max-width: 640px) {
+    .mt-stage {
+      grid-template-columns: minmax(0, 1fr) 2.25rem;
+      gap: 1.25rem 1rem;
+    }
+    .mt-runners {
+      grid-column: 1 / -1;
+    }
+  }
+  .mt-wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .mt-wires path {
+    fill: none;
+    stroke: var(--mt-line);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+    stroke-linejoin: round;
+  }
+  .mt-wires path.is-on {
+    stroke: var(--mt-ink);
+    stroke-dasharray: none;
+  }
+  .mt-env {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 20px;
+    height: 14px;
+    pointer-events: none;
+    --c: var(--mt-r1);
+  }
+  .mt-env.is-reply {
+    --c: var(--mt-dad);
+  }
+  /* A notification that there's mail: no message inside, just a nudge */
+  .mt-env.is-nudge svg {
+    fill: var(--mt-surface);
+    stroke: var(--mt-r1);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+  }
+  .mt-env svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--c);
+    stroke: var(--mt-surface);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .mt-env path {
+    fill: none;
+  }
+
+  /* The load balancer: a tall, narrow box between the chat and the runners */
+  .mt-lb {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--mt-line);
+    border-radius: 0.75rem;
+    background: var(--mt-panel);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .mt-lb.is-active {
+    border-color: var(--mt-ink);
+    box-shadow: 0 0 0 1px var(--mt-ink);
+  }
+  .mt-lb-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--mt-ink);
+  }
+
+  /* The callout: the current step's note, right next to what it's about */
+  .mt-callout {
+    position: absolute;
+    z-index: 4;
+    padding: 0.5rem 0.7rem 0.55rem;
+    border: 1.5px solid var(--mt-ink);
+    border-radius: 0.6rem;
+    background: var(--mt-surface);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
+    transition:
+      top 350ms ease,
+      left 350ms ease;
+  }
+  .mt-callout[hidden] {
+    display: none;
+  }
+  .mt .mt-callout-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--mt-ink);
+  }
+  .mt-callout-num {
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--mt-ink);
+    color: var(--mt-surface);
+    font-size: 0.75rem;
+    letter-spacing: 0;
+  }
+  .mt-callout-num[hidden] {
+    display: none;
+  }
+  .mt .mt-callout-text {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: var(--mt-ink);
+  }
+  /* The arrow: a small rotated square on the edge facing the target */
+  .mt-callout::after {
+    content: "";
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border: solid var(--mt-ink);
+    background: var(--mt-surface);
+  }
+  .mt-callout[data-place="left"]::after {
+    top: var(--arrow);
+    right: -7px;
+    border-width: 1.5px 1.5px 0 0;
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .mt-callout[data-place="below"]::after {
+    top: -7px;
+    left: var(--arrow);
+    border-width: 1.5px 0 0 1.5px;
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .mt-callout[data-place="above"]::after {
+    bottom: -7px;
+    left: var(--arrow);
+    border-width: 0 1.5px 1.5px 0;
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .mt-callout.is-in {
+    animation: mt-callout-in 300ms ease;
+  }
+  @keyframes mt-callout-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  /* With callouts showing, the caption under the figure is for screen
+     readers only */
+  .mt.has-callouts .mt-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The database, in the persisted version: full width under everything */
+  .mt-db {
+    grid-column: 1 / -1;
+    padding: 0.5rem 0.75rem 0.6rem;
+    border: 1px solid var(--mt-line);
+    border-radius: 0.75rem;
+    background: var(--mt-panel);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .mt-db.is-active {
+    border-color: var(--mt-ink);
+    box-shadow: 0 0 0 1px var(--mt-ink);
+  }
+  .mt .mt-db-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mt-ink);
+  }
+  .mt-db-tables {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+    margin-top: 0.35rem;
+  }
+  .mt-db-table {
+    min-width: 0;
+    padding: 0.35rem 0.5rem 0.45rem;
+    border-radius: 0.45rem;
+    background: color-mix(in oklab, var(--mt-ink) 6%, transparent);
+  }
+  .mt .mt-db-name {
+    margin-bottom: 0.25rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--mt-muted);
+  }
+  .mt .mt-db-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--mt-line);
+    border-radius: 0.35rem;
+    background: var(--mt-surface);
+    font-size: 0.72rem;
+    color: var(--mt-ink);
+  }
+  .mt .mt-db-row[hidden],
+  .mt .mt-db-empty[hidden] {
+    display: none;
+  }
+  .mt-db-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mt-db-status {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    color: var(--mt-muted);
+  }
+  .mt .mt-db-empty {
+    padding: 0.15rem 0;
+    font-size: 0.72rem;
+    font-style: italic;
+    color: var(--mt-muted);
+  }
+
+  /* Chat */
+  .mt-chat {
+    position: relative;
+    align-self: start;
+    border: 1px solid var(--mt-line);
+    border-radius: 0.75rem;
+    background: var(--mt-panel);
+    overflow: hidden;
+  }
+  .mt .mt-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--mt-line);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mt-ink);
+  }
+  .mt-chat-title span:last-child {
+    font-weight: 400;
+    color: var(--mt-muted);
+  }
+  .mt-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--mt-slack);
+  }
+  .mt .mt-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0.75rem;
+    list-style: none;
+  }
+  .mt .mt-msg {
+    display: flex;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+  }
+  .mt .mt-msg[hidden] {
+    display: none;
+  }
+  .mt .mt-msg[data-reply] {
+    animation: mt-in 300ms ease;
+  }
+  @keyframes mt-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  .mt-avatar {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.4rem;
+    background: var(--mt-sebastian-avatar);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .mt-avatar.is-dad {
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+  .mt .mt-from {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mt-ink);
+  }
+  .mt-badge {
+    padding: 0 0.25rem;
+    border-radius: 0.2rem;
+    background: var(--mt-slack);
+    color: #fff;
+    font-size: 0.55rem;
+    vertical-align: 1px;
+  }
+  html.dark .mt-badge {
+    color: #1f1f1f;
+  }
+  .mt .mt-text {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--mt-ink);
+  }
+
+  /* Runners. The right padding leaves room for the Runner 1 to Runner 3 wire. */
+  .mt-runners {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-right: 1.75rem;
+    min-width: 0;
+  }
+  .mt-runner {
+    position: relative;
+    padding: 0.55rem 0.75rem 0.65rem;
+    border: 1px solid var(--mt-line);
+    border-radius: 0.75rem;
+    background: var(--mt-surface);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .mt-runner.is-active {
+    border-color: var(--c);
+    box-shadow: 0 0 0 1px var(--c);
+  }
+  .mt .mt-runner-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--c);
+  }
+  .mt .mt-owns {
+    margin-top: 0.1rem;
+    font-size: 0.72rem;
+    color: var(--mt-muted);
+  }
+  .mt-runner.is-bystander {
+    opacity: 0.85;
+  }
+
+  .mt-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.4rem;
+    background: color-mix(in oklab, var(--mt-ink) 6%, transparent);
+    color: var(--mt-muted);
+  }
+  .mt .mt-readout code {
+    padding: 0;
+    background: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    color: inherit;
+    overflow-wrap: anywhere;
+  }
+  .mt .mt-readout code::before,
+  .mt .mt-readout code::after {
+    content: none;
+  }
+  .mt-readout.is-on {
+    color: var(--mt-ink);
+  }
+  .mt-readout b {
+    font-weight: 700;
+  }
+  .mt .is-new {
+    border-radius: 0.2rem;
+    animation: mt-flash 1000ms ease;
+  }
+  @keyframes mt-flash {
+    from {
+      background: color-mix(in oklab, #fbbf24 55%, transparent);
+    }
+  }
+
+  .mt-shard {
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.55rem 0.55rem;
+    border: 1px solid var(--mt-line);
+    border-radius: 0.5rem;
+  }
+  .mt .mt-shard-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+  }
+  .mt-shard-name {
+    font-weight: 600;
+    color: var(--mt-ink);
+  }
+  .mt-lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 0.3rem;
+    color: var(--mt-muted);
+  }
+  .mt-lock svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .mt-lock.is-held {
+    font-weight: 600;
+    color: var(--mt-r3);
+  }
+
+  .mt-dad {
+    margin-top: 0.45rem;
+    padding: 0.4rem 0.55rem;
+    border: 1.5px dashed var(--mt-line);
+    border-radius: 0.5rem;
+    transition:
+      border-color 200ms ease,
+      opacity 200ms ease;
+  }
+  .mt-dad[data-state="off"] {
+    opacity: 0.6;
+  }
+  .mt-dad[data-state="thinking"],
+  .mt-dad[data-state="awake"] {
+    border-style: solid;
+    border-color: var(--mt-ink);
+  }
+  .mt-dad[data-state="thinking"] {
+    animation: mt-wake 400ms ease;
+  }
+  @keyframes mt-wake {
+    from {
+      transform: scale(0.97);
+    }
+  }
+  .mt .mt-dad-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mt-ink);
+  }
+  .mt-dad-face {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+  .mt-dad[data-state="off"] .mt-dad-face {
+    filter: grayscale(1);
+  }
+  .mt .mt-fields {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.2rem 0.6rem;
+    margin: 0.35rem 0 0;
+    font-size: 0.72rem;
+  }
+  .mt .mt-fields dt {
+    margin: 0;
+    font-weight: 600;
+    color: var(--mt-muted);
+  }
+  .mt .mt-fields dd {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--mt-muted);
+  }
+  .mt-dad[data-state="thinking"] [data-dad-state] {
+    font-weight: 600;
+    color: var(--mt-dad);
+  }
+  .mt-dad[data-state="awake"] [data-dad-state] {
+    color: var(--mt-ink);
+  }
+  .mt-mail {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0 0.4rem;
+    border: 1px solid var(--mt-r1);
+    border-radius: 999px;
+    color: var(--mt-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
+  .mt-dots {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: 3px;
+  }
+  .mt-dots i {
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: currentColor;
+    animation: mt-dot 1s infinite ease-in-out;
+  }
+  .mt-dots i:nth-child(2) {
+    animation-delay: 150ms;
+  }
+  .mt-dots i:nth-child(3) {
+    animation-delay: 300ms;
+  }
+  @keyframes mt-dot {
+    50% {
+      opacity: 0.2;
+    }
+  }
+
+  .mt .mt-caption {
+    min-height: 2.6em;
+    margin-top: 0.9rem;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-align: center;
+    color: var(--mt-ink);
+  }
+
+  .mt-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  /* Narrow screens: trim so the whole figure fits on one screen. Only the
+     current step pill keeps its label, Runners 1 and 2 drop their shard
+     counts, and the spacing tightens */
+  @media (max-width: 640px) {
+    .mt .mt-steps {
+      flex-wrap: nowrap;
+      margin-bottom: 0.7rem;
+    }
+    .mt .mt-step:not([aria-current="step"]) {
+      padding-right: 0.2rem;
+    }
+    .mt .mt-step:not([aria-current="step"]) .mt-step-label {
+      display: none;
+    }
+    .mt .mt-owns-extra {
+      display: none;
+    }
+    .mt-runners {
+      gap: 0.5rem;
+    }
+    .mt-lb-title {
+      font-size: 0.66rem;
+      letter-spacing: 0;
+    }
+    .mt .mt-caption {
+      margin-top: 0.6rem;
+    }
+  }
+  .mt .mt-button {
+    padding: 0.4rem 0.9rem;
+    border: 1.5px solid var(--mt-ink);
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--mt-ink);
+    cursor: pointer;
+  }
+  .mt .mt-button.mt-primary {
+    background: var(--mt-ink);
+    color: var(--mt-surface);
+  }
+  .mt .mt-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mt .mt-msg[data-reply],
+    .mt .is-new,
+    .mt-dad[data-state="thinking"],
+    .mt-dots i {
+      animation: none;
+    }
+    .mt-runner,
+    .mt-dad,
+    .mt-lb,
+    .mt-db,
+    .mt-callout {
+      transition: none;
+    }
+  }
+</style>

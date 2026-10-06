@@ -27,7 +27,7 @@ Every element is evaluated. Use `{ concurrency }` to control parallelism and `{ 
 
 ## partition
 
-`Effect.partition` also evaluates every element, but never fails. It returns `[failures, successes]`, preserving both sides.
+`Effect.partition` also evaluates every element, but never fails. It returns `[successes, failures]`, preserving both sides.
 
 **Example** (Partitioning Failures and Successes)
 
@@ -38,7 +38,7 @@ const program = Effect.partition([0, 1, 2, 3, 4], (value) =>
   value % 2 === 0 ? Effect.succeed(value) : Effect.fail(`${value} is not even`),
 )
 
-Effect.runSync(program) // => [["1 is not even", "3 is not even"], [0, 2, 4]]
+Effect.runSync(program) // => [[0, 2, 4], ["1 is not even", "3 is not even"]]
 ```
 
 Like `validate`, `partition` accepts a `concurrency` option.

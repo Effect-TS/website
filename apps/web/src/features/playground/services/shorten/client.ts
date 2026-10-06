@@ -1,7 +1,7 @@
 import * as Context from "effect/Context"
 import * as Layer from "effect/Layer"
-import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient"
-import * as HttpApiClient from "effect/unstable/httpapi/HttpApiClient"
+import * as FetchHttpClient from "effect/http/FetchHttpClient"
+import * as HttpApiClient from "effect/http-api/HttpApiClient"
 import { ShortenApi } from "./api"
 
 export class ShortenClient extends Context.Service<

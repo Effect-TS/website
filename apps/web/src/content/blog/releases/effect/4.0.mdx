@@ -1,0 +1,136 @@
+---
+pagefind: false
+title: "Effect 4.0"
+excerpt: "Rebuilt from the ground up, with a dependency-free core and long-term support"
+date: 2026-09-30
+featured: true
+featuredImage: ./4.0/banner.png
+authors:
+  - sebastian_lorenz
+tags:
+  - releases
+  - effect
+---
+
+import Comparison from "@/components/blog/Comparison.astro"
+import SupportTimeline from "@/components/blog/SupportTimeline.astro"
+import TrendChart from "@/components/blog/TrendChart.astro"
+import downloads from "./4.0/downloads.json"
+
+**Today, we're releasing Effect 4.0.**
+
+It's the most ambitious release we've ever shipped. We rebuilt Effect from the ground up. It's faster, uses a fraction of the memory, and tree-shakes to far smaller bundles.
+
+<Comparison
+  title="Effect 3 vs. Effect 4"
+  baseline="3.x"
+  candidate="4.x"
+  stats={[
+    { value: "5×", label: "Smaller bundle" },
+    { value: "6.4×", label: "Concurrent task throughput" },
+    { value: "86%", label: "Less memory per fiber" },
+  ]}
+  groups={[
+    {
+      label: "Minimal program size",
+      hint: "lower is better",
+      baseline: { value: 35.6, display: "35.6 kB" },
+      candidate: { value: 7.1, display: "7.1 kB" },
+    },
+    {
+      label: "Tasks per second",
+      hint: "higher is better",
+      baseline: { value: 0.71, display: "0.71M" },
+      candidate: { value: 4.57, display: "4.57M" },
+    },
+    {
+      label: "Heap for 50,000 fibers",
+      hint: "lower is better",
+      baseline: { value: 157.5, display: "157.5 MB" },
+      candidate: { value: 21.8, display: "21.8 MB" },
+    },
+  ]}
+  note="Bundles are built from identical source, minified and gzipped. Runtime figures are medians of nine fresh-process runs."
+/>
+
+## One ecosystem, zero dependencies
+
+Many previously separate packages now live in `effect` itself. The packages around it share a single version and release in lockstep.
+
+The core `effect` package has **zero runtime dependencies**. We control every line we ship, so there are no third-party dependency chains and less exposure to supply chain attacks.
+
+## From functions to clusters
+
+Effect started with a much smaller scope. Today, it covers the full range, from a single function to a distributed system.
+
+People came for the programming model: an effect system with built-in typed errors, dependency injection, resource management, structured concurrency, and observability. The standard library and platform integrations grew around it. Then came higher-level primitives for distributed systems, including durable workflows and clustering.
+
+Every layer is built on that same model, with the same guarantees all the way up.
+
+## Mainstream adoption
+
+Effect now runs in production at companies of all sizes, including large enterprises.
+
+<TrendChart
+  label="effect"
+  title="Weekly npm downloads"
+  description="Weekly downloads of the effect package grew from 245,399 in the week of the v3 release in April 2024 to 43,940,620 in the week of September 21, 2026."
+  data={downloads}
+  stats={[
+    { value: "43.9M", label: "Downloads in the week of September 21, 2026" },
+    { value: "179×", label: "Growth since 3.x" },
+  ]}
+  split={{
+    label: "4.x adoption already outsizes 3.x",
+    hint: "Last 7 days",
+    parts: [
+      { label: "4.x", value: 26203193, display: "56%", highlight: true },
+      { label: "3.x", value: 20373468, display: "44%" },
+    ],
+  }}
+/>
+
+Projects with communities of their own have grown around it: [Alchemy](https://alchemy.run) for cloud infrastructure, and [Foldkit](https://foldkit.dev/) for the frontend.
+
+If your team runs Effect in production, [let's talk](https://discord.gg/effect-ts). Tell us what you're building and how we can help.
+
+## Long-term support
+
+Teams are betting their products on Effect, and they deserve commitments they can plan around. Starting with this release, **every major version of Effect has a long-term support policy.**
+
+For Effect 4.x, that means:
+
+- Bug fixes until September 2029, or one year after 5.0 ships, whichever is later
+- Security fixes until September 2029, or two years after 5.0 ships, whichever is later
+
+<SupportTimeline
+  title="Long-term support for Effect 4.x"
+  version="4.x"
+  release="2026-09"
+  next="5.0"
+  minimum={3}
+  bugFixes={1}
+  securityFixes={2}
+  scenarios={["2027-09", "2028-09", "2030-09"]}
+  note="Support lasts at least three years. If 5.0 ships late enough, bug and security fixes run past that minimum."
+/>
+
+We'll share the full policy and our release process in a follow-up post.
+
+## What's next
+
+Our first priority is stabilizing more of the ecosystem. Some of the newer modules are still tagged `@stability unstable` or `@stability experimental`, which means they may change in minor or patch releases. We'll use production feedback to refine them and promote them to stable.
+
+Beyond that, we'll continue expanding Effect into a single programming model for your entire application, with broader native platform support and more higher-level primitives.
+
+## Over to you
+
+**Migrating?** Start with the [migration guide](https://github.com/Effect-TS/effect/blob/main/MIGRATION.md). Hand it to your coding agent, and it should do most of the work on its own.
+
+**Curious?** Check out our [documentation](/docs/v4/getting-started/) or ask your agent why you should be building with Effect.
+
+Thank you to everyone who contributed, tested releases, reported bugs, and helped others get started. Effect is better because of you.
+
+Spread the word and celebrate with us on [X](https://x.com/EffectTS_), [Bluesky](https://bsky.app/profile/effect-ts.bsky.social), and [Discord](https://discord.gg/effect-ts).
+
+Thank you for your attention to this matter.

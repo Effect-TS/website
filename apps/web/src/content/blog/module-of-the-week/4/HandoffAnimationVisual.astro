@@ -1,0 +1,21 @@
+---
+// The shard handoff as an animation, like the PersistedQueue demos in Part 1.
+// The owner comes from Cluster's own HashRing, the same way Sharding works
+// it out.
+
+import * as HashRing from "effect/HashRing"
+import * as PrimaryKey from "effect/PrimaryKey"
+import { ShardHandoff } from "@/components/blog/module-of-the-week/cluster/ShardHandoff"
+
+const SHARD = 276
+const SHARDS_PER_GROUP = 300
+
+const ring = HashRing.make<{ n: number; [PrimaryKey.symbol]: () => string }>()
+for (const n of [1, 2]) {
+  HashRing.add(ring, { n, [PrimaryKey.symbol]: () => `runner-${n}:34431` })
+}
+// Who owns the shard with both runners up. The other one starts out alone.
+const both = HashRing.getShards(ring, SHARDS_PER_GROUP)![SHARD - 1]!.n
+---
+
+<ShardHandoff both={both} client:load />

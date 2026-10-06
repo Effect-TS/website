@@ -27,7 +27,7 @@ const document = Schema.toJsonSchemaDocument(Person)
 document.dialect // => "draft-2020-12"
 document.schema.type // => "object"
 document.schema.required // => ["name", "age"]
-document.schema.additionalProperties // => false
+document.schema.additionalProperties // => true
 ```
 
 The returned document contains:
@@ -72,7 +72,7 @@ Output:
         value: { type: "string" }
       },
       required: ["_tag", "value"],
-      additionalProperties: false
+      additionalProperties: true
     },
     {
       type: "object",
@@ -80,7 +80,7 @@ Output:
         _tag: { type: "string", enum: ["None"] }
       },
       required: ["_tag"],
-      additionalProperties: false
+      additionalProperties: true
     }
   ]
 }
@@ -204,11 +204,16 @@ import { Schema } from "effect"
 const Username = Schema.String.check(
   Schema.isMinLength(3),
   Schema.isMaxLength(20),
-  Schema.isPattern(/^[a-z0-9_]+$/),
+  Schema.isPattern(/^[a-z0-9_]+$/u),
 )
 
-Schema.toJsonSchemaDocument(Username).schema.allOf // => [{ minLength: 3 }, { maxLength: 20 }, { pattern: "^[a-z0-9_]+$" }]
+Schema.toJsonSchemaDocument(Username).schema // => { type: "string", minLength: 2, maxLength: 20, pattern: "^[a-z0-9_]+$" }
 ```
+
+JavaScript counts UTF-16 code units while JSON Schema counts Unicode code
+points. For this reason, `isMinLength(3)` is represented conservatively as
+`minLength: 2` so the generated schema does not reject a string accepted by
+Effect.
 
 For a custom filter, provide a `toJsonSchema` callback when its constraint has a JSON Schema equivalent.
 
@@ -224,7 +229,7 @@ const LongString = Schema.String.check(
   }),
 )
 
-Schema.toJsonSchemaDocument(LongString).schema.allOf // => [{ minLength: 3 }]
+Schema.toJsonSchemaDocument(LongString).schema // => { type: "string", minLength: 3 }
 ```
 
 Set `generateDescriptions: true` to turn a check's `expected` annotation into a description when no description was supplied explicitly.
@@ -256,7 +261,7 @@ Output:
       anyOf: [{ type: "string" }, { type: "null" }]
     }
   },
-  additionalProperties: false
+  additionalProperties: true
 }
 */
 ```
@@ -284,7 +289,7 @@ Output:
     name: { $ref: "#/$defs/Name" }
   },
   required: ["name"],
-  additionalProperties: false
+  additionalProperties: true
 }
 */
 ```
@@ -329,7 +334,7 @@ Output:
         }
       },
       required: ["name", "categories"],
-      additionalProperties: false
+      additionalProperties: true
     }
   }
 }
@@ -338,13 +343,14 @@ Output:
 
 ## Generation Options
 
-`Schema.toJsonSchemaDocument` accepts three options:
+`Schema.toJsonSchemaDocument` accepts four options:
 
-- `additionalProperties`: `false` by default, `true` to allow extra properties, or a JSON Schema describing them.
+- `referencePolicy`: controls which schemas become named references.
+- `onExcessProperty`: `"ignore"` by default, leaving unmodeled properties open; `"error"` closes them when their key space can be represented.
 - `generateDescriptions`: generate missing check descriptions from `expected` annotations.
 - `includeAnnotationKey`: include selected non-standard annotation keys.
 
-**Example** (Allowing Additional Properties)
+**Example** (Rejecting Additional Properties)
 
 ```ts twoslash import.meta.vitest name="json-schema-additional-properties-1"
 import { Schema } from "effect"
@@ -352,10 +358,10 @@ import { Schema } from "effect"
 const schema = Schema.Struct({ name: Schema.String })
 
 const document = Schema.toJsonSchemaDocument(schema, {
-  additionalProperties: true,
+  onExcessProperty: "error",
 })
 
-document.schema.additionalProperties // => true
+document.schema.additionalProperties // => false
 ```
 
 ## JSON Strings

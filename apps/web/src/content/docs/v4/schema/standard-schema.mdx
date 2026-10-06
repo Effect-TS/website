@@ -78,7 +78,7 @@ const async = sync.pipe(
     }),
     {
       // Simulate an asynchronous validation delay
-      decode: SchemaGetter.transformOrFail((x) =>
+      decode: SchemaGetter.transformEffect((x) =>
         Effect.sleep("100 millis").pipe(Effect.as(x)),
       ),
       encode: SchemaGetter.passthrough(),
@@ -120,7 +120,7 @@ import { Effect, Schema, SchemaGetter } from "effect"
 const defect = Schema.String.pipe(
   Schema.decodeTo(Schema.String, {
     // Simulate an internal failure
-    decode: SchemaGetter.transformOrFail(() => Effect.die("Boom!")),
+    decode: SchemaGetter.transformEffect(() => Effect.die("Boom!")),
     encode: SchemaGetter.passthrough(),
   }),
 )

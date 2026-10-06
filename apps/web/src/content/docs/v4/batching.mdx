@@ -688,12 +688,45 @@ Although the code structure looks similar to earlier examples, employing resolve
 const program = Effect.gen(function* () {
   const todos = yield* getTodos
   yield* Effect.forEach(todos, (todo) => notifyOwner(todo), {
-    batching: true,
+    concurrency: "unbounded",
   })
 })
 ```
 
 In the final setup, this program will execute only **3** queries to the APIs, regardless of the number of todos. This contrasts sharply with the traditional approach, which would potentially execute **1 + 2n** queries, where **n** is the number of todos. This represents a significant improvement in efficiency, especially for applications with a high volume of data interactions.
+
+### Customizing Request Batching
+
+Batching is controlled by the resolver. Each time we call `Effect.request`, the request joins a pending batch, which is identified by its resolver and its batch key.
+
+By default, all requests made with the same resolver share one batch, and the batch runs after `Effect.yieldNow`. This means that requests started together, in the same synchronous run of the fiber, are sent in a single batch. Requests started later, for example after a `sleep` or a network call, join a later batch.
+
+<Aside type="caution" title="Run Requests Concurrently">
+  Requests must start at the same time to share a batch. `Effect.forEach` and
+  `Effect.all` run sequentially by default, so each request completes before the
+  next one starts and every batch holds a single request. To batch the requests,
+  set the `concurrency` option, for example to `"unbounded"`.
+</Aside>
+
+We can change how batches form by wrapping a resolver with these functions from the `RequestResolver` module:
+
+| Function                         | Effect                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| `RequestResolver.setDelay`       | Waits for the given duration before running the batch, to collect more requests |
+| `RequestResolver.setDelayEffect` | Uses an effect as the delay                                                     |
+| `RequestResolver.batchN`         | Limits each batch to a maximum number of requests                               |
+| `RequestResolver.grouped`        | Creates a separate batch for each key                                           |
+
+For example, the following resolver collects requests for 10 milliseconds and sends at most 100 users in each call:
+
+```ts showLineNumbers=false
+const GetUserByIdResolverTuned = GetUserByIdResolver.pipe(
+  RequestResolver.setDelay("10 millis"),
+  RequestResolver.batchN(100),
+)
+```
+
+For full control, we can create a resolver with `RequestResolver.makeWith`, which accepts the `batchKey`, `delay`, and `collectWhile` options.
 
 ### Resolvers with Context
 

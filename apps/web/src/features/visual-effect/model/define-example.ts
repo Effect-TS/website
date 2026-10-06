@@ -3,7 +3,7 @@ import * as Equal from "effect/Equal"
 import * as Exit from "effect/Exit"
 import { dual } from "effect/Function"
 import * as Types from "effect/Types"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import * as Atom from "effect/reactivity/Atom"
 import * as React from "react"
 import type { RenderableResult } from "./domain"
 import {

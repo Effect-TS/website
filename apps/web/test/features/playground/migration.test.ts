@@ -16,7 +16,13 @@ function staleV3() {
     packageJson,
     makeFile(
       "package.json",
-      JSON.stringify({ dependencies: { effect: "latest" } }, undefined, 2),
+      JSON.stringify(
+        {
+          dependencies: { effect: "latest", "@effect/platform": "latest" },
+        },
+        undefined,
+        2,
+      ),
     ),
   )
   const [main] = withoutType.findFile("src/main.ts").pipe(Option.getOrThrow)
@@ -37,7 +43,36 @@ test("adds type module while preserving dependencies", () => {
   const parsed = JSON.parse(packageJson.initialContent)
 
   assert.equal(parsed.type, "module")
-  assert.deepEqual(parsed.dependencies, { effect: "latest" })
+  assert.deepEqual(parsed.dependencies, {
+    effect: "^3.22.2",
+    "@effect/platform": "^0.97.2",
+  })
+})
+
+test("moves stale rc tags to latest and keeps them v4", () => {
+  const workspace = makeDefaultWorkspace("v4")
+  const [packageJson] = workspace
+    .findFile("package.json")
+    .pipe(Option.getOrThrow)
+  const stale = workspace.replaceNode(
+    packageJson,
+    makeFile(
+      "package.json",
+      JSON.stringify(
+        { dependencies: { effect: "rc", "@effect/platform-node": "rc" } },
+        undefined,
+        2,
+      ),
+    ),
+  )
+  const normalized = normalizeWorkspace(stale)
+  const [parsed] = normalized.findFile("package.json").pipe(Option.getOrThrow)
+
+  assert.deepEqual(JSON.parse(parsed.initialContent).dependencies, {
+    effect: "latest",
+    "@effect/platform-node": "latest",
+  })
+  assert.equal(normalized.effectVersion, "v4")
 })
 
 test("normalizes npm prepare to pnpm install", () => {

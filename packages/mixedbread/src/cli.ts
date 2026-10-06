@@ -7,10 +7,10 @@ import * as Console from "effect/Console"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import * as CliConfig from "effect/unstable/cli/CliConfig"
-import * as Command from "effect/unstable/cli/Command"
-import * as Flag from "effect/unstable/cli/Flag"
-import { Help } from "effect/unstable/cli/GlobalFlag"
+import * as CliConfig from "effect/cli/CliConfig"
+import * as Command from "effect/cli/Command"
+import * as Flag from "effect/cli/Flag"
+import * as GlobalFlag from "effect/cli/GlobalFlag"
 import { Mixedbread } from "./Mixedbread.ts"
 import * as Preview from "./Preview.ts"
 import { SearchChanges } from "./SearchChanges.ts"
@@ -111,7 +111,7 @@ const indexCommand = Command.make("mixedbread").pipe(
 const program = Command.run(indexCommand, { version: "0.0.0" })
 
 const MainLayer = Layer.mergeAll(
-  CliConfig.layer({ builtIns: [Help] }),
+  CliConfig.layer({ builtIns: [GlobalFlag.Help] }),
   NodeServices.layer,
 )
 

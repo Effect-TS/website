@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import * as Atom from "effect/reactivity/Atom"
 import type { ExampleDefinition } from "@/features/visual-effect/model/example-definition"
 import type { SoundSettings } from "@/features/visual-effect/model/sound"
 import { SoundManager } from "@/features/visual-effect/runtime/SoundManager"

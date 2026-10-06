@@ -1,0 +1,183 @@
+---
+import ChartCard from "@/components/blog/ChartCard.astro"
+import StatGrid from "@/components/blog/StatGrid.astro"
+
+interface Props {
+  title: string
+  description: string
+  data: ReadonlyArray<readonly [date: string, value: number]>
+  stats?: Array<{
+    value: string
+    label: string
+  }>
+  split?: {
+    label: string
+    hint?: string
+    parts: Array<{
+      label: string
+      value: number
+      display: string
+      highlight?: boolean
+    }>
+  }
+  note?: string
+  label?: string
+}
+
+const { title, description, data, stats = [], split, note, label } = Astro.props
+const splitTotal = split?.parts.reduce((total, part) => total + part.value, 0) ?? 0
+
+const width = 1000
+const height = 300
+const maximum = Math.max(...data.map(([, value]) => value))
+const magnitude = 10 ** Math.floor(Math.log10(maximum))
+const step = maximum / magnitude > 5 ? magnitude * 2 : magnitude
+const top = Math.ceil(maximum / step) * step
+const ticks = Array.from({ length: top / step + 1 }, (_, index) => index * step)
+
+const x = (index: number) => (index / (data.length - 1)) * width
+const y = (value: number) => height - (value / top) * height
+const line = data
+  .map(
+    ([, value], index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(1)},${y(value).toFixed(1)}`,
+  )
+  .join("")
+const area = `${line}L${width},${height}L0,${height}Z`
+
+const compact = new Intl.NumberFormat("en", { notation: "compact" })
+const month = new Intl.DateTimeFormat("en", { month: "short", year: "numeric", timeZone: "UTC" })
+const isJanuary = (date: string) => date.slice(5, 7) === "01"
+const labels = data.flatMap(([date], index) =>
+  index === 0 || index === data.length - 1 || (isJanuary(date) && !isJanuary(data[index - 1]![0]))
+    ? [{ left: (x(index) / width) * 100, text: month.format(new Date(date)) }]
+    : [],
+)
+const latest = data[data.length - 1]![1]
+---
+
+<ChartCard title={title} note={note}>
+  {
+    label && (
+      <span slot="legend" class="font-mono text-[13px] text-muted-foreground">
+        {label}
+      </span>
+    )
+  }
+  {stats.length > 0 && <StatGrid stats={stats} />}
+  {
+    split && (
+      <div class="border-t border-border px-6 pt-[22px] pb-6">
+        <p class="m-0 mb-3 flex items-baseline justify-between gap-3 leading-snug">
+          <span class="text-[16px] font-semibold text-foreground">{split.label}</span>
+          {split.hint && (
+            <span class="font-mono text-[13px] text-muted-foreground">{split.hint}</span>
+          )}
+        </p>
+        <div class="flex h-1.5 gap-0.5" aria-hidden="true">
+          {split.parts.map((part) => (
+            <span
+              class:list={["h-full rounded-full", part.highlight ? "highlight-fill" : "muted-fill"]}
+              style={{ width: `${splitTotal > 0 ? (part.value / splitTotal) * 100 : 0}%` }}
+            />
+          ))}
+        </div>
+        <dl class="m-0 mt-2 flex justify-between gap-3 font-mono text-[13px] leading-5">
+          {split.parts.map((part) => (
+            <div class="flex gap-3.5">
+              <dt class="text-muted-foreground">{part.label}</dt>
+              <dd class="m-0 text-foreground tabular-nums">{part.display}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    )
+  }
+  <div class="border-t border-border pt-7 pr-[39px] pb-12 pl-6" role="img" aria-label={description}>
+    <div class="relative ml-11 h-56 sm:h-[264px]" aria-hidden="true">
+      {
+        ticks.map((tick) => (
+          <span
+            class="absolute -left-11 -translate-y-1/2 font-mono text-[13px] text-muted-foreground tabular-nums"
+            style={{ top: `${(y(tick) / height) * 100}%` }}
+          >
+            {compact.format(tick)}
+          </span>
+        ))
+      }
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        class="absolute inset-0 h-full w-full overflow-visible"
+      >
+        {
+          ticks.map((tick) => (
+            <line
+              x1="0"
+              x2={width}
+              y1={y(tick)}
+              y2={y(tick)}
+              class="stroke-border/60"
+              vector-effect="non-scaling-stroke"
+            />
+          ))
+        }
+        <defs>
+          <linearGradient id="trend-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" class="area-top"></stop>
+            <stop offset="1" class="area-bottom"></stop>
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#trend-area)"></path>
+        <path d={line} class="line" vector-effect="non-scaling-stroke"></path>
+      </svg>
+      <span
+        class="dot absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ left: "100%", top: `${(y(latest) / height) * 100}%` }}></span>
+      {
+        labels.map((label, index) => (
+          <span
+            class:list={[
+              "absolute top-full mt-2 font-mono text-[13px] whitespace-nowrap text-muted-foreground",
+              index === labels.length - 1 ? "-translate-x-full" : index > 0 && "-translate-x-1/2",
+              index > 0 && index < labels.length - 1 && "hidden sm:inline",
+            ]}
+            style={{ left: `${label.left}%` }}
+          >
+            {label.text}
+          </span>
+        ))
+      }
+    </div>
+  </div>
+</ChartCard>
+
+<style>
+  .area-top {
+    stop-color: #34d399;
+    stop-opacity: 0.12;
+  }
+
+  .area-bottom {
+    stop-color: #34d399;
+    stop-opacity: 0;
+  }
+
+  .line {
+    fill: none;
+    stroke: #34d399;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+
+  .highlight-fill {
+    background-color: #34d399;
+  }
+
+  .muted-fill {
+    background-color: color-mix(in srgb, var(--muted-foreground) 48%, var(--background));
+  }
+
+  .dot {
+    background-color: #34d399;
+  }
+</style>

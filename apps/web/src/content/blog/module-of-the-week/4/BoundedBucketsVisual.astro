@@ -1,0 +1,623 @@
+---
+// Bounded loads as buckets. Each runner is a bucket, its shards stacked as
+// squares from the bottom, closest to one of its points first. A dashed line
+// across every bucket marks the fair share (300 / 6 = 50).
+//
+// With the cap switched off, this is plain nearest-point hashing
+// (HashRing.get): some buckets poke above the line, and the squares above it
+// are hatched; others stop short and show empty slots. Switched on, it's what
+// cluster does (HashRing.getShards): the hatched squares fly into the empty
+// slots and every bucket ends level.
+//
+// The point: the cap only touches the overflow. Every other shard stays where
+// nearest-point hashing put it. That's checked below at build time, and the
+// build fails if it ever stops being true. (It holds because 300 divides
+// evenly by 6. With 7 runners the caps leave a remainder, and some shards over
+// the line end up staying put.)
+//
+// Real data: effect/HashRing with the default 128 points per runner, six
+// runners runner-k:34431, 300 shards.
+
+import * as Hash from "effect/Hash"
+import * as HashRing from "effect/HashRing"
+import * as PrimaryKey from "effect/PrimaryKey"
+
+const SHARDS = 300
+const RUNNERS = 6
+
+class Runner implements PrimaryKey.PrimaryKey {
+  readonly index: number
+  constructor(index: number) {
+    this.index = index
+  }
+  [PrimaryKey.symbol]() {
+    return `runner-${this.index}:34431`
+  }
+}
+
+interface Layout {
+  // Fair share, the cap per runner.
+  cap: number
+  // Character s is the owner (1-6) of shard s + 1, without and with the cap.
+  plain: string
+  capped: string
+  // Where shard s sits in its bucket, counting up from the bottom (0 is the
+  // bottom-left square), without and with the cap.
+  plainSlot: Array<number>
+  cappedSlot: Array<number>
+}
+
+const shardHashes = Array.from({ length: SHARDS }, (_, s) => Hash.string(`shard-${s}`))
+
+const layout = ((n: number): Layout => {
+  let ring = HashRing.make<Runner>()
+  for (let k = 1; k <= n; k++) ring = HashRing.add(ring, new Runner(k), { weight: 1 })
+  const bounded = HashRing.getShards(ring, SHARDS)!
+  const cap = Math.max(1, Math.floor(SHARDS / n))
+
+  // Plain owner, plus the distance to the nearest point, which is the order
+  // getShards hands shards out in.
+  const plain = shardHashes.map((h, s) => {
+    let distance = Infinity
+    for (const [point] of ring.ring) distance = Math.min(distance, Math.abs(point - h))
+    return { shard: s, owner: HashRing.get(ring, `shard-${s}`)!.index, distance }
+  })
+  const capped = bounded.map((r) => r.index)
+
+  const plainSlot = new Array<number>(SHARDS).fill(0)
+  const cappedSlot = new Array<number>(SHARDS).fill(0)
+  for (let k = 1; k <= n; k++) {
+    const mine = plain.filter((p) => p.owner === k).sort((a, b) => a.distance - b.distance)
+    mine.forEach((p, i) => {
+      plainSlot[p.shard] = i
+      // The claim this visual makes: a shard changes owner exactly when it's
+      // above the line in its plain bucket.
+      const over = i >= cap
+      const rerouted = capped[p.shard] !== k
+      if (over !== rerouted) {
+        throw new Error(
+          `BoundedBucketsVisual: with ${n} runners, shard-${p.shard} is ${over ? "" : "not "}over the line but ${rerouted ? "" : "not "}rerouted`,
+        )
+      }
+      if (!over) cappedSlot[p.shard] = i
+    })
+    // Shards rerouted here fill the empty slots above the ones that stayed.
+    let next = Math.min(mine.length, cap)
+    for (let s = 0; s < SHARDS; s++) {
+      if (capped[s] === k && plain[s]!.owner !== k) cappedSlot[s] = next++
+    }
+    if (next !== cap)
+      throw new Error(`BoundedBucketsVisual: runner ${k} of ${n} ends at ${next}, not ${cap}`)
+  }
+
+  return {
+    cap,
+    plain: plain.map((p) => p.owner).join(""),
+    capped: capped.join(""),
+    plainSlot,
+    cappedSlot,
+  }
+})(RUNNERS)
+
+const overflow = [...layout.plain].filter((o, s) => o !== layout.capped[s]).length
+---
+
+<figure class="bb" data-bounded-buckets>
+  <div class="bb-band bb-controls">
+    <button type="button" class="bb-switch" role="switch" aria-checked="false" data-cap>
+      <span class="bb-track" aria-hidden="true"><span class="bb-knob"></span></span>
+      Cap at fair share
+    </button>
+    <p class="bb-stat" aria-live="polite">
+      <strong data-count>{overflow}</strong>
+      <span data-stat-text>shards over the line</span>
+    </p>
+  </div>
+
+  <div class="bb-band bb-chart">
+    <div class="bb-key" aria-hidden="true">
+      <span><span class="bb-key-line"></span>Fair share</span>
+      <span><span class="bb-key-sq is-over"></span>Over the line</span>
+      <span><span class="bb-key-sq is-rerouted"></span>Rerouted</span>
+    </div>
+    <div class="bb-plot" data-plot>
+      <svg class="bb-svg" role="img" aria-label="Runner buckets" data-svg>
+        <g data-buckets></g>
+        <g data-slots></g>
+        <g data-squares></g>
+        <line class="bb-cap" data-cap-line></line>
+      </svg>
+    </div>
+    <div class="bb-names" data-names aria-hidden="true">
+      {
+        Array.from({ length: RUNNERS }, (_, i) => (
+          <span class="bb-name" style={`--c: var(--bb-r${i + 1})`}>
+            <span class="bb-name-k">
+              <span class="bb-name-word">Runner </span>
+              {i + 1}
+            </span>
+            <span class="bb-name-count" data-name-count />
+          </span>
+        ))
+      }
+    </div>
+  </div>
+
+  <script
+    type="application/json"
+    data-bb-data
+    set:html={JSON.stringify({ layout, runners: RUNNERS })}
+  />
+</figure>
+
+<script>
+  type Mode = "plain" | "capped"
+  type Layout = {
+    cap: number
+    plain: string
+    capped: string
+    plainSlot: Array<number>
+    cappedSlot: Array<number>
+  }
+  type Data = { layout: Layout; runners: number }
+
+  const SVG = "http://www.w3.org/2000/svg"
+  const SHARDS = 300
+
+  const svgEl = <K extends keyof SVGElementTagNameMap>(
+    tag: K,
+    attrs: Record<string, string | number>,
+  ) => {
+    const el = document.createElementNS(SVG, tag)
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v))
+    return el
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-bounded-buckets]")) {
+    const data = JSON.parse(root.querySelector("[data-bb-data]")!.textContent!) as Data
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const toggle = q<HTMLButtonElement>("[data-cap]")
+    const plot = q<HTMLElement>("[data-plot]")
+    const svg = q<SVGSVGElement>("[data-svg]")
+    const bucketsG = q<SVGGElement>("[data-buckets]")
+    const slotsG = q<SVGGElement>("[data-slots]")
+    const squaresG = q<SVGGElement>("[data-squares]")
+    const capLine = q<SVGLineElement>("[data-cap-line]")
+    const countEl = q<HTMLElement>("[data-count]")
+    const statText = q<HTMLElement>("[data-stat-text]")
+    const namesEl = q<HTMLElement>("[data-names]")
+    const names = Array.from(namesEl.querySelectorAll<HTMLElement>(".bb-name"))
+
+    let mode: Mode = "plain"
+    const runners = data.runners
+
+    // One group per shard: a square, plus a hatch stroke shown when it's over
+    // the line.
+    const squares = Array.from({ length: SHARDS }, (_, s) => {
+      const g = svgEl("g", { class: "bb-sq" })
+      const title = svgEl("title", {})
+      title.textContent = `Shard ${s + 1}`
+      g.append(svgEl("rect", { x: 0, y: 0 }), svgEl("path", { class: "bb-hatch" }), title)
+      squaresG.appendChild(g)
+      return g
+    })
+
+    // Geometry for the current width. Each runner gets an
+    // equal slot of the width, and its bucket is centered in it. The columns
+    // per bucket divide the fair share evenly, so the line falls between rows
+    // and full buckets end level.
+    const geometry = (n: number) => {
+      const layout = data.layout
+      const width = plot.clientWidth
+      const height = plot.clientHeight
+      const floor = height - 2
+      const slotW = width / n
+      const room = slotW - Math.max(6, slotW * 0.14)
+      const loads = new Array<number>(n + 1).fill(0)
+      for (const o of layout.plain) loads[Number(o)]!++
+      const tallest = Math.max(layout.cap, ...loads)
+      let best = { cols: 1, pitch: 0 }
+      for (let cols = 1; cols <= layout.cap; cols++) {
+        if (layout.cap % cols !== 0) continue
+        const rows = Math.ceil(tallest / cols)
+        const pitch = Math.min((floor - 4) / rows, room / cols, 20)
+        if (pitch > best.pitch) best = { cols, pitch }
+      }
+      const { cols, pitch } = best
+      const size = Math.max(2, pitch - Math.max(1, pitch * 0.18))
+      const left = (k: number) => (k - 1) * slotW + (slotW - cols * pitch) / 2
+      const at = (k: number, slot: number) => ({
+        x: left(k) + (slot % cols) * pitch,
+        y: floor - (Math.floor(slot / cols) + 1) * pitch,
+      })
+      return { layout, width, height, floor, cols, pitch, size, left, at, loads }
+    }
+
+    // Draws the buckets, empty slots up to the line, and the line itself, and
+    // sizes the squares. Called when the width changes.
+    let geo = geometry(runners)
+    const build = () => {
+      geo = geometry(runners)
+      const { layout, width, height, floor, cols, pitch, size, left } = geo
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`)
+      bucketsG.replaceChildren()
+      slotsG.replaceChildren()
+      const inset = (pitch - size) / 2
+      for (let k = 1; k <= runners; k++) {
+        const x0 = left(k) - 2
+        const x1 = left(k) + cols * pitch + 2
+        bucketsG.appendChild(
+          svgEl("path", {
+            class: "bb-bucket",
+            style: `--c: var(--bb-r${k})`,
+            d: `M${x0} 2 V${floor + 1} H${x1} V2`,
+          }),
+        )
+        for (let i = 0; i < layout.cap; i++) {
+          const p = geo.at(k, i)
+          slotsG.appendChild(
+            svgEl("rect", {
+              class: "bb-slot",
+              x: p.x + inset + 0.5,
+              y: p.y + inset + 0.5,
+              width: size - 1,
+              height: size - 1,
+            }),
+          )
+        }
+      }
+      const lineY = floor - (layout.cap / cols) * pitch
+      capLine.setAttribute("x1", String(left(1) - 8))
+      capLine.setAttribute("x2", String(left(runners) + cols * pitch + 6))
+      capLine.setAttribute("y1", String(lineY))
+      capLine.setAttribute("y2", String(lineY))
+      const h = size / 2
+      for (const g of squares) {
+        const rect = g.firstElementChild!
+        rect.setAttribute("x", String(inset))
+        rect.setAttribute("y", String(inset))
+        rect.setAttribute("width", String(size))
+        rect.setAttribute("height", String(size))
+        rect.setAttribute("rx", String(Math.min(2, size / 5)))
+        g.querySelector(".bb-hatch")!.setAttribute(
+          "d",
+          `M${inset} ${inset + size} L${inset + size} ${inset}` +
+            (size >= 9
+              ? ` M${inset} ${inset + h} L${inset + h} ${inset} M${inset + h} ${inset + size} L${inset + size} ${inset + h}`
+              : ""),
+        )
+      }
+      namesEl.style.setProperty("--n", String(runners))
+    }
+
+    // Puts every square where it belongs for the current mode.
+    const place = () => {
+      const { layout } = geo
+      const owners = mode === "plain" ? layout.plain : layout.capped
+      const slots = mode === "plain" ? layout.plainSlot : layout.cappedSlot
+      let order = 0
+      let moved = 0
+      const counts = new Array<number>(runners + 1).fill(0)
+      for (let s = 0; s < SHARDS; s++) {
+        const g = squares[s]!
+        const owner = Number(owners.charAt(s))
+        const rerouted = layout.plain.charAt(s) !== layout.capped.charAt(s)
+        if (rerouted) moved++
+        counts[owner]!++
+        const p = geo.at(owner, slots[s]!)
+        g.dataset.owner = String(owner)
+        g.classList.toggle("is-over", mode === "plain" && rerouted)
+        g.classList.toggle("is-rerouted", mode === "capped" && rerouted)
+        g.style.transitionDelay = rerouted ? `${Math.min(order++ * 30, 600)}ms` : "0ms"
+        g.style.transform = `translate(${p.x}px, ${p.y}px)`
+      }
+      countEl.textContent = String(moved)
+      statText.textContent =
+        mode === "plain" ? "shards over the line" : "shards rerouted by the cap"
+      names.forEach((el, i) => {
+        el.querySelector("[data-name-count]")!.textContent =
+          i < runners ? String(counts[i + 1]) : ""
+      })
+      svg.setAttribute(
+        "aria-label",
+        `${runners} runner buckets, ${mode === "plain" ? "no cap" : "with the cap"}. Fair share ${layout.cap}. Shards per runner: ${counts.slice(1).join(", ")}`,
+      )
+      toggle.setAttribute("aria-checked", String(mode === "capped"))
+    }
+
+    // Rebuilds without animating, for width changes.
+    const instant = () => {
+      root.classList.add("is-instant")
+      build()
+      place()
+      void root.offsetWidth
+      root.classList.remove("is-instant")
+    }
+
+    toggle.addEventListener("click", () => {
+      mode = mode === "plain" ? "capped" : "plain"
+      place()
+    })
+    let width = 0
+    new ResizeObserver(([entry]) => {
+      const w = entry!.contentRect.width
+      if (w === width || w === 0) return
+      width = w
+      instant()
+    }).observe(plot)
+  }
+</script>
+
+<style is:global>
+  .bb {
+    --bb-ink: #3f3f46;
+    --bb-muted: #71717a;
+    --bb-line: #e4e4e7;
+    --bb-slot: #a1a1aa;
+    --bb-surface: #ffffff;
+    --bb-card: #fafafa;
+    --bb-r1: #0072b2;
+    --bb-r2: #d55e00;
+    --bb-r3: #007a5e;
+    --bb-r4: #a3527f;
+    --bb-r5: #8a6d00;
+    --bb-r6: #52525b;
+    margin: 1.5rem 0;
+    border: 1px solid var(--bb-line);
+    border-radius: 0.9rem;
+    background: var(--bb-card);
+    overflow: hidden;
+  }
+  html.dark .bb {
+    --bb-ink: #e4e4e7;
+    --bb-muted: #a1a1aa;
+    --bb-line: #27272a;
+    --bb-slot: #71717a;
+    --bb-surface: #09090b;
+    --bb-card: #0f0f12;
+    --bb-r1: #56b4e9;
+    --bb-r2: #e69f00;
+    --bb-r3: #3cc39b;
+    --bb-r4: #cc79a7;
+    --bb-r5: #f0e442;
+    --bb-r6: #a1a1aa;
+  }
+  .bb p {
+    margin: 0;
+  }
+  .bb-band {
+    padding: 0.9rem 1rem;
+  }
+  .bb-band + .bb-band {
+    border-top: 1px solid var(--bb-line);
+  }
+
+  /* Controls */
+  .bb-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+  }
+
+  /* The cap switch */
+  .bb-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--bb-ink);
+    cursor: pointer;
+  }
+  .bb-track {
+    position: relative;
+    width: 2.4rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--bb-line);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--bb-muted) 40%, transparent);
+    transition: background 200ms;
+  }
+  .bb-knob {
+    position: absolute;
+    top: 0.175rem;
+    left: 0.175rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    background: var(--bb-surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    transition: transform 200ms;
+  }
+  .bb-switch[aria-checked="true"] .bb-track {
+    background: var(--bb-ink);
+  }
+  .bb-switch[aria-checked="true"] .bb-knob {
+    transform: translateX(1.05rem);
+  }
+  .bb-switch:focus-visible {
+    outline: none;
+  }
+  .bb-switch:focus-visible .bb-track {
+    outline: 2px solid var(--bb-ink);
+    outline-offset: 2px;
+  }
+  .bb .bb-stat {
+    font-size: 0.85rem;
+    color: var(--bb-muted);
+  }
+  .bb-stat strong {
+    display: inline-block;
+    min-width: 2ch;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--bb-ink);
+  }
+
+  /* Chart */
+  .bb-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    margin: 0 0 0.6rem;
+    font-size: 0.75rem;
+    color: var(--bb-muted);
+  }
+  .bb-key > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .bb-key-line {
+    width: 18px;
+    border-top: 2px dashed var(--bb-ink);
+  }
+  .bb-key-sq {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+  .bb-key-sq.is-over {
+    border: 1px solid var(--bb-muted);
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--bb-muted) 0 1px,
+      color-mix(in oklab, var(--bb-muted) 20%, var(--bb-surface)) 1px 3.5px
+    );
+  }
+  .bb-key-sq.is-rerouted {
+    background: var(--bb-muted);
+    outline: 1.5px solid var(--bb-ink);
+    outline-offset: 1px;
+  }
+  .bb-plot {
+    height: 270px;
+  }
+  .bb-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .bb-bucket {
+    fill: none;
+    stroke: color-mix(in oklab, var(--c) 45%, var(--bb-card));
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .bb-slot {
+    fill: none;
+    stroke: var(--bb-slot);
+    stroke-width: 1;
+    stroke-dasharray: 2 1.5;
+  }
+  .bb-cap {
+    stroke: var(--bb-ink);
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+  }
+  .bb-sq {
+    transition:
+      transform 800ms cubic-bezier(0.3, 0.7, 0.2, 1),
+      opacity 300ms;
+  }
+  .bb-sq[data-owner="1"] {
+    --c: var(--bb-r1);
+  }
+  .bb-sq[data-owner="2"] {
+    --c: var(--bb-r2);
+  }
+  .bb-sq[data-owner="3"] {
+    --c: var(--bb-r3);
+  }
+  .bb-sq[data-owner="4"] {
+    --c: var(--bb-r4);
+  }
+  .bb-sq[data-owner="5"] {
+    --c: var(--bb-r5);
+  }
+  .bb-sq[data-owner="6"] {
+    --c: var(--bb-r6);
+  }
+  .bb-sq rect {
+    fill: var(--c);
+    stroke: transparent;
+    stroke-width: 0;
+    transition:
+      fill 500ms 300ms,
+      stroke 300ms 500ms;
+  }
+  .bb-hatch {
+    fill: none;
+    stroke: var(--c);
+    stroke-width: 1;
+    opacity: 0;
+    transition: opacity 300ms;
+  }
+  /* Over the line: pale and hatched, so it reads without color. */
+  .bb-sq.is-over rect {
+    fill: color-mix(in oklab, var(--c) 18%, var(--bb-surface));
+    stroke: var(--c);
+    stroke-width: 1;
+  }
+  .bb-sq.is-over .bb-hatch {
+    opacity: 1;
+  }
+  /* Rerouted: the new owner's color, ringed. */
+  .bb-sq.is-rerouted rect {
+    stroke: var(--bb-ink);
+    stroke-width: 1.5;
+  }
+  .bb.is-instant .bb-sq,
+  .bb.is-instant .bb-sq rect,
+  .bb.is-instant .bb-hatch {
+    transition: none;
+  }
+
+  .bb-names {
+    display: grid;
+    grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-align: center;
+  }
+  .bb-name {
+    display: grid;
+  }
+  .bb-name-k {
+    font-weight: 600;
+    color: var(--c);
+    white-space: nowrap;
+  }
+  .bb-name-count {
+    font-variant-numeric: tabular-nums;
+    color: var(--bb-muted);
+  }
+
+  @media (max-width: 560px) {
+    .bb-band {
+      padding: 0.75rem;
+    }
+    .bb-plot {
+      height: 220px;
+    }
+  }
+  @media (max-width: 480px) {
+    .bb-name-word {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bb-track,
+    .bb-knob,
+    .bb-sq,
+    .bb-sq rect,
+    .bb-hatch {
+      transition: none;
+    }
+  }
+</style>

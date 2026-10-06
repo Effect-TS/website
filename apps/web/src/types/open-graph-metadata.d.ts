@@ -13,3 +13,9 @@ declare module "virtual:open-graph-metadata" {
 
   export default metadata
 }
+
+declare module "virtual:open-graph-renderer-version" {
+  const version: string
+
+  export default version
+}

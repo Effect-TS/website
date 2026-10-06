@@ -2,7 +2,7 @@ import * as Cause from "effect/Cause"
 import * as DateTime from "effect/DateTime"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
-import * as Atom from "effect/unstable/reactivity/Atom"
+import * as Atom from "effect/reactivity/Atom"
 import type { ExampleDefinition } from "@/features/visual-effect/model/example-definition"
 import {
   reduceFinalizerPanel,

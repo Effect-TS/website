@@ -158,7 +158,7 @@ import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect"
 
 const schema = Schema.String.pipe(
   Schema.decodeTo(Schema.String.check(Schema.isMinLength(2)), {
-    decode: SchemaGetter.transformOrFail((s) =>
+    decode: SchemaGetter.transformEffect((s) =>
       s.length > 0
         ? Effect.succeed(s)
         : Effect.fail(new SchemaIssue.InvalidValue()),
@@ -381,7 +381,7 @@ const IntFromString = Schema.String
       // to a number but it's not an integer
       Schema.Int.annotate({ message: "please enter an integer" }),
       {
-        decode: SchemaGetter.transformOrFail((s) => {
+        decode: SchemaGetter.transformEffect((s) => {
           const n = Number(s)
           return Number.isNaN(n)
             ? Effect.fail(
