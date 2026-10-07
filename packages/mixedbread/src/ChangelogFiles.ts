@@ -1,4 +1,3 @@
-import { toFile } from "@mixedbread/sdk"
 import {
   loadChangelogReleases,
   readApiReferenceDataset,
@@ -6,11 +5,10 @@ import {
 import type { ChangelogRelease } from "@website/domain/Changelog"
 import { changelogHref } from "@website/domain/ChangelogView"
 import * as Effect from "effect/Effect"
-import type { LocalFile } from "./ApiReferenceFiles.ts"
+import { chunkFiles } from "./ChunkFiles.ts"
 import {
   CHANGELOG_INDEX_CHANNELS,
   MAX_CHANGELOG_CHUNK_LENGTH,
-  MAX_CHANGELOG_CHUNKS_PER_FILE,
 } from "./Config.ts"
 import { UnknownError } from "./Error.ts"
 
@@ -107,19 +105,6 @@ export function releaseChunks(
   })
 }
 
-/**
- * Shards fill oldest first, so a new release only changes the newest shard and
- * every other file keeps its hash.
- */
-export function shardChunks<A>(
-  chunks: ReadonlyArray<A>,
-  size: number = MAX_CHANGELOG_CHUNKS_PER_FILE,
-): Array<ReadonlyArray<A>> {
-  return Array.from({ length: Math.ceil(chunks.length / size) }, (_, index) =>
-    chunks.slice(index * size, (index + 1) * size),
-  )
-}
-
 export const generateChangelogFiles = Effect.fn("ChangelogFiles.generate")(
   function* (
     apiReferenceDir: string,
@@ -146,31 +131,17 @@ export const generateChangelogFiles = Effect.fn("ChangelogFiles.generate")(
             ),
           catch: (cause) => new UnknownError({ cause }),
         })
-        const shards = shardChunks(releaseChunks(pkg, releases))
-        return yield* Effect.forEach(shards, (shard, index) => {
-          const filename = `${pkg.slug}-changelog-${String(index + 1).padStart(3, "0")}.mxjson`
-          const bytes = new TextEncoder().encode(JSON.stringify(shard))
-          return hash(bytes).pipe(
-            Effect.map(
-              (fileHash) =>
-                ({
-                  externalId: ["api-reference", pkg.channel, filename].join(
-                    "/",
-                  ),
-                  fileHash,
-                  metadata: {
-                    channel: pkg.channel,
-                    content_source: "changelog",
-                    package_name: pkg.name,
-                    package_slug: pkg.slug,
-                  },
-                  upload: () =>
-                    toFile(bytes, filename, {
-                      type: "application/vnd-mxbai.chunks-json",
-                    }),
-                }) satisfies LocalFile,
-            ),
-          )
+        return yield* chunkFiles({
+          chunks: releaseChunks(pkg, releases),
+          directory: ["api-reference", pkg.channel].join("/"),
+          name: `${pkg.slug}-changelog`,
+          metadata: {
+            channel: pkg.channel,
+            content_source: "changelog",
+            package_name: pkg.name,
+            package_slug: pkg.slug,
+          },
+          hash,
         })
       }),
       { concurrency: 10 },

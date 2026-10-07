@@ -9,12 +9,12 @@ import {
   generateChangelogFiles,
   releaseChunks,
   searchBody,
-  shardChunks,
   splitText,
 } from "../src/ChangelogFiles.ts"
+import { shardChunks } from "../src/ChunkFiles.ts"
 import {
   MAX_CHANGELOG_CHUNK_LENGTH,
-  MAX_CHANGELOG_CHUNKS_PER_FILE,
+  MAX_CHUNKS_PER_FILE,
   MAX_MIXEDBREAD_TEXT_LENGTH,
 } from "../src/Config.ts"
 
@@ -98,9 +98,7 @@ describe("growth guard", () => {
     )
     assert.isBelow(MAX_CHANGELOG_CHUNK_LENGTH, MAX_MIXEDBREAD_TEXT_LENGTH)
     assert.isTrue(
-      shardChunks(chunks).every(
-        (shard) => shard.length <= MAX_CHANGELOG_CHUNKS_PER_FILE,
-      ),
+      shardChunks(chunks).every((shard) => shard.length <= MAX_CHUNKS_PER_FILE),
     )
   })
 
