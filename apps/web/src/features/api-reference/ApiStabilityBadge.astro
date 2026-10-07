@@ -6,10 +6,11 @@ interface Props {
 
 const { stability, class: className } = Astro.props
 const label = stability === undefined ? undefined : stability.trim()
+const show = label !== undefined && label.toLowerCase() === "unstable"
 ---
 
 {
-  label && (
+  show && label && (
     <span
       class:list={[
         "inline-flex items-center rounded-full border border-transparent bg-amber-100 px-2.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-amber-800 uppercase dark:bg-amber-500/15 dark:text-amber-300",
