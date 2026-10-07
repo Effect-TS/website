@@ -1195,13 +1195,13 @@ interface SearchResultItemProps {
 function SearchResultItem({ result, rank, view }: SearchResultItemProps) {
   switch (result.kind) {
     case "api-reference": {
-      return <ApiReferenceItem result={result} rank={rank} view={view} />
+      return <PackageItem result={result} rank={rank} view={view} />
     }
     case "documentation": {
       return <DocumentationItem result={result} rank={rank} view={view} />
     }
     case "changelog": {
-      return <ChangelogItem result={result} rank={rank} view={view} />
+      return <PackageItem result={result} rank={rank} view={view} />
     }
     case "blog": {
       return <BlogItem result={result} rank={rank} view={view} />
@@ -1266,11 +1266,32 @@ function ChangelogPackageFilter() {
   )
 }
 
-function ChangelogItem({
+const PACKAGE_RESULT_BADGES = {
+  "api-reference": {
+    Icon: Braces,
+    label: "API",
+    className:
+      "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300",
+  },
+  changelog: {
+    Icon: ScrollText,
+    label: "Changelog",
+    className:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+} as const
+
+/** A package page in the results: an API module or a package changelog. */
+function PackageItem({
   result,
   rank,
   view,
-}: SearchResultItemProps & { readonly result: ChangelogSearchResult }) {
+}: SearchResultItemProps & {
+  readonly result: ApiReferenceSearchResult | ChangelogSearchResult
+}) {
+  const { Icon, label, className } = PACKAGE_RESULT_BADGES[result.kind]
+  const api = result.kind === "api-reference" ? result : undefined
+
   return (
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
@@ -1283,16 +1304,28 @@ function ChangelogItem({
         className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2 py-0.5 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
-            <ScrollText className="size-3" />
-            <span>Changelog</span>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 ${className}`}
+          >
+            <Icon className="size-3" />
+            <span>{label}</span>
             <span aria-hidden="true">·</span>
             <span>{result.version.toUpperCase()}</span>
           </span>
+          {api ? (
+            <span className="text-zinc-600 dark:text-zinc-300">
+              {api.packageName} / {api.title}
+            </span>
+          ) : null}
         </p>
         <p className="font-mono text-base font-semibold text-zinc-900 dark:text-white">
-          {result.packageName}
+          {api ? api.title : result.packageName}
         </p>
+        {api ? (
+          <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
+            {api.description}
+          </p>
+        ) : null}
       </a>
       {result.chunks.length > 0 ? (
         <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
@@ -1311,7 +1344,14 @@ function ChangelogItem({
               <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
                 {chunk.title}
               </p>
-              <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
+              {chunk.detail ? (
+                <p className="mt-0.5 line-clamp-1 font-mono text-xs text-violet-700 dark:text-violet-300">
+                  {chunk.detail}
+                </p>
+              ) : null}
+              <p
+                className={`mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 ${api ? "line-clamp-1" : "line-clamp-2"}`}
+              >
                 {chunk.snippet}
               </p>
             </a>
@@ -1372,73 +1412,6 @@ function BlogItem({
                 {chunk.title}
               </p>
               <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                {chunk.snippet}
-              </p>
-            </a>
-          ))}
-        </div>
-      ) : null}
-    </li>
-  )
-}
-
-function ApiReferenceItem({
-  result,
-  rank,
-  view,
-}: SearchResultItemProps & { readonly result: ApiReferenceSearchResult }) {
-  return (
-    <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
-      <a
-        href={result.href}
-        data-search-result-link
-        data-search-result-kind={result.kind}
-        data-search-result-level="page"
-        data-search-result-rank={rank}
-        data-search-results-view={view}
-        className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
-      >
-        <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300">
-            <Braces className="size-3 text-xs" />
-            <span>API</span>
-            <span aria-hidden="true">·</span>
-            <span>{result.version.toUpperCase()}</span>
-          </span>
-          <span className="text-zinc-600 dark:text-zinc-300">
-            {result.packageName} / {result.title}
-          </span>
-        </p>
-        <p className="font-mono text-base font-semibold text-zinc-900 dark:text-white">
-          {result.title}
-        </p>
-        <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {result.description}
-        </p>
-      </a>
-      {result.chunks.length > 0 ? (
-        <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
-          {result.chunks.map((chunk, index) => (
-            <a
-              key={chunk.id}
-              href={chunk.href}
-              data-search-result-link
-              data-search-result-kind={result.kind}
-              data-search-result-level="chunk"
-              data-search-result-rank={rank}
-              data-search-chunk-rank={index + 1}
-              data-search-results-view={view}
-              className="block cursor-pointer rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
-            >
-              <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                {chunk.title}
-              </p>
-              {chunk.detail ? (
-                <p className="mt-0.5 line-clamp-1 font-mono text-xs text-violet-700 dark:text-violet-300">
-                  {chunk.detail}
-                </p>
-              ) : null}
-              <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
                 {chunk.snippet}
               </p>
             </a>
