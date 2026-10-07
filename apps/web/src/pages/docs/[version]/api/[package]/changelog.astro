@@ -1,0 +1,164 @@
+---
+import type { GetStaticPaths } from "astro"
+import { getCollection, type CollectionEntry } from "astro:content"
+import { Rss } from "@lucide/astro"
+import { renderChangelogHtml } from "@website/api-reference/ChangelogHtml"
+import { changelogHref, groupReleases } from "@website/domain/Changelog"
+
+import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
+import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import { changelogDigest, changelogIndexDigest } from "@/features/changelog/cache-key"
+import ChangelogBadge from "@/features/changelog/ChangelogBadge.astro"
+import ChangelogVersionNav from "@/features/changelog/ChangelogVersionNav.astro"
+import { formatReleaseDate } from "@/features/changelog/format"
+import DocShell from "@/layouts/DocShell.astro"
+import { cacheKey } from "@/lib/cache-key"
+import { DOCS_VERSIONS } from "@/lib/versions"
+
+interface StaticPathEntry {
+  readonly params: {
+    readonly version: string
+    readonly package: string
+  }
+  readonly cacheKey: string
+  readonly props: {
+    readonly entry: CollectionEntry<"changelog">
+  }
+}
+
+export const prerender = true
+
+export const getStaticPaths = (async () => {
+  const entries = await getCollection("changelog")
+  // The mobile package and version switchers span every changelog.
+  const index = changelogIndexDigest(entries)
+  return entries.map((entry): StaticPathEntry => ({
+    params: { version: entry.data.channel, package: entry.data.slug },
+    cacheKey: cacheKey(changelogDigest(entry.data), index),
+    props: { entry },
+  }))
+}) satisfies GetStaticPaths
+
+const { entry } = Astro.props
+const { channel, name, packageVersion, releases, slug, sourceUrl } = entry.data
+const displayName = name.replace("@effect/", "")
+const apiHref = `/docs/${channel}/api/${slug}`
+
+const all = await getCollection("changelog")
+const groups = groupReleases(releases).map((group, index) => ({ ...group, open: index === 0 }))
+const mobileVersions = DOCS_VERSIONS.filter(({ value }) =>
+  all.some((other) => other.data.channel === value && other.data.slug === slug),
+).map(({ value, label }) => ({
+  href: changelogHref(value, slug),
+  label,
+  selected: value === channel,
+}))
+const mobilePackages = all
+  .filter((other) => other.data.channel === channel)
+  .map((other) => ({
+    href: changelogHref(channel, other.data.slug),
+    label: other.data.name.replace("@effect/", ""),
+    selected: other.data.slug === slug,
+  }))
+  .toSorted((left, right) => left.label.localeCompare(right.label))
+const mobileReleases = [
+  { disabled: true, href: "", label: "Releases", selected: true },
+  ...releases.map((release) => ({ href: `#${release.version}`, label: release.version })),
+]
+---
+
+<DocShell
+  title={`${name} Changelog | Effect`}
+  description={`Release notes and breaking changes for ${name}.`}
+  ogImageVersion={packageVersion}
+  activeSlug="api"
+  version={channel}
+>
+  <ApiMobileNavigation
+    slot="mobile-nav"
+    version={channel}
+    versions={mobileVersions}
+    packages={mobilePackages}
+    modules={mobileReleases}
+    moduleLabel="Release"
+  />
+
+  <nav slot="sidebar" aria-label="Changelog navigation">
+    <header class="mb-4">
+      <a
+        href={apiHref}
+        class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
+      >
+        {displayName}
+      </a>
+
+      <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">Changelog</h2>
+
+      <p class="font-mono text-xs text-muted-foreground">{releases.length} releases</p>
+    </header>
+
+    <ChangelogVersionNav groups={groups} />
+  </nav>
+
+  <article class="prose prose-effect max-w-4xl">
+    <nav
+      aria-label="Breadcrumb"
+      class="mb-5 flex items-center gap-3 font-mono text-xs tracking-wider text-muted-foreground uppercase not-prose lg:mb-8"
+    >
+      <a
+        href={`/docs/${channel}/api`}
+        class="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        API Reference
+      </a>
+      <span aria-hidden="true">/</span>
+      <a href={apiHref} class="text-muted-foreground transition-colors hover:text-foreground">
+        {displayName}
+      </a>
+      <span aria-hidden="true">/</span>
+      <span>Changelog</span>
+    </nav>
+
+    <h1 class="mb-4! md:mb-6! font-mono">{name} changelog</h1>
+
+    <div
+      class="not-prose mb-10 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-muted-foreground"
+    >
+      <span>{releases.length} releases</span>
+      <a href={apiHref} class="transition-colors hover:text-foreground">API reference</a>
+      <a
+        href={`${changelogHref(channel, slug)}.xml`}
+        class="transition-colors hover:text-foreground"
+      >
+        <Rss class="mr-1 inline size-4" aria-hidden="true" /> RSS
+      </a>
+      <a href={sourceUrl} target="_blank" class="transition-colors hover:text-foreground">
+        <GitHubLogo class="mr-1 inline size-4" aria-hidden="true" /> Source
+      </a>
+    </div>
+
+    {
+      releases.map((release) => (
+        <section
+          id={release.version}
+          class="scroll-mt-28 border-t border-border py-8 first:border-t-0 first:pt-0"
+        >
+          <div class="not-prose mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 class="font-mono text-xl font-semibold tracking-tight text-foreground">
+              <a href={`#${release.version}`} class="text-inherit no-underline hover:underline">
+                {release.version}
+              </a>
+            </h2>
+            {release.breaking && <ChangelogBadge>Breaking</ChangelogBadge>}
+            {release.date !== undefined && (
+              <time datetime={release.date} class="font-mono text-xs text-muted-foreground">
+                {formatReleaseDate(release.date)}
+              </time>
+            )}
+          </div>
+          <Fragment set:html={renderChangelogHtml(release.body)} />
+        </section>
+      ))
+    }
+  </article>
+</DocShell>

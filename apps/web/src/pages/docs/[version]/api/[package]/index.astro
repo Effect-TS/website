@@ -1,7 +1,8 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { Search } from "@lucide/astro"
+import { ScrollText, Search } from "@lucide/astro"
+import { changelogHref } from "@website/domain/Changelog"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
@@ -33,6 +34,7 @@ interface StaticPathEntry {
       readonly npmUrl: string
       readonly sourceUrl: string
     }
+    readonly hasChangelog: boolean
     readonly modules: Array<CollectionEntry<"apiReference">>
     readonly version: string
   }
@@ -42,6 +44,7 @@ export const prerender = true
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
+  const changelogIds = new Set((await getCollection("changelog")).map((entry) => entry.id))
   const paths = new Map<string, StaticPathEntry>()
 
   for (const entry of entries) {
@@ -63,6 +66,7 @@ export const getStaticPaths = (async () => {
             npmUrl: entry.data.packageNpmUrl,
             sourceUrl: entry.data.packageSourceUrl,
           },
+          hasChangelog: changelogIds.has(packageKey),
           modules: [entry],
           version: entry.data.version,
         },
@@ -82,6 +86,8 @@ export const getStaticPaths = (async () => {
       packageMetadataDigest(path.props.modules[0]!.data),
       // The mobile package switcher spans the whole version.
       versionIndexDigest(entries, version),
+      // Whether the page links to a changelog.
+      path.props.hasChangelog ? "changelog" : undefined,
     )
   }
 
@@ -89,7 +95,7 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths
 
 const collection = await getCollection("apiReference")
-const { modules, pkg, version } = Astro.props
+const { hasChangelog, modules, pkg, version } = Astro.props
 
 const displayName = pkg.name.replace("@effect/", "")
 
@@ -250,6 +256,16 @@ function moduleName(modulePath: string, group: string): string {
       <a href={pkg.sourceUrl} target="_blank" class="transition-colors hover:text-foreground">
         <GitHubLogo class="mr-1 inline size-4" aria-hidden="true" /> Source
       </a>
+      {
+        hasChangelog && (
+          <a
+            href={changelogHref(version, pkg.slug)}
+            class="transition-colors hover:text-foreground"
+          >
+            <ScrollText class="mr-1 inline size-4" aria-hidden="true" /> Changelog
+          </a>
+        )
+      }
     </div>
 
     <!-- Search -->

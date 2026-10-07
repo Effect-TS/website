@@ -169,6 +169,10 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
             `${version}/api/${packageSlug}/${modulePath}`,
             { eyebrow: "API Reference", title: moduleName },
           ],
+          [
+            `${version}/api/${packageSlug}/changelog`,
+            { eyebrow: "API Reference", title: `${packageName} changelog` },
+          ],
         ]
       }),
     )

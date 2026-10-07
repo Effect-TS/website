@@ -13,14 +13,15 @@ interface Props {
   readonly versions: ReadonlyArray<ApiMobileNavigationItem>
   readonly packages?: ReadonlyArray<ApiMobileNavigationItem>
   readonly modules?: ReadonlyArray<ApiMobileNavigationItem>
+  readonly moduleLabel?: string
 }
 
-const { version, versions, packages = [], modules = [] } = Astro.props
+const { version, versions, packages = [], modules = [], moduleLabel = "Module" } = Astro.props
 
 const selects = [
   { label: "Version", items: versions, width: "w-20 shrink-0" },
   { label: "Package", items: packages, width: "min-w-0 flex-1" },
-  { label: "Module", items: modules, width: "min-w-0 flex-1" },
+  { label: moduleLabel, items: modules, width: "min-w-0 flex-1" },
 ].filter(({ items }) => items.length > 0)
 ---
 
