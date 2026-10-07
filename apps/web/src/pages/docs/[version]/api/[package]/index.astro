@@ -7,7 +7,10 @@ import { changelogHref } from "@website/domain/ChangelogView"
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import ApiBreadcrumb from "@/features/api-reference/ApiBreadcrumb.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import ApiSidebarHeader from "@/features/api-reference/ApiSidebarHeader.astro"
+import { packageDisplayName, versionLinks } from "@/features/api-reference/navigation"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import {
   apiReferenceDigests,
@@ -17,7 +20,6 @@ import {
 } from "@/features/api-reference/cache-key"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
-import { DOCS_VERSIONS } from "@/lib/versions"
 
 interface StaticPathEntry {
   readonly params: {
@@ -96,7 +98,7 @@ export const getStaticPaths = (async () => {
 const collection = await getCollection("apiReference")
 const { hasChangelog, modules, pkg, version } = Astro.props
 
-const displayName = pkg.name.replace("@effect/", "")
+const displayName = packageDisplayName(pkg.name)
 
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
@@ -130,11 +132,7 @@ const sidebarSections = sections.map((section) => ({
     }
   }),
 }))
-const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api/${pkg.slug}`,
-  label,
-  selected: value === version,
-}))
+const mobileVersions = versionLinks(version, (value) => `/docs/${value}/api/${pkg.slug}`)
 const mobilePackages = Array.from(
   Map.groupBy(
     collection.filter((entry) => entry.data.version === version),
@@ -148,7 +146,7 @@ const mobilePackages = Array.from(
       : [
           {
             href: `/docs/${version}/api/${entry.data.packageSlug}`,
-            label: entry.data.packageName.replace("@effect/", ""),
+            label: packageDisplayName(entry.data.packageName),
             selected: entry.data.packageSlug === pkg.slug,
           },
         ],
@@ -194,21 +192,11 @@ function moduleName(modulePath: string, group: string): string {
   />
 
   <nav slot="sidebar" aria-label="API reference navigation" data-api-sidebar>
-    <header class="mb-4">
-      <a
-        href={`/docs/${version}/api`}
-        aria-current="page"
-        class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
-      >
-        API Reference
-      </a>
-
-      <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">
-        {displayName}
-      </h2>
-
-      <p class="font-mono text-xs text-muted-foreground">{pkg.version}</p>
-    </header>
+    <ApiSidebarHeader
+      eyebrow={{ label: "API Reference", href: `/docs/${version}/api` }}
+      title={displayName}
+      version={pkg.version}
+    />
 
     <div aria-label={`${pkg.name} modules`}>
       <ApiSidebarNav sections={sidebarSections} />
@@ -216,26 +204,7 @@ function moduleName(modulePath: string, group: string): string {
   </nav>
 
   <article class="prose prose-effect max-w-4xl">
-    <nav
-      aria-label="Breadcrumb"
-      class="mb-5 flex items-center gap-3 font-mono text-xs tracking-wider text-muted-foreground uppercase not-prose lg:mb-8"
-    >
-      <a
-        href={`/docs/${version}/api`}
-        class="text-muted-foreground transition-colors hover:text-foreground"
-      >
-        API Reference
-      </a>
-      <span aria-hidden="true">/</span>
-      <a
-        href={`/docs/${version}/api`}
-        class="text-muted-foreground transition-colors hover:text-foreground"
-      >
-        {version}
-      </a>
-      <span aria-hidden="true">/</span>
-      <span>{displayName}</span>
-    </nav>
+    <ApiBreadcrumb version={version} trail={[{ label: displayName }]} />
 
     <h1 class="mb-4! md:mb-6! font-mono">
       {pkg.name}

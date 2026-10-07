@@ -5,11 +5,11 @@ import { getCollection, type CollectionEntry } from "astro:content"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { versionIndexDigest } from "@/features/api-reference/cache-key"
+import { packageDisplayName, versionLinks } from "@/features/api-reference/navigation"
 import { compareGroups, packageGroup } from "@/features/api-reference/package-groups"
 import PackageIndex from "@/features/api-reference/PackageIndex.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
-import { DOCS_VERSIONS } from "@/lib/versions"
 
 export const prerender = true
 
@@ -49,7 +49,7 @@ const packages = Array.from(packageEntries).map(([name, modules]) => {
     throw new Error(`Package "${name}" has no modules`)
   }
 
-  const displayName = name.replace("@effect/", "")
+  const displayName = packageDisplayName(name)
   const entries = modules.toSorted((left, right) =>
     left.data.modulePath.localeCompare(right.data.modulePath),
   )
@@ -79,11 +79,7 @@ const sidebarSections = [
     })),
   },
 ]
-const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api`,
-  label,
-  selected: value === version,
-}))
+const mobileVersions = versionLinks(version, (value) => `/docs/${value}/api`)
 const mobilePackages = [
   { disabled: true, href: "", label: "Packages", selected: true },
   ...packages
