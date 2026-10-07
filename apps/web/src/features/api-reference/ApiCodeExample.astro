@@ -11,8 +11,18 @@ const { example } = Astro.props
 ---
 
 <article>
-  <p class="mt-6 mb-2 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
-    Example{example.title && ` (${example.title})`}
+  <p
+    class="mt-6 mb-2 font-mono text-[12px] font-medium tracking-wider text-muted-foreground uppercase"
+  >
+    Example
+    {
+      example.title && (
+        <span class="font-sans text-base font-normal normal-case tracking-normal text-prose-foreground">
+          {" "}
+          {example.title}
+        </span>
+      )
+    }
   </p>
 
   <Code code={example.source} lang={example.language} meta="showLineNumbers=false" />
