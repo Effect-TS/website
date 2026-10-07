@@ -12,7 +12,7 @@ export type SerializedPost = {
   id: string
   title: string
   excerpt: string
-  date: string
+  date: Date
   dateMs: number
   href: string
   tags: Array<{ id: string; name: string }>

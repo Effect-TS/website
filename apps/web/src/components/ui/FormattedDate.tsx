@@ -9,13 +9,12 @@ export function FormattedDate({
   date,
   className,
 }: {
-  date: string | Date
+  date: Date
   className?: string
 }) {
-  const value = new Date(date)
   return (
-    <time dateTime={value.toISOString().slice(0, 10)} className={className}>
-      {format.format(value)}
+    <time dateTime={date.toISOString()} className={className}>
+      {format.format(date)}
     </time>
   )
 }
