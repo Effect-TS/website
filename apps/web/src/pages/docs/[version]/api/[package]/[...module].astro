@@ -175,9 +175,9 @@ const tocItems = apiModule.groups.map((group) => ({
   children: group.declarations.map((declaration) => ({
     id: declaration.anchor,
     label: declaration.name,
-    hint: declaration.typeKind,
+    hint: declaration.kind,
     class: "truncate font-mono text-xs",
-    title: `${declaration.name}${declaration.typeKind === undefined ? "" : ` (${declaration.typeKind})`}`,
+    title: `${declaration.name} (${declaration.kind})`,
   })),
 }))
 ---
@@ -312,5 +312,9 @@ const tocItems = apiModule.groups.map((group) => ({
     </div>
   </article>
 
-  {tocItems.length > 0 && <TableOfContents slot="toc" items={tocItems} />}
+  {
+    tocItems.length > 0 && (
+      <TableOfContents slot="toc" items={tocItems} nestedListClass="mt-2 space-y-2 pl-2" />
+    )
+  }
 </DocShell>

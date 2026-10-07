@@ -1,4 +1,11 @@
 ---
+import ClassIcon from "@/assets/icons/api-kind/class.svg"
+import FunctionIcon from "@/assets/icons/api-kind/function.svg"
+import InterfaceIcon from "@/assets/icons/api-kind/interface.svg"
+import NamespaceIcon from "@/assets/icons/api-kind/namespace.svg"
+import TypeIcon from "@/assets/icons/api-kind/type.svg"
+import VariableIcon from "@/assets/icons/api-kind/variable.svg"
+
 /**
  * TOC link — owns the single reusable "On this page" link treatment shared by
  * Docs, API Reference and Blog: resting navigation text, hover → foreground, and the
@@ -7,9 +14,12 @@
  *
  * Structural classes (size, `font-mono`, `truncate`, indentation) come from the
  * caller via `class`; extra attributes (e.g. `title`) are spread onto the `<a>`.
- * A `hint` (e.g. an API export's type kind) renders as a trailing `(kind)` and
- * lays the row out as a flex line so the label can truncate beside it; without a
- * hint the label renders inline and wraps (or truncates if the caller opts in).
+ * A `hint` matching a known API kind (class, interface, type, function,
+ * namespace, variable) renders as a monochromatic letter badge — the kind's
+ * initial inside a rounded border — before the label so the row stays compact
+ * and the letter can't be mistaken for part of the name; any other hint keeps
+ * the legacy trailing `(hint)` form so generic callers don't lose information. Without a hint the label renders
+ * inline and wraps (or truncates if the caller opts in).
  * Set `emphasis` for a section heading in a nested TOC.
  */
 interface Props {
@@ -23,6 +33,17 @@ interface Props {
 
 const { id, label, hint, emphasis = false, class: className, ...rest } = Astro.props
 
+const KIND_ICONS = {
+  class: ClassIcon,
+  function: FunctionIcon,
+  interface: InterfaceIcon,
+  namespace: NamespaceIcon,
+  type: TypeIcon,
+  variable: VariableIcon,
+} as const
+
+const KindIcon = hint !== undefined ? KIND_ICONS[hint as keyof typeof KIND_ICONS] : undefined
+
 // The single source of the TOC link treatment.
 const base = emphasis
   ? "block font-semibold text-foreground transition-colors hover:text-foreground aria-[current=location]:text-foreground"
@@ -32,11 +53,21 @@ const base = emphasis
 <a
   href={`#${id}`}
   data-toc-link={id}
-  class:list={[base, hint !== undefined && "flex min-w-0 items-baseline gap-1", className]}
+  class:list={[base, hint !== undefined && "flex min-w-0 items-baseline gap-1.5", className]}
   {...rest}
 >
   {
-    hint === undefined ? (
+    KindIcon !== undefined ? (
+      <Fragment>
+        <span
+          class="flex size-4 shrink-0 items-center justify-center self-center rounded-sm border border-border text-muted-foreground"
+          aria-hidden="true"
+        >
+          <KindIcon class="size-3" />
+        </span>
+        <span class="truncate">{label}</span>
+      </Fragment>
+    ) : hint === undefined ? (
       label
     ) : (
       <Fragment>
