@@ -3,7 +3,7 @@ import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { Rss } from "@lucide/astro"
 import { renderChangelogHtml } from "@website/api-reference/ChangelogHtml"
-import { changelogHref, groupReleases } from "@website/domain/Changelog"
+import { changelogHref, groupReleases } from "@website/domain/ChangelogView"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
@@ -12,6 +12,7 @@ import ChangelogBadge from "@/features/changelog/ChangelogBadge.astro"
 import CopyCode from "@/features/changelog/CopyCode.astro"
 import ChangelogVersionNav from "@/features/changelog/ChangelogVersionNav.astro"
 import { formatReleaseDate } from "@/features/changelog/format"
+import { loadReleases } from "@/features/changelog/releases"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
 import { DOCS_VERSIONS } from "@/lib/versions"
@@ -51,7 +52,8 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths
 
 const { entry, packages } = Astro.props
-const { channel, name, packageVersion, releases, slug, sourceUrl } = entry.data
+const { channel, name, packageVersion, releaseCount, slug, sourceUrl } = entry.data
+const releases = await loadReleases(entry.data)
 const displayName = name.replace("@effect/", "")
 const apiHref = `/docs/${channel}/api/${slug}`
 
@@ -142,7 +144,7 @@ const mobileReleases = [
     <div
       class="not-prose mb-10 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-muted-foreground"
     >
-      <span>{releases.length} releases</span>
+      <span>{releaseCount} releases</span>
       <a href={apiHref} class="transition-colors hover:text-foreground">API reference</a>
       <a
         href={`${changelogHref(channel, slug)}.xml`}

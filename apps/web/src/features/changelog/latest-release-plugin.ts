@@ -1,6 +1,6 @@
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { loadLatestRelease } from "@website/api-reference/Changelog"
+import { readApiReferenceDataset } from "@website/api-reference/ApiReferenceDataset"
 import type { Plugin } from "vite"
 
 const moduleId = "virtual:latest-release"
@@ -20,6 +20,9 @@ export interface LatestReleasePluginOptions {
  * last build, and the module graph is the one thing every page that renders the
  * navbar shares. A release then re-renders exactly those pages, and no page can
  * keep an old version.
+ *
+ * The version is the one the API reference shows for the package, because both
+ * come from the same package manifest.
  */
 export const latestReleasePlugin = (
   options: LatestReleasePluginOptions,
@@ -31,10 +34,23 @@ export const latestReleasePlugin = (
   async load(id) {
     if (id !== resolvedModuleId) return undefined
     const base = fileURLToPath(options.base)
-    this.addWatchFile(
-      join(base, options.channel, "changelog", `${options.slug}.json`),
+    // The generator writes the dataset manifest last.
+    this.addWatchFile(join(base, options.channel, "manifest.json"))
+    const { packages } = await readApiReferenceDataset(base)
+    const pkg = packages.find(
+      ({ channel, slug, changelog }) =>
+        channel === options.channel &&
+        slug === options.slug &&
+        changelog !== undefined,
     )
-    const release = await loadLatestRelease(base, options.channel, options.slug)
-    return `export default ${JSON.stringify(release ?? null)}`
+    const release =
+      pkg === undefined
+        ? null
+        : {
+            name: pkg.name,
+            version: pkg.version,
+            date: pkg.changelog?.latestDate,
+          }
+    return `export default ${JSON.stringify(release)}`
   },
 })

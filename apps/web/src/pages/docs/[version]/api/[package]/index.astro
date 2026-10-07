@@ -2,7 +2,7 @@
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { ScrollText, Search } from "@lucide/astro"
-import { changelogHref } from "@website/domain/Changelog"
+import { changelogHref } from "@website/domain/ChangelogView"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import NpmLogo from "@/assets/icons/fa7-brands/npm.svg"
@@ -44,7 +44,6 @@ export const prerender = true
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
-  const changelogIds = new Set((await getCollection("changelog")).map((entry) => entry.id))
   const paths = new Map<string, StaticPathEntry>()
 
   for (const entry of entries) {
@@ -66,7 +65,7 @@ export const getStaticPaths = (async () => {
             npmUrl: entry.data.packageNpmUrl,
             sourceUrl: entry.data.packageSourceUrl,
           },
-          hasChangelog: changelogIds.has(packageKey),
+          hasChangelog: entry.data.packageHasChangelog === true,
           modules: [entry],
           version: entry.data.version,
         },

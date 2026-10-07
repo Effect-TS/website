@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import {
   mkdirSync,
   mkdtempSync,
@@ -8,18 +9,10 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import {
-  type ChangelogPackage,
-  groupReleases,
-  releaseGroup,
-  splitChangelog,
-} from "@website/domain/Changelog"
+import { type ChangelogFile, splitChangelog } from "@website/domain/Changelog"
+import { groupReleases, releaseGroup } from "@website/domain/ChangelogView"
 import { afterEach, assert, describe, test } from "vite-plus/test"
-import {
-  generateChangelogs,
-  loadChangelogDataset,
-  loadLatestRelease,
-} from "../src/Changelog.ts"
+import { createChangelogWriter } from "../src/Changelog.ts"
 import { renderChangelogHtml } from "../src/ChangelogHtml.ts"
 
 describe("splitChangelog", () => {
@@ -124,7 +117,7 @@ describe("renderChangelogHtml", () => {
   })
 })
 
-describe("generateChangelogs", () => {
+describe("createChangelogWriter", () => {
   const directories: Array<string> = []
   afterEach(() => {
     for (const directory of directories.splice(0)) {
@@ -183,18 +176,19 @@ describe("generateChangelogs", () => {
     }
   }
 
-  test("dates releases from lightweight tags in UTC", () => {
-    const { output, repository, source } = setup(true)
-    generateChangelogs({
-      channel: "v4",
-      output,
-      repository,
-      revision: "abc",
-      sources: [source],
-    })
-    const file: ChangelogPackage = JSON.parse(
-      readFileSync(join(output, "changelog", "sql-pg.json"), "utf8"),
-    )
+  const write = (tag: boolean) => {
+    const { output, repository, source } = setup(tag)
+    const writer = createChangelogWriter({ repository, revision: "abc" })
+    const summary = writer.write({ ...source, outputDirectory: output })
+    return { output, summary, writer }
+  }
+
+  test("writes the releases next to the manifest and summarizes them", () => {
+    const { output, summary } = write(true)
+    const contents = readFileSync(join(output, "changelog.json"), "utf8")
+    const file: ChangelogFile = JSON.parse(contents)
+
+    // The 4.0.1 tag is 23:30 at -05:00, which is the next day in UTC.
     assert.deepStrictEqual(
       file.releases.map(({ version, date, breaking }) => [
         version,
@@ -206,92 +200,36 @@ describe("generateChangelogs", () => {
         ["4.0.0", undefined, false],
       ],
     )
-    assert.strictEqual(
-      file.sourceUrl,
-      "https://github.com/Effect-TS/effect/blob/abc/packages/sql/pg/CHANGELOG.md",
-    )
+    assert.deepStrictEqual(summary, {
+      json: "changelog.json",
+      sha256: createHash("sha256").update(contents).digest("hex"),
+      sourceUrl:
+        "https://github.com/Effect-TS/effect/blob/abc/packages/sql/pg/CHANGELOG.md",
+      releaseCount: 2,
+      latestDate: "2026-09-21",
+    })
   })
 
-  test("loads generated data from <channel>/changelog", async () => {
-    const { output, repository, source } = setup(true)
-    generateChangelogs({
-      channel: "v4",
-      output: join(output, "v4"),
-      repository,
-      revision: "abc",
-      sources: [source],
-    })
-    const entries = await loadChangelogDataset(output)
-    assert.deepStrictEqual(
-      entries.map(({ data }) => `${data.channel}/${data.slug}`),
-      ["v4/sql-pg"],
+  test("returns nothing for a package without a changelog", () => {
+    const { output, repository } = setup(true)
+    const writer = createChangelogWriter({ repository, revision: "abc" })
+    assert.isUndefined(
+      writer.write({
+        name: "@effect/none",
+        version: "1.0.0",
+        directory: join(repository, "packages", "none"),
+        outputDirectory: output,
+      }),
     )
-    assert.deepStrictEqual(
-      await loadChangelogDataset(join(output, "missing")),
-      [],
-    )
-  })
-
-  test("rejects a changelog from another revision than the API reference", async () => {
-    const { output, repository, source } = setup(true)
-    generateChangelogs({
-      channel: "v4",
-      output: join(output, "v4"),
-      repository,
-      revision: "abc",
-      sources: [source],
-    })
-    const manifest = join(output, "v4", "manifest.json")
-
-    writeFileSync(manifest, JSON.stringify({ revision: "abc" }))
-    assert.lengthOf(await loadChangelogDataset(output), 1)
-
-    writeFileSync(manifest, JSON.stringify({ revision: "def" }))
-    let failure: unknown
-    await loadChangelogDataset(output).catch((error: unknown) => {
-      failure = error
-    })
-    assert.match(
-      String(failure),
-      /comes from revision abc, but the v4 API reference comes from def/,
-    )
-    let latest: unknown
-    await loadLatestRelease(output, "v4", "sql-pg").catch((error: unknown) => {
-      latest = error
-    })
-    assert.match(String(latest), /generate them together/)
-  })
-
-  test("names the release the package manifest names", async () => {
-    const { output, repository, source } = setup(true)
-    generateChangelogs({
-      channel: "v4",
-      output: join(output, "v4"),
-      repository,
-      revision: "abc",
-      sources: [source],
-    })
-    assert.deepStrictEqual(await loadLatestRelease(output, "v4", "sql-pg"), {
-      name: "@effect/sql-pg",
-      version: "4.0.1",
-      date: "2026-09-21",
-    })
-    assert.isUndefined(await loadLatestRelease(output, "v4", "missing"))
-    assert.isUndefined(await loadLatestRelease(output, "v9", "sql-pg"))
   })
 
   test("fails when no release tag exists", () => {
-    const { output, repository, source } = setup(false)
-    assert.throws(
-      () =>
-        generateChangelogs({
-          channel: "v4",
-          output,
-          repository,
-          revision: "abc",
-          sources: [source],
-        }),
-      /No release tags found/,
-    )
+    const { writer } = write(false)
+    assert.throws(() => writer.finish(), /No release tags found/)
+  })
+
+  test("accepts dated releases", () => {
+    const { writer } = write(true)
+    assert.doesNotThrow(() => writer.finish())
   })
 })

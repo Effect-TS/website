@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { ChangelogPackage } from "@website/domain/Changelog"
+import type { ChangelogRelease } from "@website/domain/Changelog"
 import * as Effect from "effect/Effect"
 import { assert, describe, test } from "vite-plus/test"
 import {
@@ -23,22 +23,12 @@ const prefix =
 const dependencies =
   "- Updated dependencies [[`ed2cc2f`](https://github.com/Effect-TS/effect/commit/ed2cc2f322dfd24da550c8d0ac811c3130b79d74)]:\n  - effect@4.0.1"
 
+const pkg = { channel: "v4", name: "@effect/sql-pg", slug: "sql-pg" }
+
 const changelog = (
   releases: ReadonlyArray<{ version: string; body: string }>,
-): ChangelogPackage => ({
-  schemaVersion: 1,
-  channel: "v4",
-  name: "@effect/sql-pg",
-  slug: "sql-pg",
-  packageVersion: "4.0.1",
-  revision: "abc",
-  sourceUrl: "https://example.com/CHANGELOG.md",
-  releases: releases.map(({ version, body }) => ({
-    version,
-    breaking: false,
-    body,
-  })),
-})
+): Array<ChangelogRelease> =>
+  releases.map(({ version, body }) => ({ version, breaking: false, body }))
 
 describe("searchBody", () => {
   test("drops commit links, authors and dependency lists", () => {
@@ -74,6 +64,7 @@ describe("splitText", () => {
 describe("releaseChunks", () => {
   test("emits oldest release first and skips dependency-only releases", () => {
     const chunks = releaseChunks(
+      pkg,
       changelog([
         { version: "4.0.2", body: `### Patch Changes\n\n${dependencies}` },
         { version: "4.0.1", body: "### Patch Changes\n\n- Fix pool leak." },
@@ -101,7 +92,7 @@ describe("growth guard", () => {
     })).reverse()
 
   test("keeps chunks and files inside their budgets for a large package", () => {
-    const chunks = releaseChunks(changelog(releases(600)))
+    const chunks = releaseChunks(pkg, changelog(releases(600)))
     assert.isTrue(
       chunks.every((chunk) => chunk.text.length <= MAX_CHANGELOG_CHUNK_LENGTH),
     )
@@ -114,8 +105,8 @@ describe("growth guard", () => {
   })
 
   test("a new release changes only the newest shard", () => {
-    const before = shardChunks(releaseChunks(changelog(releases(600))))
-    const after = shardChunks(releaseChunks(changelog(releases(601))))
+    const before = shardChunks(releaseChunks(pkg, changelog(releases(600))))
+    const after = shardChunks(releaseChunks(pkg, changelog(releases(601))))
     assert.isTrue(after.length >= before.length)
     assert.deepStrictEqual(
       after
@@ -133,21 +124,66 @@ describe("generateChangelogFiles", () => {
   const hash = (bytes: Uint8Array) =>
     Effect.succeed(createHash("sha256").update(bytes).digest("hex"))
 
+  // Writes the manifests the way the generator does.
+  function writeDataset(
+    directory: string,
+    channel: string,
+    releases: ReadonlyArray<ChangelogRelease>,
+  ) {
+    const packageDirectory = join(directory, channel, "@effect", "sql-pg")
+    mkdirSync(packageDirectory, { recursive: true })
+    const contents = `${JSON.stringify({ schemaVersion: 1, releases })}\n`
+    writeFileSync(join(packageDirectory, "changelog.json"), contents)
+    writeFileSync(
+      join(packageDirectory, "manifest.json"),
+      JSON.stringify({
+        schemaVersion: 3,
+        channel,
+        name: "@effect/sql-pg",
+        version: "4.0.1",
+        revision: "abc",
+        description: "A PostgreSQL toolkit",
+        npmUrl: "https://www.npmjs.com/package/@effect/sql-pg",
+        sourceUrl:
+          "https://github.com/Effect-TS/effect/tree/abc/packages/sql/pg",
+        barrels: [],
+        modules: [],
+        changelog: {
+          json: "changelog.json",
+          sha256: createHash("sha256").update(contents).digest("hex"),
+          sourceUrl:
+            "https://github.com/Effect-TS/effect/blob/abc/CHANGELOG.md",
+          releaseCount: releases.length,
+        },
+      }),
+    )
+    writeFileSync(
+      join(directory, channel, "manifest.json"),
+      JSON.stringify({
+        datasetSchemaVersion: 1,
+        channel,
+        typedocVersion: "0.28.20",
+        typedocSchemaVersion: "2.0",
+        revision: "abc",
+        packages: [
+          {
+            name: "@effect/sql-pg",
+            version: "4.0.1",
+            manifest: "@effect/sql-pg/manifest.json",
+          },
+        ],
+      }),
+    )
+  }
+
   test("builds sharded files for indexed channels only", async () => {
     const directory = mkdtempSync(join(tmpdir(), "changelog-files-"))
     try {
-      const write = (channel: string, data: ChangelogPackage) => {
-        mkdirSync(join(directory, channel, "changelog"), { recursive: true })
-        writeFileSync(
-          join(directory, channel, "changelog", `${data.slug}.json`),
-          JSON.stringify(data),
-        )
-      }
-      const v4 = changelog([
+      const releases = changelog([
         { version: "4.0.1", body: "### Patch Changes\n\n- Fix pool leak." },
       ])
-      write("v4", v4)
-      write("v3", { ...v4, channel: "v3" })
+      writeDataset(directory, "v4", releases)
+      writeDataset(directory, "v3", releases)
 
       const run = () =>
         Effect.runPromise(generateChangelogFiles(directory, hash))

@@ -1,4 +1,5 @@
 export * as ApiReference from "./ApiReference.ts"
 export * as ApiReferenceSnapshot from "./ApiReferenceSnapshot.ts"
 export * as Changelog from "./Changelog.ts"
+export * as ChangelogView from "./ChangelogView.ts"
 export * as SearchMetadata from "./SearchMetadata.ts"

@@ -1,4 +1,3 @@
-import { latestRelease } from "@website/domain/Changelog"
 import { getCollection } from "astro:content"
 
 import { digest } from "@/lib/cache-key"
@@ -13,34 +12,19 @@ export interface ChangelogSummary {
   readonly slug: string
 }
 
-/** One summary per package changelog, without the release bodies. */
+/** One summary per package changelog, without the releases. */
 export async function loadChangelogSummaries(): Promise<
   ReadonlyArray<ChangelogSummary>
 > {
-  const [changelogs, modules] = await Promise.all([
-    getCollection("changelog"),
-    getCollection("apiReference"),
-  ])
-  const descriptions = new Map(
-    modules.map(({ data }) => [
-      `${data.version}/${data.packageSlug}`,
-      data.packageDescription,
-    ]),
-  )
-  return changelogs.map(({ data }) => {
-    const latest = latestRelease(data)
-    return {
-      channel: data.channel,
-      description:
-        descriptions.get(`${data.channel}/${data.slug}`) ??
-        `Release notes for ${data.name}.`,
-      latestDate: latest.date,
-      latestVersion: latest.version,
-      name: data.name,
-      releaseCount: data.releases.length,
-      slug: data.slug,
-    }
-  })
+  return (await getCollection("changelog")).map(({ data }) => ({
+    channel: data.channel,
+    description: data.description,
+    latestDate: data.latestDate,
+    latestVersion: data.packageVersion,
+    name: data.name,
+    releaseCount: data.releaseCount,
+    slug: data.slug,
+  }))
 }
 
 /** Digest of everything the changelog index pages render. */

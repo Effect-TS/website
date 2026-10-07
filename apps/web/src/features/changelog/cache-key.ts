@@ -9,9 +9,11 @@ import { digest, sortedRows } from "@/lib/cache-key"
  */
 type Entry = CollectionEntry<"changelog">
 
-/** Everything a changelog page and feed render about their own package. */
-export const changelogDigest = (entry: Entry["data"]): string =>
-  digest([entry.name, entry.packageVersion, entry.sourceUrl, entry.releases])
+/**
+ * Everything a changelog page and feed render about their own package. The
+ * releases file is covered by its checksum, which the entry carries.
+ */
+export const changelogDigest = (entry: Entry["data"]): string => digest(entry)
 
 /** Which packages and channels the mobile switchers list. */
 export const changelogIndexDigest = (entries: ReadonlyArray<Entry>): string =>

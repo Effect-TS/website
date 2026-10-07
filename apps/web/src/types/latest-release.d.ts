@@ -1,8 +1,10 @@
 declare module "virtual:latest-release" {
-  import type { LatestRelease } from "@website/domain/Changelog"
-
   /** Latest release of `effect`; null when the build has no changelog data. */
-  const release: LatestRelease | null
+  const release: {
+    readonly name: string
+    readonly version: string
+    readonly date?: string
+  } | null
 
   export default release
 }

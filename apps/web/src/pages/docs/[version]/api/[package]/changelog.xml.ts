@@ -2,9 +2,10 @@ import rss from "@astrojs/rss"
 import type { APIContext, GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { renderChangelogHtml } from "@website/api-reference/ChangelogHtml"
-import { changelogHref } from "@website/domain/Changelog"
+import { changelogHref } from "@website/domain/ChangelogView"
 
 import { changelogDigest } from "@/features/changelog/cache-key"
+import { loadReleases } from "@/features/changelog/releases"
 
 const FEED_LENGTH = 50
 
@@ -19,10 +20,12 @@ export const getStaticPaths = (async () => {
   }))
 }) satisfies GetStaticPaths
 
-export function GET(
+export async function GET(
   context: APIContext<{ entry: CollectionEntry<"changelog"> }>,
 ) {
-  const { channel, name, releases, slug } = context.props.entry.data
+  const { data } = context.props.entry
+  const { channel, name, slug } = data
+  const releases = await loadReleases(data)
   const items = releases
     .flatMap((release) =>
       release.date === undefined

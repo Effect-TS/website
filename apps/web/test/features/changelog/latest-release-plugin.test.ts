@@ -14,13 +14,48 @@ afterEach(() => {
 
 const moduleId = "virtual:latest-release"
 
-function setup(files: Record<string, unknown>) {
+const changelog = {
+  json: "changelog.json",
+  sha256: "a".repeat(64),
+  sourceUrl: "https://github.com/Effect-TS/effect/blob/abc/CHANGELOG.md",
+  releaseCount: 2,
+  latestDate: "2026-10-01",
+}
+
+/** Writes the manifests of a v4 dataset that holds `effect`. */
+function setup(options: { changelog: boolean }) {
   const base = mkdtempSync(join(tmpdir(), "latest-release-"))
   directories.push(base)
-  for (const [path, value] of Object.entries(files)) {
-    mkdirSync(join(base, path, ".."), { recursive: true })
-    writeFileSync(join(base, path), JSON.stringify(value))
-  }
+  mkdirSync(join(base, "v4", "effect"), { recursive: true })
+  writeFileSync(
+    join(base, "v4", "effect", "manifest.json"),
+    JSON.stringify({
+      schemaVersion: 3,
+      channel: "v4",
+      name: "effect",
+      version: "4.0.0",
+      revision: "abc",
+      description: "The Effect library",
+      npmUrl: "https://www.npmjs.com/package/effect",
+      sourceUrl: "https://github.com/Effect-TS/effect/tree/abc/packages/effect",
+      barrels: [],
+      modules: [],
+      ...(options.changelog ? { changelog } : {}),
+    }),
+  )
+  writeFileSync(
+    join(base, "v4", "manifest.json"),
+    JSON.stringify({
+      datasetSchemaVersion: 1,
+      channel: "v4",
+      typedocVersion: "0.28.20",
+      typedocSchemaVersion: "2.0",
+      revision: "abc",
+      packages: [
+        { name: "effect", version: "4.0.0", manifest: "effect/manifest.json" },
+      ],
+    }),
+  )
   const plugin = latestReleasePlugin({
     base: pathToFileURL(`${base}/`),
     channel: "v4",
@@ -43,25 +78,8 @@ function setup(files: Record<string, unknown>) {
   return { load, watched }
 }
 
-const changelog = (revision: string) => ({
-  schemaVersion: 1,
-  channel: "v4",
-  name: "effect",
-  slug: "effect",
-  packageVersion: "4.0.0",
-  revision,
-  sourceUrl: "https://example.com",
-  releases: [
-    { version: "4.0.1", date: "2026-10-04", breaking: false, body: "" },
-    { version: "4.0.0", date: "2026-10-01", breaking: false, body: "" },
-  ],
-})
-
-test("exposes the release the API reference shows, not the newest changelog entry", async () => {
-  const { load, watched } = setup({
-    "v4/manifest.json": { revision: "abc" },
-    "v4/changelog/effect.json": changelog("abc"),
-  })
+test("exposes the version the API reference shows, with its tag date", async () => {
+  const { load, watched } = setup({ changelog: true })
   assert.strictEqual(
     await load(),
     'export default {"name":"effect","version":"4.0.0","date":"2026-10-01"}',
@@ -69,19 +87,25 @@ test("exposes the release the API reference shows, not the newest changelog entr
   assert.lengthOf(watched, 1)
 })
 
-test("exports null without changelog data", async () => {
-  const { load } = setup({ "v4/manifest.json": { revision: "abc" } })
+test("exports null when the package has no changelog", async () => {
+  const { load } = setup({ changelog: false })
   assert.strictEqual(await load(), "export default null")
 })
 
-test("fails when the changelog and the API reference disagree", async () => {
-  const { load } = setup({
-    "v4/manifest.json": { revision: "abc" },
-    "v4/changelog/effect.json": changelog("def"),
+test("exports null without a dataset", async () => {
+  const base = mkdtempSync(join(tmpdir(), "latest-release-"))
+  directories.push(base)
+  const plugin = latestReleasePlugin({
+    base: pathToFileURL(`${base}/`),
+    channel: "v4",
+    slug: "effect",
   })
-  let failure: unknown
-  await load().catch((error: unknown) => {
-    failure = error
-  })
-  assert.match(String(failure), /generate them together/)
+  const loadHook = plugin.load as (
+    this: { addWatchFile: (file: string) => void },
+    id: string,
+  ) => Promise<string | undefined>
+  assert.strictEqual(
+    await loadHook.call({ addWatchFile: () => undefined }, `\0${moduleId}`),
+    "export default null",
+  )
 })

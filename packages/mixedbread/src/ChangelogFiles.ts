@@ -1,6 +1,10 @@
 import { toFile } from "@mixedbread/sdk"
-import { loadChangelogDataset } from "@website/api-reference/Changelog"
-import { changelogHref, type ChangelogPackage } from "@website/domain/Changelog"
+import {
+  loadChangelogReleases,
+  readApiReferenceDataset,
+} from "@website/api-reference/ApiReferenceDataset"
+import type { ChangelogRelease } from "@website/domain/Changelog"
+import { changelogHref } from "@website/domain/ChangelogView"
 import * as Effect from "effect/Effect"
 import type { LocalFile } from "./ApiReferenceFiles.ts"
 import {
@@ -76,10 +80,15 @@ export function splitText(text: string, limit: number): Array<string> {
 
 /** One chunk per release part, oldest release first. */
 export function releaseChunks(
-  changelog: ChangelogPackage,
+  changelog: {
+    readonly channel: string
+    readonly name: string
+    readonly slug: string
+  },
+  releases: ReadonlyArray<ChangelogRelease>,
 ): Array<ChangelogChunk> {
   const pageHref = changelogHref(changelog.channel, changelog.slug)
-  return changelog.releases.toReversed().flatMap((release) => {
+  return releases.toReversed().flatMap((release) => {
     const text = searchBody(release.body)
     if (text === "") return []
     const heading = `# ${changelog.name} ${release.version}\n\n`
@@ -116,32 +125,44 @@ export const generateChangelogFiles = Effect.fn("ChangelogFiles.generate")(
     apiReferenceDir: string,
     hash: (bytes: Uint8Array) => Effect.Effect<string, UnknownError>,
   ) {
-    const entries = yield* Effect.tryPromise({
-      try: () => loadChangelogDataset(apiReferenceDir),
+    // Shares one read of the manifests with the API reference files.
+    const { packages } = yield* Effect.tryPromise({
+      try: () => readApiReferenceDataset(apiReferenceDir),
       catch: (cause) => new UnknownError({ cause }),
     })
     const files = yield* Effect.forEach(
-      entries.filter(({ data }) =>
-        CHANGELOG_INDEX_CHANNELS.some((channel) => channel === data.channel),
+      packages.flatMap((pkg) =>
+        pkg.changelog !== undefined &&
+        CHANGELOG_INDEX_CHANNELS.some((channel) => channel === pkg.channel)
+          ? [{ pkg, changelog: pkg.changelog }]
+          : [],
       ),
-      Effect.fnUntraced(function* ({ data }) {
-        const shards = shardChunks(releaseChunks(data))
+      Effect.fnUntraced(function* ({ pkg, changelog }) {
+        const releases = yield* Effect.tryPromise({
+          try: () =>
+            loadChangelogReleases(
+              { jsonPath: changelog.path, sha256: changelog.sha256 },
+              { baseDirectory: apiReferenceDir },
+            ),
+          catch: (cause) => new UnknownError({ cause }),
+        })
+        const shards = shardChunks(releaseChunks(pkg, releases))
         return yield* Effect.forEach(shards, (shard, index) => {
-          const filename = `${data.slug}-changelog-${String(index + 1).padStart(3, "0")}.mxjson`
+          const filename = `${pkg.slug}-changelog-${String(index + 1).padStart(3, "0")}.mxjson`
           const bytes = new TextEncoder().encode(JSON.stringify(shard))
           return hash(bytes).pipe(
             Effect.map(
               (fileHash) =>
                 ({
-                  externalId: ["api-reference", data.channel, filename].join(
+                  externalId: ["api-reference", pkg.channel, filename].join(
                     "/",
                   ),
                   fileHash,
                   metadata: {
-                    channel: data.channel,
+                    channel: pkg.channel,
                     content_source: "changelog",
-                    package_name: data.name,
-                    package_slug: data.slug,
+                    package_name: pkg.name,
+                    package_slug: pkg.slug,
                   },
                   upload: () =>
                     toFile(bytes, filename, {

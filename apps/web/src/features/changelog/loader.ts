@@ -1,9 +1,12 @@
 import type { Loader } from "astro/loaders"
-import { relative } from "node:path"
+import { relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { loadChangelogDataset } from "@website/api-reference/Changelog"
+import { readApiReferenceDataset } from "@website/api-reference/ApiReferenceDataset"
 
-/** One entry per package and channel, read from the generated API reference data. */
+/**
+ * One entry per package that has a changelog, from the package manifests the
+ * API reference loader already read. Releases stay in their file.
+ */
 export function changelogLoader(options: { base: URL }): Loader {
   return {
     name: "changelog-loader",
@@ -16,27 +19,43 @@ export function changelogLoader(options: { base: URL }): Loader {
       watcher,
     }) => {
       const baseDirectory = fileURLToPath(options.base)
-      const entries = await loadChangelogDataset(baseDirectory)
+      const { packages } = await readApiReferenceDataset(baseDirectory)
       store.clear()
 
-      if (entries.length === 0) {
-        logger.warn(`No generated changelogs found in ${baseDirectory}`)
-        watcher?.add(baseDirectory)
-        return
-      }
-
-      for (const { data, path } of entries) {
-        const id = `${data.channel}/${data.slug}`
-        const filePath = relative(fileURLToPath(config.root), path)
-        store.set({
+      let loaded = 0
+      for (const pkg of packages) {
+        const { changelog } = pkg
+        if (changelog === undefined) continue
+        const id = `${pkg.channel}/${pkg.slug}`
+        const filePath = relative(
+          fileURLToPath(config.root),
+          resolve(baseDirectory, changelog.path),
+        )
+        const data = await parseData({
           id,
-          data: await parseData({ id, filePath, data }),
           filePath,
-          digest: generateDigest(data),
+          data: {
+            channel: pkg.channel,
+            name: pkg.name,
+            slug: pkg.slug,
+            packageVersion: pkg.version,
+            description: pkg.description,
+            sourceUrl: changelog.sourceUrl,
+            releaseCount: changelog.releaseCount,
+            latestDate: changelog.latestDate,
+            jsonPath: changelog.path,
+            sha256: changelog.sha256,
+          },
         })
+        store.set({ id, data, filePath, digest: generateDigest(data) })
+        loaded += 1
       }
 
-      logger.info(`Loaded ${entries.length} changelogs`)
+      if (loaded === 0) {
+        logger.warn(`No changelogs found in ${baseDirectory}`)
+      } else {
+        logger.info(`Loaded ${loaded} changelogs`)
+      }
       watcher?.add(baseDirectory)
     },
   }
