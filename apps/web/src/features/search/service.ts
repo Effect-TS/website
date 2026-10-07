@@ -13,6 +13,8 @@ import {
   ApiReferenceGeneratedMetadata,
   ApiReferenceMetadata,
   BlogGeneratedMetadata,
+  ChangelogGeneratedMetadata,
+  ChangelogMetadata,
   DocumentationGeneratedMetadata,
   SearchError,
   StoreSearchResponse,
@@ -117,6 +119,38 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
+        if (Schema.is(ChangelogMetadata)(chunk.metadata)) {
+          const metadata = chunk.metadata
+          const generated = chunk.generated_metadata
+          if (!Schema.is(ChangelogGeneratedMetadata)(generated)) return
+          const href = generated.page_href
+          if (!grouped.has(href)) {
+            grouped.set(href, {
+              kind: "changelog",
+              id: href,
+              title: `${metadata.package_name} changelog`,
+              description: `Release notes for ${metadata.package_name}`,
+              href,
+              packageName: metadata.package_name,
+              packageSlug: metadata.package_slug,
+              version: metadata.channel,
+              chunks: [],
+            })
+          }
+          const page = grouped.get(href)
+          if (page === undefined || page.kind !== "changelog") return
+          const releaseHref = `${href}#${generated.version}`
+          if (page.chunks.some((match) => match.href === releaseHref)) return
+          page.chunks.push({
+            id: `${chunk.file_id}-${chunk.chunk_index}`,
+            href: releaseHref,
+            title: generated.version,
+            snippet: extractSnippet(chunk.text).replace(/^-\s+/, ""),
+            score: chunk.score,
+          })
+          return
+        }
+
         const generated = chunk.generated_metadata
         if (Schema.is(BlogGeneratedMetadata)(generated)) {
           const href = generated.search.page_href
@@ -194,7 +228,10 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
-    const search = Effect.fn("Search.search")(function* (query: string) {
+    const search = Effect.fn("Search.search")(function* (
+      query: string,
+      packageSlug?: string,
+    ) {
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
@@ -203,6 +240,24 @@ export class Search extends Context.Service<Search>()("app/Search", {
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
               store_identifiers: [Redacted.value(storeId)],
+              ...(packageSlug === undefined
+                ? {}
+                : {
+                    filters: {
+                      all: [
+                        {
+                          key: "content_source",
+                          operator: "eq",
+                          value: "changelog",
+                        },
+                        {
+                          key: "package_slug",
+                          operator: "eq",
+                          value: packageSlug,
+                        },
+                      ],
+                    },
+                  }),
             },
             { signal },
           ),
