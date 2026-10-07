@@ -1,0 +1,60 @@
+---
+pagefind: false
+title: "Effect 4.0: The First Week"
+excerpt: "Two patch releases, a round of fixes, and one gnarly mistake"
+date: 2026-10-08
+authors:
+  - sebastian_lorenz
+tags:
+  - releases
+  - effect
+---
+
+A week ago we released [Effect 4.0](/blog/releases/effect/40). Since then, almost 30 people have landed 150 commits on `main`, and we've shipped two patch releases: **4.0.1** on October 5 and **4.0.2** today.
+
+Both releases are mostly bug fixes across the runtime, the platform and integration packages, and cluster. The one change you might notice: spans and metrics from HTTP, SQL, RPC and AI now follow the OpenTelemetry semantic conventions, so they show up correctly in standard observability tools.
+
+The full list is in the [changelog](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+But we're also correcting a gnarly mistake we made in the lead-up to the release.
+
+## What we got wrong
+
+Effect 4.0 shipped with a simple rule. APIs tagged `@stability unstable` or `@stability experimental` may change in minor or patch releases, whilst **everything without an annotation is implicitly presumed stable**.
+
+That implicit default bit us. Some modules that were intended to ship as unstable went out without a tag, so by our own rule, 4.0.0 promised they were stable. We missed it in review. That's on us.
+
+With today's release, we are adding the missing tags. They cover a set of modules in `effect` and the integration packages around it, all of which are either entirely new in 4.0 or were already experimental or unstable before.
+
+Strictly speaking, narrowing a promise after a release is a breaking change in itself. We decided we must correct it now regardless. The release was only a week ago, but keeping this accidental promise would lock in designs that haven't seen enough production use yet. That's far cheaper to fix today than a year from now.
+
+### What this means for you
+
+Nothing in your code changes. This release does not alter any behavior, signatures or types of the affected modules. The [API reference](/docs/v4/api) shows the stability of every module and export.
+
+### Why it won't happen again
+
+Every module and every directly importable export now declares its stability explicitly. We enforce this with automated checks in our pipeline.
+
+The [Effect language service](/docs/v4/getting-started/devtools) builds on these tags:
+
+- **In your code**, it warns whenever you use an API marked `@stability unstable` or `@stability experimental`. Once you've decided to rely on one, you can allow it per module or per export with `allowedUnstableApis` and `allowedExperimentalApis`.
+- **In ours**, the new `apiStabilityLeak` diagnostic reports any stable API whose signature exposes a less stable type, so an unstable type can't quietly become part of a stable API. If you publish Effect libraries, you can turn it on for your own packages too.
+
+### Why tags instead of an `unstable` directory
+
+During the beta and release candidates, unstable modules lived under `effect/unstable/*`. Explicit tags and the language service do that job better:
+
+- **They're precise.** Stability applies to individual exports, not just whole modules, so a single new function can be unstable inside an otherwise stable module.
+- **Promotion doesn't break anything.** With a directory, promoting a module to stable means moving it, and moving a module is a breaking change. That would not be a good start for a freshly promoted module. With tags, only the tag changes and your imports stay the same.
+- **You see it where it matters.** The warning appears where you use a module, and you decide exactly which level of stability you accept on a granular basis.
+
+## Upgrade
+
+```sh
+pnpm add effect@latest
+```
+
+Upgrade the `@effect/*` packages alongside it, since they all share the same version.
+
+Thank you to everyone who upgraded in the first week, filed issues, and sent pull requests. Keep them coming.
