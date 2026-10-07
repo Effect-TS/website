@@ -548,14 +548,38 @@ export const VectorStoreProvider = Provider.effect(
           tags: normalizeTags(store.tags),
         }
         if (!deepEqual(current, desired)) {
-          store = yield* client.updateStore(store.id, {
+          const storeId = store.id
+          const storeName = store.name
+          const fullUpdate = {
             description: news.description ?? null,
             is_public: news.isPublic ?? null,
             license: news.license ?? null,
             metadata,
             expires_after: news.expiresAfter ?? null,
             tags: news.tags ?? [],
-          })
+          }
+          const { tags: _droppedTags, ...updateWithoutTags } = fullUpdate
+          store = yield* client.updateStore(storeId, fullUpdate).pipe(
+            // The key may be allowed to write fields but not tags; retry
+            // without them instead of failing the deploy. Tags left behind
+            // are reported, not hidden.
+            Effect.catchIf(isPermissionDenied, () =>
+              Effect.logWarning(
+                `Updating Mixedbread store '${storeName}' without tags: the API key cannot change tags`,
+              ).pipe(
+                Effect.flatMap(() =>
+                  client.updateStore(storeId, updateWithoutTags),
+                ),
+                Effect.catchIf(isPermissionDenied, () =>
+                  Effect.fail(
+                    new Error(
+                      `Cannot update Mixedbread store '${storeName}': the API key is missing the write scope for it. Widen the preview key scope or manage the store with a less restricted key.`,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
         }
         return toAttributes(store)
       }),
