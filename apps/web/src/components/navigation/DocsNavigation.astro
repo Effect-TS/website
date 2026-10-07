@@ -1,9 +1,11 @@
 ---
 import { ArrowRight, X } from "@lucide/astro"
+import latest from "virtual:latest-release"
 import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import { SearchDialog } from "@/components/navigation/SearchDialog"
+import { formatReleaseDate } from "@/features/changelog/format"
 import { cn } from "@/lib/utils"
 import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
 import type { DocsNavSection } from "@/lib/docs-sections"
@@ -67,7 +69,6 @@ const navItemClass = (active: boolean) =>
 
         <docs-version-switch
           class="ml-6 hidden shrink-0 gap-1 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900"
-          data-latest-url={`/docs/${defaultDocsVersion}/changelog/latest.json`}
         >
           {
             DOCS_VERSIONS.map(({ value, label }) => (
@@ -79,6 +80,9 @@ const navItemClass = (active: boolean) =>
                   href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
                   aria-label={`Effect ${label} documentation`}
                   aria-current={version === value ? "page" : undefined}
+                  aria-describedby={
+                    value === defaultDocsVersion && latest !== null ? "latest-release" : undefined
+                  }
                   class:list={[
                     "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
                     version === value
@@ -89,21 +93,25 @@ const navItemClass = (active: boolean) =>
                   {label}
                 </a>
 
-                {value === defaultDocsVersion && (
+                {/* Baked in at build time. Without changelog data there is no page to link to. */}
+                {value === defaultDocsVersion && latest !== null && (
                   <>
                     {/* Opens on hover and keyboard focus; invisible keeps it out of the tab order. Escape sets data-dismissed. */}
                     <div class="invisible absolute top-full left-0 z-110 w-full pt-2.5 opacity-0 transition-opacity motion-reduce:transition-none group-data-dismissed:invisible! group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
                       <div class="-ml-0.75 w-52 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg shadow-zinc-950/10 dark:shadow-black/40">
-                        <div id="latest-release" data-role="latest" hidden class="mb-3">
+                        <div id="latest-release" class="mb-3">
                           <p class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Latest release
                           </p>
                           <p class="mt-2 flex items-baseline gap-2 font-mono">
-                            <span
-                              data-role="latest-version"
-                              class="text-lg font-semibold text-foreground"
-                            />
-                            <time data-role="latest-date" class="text-xs text-muted-foreground" />
+                            <span class="text-lg font-semibold text-foreground">
+                              {latest.version}
+                            </span>
+                            {latest.date !== undefined && (
+                              <time datetime={latest.date} class="text-xs text-muted-foreground">
+                                {formatReleaseDate(latest.date)}
+                              </time>
+                            )}
                           </p>
                         </div>
                         <a
@@ -252,15 +260,6 @@ const navItemClass = (active: boolean) =>
     customElements.define("docs-mobile-menu", DocsMobileMenuElement)
   }
 
-  const releaseDate = new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-    year: "numeric",
-  })
-
-  // The latest version lives in a JSON file, not in the markup: rendering it
-  // here would change every docs page on each Effect release.
   class DocsVersionSwitchElement extends HTMLElement {
     get #release() {
       return this.querySelector<HTMLElement>("[data-role='release']")
@@ -288,44 +287,10 @@ const navItemClass = (active: boolean) =>
         if (next instanceof Node && release.contains(next)) return
         if (!release.matches(":hover")) delete release.dataset.dismissed
       })
-
-      const url = this.dataset.latestUrl
-      if (url === undefined || !window.matchMedia("(min-width: 768px)").matches) return
-      const load = () => void this.#load(url)
-      if ("requestIdleCallback" in window) window.requestIdleCallback(load)
-      else setTimeout(load, 1_000)
     }
 
     disconnectedCallback() {
       document.removeEventListener("keydown", this.#dismiss)
-    }
-
-    async #load(url: string) {
-      try {
-        const response = await fetch(url)
-        if (!response.ok) return
-        const latest: unknown = await response.json()
-        if (typeof latest !== "object" || latest === null) return
-        const version: unknown = Reflect.get(latest, "version")
-        const date: unknown = Reflect.get(latest, "date")
-        if (typeof version !== "string") return
-
-        const versionElement = this.querySelector("[data-role='latest-version']")
-        if (versionElement) versionElement.textContent = version
-        const latestElement = this.querySelector<HTMLElement>("[data-role='latest']")
-        if (latestElement) latestElement.hidden = false
-        // Screen readers announce the version when the trigger gets focus.
-        this.#release
-          ?.querySelector(":scope > a")
-          ?.setAttribute("aria-describedby", "latest-release")
-        const dateElement = this.querySelector("[data-role='latest-date']")
-        if (dateElement instanceof HTMLTimeElement && typeof date === "string") {
-          dateElement.dateTime = date
-          dateElement.textContent = releaseDate.format(new Date(`${date}T00:00:00Z`))
-        }
-      } catch {
-        // The popover still links to the changelog without the version.
-      }
     }
   }
 

@@ -1,3 +1,4 @@
+import { latestRelease } from "@website/domain/Changelog"
 import { getCollection } from "astro:content"
 
 import { digest } from "@/lib/cache-key"
@@ -26,19 +27,20 @@ export async function loadChangelogSummaries(): Promise<
       data.packageDescription,
     ]),
   )
-  return changelogs.map(({ data }) => ({
-    channel: data.channel,
-    description:
-      descriptions.get(`${data.channel}/${data.slug}`) ??
-      `Release notes for ${data.name}.`,
-    latestDate: data.releases.find(
-      (release) => release.version === data.packageVersion,
-    )?.date,
-    latestVersion: data.packageVersion,
-    name: data.name,
-    releaseCount: data.releases.length,
-    slug: data.slug,
-  }))
+  return changelogs.map(({ data }) => {
+    const latest = latestRelease(data)
+    return {
+      channel: data.channel,
+      description:
+        descriptions.get(`${data.channel}/${data.slug}`) ??
+        `Release notes for ${data.name}.`,
+      latestDate: latest.date,
+      latestVersion: latest.version,
+      name: data.name,
+      releaseCount: data.releases.length,
+      slug: data.slug,
+    }
+  })
 }
 
 /** Digest of everything the changelog index pages render. */
