@@ -99,12 +99,12 @@ describe("release groups", () => {
 })
 
 describe("renderChangelogHtml", () => {
-  test("renders Markdown, collapses dependency commit lists and drops raw HTML", () => {
+  test("renders Markdown, collapses dependency commit lists and keeps raw HTML as text", () => {
     const html = renderChangelogHtml(
       [
         "### Patch Changes",
         "",
-        "- Fix `run`.<script>alert(1)</script>",
+        "- Fix `run`.<script>alert(1)</script> for Effect<A, E>",
         "- Updated dependencies [[`abc1234`](https://example.com/abc1234)]:",
         "  - effect@4.0.1",
       ].join("\n"),
@@ -114,6 +114,9 @@ describe("renderChangelogHtml", () => {
     assert.include(html, "Updated dependencies:")
     assert.notInclude(html, "abc1234")
     assert.notInclude(html, "<script>")
+    assert.include(html, "&#x3C;script>")
+    assert.include(html, "Effect&#x3C;A, E>")
+    assert.include(renderChangelogHtml("a<br/>b"), "<br>")
   })
 })
 
