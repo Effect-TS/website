@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import * as React from "react"
 import { Button } from "@/components/ui/Button"
+import { FormattedDate } from "@/components/ui/FormattedDate"
 import {
   Dialog,
   DialogClose,
@@ -1383,9 +1384,10 @@ function BlogItem({
             <Newspaper className="size-3" />
             <span>Blog</span>
           </span>
-          <time className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-            {result.publishedAt}
-          </time>
+          <FormattedDate
+            date={result.publishedAt}
+            className="font-mono text-xs text-zinc-500 dark:text-zinc-400"
+          />
         </p>
         <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-white">
           {result.title}

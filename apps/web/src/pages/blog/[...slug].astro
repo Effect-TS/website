@@ -7,6 +7,7 @@ import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { FormattedDate } from "@/components/ui/FormattedDate"
 import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
@@ -80,10 +81,6 @@ const sortedTags = [...tags].sort((a, b) => a.data.name.localeCompare(b.data.nam
 const postUrl = new URL(`/blog/${post.id}/`, Astro.site).href
 const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.data.title)}&url=${encodeURIComponent(postUrl)}`
 const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
 
 function authorAvatar(id: string): ImageMetadata | undefined {
   return avatars[`../../assets/authors/${id}.png`]?.default
@@ -260,9 +257,10 @@ const shareShellClass =
                 >
                   Last updated
                 </span>
-                <time class="font-mono text-xs text-foreground tabular-nums">
-                  {formatDate(post.data.date)}
-                </time>
+                <FormattedDate
+                  date={post.data.date}
+                  className="font-mono text-xs text-foreground tabular-nums"
+                />
               </p>
             </div>
           </div>
@@ -309,9 +307,10 @@ const shareShellClass =
               <span class="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
                 Last updated
               </span>
-              <time class="font-mono text-xs text-foreground tabular-nums">
-                {formatDate(post.data.date)}
-              </time>
+              <FormattedDate
+                date={post.data.date}
+                className="font-mono text-xs text-foreground tabular-nums"
+              />
             </p>
           </div>
 

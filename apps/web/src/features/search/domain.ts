@@ -197,7 +197,7 @@ export const BlogSearchResult = Schema.Struct({
   title: Schema.String,
   description: Schema.String,
   href: Schema.String,
-  publishedAt: Schema.String,
+  publishedAt: Schema.DateFromString,
   authors: Schema.Array(Schema.String),
   tags: Schema.Array(Schema.String),
   chunks: Schema.Array(SearchResultChunk),

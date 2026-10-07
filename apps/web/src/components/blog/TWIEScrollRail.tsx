@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { FormattedDate } from "../ui/FormattedDate"
 import type { SerializedPost } from "./PostCard"
 
 function TWIECard({ post }: { post: SerializedPost }) {
@@ -18,9 +19,10 @@ function TWIECard({ post }: { post: SerializedPost }) {
               {issueNumber}
             </span>
           )}
-          <time className="font-mono text-xs text-muted-foreground tabular-nums">
-            {post.date}
-          </time>
+          <FormattedDate
+            date={post.date}
+            className="font-mono text-xs text-muted-foreground tabular-nums"
+          />
         </div>
         <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
           {post.excerpt}

@@ -159,7 +159,7 @@ export function groupSearchResults(
         title: generated.search.page_title,
         description: generated.search.description,
         href,
-        publishedAt: generated.search.published_at,
+        publishedAt: new Date(generated.search.published_at),
         authors: [...generated.search.authors],
         tags: [...generated.search.tags],
         chunks: [],
