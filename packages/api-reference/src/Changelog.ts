@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process"
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import {
+  type Dirent,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs"
 import { readFile } from "node:fs/promises"
 import { join, relative, sep } from "node:path"
 import { ChangelogPackage, splitChangelog } from "@website/domain/Changelog"
@@ -115,6 +121,21 @@ export function generateChangelogs(options: {
   return packages
 }
 
+function readNames(
+  directory: string,
+  include: (entry: Dirent) => boolean,
+): Array<string> {
+  try {
+    return readdirSync(directory, { withFileTypes: true })
+      .filter(include)
+      .map((entry) => entry.name)
+      .sort()
+  } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code === "ENOENT") return []
+    throw cause
+  }
+}
+
 const decodeChangelogPackage = Schema.decodeUnknownSync(ChangelogPackage)
 
 /** Load every generated changelog under `<baseDirectory>/<channel>/changelog`. */
@@ -124,19 +145,12 @@ export async function loadChangelogDataset(
   ReadonlyArray<{ readonly data: ChangelogPackage; readonly path: string }>
 > {
   const entries: Array<{ data: ChangelogPackage; path: string }> = []
-  const channels = readdirSync(baseDirectory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
+  const channels = readNames(baseDirectory, (entry) => entry.isDirectory())
   for (const channel of channels) {
     const directory = join(baseDirectory, channel, CHANGELOG_DIRECTORY)
-    let files: Array<string>
-    try {
-      files = readdirSync(directory).filter((name) => name.endsWith(".json"))
-    } catch {
-      continue
-    }
-    for (const name of files.sort()) {
+    for (const name of readNames(directory, (entry) =>
+      entry.name.endsWith(".json"),
+    )) {
       const path = join(directory, name)
       const data = decodeChangelogPackage(
         JSON.parse(await readFile(path, "utf8")),
