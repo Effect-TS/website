@@ -115,6 +115,17 @@ describe("renderChangelogHtml", () => {
     assert.include(html, "Effect&#x3C;A, E>")
     assert.include(renderChangelogHtml("a<br/>b"), "<br>")
   })
+
+  test("returns the same HTML when a body repeats", () => {
+    const body =
+      "### Patch Changes\n\n- Updated dependencies [[`a1`](https://x.test)]:\n  - effect@4.0.1"
+    assert.strictEqual(renderChangelogHtml(body), renderChangelogHtml(body))
+    // Bodies that only differ in commit links render alike.
+    assert.strictEqual(
+      renderChangelogHtml(body),
+      renderChangelogHtml(body.replace("a1", "b2")),
+    )
+  })
 })
 
 describe("createChangelogWriter", () => {

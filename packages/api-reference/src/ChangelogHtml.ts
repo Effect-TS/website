@@ -41,9 +41,17 @@ const processor = unified()
 // Commit-link lists make "Updated dependencies" unreadable on the page.
 const DEPENDENCY_COMMITS = /^(\s*- Updated dependencies) \[.*\]:$/gm
 
+// Lockstep releases repeat the same notes in many packages, and the feed
+// renders the releases its page already did.
+const rendered = new Map<string, string>()
+
 /** Render one release body to HTML. Raw HTML in the source stays text. */
 export function renderChangelogHtml(markdown: string): string {
-  return String(
-    processor.processSync(markdown.replace(DEPENDENCY_COMMITS, "$1:")),
-  )
+  const source = markdown.replace(DEPENDENCY_COMMITS, "$1:")
+  let html = rendered.get(source)
+  if (html === undefined) {
+    html = String(processor.processSync(source))
+    rendered.set(source, html)
+  }
+  return html
 }
