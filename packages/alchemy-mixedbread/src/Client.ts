@@ -1,6 +1,7 @@
 import MixedbreadSdk, {
   ConflictError,
   NotFoundError,
+  PermissionDeniedError,
   UnprocessableEntityError,
 } from "@mixedbread/sdk"
 import type {
@@ -65,6 +66,9 @@ export const isExpired = (error: MixedbreadApiError): boolean =>
 
 export const isGone = (error: MixedbreadApiError): boolean =>
   isNotFound(error) || isExpired(error)
+
+export const isPermissionDenied = (error: MixedbreadApiError): boolean =>
+  error.cause instanceof PermissionDeniedError
 
 const make = Effect.gen(function* () {
   const credentials = yield* Credentials

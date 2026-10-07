@@ -11,9 +11,11 @@ import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
 import * as Redacted from "effect/Redacted"
+import * as Schedule from "effect/Schedule"
 import {
   isConflict,
   isGone,
+  isPermissionDenied,
   MixedbreadClient,
   type TaggedStore as Store,
 } from "./Client.ts"
@@ -225,6 +227,32 @@ export const VectorStoreProvider = Provider.effect(
       return current
     }, Effect.timeout(COPY_TIMEOUT))
 
+    // Deleting a store does not always free its name immediately; wait for
+    // the name to become available before recreating under it instead of
+    // crashing into a second 409.
+    const NAME_POLL_INTERVAL = "2 seconds"
+    const NAME_POLL_ATTEMPTS = 60
+
+    const waitForNameFree = Effect.fn("Mixedbread.waitForNameFree")(function* (
+      name: string,
+    ) {
+      const existing = yield* exactStoreByName(name).pipe(
+        Effect.repeat({
+          schedule: Schedule.recurs(NAME_POLL_ATTEMPTS).pipe(
+            Schedule.addDelay(() => Effect.succeed(NAME_POLL_INTERVAL)),
+          ),
+          until: (store) => store === undefined,
+        }),
+      )
+      if (existing !== undefined) {
+        return yield* Effect.fail(
+          new Error(
+            `Mixedbread store name '${name}' is still reserved after deleting the conflicting store; it may be an expired record Mixedbread has not purged.`,
+          ),
+        )
+      }
+    })
+
     // Resolves a found store to one that can be updated in place, or to
     // `undefined` when it has to be created again.
     const settle = Effect.fn("Mixedbread.settle")(function* (
@@ -283,7 +311,7 @@ export const VectorStoreProvider = Provider.effect(
           )
           return undefined
         }
-        const copy = yield* client.copyStore(origin.id, {
+        const copyArgs = {
           name: news.name,
           ...(news.description === undefined
             ? {}
@@ -291,7 +319,22 @@ export const VectorStoreProvider = Provider.effect(
           metadata,
           // Without this the copy would carry the source's tags.
           tags: news.tags ?? [],
-        })
+        }
+        const { tags: _dropped, ...copyArgsWithoutTags } = copyArgs
+        const copy = yield* client.copyStore(origin.id, copyArgs).pipe(
+          // Scope-restricted keys cannot set tags on copy; retry inheriting
+          // the source's tags instead of falling back to an empty store.
+          // Reconcile enforces the desired tags afterwards.
+          Effect.catchIf(isPermissionDenied, () =>
+            Effect.logWarning(
+              `Copying Mixedbread store '${origin.name}' without tags: the API key cannot change tags on copy`,
+            ).pipe(
+              Effect.flatMap(() =>
+                client.copyStore(origin.id, copyArgsWithoutTags),
+              ),
+            ),
+          ),
+        )
         yield* Effect.log(
           `Copying Mixedbread store '${origin.name}' into '${news.name}'`,
         )
@@ -431,7 +474,19 @@ export const VectorStoreProvider = Provider.effect(
                       settle(existing, ownership).pipe(
                         Effect.flatMap((settled) =>
                           settled === undefined
-                            ? create
+                            ? waitForNameFree(news.name).pipe(
+                                Effect.flatMap(() =>
+                                  create.pipe(
+                                    Effect.catchIf(isConflict, () =>
+                                      Effect.fail(
+                                        new Error(
+                                          `Mixedbread store name '${news.name}' is still reserved after deleting the conflicting store; it may be an expired record Mixedbread has not purged.`,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
                             : Effect.succeed(settled),
                         ),
                       )
