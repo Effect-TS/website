@@ -19,6 +19,23 @@ test("parses in-progress file conflicts", () => {
   })
 })
 
+test("parses conflicts with files that already completed", () => {
+  const error = new ConflictError(
+    409,
+    {
+      message:
+        "File 'file_456' with version '1' and status 'completed' already exists",
+    },
+    undefined,
+    new Headers(),
+  )
+
+  assert.deepEqual(fileInProgressConflict(error), {
+    cause: error,
+    fileIdentifier: "file_456",
+  })
+})
+
 test("ignores unrelated conflicts and errors", () => {
   const conflict = new ConflictError(
     409,
