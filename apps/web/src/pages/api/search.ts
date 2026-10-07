@@ -1,6 +1,22 @@
 import type { APIRoute } from "astro"
-import { handler } from "@/features/search/handler"
+import * as Layer from "effect/Layer"
+import * as HttpRouter from "effect/http/HttpRouter"
+import * as HttpServer from "effect/http/HttpServer"
+import { SearchLayer } from "@/features/search/server"
 
 export const prerender = false
 
+const { handler, dispose } = HttpRouter.toWebHandler(
+  SearchLayer.pipe(Layer.provide(HttpServer.layerServices)),
+)
+
 export const GET: APIRoute = ({ request }) => handler(request)
+
+function cleanup() {
+  dispose().then(
+    () => process.exit(0),
+    () => process.exit(1),
+  )
+}
+
+process.on("SIGINT", cleanup)

@@ -23,12 +23,12 @@ import {
   normalizePath,
 } from "typedoc"
 import TypeScript from "typescript"
-import { splitChangelogSections } from "@website/domain/Changelog"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Predicate from "effect/Predicate"
+import { CHANGELOG_FILE, createChangelogWriter } from "./Changelog.ts"
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../../..")
@@ -134,6 +134,10 @@ export async function generate(options: GenerateOptions): Promise<void> {
 
   const revision = readRevision(repositoryDirectory)
   const packageManifests = []
+  const changelogs = createChangelogWriter({
+    repository: repositoryDirectory,
+    revision,
+  })
 
   for (const packageInfo of packages) {
     const discoveredModules = discoverModules(
@@ -152,9 +156,15 @@ export async function generate(options: GenerateOptions): Promise<void> {
     if (includedModules.length === 0) {
       continue
     }
-    if (includedModules.some(({ outputPath }) => outputPath === "manifest")) {
+    if (
+      includedModules.some(
+        ({ outputPath }) =>
+          outputPath === "manifest" ||
+          outputPath === CHANGELOG_FILE.replace(/\.json$/, ""),
+      )
+    ) {
       throw new Error(
-        `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest`,
+        `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest or changelog`,
       )
     }
 
@@ -179,6 +189,12 @@ export async function generate(options: GenerateOptions): Promise<void> {
       outputDirectory,
       packageInfo.manifest.name,
     )
+    const changelog = changelogs.write({
+      name: packageInfo.manifest.name,
+      version: packageInfo.manifest.version,
+      directory: packageInfo.directory,
+      outputDirectory: packageOutputDirectory,
+    })
     const packageManifest = {
       schemaVersion: 3,
       channel: options.version,
@@ -196,6 +212,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
         source: toPosixPath(relative(packageInfo.directory, barrel.source)),
       })),
       modules: generatedModules,
+      ...(changelog === undefined ? {} : { changelog }),
     }
 
     writeJson(join(packageOutputDirectory, "manifest.json"), packageManifest)
@@ -211,6 +228,8 @@ export async function generate(options: GenerateOptions): Promise<void> {
     })
   }
 
+  changelogs.finish()
+
   writeJson(join(outputDirectory, "manifest.json"), {
     datasetSchemaVersion: 1,
     channel: options.version,
@@ -223,138 +242,6 @@ export async function generate(options: GenerateOptions): Promise<void> {
   console.log(
     `Generated ${packageManifests.length} packages in ${outputDirectory}`,
   )
-
-  generateChangelogs(packages, repositoryDirectory, revision, options)
-}
-
-// Channel branch for stable source links (avoids embedding the commit SHA,
-// which would rewrite every changelog file on each generation).
-const channelBranches: Record<string, string> = { v3: "v3", v4: "main" }
-
-function generateChangelogs(
-  packages: ReadonlyArray<PackageInfo>,
-  repositoryDirectory: string,
-  revision: string,
-  options: GenerateOptions,
-): void {
-  const outputDirectory = resolve(
-    websiteDirectory,
-    join("apps/web/.data/changelog", options.version),
-  )
-  assertSafeOutputDirectory(outputDirectory, repositoryDirectory)
-
-  const sourceRef = channelBranches[options.version] ?? revision
-
-  // A single-package run refreshes only its file; a full run rebuilds the set.
-  if (options.package === undefined) {
-    prepareOutputDirectory(outputDirectory)
-  } else {
-    mkdirSync(outputDirectory, { recursive: true })
-    if (!isFile(join(outputDirectory, outputMarker))) {
-      writeFileSync(join(outputDirectory, outputMarker), "")
-    }
-  }
-
-  let written = 0
-  for (const packageInfo of packages) {
-    const changelogPath = join(packageInfo.directory, "CHANGELOG.md")
-    if (!isFile(changelogPath)) {
-      continue
-    }
-    const slug = packageNameToSlug(packageInfo.manifest.name)
-    const relativePath = toPosixPath(
-      relative(repositoryDirectory, packageInfo.directory),
-    )
-    const source = readFileSync(changelogPath, "utf8")
-    const sections = splitChangelogSections(source)
-    const dates = readVersionDates(
-      repositoryDirectory,
-      packageInfo.manifest.name,
-    )
-    const document = buildChangelogDocument(sections, dates, {
-      name: packageInfo.manifest.name,
-      slug,
-      channel: options.version,
-      packageVersion: packageInfo.manifest.version,
-      sourceUrl: `https://github.com/Effect-TS/effect/blob/${sourceRef}/${relativePath}/CHANGELOG.md`,
-    })
-    writeFileSync(join(outputDirectory, `${slug}.md`), document)
-    written += 1
-  }
-
-  console.log(`Generated ${written} changelogs in ${outputDirectory}`)
-}
-
-interface ChangelogMeta {
-  readonly name: string
-  readonly slug: string
-  readonly channel: string
-  readonly packageVersion: string
-  readonly sourceUrl: string
-}
-
-function buildChangelogDocument(
-  sections: ReturnType<typeof splitChangelogSections>,
-  dates: ReadonlyMap<string, string>,
-  meta: ChangelogMeta,
-): string {
-  const versionLines = sections.flatMap((section) => {
-    const date = dates.get(section.version)
-    return [
-      `  - version: ${JSON.stringify(section.version)}`,
-      ...(date === undefined ? [] : [`    date: ${JSON.stringify(date)}`]),
-      `    breaking: ${section.breaking}`,
-    ]
-  })
-  const frontmatter = [
-    "---",
-    `package: ${JSON.stringify(meta.name)}`,
-    `slug: ${JSON.stringify(meta.slug)}`,
-    `channel: ${JSON.stringify(meta.channel)}`,
-    `packageVersion: ${JSON.stringify(meta.packageVersion)}`,
-    `sourceUrl: ${JSON.stringify(meta.sourceUrl)}`,
-    ...(versionLines.length === 0 ? [] : ["versions:", ...versionLines]),
-    "---",
-  ].join("\n")
-
-  const blocks = sections.map((section) =>
-    [section.heading, ...section.body].join("\n").trim(),
-  )
-  const body =
-    blocks.length === 0 ? "No changelog entries." : blocks.join("\n\n")
-
-  return `${frontmatter}\n\n${body}\n`
-}
-
-// Map each released version to its git tag date (`<package>@<version>`).
-// Effect tags every publish, so one ref scan covers a package's whole history.
-// A shallow checkout without tags yields an empty map and dates are omitted.
-function readVersionDates(
-  repository: string,
-  packageName: string,
-): Map<string, string> {
-  const dates = new Map<string, string>()
-  try {
-    const output = execFileSync(
-      "git",
-      [
-        "for-each-ref",
-        "--format=%(refname:short)\t%(creatordate:format:%Y-%m-%d)",
-        `refs/tags/${packageName}@*`,
-      ],
-      { cwd: repository, encoding: "utf8" },
-    )
-    const prefix = `${packageName}@`
-    for (const line of output.split("\n")) {
-      if (line.length === 0) continue
-      const [ref, date] = line.split("\t")
-      if (ref === undefined || date === undefined) continue
-      dates.set(ref.slice(prefix.length), date)
-    }
-  } catch {
-    // No tags available (shallow checkout); dates stay omitted.
-  }
-  return dates
 }
 
 async function generatePackage(
@@ -808,18 +695,6 @@ function prepareOutputDirectory(path: string): void {
 
   mkdirSync(path, { recursive: true })
   writeFileSync(join(path, outputMarker), "")
-}
-
-function packageNameToSlug(packageName: string): string {
-  const slug = packageName.startsWith("@effect/")
-    ? packageName.slice("@effect/".length)
-    : packageName
-  if (!/^[a-z0-9][a-z0-9._-]*$/.test(slug)) {
-    throw new Error(
-      `Cannot derive a changelog URL slug from package name ${JSON.stringify(packageName)}`,
-    )
-  }
-  return slug
 }
 
 function packageOutputPath(output: string, packageName: string): string {

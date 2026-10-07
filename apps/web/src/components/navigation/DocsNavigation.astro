@@ -1,9 +1,11 @@
 ---
-import { Search, X } from "@lucide/astro"
+import { ArrowRight, Search, X } from "@lucide/astro"
+import latest from "virtual:latest-release"
 import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import { SearchDialog } from "@/components/navigation/SearchDialog"
+import { formatReleaseDate } from "@/features/changelog/format"
 import { cn } from "@/lib/utils"
 import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
 import type { DocsNavSection } from "@/lib/docs-sections"
@@ -65,27 +67,72 @@ const navItemClass = (active: boolean) =>
           }
         </div>
 
-        <div
+        <docs-version-switch
           class="ml-6 hidden shrink-0 gap-1 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900"
         >
           {
             DOCS_VERSIONS.map(({ value, label }) => (
-              <a
-                href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
-                aria-label={`Effect ${label} documentation`}
-                aria-current={version === value ? "page" : undefined}
-                class:list={[
-                  "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
-                  version === value
-                    ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
-                ]}
+              <div
+                class="group relative flex"
+                data-role={value === defaultDocsVersion ? "release" : undefined}
               >
-                {label}
-              </a>
+                <a
+                  href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
+                  aria-label={`Effect ${label} documentation`}
+                  aria-current={version === value ? "page" : undefined}
+                  aria-describedby={
+                    value === defaultDocsVersion && latest !== null ? "latest-release" : undefined
+                  }
+                  class:list={[
+                    "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
+                    version === value
+                      ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
+                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
+                  ]}
+                >
+                  {label}
+                </a>
+
+                {/* Baked in at build time. Without changelog data there is no page to link to. */}
+                {value === defaultDocsVersion && latest !== null && (
+                  <>
+                    {/* Opens on hover and keyboard focus; invisible keeps it out of the tab order. Escape sets data-dismissed. */}
+                    <div class="invisible absolute top-full left-0 z-110 w-full pt-2.5 opacity-0 transition-opacity motion-reduce:transition-none group-data-dismissed:invisible! group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                      <div class="-ml-0.75 w-52 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg shadow-zinc-950/10 dark:shadow-black/40">
+                        <div id="latest-release" class="mb-3">
+                          <p class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                            Latest release
+                          </p>
+                          <p class="mt-2 flex items-baseline gap-2 font-mono">
+                            <span class="text-lg font-semibold text-foreground">
+                              {latest.version}
+                            </span>
+                            {latest.date !== undefined && (
+                              <time datetime={latest.date} class="text-xs text-muted-foreground">
+                                {formatReleaseDate(latest.date)}
+                              </time>
+                            )}
+                          </p>
+                        </div>
+                        <a
+                          href={`/docs/${value}/changelog`}
+                          class="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline transition-colors hover:text-muted-foreground"
+                        >
+                          View changelog
+                          <ArrowRight class="size-3.5" aria-hidden="true" />
+                        </a>
+                      </div>
+                      <span
+                        aria-hidden="true"
+                        class="absolute top-1 left-1/2 size-3 -translate-x-1/2 rotate-45 border-t border-l border-border bg-popover"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             ))
           }
-        </div>
+        </docs-version-switch>
 
         <docs-mobile-menu class="ml-auto flex items-center md:hidden">
           <button
@@ -267,5 +314,43 @@ const navItemClass = (active: boolean) =>
 
   if (!customElements.get("docs-mobile-menu")) {
     customElements.define("docs-mobile-menu", DocsMobileMenuElement)
+  }
+
+  class DocsVersionSwitchElement extends HTMLElement {
+    get #release() {
+      return this.querySelector<HTMLElement>("[data-role='release']")
+    }
+
+    // Escape closes the popover until both pointer and focus leave and return.
+    #dismiss = (event: KeyboardEvent) => {
+      const release = this.#release
+      if (event.key !== "Escape" || !release?.matches(":hover, :focus-within")) return
+      const trigger = release.querySelector<HTMLElement>(":scope > a")
+      if (document.activeElement !== trigger && release.contains(document.activeElement)) {
+        trigger?.focus()
+      }
+      release.dataset.dismissed = ""
+    }
+
+    connectedCallback() {
+      document.addEventListener("keydown", this.#dismiss)
+      const release = this.#release
+      release?.addEventListener("pointerleave", () => {
+        if (!release.matches(":focus-within")) delete release.dataset.dismissed
+      })
+      release?.addEventListener("focusout", (event) => {
+        const next = event.relatedTarget
+        if (next instanceof Node && release.contains(next)) return
+        if (!release.matches(":hover")) delete release.dataset.dismissed
+      })
+    }
+
+    disconnectedCallback() {
+      document.removeEventListener("keydown", this.#dismiss)
+    }
+  }
+
+  if (!customElements.get("docs-version-switch")) {
+    customElements.define("docs-version-switch", DocsVersionSwitchElement)
   }
 </script>

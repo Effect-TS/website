@@ -1,43 +1,52 @@
-import type { APIContext, GetStaticPaths } from "astro"
 import rss from "@astrojs/rss"
-import { getCollection, render } from "astro:content"
+import type { APIContext, GetStaticPaths } from "astro"
+import { getCollection, type CollectionEntry } from "astro:content"
+import { renderChangelogHtml } from "@website/api-reference/ChangelogHtml"
+import { changelogHref } from "@website/domain/ChangelogView"
 
-import { isSemver } from "@website/domain/Changelog"
+import { changelogDigest } from "@/features/changelog/cache-key"
+import { loadReleases } from "@/features/changelog/releases"
+
+const FEED_LENGTH = 50
+
+export const prerender = true
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("changelog")
-  return entries.map((entry) => {
-    const [version, slug] = entry.id.split("/")
-    return { params: { version: version!, package: slug! }, props: { entry } }
-  })
+  return entries.map((entry) => ({
+    params: { version: entry.data.channel, package: entry.data.slug },
+    cacheKey: changelogDigest(entry.data),
+    props: { entry },
+  }))
 }) satisfies GetStaticPaths
 
-export async function GET(context: APIContext) {
-  const { entry } = context.props as {
-    entry: Awaited<ReturnType<typeof getCollection<"changelog">>>[number]
-  }
-  const { headings } = await render(entry)
-  const anchors = new Map(
-    headings
-      .filter((heading) => heading.depth === 2 && isSemver(heading.text))
-      .map((heading) => [heading.text, heading.slug]),
-  )
-  const pageHref = `/docs/${entry.data.channel}/api/${entry.data.slug}/changelog`
-
-  const items = entry.data.versions
-    .filter((version) => version.date !== undefined)
-    .map((version) => {
-      const anchor = anchors.get(version.version)
-      return {
-        title: `${entry.data.package}@${version.version}${version.breaking ? " (breaking)" : ""}`,
-        pubDate: new Date(`${version.date}T00:00:00Z`),
-        link: anchor === undefined ? pageHref : `${pageHref}#${anchor}`,
-      }
-    })
+export async function GET(
+  context: APIContext<{ entry: CollectionEntry<"changelog"> }>,
+) {
+  const { data } = context.props.entry
+  const { channel, name, slug } = data
+  const releases = await loadReleases(data)
+  const items = releases
+    .flatMap((release) =>
+      release.date === undefined
+        ? []
+        : [{ release, pubDate: new Date(`${release.date}T00:00:00Z`) }],
+    )
+    .toSorted((left, right) => right.pubDate.getTime() - left.pubDate.getTime())
+    .slice(0, FEED_LENGTH)
+    .map(({ release, pubDate }) => ({
+      title: `${name} ${release.version}`,
+      description: release.breaking
+        ? `Breaking release of ${name}.`
+        : `Release notes for ${name} ${release.version}.`,
+      content: renderChangelogHtml(release.body),
+      link: `${changelogHref(channel, slug)}#${release.version}`,
+      pubDate,
+    }))
 
   return rss({
-    title: `${entry.data.package} Changelog`,
-    description: `Release changelog for ${entry.data.package}`,
+    title: `${name} changelog`,
+    description: `Release notes for ${name} (Effect ${channel}).`,
     site: context.site!,
     items,
   })

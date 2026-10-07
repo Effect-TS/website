@@ -1,11 +1,20 @@
-import { readFile, readdir } from "node:fs/promises"
+import { createHash } from "node:crypto"
+import { readFile, readdir, stat } from "node:fs/promises"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
-import type { ApiReferenceEntry } from "@website/domain/ApiReference"
+import type {
+  ApiReferenceChangelogSummary,
+  ApiReferenceEntry,
+} from "@website/domain/ApiReference"
 import {
   ApiReferenceDatasetManifest,
   ApiReferencePackageManifest,
+  packageNameToSlug,
 } from "@website/domain/ApiReference"
+import type { ChangelogRelease } from "@website/domain/Changelog"
+import { ChangelogFile } from "@website/domain/Changelog"
 import * as Schema from "effect/Schema"
+
+export { packageNameToSlug }
 
 export interface ApiReferenceDatasetEntry {
   readonly data: ApiReferenceEntry
@@ -13,10 +22,105 @@ export interface ApiReferenceDatasetEntry {
   readonly reflectionPath: string
 }
 
+/** Package-level data from the package manifest, read once with the rest. */
+export interface ApiReferencePackage {
+  readonly channel: string
+  readonly revision: string
+  readonly name: string
+  readonly slug: string
+  readonly version: string
+  readonly description: string
+  readonly npmUrl: string
+  readonly sourceUrl: string
+  readonly changelog:
+    | (ApiReferenceChangelogSummary & {
+        // Releases file relative to the dataset's base directory.
+        readonly path: string
+      })
+    | undefined
+}
+
+export interface ApiReferenceDataset {
+  readonly packages: ReadonlyArray<ApiReferencePackage>
+  readonly modules: ReadonlyArray<ApiReferenceDatasetEntry>
+}
+
+const datasets = new Map<
+  string,
+  { readonly signature: string; readonly dataset: Promise<ApiReferenceDataset> }
+>()
+
+/**
+ * Read the manifests of every channel. The result is shared by everything that
+ * asks for the same directory until the generator rewrites a dataset manifest,
+ * so the API reference and the changelog collections do not read it twice.
+ */
+export async function readApiReferenceDataset(
+  baseDirectory: string,
+): Promise<ApiReferenceDataset> {
+  const base = resolve(baseDirectory)
+  const signature = await datasetSignature(base)
+  const cached = datasets.get(base)
+  if (cached?.signature === signature) return cached.dataset
+
+  const dataset = readDataset(base)
+  datasets.set(base, { signature, dataset })
+  // A failed read must not stay cached.
+  dataset.catch(() => {
+    if (datasets.get(base)?.dataset === dataset) datasets.delete(base)
+  })
+  return dataset
+}
+
 export async function loadApiReferenceDataset(
   baseDirectory: string,
 ): Promise<ReadonlyArray<ApiReferenceDatasetEntry>> {
+  return (await readApiReferenceDataset(baseDirectory)).modules
+}
+
+/**
+ * Read one package's releases. Like a module's reflection, the file is not part
+ * of the manifest: only the pages and the search index that show releases pay
+ * for it, and its checksum comes from the manifest.
+ */
+export async function loadChangelogReleases(
+  changelog: { readonly jsonPath: string; readonly sha256: string },
+  options: { readonly baseDirectory: string },
+): Promise<ReadonlyArray<ChangelogRelease>> {
+  const path = safeResolve(options.baseDirectory, changelog.jsonPath)
+  const contents = await readFile(path)
+  const digest = createHash("sha256").update(contents).digest("hex")
+  if (digest !== changelog.sha256) {
+    throw new Error(
+      `Changelog checksum mismatch for ${changelog.jsonPath}: expected ${changelog.sha256}, received ${digest}`,
+    )
+  }
+  return Schema.decodeUnknownSync(ChangelogFile)(
+    JSON.parse(contents.toString("utf8")),
+  ).releases
+}
+
+async function datasetSignature(baseDirectory: string): Promise<string> {
+  const parts = await Promise.all(
+    (await readDirectories(baseDirectory)).map(async (version) => {
+      try {
+        const { mtimeMs, size } = await stat(
+          join(baseDirectory, version, "manifest.json"),
+        )
+        return `${version}:${mtimeMs}:${size}`
+      } catch {
+        return `${version}:-`
+      }
+    }),
+  )
+  return parts.join("|")
+}
+
+async function readDataset(
+  baseDirectory: string,
+): Promise<ApiReferenceDataset> {
   const versions = await readDirectories(baseDirectory)
+  const packages: Array<ApiReferencePackage> = []
   const entries: Array<ApiReferenceDatasetEntry> = []
 
   for (const version of versions) {
@@ -63,6 +167,27 @@ export async function loadApiReferenceDataset(
       packageSlugs.set(packageSlug, packageManifest.name)
 
       const packageDirectory = dirname(packageManifestPath)
+      packages.push({
+        channel: version,
+        revision: dataset.revision,
+        name: packageManifest.name,
+        slug: packageSlug,
+        version: packageManifest.version,
+        description: packageManifest.description,
+        npmUrl: packageManifest.npmUrl,
+        sourceUrl: packageManifest.sourceUrl,
+        changelog:
+          packageManifest.changelog === undefined
+            ? undefined
+            : {
+                ...packageManifest.changelog,
+                path: relative(
+                  baseDirectory,
+                  safeResolve(packageDirectory, packageManifest.changelog.json),
+                ),
+              },
+      })
+
       const barrelExports = new Set(
         packageManifest.barrels.map((barrel) => barrel.export),
       )
@@ -85,6 +210,7 @@ export async function loadApiReferenceDataset(
             packageSlug,
             packageVersion: packageManifest.version,
             packageDescription: packageManifest.description,
+            packageHasChangelog: packageManifest.changelog !== undefined,
             packageModuleCount: packageManifest.modules.length,
             packageNpmUrl: packageManifest.npmUrl,
             packageSourceUrl: packageManifest.sourceUrl,
@@ -104,7 +230,7 @@ export async function loadApiReferenceDataset(
     }
   }
 
-  return entries
+  return { packages, modules: entries }
 }
 
 async function readDirectories(path: string): Promise<ReadonlyArray<string>> {
@@ -121,18 +247,6 @@ async function readDirectories(path: string): Promise<ReadonlyArray<string>> {
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8"))
-}
-
-function packageNameToSlug(packageName: string): string {
-  const slug = packageName.startsWith("@effect/")
-    ? packageName.slice("@effect/".length)
-    : packageName
-  if (!/^[a-z0-9][a-z0-9._-]*$/.test(slug)) {
-    throw new Error(
-      `Cannot derive an API URL slug from package name ${JSON.stringify(packageName)}`,
-    )
-  }
-  return slug
 }
 
 function exportPathToModulePath(exportPath: string): string {

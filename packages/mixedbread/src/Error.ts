@@ -44,8 +44,9 @@ export function fileInProgressConflict(
   | { readonly cause: ConflictError; readonly fileIdentifier: string }
   | undefined {
   if (!(cause instanceof ConflictError)) return undefined
+  // Any status: a retried upload can hit a file the first attempt finished.
   const fileIdentifier =
-    /File '([^']+)' with version '[^']+' and status 'in_progress'/.exec(
+    /File '([^']+)' with version '[^']+' and status '[^']+' already exists/.exec(
       cause.message,
     )?.[1]
   return fileIdentifier === undefined ? undefined : { cause, fileIdentifier }

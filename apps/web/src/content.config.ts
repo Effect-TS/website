@@ -3,6 +3,8 @@ import { z } from "astro/zod"
 import { defineCollection, reference } from "astro:content"
 import { apiReferenceLoader } from "./features/api-reference/loader"
 import { ApiReferenceContentEntry } from "./features/api-reference/schema"
+import { changelogLoader } from "./features/changelog/loader"
+import { ChangelogContentEntry } from "./features/changelog/schema"
 import { PodcastEpisodeEntry } from "./features/podcast/collection"
 
 const apiReference = defineCollection({
@@ -13,29 +15,10 @@ const apiReference = defineCollection({
 })
 
 const changelog = defineCollection({
-  loader: glob({
-    base: new URL("../.data/changelog/", import.meta.url),
-    pattern: "*/*.md",
-    // Slug defaults to the filename, which repeats across version dirs
-    // (`v3/effect`, `v4/effect`); key on the full path to keep it unique.
-    generateId: ({ entry }) => entry.replace(/\.md$/, ""),
+  loader: changelogLoader({
+    base: new URL("../.data/api-reference/", import.meta.url),
   }),
-  schema: z.object({
-    package: z.string().min(1),
-    slug: z.string().min(1),
-    channel: z.string().regex(/^v\d+$/),
-    packageVersion: z.string().min(1),
-    sourceUrl: z.url(),
-    versions: z
-      .array(
-        z.object({
-          version: z.string().min(1),
-          date: z.string().optional(),
-          breaking: z.boolean().default(false),
-        }),
-      )
-      .default([]),
-  }),
+  schema: ChangelogContentEntry,
 })
 
 const blog = defineCollection({

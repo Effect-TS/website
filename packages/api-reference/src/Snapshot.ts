@@ -23,6 +23,7 @@ const ManifestJson = Schema.fromJsonString(Manifest)
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url))
 const generatorFiles = [
+  "packages/api-reference/src/Changelog.ts",
   "packages/api-reference/src/Generate.ts",
   "packages/api-reference/src/Snapshot.ts",
   "packages/api-reference/src/GitHub.ts",
@@ -459,19 +460,12 @@ export class Snapshot extends Context.Service<
             output: path.join(output, "manifest.json"),
           })
           const archive = path.join(output, "api-reference.tar.gz")
-          // Ship the generated changelog data alongside the API reference so the
-          // deploy (which restores this snapshot instead of regenerating) has it.
-          const dataParent = path.dirname(data)
-          const changelogExists = yield* fs.exists(
-            path.join(dataParent, "changelog"),
-          )
           yield* process.run("tar", [
             "-czf",
             archive,
             "-C",
-            dataParent,
+            path.dirname(data),
             path.basename(data),
-            ...(changelogExists ? ["changelog"] : []),
           ])
           const checksum = yield* fileDigest(archive)
           yield* fs.writeFileString(

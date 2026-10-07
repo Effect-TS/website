@@ -13,13 +13,12 @@ import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import * as ChildProcess from "effect/process/ChildProcess"
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner"
-import { syncFiles } from "./ApiReferenceSync.ts"
+import { syncApiReference } from "./ApiReferenceSync.ts"
 import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
 import { generateChangelogFiles } from "./ChangelogFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
   DEFAULT_API_REFERENCE_DIRECTORY,
-  DEFAULT_CHANGELOG_DIRECTORY,
   DEFAULT_DOCUMENTATION_DIRECTORY,
   type DeleteOptions,
   type SyncOptions,
@@ -99,11 +98,8 @@ export class Mixedbread extends Context.Service<
     const blogStageDir = yield* Config.String("BLOG_STAGE_DIRECTORY").pipe(
       Config.withDefault(".data/mixedbread/blog"),
     )
-    const changelogContentDir = yield* Config.String(
-      "CHANGELOG_CONTENT_DIRECTORY",
-    ).pipe(Config.withDefault(DEFAULT_CHANGELOG_DIRECTORY))
     const version = yield* Config.Number("MXBAI_STORE_VERSION").pipe(
-      Config.withDefault(3),
+      Config.withDefault(2),
     )
 
     const crypto = yield* Crypto.Crypto
@@ -186,8 +182,11 @@ export class Mixedbread extends Context.Service<
       )
     })
 
-    const apiReferenceFiles = () =>
-      generateApiReferenceFiles(apiReferenceDir, hash)
+    const apiReferenceFiles = Effect.fnUntraced(function* () {
+      const api = yield* generateApiReferenceFiles(apiReferenceDir, hash)
+      const changelog = yield* generateChangelogFiles(apiReferenceDir, hash)
+      return [...api, ...changelog]
+    })
 
     const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(
       function* (storeId: string, options: SyncOptions) {
@@ -208,7 +207,10 @@ export class Mixedbread extends Context.Service<
               Effect.provideService(Path.Path, path),
             ),
           ],
-          { concurrency: "unbounded" },
+          {
+            concurrency: "unbounded",
+            discard: true,
+          },
         )
         yield* syncMarkdown(storeId, options)
         yield* deleteLegacyDocumentation(storeId)
@@ -218,41 +220,10 @@ export class Mixedbread extends Context.Service<
     const syncApiReferenceStore = Effect.fn("Mixedbread.syncApiReferenceStore")(
       function* (store: MixedbreadClient.Store, options: SyncOptions) {
         const files = yield* apiReferenceFiles()
-        yield* syncFiles({
+        yield* syncApiReference({
           branch,
           client,
-          externalIdPrefix: "api-reference/",
           files,
-          label: "API reference",
-          store,
-          stores,
-          sync: options,
-          version,
-        })
-      },
-    )
-
-    const syncChangelogStore = Effect.fn("Mixedbread.syncChangelogStore")(
-      function* (store: MixedbreadClient.Store, options: SyncOptions) {
-        const files = yield* generateChangelogFiles(
-          changelogContentDir,
-          hash,
-        ).pipe(
-          Effect.provideService(FileSystem.FileSystem, fs),
-          Effect.provideService(Path.Path, path),
-        )
-        // Skip when no changelog data is present so a partial sync never deletes
-        // an already-indexed changelog from the store.
-        if (files.length === 0) {
-          yield* Effect.log("No changelog files to index")
-          return
-        }
-        yield* syncFiles({
-          branch,
-          client,
-          externalIdPrefix: "changelog/",
-          files,
-          label: "changelog",
           store,
           stores,
           sync: options,
@@ -269,10 +240,7 @@ export class Mixedbread extends Context.Service<
 
       const synchronizations = [
         ...(scope === "all" || scope === "markdown"
-          ? [
-              syncMarkdownStore(store.id, options),
-              syncChangelogStore(store, options),
-            ]
+          ? [syncMarkdownStore(store.id, options)]
           : []),
         ...(scope === "all" || scope === "api-reference"
           ? [syncApiReferenceStore(store, options)]

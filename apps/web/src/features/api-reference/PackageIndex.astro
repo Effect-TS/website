@@ -1,0 +1,132 @@
+---
+import { Search } from "@lucide/astro"
+
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+/**
+ * Searchable, grouped grid of package cards. The API reference index and the
+ * changelog index render the same grid; each card links wherever its page needs.
+ */
+export interface PackageIndexCard {
+  readonly description: string
+  readonly href: string
+  readonly meta: string
+  readonly name: string
+}
+
+export interface PackageIndexGroup {
+  readonly name: string
+  readonly packages: ReadonlyArray<PackageIndexCard>
+}
+
+interface Props {
+  readonly groups: ReadonlyArray<PackageIndexGroup>
+}
+
+const { groups } = Astro.props
+---
+
+<!-- Search -->
+<label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
+  <span class="sr-only">Search packages</span>
+  <Search
+    class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+    aria-hidden="true"
+  />
+  <input
+    id="search"
+    type="search"
+    aria-label="Search packages"
+    placeholder="Search packages…"
+    autocomplete="off"
+    data-package-search
+    class="w-full rounded-lg border border-input bg-transparent py-2 pr-4 pl-11 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
+  />
+</label>
+
+<div class="space-y-4 md:space-y-8">
+  {
+    groups.map((group) => (
+      <section data-package-group class="not-prose">
+        <Eyebrow as="h2" tone="navigation" class="mb-4">
+          {group.name}
+        </Eyebrow>
+        <div class="grid gap-4 md:grid-cols-2">
+          {group.packages.map((info) => (
+            <div
+              data-package-card
+              data-package-name={info.name}
+              class="group relative rounded-lg border border-border bg-card/40 p-4 transition-colors hover:border-border-strong hover:bg-muted/70 focus-within:border-border-strong focus-within:ring-2 focus-within:ring-subtle-foreground/30 dark:bg-card/30 dark:hover:bg-card/70"
+            >
+              <div class="flex items-baseline justify-between gap-4">
+                <h3 class="truncate font-mono text-sm font-semibold transition-colors group-hover:text-foreground">
+                  <a
+                    href={info.href}
+                    class="focus:outline-none after:absolute after:inset-0 after:content-['']"
+                  >
+                    {info.name}
+                  </a>
+                </h3>
+                <span class="shrink-0 font-mono text-xs text-muted-foreground">{info.meta}</span>
+              </div>
+              <p class="mt-2 line-clamp-2 leading-relaxed text-sm text-muted-foreground">
+                {info.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+    ))
+  }
+</div>
+
+<p data-empty-state class="hidden py-16 text-center font-mono text-sm text-muted-foreground">
+  No matching packages.
+</p>
+
+<script>
+  const input = document.querySelector<HTMLInputElement>("[data-package-search]")
+  const groups = document.querySelectorAll<HTMLElement>("[data-package-group]")
+  const emptyState = document.querySelector<HTMLElement>("[data-empty-state]")
+
+  function normalize(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/^@effect\//, "")
+      .replace(/[^a-z0-9]/g, "")
+  }
+
+  function fuzzyMatch(value: string, query: string) {
+    const candidate = normalize(value)
+    const normalizedQuery = normalize(query)
+    if (candidate.includes(normalizedQuery)) return true
+
+    let queryIndex = 0
+    for (const character of candidate) {
+      if (character === normalizedQuery[queryIndex]) queryIndex += 1
+    }
+    return queryIndex === normalizedQuery.length
+  }
+
+  if (input !== null && emptyState !== null) {
+    input.addEventListener("input", () => {
+      const query = input.value.trim()
+      let visiblePackages = 0
+
+      for (const group of groups) {
+        let visibleInGroup = 0
+        for (const card of group.querySelectorAll<HTMLElement>("[data-package-card]")) {
+          const matches = fuzzyMatch(card.dataset.packageName ?? "", query)
+          card.hidden = !matches
+          if (matches) {
+            visibleInGroup += 1
+          }
+        }
+        group.hidden = visibleInGroup === 0
+        visiblePackages += visibleInGroup
+      }
+
+      emptyState.classList.toggle("hidden", visiblePackages > 0)
+    })
+  }
+</script>

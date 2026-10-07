@@ -1,15 +1,15 @@
 ---
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { Search } from "@lucide/astro"
 
-import Eyebrow from "@/components/ui/Eyebrow.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { versionIndexDigest } from "@/features/api-reference/cache-key"
+import { packageDisplayName, versionLinks } from "@/features/api-reference/navigation"
+import { compareGroups, packageGroup } from "@/features/api-reference/package-groups"
+import PackageIndex from "@/features/api-reference/PackageIndex.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
-import { DOCS_VERSIONS } from "@/lib/versions"
 
 export const prerender = true
 
@@ -41,105 +41,6 @@ const openGraph = resolveApiReferenceOpenGraph(
   entries.map((entry) => entry.data),
 )
 
-const groupNames: Record<string, Record<string, string>> = {
-  v3: {
-    effect: "Core",
-    "@effect/platform": "Platform",
-    "@effect/platform-browser": "Platform",
-    "@effect/platform-bun": "Platform",
-    "@effect/platform-node": "Platform",
-    "@effect/platform-node-shared": "Platform",
-    "@effect/cluster": "Clustering",
-    "@effect/workflow": "Workflows",
-    "@effect/sql": "SQL",
-    "@effect/sql-clickhouse": "SQL",
-    "@effect/sql-d1": "SQL",
-    "@effect/sql-drizzle": "SQL",
-    "@effect/sql-kysely": "SQL",
-    "@effect/sql-libsql": "SQL",
-    "@effect/sql-mssql": "SQL",
-    "@effect/sql-mysql2": "SQL",
-    "@effect/sql-pg": "SQL",
-    "@effect/sql-sqlite-bun": "SQL",
-    "@effect/sql-sqlite-do": "SQL",
-    "@effect/sql-sqlite-node": "SQL",
-    "@effect/sql-sqlite-react-native": "SQL",
-    "@effect/sql-sqlite-wasm": "SQL",
-    "@effect/ai": "AI",
-    "@effect/ai-amazon-bedrock": "AI",
-    "@effect/ai-anthropic": "AI",
-    "@effect/ai-google": "AI",
-    "@effect/ai-openai": "AI",
-    "@effect/ai-openrouter": "AI",
-    "@effect/opentelemetry": "Telemetry",
-    "@effect/cli": "CLI",
-    "@effect/printer": "Printing",
-    "@effect/printer-ansi": "Printing",
-    "@effect/vitest": "Testing",
-    "@effect/experimental": "Other",
-    "@effect/typeclass": "Other",
-  },
-  v4: {
-    effect: "Core",
-    "@effect/platform-browser": "Platform",
-    "@effect/platform-bun": "Platform",
-    "@effect/platform-node-shared": "Platform",
-    "@effect/platform-node": "Platform",
-    "@effect/opentelemetry": "Telemetry",
-    "@effect/sql-clickhouse": "SQL",
-    "@effect/sql-d1": "SQL",
-    "@effect/sql-libsql": "SQL",
-    "@effect/sql-mssql": "SQL",
-    "@effect/sql-mysql2": "SQL",
-    "@effect/sql-pg": "SQL",
-    "@effect/sql-pglite": "SQL",
-    "@effect/sql-sqlite-bun": "SQL",
-    "@effect/sql-sqlite-do": "SQL",
-    "@effect/sql-sqlite-node": "SQL",
-    "@effect/sql-sqlite-react-native": "SQL",
-    "@effect/sql-sqlite-wasm": "SQL",
-    "@effect/ai-anthropic": "AI",
-    "@effect/ai-openai-compat": "AI",
-    "@effect/ai-openai": "AI",
-    "@effect/ai-openrouter": "AI",
-    "@effect/atom-react": "Reactivity",
-    "@effect/atom-solid": "Reactivity",
-    "@effect/atom-vue": "Reactivity",
-    "@effect/docgen": "Tooling",
-    "@effect/openapi-generator": "Tooling",
-    "@effect/vitest": "Testing",
-  },
-}
-
-const groupOrdering = [
-  "Core",
-  "Platform",
-  "SQL",
-  "AI",
-  "Clustering",
-  "Workflows",
-  "Reactivity",
-  "Telemetry",
-  "CLI",
-  "Printing",
-  "Testing",
-  "Tooling",
-  "Other",
-]
-
-function inferGroup(packageName: string): string {
-  if (packageName.includes("/sql-") || packageName === "@effect/sql") {
-    return "SQL"
-  }
-  if (packageName.includes("/ai-") || packageName === "@effect/ai") {
-    return "AI"
-  }
-  if (packageName.includes("platform")) {
-    return "Platform"
-  }
-  return "Other"
-}
-
 const packageEntries = Map.groupBy(entries, (entry) => entry.data.packageName)
 const packages = Array.from(packageEntries).map(([name, modules]) => {
   const first = modules[0]
@@ -148,11 +49,11 @@ const packages = Array.from(packageEntries).map(([name, modules]) => {
     throw new Error(`Package "${name}" has no modules`)
   }
 
-  const displayName = name.replace("@effect/", "")
+  const displayName = packageDisplayName(name)
   const entries = modules.toSorted((left, right) =>
     left.data.modulePath.localeCompare(right.data.modulePath),
   )
-  const group = groupNames[version]?.[name] ?? inferGroup(name)
+  const group = packageGroup(version, name)
 
   return {
     ...first.data,
@@ -164,14 +65,7 @@ const packages = Array.from(packageEntries).map(([name, modules]) => {
 const groupedPackages = Map.groupBy(packages, (info) => info.group)
 const sidebarGroups = Array.from(groupedPackages)
   .map(([name, packages]) => ({ name, packages }))
-  .toSorted((left, right) => {
-    const leftIndex = groupOrdering.indexOf(left.name)
-    const rightIndex = groupOrdering.indexOf(right.name)
-    const leftOrder = leftIndex < 0 ? groupOrdering.length : leftIndex
-    const rightOrder = rightIndex < 0 ? groupOrdering.length : rightIndex
-    const nameOrder = left.name.localeCompare(right.name)
-    return leftOrder - rightOrder || nameOrder
-  })
+  .toSorted((left, right) => compareGroups(left.name, right.name))
 const sidebarSections = [
   {
     groups: sidebarGroups.map((group) => ({
@@ -185,11 +79,7 @@ const sidebarSections = [
     })),
   },
 ]
-const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api`,
-  label,
-  selected: value === version,
-}))
+const mobileVersions = versionLinks(version, (value) => `/docs/${value}/api`)
 const mobilePackages = [
   { disabled: true, href: "", label: "Packages", selected: true },
   ...packages
@@ -230,111 +120,16 @@ const mobilePackages = [
   <article class="prose prose-effect max-w-4xl">
     <h1 class="mb-4! md:mb-6!">API Reference</h1>
 
-    <!-- Search -->
-    <label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
-      <span class="sr-only">Search packages</span>
-      <Search
-        class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden="true"
-      />
-      <input
-        id="search"
-        type="search"
-        aria-label="Search packages"
-        placeholder="Search packages…"
-        autocomplete="off"
-        data-package-search
-        class="w-full rounded-lg border border-input bg-transparent py-2 pr-4 pl-11 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
-      />
-    </label>
-
-    <div class="space-y-4 md:space-y-8">
-      {
-        sidebarGroups.map((group) => (
-          <section data-package-group class="not-prose">
-            <Eyebrow as="h2" tone="navigation" class="mb-4">
-              {group.name}
-            </Eyebrow>
-            <div class="grid gap-4 md:grid-cols-2">
-              {group.packages.map((info) => (
-                <div
-                  data-package-card
-                  data-package-name={info.packageName}
-                  class="group relative rounded-lg border border-border bg-card/40 p-4 transition-colors hover:border-border-strong hover:bg-muted/70 focus-within:border-border-strong focus-within:ring-2 focus-within:ring-subtle-foreground/30 dark:bg-card/30 dark:hover:bg-card/70"
-                >
-                  <div class="flex items-baseline justify-between gap-4">
-                    <h3 class="truncate font-mono text-sm font-semibold transition-colors group-hover:text-foreground">
-                      <a
-                        href={`/docs/${version}/api/${info.packageSlug}`}
-                        class="focus:outline-none after:absolute after:inset-0 after:content-['']"
-                      >
-                        {info.packageName}
-                      </a>
-                    </h3>
-                    <span class="shink-0 font-mono text-xs text-muted-foreground">
-                      {info.packageModuleCount} modules
-                    </span>
-                  </div>
-                  <p class="mt-2 line-clamp-2 leading-relaxed text-sm text-muted-foreground">
-                    {info.packageDescription}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))
-      }
-    </div>
-
-    <p data-empty-state class="hidden py-16 text-center font-mono text-sm text-muted-foreground">
-      No matching packages.
-    </p>
+    <PackageIndex
+      groups={sidebarGroups.map((group) => ({
+        name: group.name,
+        packages: group.packages.map((info) => ({
+          description: info.packageDescription,
+          href: `/docs/${version}/api/${info.packageSlug}`,
+          meta: `${info.packageModuleCount} modules`,
+          name: info.packageName,
+        })),
+      }))}
+    />
   </article>
 </DocShell>
-
-<script>
-  const input = document.querySelector<HTMLInputElement>("[data-package-search]")
-  const groups = document.querySelectorAll<HTMLElement>("[data-package-group]")
-  const emptyState = document.querySelector<HTMLElement>("[data-empty-state]")
-
-  function normalize(value: string) {
-    return value
-      .toLowerCase()
-      .replace(/^@effect\//, "")
-      .replace(/[^a-z0-9]/g, "")
-  }
-
-  function fuzzyMatch(value: string, query: string) {
-    const candidate = normalize(value)
-    const normalizedQuery = normalize(query)
-    if (candidate.includes(normalizedQuery)) return true
-
-    let queryIndex = 0
-    for (const character of candidate) {
-      if (character === normalizedQuery[queryIndex]) queryIndex += 1
-    }
-    return queryIndex === normalizedQuery.length
-  }
-
-  if (input !== null && emptyState !== null) {
-    input.addEventListener("input", () => {
-      const query = input.value.trim()
-      let visiblePackages = 0
-
-      for (const group of groups) {
-        let visibleInGroup = 0
-        for (const card of group.querySelectorAll<HTMLElement>("[data-package-card]")) {
-          const matches = fuzzyMatch(card.dataset.packageName ?? "", query)
-          card.hidden = !matches
-          if (matches) {
-            visibleInGroup += 1
-          }
-        }
-        group.hidden = visibleInGroup === 0
-        visiblePackages += visibleInGroup
-      }
-
-      emptyState.classList.toggle("hidden", visiblePackages > 0)
-    })
-  }
-</script>

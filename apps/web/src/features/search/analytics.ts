@@ -101,11 +101,11 @@ function resultCounts(results: ReadonlyArray<SearchResult>) {
     api_reference_result_count: results.filter(
       (result) => result.kind === "api-reference",
     ).length,
-    blog_result_count: results.filter((result) => result.kind === "blog")
-      .length,
     changelog_result_count: results.filter(
       (result) => result.kind === "changelog",
     ).length,
+    blog_result_count: results.filter((result) => result.kind === "blog")
+      .length,
   } as const
 }
 
@@ -204,6 +204,10 @@ export const SearchAnalytics = {
     capture("search:filter_change", {
       result_groups: groups.length === 0 ? "all" : [...groups].sort().join(","),
     })
+  },
+
+  changelogPackageChange(hasPackage: boolean): void {
+    capture("search:changelog_package_change", { has_package: hasPackage })
   },
 
   viewAll(kind: SearchResultKind): void {

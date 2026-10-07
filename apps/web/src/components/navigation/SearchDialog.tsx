@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import * as React from "react"
 import { Button } from "@/components/ui/Button"
+import { FormattedDate } from "@/components/ui/FormattedDate"
 import {
   Dialog,
   DialogClose,
@@ -82,29 +83,18 @@ const pageVersionAtom = Atom.make(Option.none<DocsVersion>())
 
 const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
 
-const selectedPackageAtom = Atom.make<string | null>(null)
-
-// Distinct changelog packages in the current results, before the package filter
-// narrows them. The reranker only returns changelog entries for changelog-intent
-// queries, so this is empty for unrelated searches and hides the refinement.
-const changelogPackagesAtom = Atom.make((get): ReadonlyArray<string> => {
-  const packages = new Set<string>()
-  for (const result of get(versionResultsAtom)) {
-    if (result.kind === "changelog") packages.add(result.packageName)
-  }
-  return Array.from(packages).sort()
-})
-
-// A package selection only applies while the query still surfaces that package.
-// When the query moves away from changelog, the stale selection is ignored, so
-// the filter never silently empties unrelated results.
-const effectivePackageAtom = Atom.make((get): string | null => {
-  const selected = get(selectedPackageAtom)
-  if (selected === null) return null
-  return get(changelogPackagesAtom).includes(selected) ? selected : null
+// A selected group disappears with the version that does not offer it.
+const activeGroupsAtom = Atom.make((get) => {
+  const version = get(selectedVersionAtom)
+  return get(selectedGroupsAtom).filter((group) =>
+    isGroupAvailable(group, version),
+  )
 })
 
 const searchOpenSourceAtom = Atom.make<SearchOpenSource>("unknown")
+
+// Slug of the changelog package the user narrowed the changelog results to.
+const changelogPackageAtom = Atom.make(Option.none<string>())
 
 const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
 
@@ -177,12 +167,21 @@ const SUGGESTED_SEARCHES: ReadonlyArray<string> = [
 const SEARCH_RESULT_GROUPS: ReadonlyArray<{
   readonly value: SearchResultGroup
   readonly label: string
+  // Set when the group only exists in one docs version.
+  readonly version?: DocsVersion
 }> = [
   { value: "documentation", label: "docs" },
   { value: "api-reference", label: "api" },
-  { value: "changelog", label: "changelog" },
   { value: "blog", label: "blog" },
+  { value: "changelog", label: "changelog", version: "v4" },
 ]
+
+const isGroupAvailable = (group: SearchResultGroup, version: DocsVersion) =>
+  SEARCH_RESULT_GROUPS.some(
+    (candidate) =>
+      candidate.value === group &&
+      (candidate.version === undefined || candidate.version === version),
+  )
 const MAX_GROUP_RESULTS = 5
 
 type SearchResultsView =
@@ -220,13 +219,9 @@ const searchFailure = (
   return { reason: "http", httpStatus: 500 }
 }
 
-const searchRequestAtom = Atom.family((key: string) => {
-  const { query, package: pkg } = JSON.parse(key) as {
-    query: string
-    package: string | null
-  }
+const searchRequestAtom = Atom.family((query: string) => {
   const requestAtom = SearchClient.query("search", "search", {
-    query: pkg === null ? { query } : { query, package: pkg },
+    query: { query },
   })
   let startedAt: number | undefined
 
@@ -291,55 +286,79 @@ export const allSearchResultsAtom = Atom.make((get) => {
     version: get(selectedVersionAtom),
   })
 
-  return get(searchRequestAtom(JSON.stringify({ query, package: null })))
+  return get(searchRequestAtom(query))
 })
 
-const filterByVersion = (
-  results: ReadonlyArray<SearchResult>,
-  version: string,
-): Array<SearchResult> =>
-  results.filter(
-    (result) =>
-      result.kind === "blog" || result.version.toLowerCase() === version,
-  )
+// Changelog results re-queried for one package, keyed `<slug>:<query>`.
+const scopedChangelogRequestAtom = Atom.family((key: string) => {
+  const separator = key.indexOf(":")
+  return SearchClient.query("search", "search", {
+    query: {
+      query: key.slice(separator + 1),
+      package: key.slice(0, separator),
+    },
+  })
+})
 
-const versionResultsAtom = Atom.make((get) => {
+const baseVersionResultsAtom = Atom.make((get) => {
   const version = get(selectedVersionAtom)
 
   return get(allSearchResultsAtom).pipe(
-    AsyncResult.map((results) => filterByVersion(results, version)),
+    AsyncResult.map((results) =>
+      results.filter(
+        (result) =>
+          result.kind === "blog" || result.version.toLowerCase() === version,
+      ),
+    ),
     AsyncResult.getOrElse<Array<SearchResult>>(() => []),
   )
 })
 
-// When a package is selected we re-query scoped to it, so its entries are exact
-// and never lost to the base top-k cut. The base query still drives the package
-// list, so other packages stay selectable.
-const scopedResultsAtom = Atom.make((get): Array<SearchResult> => {
-  const pkg = get(effectivePackageAtom)
-  if (pkg === null) return get(versionResultsAtom)
-
-  const query = get(searchQueryAtom)
-  const debouncedQuery = get(debouncedSearchQueryAtom)
-  if (query.trim().length === 0 || query !== debouncedQuery) {
-    return get(versionResultsAtom)
-  }
-
-  const version = get(selectedVersionAtom)
-  return get(searchRequestAtom(JSON.stringify({ query, package: pkg }))).pipe(
-    AsyncResult.map((results) => filterByVersion(results, version)),
-    AsyncResult.getOrElse<Array<SearchResult>>(() => get(versionResultsAtom)),
+// The scope control only makes sense when the query matched several packages.
+const changelogPackagesAtom = Atom.make((get) => {
+  const packages = get(baseVersionResultsAtom).filter(
+    (result): result is ChangelogSearchResult => result.kind === "changelog",
   )
+  return packages.length < 2
+    ? []
+    : packages.map(({ packageName, packageSlug }) => ({
+        name: packageName,
+        slug: packageSlug,
+      }))
+})
+
+const activeChangelogPackageAtom = Atom.make((get) =>
+  get(changelogPackageAtom).pipe(
+    Option.filter((slug) =>
+      get(changelogPackagesAtom).some((candidate) => candidate.slug === slug),
+    ),
+  ),
+)
+
+const versionResultsAtom = Atom.make((get) => {
+  const results = get(baseVersionResultsAtom)
+  const slug = get(activeChangelogPackageAtom)
+  if (Option.isNone(slug)) return results
+
+  const isScoped = (result: SearchResult) =>
+    result.kind === "changelog" && result.packageSlug === slug.value
+  // Show the unscoped matches for that package until the scoped query returns.
+  const scoped = get(
+    scopedChangelogRequestAtom(
+      `${slug.value}:${get(debouncedSearchQueryAtom)}`,
+    ),
+  ).pipe(
+    AsyncResult.map((scopedResults) => scopedResults.filter(isScoped)),
+    AsyncResult.getOrElse<Array<SearchResult>>(() => results.filter(isScoped)),
+  )
+  return [...results.filter((result) => result.kind !== "changelog"), ...scoped]
 })
 
 const searchResultsAtom = Atom.make((get) => {
-  const groups = get(selectedGroupsAtom)
-  const pkg = get(effectivePackageAtom)
+  const groups = get(activeGroupsAtom)
 
-  return get(scopedResultsAtom).filter(
-    (result) =>
-      (groups.length === 0 || groups.includes(result.kind)) &&
-      (pkg === null || ("packageName" in result && result.packageName === pkg)),
+  return get(versionResultsAtom).filter(
+    (result) => groups.length === 0 || groups.includes(result.kind),
   )
 })
 
@@ -543,7 +562,6 @@ function SearchDialogHeader() {
           select. Press Escape to close.
         </span>
         <SearchInput />
-        <SearchPackageMenu />
         <SearchVersionMenu />
         <DialogClose
           aria-label="Close search"
@@ -561,6 +579,7 @@ function SearchDialogHeader() {
 function SearchInput() {
   const [query, setQuery] = useAtom(searchQueryAtom)
   const setInputElement = useAtomSet(inputElementAtom)
+  const setChangelogPackage = useAtomSet(changelogPackageAtom)
 
   const registerInputElement = React.useCallback(
     (element: HTMLInputElement | null) =>
@@ -582,7 +601,10 @@ function SearchInput() {
         aria-label="Search Effect"
         aria-describedby="search-instructions"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          setQuery(event.target.value)
+          setChangelogPackage(Option.none())
+        }}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -637,65 +659,11 @@ function SearchVersionMenu() {
   )
 }
 
-function SearchPackageMenu() {
-  const setSelected = useAtomSet(selectedPackageAtom)
-  const selected = useAtomValue(effectivePackageAtom)
-  const packages = useAtomValue(changelogPackagesAtom)
-  const dialogElement = useAtomValue(dialogElementAtom)
-
-  // Show only when the query surfaces more than one changelog package to narrow
-  // between. Keep it mounted while a package is selected so it can be cleared.
-  if (packages.length < 2 && selected === null) return null
-
-  return (
-    <div className="relative shrink-0">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="outline"
-              className="inline-flex max-w-40 items-center gap-1 truncate rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:border-zinc-400 focus-visible:ring-0 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white dark:focus-visible:border-zinc-600"
-            >
-              <span className="truncate">{selected ?? "all packages"}</span>
-              <ChevronDown className="size-3 shrink-0 transition-transform group-aria-expanded/button:rotate-180" />
-            </Button>
-          }
-        />
-        <DropdownMenuContent
-          portalContainer={Option.getOrNull(dialogElement)}
-          align="end"
-          className="max-h-72 min-w-40 overflow-y-auto scrollbar-thin rounded-md border border-zinc-200 bg-white px-0 py-1 shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
-        >
-          <DropdownMenuCheckboxItem
-            checked={selected === null}
-            closeOnClick
-            tabIndex={0}
-            onCheckedChange={() => setSelected(null)}
-            className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
-          >
-            all packages
-          </DropdownMenuCheckboxItem>
-          {packages.map((pkg) => (
-            <DropdownMenuCheckboxItem
-              key={pkg}
-              checked={selected === pkg}
-              closeOnClick
-              tabIndex={0}
-              onCheckedChange={() => setSelected(selected === pkg ? null : pkg)}
-              className="flex w-full cursor-pointer items-center rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
-            >
-              <span className="truncate">{pkg}</span>
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-}
-
 function SearchGroupFilters() {
   const versionResults = useAtomValue(versionResultsAtom)
-  const [selectedGroups, setSelectedGroups] = useAtom(selectedGroupsAtom)
+  const version = useAtomValue(selectedVersionAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
+  const setSelectedGroups = useAtomSet(selectedGroupsAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
 
   return (
@@ -716,7 +684,9 @@ function SearchGroupFilters() {
         aria-label="Filter search result groups"
         className="gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
       >
-        {SEARCH_RESULT_GROUPS.map((group) => {
+        {SEARCH_RESULT_GROUPS.filter((group) =>
+          isGroupAvailable(group.value, version),
+        ).map((group) => {
           const count = versionResults.filter(
             (result) => result.kind === group.value,
           ).length
@@ -743,7 +713,7 @@ function SearchGroupFilters() {
 function SearchDialogResults() {
   const query = useAtomValue(searchQueryAtom)
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
   const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setOpen = useAtomSet(searchDialogOpenAtom)
   const setResultsElement = useAtomSet(resultsElementAtom)
@@ -1000,6 +970,7 @@ function SearchResultsDetail({
         <ChevronLeft className="size-3.5" />
         All results
       </Button>
+      {section === "changelog" ? <ChangelogPackageFilter /> : null}
       <ul className="space-y-2">
         {results.map((result, index) => (
           <SearchResultItem
@@ -1023,10 +994,10 @@ function SearchResultsOverview({
   const apiReferenceResults = results.filter(
     (result) => result.kind === "api-reference",
   )
-  const blogResults = results.filter((result) => result.kind === "blog")
   const changelogResults = results.filter(
     (result) => result.kind === "changelog",
   )
+  const blogResults = results.filter((result) => result.kind === "blog")
   const documentationResults = results.filter(
     (result) => result.kind === "documentation",
   )
@@ -1046,14 +1017,15 @@ function SearchResultsOverview({
         onViewAll={() => onViewSection("api-reference")}
       />
       <SearchResultsSection
-        title="Changelog"
-        results={changelogResults}
-        onViewAll={() => onViewSection("changelog")}
-      />
-      <SearchResultsSection
         title="Blog"
         results={blogResults}
         onViewAll={() => onViewSection("blog")}
+      />
+      <SearchResultsSection
+        title="Changelog"
+        results={changelogResults}
+        onViewAll={() => onViewSection("changelog")}
+        actions={<ChangelogPackageFilter />}
       />
       <AlternateVersionResults />
     </div>
@@ -1063,7 +1035,7 @@ function SearchResultsOverview({
 function SearchEmptyState() {
   const query = useAtomValue(searchQueryAtom)
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
   const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setVersion = useAtomSet(selectedVersionAtom)
   const clearSelectedGroups = useAtomSet(clearSelectedGroupsAtom)
@@ -1130,7 +1102,7 @@ function SearchEmptyState() {
 
 function AlternateVersionResults() {
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
   const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setVersion = useAtomSet(selectedVersionAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
@@ -1170,17 +1142,22 @@ function SearchResultsSection({
   title,
   results,
   onViewAll,
+  actions,
 }: {
   readonly title: string
   readonly results: ReadonlyArray<SearchResult>
   readonly onViewAll: () => void
+  readonly actions?: React.ReactNode
 }) {
   if (results.length === 0) return null
 
   return (
     <section className="space-y-2">
       <div className="flex h-4 items-center justify-between gap-4 px-1 font-mono text-xs leading-4 font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-        <h2>{title}</h2>
+        <div className="flex min-w-0 items-center gap-2">
+          <h2>{title}</h2>
+          {actions}
+        </div>
         {results.length > MAX_GROUP_RESULTS ? (
           <button
             type="button"
@@ -1219,13 +1196,13 @@ interface SearchResultItemProps {
 function SearchResultItem({ result, rank, view }: SearchResultItemProps) {
   switch (result.kind) {
     case "api-reference": {
-      return <ApiReferenceItem result={result} rank={rank} view={view} />
+      return <PackageItem result={result} rank={rank} view={view} />
     }
     case "documentation": {
       return <DocumentationItem result={result} rank={rank} view={view} />
     }
     case "changelog": {
-      return <ChangelogItem result={result} rank={rank} view={view} />
+      return <PackageItem result={result} rank={rank} view={view} />
     }
     case "blog": {
       return <BlogItem result={result} rank={rank} view={view} />
@@ -1233,71 +1210,89 @@ function SearchResultItem({ result, rank, view }: SearchResultItemProps) {
   }
 }
 
-function BlogItem({
-  result,
-  rank,
-  view,
-}: SearchResultItemProps & { readonly result: BlogSearchResult }) {
+function ChangelogPackageFilter() {
+  const packages = useAtomValue(changelogPackagesAtom)
+  const active = useAtomValue(activeChangelogPackageAtom)
+  const setPackage = useAtomSet(changelogPackageAtom)
+  const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
+  const dialogElement = useAtomValue(dialogElementAtom)
+
+  if (packages.length === 0) return null
+
+  const select = (slug: Option.Option<string>) => {
+    if (Option.getOrNull(slug) === Option.getOrNull(active)) return
+    SearchAnalytics.changelogPackageChange(Option.isSome(slug))
+    setPackage(slug)
+    scrollResultsToTop()
+  }
+  const activeName = packages.find(
+    (candidate) => Option.getOrNull(active) === candidate.slug,
+  )?.name
+
   return (
-    <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
-      <a
-        href={result.href}
-        data-search-result-link
-        data-search-result-kind={result.kind}
-        data-search-result-level="page"
-        data-search-result-rank={rank}
-        data-search-results-view={view}
-        className="group block cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            aria-label="Filter changelog results by package"
+            className="inline-flex max-w-48 items-center gap-1 rounded-md border border-zinc-200 px-2 py-0.5 font-mono text-xs font-medium tracking-normal text-zinc-600 normal-case transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:border-zinc-400 focus-visible:ring-0 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white dark:focus-visible:border-zinc-600"
+          >
+            <span className="truncate">{activeName ?? "All packages"}</span>
+            <ChevronDown className="size-3 shrink-0 transition-transform group-aria-expanded/button:rotate-180" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent
+        portalContainer={Option.getOrNull(dialogElement)}
+        align="start"
+        className="max-h-60 min-w-40 overflow-y-auto rounded-md border border-zinc-200 bg-white px-0 py-1 tracking-normal normal-case shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
       >
-        <p className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2 py-0.5 font-mono text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-            <Newspaper className="size-3" />
-            <span>Blog</span>
-          </span>
-          <time className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-            {result.publishedAt}
-          </time>
-        </p>
-        <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-white">
-          {result.title}
-        </p>
-        <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-600 dark:text-zinc-400">
-          {result.description}
-        </p>
-      </a>
-      {result.chunks.length > 0 ? (
-        <div className="mx-4 mb-2 border-l border-zinc-200 pl-3 dark:border-zinc-800">
-          {result.chunks.map((chunk, index) => (
-            <a
-              key={chunk.id}
-              href={chunk.href}
-              data-search-result-link
-              data-search-result-kind={result.kind}
-              data-search-result-level="chunk"
-              data-search-result-rank={rank}
-              data-search-chunk-rank={index + 1}
-              data-search-results-view={view}
-              className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+        {[{ slug: null, name: "All packages" }, ...packages].map(
+          ({ name, slug }) => (
+            <DropdownMenuCheckboxItem
+              key={slug ?? "all"}
+              checked={Option.getOrNull(active) === slug}
+              closeOnClick
+              tabIndex={0}
+              onCheckedChange={() => select(Option.fromNullOr(slug))}
+              className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
             >
-              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                {chunk.title}
-              </p>
-              <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                {chunk.snippet}
-              </p>
-            </a>
-          ))}
-        </div>
-      ) : null}
-    </li>
+              {name}
+            </DropdownMenuCheckboxItem>
+          ),
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
-function ApiReferenceItem({
+const PACKAGE_RESULT_BADGES = {
+  "api-reference": {
+    Icon: Braces,
+    label: "API",
+    className:
+      "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300",
+  },
+  changelog: {
+    Icon: ScrollText,
+    label: "Changelog",
+    className:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+} as const
+
+/** A package page in the results: an API module or a package changelog. */
+function PackageItem({
   result,
   rank,
   view,
-}: SearchResultItemProps & { readonly result: ApiReferenceSearchResult }) {
+}: SearchResultItemProps & {
+  readonly result: ApiReferenceSearchResult | ChangelogSearchResult
+}) {
+  const { Icon, label, className } = PACKAGE_RESULT_BADGES[result.kind]
+  const api = result.kind === "api-reference" ? result : undefined
+
   return (
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
@@ -1310,22 +1305,28 @@ function ApiReferenceItem({
         className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300">
-            <Braces className="size-3 text-xs" />
-            <span>API</span>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 ${className}`}
+          >
+            <Icon className="size-3" />
+            <span>{label}</span>
             <span aria-hidden="true">·</span>
             <span>{result.version.toUpperCase()}</span>
           </span>
-          <span className="text-zinc-600 dark:text-zinc-300">
-            {result.packageName} / {result.title}
-          </span>
+          {api ? (
+            <span className="text-zinc-600 dark:text-zinc-300">
+              {api.packageName} / {api.title}
+            </span>
+          ) : null}
         </p>
         <p className="font-mono text-base font-semibold text-zinc-900 dark:text-white">
-          {result.title}
+          {api ? api.title : result.packageName}
         </p>
-        <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {result.description}
-        </p>
+        {api ? (
+          <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
+            {api.description}
+          </p>
+        ) : null}
       </a>
       {result.chunks.length > 0 ? (
         <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
@@ -1349,7 +1350,9 @@ function ApiReferenceItem({
                   {chunk.detail}
                 </p>
               ) : null}
-              <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <p
+                className={`mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 ${api ? "line-clamp-1" : "line-clamp-2"}`}
+              >
                 {chunk.snippet}
               </p>
             </a>
@@ -1360,11 +1363,11 @@ function ApiReferenceItem({
   )
 }
 
-function ChangelogItem({
+function BlogItem({
   result,
   rank,
   view,
-}: SearchResultItemProps & { readonly result: ChangelogSearchResult }) {
+}: SearchResultItemProps & { readonly result: BlogSearchResult }) {
   return (
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
@@ -1374,25 +1377,27 @@ function ChangelogItem({
         data-search-result-level="page"
         data-search-result-rank={rank}
         data-search-results-view={view}
-        className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+        className="group block cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
-        <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2 py-0.5 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
-            <ScrollText className="size-3" />
-            <span>Changelog</span>
-            <span aria-hidden="true">·</span>
-            <span>{result.version.toUpperCase()}</span>
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2 py-0.5 font-mono text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+            <Newspaper className="size-3" />
+            <span>Blog</span>
           </span>
-          <span className="text-zinc-600 dark:text-zinc-300">
-            {result.packageName}
-          </span>
+          <FormattedDate
+            date={result.publishedAt}
+            className="font-mono text-xs text-zinc-500 dark:text-zinc-400"
+          />
         </p>
-        <p className="font-mono text-base font-semibold text-zinc-900 dark:text-white">
+        <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-white">
           {result.title}
+        </p>
+        <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-600 dark:text-zinc-400">
+          {result.description}
         </p>
       </a>
       {result.chunks.length > 0 ? (
-        <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
+        <div className="mx-4 mb-2 border-l border-zinc-200 pl-3 dark:border-zinc-800">
           {result.chunks.map((chunk, index) => (
             <a
               key={chunk.id}
@@ -1405,7 +1410,7 @@ function ChangelogItem({
               data-search-results-view={view}
               className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
             >
-              <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
+              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                 {chunk.title}
               </p>
               <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">

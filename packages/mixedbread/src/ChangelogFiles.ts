@@ -1,72 +1,150 @@
-import { toFile } from "@mixedbread/sdk"
+import {
+  loadChangelogReleases,
+  readApiReferenceDataset,
+} from "@website/api-reference/ApiReferenceDataset"
+import type { ChangelogRelease } from "@website/domain/Changelog"
+import { changelogHref } from "@website/domain/ChangelogView"
 import * as Effect from "effect/Effect"
-import * as FileSystem from "effect/FileSystem"
-import * as Path from "effect/Path"
-import type { LocalFile } from "./ApiReferenceFiles.ts"
-import { stageChangelogReleases } from "./Changelog.ts"
+import { chunkFiles } from "./ChunkFiles.ts"
+import {
+  CHANGELOG_INDEX_CHANNELS,
+  MAX_CHANGELOG_CHUNK_LENGTH,
+} from "./Config.ts"
 import { UnknownError } from "./Error.ts"
 
-// Build one uploadable file per changelog release. The staged source keeps the
-// search frontmatter Mixedbread reads to generate `generated_metadata.search`,
-// while `metadata` carries flat, filterable fields (content_source, package_slug,
-// channel) so queries can scope by package without regex over generated data.
+export interface ChangelogChunk {
+  readonly type: "text"
+  readonly text: string
+  readonly mime_type: "text/plain"
+  readonly generated_metadata: {
+    readonly type: "text"
+    readonly page_href: string
+    readonly version: string
+  }
+}
+
+// Changesets prefixes every entry with PR, commit and author links.
+const ENTRY_PREFIX =
+  /^(\s*-\s+)(?:\[#\d+\]\([^)]*\)\s+)?(?:\[`[0-9a-f]{7,40}`\]\([^)]*\)\s+)?(?:Thanks (?:\[@[\w-]+\]\([^)]*\)|@[\w-]+)!\s+-\s+)?/
+
+/**
+ * Release text worth embedding: no commit-link boilerplate and no
+ * "Updated dependencies" lists. Returns "" when nothing else remains.
+ */
+export function searchBody(body: string): string {
+  const lines: Array<string> = []
+  let skipping = false
+  for (const line of body.split("\n")) {
+    if (/^- Updated dependencies/.test(line)) {
+      skipping = true
+      continue
+    }
+    if (skipping && /^\s+\S/.test(line)) continue
+    skipping = false
+    lines.push(line.replace(ENTRY_PREFIX, "$1"))
+  }
+  return lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .split(/^(?=###\s)/m)
+    .filter((section) => section.replace(/^###.*$/m, "").trim() !== "")
+    .join("")
+    .trim()
+}
+
+/** Split text at line boundaries into parts of at most `limit` characters. */
+export function splitText(text: string, limit: number): Array<string> {
+  const parts: Array<string> = []
+  let current = ""
+  const flush = () => {
+    if (current.trim() !== "") parts.push(current.trim())
+    current = ""
+  }
+  for (const line of text.split("\n")) {
+    let rest = line
+    while (rest.length > limit) {
+      const space = rest.lastIndexOf(" ", limit)
+      const cut = space > 0 ? space : limit
+      flush()
+      parts.push(rest.slice(0, cut).trim())
+      rest = rest.slice(cut)
+    }
+    if (current.length + rest.length + 1 > limit) flush()
+    current += `${rest}\n`
+  }
+  flush()
+  return parts
+}
+
+/** One chunk per release part, oldest release first. */
+export function releaseChunks(
+  changelog: {
+    readonly channel: string
+    readonly name: string
+    readonly slug: string
+  },
+  releases: ReadonlyArray<ChangelogRelease>,
+): Array<ChangelogChunk> {
+  const pageHref = changelogHref(changelog.channel, changelog.slug)
+  return releases.toReversed().flatMap((release) => {
+    const text = searchBody(release.body)
+    if (text === "") return []
+    const heading = `# ${changelog.name} ${release.version}\n\n`
+    return splitText(text, MAX_CHANGELOG_CHUNK_LENGTH - heading.length - 1).map(
+      (part) => ({
+        type: "text" as const,
+        text: `${heading}${part}\n`,
+        mime_type: "text/plain" as const,
+        generated_metadata: {
+          type: "text" as const,
+          page_href: pageHref,
+          version: release.version,
+        },
+      }),
+    )
+  })
+}
+
 export const generateChangelogFiles = Effect.fn("ChangelogFiles.generate")(
   function* (
-    contentDir: string,
+    apiReferenceDir: string,
     hash: (bytes: Uint8Array) => Effect.Effect<string, UnknownError>,
   ) {
-    const fs = yield* FileSystem.FileSystem
-    const path = yield* Path.Path
-    const contentExists = yield* fs
-      .exists(contentDir)
-      .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-    // Changelog data is generated alongside the API reference; a sync may run
-    // before it exists, so treat an absent directory as empty.
-    if (!contentExists) return [] as ReadonlyArray<LocalFile>
-    const filePaths = yield* fs
-      .glob(`${contentDir}/**/*.md`)
-      .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-    const encoder = new TextEncoder()
+    // Shares one read of the manifests with the API reference files.
+    const { packages } = yield* Effect.tryPromise({
+      try: () => readApiReferenceDataset(apiReferenceDir),
+      catch: (cause) => new UnknownError({ cause }),
+    })
     const files = yield* Effect.forEach(
-      filePaths,
-      Effect.fnUntraced(function* (filePath) {
-        const source = yield* fs
-          .readFileString(filePath)
-          .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-        const relativePath = path
-          .relative(contentDir, filePath)
-          .replace(/\\/g, "/")
-        const documentId = relativePath.replace(/\.md$/, "")
-        const releases = yield* Effect.try({
-          try: () => stageChangelogReleases(source, relativePath),
+      packages.flatMap((pkg) =>
+        pkg.changelog !== undefined &&
+        CHANGELOG_INDEX_CHANNELS.some((channel) => channel === pkg.channel)
+          ? [{ pkg, changelog: pkg.changelog }]
+          : [],
+      ),
+      Effect.fnUntraced(function* ({ pkg, changelog }) {
+        const releases = yield* Effect.tryPromise({
+          try: () =>
+            loadChangelogReleases(
+              { jsonPath: changelog.path, sha256: changelog.sha256 },
+              { baseDirectory: apiReferenceDir },
+            ),
           catch: (cause) => new UnknownError({ cause }),
         })
-        return yield* Effect.forEach(releases, (staged) =>
-          Effect.gen(function* () {
-            const bytes = encoder.encode(staged.source)
-            const fileHash = yield* hash(bytes)
-            const file: LocalFile = {
-              externalId: `changelog/${documentId}/${staged.version}`,
-              fileHash,
-              metadata: {
-                content_source: "changelog",
-                package_name: staged.metadata.package_name,
-                package_slug: staged.metadata.package_slug,
-                channel: staged.metadata.docs_version,
-                page_href: staged.metadata.page_href,
-              },
-              upload: () =>
-                toFile(
-                  bytes,
-                  `${documentId.replace(/\//g, "__")}__${staged.version}`,
-                  { type: "text/markdown" },
-                ),
-            }
-            return file
-          }),
-        )
+        return yield* chunkFiles({
+          chunks: releaseChunks(pkg, releases),
+          directory: ["api-reference", pkg.channel].join("/"),
+          name: `${pkg.slug}-changelog`,
+          metadata: {
+            channel: pkg.channel,
+            content_source: "changelog",
+            package_name: pkg.name,
+            package_slug: pkg.slug,
+          },
+          hash,
+        })
       }),
-      { concurrency: "unbounded" },
+      { concurrency: 10 },
     )
     return files.flat()
   },

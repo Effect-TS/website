@@ -70,6 +70,7 @@ const ApiReferenceCollection = Schema.ReadonlyMap(
       version: Schema.String,
       packageSlug: Schema.String,
       packageName: Schema.String,
+      packageHasChangelog: Schema.optional(Schema.Boolean),
       modulePath: Schema.String,
     }),
   }),
@@ -154,7 +155,13 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
     )
     const apiReference = Object.fromEntries(
       Array.from(apiReferenceEntries.values()).flatMap((entry) => {
-        const { modulePath, packageName, packageSlug, version } = entry.data
+        const {
+          modulePath,
+          packageHasChangelog,
+          packageName,
+          packageSlug,
+          version,
+        } = entry.data
         const moduleName = modulePath.split("/").at(-1) ?? modulePath
         return [
           [
@@ -169,6 +176,17 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
             `${version}/api/${packageSlug}/${modulePath}`,
             { eyebrow: "API Reference", title: moduleName },
           ],
+          ...(packageHasChangelog === true
+            ? [
+                [
+                  `${version}/api/${packageSlug}/changelog`,
+                  {
+                    eyebrow: "API Reference",
+                    title: `${packageName} changelog`,
+                  },
+                ],
+              ]
+            : []),
         ]
       }),
     )
