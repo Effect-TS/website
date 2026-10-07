@@ -106,7 +106,10 @@ describe("renderChangelogHtml", () => {
         "  - effect@4.0.1",
       ].join("\n"),
     )
-    assert.include(html, "<h3>Patch Changes</h3>")
+    assert.include(html, 'id="patch-changes"')
+    assert.include(html, 'class="heading-permalink"')
+    assert.include(html, 'href="#patch-changes"')
+    assert.include(html, "Patch Changes")
     assert.include(html, "<code>run</code>")
     assert.include(html, "Updated dependencies:")
     assert.notInclude(html, "abc1234")
