@@ -36,6 +36,19 @@ Nothing in your code changes. This release does not alter any behavior, signatur
 
 Every module and every directly importable export now declares its stability explicitly. We enforce this with automated checks in our pipeline.
 
+The [Effect language service](/docs/v4/getting-started/devtools) builds on these tags:
+
+- **In your code**, it warns whenever you use an API marked `@stability unstable` or `@stability experimental`. Once you've decided to rely on one, you can allow it per module or per export with `allowedUnstableApis` and `allowedExperimentalApis`.
+- **In ours**, the new `apiStabilityLeak` diagnostic reports any stable API whose signature exposes a less stable type, so an unstable type can't quietly become part of a stable API. If you publish Effect libraries, you can turn it on for your own packages too.
+
+### Why tags instead of an `unstable` directory
+
+During the beta and release candidates, unstable modules lived under `effect/unstable/*`. Explicit tags and the language service do that job better:
+
+- **They're precise.** Stability applies to individual exports, not just whole modules, so a single new function can be unstable inside an otherwise stable module.
+- **Promotion is free.** When an API becomes stable, only its tag changes. Your imports stay the same.
+- **You see it where it matters.** The warning appears where you use the API, and you decide which unstable APIs your project accepts.
+
 ## Upgrade
 
 ```sh
