@@ -279,6 +279,33 @@ export const VectorStoreProvider = Provider.effect(
       return current
     })
 
+    // Resolves a 409 on the store name. A store this resource owns is one an
+    // earlier run created but never saved to state, e.g. a copy whose
+    // response never arrived or whose follow-up update failed; settle and
+    // reuse it. When settling deletes it, wait for the name to free up so
+    // the caller can create it again.
+    const claimByName = Effect.fn("Mixedbread.claimByName")(function* (
+      name: string,
+      ownership: Ownership,
+    ) {
+      const existing = yield* exactStoreByName(name)
+      if (
+        existing === undefined ||
+        !hasOwnership(existing.metadata, ownership)
+      ) {
+        return yield* Effect.fail(
+          new Error(
+            `Mixedbread store '${name}' appeared during creation but is not owned by this Alchemy resource.`,
+          ),
+        )
+      }
+      const settled = yield* settle(existing, ownership)
+      if (settled === undefined) {
+        yield* waitForNameFree(name)
+      }
+      return settled
+    })
+
     // Copying only saves indexing work, so anything that makes it unsafe or
     // unsuccessful falls back to an empty store. The caller's full sync
     // reconciles the copy with its own content either way.
@@ -287,6 +314,7 @@ export const VectorStoreProvider = Provider.effect(
         source: string,
         news: VectorStoreProps,
         metadata: Record<string, unknown>,
+        ownership: Ownership,
       ) {
         const origin = yield* client.retrieveStore(source)
         if (
@@ -334,7 +362,14 @@ export const VectorStoreProvider = Provider.effect(
               ),
             ),
           ),
+          Effect.catchIf(isConflict, () => Effect.succeed(undefined)),
         )
+        if (copy === undefined) {
+          yield* Effect.log(
+            `Mixedbread store '${news.name}' already exists; reusing it instead of copying`,
+          )
+          return yield* claimByName(news.name, ownership)
+        }
         yield* Effect.log(
           `Copying Mixedbread store '${origin.name}' into '${news.name}'`,
         )
@@ -429,10 +464,19 @@ export const VectorStoreProvider = Provider.effect(
         const stage = yield* Stage
         const ownership = { stack: stack.name, stage, resource: id }
         const metadata = withOwnership(news.metadata, ownership)
+        const fromState =
+          output === undefined ? undefined : yield* retrieveOptional(output.id)
+        // When the store in state is gone, a run whose result never reached
+        // state may still have left this resource's store under the name.
+        const byName =
+          fromState === undefined
+            ? yield* exactStoreByName(news.name)
+            : undefined
         let store = yield* settle(
-          output
-            ? yield* retrieveOptional(output.id)
-            : yield* exactStoreByName(news.name),
+          fromState ??
+            (output === undefined || hasOwnership(byName?.metadata, ownership)
+              ? byName
+              : undefined),
           ownership,
         )
 
@@ -443,6 +487,7 @@ export const VectorStoreProvider = Provider.effect(
               : news.copyFrom,
             news,
             metadata,
+            ownership,
           )
         }
 
@@ -465,36 +510,19 @@ export const VectorStoreProvider = Provider.effect(
           })
           store = yield* create.pipe(
             Effect.catchIf(isConflict, () =>
-              exactStoreByName(news.name).pipe(
-                Effect.flatMap((existing) =>
-                  existing !== undefined &&
-                  hasOwnership(existing.metadata, ownership)
-                    ? // A copy whose response never arrived still owns the
-                      // name; settle it, then create again if it failed.
-                      settle(existing, ownership).pipe(
-                        Effect.flatMap((settled) =>
-                          settled === undefined
-                            ? waitForNameFree(news.name).pipe(
-                                Effect.flatMap(() =>
-                                  create.pipe(
-                                    Effect.catchIf(isConflict, () =>
-                                      Effect.fail(
-                                        new Error(
-                                          `Mixedbread store name '${news.name}' is still reserved after deleting the conflicting store; it may be an expired record Mixedbread has not purged.`,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Effect.succeed(settled),
+              claimByName(news.name, ownership).pipe(
+                Effect.flatMap((settled) =>
+                  settled === undefined
+                    ? create.pipe(
+                        Effect.catchIf(isConflict, () =>
+                          Effect.fail(
+                            new Error(
+                              `Mixedbread store name '${news.name}' is still reserved after deleting the conflicting store; it may be an expired record Mixedbread has not purged.`,
+                            ),
+                          ),
                         ),
                       )
-                    : Effect.fail(
-                        new Error(
-                          `Mixedbread store '${news.name}' appeared during creation but is not owned by this Alchemy resource.`,
-                        ),
-                      ),
+                    : Effect.succeed(settled),
                 ),
               ),
             ),
