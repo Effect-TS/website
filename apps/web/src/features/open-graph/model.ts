@@ -16,6 +16,7 @@ export type OpenGraphContent = Data.TaggedEnum<{
     readonly props: {
       readonly title: string
       readonly subtitle?: string | undefined
+      readonly tags: ReadonlyArray<string>
     }
   }
   readonly Api: {
