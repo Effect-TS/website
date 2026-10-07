@@ -131,21 +131,39 @@ const createDocsTemplate = (
 const createBlogTemplate = (
   props: Extract<OpenGraphContent, { _tag: "Blog" }>["props"],
 ): OpenGraphNode => {
-  const { fontSize } = getBlogTitleStyles(props.title)
-
   const textChildren: Array<OpenGraphNode> = []
+
+  if (props.tags.length > 0) {
+    textChildren.push(
+      createNode("div", {
+        style: {
+          display: "flex",
+          flexWrap: "wrap",
+          columnGap: "12px",
+          color: "#a1a1aa",
+          fontFamily: "JetBrains Mono",
+          fontSize: "24px",
+          fontWeight: 500,
+          letterSpacing: "0.01em",
+          textTransform: "uppercase",
+        },
+        children: props.tags.map((tag) =>
+          createNode("div", { style: { display: "flex" }, children: tag }),
+        ),
+      }),
+    )
+  }
 
   textChildren.push(
     createNode("div", {
       style: {
         display: "flex",
-        maxWidth: "880px",
+        maxWidth: "950px",
+        marginTop: "32px",
         color: "#ffffff",
-        fontSize,
-        fontFamily: "Inter",
-        fontWeight: 700,
+        fontSize: "56px",
+        fontWeight: 600,
         lineHeight: 1.15,
-        letterSpacing: "-0.02em",
       },
       children: props.title,
     }),
@@ -156,13 +174,12 @@ const createBlogTemplate = (
       createNode("div", {
         style: {
           display: "block",
-          maxWidth: "800px",
-          marginTop: "20px",
+          maxWidth: "860px",
+          marginTop: "40px",
           color: "#a1a1aa",
-          fontFamily: "Inter",
           fontSize: "28px",
           fontWeight: 400,
-          lineHeight: 1.5,
+          lineHeight: 1.35,
           lineClamp: 2,
           textOverflow: "ellipsis",
         },
@@ -190,7 +207,7 @@ const createBlogTemplate = (
           position: "absolute",
           left: "80px",
           right: "80px",
-          top: "226px",
+          top: "220px",
           display: "flex",
           flexDirection: "column",
         },
@@ -281,25 +298,3 @@ const createApiTemplate = (
       }),
     ],
   })
-
-const BLOG_TITLE_FONT_SIZE_STEPS = [52, 48, 44, 40] as const
-const BLOG_TITLE_LENGTH_THRESHOLDS = [88, 96, 105] as const
-
-const getBlogTitleStyles = (
-  title: string,
-): {
-  readonly fontSize: string
-} => {
-  const stepIndex = BLOG_TITLE_LENGTH_THRESHOLDS.findIndex(
-    (max) => title.length <= max,
-  )
-
-  const fontSize =
-    stepIndex === -1
-      ? BLOG_TITLE_FONT_SIZE_STEPS[BLOG_TITLE_FONT_SIZE_STEPS.length - 1]
-      : BLOG_TITLE_FONT_SIZE_STEPS[stepIndex]
-
-  return {
-    fontSize: `${fontSize}px`,
-  }
-}
