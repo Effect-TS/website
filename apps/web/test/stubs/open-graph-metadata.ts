@@ -9,6 +9,7 @@ export default {
     announcement: {
       title: "Announcement",
       subtitle: "News from Effect",
+      tags: ["Effect", "Releases"],
     },
   },
   docs: {
