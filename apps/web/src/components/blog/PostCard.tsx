@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react"
+import { FormattedDate } from "../ui/FormattedDate"
 import { OverflowChip, TagChip } from "./TagChip"
 
 export type SerializedTag = {
@@ -49,9 +50,10 @@ export function PostCard({ post }: { post: SerializedPost }) {
             ))}
             {overflow > 0 && <OverflowChip count={overflow} />}
           </div>
-          <time className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-            {post.date}
-          </time>
+          <FormattedDate
+            date={post.date}
+            className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
+          />
         </div>
       </div>
     </a>

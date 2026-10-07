@@ -44,10 +44,6 @@ if (import.meta.env.DEV && featuredCandidates.length > 1) {
 
 const featuredPost = featuredCandidates[0]
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
-
 function tagCount(id: string): number {
   if (id === "all") {
     return nonTwiePosts.length
@@ -67,7 +63,7 @@ const serializedTwiePosts: SerializedPost[] = twiePosts.map((post) => ({
   id: post.id,
   title: post.data.title,
   excerpt: post.data.excerpt,
-  date: formatDate(post.data.date),
+  date: post.data.date.toISOString(),
   dateMs: post.data.date.getTime(),
   href: `/blog/${post.id}`,
   tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
@@ -77,7 +73,7 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
   id: post.id,
   title: post.data.title,
   excerpt: post.data.excerpt,
-  date: formatDate(post.data.date),
+  date: post.data.date.toISOString(),
   dateMs: post.data.date.getTime(),
   href: `/blog/${post.id}`,
   tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
