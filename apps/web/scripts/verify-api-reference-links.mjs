@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -33,14 +33,17 @@ for (const filePath of await htmlFiles(apiRoot)) {
     const href = match[1]
     if (href === undefined) continue
     const url = new URL(href, "https://effect.website")
-    const targetPath = path.join(
-      staticRoot,
-      decodeURIComponent(url.pathname),
-      "index.html",
-    )
+    const pathname = decodeURIComponent(url.pathname)
+    const targetPath = path.join(staticRoot, pathname, "index.html")
     const targetHtml = await loadHtml(targetPath)
     if (targetHtml === undefined) {
-      failures.push(`${relative(filePath)} links to missing page ${href}`)
+      // Not a page, but it may be a file such as a changelog feed.
+      if (
+        url.hash.length > 0 ||
+        !(await isFile(path.join(staticRoot, pathname)))
+      ) {
+        failures.push(`${relative(filePath)} links to missing page ${href}`)
+      }
       continue
     }
     if (url.hash.length === 0) continue
@@ -90,11 +93,19 @@ async function loadHtml(filePath) {
       typeof error === "object" &&
       error !== null &&
       "code" in error &&
-      error.code === "ENOENT"
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
     ) {
       return undefined
     }
     throw error
+  }
+}
+
+async function isFile(filePath) {
+  try {
+    return (await stat(filePath)).isFile()
+  } catch {
+    return false
   }
 }
 
