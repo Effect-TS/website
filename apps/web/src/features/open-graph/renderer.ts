@@ -145,6 +145,7 @@ const createBlogTemplate = (
           fontSize: "24px",
           fontWeight: 500,
           letterSpacing: "0.01em",
+          lineHeight: "20px",
           textTransform: "uppercase",
         },
         children: props.tags.map((tag) =>
@@ -158,6 +159,8 @@ const createBlogTemplate = (
     createNode("div", {
       style: {
         display: "flex",
+        alignItems: "center",
+        minHeight: "96px",
         maxWidth: "950px",
         marginTop: "32px",
         color: "#ffffff",
