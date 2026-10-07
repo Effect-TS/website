@@ -23,6 +23,11 @@ interface StaticPathEntry {
   readonly cacheKey: string
   readonly props: {
     readonly entry: CollectionEntry<"changelog">
+    readonly packages: ReadonlyArray<{
+      readonly channel: string
+      readonly name: string
+      readonly slug: string
+    }>
   }
 }
 
@@ -32,33 +37,37 @@ export const getStaticPaths = (async () => {
   const entries = await getCollection("changelog")
   // The mobile package and version switchers span every changelog.
   const index = changelogIndexDigest(entries)
+  const packages = entries.map(({ data }) => ({
+    channel: data.channel,
+    name: data.name,
+    slug: data.slug,
+  }))
   return entries.map((entry): StaticPathEntry => ({
     params: { version: entry.data.channel, package: entry.data.slug },
     cacheKey: cacheKey(changelogDigest(entry.data), index),
-    props: { entry },
+    props: { entry, packages },
   }))
 }) satisfies GetStaticPaths
 
-const { entry } = Astro.props
+const { entry, packages } = Astro.props
 const { channel, name, packageVersion, releases, slug, sourceUrl } = entry.data
 const displayName = name.replace("@effect/", "")
 const apiHref = `/docs/${channel}/api/${slug}`
 
-const all = await getCollection("changelog")
 const groups = groupReleases(releases).map((group, index) => ({ ...group, open: index === 0 }))
 const mobileVersions = DOCS_VERSIONS.filter(({ value }) =>
-  all.some((other) => other.data.channel === value && other.data.slug === slug),
+  packages.some((other) => other.channel === value && other.slug === slug),
 ).map(({ value, label }) => ({
   href: changelogHref(value, slug),
   label,
   selected: value === channel,
 }))
-const mobilePackages = all
-  .filter((other) => other.data.channel === channel)
+const mobilePackages = packages
+  .filter((other) => other.channel === channel)
   .map((other) => ({
-    href: changelogHref(channel, other.data.slug),
-    label: other.data.name.replace("@effect/", ""),
-    selected: other.data.slug === slug,
+    href: changelogHref(channel, other.slug),
+    label: other.name.replace("@effect/", ""),
+    selected: other.slug === slug,
   }))
   .toSorted((left, right) => left.label.localeCompare(right.label))
 const mobileReleases = [
