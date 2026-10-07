@@ -82,6 +82,14 @@ const pageVersionAtom = Atom.make(Option.none<DocsVersion>())
 
 const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
 
+// A selected group disappears with the version that does not offer it.
+const activeGroupsAtom = Atom.make((get) => {
+  const version = get(selectedVersionAtom)
+  return get(selectedGroupsAtom).filter((group) =>
+    isGroupAvailable(group, version),
+  )
+})
+
 const searchOpenSourceAtom = Atom.make<SearchOpenSource>("unknown")
 
 // Slug of the changelog package the user narrowed the changelog results to.
@@ -158,12 +166,21 @@ const SUGGESTED_SEARCHES: ReadonlyArray<string> = [
 const SEARCH_RESULT_GROUPS: ReadonlyArray<{
   readonly value: SearchResultGroup
   readonly label: string
+  // Set when the group only exists in one docs version.
+  readonly version?: DocsVersion
 }> = [
   { value: "documentation", label: "docs" },
   { value: "api-reference", label: "api" },
-  { value: "changelog", label: "changelog" },
   { value: "blog", label: "blog" },
+  { value: "changelog", label: "changelog", version: "v4" },
 ]
+
+const isGroupAvailable = (group: SearchResultGroup, version: DocsVersion) =>
+  SEARCH_RESULT_GROUPS.some(
+    (candidate) =>
+      candidate.value === group &&
+      (candidate.version === undefined || candidate.version === version),
+  )
 const MAX_GROUP_RESULTS = 5
 
 type SearchResultsView =
@@ -337,7 +354,7 @@ const versionResultsAtom = Atom.make((get) => {
 })
 
 const searchResultsAtom = Atom.make((get) => {
-  const groups = get(selectedGroupsAtom)
+  const groups = get(activeGroupsAtom)
 
   return get(versionResultsAtom).filter(
     (result) => groups.length === 0 || groups.includes(result.kind),
@@ -643,7 +660,9 @@ function SearchVersionMenu() {
 
 function SearchGroupFilters() {
   const versionResults = useAtomValue(versionResultsAtom)
-  const [selectedGroups, setSelectedGroups] = useAtom(selectedGroupsAtom)
+  const version = useAtomValue(selectedVersionAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
+  const setSelectedGroups = useAtomSet(selectedGroupsAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
 
   return (
@@ -664,7 +683,9 @@ function SearchGroupFilters() {
         aria-label="Filter search result groups"
         className="gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
       >
-        {SEARCH_RESULT_GROUPS.map((group) => {
+        {SEARCH_RESULT_GROUPS.filter((group) =>
+          isGroupAvailable(group.value, version),
+        ).map((group) => {
           const count = versionResults.filter(
             (result) => result.kind === group.value,
           ).length
@@ -691,7 +712,7 @@ function SearchGroupFilters() {
 function SearchDialogResults() {
   const query = useAtomValue(searchQueryAtom)
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
   const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setOpen = useAtomSet(searchDialogOpenAtom)
   const setResultsElement = useAtomSet(resultsElementAtom)
@@ -995,15 +1016,15 @@ function SearchResultsOverview({
         onViewAll={() => onViewSection("api-reference")}
       />
       <SearchResultsSection
+        title="Blog"
+        results={blogResults}
+        onViewAll={() => onViewSection("blog")}
+      />
+      <SearchResultsSection
         title="Changelog"
         results={changelogResults}
         onViewAll={() => onViewSection("changelog")}
         actions={<ChangelogPackageFilter />}
-      />
-      <SearchResultsSection
-        title="Blog"
-        results={blogResults}
-        onViewAll={() => onViewSection("blog")}
       />
       <AlternateVersionResults />
     </div>
@@ -1013,7 +1034,7 @@ function SearchResultsOverview({
 function SearchEmptyState() {
   const query = useAtomValue(searchQueryAtom)
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
   const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setVersion = useAtomSet(selectedVersionAtom)
   const clearSelectedGroups = useAtomSet(clearSelectedGroupsAtom)
@@ -1080,7 +1101,7 @@ function SearchEmptyState() {
 
 function AlternateVersionResults() {
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const selectedGroups = useAtomValue(activeGroupsAtom)
   const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setVersion = useAtomSet(selectedVersionAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
