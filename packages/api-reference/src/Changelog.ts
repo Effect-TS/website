@@ -8,7 +8,12 @@ import {
 } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { join, relative, sep } from "node:path"
-import { ChangelogPackage, splitChangelog } from "@website/domain/Changelog"
+import {
+  ChangelogPackage,
+  type LatestRelease,
+  latestRelease,
+  splitChangelog,
+} from "@website/domain/Changelog"
 import * as Schema from "effect/Schema"
 import { packageNameToSlug } from "./ApiReferenceDataset.ts"
 
@@ -89,6 +94,7 @@ export function generateChangelogs(options: {
       name: source.name,
       slug,
       packageVersion: source.version,
+      revision: options.revision,
       sourceUrl: `https://github.com/Effect-TS/effect/blob/${options.revision}/${sourcePath.split(sep).join("/")}`,
       releases: sections.map((section) => {
         const date = tagDates.get(`${source.name}@${section.version}`)
@@ -136,7 +142,43 @@ function readNames(
   }
 }
 
+function readDatasetRevision(channelDirectory: string): string | undefined {
+  try {
+    const manifest: unknown = JSON.parse(
+      readFileSync(join(channelDirectory, "manifest.json"), "utf8"),
+    )
+    const revision =
+      typeof manifest === "object" && manifest !== null
+        ? Reflect.get(manifest, "revision")
+        : undefined
+    return typeof revision === "string" ? revision : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const decodeChangelogPackage = Schema.decodeUnknownSync(ChangelogPackage)
+
+async function readChangelog(
+  baseDirectory: string,
+  channel: string,
+  name: string,
+): Promise<{ readonly data: ChangelogPackage; readonly path: string }> {
+  const path = join(baseDirectory, channel, CHANGELOG_DIRECTORY, name)
+  const data = decodeChangelogPackage(JSON.parse(await readFile(path, "utf8")))
+  if (data.channel !== channel || `${data.slug}.json` !== name) {
+    throw new Error(`Changelog does not match its location: ${path}`)
+  }
+  // One snapshot, one revision: pages must not show versions that the API
+  // reference next to them does not have.
+  const revision = readDatasetRevision(join(baseDirectory, channel))
+  if (revision !== undefined && data.revision !== revision) {
+    throw new Error(
+      `Changelog ${path} comes from revision ${data.revision}, but the ${channel} API reference comes from ${revision}; generate them together`,
+    )
+  }
+  return { data, path }
+}
 
 /** Load every generated changelog under `<baseDirectory>/<channel>/changelog`. */
 export async function loadChangelogDataset(
@@ -145,21 +187,30 @@ export async function loadChangelogDataset(
   ReadonlyArray<{ readonly data: ChangelogPackage; readonly path: string }>
 > {
   const entries: Array<{ data: ChangelogPackage; path: string }> = []
-  const channels = readNames(baseDirectory, (entry) => entry.isDirectory())
-  for (const channel of channels) {
+  for (const channel of readNames(baseDirectory, (entry) =>
+    entry.isDirectory(),
+  )) {
     const directory = join(baseDirectory, channel, CHANGELOG_DIRECTORY)
     for (const name of readNames(directory, (entry) =>
       entry.name.endsWith(".json"),
     )) {
-      const path = join(directory, name)
-      const data = decodeChangelogPackage(
-        JSON.parse(await readFile(path, "utf8")),
-      )
-      if (data.channel !== channel || `${data.slug}.json` !== name) {
-        throw new Error(`Changelog does not match its location: ${path}`)
-      }
-      entries.push({ data, path })
+      entries.push(await readChangelog(baseDirectory, channel, name))
     }
   }
   return entries
+}
+
+/** The release one package's page and navbar show, or undefined without data. */
+export async function loadLatestRelease(
+  baseDirectory: string,
+  channel: string,
+  slug: string,
+): Promise<LatestRelease | undefined> {
+  const [name] = readNames(
+    join(baseDirectory, channel, CHANGELOG_DIRECTORY),
+    (entry) => entry.name === `${slug}.json`,
+  )
+  return name === undefined
+    ? undefined
+    : latestRelease((await readChangelog(baseDirectory, channel, name)).data)
 }

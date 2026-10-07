@@ -31,6 +31,7 @@ const changelog = (
   name: "@effect/sql-pg",
   slug: "sql-pg",
   packageVersion: "4.0.1",
+  revision: "abc",
   sourceUrl: "https://example.com/CHANGELOG.md",
   releases: releases.map(({ version, body }) => ({
     version,

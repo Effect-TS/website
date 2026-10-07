@@ -17,10 +17,30 @@ export const ChangelogPackage = Schema.Struct({
   name: Schema.NonEmptyString,
   slug: Schema.NonEmptyString,
   packageVersion: Schema.NonEmptyString,
+  // Effect revision it was generated from; must match the API reference's.
+  revision: Schema.NonEmptyString,
   sourceUrl: Schema.NonEmptyString,
   releases: Schema.Array(ChangelogRelease),
 })
 export type ChangelogPackage = typeof ChangelogPackage.Type
+
+export interface LatestRelease {
+  readonly name: string
+  readonly version: string
+  readonly date: string | undefined
+}
+
+/**
+ * The release the package manifest names, so a page showing it agrees with the
+ * API reference built from the same revision.
+ */
+export const latestRelease = (changelog: ChangelogPackage): LatestRelease => ({
+  name: changelog.name,
+  version: changelog.packageVersion,
+  date: changelog.releases.find(
+    (release) => release.version === changelog.packageVersion,
+  )?.date,
+})
 
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
 

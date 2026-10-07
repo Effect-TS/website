@@ -15,7 +15,11 @@ import {
   splitChangelog,
 } from "@website/domain/Changelog"
 import { afterEach, assert, describe, test } from "vite-plus/test"
-import { generateChangelogs, loadChangelogDataset } from "../src/Changelog.ts"
+import {
+  generateChangelogs,
+  loadChangelogDataset,
+  loadLatestRelease,
+} from "../src/Changelog.ts"
 import { renderChangelogHtml } from "../src/ChangelogHtml.ts"
 
 describe("splitChangelog", () => {
@@ -226,6 +230,54 @@ describe("generateChangelogs", () => {
       await loadChangelogDataset(join(output, "missing")),
       [],
     )
+  })
+
+  test("rejects a changelog from another revision than the API reference", async () => {
+    const { output, repository, source } = setup(true)
+    generateChangelogs({
+      channel: "v4",
+      output: join(output, "v4"),
+      repository,
+      revision: "abc",
+      sources: [source],
+    })
+    const manifest = join(output, "v4", "manifest.json")
+
+    writeFileSync(manifest, JSON.stringify({ revision: "abc" }))
+    assert.lengthOf(await loadChangelogDataset(output), 1)
+
+    writeFileSync(manifest, JSON.stringify({ revision: "def" }))
+    let failure: unknown
+    await loadChangelogDataset(output).catch((error: unknown) => {
+      failure = error
+    })
+    assert.match(
+      String(failure),
+      /comes from revision abc, but the v4 API reference comes from def/,
+    )
+    let latest: unknown
+    await loadLatestRelease(output, "v4", "sql-pg").catch((error: unknown) => {
+      latest = error
+    })
+    assert.match(String(latest), /generate them together/)
+  })
+
+  test("names the release the package manifest names", async () => {
+    const { output, repository, source } = setup(true)
+    generateChangelogs({
+      channel: "v4",
+      output: join(output, "v4"),
+      repository,
+      revision: "abc",
+      sources: [source],
+    })
+    assert.deepStrictEqual(await loadLatestRelease(output, "v4", "sql-pg"), {
+      name: "@effect/sql-pg",
+      version: "4.0.1",
+      date: "2026-09-21",
+    })
+    assert.isUndefined(await loadLatestRelease(output, "v4", "missing"))
+    assert.isUndefined(await loadLatestRelease(output, "v9", "sql-pg"))
   })
 
   test("fails when no release tag exists", () => {
