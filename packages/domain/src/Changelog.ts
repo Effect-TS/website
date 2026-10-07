@@ -78,7 +78,7 @@ export interface ReleaseGroup<A> {
 const PHASES: Readonly<Record<string, string>> = {
   alpha: "Alpha",
   beta: "Beta",
-  rc: "Release Candidate",
+  rc: "RC",
   next: "Next",
   snapshot: "Snapshot",
 }

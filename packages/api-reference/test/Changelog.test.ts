@@ -63,7 +63,7 @@ describe("splitChangelog", () => {
 
 describe("release groups", () => {
   test("group by phase, else by major.minor", () => {
-    assert.strictEqual(releaseGroup("4.0.0-rc.117").label, "Release Candidate")
+    assert.strictEqual(releaseGroup("4.0.0-rc.117").label, "RC")
     assert.strictEqual(releaseGroup("4.0.0-beta.3").label, "Beta")
     assert.strictEqual(releaseGroup("4.0.0-alpha.1").label, "Alpha")
     assert.strictEqual(releaseGroup("0.0.0-next-20260101").label, "Next")
@@ -91,7 +91,7 @@ describe("release groups", () => {
       [
         ["4.1", 1],
         ["4.0", 2],
-        ["Release Candidate", 2],
+        ["RC", 2],
         ["Beta", 1],
       ],
     )
