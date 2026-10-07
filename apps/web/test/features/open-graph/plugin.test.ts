@@ -27,6 +27,7 @@ const emptyStore = stringify(
   new Map<string, unknown>([
     ["docs", new Map()],
     ["blog", new Map()],
+    ["blogTags", new Map()],
     ["apiReference", new Map()],
   ]),
 )
