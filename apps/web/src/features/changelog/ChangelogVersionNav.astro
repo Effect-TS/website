@@ -5,7 +5,6 @@ import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
 /**
  * Release navigation for a package changelog: one collapsible group per
  * release phase or `major.minor`, built from the shared sidebar primitives.
- * The filter is the only client-side behavior.
  */
 export interface ChangelogNavGroup {
   readonly key: string
@@ -24,82 +23,31 @@ interface Props {
 const { groups } = Astro.props
 ---
 
-<div data-changelog-nav>
-  <label class="relative mb-3 block">
-    <span class="sr-only">Filter versions</span>
-    <input
-      type="search"
-      data-changelog-filter
-      aria-label="Filter versions"
-      placeholder="Filter versions…"
-      autocomplete="off"
-      class="w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
-    />
-  </label>
-
-  <ul class="flex flex-col gap-0.5">
-    {
-      groups.map((group) => (
-        <li class="mb-1 last:mb-0" data-changelog-group data-default-open={String(group.open)}>
-          <SidebarGroup label={group.label} open={group.open}>
-            {group.releases.map((release) => (
-              <li>
-                <SidebarLink
-                  href={`#${release.version}`}
-                  class="py-1.5 pl-3 font-mono text-sm"
-                  data-changelog-version={release.version.toLowerCase()}
-                >
-                  <span class="flex items-center justify-between gap-2 pr-3">
-                    <span class="truncate">{release.version}</span>
-                    {release.breaking && (
-                      <>
-                        <span
-                          class="size-1.5 shrink-0 rounded-full bg-destructive"
-                          aria-hidden="true"
-                        />
-                        <span class="sr-only">Breaking</span>
-                      </>
-                    )}
-                  </span>
-                </SidebarLink>
-              </li>
-            ))}
-          </SidebarGroup>
-        </li>
-      ))
-    }
-  </ul>
-
-  <p class="mt-3 hidden text-sm text-muted-foreground" data-changelog-empty>
-    No matching versions.
-  </p>
-</div>
-
-<script>
-  const nav = document.querySelector<HTMLElement>("[data-changelog-nav]")
-  const input = nav?.querySelector<HTMLInputElement>("[data-changelog-filter]")
-  const empty = nav?.querySelector<HTMLElement>("[data-changelog-empty]")
-
-  input?.addEventListener("input", () => {
-    const query = input.value.trim().toLowerCase()
-    let total = 0
-
-    for (const group of nav?.querySelectorAll<HTMLElement>("[data-changelog-group]") ?? []) {
-      let visible = 0
-      for (const link of group.querySelectorAll<HTMLElement>("[data-changelog-version]")) {
-        const matches = query === "" || (link.dataset.changelogVersion ?? "").includes(query)
-        if (link.parentElement) link.parentElement.hidden = !matches
-        if (matches) visible += 1
-      }
-
-      group.hidden = visible === 0
-      const details = group.querySelector("details")
-      if (details) {
-        details.open = query === "" ? group.dataset.defaultOpen === "true" : visible > 0
-      }
-      total += visible
-    }
-
-    empty?.classList.toggle("hidden", total > 0)
-  })
-</script>
+<ul class="flex flex-col gap-0.5">
+  {
+    groups.map((group) => (
+      <li class="mb-1 last:mb-0">
+        <SidebarGroup label={group.label} open={group.open}>
+          {group.releases.map((release) => (
+            <li>
+              <SidebarLink href={`#${release.version}`} class="py-1.5 pl-3 font-mono text-sm">
+                <span class="flex items-center justify-between gap-2 pr-3">
+                  <span class="truncate">{release.version}</span>
+                  {release.breaking && (
+                    <>
+                      <span
+                        class="size-1.5 shrink-0 rounded-full bg-destructive"
+                        aria-hidden="true"
+                      />
+                      <span class="sr-only">Breaking</span>
+                    </>
+                  )}
+                </span>
+              </SidebarLink>
+            </li>
+          ))}
+        </SidebarGroup>
+      </li>
+    ))
+  }
+</ul>

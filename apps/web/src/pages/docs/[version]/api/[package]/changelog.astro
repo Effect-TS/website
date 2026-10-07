@@ -9,6 +9,7 @@ import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import { changelogDigest, changelogIndexDigest } from "@/features/changelog/cache-key"
 import ChangelogBadge from "@/features/changelog/ChangelogBadge.astro"
+import CopyCode from "@/features/changelog/CopyCode.astro"
 import ChangelogVersionNav from "@/features/changelog/ChangelogVersionNav.astro"
 import { formatReleaseDate } from "@/features/changelog/format"
 import DocShell from "@/layouts/DocShell.astro"
@@ -95,15 +96,16 @@ const mobileReleases = [
   <nav slot="sidebar" aria-label="Changelog navigation">
     <header class="mb-4">
       <a
-        href={apiHref}
+        href={changelogHref(channel, slug)}
+        aria-current="page"
         class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
       >
-        {displayName}
+        Changelog
       </a>
 
-      <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">Changelog</h2>
+      <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">{displayName}</h2>
 
-      <p class="font-mono text-xs text-muted-foreground">{releases.length} releases</p>
+      <p class="font-mono text-xs text-muted-foreground">{packageVersion}</p>
     </header>
 
     <ChangelogVersionNav groups={groups} />
@@ -112,13 +114,20 @@ const mobileReleases = [
   <article class="prose prose-effect max-w-4xl">
     <nav
       aria-label="Breadcrumb"
-      class="mb-5 flex items-center gap-3 font-mono text-xs tracking-wider text-muted-foreground uppercase not-prose lg:mb-8"
+      class="mb-5 flex flex-wrap items-center gap-3 font-mono text-xs tracking-wider text-muted-foreground uppercase not-prose lg:mb-8"
     >
       <a
         href={`/docs/${channel}/api`}
         class="text-muted-foreground transition-colors hover:text-foreground"
       >
         API Reference
+      </a>
+      <span aria-hidden="true">/</span>
+      <a
+        href={`/docs/${channel}/api`}
+        class="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {channel}
       </a>
       <span aria-hidden="true">/</span>
       <a href={apiHref} class="text-muted-foreground transition-colors hover:text-foreground">
@@ -128,7 +137,7 @@ const mobileReleases = [
       <span>Changelog</span>
     </nav>
 
-    <h1 class="mb-4! md:mb-6! font-mono">{name} changelog</h1>
+    <h1 class="mb-4! md:mb-6! font-mono"><CopyCode text={name} /> changelog</h1>
 
     <div
       class="not-prose mb-10 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-muted-foreground"

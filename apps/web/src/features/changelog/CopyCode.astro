@@ -1,0 +1,31 @@
+---
+/**
+ * Inline code that copies its text on click. It gives no feedback on purpose.
+ */
+interface Props {
+  readonly text: string
+}
+
+const { text } = Astro.props
+---
+
+<button
+  type="button"
+  data-copy-text={text}
+  aria-label={`Copy ${text}`}
+  class="cursor-pointer rounded-md bg-muted px-2 py-0.5 text-inherit transition-colors hover:bg-accent"
+>
+  <code
+    class="bg-transparent! p-0! font-[inherit] text-[length:inherit] before:content-none after:content-none"
+  >
+    {text}
+  </code>
+</button>
+
+<script>
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return
+    const text = event.target.closest<HTMLElement>("[data-copy-text]")?.dataset.copyText
+    if (text !== undefined) navigator.clipboard?.writeText(text).catch(() => {})
+  })
+</script>
