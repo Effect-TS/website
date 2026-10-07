@@ -58,7 +58,16 @@ const BlogCollection = Schema.ReadonlyMap(
     data: Schema.Struct({
       title: Schema.String,
       excerpt: Schema.String,
+      tags: Schema.Array(Schema.Struct({ id: Schema.String })),
     }),
+  }),
+)
+
+const BlogTagsCollection = Schema.ReadonlyMap(
+  Schema.String,
+  Schema.Struct({
+    id: Schema.String,
+    data: Schema.Struct({ name: Schema.String }),
   }),
 )
 
@@ -129,6 +138,11 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
     )
     const docsEntries = yield* decodeCollection(store, "docs", DocsCollection)
     const blogEntries = yield* decodeCollection(store, "blog", BlogCollection)
+    const blogTagEntries = yield* decodeCollection(
+      store,
+      "blogTags",
+      BlogTagsCollection,
+    )
     const apiReferenceEntries = yield* decodeCollection(
       store,
       "apiReference",
@@ -144,12 +158,18 @@ const loadMetadata = Effect.fn("OpenGraphMetadataPlugin.loadMetadata")(
         },
       ]),
     )
+    const tagNames = new Map(
+      Array.from(blogTagEntries.values(), (tag) => [tag.id, tag.data.name]),
+    )
     const blog = Object.fromEntries(
       Array.from(blogEntries.values(), (entry) => [
         entry.id,
         {
           title: entry.data.title,
           subtitle: entry.data.excerpt,
+          tags: entry.data.tags
+            .map((tag) => tagNames.get(tag.id) ?? tag.id)
+            .sort((a, b) => a.localeCompare(b)),
         },
       ]),
     )

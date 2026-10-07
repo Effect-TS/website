@@ -78,7 +78,11 @@ test("resolves API reference metadata", async () => {
 
 test("resolves blog metadata", async () => {
   const expected = OpenGraphContent.Blog({
-    props: { title: "Announcement", subtitle: "News from Effect" },
+    props: {
+      title: "Announcement",
+      subtitle: "News from Effect",
+      tags: ["Effect", "Releases"],
+    },
   })
 
   await generate("blog/announcement", (content) => {

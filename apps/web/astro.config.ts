@@ -76,6 +76,24 @@ const config = defineConfig({
       }),
     ],
     envDir: fileURLToPath(new URL("../../", import.meta.url)),
+    build: {
+      rolldownOptions: {
+        onLog(level, log, handler) {
+          // Astro starts each content entry's propagated-assets module with
+          // this directive, and Rolldown warns once per entry that bundling
+          // may drop it. Astro finds those modules by the
+          // `?astroPropagatedAssets` id, not the directive, so dropping it
+          // is harmless.
+          if (
+            log.code === "MODULE_LEVEL_DIRECTIVE" &&
+            log.message.includes("astro:head-inject")
+          ) {
+            return
+          }
+          handler(level, log)
+        },
+      },
+    },
     resolve: {
       dedupe: ["react", "react-dom"],
       alias: {
