@@ -1,4 +1,8 @@
-import MixedbreadSdk, { ConflictError, NotFoundError } from "@mixedbread/sdk"
+import MixedbreadSdk, {
+  ConflictError,
+  NotFoundError,
+  UnprocessableEntityError,
+} from "@mixedbread/sdk"
 import type {
   Store,
   StoreCopyParams,
@@ -48,6 +52,19 @@ export const isNotFound = (error: MixedbreadApiError): boolean =>
 
 export const isConflict = (error: MixedbreadApiError): boolean =>
   error.cause instanceof ConflictError
+
+// Preview stores carry an `expiresAfter` and Mixedbread auto-deletes them.
+// Retrieving one past its TTL throws 422 "Store with name '...' has expired"
+// instead of 404, so treat it as gone too.
+export const isExpired = (error: MixedbreadApiError): boolean =>
+  error.cause instanceof UnprocessableEntityError &&
+  String(
+    (error.cause as { message?: unknown }).message ??
+      (error.cause as { error?: unknown }).error,
+  ).includes("has expired")
+
+export const isGone = (error: MixedbreadApiError): boolean =>
+  isNotFound(error) || isExpired(error)
 
 const make = Effect.gen(function* () {
   const credentials = yield* Credentials

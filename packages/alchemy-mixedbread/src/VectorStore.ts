@@ -13,7 +13,7 @@ import * as Effect from "effect/Effect"
 import * as Redacted from "effect/Redacted"
 import {
   isConflict,
-  isNotFound,
+  isGone,
   MixedbreadClient,
   type TaggedStore as Store,
 } from "./Client.ts"
@@ -207,10 +207,10 @@ export const VectorStoreProvider = Provider.effect(
     const retrieveOptional = (id: string) =>
       client
         .retrieveStore(id)
-        .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+        .pipe(Effect.catchIf(isGone, () => Effect.succeed(undefined)))
 
     const deleteOptional = (id: string) =>
-      client.deleteStore(id).pipe(Effect.catchIf(isNotFound, () => Effect.void))
+      client.deleteStore(id).pipe(Effect.catchIf(isGone, () => Effect.void))
 
     // A workflow cancelled mid-copy leaves the target copying; wait for it
     // rather than writing to a store that rejects file changes.
@@ -343,7 +343,7 @@ export const VectorStoreProvider = Provider.effect(
         if (output !== undefined) {
           const store = yield* client
             .retrieveStore(output.id)
-            .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+            .pipe(Effect.catchIf(isGone, () => Effect.succeed(undefined)))
           // A copy in progress can still fail and be recreated with a new id.
           if (
             store === undefined ||
@@ -366,7 +366,7 @@ export const VectorStoreProvider = Provider.effect(
         const store = output
           ? yield* client
               .retrieveStore(output.id)
-              .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+              .pipe(Effect.catchIf(isGone, () => Effect.succeed(undefined)))
           : yield* exactStoreByName(olds.name)
         if (
           store === undefined ||
@@ -479,7 +479,7 @@ export const VectorStoreProvider = Provider.effect(
       delete: Effect.fn(function* ({ output }) {
         yield* client
           .deleteStore(output.id)
-          .pipe(Effect.catchIf(isNotFound, () => Effect.void))
+          .pipe(Effect.catchIf(isGone, () => Effect.void))
       }),
     }
   }),
