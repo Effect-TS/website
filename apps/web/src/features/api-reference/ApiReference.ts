@@ -12,11 +12,10 @@ export const loadReflection = (entry: ApiReferenceEntry) =>
 
 export const API_JSDOC_CLASS = [
   "[&_a]:font-medium",
+  "[&_a]:text-foreground",
   "[&_a]:underline",
-  "[&_a]:decoration-current",
   "[&_a]:underline-offset-4",
-  "[&_a]:transition-colors",
-  "[&_a:hover]:text-foreground",
+  "[&_a:hover]:no-underline",
   "[&_a_code]:text-inherit",
   "[&_code:not(pre_*)]:rounded-md",
   "[&_code:not(pre_*)]:bg-muted",
