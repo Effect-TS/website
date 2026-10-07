@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { ChangelogPackage } from "@website/domain/Changelog"
+import * as Effect from "effect/Effect"
 import { assert, describe, test } from "vite-plus/test"
 import {
+  generateChangelogFiles,
   releaseChunks,
   searchBody,
   shardChunks,
@@ -121,3 +127,54 @@ describe("growth guard", () => {
 })
 
 const shardJson = (shard: ReadonlyArray<unknown>) => JSON.stringify(shard)
+
+describe("generateChangelogFiles", () => {
+  const hash = (bytes: Uint8Array) =>
+    Effect.succeed(createHash("sha256").update(bytes).digest("hex"))
+
+  test("builds sharded files for indexed channels only", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "changelog-files-"))
+    try {
+      const write = (channel: string, data: ChangelogPackage) => {
+        mkdirSync(join(directory, channel, "changelog"), { recursive: true })
+        writeFileSync(
+          join(directory, channel, "changelog", `${data.slug}.json`),
+          JSON.stringify(data),
+        )
+      }
+      const v4 = changelog([
+        { version: "4.0.1", body: "### Patch Changes\n\n- Fix pool leak." },
+      ])
+      write("v4", v4)
+      write("v3", { ...v4, channel: "v3" })
+
+      const run = () =>
+        Effect.runPromise(generateChangelogFiles(directory, hash))
+      const files = await run()
+
+      assert.deepStrictEqual(
+        files.map((file) => file.externalId),
+        ["api-reference/v4/sql-pg-changelog-001.mxjson"],
+      )
+      assert.deepStrictEqual(files[0]?.metadata, {
+        channel: "v4",
+        content_source: "changelog",
+        package_name: "@effect/sql-pg",
+        package_slug: "sql-pg",
+      })
+      assert.deepStrictEqual(
+        (await run()).map((file) => file.fileHash),
+        files.map((file) => file.fileHash),
+      )
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test("returns nothing when no changelog data exists", async () => {
+    const files = await Effect.runPromise(
+      generateChangelogFiles(join(tmpdir(), "missing-changelog-dir"), hash),
+    )
+    assert.deepStrictEqual(files, [])
+  })
+})
