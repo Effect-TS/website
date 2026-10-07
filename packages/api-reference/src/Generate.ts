@@ -28,6 +28,7 @@ import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Predicate from "effect/Predicate"
+import { type ChangelogSource, generateChangelogs } from "./Changelog.ts"
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../../..")
@@ -133,6 +134,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
 
   const revision = readRevision(repositoryDirectory)
   const packageManifests = []
+  const changelogSources: Array<ChangelogSource> = []
 
   for (const packageInfo of packages) {
     const discoveredModules = discoverModules(
@@ -198,6 +200,11 @@ export async function generate(options: GenerateOptions): Promise<void> {
     }
 
     writeJson(join(packageOutputDirectory, "manifest.json"), packageManifest)
+    changelogSources.push({
+      name: packageInfo.manifest.name,
+      version: packageInfo.manifest.version,
+      directory: packageInfo.directory,
+    })
     packageManifests.push({
       name: packageInfo.manifest.name,
       version: packageInfo.manifest.version,
@@ -209,6 +216,14 @@ export async function generate(options: GenerateOptions): Promise<void> {
       ),
     })
   }
+
+  generateChangelogs({
+    channel: options.version,
+    output: outputDirectory,
+    repository: repositoryDirectory,
+    revision,
+    sources: changelogSources,
+  })
 
   writeJson(join(outputDirectory, "manifest.json"), {
     datasetSchemaVersion: 1,

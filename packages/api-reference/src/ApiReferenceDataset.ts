@@ -123,7 +123,7 @@ async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8"))
 }
 
-function packageNameToSlug(packageName: string): string {
+export function packageNameToSlug(packageName: string): string {
   const slug = packageName.startsWith("@effect/")
     ? packageName.slice("@effect/".length)
     : packageName

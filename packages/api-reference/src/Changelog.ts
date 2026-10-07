@@ -1,0 +1,151 @@
+import { execFileSync } from "node:child_process"
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { readFile } from "node:fs/promises"
+import { join, relative, sep } from "node:path"
+import { ChangelogPackage, splitChangelog } from "@website/domain/Changelog"
+import * as Schema from "effect/Schema"
+import { packageNameToSlug } from "./ApiReferenceDataset.ts"
+
+export const CHANGELOG_DIRECTORY = "changelog"
+
+export interface ChangelogSource {
+  readonly name: string
+  readonly version: string
+  readonly directory: string
+}
+
+/** UTC date (`YYYY-MM-DD`) of every release tag, keyed by tag name. */
+function readTagDates(repository: string): Map<string, string> {
+  const output = execFileSync(
+    "git",
+    [
+      "for-each-ref",
+      "--format=%(refname:strip=2) %(creatordate:iso-strict)",
+      "refs/tags",
+    ],
+    { cwd: repository, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 },
+  )
+  const dates = new Map<string, string>()
+  for (const line of output.split("\n")) {
+    const space = line.lastIndexOf(" ")
+    if (space === -1) continue
+    const time = Date.parse(line.slice(space + 1))
+    if (Number.isNaN(time)) continue
+    dates.set(line.slice(0, space), new Date(time).toISOString().slice(0, 10))
+  }
+  return dates
+}
+
+/**
+ * Write `<output>/changelog/<slug>.json` for every package that has a
+ * `CHANGELOG.md`. Release dates come from the `<name>@<version>` git tags, so
+ * the repository needs its full history and tags.
+ */
+export function generateChangelogs(options: {
+  readonly channel: string
+  readonly output: string
+  readonly repository: string
+  readonly revision: string
+  readonly sources: ReadonlyArray<ChangelogSource>
+}): number {
+  const tagDates = readTagDates(options.repository)
+  const directory = join(options.output, CHANGELOG_DIRECTORY)
+  let packages = 0
+  let releases = 0
+  let dated = 0
+
+  for (const source of options.sources) {
+    let markdown: string
+    try {
+      markdown = readFileSync(join(source.directory, "CHANGELOG.md"), "utf8")
+    } catch {
+      continue
+    }
+    const sections = splitChangelog(markdown)
+    if (sections.length === 0) continue
+
+    const versions = new Set<string>()
+    for (const { version } of sections) {
+      if (versions.has(version)) {
+        throw new Error(`${source.name} changelog repeats release ${version}`)
+      }
+      versions.add(version)
+    }
+
+    const slug = packageNameToSlug(source.name)
+    const sourcePath = relative(
+      options.repository,
+      join(source.directory, "CHANGELOG.md"),
+    )
+    const data: ChangelogPackage = {
+      schemaVersion: 1,
+      channel: options.channel,
+      name: source.name,
+      slug,
+      packageVersion: source.version,
+      sourceUrl: `https://github.com/Effect-TS/effect/blob/${options.revision}/${sourcePath.split(sep).join("/")}`,
+      releases: sections.map((section) => {
+        const date = tagDates.get(`${source.name}@${section.version}`)
+        if (date !== undefined) dated += 1
+        return {
+          version: section.version,
+          ...(date === undefined ? {} : { date }),
+          breaking: section.breaking,
+          body: section.body,
+        }
+      }),
+    }
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(
+      join(directory, `${slug}.json`),
+      `${JSON.stringify(data, null, 2)}\n`,
+    )
+    packages += 1
+    releases += sections.length
+  }
+
+  if (releases > 0 && dated === 0) {
+    throw new Error(
+      `No release tags found in ${options.repository}; fetch the full history and tags to date changelog releases`,
+    )
+  }
+  console.log(
+    `Generated ${packages} changelogs (${releases} releases, ${dated} dated) in ${directory}`,
+  )
+  return packages
+}
+
+const decodeChangelogPackage = Schema.decodeUnknownSync(ChangelogPackage)
+
+/** Load every generated changelog under `<baseDirectory>/<channel>/changelog`. */
+export async function loadChangelogDataset(
+  baseDirectory: string,
+): Promise<
+  ReadonlyArray<{ readonly data: ChangelogPackage; readonly path: string }>
+> {
+  const entries: Array<{ data: ChangelogPackage; path: string }> = []
+  const channels = readdirSync(baseDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+  for (const channel of channels) {
+    const directory = join(baseDirectory, channel, CHANGELOG_DIRECTORY)
+    let files: Array<string>
+    try {
+      files = readdirSync(directory).filter((name) => name.endsWith(".json"))
+    } catch {
+      continue
+    }
+    for (const name of files.sort()) {
+      const path = join(directory, name)
+      const data = decodeChangelogPackage(
+        JSON.parse(await readFile(path, "utf8")),
+      )
+      if (data.channel !== channel || `${data.slug}.json` !== name) {
+        throw new Error(`Changelog does not match its location: ${path}`)
+      }
+      entries.push({ data, path })
+    }
+  }
+  return entries
+}
