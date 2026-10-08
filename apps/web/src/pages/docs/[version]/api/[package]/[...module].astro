@@ -12,6 +12,7 @@ import * as ApiReference from "@/features/api-reference/ApiReference"
 import ApiStabilityBadge from "@/features/api-reference/ApiStabilityBadge.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { apiReferenceDigests, packageIndexKey } from "@/features/api-reference/cache-key"
+import { splitComment } from "@/features/api-reference/comment-sections"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
@@ -75,6 +76,11 @@ const apiModule = ApiReference.ApiReference.moduleView(reflection, {
   modulePath: entry.data.modulePath,
   resolveSymbolHref,
 })
+const moduleComment = (() => {
+  if (apiModule.commentHtml === undefined) return undefined
+  const { summary, sections } = splitComment(apiModule.commentHtml)
+  return summary + sections
+})()
 const versionLinks = DOCS_VERSIONS.map(({ value: version, label }) => {
   const exact = allEntries.find(
     (candidate) =>
@@ -251,10 +257,7 @@ const tocItems = apiModule.groups.map((group) => ({
       </h1>
       {
         apiModule.commentHtml && (
-          <div
-            class:list={[ApiReference.API_JSDOC_CLASS, "mb-6"]}
-            set:html={apiModule.commentHtml}
-          />
+          <div class:list={[ApiReference.API_JSDOC_CLASS, "mb-6"]} set:html={moduleComment} />
         )
       }
       {

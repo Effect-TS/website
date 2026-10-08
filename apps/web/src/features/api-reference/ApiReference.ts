@@ -25,11 +25,4 @@ export const API_JSDOC_CLASS = [
   "[&_code:not(pre_*)]:font-normal",
   "[&_code:not(pre_*)::before]:content-none",
   "[&_code:not(pre_*)::after]:content-none",
-  "[&_:is(h4,p:has(>strong:only-child))]:mt-4",
-  "[&_:is(h4,p:has(>strong:only-child))]:mb-1.5",
-  "[&_:is(h4,p:has(>strong:only-child))]:text-base",
-  "[&_:is(h4,p:has(>strong:only-child))]:font-semibold",
-  "[&_:is(h4,p:has(>strong:only-child))]:tracking-normal",
-  "[&_:is(h4,p:has(>strong:only-child))]:text-foreground",
-  "[&_p:has(>strong:only-child)_strong]:[font-weight:inherit]",
 ].join(" ")

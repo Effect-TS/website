@@ -6,13 +6,16 @@ import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
 import { API_JSDOC_CLASS, type ApiDeclaration } from "./ApiReference"
 import ApiBadge from "./ApiBadge.astro"
 import ApiCodeExample from "./ApiCodeExample.astro"
+import ApiSectionHeading from "./ApiSectionHeading.astro"
 import ApiStabilityBadge from "./ApiStabilityBadge.astro"
+import { splitComment } from "./comment-sections"
 
 interface Props {
   declaration: ApiDeclaration
 }
 
 const { declaration } = Astro.props
+const comment = declaration.commentHtml ? splitComment(declaration.commentHtml) : undefined
 ---
 
 <section
@@ -63,32 +66,41 @@ const { declaration } = Astro.props
   </div>
 
   {
-    declaration.commentHtml && (
+    comment && comment.summary !== "" && (
       <div
         class:list={[API_JSDOC_CLASS, "prose prose-effect mt-2 max-w-none"]}
-        set:html={declaration.commentHtml}
+        set:html={comment.summary}
+      />
+    )
+  }
+
+  {
+    comment && comment.sections !== "" && (
+      <div
+        class:list={[API_JSDOC_CLASS, "prose prose-effect max-w-none [&_h4+*]:mt-0!"]}
+        set:html={comment.sections}
       />
     )
   }
 
   {
     declaration.signature && (
-      <div class="not-prose mt-4">
-        <p class="mt-6 mb-2 font-mono text-[12px] font-medium tracking-wider text-muted-foreground uppercase">
-          Signature
-        </p>
-        <Code
-          code={declaration.signature}
-          lang="typescript"
-          meta="showLineNumbers=false playground=false"
-        />
+      <div class="not-prose">
+        <ApiSectionHeading>Signature</ApiSectionHeading>
+        <div class="pt-1.5">
+          <Code
+            code={declaration.signature}
+            lang="typescript"
+            meta="showLineNumbers=false playground=false"
+          />
+        </div>
       </div>
     )
   }
 
   {
     declaration.examples.length > 0 && (
-      <div class="not-prose mt-4 space-y-6">
+      <div class="not-prose space-y-6">
         {declaration.examples.map((example) => (
           <ApiCodeExample example={example} />
         ))}
