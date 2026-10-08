@@ -1,4 +1,6 @@
 ---
+import ApiBadge from "./ApiBadge.astro"
+
 interface Props {
   stability: string | undefined
   class?: string
@@ -11,14 +13,12 @@ const show = label !== undefined && label.toLowerCase() === "unstable"
 
 {
   show && label && (
-    <span
-      class:list={[
-        "inline-flex items-center rounded-full border border-transparent bg-amber-100 px-2.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-amber-800 uppercase dark:bg-amber-500/15 dark:text-amber-300",
-        className,
-      ]}
+    <ApiBadge
+      tone="warning"
+      class={className}
       title={`This API is marked ${label}. Its signature may change in a future release.`}
     >
       {label}
-    </span>
+    </ApiBadge>
   )
 }
