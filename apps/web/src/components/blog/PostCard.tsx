@@ -15,6 +15,7 @@ export type SerializedPost = {
   date: Date
   dateMs: number
   href: string
+  packageName?: string | undefined
   tags: Array<{ id: string; name: string }>
 }
 

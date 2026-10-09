@@ -5,6 +5,7 @@ import { getCollection, getEntries, type CollectionEntry } from "astro:content"
 
 import BlogControls from "@/components/blog/BlogControls"
 import type { SerializedPost, SerializedTag } from "@/components/blog/PostCard"
+import { MOTWScrollRail } from "@/components/blog/MOTWScrollRail"
 import { TWIEScrollRail } from "@/components/blog/TWIEScrollRail"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
@@ -26,12 +27,15 @@ const allPosts = await Promise.all(
 ).then((posts) => posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime()))
 
 const isTWIE = (tag: CollectionEntry<"blogTags">) => tag.id === "this-week-in-effect"
+const isMOTW = (tag: CollectionEntry<"blogTags">) => tag.id === "module-of-the-week"
+const isRail = (tag: CollectionEntry<"blogTags">) => isTWIE(tag) || isMOTW(tag)
 
 const twiePosts = allPosts.filter((post) => post.tags.some(isTWIE))
-const nonTwiePosts = allPosts.filter((post) => !post.tags.some(isTWIE))
+const motwPosts = allPosts.filter((post) => post.tags.some(isMOTW))
+const nonRailPosts = allPosts.filter((post) => !post.tags.some(isRail))
 
 const featuredCandidates = allPosts
-  .filter((post) => post.data.featured && !post.tags.some(isTWIE))
+  .filter((post) => post.data.featured && !post.tags.some(isRail))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
 
 if (import.meta.env.DEV && featuredCandidates.length > 1) {
@@ -46,7 +50,7 @@ const featuredPost = featuredCandidates[0]
 
 function tagCount(id: string): number {
   if (id === "all") {
-    return nonTwiePosts.length
+    return nonRailPosts.length
   }
   return allPosts.filter((post) => post.tags.some((tag) => tag.id === id)).length
 }
@@ -59,25 +63,16 @@ const serializedTags: SerializedTag[] = tagCollection
   }))
   .sort((a, b) => (a.id === "all" ? -1 : b.id === "all" ? 1 : b.count - a.count))
 
-const serializedTwiePosts: SerializedPost[] = twiePosts.map((post) => ({
+const serialize = (post: (typeof allPosts)[number]): SerializedPost => ({
   id: post.id,
   title: post.data.title,
   excerpt: post.data.excerpt,
   date: post.data.date,
   dateMs: post.data.date.getTime(),
   href: `/blog/${post.id}`,
+  packageName: post.data.packageName,
   tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
-}))
-
-const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
-  id: post.id,
-  title: post.data.title,
-  excerpt: post.data.excerpt,
-  date: post.data.date,
-  dateMs: post.data.date.getTime(),
-  href: `/blog/${post.id}`,
-  tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
-}))
+})
 ---
 
 <PageLayout
@@ -199,13 +194,30 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
   <div class="h-px w-full bg-border"></div>
 
   {
+    motwPosts.length > 0 && (
+      <>
+        <section class="relative">
+          <div class="mx-auto w-full max-w-295 px-4">
+            <MOTWScrollRail
+              client:load
+              posts={motwPosts.map(serialize)}
+              viewAllHref="/blog?category=module-of-the-week#blog-grid"
+            />
+          </div>
+        </section>
+        <div class="h-px w-full bg-border" />
+      </>
+    )
+  }
+
+  {
     twiePosts.length > 0 && (
       <>
         <section class="relative">
           <div class="mx-auto w-full max-w-295 px-4">
             <TWIEScrollRail
               client:load
-              posts={serializedTwiePosts}
+              posts={twiePosts.map(serialize)}
               viewAllHref="/blog?category=this-week-in-effect#blog-grid"
             />
           </div>
@@ -219,9 +231,9 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
     <div class="mx-auto w-full max-w-295 px-4">
       <BlogControls
         client:load
-        posts={serializedPosts}
+        posts={allPosts.map(serialize)}
         tags={serializedTags}
-        twieTagId="this-week-in-effect"
+        railTagIds={["this-week-in-effect", "module-of-the-week"]}
       />
     </div>
   </section>
