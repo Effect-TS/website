@@ -11,6 +11,7 @@ import {
 } from "astro/config"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
+import { latestReleasePlugin } from "./src/features/changelog/latest-release-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
@@ -19,6 +20,7 @@ import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 import { remarkMermaid } from "./src/features/docs/remark-mermaid"
 import { incrementalBuildReport } from "./src/lib/incremental-build-report"
+import { defaultDocsVersion } from "./src/lib/versions"
 
 const FontsourceProvider = fontProviders.fontsource()
 
@@ -63,6 +65,11 @@ const config = defineConfig({
       tailwindcss(),
       svgr(),
       openGraphMetadataPlugin({ cacheDir }),
+      latestReleasePlugin({
+        base: new URL("./.data/api-reference/", import.meta.url),
+        channel: defaultDocsVersion,
+        slug: "effect",
+      }),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
         features: "all",

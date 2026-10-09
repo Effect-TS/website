@@ -220,5 +220,5 @@ import {
   fileInProgressConflict,
   UnknownError,
 } from "./Error.ts"
-import type { LocalFile } from "./ApiReferenceFiles.ts"
+import type { LocalFile } from "./ChunkFiles.ts"
 import { StoreFileMetadata, type StoreClient } from "./Store.ts"

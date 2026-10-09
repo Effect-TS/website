@@ -89,7 +89,11 @@ export default Alchemy.Stack(
       const store = yield* Mixedbread.VectorStore("PreviewSearchStore", {
         name: `effect-website-pr-${pullRequest.value}`,
         description: `Effect website search preview for PR ${pullRequest.value}`,
-        expiresAfter: { anchor: "last_active_at", days: 7 },
+        // No `expiresAfter`: the preview workflow destroys the stack on PR
+        // close, which deletes the store. A TTL combined with the fixed
+        // per-PR name breaks every redeploy after 7 idle days, because
+        // Mixedbread rejects all operations on expired records (422) while
+        // the name stays reserved (409 on create) with no API purge path.
         tags: ["effect-website-preview"],
         // Start from production's index so the sync below only uploads what
         // the pull request changed and deletes what it doesn't have.

@@ -1,0 +1,27 @@
+---
+/**
+ * Top of the API reference and changelog sidebars: an eyebrow link naming the
+ * section, then the package and its version.
+ */
+interface Props {
+  readonly eyebrow: { readonly label: string; readonly href: string }
+  readonly title: string
+  readonly version: string
+}
+
+const { eyebrow, title, version } = Astro.props
+---
+
+<header class="mb-4">
+  <a
+    href={eyebrow.href}
+    aria-current={Astro.url.pathname === eyebrow.href ? "page" : undefined}
+    class="mb-4 block font-mono text-sm font-semibold tracking-widest text-foreground uppercase hover:underline"
+  >
+    {eyebrow.label}
+  </a>
+
+  <h2 class="mb-1 font-mono text-lg font-semibold tracking-tight">{title}</h2>
+
+  <p class="font-mono text-xs text-muted-foreground">{version}</p>
+</header>

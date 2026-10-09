@@ -3,6 +3,8 @@ import { z } from "astro/zod"
 import { defineCollection, reference } from "astro:content"
 import { apiReferenceLoader } from "./features/api-reference/loader"
 import { ApiReferenceContentEntry } from "./features/api-reference/schema"
+import { changelogLoader } from "./features/changelog/loader"
+import { ChangelogContentEntry } from "./features/changelog/schema"
 import { PodcastEpisodeEntry } from "./features/podcast/collection"
 
 const apiReference = defineCollection({
@@ -10,6 +12,13 @@ const apiReference = defineCollection({
     base: new URL("../.data/api-reference/", import.meta.url),
   }),
   schema: ApiReferenceContentEntry,
+})
+
+const changelog = defineCollection({
+  loader: changelogLoader({
+    base: new URL("../.data/api-reference/", import.meta.url),
+  }),
+  schema: ChangelogContentEntry,
 })
 
 const blog = defineCollection({
@@ -142,6 +151,7 @@ const docs = defineCollection({
 
 export const collections = {
   apiReference,
+  changelog,
   docs,
   docsSidebar,
   docsOnboarding,

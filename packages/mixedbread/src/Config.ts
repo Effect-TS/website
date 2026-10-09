@@ -1,5 +1,8 @@
 export const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
-export const MAX_API_CHUNKS_PER_FILE = 250
+export const MAX_CHUNKS_PER_FILE = 250
+// Chunks stay near the embedding model's context so each release is one hit.
+export const MAX_CHANGELOG_CHUNK_LENGTH = 2_000
+export const CHANGELOG_INDEX_CHANNELS = ["v4"] as const
 export const UPLOAD_CONCURRENCY = 100
 export const FILE_UPLOAD_ATTEMPTS = 3
 export const DEFAULT_DOCUMENTATION_DIRECTORY = "apps/web/src/content/docs"

@@ -11,9 +11,11 @@ import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
 import * as Redacted from "effect/Redacted"
+import * as Schedule from "effect/Schedule"
 import {
   isConflict,
-  isNotFound,
+  isGone,
+  isPermissionDenied,
   MixedbreadClient,
   type TaggedStore as Store,
 } from "./Client.ts"
@@ -207,10 +209,10 @@ export const VectorStoreProvider = Provider.effect(
     const retrieveOptional = (id: string) =>
       client
         .retrieveStore(id)
-        .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+        .pipe(Effect.catchIf(isGone, () => Effect.succeed(undefined)))
 
     const deleteOptional = (id: string) =>
-      client.deleteStore(id).pipe(Effect.catchIf(isNotFound, () => Effect.void))
+      client.deleteStore(id).pipe(Effect.catchIf(isGone, () => Effect.void))
 
     // A workflow cancelled mid-copy leaves the target copying; wait for it
     // rather than writing to a store that rejects file changes.
@@ -224,6 +226,32 @@ export const VectorStoreProvider = Provider.effect(
       }
       return current
     }, Effect.timeout(COPY_TIMEOUT))
+
+    // Deleting a store does not always free its name immediately; wait for
+    // the name to become available before recreating under it instead of
+    // crashing into a second 409.
+    const NAME_POLL_INTERVAL = "2 seconds"
+    const NAME_POLL_ATTEMPTS = 60
+
+    const waitForNameFree = Effect.fn("Mixedbread.waitForNameFree")(function* (
+      name: string,
+    ) {
+      const existing = yield* exactStoreByName(name).pipe(
+        Effect.repeat({
+          schedule: Schedule.recurs(NAME_POLL_ATTEMPTS).pipe(
+            Schedule.addDelay(() => Effect.succeed(NAME_POLL_INTERVAL)),
+          ),
+          until: (store) => store === undefined,
+        }),
+      )
+      if (existing !== undefined) {
+        return yield* Effect.fail(
+          new Error(
+            `Mixedbread store name '${name}' is still reserved after deleting the conflicting store; it may be an expired record Mixedbread has not purged.`,
+          ),
+        )
+      }
+    })
 
     // Resolves a found store to one that can be updated in place, or to
     // `undefined` when it has to be created again.
@@ -251,6 +279,33 @@ export const VectorStoreProvider = Provider.effect(
       return current
     })
 
+    // Resolves a 409 on the store name. A store this resource owns is one an
+    // earlier run created but never saved to state, e.g. a copy whose
+    // response never arrived or whose follow-up update failed; settle and
+    // reuse it. When settling deletes it, wait for the name to free up so
+    // the caller can create it again.
+    const claimByName = Effect.fn("Mixedbread.claimByName")(function* (
+      name: string,
+      ownership: Ownership,
+    ) {
+      const existing = yield* exactStoreByName(name)
+      if (
+        existing === undefined ||
+        !hasOwnership(existing.metadata, ownership)
+      ) {
+        return yield* Effect.fail(
+          new Error(
+            `Mixedbread store '${name}' appeared during creation but is not owned by this Alchemy resource.`,
+          ),
+        )
+      }
+      const settled = yield* settle(existing, ownership)
+      if (settled === undefined) {
+        yield* waitForNameFree(name)
+      }
+      return settled
+    })
+
     // Copying only saves indexing work, so anything that makes it unsafe or
     // unsuccessful falls back to an empty store. The caller's full sync
     // reconciles the copy with its own content either way.
@@ -259,6 +314,7 @@ export const VectorStoreProvider = Provider.effect(
         source: string,
         news: VectorStoreProps,
         metadata: Record<string, unknown>,
+        ownership: Ownership,
       ) {
         const origin = yield* client.retrieveStore(source)
         if (
@@ -283,7 +339,7 @@ export const VectorStoreProvider = Provider.effect(
           )
           return undefined
         }
-        const copy = yield* client.copyStore(origin.id, {
+        const copyArgs = {
           name: news.name,
           ...(news.description === undefined
             ? {}
@@ -291,7 +347,29 @@ export const VectorStoreProvider = Provider.effect(
           metadata,
           // Without this the copy would carry the source's tags.
           tags: news.tags ?? [],
-        })
+        }
+        const { tags: _dropped, ...copyArgsWithoutTags } = copyArgs
+        const copy = yield* client.copyStore(origin.id, copyArgs).pipe(
+          // Scope-restricted keys cannot set tags on copy; retry inheriting
+          // the source's tags instead of falling back to an empty store.
+          // Reconcile enforces the desired tags afterwards.
+          Effect.catchIf(isPermissionDenied, () =>
+            Effect.logWarning(
+              `Copying Mixedbread store '${origin.name}' without tags: the API key cannot change tags on copy`,
+            ).pipe(
+              Effect.flatMap(() =>
+                client.copyStore(origin.id, copyArgsWithoutTags),
+              ),
+            ),
+          ),
+          Effect.catchIf(isConflict, () => Effect.succeed(undefined)),
+        )
+        if (copy === undefined) {
+          yield* Effect.log(
+            `Mixedbread store '${news.name}' already exists; reusing it instead of copying`,
+          )
+          return yield* claimByName(news.name, ownership)
+        }
         yield* Effect.log(
           `Copying Mixedbread store '${origin.name}' into '${news.name}'`,
         )
@@ -343,7 +421,7 @@ export const VectorStoreProvider = Provider.effect(
         if (output !== undefined) {
           const store = yield* client
             .retrieveStore(output.id)
-            .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+            .pipe(Effect.catchIf(isGone, () => Effect.succeed(undefined)))
           // A copy in progress can still fail and be recreated with a new id.
           if (
             store === undefined ||
@@ -366,7 +444,7 @@ export const VectorStoreProvider = Provider.effect(
         const store = output
           ? yield* client
               .retrieveStore(output.id)
-              .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
+              .pipe(Effect.catchIf(isGone, () => Effect.succeed(undefined)))
           : yield* exactStoreByName(olds.name)
         if (
           store === undefined ||
@@ -386,10 +464,19 @@ export const VectorStoreProvider = Provider.effect(
         const stage = yield* Stage
         const ownership = { stack: stack.name, stage, resource: id }
         const metadata = withOwnership(news.metadata, ownership)
+        const fromState =
+          output === undefined ? undefined : yield* retrieveOptional(output.id)
+        // When the store in state is gone, a run whose result never reached
+        // state may still have left this resource's store under the name.
+        const byName =
+          fromState === undefined
+            ? yield* exactStoreByName(news.name)
+            : undefined
         let store = yield* settle(
-          output
-            ? yield* retrieveOptional(output.id)
-            : yield* exactStoreByName(news.name),
+          fromState ??
+            (output === undefined || hasOwnership(byName?.metadata, ownership)
+              ? byName
+              : undefined),
           ownership,
         )
 
@@ -400,6 +487,7 @@ export const VectorStoreProvider = Provider.effect(
               : news.copyFrom,
             news,
             metadata,
+            ownership,
           )
         }
 
@@ -422,24 +510,19 @@ export const VectorStoreProvider = Provider.effect(
           })
           store = yield* create.pipe(
             Effect.catchIf(isConflict, () =>
-              exactStoreByName(news.name).pipe(
-                Effect.flatMap((existing) =>
-                  existing !== undefined &&
-                  hasOwnership(existing.metadata, ownership)
-                    ? // A copy whose response never arrived still owns the
-                      // name; settle it, then create again if it failed.
-                      settle(existing, ownership).pipe(
-                        Effect.flatMap((settled) =>
-                          settled === undefined
-                            ? create
-                            : Effect.succeed(settled),
+              claimByName(news.name, ownership).pipe(
+                Effect.flatMap((settled) =>
+                  settled === undefined
+                    ? create.pipe(
+                        Effect.catchIf(isConflict, () =>
+                          Effect.fail(
+                            new Error(
+                              `Mixedbread store name '${news.name}' is still reserved after deleting the conflicting store; it may be an expired record Mixedbread has not purged.`,
+                            ),
+                          ),
                         ),
                       )
-                    : Effect.fail(
-                        new Error(
-                          `Mixedbread store '${news.name}' appeared during creation but is not owned by this Alchemy resource.`,
-                        ),
-                      ),
+                    : Effect.succeed(settled),
                 ),
               ),
             ),
@@ -465,21 +548,45 @@ export const VectorStoreProvider = Provider.effect(
           tags: normalizeTags(store.tags),
         }
         if (!deepEqual(current, desired)) {
-          store = yield* client.updateStore(store.id, {
+          const storeId = store.id
+          const storeName = store.name
+          const fullUpdate = {
             description: news.description ?? null,
             is_public: news.isPublic ?? null,
             license: news.license ?? null,
             metadata,
             expires_after: news.expiresAfter ?? null,
             tags: news.tags ?? [],
-          })
+          }
+          const { tags: _droppedTags, ...updateWithoutTags } = fullUpdate
+          store = yield* client.updateStore(storeId, fullUpdate).pipe(
+            // The key may be allowed to write fields but not tags; retry
+            // without them instead of failing the deploy. Tags left behind
+            // are reported, not hidden.
+            Effect.catchIf(isPermissionDenied, () =>
+              Effect.logWarning(
+                `Updating Mixedbread store '${storeName}' without tags: the API key cannot change tags`,
+              ).pipe(
+                Effect.flatMap(() =>
+                  client.updateStore(storeId, updateWithoutTags),
+                ),
+                Effect.catchIf(isPermissionDenied, () =>
+                  Effect.fail(
+                    new Error(
+                      `Cannot update Mixedbread store '${storeName}': the API key is missing the write scope for it. Widen the preview key scope or manage the store with a less restricted key.`,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
         }
         return toAttributes(store)
       }),
       delete: Effect.fn(function* ({ output }) {
         yield* client
           .deleteStore(output.id)
-          .pipe(Effect.catchIf(isNotFound, () => Effect.void))
+          .pipe(Effect.catchIf(isGone, () => Effect.void))
       }),
     }
   }),

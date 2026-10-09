@@ -28,6 +28,7 @@ import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Predicate from "effect/Predicate"
+import { CHANGELOG_FILE, createChangelogWriter } from "./Changelog.ts"
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../../..")
@@ -133,6 +134,10 @@ export async function generate(options: GenerateOptions): Promise<void> {
 
   const revision = readRevision(repositoryDirectory)
   const packageManifests = []
+  const changelogs = createChangelogWriter({
+    repository: repositoryDirectory,
+    revision,
+  })
 
   for (const packageInfo of packages) {
     const discoveredModules = discoverModules(
@@ -151,9 +156,15 @@ export async function generate(options: GenerateOptions): Promise<void> {
     if (includedModules.length === 0) {
       continue
     }
-    if (includedModules.some(({ outputPath }) => outputPath === "manifest")) {
+    if (
+      includedModules.some(
+        ({ outputPath }) =>
+          outputPath === "manifest" ||
+          outputPath === CHANGELOG_FILE.replace(/\.json$/, ""),
+      )
+    ) {
       throw new Error(
-        `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest`,
+        `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest or changelog`,
       )
     }
 
@@ -178,6 +189,12 @@ export async function generate(options: GenerateOptions): Promise<void> {
       outputDirectory,
       packageInfo.manifest.name,
     )
+    const changelog = changelogs.write({
+      name: packageInfo.manifest.name,
+      version: packageInfo.manifest.version,
+      directory: packageInfo.directory,
+      outputDirectory: packageOutputDirectory,
+    })
     const packageManifest = {
       schemaVersion: 3,
       channel: options.version,
@@ -195,6 +212,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
         source: toPosixPath(relative(packageInfo.directory, barrel.source)),
       })),
       modules: generatedModules,
+      ...(changelog === undefined ? {} : { changelog }),
     }
 
     writeJson(join(packageOutputDirectory, "manifest.json"), packageManifest)
@@ -209,6 +227,8 @@ export async function generate(options: GenerateOptions): Promise<void> {
       ),
     })
   }
+
+  changelogs.finish()
 
   writeJson(join(outputDirectory, "manifest.json"), {
     datasetSchemaVersion: 1,

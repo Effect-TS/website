@@ -1,0 +1,53 @@
+---
+import SidebarGroup from "@/components/ui/sidebar/SidebarGroup.astro"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+
+/**
+ * Release navigation for a package changelog: one collapsible group per
+ * release phase or `major.minor`, built from the shared sidebar primitives.
+ */
+export interface ChangelogNavGroup {
+  readonly key: string
+  readonly label: string
+  readonly open: boolean
+  readonly releases: ReadonlyArray<{
+    readonly version: string
+    readonly breaking: boolean
+  }>
+}
+
+interface Props {
+  readonly groups: ReadonlyArray<ChangelogNavGroup>
+}
+
+const { groups } = Astro.props
+---
+
+<ul class="flex flex-col gap-0.5">
+  {
+    groups.map((group) => (
+      <li class="mb-1 last:mb-0">
+        <SidebarGroup label={group.label} open={group.open}>
+          {group.releases.map((release) => (
+            <li>
+              <SidebarLink href={`#${release.version}`} class="py-1.5 pl-3 font-mono text-sm">
+                <span class="flex items-center justify-between gap-2 pr-3">
+                  <span class="truncate">{release.version}</span>
+                  {release.breaking && (
+                    <>
+                      <span
+                        class="size-1.5 shrink-0 rounded-full bg-destructive"
+                        aria-hidden="true"
+                      />
+                      <span class="sr-only">Breaking</span>
+                    </>
+                  )}
+                </span>
+              </SidebarLink>
+            </li>
+          ))}
+        </SidebarGroup>
+      </li>
+    ))
+  }
+</ul>
