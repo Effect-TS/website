@@ -25,11 +25,11 @@ function readCategoryFromUrl(tags: SerializedTag[]): string {
 export default function BlogControls({
   posts,
   tags,
-  twieTagId,
+  railTagIds = [],
 }: {
   posts: SerializedPost[]
   tags: SerializedTag[]
-  twieTagId?: string
+  railTagIds?: string[]
 }) {
   const [activeTagId, setActiveTagId] = useState<string>(() =>
     readCategoryFromUrl(tags),
@@ -58,13 +58,9 @@ export default function BlogControls({
 
   const filteredPosts = useMemo(() => {
     let filteredByCategory = posts
-    if (activeTagId === twieTagId) {
-      filteredByCategory = posts.filter((post) =>
-        post.tags.some((tag) => tag.id === twieTagId),
-      )
-    } else if (activeTagId === "all") {
+    if (activeTagId === "all") {
       filteredByCategory = posts.filter(
-        (post) => !post.tags.some((tag) => tag.id === twieTagId),
+        (post) => !post.tags.some((tag) => railTagIds.includes(tag.id)),
       )
     } else {
       filteredByCategory = posts.filter((post) =>
@@ -75,7 +71,7 @@ export default function BlogControls({
       const comparison = postA.dateMs - postB.dateMs
       return sortOrder === "newest" ? -comparison : comparison
     })
-  }, [posts, activeTagId, sortOrder, twieTagId])
+  }, [posts, activeTagId, sortOrder, railTagIds])
 
   const totalPages = Math.max(
     1,

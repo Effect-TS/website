@@ -35,6 +35,7 @@ const blog = defineCollection({
       authors: z.array(reference("blogAuthors")).min(1),
       featured: z.boolean().optional().default(false),
       featuredImage: image().optional(),
+      packageName: z.string().min(1).optional(),
     }),
 })
 
