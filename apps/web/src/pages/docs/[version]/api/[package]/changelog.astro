@@ -59,7 +59,9 @@ const releases = await loadReleases(entry.data)
 const displayName = packageDisplayName(name)
 const apiHref = `/docs/${channel}/api/${slug}`
 
-const groups = groupReleases(releases).map((group, index) => ({ ...group, open: index === 0 }))
+const groups = groupReleases(
+  releases.map((release) => ({ ...release, latest: release.version === packageVersion })),
+).map((group, index) => ({ ...group, open: index === 0 }))
 const mobileVersions = versionLinks(channel, (value) =>
   packages.some((other) => other.channel === value && other.slug === slug)
     ? changelogHref(value, slug)
