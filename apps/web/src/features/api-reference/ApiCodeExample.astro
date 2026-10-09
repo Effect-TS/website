@@ -2,6 +2,7 @@
 import { Code } from "astro-expressive-code/components"
 
 import type { ApiCodeExample } from "./ApiReference"
+import ApiSectionHeading from "./ApiSectionHeading.astro"
 
 interface Props {
   example: ApiCodeExample
@@ -11,10 +12,19 @@ const { example } = Astro.props
 ---
 
 <article>
-  <div class="mb-2 flex items-baseline gap-1.5">
-    <h3 class="text-base font-semibold text-foreground">Example</h3>
-    {example.title && <p class="text-sm text-muted-foreground">({example.title})</p>}
-  </div>
+  <ApiSectionHeading>
+    Example
+    {
+      example.title && (
+        <span class="font-sans text-base font-normal tracking-normal text-prose-foreground normal-case">
+          {" "}
+          {example.title}
+        </span>
+      )
+    }
+  </ApiSectionHeading>
 
-  <Code code={example.source} lang={example.language} meta="showLineNumbers=false" />
+  <div class="pt-1.5">
+    <Code code={example.source} lang={example.language} meta="showLineNumbers=false" />
+  </div>
 </article>

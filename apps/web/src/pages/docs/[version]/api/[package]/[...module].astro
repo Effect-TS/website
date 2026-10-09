@@ -12,6 +12,7 @@ import * as ApiReference from "@/features/api-reference/ApiReference"
 import ApiStabilityBadge from "@/features/api-reference/ApiStabilityBadge.astro"
 import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { apiReferenceDigests, packageIndexKey } from "@/features/api-reference/cache-key"
+import { splitComment } from "@/features/api-reference/comment-sections"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
@@ -75,6 +76,11 @@ const apiModule = ApiReference.ApiReference.moduleView(reflection, {
   modulePath: entry.data.modulePath,
   resolveSymbolHref,
 })
+const moduleComment = (() => {
+  if (apiModule.commentHtml === undefined) return undefined
+  const { summary, sections } = splitComment(apiModule.commentHtml)
+  return summary + sections
+})()
 const versionLinks = DOCS_VERSIONS.map(({ value: version, label }) => {
   const exact = allEntries.find(
     (candidate) =>
@@ -175,9 +181,9 @@ const tocItems = apiModule.groups.map((group) => ({
   children: group.declarations.map((declaration) => ({
     id: declaration.anchor,
     label: declaration.name,
-    hint: declaration.typeKind,
+    hint: declaration.kind,
     class: "truncate font-mono text-xs",
-    title: `${declaration.name}${declaration.typeKind === undefined ? "" : ` (${declaration.typeKind})`}`,
+    title: `${declaration.name} (${declaration.kind})`,
   })),
 }))
 ---
@@ -247,14 +253,11 @@ const tocItems = apiModule.groups.map((group) => ({
     <header class="mb-8 lg:mb-12">
       <h1 class="mb-4! flex flex-wrap items-center gap-3 font-mono md:mb-6!">
         {moduleName}
-        <ApiStabilityBadge stability={apiModule.stability} class="text-xs!" />
+        <ApiStabilityBadge stability={apiModule.stability} />
       </h1>
       {
         apiModule.commentHtml && (
-          <div
-            class:list={[ApiReference.API_JSDOC_CLASS, "mb-6"]}
-            set:html={apiModule.commentHtml}
-          />
+          <div class:list={[ApiReference.API_JSDOC_CLASS, "mb-6"]} set:html={moduleComment} />
         )
       }
       {
@@ -270,7 +273,7 @@ const tocItems = apiModule.groups.map((group) => ({
         class="not-prose flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-sm text-muted-foreground"
       >
         <span>{apiModule.declarationCount} exports</span>
-        {apiModule.since && <span>Added in v{apiModule.since}</span>}
+        {apiModule.since && <span>Since v{apiModule.since}</span>}
         {
           apiModule.sourceUrl && (
             <a
@@ -285,11 +288,11 @@ const tocItems = apiModule.groups.map((group) => ({
       </div>
     </header>
 
-    <div class="not-prose space-y-4">
+    <div class="space-y-4">
       {
         apiModule.groups.map((group) => (
           <section id={group.slug} class="scroll-mt-24">
-            <h2 class="mb-0 text-2xl font-semibold tracking-tight text-foreground">
+            <h2 class="mt-0 mb-0 text-2xl font-semibold tracking-tight text-foreground">
               <a
                 href={`#${group.slug}`}
                 class="group relative inline-block text-inherit no-underline!"
@@ -312,5 +315,9 @@ const tocItems = apiModule.groups.map((group) => ({
     </div>
   </article>
 
-  {tocItems.length > 0 && <TableOfContents slot="toc" items={tocItems} />}
+  {
+    tocItems.length > 0 && (
+      <TableOfContents slot="toc" items={tocItems} nestedListClass="mt-2 space-y-2 pl-2" />
+    )
+  }
 </DocShell>

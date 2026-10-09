@@ -17,9 +17,12 @@ export type TocItem = {
 interface Props {
   readonly items: readonly TocItem[]
   readonly class?: string | undefined
+  /** Class for the nested child list. Defaults to the shared indent; the API
+   * reference passes a tighter one since kind badges already add visual weight. */
+  readonly nestedListClass?: string | undefined
 }
 
-const { items, class: className } = Astro.props
+const { items, class: className, nestedListClass = "mt-2 space-y-2 pl-3" } = Astro.props
 
 // TocLink gets only the link fields; `indent`/`children` stay in this component.
 const getLinkProps = (item: TocItem) => ({
@@ -49,7 +52,7 @@ const hasNestedItems = items.some((item) => (item.children?.length ?? 0) > 0)
             <li class:list={[!hasChildren && item.indent && "pl-3"]}>
               <TocLink {...getLinkProps(item)} />
               {hasChildren && (
-                <ul class="mt-2 space-y-2 pl-3">
+                <ul class={nestedListClass}>
                   {childItems.map((child) => (
                     <li>
                       <TocLink {...getLinkProps(child)} />
