@@ -1,0 +1,216 @@
+---
+pagefind: false
+title: This Week in Effect - 139
+excerpt: "Cluster messaging in Module of the Week. Released Effect 4.0.1 and 4.0.2."
+date: 2026-10-09
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+New [Module of the Week](https://effect.website/blog/module-of-the-week/cluster-messaging) post by [Maxwell Brown](https://x.com/maxwellbrown), diving into **Cluster messaging**.
+
+<Tweet id="2107445989099413539" />
+
+### Effect v4 updates.
+
+It has been a week since Effect 4.0 shipped, and the pace has not slowed. According to [Sebastian's post on the first week](https://effect.website/blog/effect-4-first-week), almost 30 contributors landed around 150 commits on `main`, and two patch releases went out: 4.0.1 on October 5 and 4.0.2 on October 8. Here are the most notable changes.
+
+- **Stability tags**: Every module and importable export now declares its `@stability` level explicitly, enforced by automated checks in the pipeline. 4.0.2 also adds the tags that were missing from some modules intended to ship as unstable. Nothing changes in your code: no behavior, signatures or types are affected. The Effect language service builds on these tags to warn you when you use unstable or experimental APIs. Sebastian's post has the full story.
+
+- **OpenTelemetry alignment**: Aligned HTTP, SQL and AI spans with the OpenTelemetry semantic conventions, and brought the OTLP exporter, resource and logger in line with the OpenTelemetry spec. Also preserved active OpenTelemetry parents for Effect spans, left interrupted spans unset, and fixed B3 sampling and zero W3C IDs in HTTP trace context.
+
+- **Additions**: Added a `DatagramSocket` (UDP) module, PowerShell support for `--completions`, a `delay` option on `PersistedQueue.offer`, a deterministic `TestCrypto` layer, a `noFollow` open option and positional reads for `FileSystem`, compact JSON and inspect output for `SchemaError`, and more atom registry APIs.
+
+- **Cluster & workflow**: Fixed orphaned workflow activity recovery after a crash, fixed entity recovery when replayed requests defect during handler rebuild, and avoided workflow replay for self-completed checkpoints. `WithTransaction` replies are now delivered once the transaction outcome is known, with failure replies persisted after rollback. Cluster SQL storage can now run without runtime DDL, and `HashRing.getShards` no longer depends on node history.
+
+- **HTTP, MCP & OpenAPI**: Preserved query strings during router slash normalization, fixed `HttpApi` form and GET payloads rejecting single-value arrays, fixed `HttpStaticServer` `If-Range` validation, and fixed OpenAPI client response inference. On the MCP side, interrupted reverse requests now send cancellation notifications, cancelled HTTP request POSTs get an empty event stream, and stateful extension capabilities are preserved.
+
+- **Streams, SQL & AI**: Fixed `Stream.slidingSize` dropping elements from the final partial window, `Stream.throttle` exceeding its configured rate, and several `tapSink` edge cases. Fixed typed SQL transaction `COMMIT` error recovery and MSSQL pool recovery. Fixed Anthropic streamed tool JSON errors, and cached per-tool response schemas for better AI performance.
+
+- **Continued audit**: The correctness audit carried on after the release, with targeted fixes across STM transactions, `PubSub`, `Queue`, `Pool`, `Channel`, `ScopedCache`, `Layer`, `ManagedRuntime` and Schema union parsing, covering edge cases around interruption, shutdown, retries and resource cleanup.
+
+- **Config, Schema & docs**: Kept `=` inside values when decoding key-value config strings, canonicalized imported JSON Schema pattern sources, and fixed zoned `DateTime` when `Intl` omits fractional seconds. Migration guidance now notes the v4 decoding change in `NumberFromString` and points `parseJson` users to `fromJsonString(Schema.Unknown)`.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [Effect v4 Updates](https://www.effect.website/blog?category=effect-v4-updates), starting from the recently published [Effect v4 RC: September 2026 Updates](https://effect.website/blog/effect-v4-rc-september-recap).
+
+## Community Events
+
+- [Effect Paris 🇫🇷](https://www.meetup.com/effect-paris/events/316600366/) meetup is scheduled for Tuesday, Oct 13!
+
+  <Tweet id="2108458718660825198" />
+
+- [Effect Warsaw #2](https://luma.com/k5o7m2pg) is coming on November 17!
+
+  <Tweet id="2108246661642285217" />
+
+- Very few 2-day passes left for [Effect Days 2026](https://effect.website/effect-days)! The conference is scheduled for December 9–11 in Livorno, Italy.
+
+  <Tweet id="2107551295938650255" />
+
+- Any Effecter in Boston?
+
+  <Tweet id="2107807827691528646" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## Community Highlights
+
+- **Effect 4.0 Just Got a Lot Harder to Ignore** by Better Stack.
+
+<YouTube
+  id="https://www.youtube.com/embed/OsL9EJWz9UY?si=XS6rXnMIJcNPIYnb"
+  title="Effect 4.0 Just Got a Lot Harder to Ignore"
+/>
+
+- ...or the new [`@xstate/effect` package](https://stately.ai/docs/xstate/v6/effect/quick-start)
+
+<Tweet id="2107922229711585334" />
+
+- Alchemy 🤍 Effect
+
+<Tweet id="2107156263331385432" />
+
+<Tweet id="2107716096451326184" />
+
+<Tweet id="2108249257291727090" />
+
+- Effect agent frameworks:
+
+<Tweet id="2108044760753783272" />
+
+- 👀
+
+<Tweet id="2107791810848551245" />
+
+- Congrats, Tanner and the Vitalize team!
+
+<Tweet id="2107545062033035564" />
+
+- 💯
+
+<Tweet id="2107356302385049871" />
+
+- Effect is obviously the solution 😎
+
+<Tweet id="2106841123318821304" />
+
+- Effect mentioned at `36:18`.
+
+<YouTube
+  id="https://www.youtube.com/embed/HuJB97hUPWk?si=UuSejqklYUhlzLWq"
+  title="The Pi Updates are insane ⟡ Pull Requests are Dead ⟡ Turso Joining Supabase ⌁ Syntax Weekly ⌁"
+/>
+
+- [effect-uai](https://effect-uai.betalyra.com/) is now on Effect 4.0.
+
+- [**Changes to STM in Effect 4**](https://dev.to/khraks_mamtsov/changes-to-stm-in-effect-4-33c3) blog post by Max Khramtsov.
+
+- [**Structure an Effect codebase by domain**](https://ratstack.sh/lore/structure-effect-by-domain) - a guide on organizing Effect codebases by domain. By RatStack.
+
+- [effect-harness](https://github.com/julia-script/effect-harness) - durable AI conversations built with Effect. By Julia Ortiz.
+
+- [effect-atom-svelte](https://github.com/jarrednorrisdev/effect-atom-svelte) - Svelte 5 bindings for Effect Atom. By Jarred Norris.
+
+- [ensforge](https://ensforge.com/migrations/overview) - an ENS SDK that has just released 0.6.0, updated to Effect 4.0. By The Namespace.
+
+- [opfs-vfs](https://github.com/opfs-vfs/opfs-vfs) - a virtual filesystem for the Origin Private File System (OPFS).
+
+- [openchart](https://github.com/longsurf-ai/openchart) - an open-source TradingView alternative with your own AI, free and unlimited. By longsurf.ai.
+
+- [effectlings](https://github.com/stardazed/effectlings) - small exercises that teach Effect v4, one idea at a time. By stardazed.
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 49 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/dlbrbz3KW40?si=-gppjnLaPw8B_MdG"
+  title="Effect Office Hours 49 🔥"
+/>
+
+- Local Telemetry, Grafana LGTM, Motel, and Effect v4 Tracing
+
+<YouTube
+  id="https://www.youtube.com/embed/R7kjeiQXQOE?si=1KzLFKApGnlRnwDm"
+  title="Local Telemetry, Grafana LGTM, Motel, and Effect v4 Tracing"
+/>
+
+- Effect Cluster, Part 1 | Module of the Week #3
+
+<YouTube
+  id="https://www.youtube.com/embed/TB145FAQnDM?si=ZCugnA6KyCaWfd_c"
+  title="Effect Cluster, Part 1 | Module of the Week #3"
+/>
+
+- Effect Cluster, Part 2 | Module of the Week #4
+
+<YouTube
+  id="https://www.youtube.com/embed/9QDcO50YriA?si=a1i0dyFSJ27PkeSj"
+  title="Effect Cluster, Part 2 | Module of the Week #4"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
