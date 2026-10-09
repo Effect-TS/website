@@ -7,7 +7,7 @@ function MOTWCard({ post, entry }: { post: SerializedPost; entry: number }) {
   return (
     <a
       href={post.href}
-      className="group relative flex w-[280px] shrink-0 flex-col justify-between overflow-hidden rounded-md border border-border bg-muted/40 p-4 pb-5 transition-colors duration-200 hover:border-border-strong hover:bg-muted/70 sm:w-[340px] xl:w-[calc((100%-1.5rem)/3)] dark:bg-card/40 dark:hover:bg-card/70"
+      className="group relative flex w-[280px] shrink-0 flex-col justify-between overflow-hidden rounded-md border border-border bg-muted/40 p-6 transition-colors duration-200 hover:border-border-strong hover:bg-muted/70 sm:w-[340px] xl:w-[calc((100%-1.5rem)/3)] dark:bg-card/40 dark:hover:bg-card/70"
     >
       <div>
         <div className="flex min-w-0 items-center gap-2 font-mono text-xs">
@@ -29,7 +29,7 @@ function MOTWCard({ post, entry }: { post: SerializedPost; entry: number }) {
         <h3 className="mt-3 truncate text-lg font-semibold text-foreground">
           {title}
         </h3>
-        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 line-clamp-3 text-sm leading-[1.35] text-muted-foreground">
           {post.excerpt}
         </p>
       </div>
