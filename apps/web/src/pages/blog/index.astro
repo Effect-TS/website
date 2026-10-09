@@ -63,17 +63,7 @@ const serializedTags: SerializedTag[] = tagCollection
   }))
   .sort((a, b) => (a.id === "all" ? -1 : b.id === "all" ? 1 : b.count - a.count))
 
-const serializedTwiePosts: SerializedPost[] = twiePosts.map((post) => ({
-  id: post.id,
-  title: post.data.title,
-  excerpt: post.data.excerpt,
-  date: post.data.date,
-  dateMs: post.data.date.getTime(),
-  href: `/blog/${post.id}`,
-  tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
-}))
-
-const serializedMotwPosts: SerializedPost[] = motwPosts.map((post) => ({
+const serialize = (post: (typeof allPosts)[number]): SerializedPost => ({
   id: post.id,
   title: post.data.title,
   excerpt: post.data.excerpt,
@@ -82,17 +72,7 @@ const serializedMotwPosts: SerializedPost[] = motwPosts.map((post) => ({
   href: `/blog/${post.id}`,
   packageName: post.data.packageName,
   tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
-}))
-
-const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
-  id: post.id,
-  title: post.data.title,
-  excerpt: post.data.excerpt,
-  date: post.data.date,
-  dateMs: post.data.date.getTime(),
-  href: `/blog/${post.id}`,
-  tags: post.tags.map((t) => ({ id: t.id, name: t.data.name })),
-}))
+})
 ---
 
 <PageLayout
@@ -220,7 +200,7 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
           <div class="mx-auto w-full max-w-295 px-4">
             <MOTWScrollRail
               client:load
-              posts={serializedMotwPosts}
+              posts={motwPosts.map(serialize)}
               viewAllHref="/blog?category=module-of-the-week#blog-grid"
             />
           </div>
@@ -237,7 +217,7 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
           <div class="mx-auto w-full max-w-295 px-4">
             <TWIEScrollRail
               client:load
-              posts={serializedTwiePosts}
+              posts={twiePosts.map(serialize)}
               viewAllHref="/blog?category=this-week-in-effect#blog-grid"
             />
           </div>
@@ -251,7 +231,7 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
     <div class="mx-auto w-full max-w-295 px-4">
       <BlogControls
         client:load
-        posts={serializedPosts}
+        posts={allPosts.map(serialize)}
         tags={serializedTags}
         railTagIds={["this-week-in-effect", "module-of-the-week"]}
       />

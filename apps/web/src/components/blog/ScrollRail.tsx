@@ -5,13 +5,11 @@ export function ScrollRail({
   title,
   ariaLabel,
   viewAllHref,
-  itemCount,
   children,
 }: {
   title: string
   ariaLabel: string
   viewAllHref: string
-  itemCount: number
   children: ReactNode
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -26,17 +24,14 @@ export function ScrollRail({
   }, [])
 
   useEffect(() => {
-    void itemCount
     updateScrollState()
-  }, [updateScrollState, itemCount])
+  }, [updateScrollState])
 
   const scroll = useCallback((direction: "left" | "right") => {
     const el = scrollRef.current
     if (!el) return
     el.scrollBy({ left: direction === "left" ? -300 : 300, behavior: "smooth" })
   }, [])
-
-  if (itemCount === 0) return null
 
   return (
     <section aria-label={ariaLabel} className="pt-16 pb-2 md:pt-20">

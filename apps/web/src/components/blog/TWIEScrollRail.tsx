@@ -43,7 +43,6 @@ export function TWIEScrollRail({
       title="This Week in Effect"
       ariaLabel="This Week in Effect posts"
       viewAllHref={viewAllHref}
-      itemCount={posts.length}
     >
       {posts.map((post) => (
         <TWIECard key={post.id} post={post} />

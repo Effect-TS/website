@@ -2,7 +2,7 @@ import type { SerializedPost } from "./PostCard"
 import { ScrollRail } from "./ScrollRail"
 
 function MOTWCard({ post, entry }: { post: SerializedPost; entry: number }) {
-  const title = post.title.replace(/^Module of the Week\s*-\s*/, "")
+  const title = post.title.replace("Module of the Week - ", "")
 
   return (
     <a
@@ -49,7 +49,6 @@ export function MOTWScrollRail({
       title="Module of the Week"
       ariaLabel="Module of the Week posts"
       viewAllHref={viewAllHref}
-      itemCount={posts.length}
     >
       {posts.map((post, i) => (
         <MOTWCard key={post.id} post={post} entry={posts.length - i} />
