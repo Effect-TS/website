@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro"
 import { getCollection } from "astro:content"
 import {
+  MARKDOWN_DOCS_VERSIONS,
   docsPageToMarkdown,
   markdownSlugForDocId,
 } from "@/features/docs/markdown"
@@ -14,24 +15,26 @@ import {
  */
 export const prerender = true
 
-/** Docs version whose pages are also available as markdown. */
-const VERSION = "v4"
-
 export async function getStaticPaths() {
   const entries = await getCollection("docs", (entry) =>
-    entry.id.startsWith(`${VERSION}/`),
+    MARKDOWN_DOCS_VERSIONS.some((version) =>
+      entry.id.startsWith(`${version}/`),
+    ),
   )
-  return entries.map((entry) => ({
-    params: {
-      version: VERSION,
-      markdown: markdownSlugForDocId(entry.id.slice(VERSION.length + 1)),
-    },
-    props: { entry },
-    // The handler reads nothing beyond this entry, so its content digest is an
-    // exact cache key. Unlike the `.astro` docs route this never calls
-    // `render()`, so Astro's automatic content-entry tracking does not apply.
-    cacheKey: entry.digest,
-  }))
+  return entries.map((entry) => {
+    const [version = "", ...rest] = entry.id.split("/")
+    return {
+      params: {
+        version,
+        markdown: markdownSlugForDocId(rest.join("/")),
+      },
+      props: { entry },
+      // The handler reads nothing beyond this entry, so its content digest is
+      // an exact cache key. Unlike the `.astro` docs route this never calls
+      // `render()`, so Astro's automatic content-entry tracking does not apply.
+      cacheKey: entry.digest,
+    }
+  })
 }
 
 export const GET: APIRoute = ({ props }) => {

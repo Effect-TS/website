@@ -13,6 +13,8 @@
  *   `<Tabs>` wrappers are removed
  * - `<Steps>` wrappers are unwrapped (their ordered lists remain)
  * - `<Badge text="..." />` becomes bold text
+ * - styled HTML (layout blocks, lists, links, `sup`/`sub`) is reduced to plain
+ *   markdown: text and links are kept, tags and attributes are dropped
  * - code fence info strings are reduced to just the language, dropping
  *   website-specific metadata (`twoslash`, `import.meta.vitest`,
  *   line numbers/highlight directives, ...)
@@ -24,6 +26,9 @@ const ASIDE_DEFAULT_LABELS: Record<string, string> = {
   caution: "Caution",
   danger: "Danger",
 }
+
+/** Docs versions whose pages are available as markdown. */
+export const MARKDOWN_DOCS_VERSIONS = ["v4"] as const
 
 export interface DocsPageMarkdownInput {
   readonly title: string
@@ -54,12 +59,14 @@ export function docsBodyToMarkdown(body: string): string {
   return `${output.trim()}\n`
 }
 
-/**
- * Derives the `.md` slug of a docs entry id, mirroring the page route's
- * `entry.id.replace(/\/index$/, "")`.
- */
+/** Page slug of a docs entry id, as in the page route's `params.slug`. */
+export function docSlugForDocId(id: string): string {
+  return id.replace(/\/index$/, "")
+}
+
+/** `.md` slug of a docs entry id. */
 export function markdownSlugForDocId(id: string): string {
-  return `${id.replace(/\/index$/, "")}.md`
+  return `${docSlugForDocId(id)}.md`
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +205,100 @@ function transformBlocks(text: string): string {
 function transformProse(text: string): string {
   let output = removeImports(text)
   output = transformBadges(output)
+  output = transformHtmlBlocks(output)
+  output = transformInlineHtml(output)
   return output
+}
+
+// Matches one lowercase HTML tag; quoted attribute values may contain `>`.
+const HTML_TAG = /<(\/?)([a-z][a-z0-9]*)\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g
+const HTML_BLOCK_START =
+  /^[ \t]*(?=<(?:div|dl|ol|ul|table|section|details)\b)/gm
+const HTML_VOID_TAGS = new Set(["br", "hr", "img", "input", "source", "wbr"])
+const HTML_LINK = /<a\b[^>]*?\shref=("|')(.*?)\1[^>]*>(.*?)<\/a>/g
+
+const stripHtmlTags = (html: string): string =>
+  html.replaceAll(HTML_TAG, "").replaceAll(/\s+/g, " ").trim()
+
+/**
+ * Turns styled HTML blocks (layout `div`s, lists, definition lists) into
+ * plain markdown: links stay links, `li` and `dt`/`dd` become list items, all
+ * other tags and their attributes are dropped.
+ */
+function transformHtmlBlocks(text: string): string {
+  let output = ""
+  let position = 0
+  for (const start of text.matchAll(HTML_BLOCK_START)) {
+    const from = start.index + start[0].length
+    if (from < position) continue
+    const end = htmlBlockEnd(text, from)
+    if (end === undefined) continue
+    output +=
+      text.slice(position, start.index) +
+      htmlBlockToMarkdown(text.slice(from, end))
+    position = end
+  }
+  return output + text.slice(position)
+}
+
+/** Index after the tag that closes the element opened at `from`. */
+function htmlBlockEnd(text: string, from: number): number | undefined {
+  let depth = 0
+  for (const tag of text.slice(from).matchAll(HTML_TAG)) {
+    const [raw, closing, name, attrs] = tag
+    if (HTML_VOID_TAGS.has(name!) || attrs!.trimEnd().endsWith("/")) continue
+    depth += closing === "/" ? -1 : 1
+    if (depth === 0) return from + tag.index + raw.length
+  }
+  return undefined
+}
+
+function htmlBlockToMarkdown(block: string): string {
+  const lines = block
+    .replaceAll(/\{" "\}/g, "")
+    .replaceAll(/\s+/g, " ")
+    .replaceAll(
+      HTML_LINK,
+      (_match, _quote, href: string, inner: string) =>
+        `[${stripHtmlTags(inner)}](${href})`,
+    )
+    .replaceAll(/<li\b[^>]*>/g, "\n- ")
+    .replaceAll(/<dt\b[^>]*>\s*/g, "\n- **")
+    .replaceAll(/\s*<\/dt>\s*/g, "**")
+    .replaceAll(/\s*<dd\b[^>]*>\s*/g, ": ")
+    .replaceAll(HTML_TAG, "")
+    .replaceAll(/\) \[/g, ")\n[")
+    .split("\n")
+    .map((line) => line.replaceAll(/\s+/g, " ").trim())
+    .filter((line) => line !== "")
+    .map((line) => (line.startsWith("[") ? `- ${line}` : line))
+  // A list needs a blank line before it to follow a paragraph.
+  const spaced = lines.flatMap((line, index) =>
+    line.startsWith("- ") && index > 0 && !lines[index - 1]!.startsWith("- ")
+      ? ["", line]
+      : [line],
+  )
+  return `${spaced.join("\n")}\n`
+}
+
+function transformInlineHtml(text: string): string {
+  return text
+    .split(/(`+[^`\n]*`+)/)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part
+            .replaceAll(/<!--[\s\S]*?-->/g, "")
+            .replaceAll(/<sup>(.*?)<\/sup>/g, "^$1")
+            .replaceAll(/<sub>(.*?)<\/sub>/g, "_$1")
+            .replaceAll(HTML_LINK, "[$3]($2)")
+            .replaceAll(/<br\s*\/?>/g, " ")
+            .replaceAll(
+              /<\/?(?:span|b|i|u|em|strong|kbd|small|abbr)\b[^>]*>/g,
+              "",
+            ),
+    )
+    .join("")
 }
 
 /**
