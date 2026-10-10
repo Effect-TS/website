@@ -1,19 +1,22 @@
 import type { APIRoute } from "astro"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as ManagedRuntime from "effect/ManagedRuntime"
 import * as AstroContent from "./astro-content"
 import type { LlmsContentError, LlmsScopeNotFound } from "./domain"
 import { Llms } from "./service"
 
 type Variant = "index" | "full"
 
-const layer = Llms.layer(new URL(import.meta.env.SITE)).pipe(
-  Layer.provide(AstroContent.layer),
+// One runtime for all routes, so scopes and their cached sections are built
+// once per build instead of once per file.
+const runtime = ManagedRuntime.make(
+  Llms.layer.pipe(Layer.provide(AstroContent.layer)),
 )
 
 const run = <A>(
   effect: Effect.Effect<A, LlmsContentError | LlmsScopeNotFound, Llms>,
-): Promise<A> => Effect.runPromise(Effect.provide(effect, layer))
+): Promise<A> => runtime.runPromise(effect)
 
 const text = (body: string) =>
   new Response(body, {

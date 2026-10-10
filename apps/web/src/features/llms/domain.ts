@@ -14,7 +14,8 @@ export interface LlmsPage {
   readonly description: string | undefined
   /** Site path of the HTML page. Its markdown twin is `${path}.md`. */
   readonly path: string
-  readonly markdown: string
+  /** Lazy: only the `llms-full` files need it. Memoized by the page. */
+  readonly markdown: () => string
 }
 
 export interface LlmsSection {

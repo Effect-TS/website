@@ -23,13 +23,7 @@ const content = Layer.succeed(LlmsContent, {
 
 const run = <A, E>(effect: Effect.Effect<A, E, Llms>) =>
   Effect.runPromise(
-    effect.pipe(
-      Effect.provide(
-        Llms.layer(new URL("https://effect.website")).pipe(
-          Layer.provide(content),
-        ),
-      ),
-    ),
+    effect.pipe(Effect.provide(Llms.layer.pipe(Layer.provide(content)))),
   )
 
 test("docs scope renders index and full from content", async () => {

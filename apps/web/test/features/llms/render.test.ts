@@ -21,7 +21,7 @@ const sections: ReadonlyArray<LlmsSection> = [
         title: "Intro",
         description: "First\npage.",
         path: "/docs/v4/intro",
-        markdown: "# Intro\n\nHello\n",
+        markdown: () => "# Intro\n\nHello\n",
       },
     ],
   },
@@ -80,7 +80,7 @@ test("truncates long descriptions", () => {
             title: "T",
             description: "a".repeat(400),
             path: "/t",
-            markdown: "",
+            markdown: () => "",
           },
         ],
       },
@@ -88,4 +88,27 @@ test("truncates long descriptions", () => {
     site,
   )
   assert.include(index, `${"a".repeat(299)}…`)
+})
+
+test("scope index does not render page markdown", () => {
+  const index = renderScopeIndex(
+    scope,
+    [
+      {
+        title: "S",
+        pages: [
+          {
+            title: "T",
+            description: undefined,
+            path: "/t",
+            markdown: () => {
+              throw new Error("rendered")
+            },
+          },
+        ],
+      },
+    ],
+    site,
+  )
+  assert.include(index, "[T](https://effect.website/t.md)")
 })

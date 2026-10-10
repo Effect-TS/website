@@ -71,7 +71,7 @@ export const renderScopeFull = (
           : []),
         `source: ${absolute(site, page.path)}`,
       ]
-      return `---\n${meta.join("\n")}\n---\n\n${page.markdown.trim()}\n`
+      return `---\n${meta.join("\n")}\n---\n\n${page.markdown().trim()}\n`
     })
   return [header(scope.title, scope.summary), ...blocks].join("\n")
 }
