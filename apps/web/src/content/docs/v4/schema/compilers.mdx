@@ -82,7 +82,7 @@ Once enabled, existing Schema code needs no changes:
 
 **Example** (Enabling JIT Compilation Globally)
 
-```ts
+```ts twoslash import.meta.vitest name="schema-compiler-jit-global-1"
 import "effect/schema/SchemaJITCompiler/enable"
 import { Schema } from "effect"
 
@@ -93,8 +93,7 @@ const User = Schema.Struct({
 
 const decode = Schema.decodeUnknownSync(User)
 
-decode({ id: 1, name: "Ada" })
-// => { id: 1, name: "Ada" }
+decode({ id: 1, name: "Ada" }) // => { id: 1, name: "Ada" }
 ```
 
 Operations compile lazily on first use. Merely importing the enable module does
@@ -241,7 +240,7 @@ which also imports the schemas and installs the generated entries.
 
 The low-level API accepts an ordered array of AST targets:
 
-```ts showLineNumbers=false
+```ts twoslash import.meta.vitest name="schema-compiler-aot-low-level-1"
 import { Schema, SchemaAST } from "effect"
 import * as SchemaAOTCompiler from "effect/schema/SchemaAOTCompiler"
 
@@ -255,6 +254,8 @@ const source = SchemaAOTCompiler.compile([
   { ast: SchemaAST.toType(User.ast), operations: ["is", "make"] },
   { ast: SchemaAST.flip(User.ast), operations: ["decode"] },
 ])
+
+source.includes("export function install") // => true
 ```
 
 After saving the generated source as a module, import its `install` function.
