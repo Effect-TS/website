@@ -50,6 +50,9 @@ export default Alchemy.Stack(
         "MXBAI_PREVIEW_ADMIN_API_KEY",
       ),
       MXBAI_SEARCH_API_KEY: Config.Redacted("MXBAI_SEARCH_API_KEY"),
+      MXBAI_PREVIEW_SEARCH_API_KEY: Config.Redacted(
+        "MXBAI_PREVIEW_SEARCH_API_KEY",
+      ),
       MXBAI_VECTOR_STORE_ID: Config.Redacted("MXBAI_VECTOR_STORE_ID"),
       KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
       KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),

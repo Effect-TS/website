@@ -12,7 +12,10 @@ import type * as Redacted from "effect/Redacted"
 
 type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
 
-const Website = (storeId: StoreId) =>
+const Website = (
+  storeId: StoreId,
+  searchApiKey: Config.Config<Redacted.Redacted<string>>,
+) =>
   Cloudflare.Website.Astro(
     "WebsiteWorker",
     Effect.gen(function* () {
@@ -56,7 +59,7 @@ const Website = (storeId: StoreId) =>
           crossVersionCache: true,
         },
         env: {
-          MXBAI_API_KEY: Config.Redacted("MXBAI_API_KEY"),
+          MXBAI_API_KEY: searchApiKey,
           MXBAI_VECTOR_STORE_ID: storeId,
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
@@ -84,6 +87,7 @@ export default Alchemy.Stack(
     ).pipe(Config.withDefault(false))
     const sha = yield* Config.String("WEBSITE_REVISION")
     let storeId: StoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
+    let searchApiKey = Config.Redacted("MXBAI_API_KEY")
 
     if (previewStoreEnabled && Option.isSome(pullRequest)) {
       const store = yield* Mixedbread.VectorStore("PreviewSearchStore", {
@@ -134,9 +138,13 @@ export default Alchemy.Stack(
       storeId = Output.all(store.id, synchronization.hash.input).pipe(
         Output.map(([id]) => id),
       )
+      // The production search key is scoped to the production store. Mixedbread
+      // only issues API keys from its web app, so preview stores share a key
+      // created there that can search any store tagged `effect-website-preview`.
+      searchApiKey = Config.Redacted("MXBAI_PREVIEW_SEARCH_API_KEY")
     }
 
-    const website = yield* Website(storeId)
+    const website = yield* Website(storeId, searchApiKey)
 
     yield* Option.match(pullRequest, {
       onNone: () => Effect.void,
