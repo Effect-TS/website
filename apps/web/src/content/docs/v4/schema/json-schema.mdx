@@ -3,7 +3,7 @@ title: Schema to JSON Schema
 description: Export a schema's canonical JSON representation as JSON Schema Draft 2020-12.
 sidebar:
   label: JSON Schema
-  order: 16
+  order: 17
 ---
 
 `Schema.toJsonSchemaDocument` generates a JSON Schema Draft 2020-12 document for a schema's canonical JSON representation.
@@ -40,7 +40,7 @@ JSON Schema generation is best-effort. Semantics that JSON Schema cannot express
 
 ## Canonical JSON Representations
 
-For codecs, the output describes the encoded JSON shape rather than the decoded `Type`.
+For codecs, the output describes the encoded JSON shape rather than the decoded `Type`. `Schema.toJsonSchemaDocument` uses the same representation as [`Schema.toCodecJson`](/docs/v4/schema/canonical-codecs#json), so runtime serialization and the generated document agree.
 
 **Example** (Describing the Encoded Side)
 
@@ -50,44 +50,6 @@ import { Schema } from "effect"
 // Type: number, Encoded: string
 Schema.toJsonSchemaDocument(Schema.FiniteFromString).schema // => { type: "string" }
 ```
-
-Declarations such as `Option`, `Duration`, and `BigInt` define canonical JSON codecs. Their generated JSON Schemas describe those representations.
-
-**Example** (Describing an Option's JSON Representation)
-
-```ts twoslash import.meta.vitest name="json-schema-option-1"
-import { Schema } from "effect"
-
-const document = Schema.toJsonSchemaDocument(Schema.Option(Schema.String))
-
-console.log(document.schema)
-/*
-Output:
-{
-  anyOf: [
-    {
-      type: "object",
-      properties: {
-        _tag: { type: "string", enum: ["Some"] },
-        value: { type: "string" }
-      },
-      required: ["_tag", "value"],
-      additionalProperties: true
-    },
-    {
-      type: "object",
-      properties: {
-        _tag: { type: "string", enum: ["None"] }
-      },
-      required: ["_tag"],
-      additionalProperties: true
-    }
-  ]
-}
-*/
-```
-
-When defining a custom declaration, provide a `toCodecJson` annotation if it has a meaningful JSON representation. Both `Schema.toCodecJson` and `Schema.toJsonSchemaDocument` will then use the same shape.
 
 ## Other Drafts
 
