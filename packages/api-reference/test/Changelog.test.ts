@@ -44,38 +44,6 @@ describe("splitChangelog", () => {
     assert.strictEqual(sections[1]?.body, "### Patch Changes\n\n- Fix.")
   })
 
-  test("flags a stable major release that lists only patch changes", () => {
-    const sections = splitChangelog(
-      [
-        "## 4.0.1",
-        "### Patch Changes",
-        "- Fix.",
-        "## 4.0.0",
-        "### Patch Changes",
-        "- Fix.",
-        "## 4.0.0-rc.1",
-        "### Patch Changes",
-        "- Fix.",
-        "## 3.1.0",
-        "### Minor Changes",
-        "- Add.",
-        "## 3.0.0",
-        "### Patch Changes",
-        "- Initial release.",
-      ].join("\n"),
-    )
-    assert.deepStrictEqual(
-      sections.map(({ version, breaking }) => [version, breaking]),
-      [
-        ["4.0.1", false],
-        ["4.0.0", true],
-        ["4.0.0-rc.1", false],
-        ["3.1.0", false],
-        ["3.0.0", false],
-      ],
-    )
-  })
-
   test("ignores headings that are not versions or sit inside code", () => {
     const sections = splitChangelog(
       ["## Unreleased", "", "## 1.0.0", "", "```md", "## 9.9.9", "```"].join(

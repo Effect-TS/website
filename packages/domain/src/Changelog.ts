@@ -23,8 +23,6 @@ const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
 
 export const isSemver = (value: string): boolean => SEMVER.test(value)
 
-const MAJOR_RELEASE = /^[1-9]\d*\.0\.0(?:\+|$)/
-
 export interface ChangelogSection {
   readonly version: string
   readonly breaking: boolean
@@ -33,10 +31,8 @@ export interface ChangelogSection {
 
 /**
  * Split a Changesets `CHANGELOG.md` into one section per `## <semver>` heading.
- * Headings inside fenced code are ignored. A release is breaking when it has a
- * `### Major Changes` block, or when it is a stable `X.0.0` major release with
- * history before it. Changesets lists only patch notes for a stable release cut
- * after a pre-release series (`effect@4.0.0`), so the heading alone misses it.
+ * Headings inside fenced code are ignored. A `### Major Changes` block marks a
+ * release as breaking.
  */
 export function splitChangelog(source: string): Array<ChangelogSection> {
   const sections: Array<{
@@ -60,10 +56,9 @@ export function splitChangelog(source: string): Array<ChangelogSection> {
     current.lines.push(line)
   }
 
-  return sections.map(({ version, breaking, lines }, index) => ({
+  return sections.map(({ version, breaking, lines }) => ({
     version,
-    breaking:
-      breaking || (MAJOR_RELEASE.test(version) && index < sections.length - 1),
+    breaking,
     body: lines.join("\n").trim(),
   }))
 }
