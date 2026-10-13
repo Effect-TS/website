@@ -159,13 +159,12 @@ const createBlogTemplate = (
     createNode("div", {
       style: {
         display: "flex",
-        alignItems: "center",
-        minHeight: "96px",
         maxWidth: "950px",
-        marginTop: "32px",
+        marginTop: "20px",
         color: "#ffffff",
         fontSize: "56px",
-        fontWeight: 600,
+        fontWeight: 700,
+        letterSpacing: "-0.02em",
         lineHeight: 1.15,
       },
       children: props.title,
@@ -178,7 +177,7 @@ const createBlogTemplate = (
         style: {
           display: "block",
           maxWidth: "860px",
-          marginTop: "40px",
+          marginTop: "20px",
           color: "#a1a1aa",
           fontSize: "28px",
           fontWeight: 400,
