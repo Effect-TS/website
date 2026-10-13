@@ -1,10 +1,10 @@
 import rss from "@astrojs/rss"
 import type { APIContext, GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
-import { renderChangelogHtml } from "@website/api-reference/ChangelogHtml"
 import { changelogHref } from "@website/domain/ChangelogView"
 
 import { changelogDigest } from "@/features/changelog/cache-key"
+import { renderChangelogHtml } from "@/features/changelog/html"
 import { loadReleases } from "@/features/changelog/releases"
 
 const FEED_LENGTH = 50

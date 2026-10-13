@@ -2,19 +2,19 @@
 import type { GetStaticPaths } from "astro"
 import { getCollection, type CollectionEntry } from "astro:content"
 import { Rss } from "@lucide/astro"
-import { renderChangelogHtml } from "@website/api-reference/ChangelogHtml"
 import { changelogHref, groupReleases } from "@website/domain/ChangelogView"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
+import ApiBadge from "@/features/api-reference/ApiBadge.astro"
 import ApiBreadcrumb from "@/features/api-reference/ApiBreadcrumb.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import ApiSidebarHeader from "@/features/api-reference/ApiSidebarHeader.astro"
 import { packageDisplayName, versionLinks } from "@/features/api-reference/navigation"
 import { changelogDigest, changelogIndexDigest } from "@/features/changelog/cache-key"
-import ChangelogBadge from "@/features/changelog/ChangelogBadge.astro"
 import CopyCode from "@/features/changelog/CopyCode.astro"
 import ChangelogVersionNav from "@/features/changelog/ChangelogVersionNav.astro"
 import { formatReleaseDate } from "@/features/changelog/format"
+import { renderChangelogHtml } from "@/features/changelog/html"
 import { loadReleases } from "@/features/changelog/releases"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
@@ -140,7 +140,11 @@ const mobileReleases = [
                 {release.version}
               </a>
             </h2>
-            {release.breaking && <ChangelogBadge>Breaking</ChangelogBadge>}
+            {release.breaking && (
+              <ApiBadge tone="destructive" title="This release contains breaking changes.">
+                Breaking
+              </ApiBadge>
+            )}
             {release.date !== undefined && (
               <time datetime={release.date} class="font-mono text-xs text-muted-foreground">
                 {formatReleaseDate(release.date)}
