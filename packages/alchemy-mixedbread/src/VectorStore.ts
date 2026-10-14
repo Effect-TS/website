@@ -477,9 +477,18 @@ export const VectorStoreProvider = Provider.effect(
         return toAttributes(store)
       }),
       delete: Effect.fn(function* ({ output }) {
-        yield* client
-          .deleteStore(output.id)
-          .pipe(Effect.catchIf(isNotFound, () => Effect.void))
+        // Deleting a copy target mid-copy leaves its source reporting a copy
+        // in progress for over an hour, which blocks production syncs. Let the
+        // copy finish first; it only takes a few minutes.
+        const store = yield* retrieveOptional(output.id)
+        if (store === undefined) return
+        if (isCopying(store)) {
+          yield* Effect.log(
+            `Waiting for the copy into Mixedbread store '${store.name}' to finish before deleting it`,
+          )
+          yield* awaitCopy(store)
+        }
+        yield* deleteOptional(output.id)
       }),
     }
   }),
