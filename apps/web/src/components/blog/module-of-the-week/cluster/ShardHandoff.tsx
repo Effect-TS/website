@@ -244,7 +244,7 @@ function simulate(
         return
       }
       case "join":
-        db.listed = [...db.listed, e.runner].sort()
+        db.listed = [...db.listed, e.runner].sort((a, b) => a - b)
         touches.push({ table: "runners", at: t })
         r.status = "running"
         at({ t: t + 0.3, kind: "poll", runner: e.runner, epoch: r.epoch })

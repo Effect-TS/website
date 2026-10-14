@@ -196,9 +196,9 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
       })
 
       let size = 0
-      const terminalSize = Atom.writable(
+      const terminalSize = Atom.writable<number, void>(
         () => size,
-        (ctx, _: void) => ctx.setSelf(size++),
+        (ctx) => ctx.setSelf(size++),
       ).pipe(Atom.debounce("250 millis"))
 
       const resetContent = Atom.fn<void>()(

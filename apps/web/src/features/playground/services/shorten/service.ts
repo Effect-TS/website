@@ -33,7 +33,7 @@ export class Shorten extends Context.Service<Shorten>()("app/Shorten", {
       }).pipe(
         Effect.catchIf(
           (err) => err._tag !== "ShortenError",
-          (_) => new ShortenError({ reason: "Unknown", method: "shorten" }),
+          () => new ShortenError({ reason: "Unknown", method: "shorten" }),
         ),
       )
 
@@ -42,7 +42,7 @@ export class Shorten extends Context.Service<Shorten>()("app/Shorten", {
         .get(hash)
         .pipe(
           Effect.mapError(
-            (_) => new ShortenError({ reason: "Unknown", method: "retrieve" }),
+            () => new ShortenError({ reason: "Unknown", method: "retrieve" }),
           ),
         )
 
