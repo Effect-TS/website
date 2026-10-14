@@ -1,0 +1,116 @@
+---
+// The step pills across the top of a step-through visual. Each one is a
+// button that jumps to its step. See stepper.ts.
+//
+// Colors come from the root's --st-ink, --st-muted, --st-line and
+// --st-surface.
+
+interface Props {
+  steps: ReadonlyArray<string>
+}
+const { steps } = Astro.props
+---
+
+<ol class="st-steps" aria-label="Steps">
+  {
+    steps.map((label, i) => (
+      <li>
+        <button
+          type="button"
+          class="st-step"
+          data-step-pill={i + 1}
+          aria-label={`Go to step ${i + 1}: ${label}`}
+        >
+          <span class="st-step-num">{i + 1}</span>
+          <span class="st-step-label">{label}</span>
+        </button>
+      </li>
+    ))
+  }
+</ol>
+
+<style is:global>
+  .st .st-steps {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0 0 0.9rem;
+    padding: 0;
+    list-style: none;
+  }
+  .st .st-steps li {
+    margin: 0;
+    padding: 0;
+  }
+  .st .st-steps li::before,
+  .st .st-steps li::marker {
+    content: none;
+  }
+  .st .st-step {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0.15rem 0.55rem 0.15rem 0.2rem;
+    border: 1px solid var(--st-line);
+    border-radius: 999px;
+    background: none;
+    font: inherit;
+    font-size: 0.72rem;
+    color: var(--st-muted);
+    cursor: pointer;
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease;
+  }
+  .st .st-step:hover {
+    border-color: color-mix(in oklab, var(--st-ink) 60%, transparent);
+  }
+  .st .st-step:focus-visible {
+    outline: 2px solid var(--st-ink);
+    outline-offset: 2px;
+  }
+  .st-step-num {
+    display: grid;
+    place-items: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--st-ink) 10%, transparent);
+    font-weight: 600;
+    font-size: 0.68rem;
+  }
+  .st .st-step.is-done {
+    border-color: color-mix(in oklab, var(--st-ink) 45%, transparent);
+    color: var(--st-ink);
+  }
+  .st .st-step.is-done .st-step-num {
+    background: color-mix(in oklab, var(--st-ink) 22%, transparent);
+  }
+  .st .st-step[aria-current="step"] {
+    border-color: var(--st-ink);
+    background: var(--st-ink);
+    color: var(--st-surface);
+    font-weight: 600;
+  }
+  .st .st-step[aria-current="step"] .st-step-num {
+    background: var(--st-surface);
+    color: var(--st-ink);
+  }
+
+  /* Narrow screens: one row, and only the current pill keeps its label */
+  @media (max-width: 640px) {
+    .st .st-steps {
+      flex-wrap: nowrap;
+      margin-bottom: 0.7rem;
+    }
+    .st .st-step:not([aria-current="step"]) {
+      padding-right: 0.2rem;
+    }
+    .st .st-step:not([aria-current="step"]) .st-step-label {
+      display: none;
+    }
+  }
+</style>

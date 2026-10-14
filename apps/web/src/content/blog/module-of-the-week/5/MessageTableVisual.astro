@@ -1,0 +1,980 @@
+---
+// Cluster's table of persisted messages, one step at a time.
+//
+// With `scenario="redeliver"`, Mike's message is saved, delivered to Dad on
+// Runner 1, and marked as processed once Dad replies. Sebastian's is saved
+// and delivered too, but Runner 1 crashes before Dad replies, so it stays
+// unprocessed. When Runner 2 takes over the shard, it reads the unprocessed
+// message from the table and delivers it to its new Dad.
+//
+// With `scenario="crash"`, it's Part 2's Dad. His handler replies as soon as
+// Sebastian's message is in his unread queue, so it's marked as processed
+// before any joke is told. Runner 1 crashes, and when Runner 2 takes over,
+// there's nothing unprocessed for it to deliver.
+//
+// With `scenario="ack-last"`, Dad only replies once his joke is posted.
+// Runner 1 crashes before then, so the message is still unprocessed, and
+// Runner 2's Dad gets it, tells his joke, and replies.
+//
+// With `scenario="repeat"`, Runner 1 crashes later: after Dad tells his
+// joke, but before he replies. The message is still unprocessed, so Runner
+// 2's Dad gets it too. His `told` set is empty, so he tells the same joke.
+//
+// The shard is worked out at build time with the same hash Cluster uses.
+
+import * as Hash from "effect/Hash"
+import { people, warning } from "../3/palette"
+import StepCallout from "@/components/blog/module-of-the-week/stepper/StepCallout.astro"
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import StepPills from "@/components/blog/module-of-the-week/stepper/StepPills.astro"
+
+interface Props {
+  scenario?: "redeliver" | "crash" | "ack-last" | "repeat"
+}
+const { scenario = "redeliver" } = Astro.props
+
+const SHARDS = 300
+const entityId = "#engineering"
+const shard = Math.abs(Hash.string(entityId) % SHARDS) + 1
+
+// The same runner colors as the crash visual
+const runnerColors = [
+  { light: "#0072b2", dark: "#56b4e9" },
+  { light: "#007a5e", dark: "#3cc39b" },
+]
+
+const rows =
+  scenario === "redeliver"
+    ? [
+        { id: 1, text: "Is anyone else seeing packet loss?" },
+        { id: 2, text: "Why is this test flaky?" },
+      ]
+    : [{ id: 1, text: "Why is this test flaky?" }]
+
+const steps = {
+  redeliver: ["Save", "Deliver", "Reply", "Next", "Crash", "Shard", "Redeliver"],
+  crash: ["Save", "Deliver", "Reply", "Crash", "Shard"],
+  "ack-last": ["Save", "Deliver", "Crash", "Shard", "Redeliver", "Joke"],
+  repeat: ["Save", "Deliver", "Joke", "Crash", "Shard", "Redeliver", "Repeat"],
+}[scenario]
+// What's in Dad's memory, when it matters: Part 2's unread queue, or the
+// message he's holding on to and the jokes he's told
+const fields = {
+  redeliver: [],
+  crash: ["unread"],
+  "ack-last": ["mailbox", "told"],
+  repeat: ["mailbox", "told"],
+}[scenario]
+---
+
+<figure
+  class="mt5 st"
+  data-table-visual
+  data-scenario={scenario}
+  aria-label={{
+    redeliver:
+      "Step-by-step diagram: cluster saves each message to a table with a processed flag. A message Runner 1 never finished stays unprocessed after it crashes, and Runner 2 reads it from the table and delivers it again.",
+    crash:
+      "Step-by-step diagram: Sebastian's message is saved and delivered to Dad, who replies as soon as it's in his unread queue, so it's marked as processed before he tells a joke. Runner 1 crashes, and Runner 2 finds nothing unprocessed to deliver.",
+    "ack-last":
+      "Step-by-step diagram: Sebastian's message is saved and delivered to Dad, who only replies once his joke is posted. Runner 1 crashes before then, so the message is still unprocessed, and Runner 2's Dad gets it, tells his joke, and replies.",
+    repeat:
+      "Step-by-step diagram: Dad tells his joke, then Runner 1 crashes before he replies. The message is still unprocessed, so Runner 2's Dad gets it too, and with nothing in his told set, he tells the same joke again.",
+  }[scenario]}
+  style={[
+    ...runnerColors.flatMap((c, i) => [
+      `--mt5-r${i + 1}-light: ${c.light}`,
+      `--mt5-r${i + 1}-dark: ${c.dark}`,
+    ]),
+    `--mt5-message: ${people.Sebastian.avatar}`,
+    `--mt5-warn: ${warning.background}`,
+    `--mt5-warn-ink: ${warning.text}`,
+  ].join("; ")}
+>
+  <StepPills steps={steps} />
+
+  <div class="mt5-stage" data-stage>
+    <div class="mt5-db" data-db>
+      <p class="mt5-db-title">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <ellipse cx="8" cy="3.5" rx="5.5" ry="2"></ellipse>
+          <path d="M2.5 3.5 V12.5 C2.5 13.6 5 14.5 8 14.5 C11 14.5 13.5 13.6 13.5 12.5 V3.5"></path>
+          <path d="M2.5 8 C2.5 9.1 5 10 8 10 C11 10 13.5 9.1 13.5 8"></path>
+        </svg>
+        Messages
+      </p>
+      <table class="mt5-table">
+        <thead>
+          <tr>
+            <th>id</th>
+            <th class="mt5-entity">entity</th>
+            <th>text</th>
+            <th>processed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((r) => (
+              <tr data-row={r.id}>
+                <td>{r.id}</td>
+                <td class="mt5-entity">Dad {entityId}</td>
+                <td class="mt5-text">{r.text}</td>
+                <td>
+                  <span class="mt5-flag" data-flag />
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt5-runners">
+      {
+        [1, 2].map((n) => (
+          <section class="mt5-runner" style={`--c: var(--mt5-r${n})`} data-runner={n}>
+            <p class="mt5-runner-title">
+              <span>Runner {n}</span>
+              <span class="mt5-crashed" data-crashed hidden>
+                ✕ Crashed
+              </span>
+            </p>
+            <div class="mt5-shard" data-shard-box>
+              <p class="mt5-shard-name">Shard {shard}</p>
+              <div class="mt5-dad" data-dad>
+                <p class="mt5-dad-head">
+                  <span class="mt5-face" aria-hidden="true" />
+                  Dad
+                </p>
+                {fields.map((name) => (
+                  <p class="mt5-field">
+                    <span class="mt5-field-label">{name}</span>
+                    <span data-field={name}>empty</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          </section>
+        ))
+      }
+    </div>
+
+    <StepCallout />
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import {
+    createCallout,
+    createStepper,
+    createTraveler,
+    envelopeSvg,
+    rel as relTo,
+    type Anchor,
+    type Point,
+  } from "@/components/blog/module-of-the-week/stepper/stepper"
+
+  // A message or a reply between a row in the table and a runner's Dad
+  type Leg = { row: number; runner: 1 | 2; cargo: "message" | "reply" }
+  type View = {
+    title: string
+    text: string
+    // Each row: whether it's been saved yet, and whether it's processed
+    rows: Array<[shown: boolean, processed: boolean]>
+    // The row this step is about
+    active: number | null
+    crashed: boolean
+    // Runner 2 owns the shard
+    owns: boolean
+    // What's in each Dad's memory fields, for Runner 1 and Runner 2
+    fields?: Record<string, [string | null, string | null]>
+    // Runner 2's Dad has just told a joke Runner 1's already told
+    repeat?: boolean
+    // What the callout points at: a row's processed flag, or a runner
+    anchor: { row: number } | { runner: 1 | 2 }
+    // What travels on the way into this state
+    legs?: Array<Leg>
+  }
+
+  const SEBASTIAN = "Why is this test flaky?"
+
+  const VIEWS: Record<string, Array<View>> = {
+    redeliver: [
+      {
+        title: "Save",
+        text: "Mike's message is saved, unprocessed",
+        rows: [
+          [true, false],
+          [false, false],
+        ],
+        active: 0,
+        crashed: false,
+        owns: false,
+        anchor: { row: 0 },
+      },
+      {
+        title: "Deliver",
+        text: "Cluster delivers it to Dad on Runner 1",
+        rows: [
+          [true, false],
+          [false, false],
+        ],
+        active: 0,
+        crashed: false,
+        owns: false,
+        anchor: { runner: 1 },
+        legs: [{ row: 0, runner: 1, cargo: "message" }],
+      },
+      {
+        title: "Reply",
+        text: "Dad replies, so it's marked processed",
+        rows: [
+          [true, true],
+          [false, false],
+        ],
+        active: 0,
+        crashed: false,
+        owns: false,
+        anchor: { row: 0 },
+        legs: [{ row: 0, runner: 1, cargo: "reply" }],
+      },
+      {
+        title: "Next",
+        text: "Sebastian's message is saved and delivered",
+        rows: [
+          [true, true],
+          [true, false],
+        ],
+        active: 1,
+        crashed: false,
+        owns: false,
+        anchor: { row: 1 },
+        legs: [{ row: 1, runner: 1, cargo: "message" }],
+      },
+      {
+        title: "Crash",
+        text: "Runner 1 crashes before Dad replies",
+        rows: [
+          [true, true],
+          [true, false],
+        ],
+        active: 1,
+        crashed: true,
+        owns: false,
+        anchor: { runner: 1 },
+      },
+      {
+        title: "Shard",
+        text: "Runner 2 takes over, and finds an unprocessed message",
+        rows: [
+          [true, true],
+          [true, false],
+        ],
+        active: 1,
+        crashed: true,
+        owns: true,
+        anchor: { runner: 2 },
+      },
+      {
+        title: "Redeliver",
+        text: "The new Dad gets it, and replies",
+        rows: [
+          [true, true],
+          [true, true],
+        ],
+        active: 1,
+        crashed: true,
+        owns: true,
+        anchor: { runner: 2 },
+        legs: [
+          { row: 1, runner: 2, cargo: "message" },
+          { row: 1, runner: 2, cargo: "reply" },
+        ],
+      },
+    ],
+    crash: [
+      {
+        title: "Save",
+        text: "Sebastian's message is saved, unprocessed",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { unread: [null, null] },
+        anchor: { row: 0 },
+      },
+      {
+        title: "Deliver",
+        text: "Dad gets it, and adds it to his unread queue",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { unread: [SEBASTIAN, null] },
+        anchor: { runner: 1 },
+        legs: [{ row: 0, runner: 1, cargo: "message" }],
+      },
+      {
+        title: "Reply",
+        text: "Dad replies before telling a joke, so it's processed",
+        rows: [[true, true]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { unread: [SEBASTIAN, null] },
+        anchor: { row: 0 },
+        legs: [{ row: 0, runner: 1, cargo: "reply" }],
+      },
+      {
+        title: "Crash",
+        text: "Runner 1 crashes before Dad tells his joke",
+        rows: [[true, true]],
+        active: 0,
+        crashed: true,
+        owns: false,
+        fields: { unread: [SEBASTIAN, null] },
+        anchor: { runner: 1 },
+      },
+      {
+        title: "Shard",
+        text: "Runner 2 takes over, but finds nothing unprocessed",
+        rows: [[true, true]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { unread: [SEBASTIAN, null] },
+        anchor: { runner: 2 },
+      },
+    ],
+    "ack-last": [
+      {
+        title: "Save",
+        text: "Sebastian's message is saved, unprocessed",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { mailbox: [null, null], told: [null, null] },
+        anchor: { row: 0 },
+      },
+      {
+        title: "Deliver",
+        text: "Dad gets it, and waits for the chat to go quiet",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { mailbox: [SEBASTIAN, null], told: [null, null] },
+        anchor: { runner: 1 },
+        legs: [{ row: 0, runner: 1, cargo: "message" }],
+      },
+      {
+        title: "Crash",
+        text: "Runner 1 crashes before Dad tells his joke",
+        rows: [[true, false]],
+        active: 0,
+        crashed: true,
+        owns: false,
+        fields: { mailbox: [SEBASTIAN, null], told: [null, null] },
+        anchor: { runner: 1 },
+      },
+      {
+        title: "Shard",
+        text: "Runner 2 takes over, and the message is still unprocessed",
+        rows: [[true, false]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { mailbox: [SEBASTIAN, null], told: [null, null] },
+        anchor: { row: 0 },
+      },
+      {
+        title: "Redeliver",
+        text: "The new Dad gets it in his mailbox",
+        rows: [[true, false]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { mailbox: [SEBASTIAN, SEBASTIAN], told: [null, null] },
+        anchor: { runner: 2 },
+        legs: [{ row: 0, runner: 2, cargo: "message" }],
+      },
+      {
+        title: "Joke",
+        text: "He tells his joke, then replies, so it's processed",
+        rows: [[true, true]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { mailbox: [SEBASTIAN, null], told: [null, "UDP joke"] },
+        anchor: { row: 0 },
+        legs: [{ row: 0, runner: 2, cargo: "reply" }],
+      },
+    ],
+    repeat: [
+      {
+        title: "Save",
+        text: "Sebastian's message is saved, unprocessed",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { mailbox: [null, null], told: [null, null] },
+        anchor: { row: 0 },
+      },
+      {
+        title: "Deliver",
+        text: "Dad gets it, and waits for the chat to go quiet",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { mailbox: [SEBASTIAN, null], told: [null, null] },
+        anchor: { runner: 1 },
+        legs: [{ row: 0, runner: 1, cargo: "message" }],
+      },
+      {
+        title: "Joke",
+        text: "Dad posts the UDP joke to the chat",
+        rows: [[true, false]],
+        active: 0,
+        crashed: false,
+        owns: false,
+        fields: { mailbox: [SEBASTIAN, null], told: ["UDP joke", null] },
+        anchor: { runner: 1 },
+      },
+      {
+        title: "Crash",
+        text: "Runner 1 crashes before Dad replies",
+        rows: [[true, false]],
+        active: 0,
+        crashed: true,
+        owns: false,
+        fields: { mailbox: [SEBASTIAN, null], told: ["UDP joke", null] },
+        anchor: { runner: 1 },
+      },
+      {
+        title: "Shard",
+        text: "Runner 2 takes over, and the message is still unprocessed",
+        rows: [[true, false]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { mailbox: [SEBASTIAN, null], told: ["UDP joke", null] },
+        anchor: { row: 0 },
+      },
+      {
+        title: "Redeliver",
+        text: "The new Dad gets it, with nothing in his told set",
+        rows: [[true, false]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { mailbox: [SEBASTIAN, SEBASTIAN], told: ["UDP joke", null] },
+        anchor: { runner: 2 },
+        legs: [{ row: 0, runner: 2, cargo: "message" }],
+      },
+      {
+        title: "Repeat",
+        text: "So he posts the UDP joke again, then replies",
+        rows: [[true, true]],
+        active: 0,
+        crashed: true,
+        owns: true,
+        fields: { mailbox: [SEBASTIAN, null], told: ["UDP joke", "UDP joke"] },
+        repeat: true,
+        anchor: { runner: 2 },
+        legs: [{ row: 0, runner: 2, cargo: "reply" }],
+      },
+    ],
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-table-visual]")) {
+    const q = <T extends Element>(sel: string, from: ParentNode = root) =>
+      from.querySelector<T>(sel)!
+    const views = VIEWS[root.dataset.scenario!]!
+    const stage = q<HTMLElement>("[data-stage]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const rows = [...root.querySelectorAll<HTMLElement>("[data-row]")].map((el) => ({
+      el,
+      flag: q<HTMLElement>("[data-flag]", el),
+    }))
+    const runner = (n: number) => {
+      const el = q<HTMLElement>(`[data-runner="${n}"]`)
+      return {
+        el,
+        crashed: q<HTMLElement>("[data-crashed]", el),
+        box: q<HTMLElement>("[data-shard-box]", el),
+        dad: q<HTMLElement>("[data-dad]", el),
+        field: (name: string) => el.querySelector<HTMLElement>(`[data-field="${name}"]`),
+      }
+    }
+    const runners = { 1: runner(1), 2: runner(2) }
+    const r1 = runners[1]
+    const r2 = runners[2]
+
+    // Each step's note in a callout under what it's about: a row's
+    // processed flag, or a runner. On narrow screens there's no room, so the
+    // caption shows instead.
+    const callout = createCallout(root, stage)
+    const anchorFor = (k: number): Anchor | null => {
+      if (stage.clientWidth < 560) return null
+      const a = views[k]!.anchor
+      return "row" in a
+        ? { el: rows[a.row]!.flag.parentElement!, place: "below", width: 210 }
+        : { el: runners[a.runner].el, place: "below", width: "target" }
+    }
+
+    const setRows = (v: View, processed: (i: number) => boolean) => {
+      for (const [i, r] of rows.entries()) {
+        const done = processed(i)
+        r.el.classList.toggle("is-hidden", !v.rows[i]![0])
+        r.el.classList.toggle("is-active", v.active === i)
+        r.flag.textContent = done ? "true" : "false"
+        r.flag.classList.toggle("is-true", done)
+      }
+    }
+    // Fills in each Dad's memory fields. Jokes get Dad's color.
+    const setFields = (v: View) => {
+      for (const [name, values] of Object.entries(v.fields ?? {})) {
+        for (const [i, r] of [r1, r2].entries()) {
+          const el = r.field(name)
+          const text = values[i]
+          if (!el) continue
+          const repeat = name === "told" && i === 1 && v.repeat
+          el.innerHTML = text
+            ? `<span class="mt5-chip${name === "told" ? " is-joke" : ""}${repeat ? " is-repeat" : ""}">${text}</span>${repeat ? `<span class="mt5-repeat">Repeat!</span>` : ""}`
+            : "empty"
+        }
+      }
+    }
+
+    let current = 0
+    const apply = (k: number) => {
+      current = k
+      const v = views[k]!
+      setRows(v, (i) => v.rows[i]![1])
+
+      r1.el.classList.toggle("is-crashed", v.crashed)
+      r1.el.classList.toggle("is-active", !v.crashed)
+      r1.crashed.hidden = !v.crashed
+      r1.box.classList.toggle("is-lost", v.crashed)
+      setFields(v)
+
+      r2.el.classList.toggle("is-active", v.owns)
+      r2.box.classList.toggle("is-empty", !v.owns)
+
+      caption.textContent = `${k + 1}. ${v.text}`
+      callout.show({ title: v.title, text: v.text, num: k + 1 }, anchorFor(k))
+    }
+
+    // From a row in the table straight down to a Dad, or back up
+    const rel = (el: Element) => relTo(stage, el)
+    const route = (leg: Leg): Array<Point> => {
+      const r = rel(rows[leg.row]!.el)
+      const d = rel(runners[leg.runner].dad)
+      const x = d.left + 18
+      const pts = [
+        { x, y: r.bottom - 6 },
+        { x, y: d.top + 8 },
+      ]
+      return leg.cargo === "reply" ? pts.reverse() : pts
+    }
+    const traveler = createTraveler(stage)
+
+    const advance = async (next: number, alive: () => boolean) => {
+      const was = views[next - 1]!
+      const v = views[next]!
+      // New rows show up first, and flags only flip once the reply is back
+      setRows(v, (i) => was.rows[i]![1])
+      // Dad does his work before a reply goes back, but only knows about a
+      // message once it's arrived
+      if (v.legs?.[0]?.cargo === "reply") setFields(v)
+      for (const leg of v.legs ?? []) {
+        await traveler.travel(route(leg), `mt5-env is-${leg.cargo}`, envelopeSvg)
+        if (!alive()) return
+      }
+    }
+
+    createStepper({
+      root,
+      first: 0,
+      last: views.length - 1,
+      apply,
+      advance,
+      stop: traveler.cancel,
+    })
+
+    new ResizeObserver(() => callout.place(anchorFor(current))).observe(stage)
+  }
+</script>
+
+<style is:global>
+  .mt5 {
+    --mt5-ink: #3f3f46;
+    --mt5-muted: #71717a;
+    --mt5-line: #d4d4d8;
+    --mt5-surface: #ffffff;
+    --mt5-panel: #fafafa;
+    --mt5-dad: #b45309;
+    --mt5-ok: #15803d;
+    --mt5-red: #dc2626;
+    --mt5-r1: var(--mt5-r1-light);
+    --mt5-r2: var(--mt5-r2-light);
+    --st-ink: var(--mt5-ink);
+    --st-muted: var(--mt5-muted);
+    --st-line: var(--mt5-line);
+    --st-surface: var(--mt5-surface);
+    margin: 1.5rem 0;
+  }
+  html.dark .mt5 {
+    --mt5-ink: #e4e4e7;
+    --mt5-muted: #a1a1aa;
+    --mt5-line: #3f3f46;
+    --mt5-surface: #09090b;
+    --mt5-panel: #111113;
+    --mt5-dad: #fbbf24;
+    --mt5-ok: #4ade80;
+    --mt5-red: #f87171;
+    --mt5-r1: var(--mt5-r1-dark);
+    --mt5-r2: var(--mt5-r2-dark);
+  }
+  .mt5 p {
+    margin: 0;
+  }
+  .mt5 [hidden] {
+    display: none !important;
+  }
+
+  /* Stage: the table on top and the runners under it, with room between
+     them for messages to travel. Envelopes sit on top. */
+  .mt5-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2.25rem;
+  }
+  /* Room under the runners for their callouts */
+  .mt5.has-callouts .mt5-stage {
+    padding-bottom: 6.25rem;
+  }
+  .mt5-env {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 20px;
+    height: 14px;
+    pointer-events: none;
+    --c: var(--mt5-message);
+  }
+  .mt5-env.is-reply {
+    --c: var(--mt5-dad);
+  }
+  .mt5-env svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--c);
+    stroke: var(--mt5-surface);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .mt5-env path {
+    fill: none;
+  }
+
+  /* The table */
+  .mt5-db {
+    border: 1px solid var(--mt5-line);
+    border-radius: 0.75rem;
+    background: var(--mt5-panel);
+    overflow: hidden;
+  }
+  .mt5 .mt5-db-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--mt5-line);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mt5-ink);
+  }
+  .mt5-db-title svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.3;
+  }
+  .mt5 .mt5-table {
+    display: table;
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 0.75rem;
+  }
+  .mt5 .mt5-table th,
+  .mt5 .mt5-table td {
+    padding: 0 0.75rem;
+    height: 2rem;
+    border: none;
+    border-bottom: 1px solid var(--mt5-line);
+    background: none;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--mt5-ink);
+  }
+  .mt5 .mt5-table th {
+    height: 1.7rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    font-weight: 400;
+    color: var(--mt5-muted);
+  }
+  .mt5 .mt5-table th:first-child {
+    width: 2.5rem;
+  }
+  .mt5 .mt5-table th:nth-child(2) {
+    width: 8.5rem;
+  }
+  .mt5 .mt5-table th:last-child {
+    width: 5.5rem;
+  }
+  .mt5 .mt5-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  /* Rows that haven't been saved yet still take up their space, so nothing
+     jumps when they show up */
+  .mt5 .mt5-table tr.is-hidden {
+    visibility: hidden;
+  }
+  .mt5 .mt5-table tr.is-active td {
+    background: color-mix(in oklab, var(--mt5-message) 10%, transparent);
+  }
+  .mt5-flag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--mt5-muted);
+  }
+  .mt5-flag.is-true {
+    font-weight: 600;
+    color: var(--mt5-ok);
+  }
+
+  /* Runners */
+  .mt5-runners {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .mt5-runner {
+    padding: 0.55rem 0.75rem 0.65rem;
+    border: 1px solid var(--mt5-line);
+    border-radius: 0.75rem;
+    background: var(--mt5-surface);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .mt5-runner.is-active {
+    border-color: var(--c);
+    box-shadow: 0 0 0 1px var(--c);
+  }
+  .mt5-runner.is-crashed {
+    border-style: dashed;
+    border-color: var(--mt5-red);
+    box-shadow: none;
+    animation: mt5-shake 400ms ease-in-out;
+  }
+  @keyframes mt5-shake {
+    25% {
+      transform: translateX(-4px);
+    }
+    75% {
+      transform: translateX(4px);
+    }
+  }
+  .mt5 .mt5-runner-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--c);
+  }
+  .mt5-crashed {
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--mt5-red);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  html.dark .mt5-crashed {
+    color: #1f1f1f;
+  }
+  .mt5-shard {
+    position: relative;
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.55rem 0.5rem;
+    border: 1px solid var(--mt5-line);
+    border-radius: 0.5rem;
+  }
+  .mt5 .mt5-shard-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mt5-ink);
+  }
+  .mt5 .mt5-dad {
+    margin-top: 0.4rem;
+    padding: 0.3rem 0.5rem;
+    border: 1.5px solid var(--mt5-ink);
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--mt5-ink);
+  }
+  .mt5 .mt5-dad-head {
+    display: flex;
+    font-size: 0.75rem;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+  }
+  /* What's in Dad's memory */
+  .mt5 .mt5-field {
+    display: grid;
+    grid-template-columns: 3.8rem minmax(0, 1fr);
+    align-items: center;
+    height: 1.4rem;
+    margin-top: 0.3rem;
+    font-size: 0.72rem;
+    color: var(--mt5-muted);
+  }
+  .mt5 .mt5-field > [data-field] {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .mt5 .mt5-field + .mt5-field {
+    margin-top: 0.1rem;
+  }
+  .mt5-field-label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+  }
+  .mt5-chip {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0 0.4rem;
+    border: 1px solid var(--mt5-message);
+    border-radius: 999px;
+    color: var(--mt5-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
+  /* The same joke, told twice */
+  .mt5-repeat {
+    flex-shrink: 0;
+    margin-left: 0.3rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--mt5-warn);
+    color: var(--mt5-warn-ink);
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .mt5-chip.is-joke {
+    border-color: var(--mt5-dad);
+  }
+  .mt5-face {
+    flex-shrink: 0;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+  /* A crashed runner's Dad, gone with it */
+  .mt5-shard.is-lost .mt5-dad-head,
+  .mt5-shard.is-lost .mt5-field,
+  .mt5-shard.is-lost .mt5-shard-name {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+  .mt5-shard.is-lost .mt5-face {
+    filter: grayscale(1);
+  }
+  /* A runner with no shard yet: the outline of one, labelled empty */
+  .mt5-shard.is-empty {
+    border-style: dashed;
+  }
+  .mt5-shard.is-empty > * {
+    visibility: hidden;
+  }
+  .mt5-shard.is-empty::after {
+    content: "Empty";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    color: var(--mt5-muted);
+  }
+
+  /* Narrow screens: no entity column, and less padding */
+  @media (max-width: 640px) {
+    .mt5 .mt5-entity {
+      display: none;
+    }
+    .mt5 .mt5-table th,
+    .mt5 .mt5-table td {
+      padding: 0 0.5rem;
+    }
+    .mt5 .mt5-table th:first-child {
+      width: 2rem;
+    }
+    .mt5 .mt5-table th:last-child {
+      width: 4.75rem;
+    }
+    .mt5-runners {
+      gap: 0.5rem;
+    }
+    .mt5 .mt5-field {
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 0.4rem;
+    }
+    /* No room for the badge, so the joke itself is marked instead */
+    .mt5-repeat {
+      display: none;
+    }
+    .mt5-chip.is-repeat {
+      border-color: var(--mt5-warn);
+      background: var(--mt5-warn);
+      color: var(--mt5-warn-ink);
+    }
+    .mt5-runner {
+      padding: 0.5rem 0.55rem 0.55rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mt5-runner.is-crashed {
+      animation: none;
+    }
+    .mt5-runner {
+      transition: none;
+    }
+  }
+</style>
