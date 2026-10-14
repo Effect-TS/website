@@ -682,6 +682,61 @@ test("waits for a copy left running by a cancelled workflow", async () => {
   )
 })
 
+test("lets a copy finish before deleting its target", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+  const deletedStatuses: Array<string | undefined> = []
+  const deleteStore = fake.client.deleteStore
+  const client: MixedbreadManagementClient = {
+    ...fake.client,
+    deleteStore: (id) => {
+      deletedStatuses.push(fake.stores.get(id)?.status)
+      return deleteStore(id)
+    },
+  }
+
+  await Effect.runPromise(
+    withProvider(
+      client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          // What a run cancelled after starting the copy leaves behind.
+          const inProgress = yield* fake.client.copyStore(production.id, {
+            name: copyProps.name,
+          })
+          fake.holdCopy(inProgress.id, 3)
+
+          yield* provider.delete({
+            id: "PreviewSearchStore",
+            fqn: "PreviewSearchStore",
+            instanceId: "instance-1",
+            olds: copyProps,
+            output: {
+              id: inProgress.id,
+              name: inProgress.name,
+              description: null,
+              metadata: null,
+              config: null,
+              expiresAfter: null,
+              tags: [],
+              expiresAt: null,
+              createdAt: inProgress.created_at,
+              updatedAt: inProgress.updated_at,
+              status: "in_progress",
+            },
+            session,
+            bindings: [],
+          })
+
+          assert.deepEqual(deletedStatuses, ["completed"])
+          assert.equal(fake.stores.has(inProgress.id), false)
+        }),
+      ),
+    ),
+  )
+})
+
 test("does not update or replace a store when only the copy source changes", async () => {
   const fake = makeClient()
   await Effect.runPromise(
