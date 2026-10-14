@@ -1,4 +1,4 @@
-import { NotFoundError } from "@mixedbread/sdk"
+import { ConflictError, NotFoundError } from "@mixedbread/sdk"
 import { Unowned } from "alchemy/AdoptPolicy"
 import type { ScopedPlanStatusSession } from "alchemy/Report"
 import type { Provider } from "alchemy/Provider"
@@ -35,14 +35,30 @@ const notFound = (operation: string) =>
     cause: new NotFoundError(404, {}, undefined, new Headers()),
   })
 
+const nameTaken = (operation: string) =>
+  new MixedbreadApiError({
+    operation,
+    cause: new ConflictError(409, {}, undefined, new Headers()),
+  })
+
 const makeClient = (
-  options: { readonly copyOutcome?: "completed" | "failed" } = {},
+  options: {
+    readonly copyOutcome?: "completed" | "failed"
+    // Leaves stores out of this many list results, like an index that has
+    // not caught up with a store created moments ago.
+    readonly staleLists?: number
+  } = {},
 ) => {
   const stores = new Map<string, Store>()
+  let staleLists = options.staleLists ?? 0
+  const isTaken = (name: string | null | undefined) =>
+    Array.from(stores.values()).some((store) => store.name === name)
   // Copies in progress, with the retrieves left before each one settles.
   const copying = new Map<string, { retrieves: number; settled: Store }>()
   let creates = 0
   let copies = 0
+  // Requests rejected because the name was taken.
+  let conflicts = 0
   const client: MixedbreadManagementClient = {
     // Copies report `in_progress` and settle on the next retrieve.
     copyStore: (source, props) =>
@@ -50,6 +66,10 @@ const makeClient = (
         const origin = stores.get(source)
         if (origin === undefined) {
           return yield* Effect.fail(notFound("copy store"))
+        }
+        if (isTaken(props.name)) {
+          conflicts += 1
+          return yield* Effect.fail(nameTaken("copy store"))
         }
         copies += 1
         const copy: Store = {
@@ -87,7 +107,11 @@ const makeClient = (
         return copy
       }),
     createStore: (props) =>
-      Effect.sync(() => {
+      Effect.gen(function* () {
+        if (isTaken(props.name)) {
+          conflicts += 1
+          return yield* Effect.fail(nameTaken("create store"))
+        }
         creates += 1
         const store: Store = {
           ...makeStore(
@@ -139,17 +163,22 @@ const makeClient = (
         return updated
       }),
     listStores: (query) =>
-      Effect.succeed(
-        Array.from(stores.values()).filter(
+      Effect.sync(() => {
+        if (staleLists > 0) {
+          staleLists -= 1
+          return []
+        }
+        return Array.from(stores.values()).filter(
           (store) => query === undefined || store.name.includes(query),
-        ),
-      ),
+        )
+      }),
     deleteStore: (id) =>
       stores.delete(id) ? Effect.void : Effect.fail(notFound("delete store")),
   }
   return {
     client,
     copies: () => copies,
+    conflicts: () => conflicts,
     creates: () => creates,
     stores,
     // Keeps a copy in progress for this many more retrieves.
@@ -769,4 +798,97 @@ test("tags new stores, copies, and stores created before tags", async () => {
       ),
     ),
   )
+})
+
+// A copy succeeded but a later step failed before state was saved, so state
+// still points at an older store that has since been deleted.
+const orphanedCopy: Store = {
+  ...production,
+  id: "orphan",
+  name: props.name,
+  tags: [],
+  metadata: {
+    ...props.metadata,
+    alchemy: {
+      stack: "EffectWebsite",
+      stage: "pr-123",
+      resource: "PreviewSearchStore",
+    },
+  },
+}
+
+test("reuses an owned store left under the name when the stored id is gone", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          const stale = yield* provider.reconcile(reconcileArgs(copyProps))
+          fake.stores.delete(stale.id)
+          fake.stores.set(orphanedCopy.id, orphanedCopy)
+
+          const reused = yield* provider.reconcile(
+            reconcileArgs(copyProps, stale),
+          )
+          assert.equal(reused.id, orphanedCopy.id)
+          assert.equal(fake.copies(), 1)
+          assert.equal(fake.creates(), 0)
+          // Found by name, so no copy or create runs into the name.
+          assert.equal(fake.conflicts(), 0)
+        }),
+      ),
+    ),
+  )
+})
+
+test("reuses an owned store when the copy reports the name is taken", async () => {
+  const fake = makeClient({ staleLists: 1 })
+  fake.stores.set(production.id, production)
+  fake.stores.set(orphanedCopy.id, orphanedCopy)
+
+  await Effect.runPromise(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          const reused = yield* provider.reconcile(reconcileArgs(copyProps))
+          assert.equal(reused.id, orphanedCopy.id)
+          assert.equal(fake.copies(), 0)
+          assert.equal(fake.creates(), 0)
+          // Only the copy hits the taken name; no create is attempted.
+          assert.equal(fake.conflicts(), 1)
+        }),
+      ),
+    ),
+  )
+})
+
+test("refuses a foreign store left under the name when the stored id is gone", async () => {
+  const fake = makeClient()
+  fake.stores.set(production.id, production)
+
+  const exit = await Effect.runPromiseExit(
+    withProvider(
+      fake.client,
+      withTestClock(
+        Effect.gen(function* () {
+          const provider = yield* VectorStore.Provider
+          const created = yield* provider.reconcile(reconcileArgs(copyProps))
+          fake.stores.delete(created.id)
+          fake.stores.set(
+            "foreign",
+            makeStore("foreign", props.name, { owner: "other" }),
+          )
+          return yield* provider.reconcile(reconcileArgs(copyProps, created))
+        }),
+      ),
+    ),
+  )
+  assert.equal(exit._tag, "Failure")
+  assert.equal(fake.stores.has("foreign"), true)
 })

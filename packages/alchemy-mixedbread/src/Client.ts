@@ -1,4 +1,9 @@
-import MixedbreadSdk, { ConflictError, NotFoundError } from "@mixedbread/sdk"
+import MixedbreadSdk, {
+  ConflictError,
+  NotFoundError,
+  PermissionDeniedError,
+  UnprocessableEntityError,
+} from "@mixedbread/sdk"
 import type {
   Store,
   StoreCopyParams,
@@ -43,11 +48,38 @@ export class MixedbreadClient extends Context.Service<
   MixedbreadManagementClient
 >()("Mixedbread/Client") {}
 
+const causeMessage = (error: MixedbreadApiError): string =>
+  String(
+    (error.cause as { message?: unknown }).message ??
+      (error.cause as { error?: unknown }).error,
+  )
+
 export const isNotFound = (error: MixedbreadApiError): boolean =>
   error.cause instanceof NotFoundError
 
 export const isConflict = (error: MixedbreadApiError): boolean =>
   error.cause instanceof ConflictError
+
+// Preview stores carry an `expiresAfter` and Mixedbread auto-deletes them.
+// Retrieving one past its TTL throws 422 "Store with name '...' has expired"
+// instead of 404, so treat it as gone too.
+export const isExpired = (error: MixedbreadApiError): boolean =>
+  error.cause instanceof UnprocessableEntityError &&
+  causeMessage(error).includes("has expired")
+
+// Scope-restricted keys cannot tell "deleted" from "outside my scope": both
+// answer 403 "Missing the read scope for this store" instead of 404. Treat
+// it as gone too; if the name is actually taken, create fails with 409 and
+// the conflict path reports it.
+export const isScopeMissing = (error: MixedbreadApiError): boolean =>
+  error.cause instanceof PermissionDeniedError &&
+  causeMessage(error).includes("read scope")
+
+export const isGone = (error: MixedbreadApiError): boolean =>
+  isNotFound(error) || isExpired(error) || isScopeMissing(error)
+
+export const isPermissionDenied = (error: MixedbreadApiError): boolean =>
+  error.cause instanceof PermissionDeniedError
 
 const make = Effect.gen(function* () {
   const credentials = yield* Credentials

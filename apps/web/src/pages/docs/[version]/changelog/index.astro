@@ -1,0 +1,117 @@
+---
+import type { GetStaticPaths } from "astro"
+import { changelogHref } from "@website/domain/ChangelogView"
+
+import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
+import { packageDisplayName, versionLinks } from "@/features/api-reference/navigation"
+import { compareGroups, packageGroup } from "@/features/api-reference/package-groups"
+import PackageIndex from "@/features/api-reference/PackageIndex.astro"
+import {
+  type ChangelogSummary,
+  loadChangelogSummaries,
+  summariesDigest,
+} from "@/features/changelog/overview"
+import DocShell from "@/layouts/DocShell.astro"
+import { cacheKey } from "@/lib/cache-key"
+
+interface StaticPathEntry {
+  readonly params: { readonly version: string }
+  readonly cacheKey: string
+  readonly props: {
+    readonly channels: ReadonlyArray<string>
+    readonly packages: ReadonlyArray<ChangelogSummary>
+    readonly version: string
+  }
+}
+
+export const prerender = true
+
+export const getStaticPaths = (async () => {
+  const summaries = await loadChangelogSummaries()
+  const channels = Array.from(new Set(summaries.map(({ channel }) => channel))).toSorted()
+  return channels.map((version): StaticPathEntry => {
+    const packages = summaries
+      .filter(({ channel }) => channel === version)
+      .toSorted((left, right) => left.name.localeCompare(right.name))
+    return {
+      params: { version },
+      // The version switcher lists the channels that have a changelog.
+      cacheKey: cacheKey(summariesDigest(packages), channels.join(",")),
+      props: { channels, packages, version },
+    }
+  })
+}) satisfies GetStaticPaths
+
+const { channels, packages, version } = Astro.props
+
+const groups = Array.from(Map.groupBy(packages, ({ name }) => packageGroup(version, name)))
+  .map(([name, members]) => ({ name, packages: members }))
+  .toSorted((left, right) => compareGroups(left.name, right.name))
+
+const sidebarSections = [
+  {
+    groups: groups.map((group) => ({
+      name: group.name,
+      open: true,
+      links: group.packages.map((info) => ({
+        href: changelogHref(version, info.slug),
+        label: packageDisplayName(info.name),
+      })),
+    })),
+  },
+]
+const mobileVersions = versionLinks(version, (value) =>
+  channels.includes(value) ? `/docs/${value}/changelog` : undefined,
+)
+const mobilePackages = [
+  { disabled: true, href: "", label: "Packages", selected: true },
+  ...packages.map((info) => ({
+    href: changelogHref(version, info.slug),
+    label: packageDisplayName(info.name),
+  })),
+]
+---
+
+<DocShell
+  title={`Effect ${version} Changelog`}
+  description={`Release notes and breaking changes for every Effect ${version} package.`}
+  ogImageVersion={String(packages.length)}
+  activeSlug="api"
+  version={version}
+>
+  <ApiMobileNavigation
+    slot="mobile-nav"
+    version={version}
+    versions={mobileVersions}
+    packages={mobilePackages}
+  />
+
+  <nav slot="sidebar" aria-label="Changelog navigation">
+    <a
+      href={`/docs/${version}/changelog`}
+      aria-current="page"
+      class="mb-6 block font-mono text-sm font-medium tracking-wider text-foreground uppercase hover:underline"
+    >
+      Changelog
+    </a>
+
+    <ApiSidebarNav sections={sidebarSections} />
+  </nav>
+
+  <article class="prose prose-effect max-w-4xl">
+    <h1 class="mb-4! md:mb-6!">Changelog</h1>
+
+    <PackageIndex
+      groups={groups.map((group) => ({
+        name: group.name,
+        packages: group.packages.map((info) => ({
+          description: info.description,
+          href: changelogHref(version, info.slug),
+          meta: info.latestVersion,
+          name: info.name,
+        })),
+      }))}
+    />
+  </article>
+</DocShell>

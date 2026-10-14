@@ -16,6 +16,7 @@ export const ApiReferenceEntry = Schema.Struct({
   packageSlug: Schema.NonEmptyString,
   packageVersion: Schema.NonEmptyString,
   packageDescription: Schema.NonEmptyString,
+  packageHasChangelog: Schema.optional(Schema.Boolean),
   packageModuleCount: Schema.Number.check(
     Schema.isInt(),
     Schema.isGreaterThanOrEqualTo(0),
@@ -74,6 +75,37 @@ export const ApiReferenceDatasetManifest = Schema.Struct({
 export type ApiReferenceDatasetManifest =
   typeof ApiReferenceDatasetManifest.Type
 
+/** Slug of a package in API URLs: its npm name without `@effect/`. */
+export function packageNameToSlug(packageName: string): string {
+  const slug = packageName.startsWith("@effect/")
+    ? packageName.slice("@effect/".length)
+    : packageName
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(slug)) {
+    throw new Error(
+      `Cannot derive an API URL slug from package name ${JSON.stringify(packageName)}`,
+    )
+  }
+  return slug
+}
+
+/** Where a package's releases live, and what pages list without reading them. */
+export const ApiReferenceChangelogSummary = Schema.Struct({
+  // Path relative to the package directory, like a module's `json`.
+  json: Schema.NonEmptyString,
+  sha256: Digest,
+  sourceUrl: UrlString,
+  releaseCount: Schema.Number.check(
+    Schema.isInt(),
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+  // Tag date of the release `version` names.
+  latestDate: Schema.optional(
+    Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),
+  ),
+})
+export type ApiReferenceChangelogSummary =
+  typeof ApiReferenceChangelogSummary.Type
+
 export const ApiReferencePackageManifest = Schema.Struct({
   schemaVersion: Schema.Literal(3),
   channel: Version,
@@ -98,6 +130,8 @@ export const ApiReferencePackageManifest = Schema.Struct({
       barrel: Schema.optional(Schema.NonEmptyString),
     }),
   ),
+  // Optional, so datasets published before changelogs still decode.
+  changelog: Schema.optional(ApiReferenceChangelogSummary),
 })
 
 export type ApiReferencePackageManifest =

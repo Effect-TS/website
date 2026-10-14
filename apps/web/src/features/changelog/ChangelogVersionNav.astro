@@ -1,0 +1,69 @@
+---
+import SidebarGroup from "@/components/ui/sidebar/SidebarGroup.astro"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+import ApiBadge from "@/features/api-reference/ApiBadge.astro"
+
+/**
+ * Release navigation for a package changelog: one collapsible group per
+ * release phase or `major.minor`, built from the shared sidebar primitives.
+ */
+export interface ChangelogNavGroup {
+  readonly key: string
+  readonly label: string
+  readonly open: boolean
+  readonly releases: ReadonlyArray<{
+    readonly version: string
+    readonly breaking: boolean
+    /** Marks the latest release with a "Latest" badge. */
+    readonly latest?: boolean | undefined
+  }>
+}
+
+interface Props {
+  readonly groups: ReadonlyArray<ChangelogNavGroup>
+}
+
+const { groups } = Astro.props
+---
+
+<ul class="flex flex-col gap-0.5">
+  {
+    groups.map((group) => (
+      <li class="mb-1 last:mb-0">
+        <SidebarGroup label={group.label} open={group.open}>
+          {group.releases.map((release) => (
+            <li>
+              <SidebarLink href={`#${release.version}`} class="py-1.5 pl-3 font-mono text-sm">
+                <span class="flex items-center justify-between gap-2 pr-3">
+                  <span class="truncate">{release.version}</span>
+                  {release.breaking && <span class="sr-only">Breaking changes</span>}
+                  {(release.latest || release.breaking) && (
+                    <span class="flex shrink-0 items-center gap-2">
+                      {release.latest && (
+                        <ApiBadge
+                          class="px-1.5 py-0.5 text-[10px]"
+                          title="This is the latest release."
+                        >
+                          Latest
+                        </ApiBadge>
+                      )}
+                      {release.breaking && (
+                        <span
+                          class="inline-flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] leading-none font-bold text-white"
+                          title="This release contains breaking changes."
+                          aria-hidden="true"
+                        >
+                          !
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </span>
+              </SidebarLink>
+            </li>
+          ))}
+        </SidebarGroup>
+      </li>
+    ))
+  }
+</ul>

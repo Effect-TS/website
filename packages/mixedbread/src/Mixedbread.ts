@@ -15,6 +15,7 @@ import * as ChildProcess from "effect/process/ChildProcess"
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner"
 import { syncApiReference } from "./ApiReferenceSync.ts"
 import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
+import { generateChangelogFiles } from "./ChangelogFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
   DEFAULT_API_REFERENCE_DIRECTORY,
@@ -181,8 +182,11 @@ export class Mixedbread extends Context.Service<
       )
     })
 
-    const apiReferenceFiles = () =>
-      generateApiReferenceFiles(apiReferenceDir, hash)
+    const apiReferenceFiles = Effect.fnUntraced(function* () {
+      const api = yield* generateApiReferenceFiles(apiReferenceDir, hash)
+      const changelog = yield* generateChangelogFiles(apiReferenceDir, hash)
+      return [...api, ...changelog]
+    })
 
     const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(
       function* (storeId: string, options: SyncOptions) {
