@@ -75,7 +75,7 @@ function CodeEditorPanels() {
   const { terminalSize } = useWorkspaceHandle()
   const setSize = useAtomSet(terminalSize)
   const onResize = useCallback(
-    function (..._: any) {
+    function () {
       setSize()
     },
     [setSize],
@@ -165,7 +165,7 @@ function WorkspaceShells() {
   const shells = useWorkspaceShells()
   const setSize = useAtomSet(terminalSize)
   const onResize = useCallback(
-    function (..._: any) {
+    function () {
       setSize()
     },
     [setSize],
