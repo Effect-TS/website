@@ -128,13 +128,7 @@ A receiver that can safely handle the same message twice is called "idempotent".
 Let's go back to Dad. In [Part 2](/blog/module-of-the-week/cluster-messaging), our webhook sent every message to Dad like this:
 
 ```ts showLineNumbers=false
-yield *
-  makeDad(chat).NewMessage(
-    { from, text },
-    {
-      discard: true,
-    },
-  )
+makeDad(chat).NewMessage({ from, text }, { discard: true })
 ```
 
 `discard: true` makes the call fire and forget. The webhook hands the message to cluster and moves on without waiting for Dad to tell his joke. Once the message reaches Dad, nobody sends it again, so at the moment our Dad is using at-most-once message delivery.
