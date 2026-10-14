@@ -18,8 +18,12 @@ const run = <A>(
   effect: Effect.Effect<A, LlmsContentError | LlmsScopeNotFound, Llms>,
 ): Promise<A> => runtime.runPromise(effect)
 
+// The BOM is allowed by the llms.txt spec. Cloudflare serves static `.txt`
+// files without a charset, and a BOM makes browsers decode them as UTF-8.
+const BOM = "\uFEFF"
+
 const text = (body: string) =>
-  new Response(body, {
+  new Response(`${BOM}${body}`, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   })
 
