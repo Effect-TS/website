@@ -23,8 +23,8 @@ export const partitionExample = defineExample({
        |  performLick
        |)
        |const result = Effect.map(
-       |  partitioned, 
-       |  ([fails, successes]) =>
+       |  partitioned,
+       |  ([successes, fails]) =>
        |    \`👹 \${fails.length} 😇 \${successes.length}\`
        |)`,
     ),
@@ -63,7 +63,7 @@ export const partitionExample = defineExample({
 
     return Effect.partition(steps, identity).pipe(
       Effect.map(
-        ([failures, successes]) =>
+        ([successes, failures]) =>
           new PrimitiveResult(`👹 ${failures.length} 😇 ${successes.length}`),
       ),
     )
