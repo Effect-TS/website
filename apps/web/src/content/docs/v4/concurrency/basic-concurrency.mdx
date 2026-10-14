@@ -216,7 +216,9 @@ import { Effect } from "effect"
 const program = Effect.gen(function* () {
   console.log("start")
   yield* Effect.sleep("2 seconds")
-  return yield* Effect.interrupt
+  yield* Effect.interrupt
+  console.log("done")
+  return "some result"
 })
 
 const exit = await Effect.runPromiseExit(program)

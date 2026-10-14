@@ -1,0 +1,325 @@
+---
+pagefind: false
+title: Module of the Week - Cluster, Part 3
+slug: module-of-the-week/cluster-delivery
+excerpt: We look at at-most-once and at-least-once delivery, then use persisted messages to stop Dad losing messages when a runner crashes.
+date: 2026-10-12
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import DadSays from "../3/DadSays.astro"
+import Aside from "@/components/docs/Aside.astro"
+import AckVisual from "./AckVisual.astro"
+import CrashVisual from "./CrashVisual.astro"
+import MessageTableVisual from "./MessageTableVisual.astro"
+import ReaderAsks from "./ReaderAsks.astro"
+import WireVisual from "./WireVisual.astro"
+
+In the [previous installment](/blog/module-of-the-week/cluster-messaging) of Module of the Week, we built a `Dad` entity and followed one of his messages across our cluster.
+
+But we left him with one big problem: all his state lives in his runner's memory. If that runner crashes, he'll forget all the jokes he's told and any messages he hasn't answered yet are lost.
+
+This week we're going to fix that.
+
+By the end of this post, you'll know:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>The difference between at-most-once and at-least-once delivery</li>
+  <li>How to make messages survive a runner crash</li>
+  <li>How to decide for yourself when an entity replies to its messages</li>
+</ol>
+
+## Breaking Dad
+
+Let's pick up where we left off. Here's the Dad for our `#engineering` chat, running the same code as last week in a small cluster with two runners. However, what we failed to address in our previous post is what happens when a runner does not shut down cleanly.
+
+Click **Step** below to see what happens when Runner 1 crashes.
+
+<CrashVisual />
+
+Remember that a runner is just a process on a machine somewhere, so when it crashes it takes everything in memory down with it.
+
+That includes Dad's queue of `unread` messages. Our webhook already acknowledged those messages, so Slack is never going to send them again, and Sebastian's question will never get an answer. To be fair, the rest of us have been ignoring Sebastian for years, so he probably won't notice.
+
+The set of jokes he previously `told` is gone too, so the new Dad told the UDP joke again.
+
+<DadSays>It's not a repeat. It's a remaster.</DadSays>
+
+The fact that a runner crashed isn't really the problem here. Once again, the real problem is one people were already wrestling with in the 1970s: how do you know a message you sent actually arrived?
+
+## Two Generals
+
+Let's make things simpler. Forget about cluster for a moment. We have a sender, a receiver, and an unreliable network between them.
+
+<WireVisual />
+
+Neither side knows when a message is dropped by the network. The receiver can't miss a message it never knew was coming, and the sender hears nothing back either way.
+
+<ReaderAsks>
+  That's an easy fix! Have the receiver send something back when a message
+  arrives. If the sender doesn't hear back after a while, it sends the message
+  again.
+</ReaderAsks>
+
+Good idea! That's called an "acknowledgement," or "ack" for short. Let's add that in.
+
+<WireVisual ack />
+
+That's definitely an improvement. Now the sender notices when a message doesn't make it across the network. The ring around it is a timer, and if no ack comes back before it runs out, the sender sends the message again.
+
+Did you spot the duplicates, though? When an ack goes missing, the sender can't tell whether it was the message or the ack that got lost. So it plays it safe and sends the message again, which means the receiver receives the same message twice.
+
+To the sender, these three situations look exactly the same:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>The message was lost.</li>
+  <li>The message arrived, but the ack was lost.</li>
+  <li>The message arrived, and the receiver is just slow.</li>
+</ol>
+
+<ReaderAsks>So have the sender ack the ack?</ReaderAsks>
+
+Then the ack's ack can get lost. You can stack acks on acks for as long as you like, but the final ack can always go missing.
+
+This is known as the [Two Generals' Problem](https://en.wikipedia.org/wiki/Two_Generals%27_Problem). It was first described in 1975, and Jim Gray gave it its name a few years later. Two sides talking over a network that can lose messages can never be completely sure that they agree.
+
+## Pick Your Poison
+
+The Two Generals' Problem has been [proven impossible to solve](https://dl.acm.org/doi/pdf/10.1145/800213.806523), so we can't make this uncertainty go away. What we can do is choose how we're wrong. We can risk losing messages, or we can risk receiving them twice. These are called at-most-once and at-least-once delivery, and which strategy to use depends on what you're building.
+
+### At Most Once
+
+With at-most-once message delivery (also known as fire-and-forget), a message will be delivered either zero or one time. The implication is that messages which are lost are not redelivered by the sender.
+
+This might sound careless, but for many systems this is perfectly fine. Think about a video stream - if a single frame goes missing there is no point in sending it again, because by the time it arrives a second time it is already out of date.
+
+DadBot isn't a video stream, though. If a message gets lost, Sebastian never gets his joke, and he's been ignored enough already.
+
+<AckVisual delivery="at-most-once" />
+
+### At Least Once
+
+With at-least-once delivery, the sender keeps sending a message until it gets an acknowledgement from the receiver. Messages are never lost but the same message may be delivered multiple times.
+
+<ReaderAsks>
+  If messages are never lost, why would we get duplicates?
+</ReaderAsks>
+
+Because it is possible for the acknowledgement to get lost too. Here's what happens when Dad's ack doesn't make it back.
+
+<AckVisual delivery="at-least-once" />
+
+### Exactly Once
+
+Exactly-once delivery isn't possible, for the same reason the Two Generals can't agree. When an ack goes missing, the sender either sends the message again and risks a duplicate, or doesn't and risks losing it.
+
+Some systems, like Kafka, do advertise exactly-once. Look closely, though, and their messages are still delivered at least once. The receiver just ignores the copies, so each message is _processed_ exactly once.
+
+A receiver that can safely handle the same message twice is called "idempotent".
+
+<DadSays>Idempotent? I prefer the term "consistently hilarious."</DadSays>
+
+## Fire and Forget
+
+Let's go back to Dad. In [Part 2](/blog/module-of-the-week/cluster-messaging), our webhook sent every message to Dad like this:
+
+```ts showLineNumbers=false
+makeDad(chat).NewMessage({ from, text }, { discard: true })
+```
+
+`discard: true` makes the call fire and forget. The webhook hands the message to cluster and moves on without waiting for Dad to tell his joke. Once the message reaches Dad, nobody sends it again, so at the moment our Dad is using at-most-once message delivery.
+
+<Aside>
+  <p>
+    Strictly speaking, `discard: true` doesn't give up straight away. If the
+    runner that owns Dad's shard is unavailable, cluster keeps retrying until
+    the message reaches Dad's mailbox. It's after that point that nothing sends
+    it again.
+  </p>
+</Aside>
+
+There's also a second problem - we can't send Sebastian's message again even if we wanted to. There is no copy of the message stored anywhere. It only ever lived in Runner 1's memory.
+
+Let's fix that first.
+
+## Persisted Messages
+
+Cluster can save messages to its database before it delivers them to their target entity.
+
+### Saving Messages
+
+You use an annotation to turn it on per message:
+
+```ts showLineNumbers=false
+import { ClusterSchema, Entity } from "effect/cluster"
+
+export const Dad = Entity.make("Dad", [
+  Rpc.make("NewMessage", {
+    payload: { from: Schema.String, text: Schema.String },
+  }).annotate(ClusterSchema.Persisted, true),
+])
+```
+
+or for every message in an entity's protocol:
+
+```ts showLineNumbers=false
+import { ClusterSchema, Entity } from "effect/cluster"
+
+export const Dad = Entity.make("Dad", [
+  Rpc.make("NewMessage", {
+    payload: { from: Schema.String, text: Schema.String },
+  }),
+]).annotateRpcs(ClusterSchema.Persisted, true)
+```
+
+Best of all, we don't need to touch the webhook. With persistence turned on, the call to `NewMessage` waits until the message is saved to the database before it returns. If every runner in the cluster crashes a second later, we will still have a copy of Sebastian's precious message.
+
+### Replaying Messages
+
+Saving the message is only half the job, though. Cluster also has to deliver it again after a crash. To know which messages still need delivering, it keeps every persisted message in a table, with a flag saying whether it's been processed yet. When a runner takes over a shard, it reads every unprocessed message for that shard and delivers it to the new Dad.
+
+<MessageTableVisual />
+
+### Crashing Again
+
+That sounds a lot like at-least-once message delivery! Let's crash Dad again and make sure.
+
+<MessageTableVisual scenario="crash" />
+
+Sebastian's message is still lost.
+
+<DadSays>I didn't lose it. I know exactly where it isn't.</DadSays>
+
+Have a look at the `processed` column. Cluster marks a message as processed as soon as Dad's handler returns, and here's that handler:
+
+```ts showLineNumbers=false
+NewMessage: ({ payload }) => Effect.asVoid(Queue.offer(unread, payload)),
+```
+
+All it does is put the message in `unread` and return. That's enough for cluster to mark the message as processed, even though Dad hasn't told his joke yet. So when Runner 1 crashes, there's nothing for Runner 2 to replay, and Sebastian's message is lost all over again.
+
+## Hold That Reply
+
+To get to at-least-once, Dad has to wait until his joke has been posted to his chat before marking the messages in his `unread` queue as `processed`.
+
+That's harder than it sounds. Dad doesn't answer messages one at a time. He waits for the chat to go quiet, then turns everything in `unread` into one joke. Each handler would have to sit there waiting, until the chat goes quiet and the background loop finally tells the joke.
+
+On Office Hours last week, Mattia pointed out that `unread` and the database are keeping track of the same thing: messages Dad hasn't answered yet. So Dad can drop `unread`, read his messages straight from the database, and mark the whole batch as `processed` at once.
+
+<DadSays>So my inbox is your problem now? Finally.</DadSays>
+
+Cluster has a way to build an entity like this called `toLayerQueue`. Instead of writing a handler for each message, you write one loop. The loop gets Dad's mailbox, and a `replier` that lets him reply to each message whenever he's ready.
+
+```ts showLineNumbers=false
+export const DadLayer = Dad.toLayerQueue(
+  // Like before, this effect runs once every time a Dad starts up
+  Effect.gen(function* () {
+    const address = yield* Entity.CurrentAddress
+    const punGenerator = yield* PunGenerator
+    const chat = yield* Chat
+    // Every joke he's told in this chat. This still only lives in memory.
+    const told = new Set<string>()
+    // No `unread` queue this time. The database keeps track of the
+    // messages he hasn't answered.
+
+    // Instead of a handler for each message, Dad gets his mailbox, and a
+    // way to reply to the messages in it
+    return (mailbox, replier) => {
+      // Wait for one message, then keep collecting until nobody has posted
+      // for 2.5 seconds. The same as Part 2, but reading from the mailbox.
+      const nextBatch = Effect.gen(function* () {
+        const batch = [yield* Queue.take(mailbox)]
+        while (true) {
+          const next = yield* Queue.take(mailbox).pipe(
+            Effect.timeoutOption("2500 millis"),
+          )
+          if (Option.isNone(next)) return batch
+          batch.push(next.value)
+        }
+      })
+
+      // The joke loop from Part 2. This time, it's all Dad does.
+      return Effect.gen(function* () {
+        const batch = yield* nextBatch
+        // Ask for a pun about the whole batch that he hasn't told yet
+        const joke = yield* punGenerator.generate(
+          batch.map((request) => request.payload),
+          { told },
+        )
+        told.add(joke)
+        // Post it to the chat
+        yield* chat.reply(address.entityId, joke)
+
+        // Only now does Dad reply to each message, which marks it as
+        // processed. If he crashes before this, they're all delivered again.
+        yield* Effect.forEach(batch, (request) =>
+          replier.succeed(request, undefined),
+        )
+      }).pipe(Effect.forever) // then wait for the next batch, forever
+    }
+  }),
+)
+```
+
+Dad doesn't reply to anything until his joke is in the chat. If the runner crashes before then, the whole batch is still unprocessed, and cluster can deliver it again. Let's crash him and see.
+
+<MessageTableVisual scenario="ack-last" />
+
+This time, Sebastian's message survives the crash. It was still unprocessed in the table, so when Dad restarts on another runner, the message is picked up and answered as if nothing happened.
+
+<Aside type="caution" title="Holding on to replies">
+  <p>
+    Cluster only starts an entity's idle timer once every message has been
+    replied to, so Dad can't be put to sleep halfway through a batch. But
+    messages without a reply also count towards his mailbox capacity, which is
+    4096 by default. Once it's full, new messages fail with a `MailboxFull`
+    error. A busy chat could get there, so keep an eye on it if your entity
+    holds on to messages for a while.
+  </p>
+</Aside>
+
+Is that it, then? Not quite. What if our runner crashes a little later, after the joke is posted but before Dad replies?
+
+<MessageTableVisual scenario="repeat" />
+
+Well, this is embarrassing.
+
+Dad told his joke but the runner crashed before he could reply. The message was never marked as `processed`, so when Dad started up on another runner he received it again. He has no idea what jokes the first Dad has told, because `told` lived in memory, so he picked and sent the same joke to Slack.
+
+<DadSays>It's called a callback. Audiences love a callback.</DadSays>
+
+We've swapped one failure for another. Our Dad from last week lost messages, and the one from this week repeats himself. Next week, we'll fix this final problem by teaching Dad to recognize a message he's already answered.
+
+## Wrapping up
+
+That's it for this week! To recap what we've learned:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    A sender can't tell a lost message from a lost ack, so it has to choose. If
+    it never sends a message again, you get at-most-once delivery. If it keeps
+    sending until it gets an ack, you get at-least-once.
+  </li>
+  <li>
+    Exactly-once delivery isn't possible. The best you can do is at-least-once,
+    plus a receiver that ignores the copies.
+  </li>
+  <li>
+    `ClusterSchema.Persisted` saves messages before they're delivered, and
+    cluster delivers any unprocessed messages again after a crash.
+  </li>
+  <li>
+    A message counts as processed once the entity replies. With `toLayerQueue`,
+    the entity reads its own mailbox and decides when to reply, so it can wait
+    until its work is done.
+  </li>
+</ul>
+
+All of the code from this post is [on GitHub](https://github.com/Effect-TS/office-hours/tree/main/packages/module-of-the-week/src/0005-cluster-delivery), if you'd like to crash Dad yourself.
+
+Next time, we'll make Dad idempotent, so that seeing the same message twice doesn't mean telling the same joke twice.
+
+Until then, Happy Effecting!

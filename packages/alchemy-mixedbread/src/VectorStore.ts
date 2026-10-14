@@ -12,6 +12,7 @@ import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
 import * as Redacted from "effect/Redacted"
 import * as Schedule from "effect/Schedule"
+import * as Struct from "effect/Struct"
 import {
   isConflict,
   isGone,
@@ -93,10 +94,9 @@ export const VectorStoreRegistration: ResourceClassLike<VectorStore> = {
 
 // Only consulted when creating a store, so it never forces an update or a
 // replacement of one that already exists.
-const withoutCopySource = ({
-  copyFrom: _,
-  ...props
-}: VectorStoreProps): Omit<VectorStoreProps, "copyFrom"> => props
+const withoutCopySource = (
+  props: VectorStoreProps,
+): Omit<VectorStoreProps, "copyFrom"> => Struct.omit(props, ["copyFrom"])
 
 // A copy target reports `in_progress` until the copy finishes; neither store
 // accepts file changes before then.

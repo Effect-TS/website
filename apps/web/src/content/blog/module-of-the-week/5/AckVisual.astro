@@ -1,0 +1,463 @@
+---
+// A sender sends Dad one message, one step at a time, and the network loses
+// something on the way. What that costs depends on the delivery.
+//
+// With `delivery="at-most-once"`, the sender fires the message off and
+// forgets about it. The network loses it, nobody sends it again, and Dad's
+// joke is never told.
+//
+// With `delivery="at-least-once"`, the sender waits for an ack. Dad tells
+// his joke, but the network loses his ack, so the sender's timer runs out
+// and it sends the message again. Dad tells the joke a second time.
+
+import { people } from "../3/palette"
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import StepPills from "@/components/blog/module-of-the-week/stepper/StepPills.astro"
+
+interface Props {
+  delivery: "at-most-once" | "at-least-once"
+}
+const { delivery } = Astro.props
+
+// Where everything sits, in viewBox units
+const sender = 70
+const receiver = 350
+const wireY = 46
+
+// Dad's joke, as a speech bubble under him
+const bubble = { left: receiver - 34, right: receiver + 34, top: 64, bottom: 85, r: 6 }
+const bubblePath = [
+  `M ${bubble.left + bubble.r} ${bubble.top}`,
+  `H ${receiver - 5} L ${receiver} ${bubble.top - 7} L ${receiver + 5} ${bubble.top}`,
+  `H ${bubble.right - bubble.r} Q ${bubble.right} ${bubble.top} ${bubble.right} ${bubble.top + bubble.r}`,
+  `V ${bubble.bottom - bubble.r} Q ${bubble.right} ${bubble.bottom} ${bubble.right - bubble.r} ${bubble.bottom}`,
+  `H ${bubble.left + bubble.r} Q ${bubble.left} ${bubble.bottom} ${bubble.left} ${bubble.bottom - bubble.r}`,
+  `V ${bubble.top + bubble.r} Q ${bubble.left} ${bubble.top} ${bubble.left + bubble.r} ${bubble.top} Z`,
+].join(" ")
+
+const steps =
+  delivery === "at-most-once"
+    ? ["Send", "Lost", "No joke"]
+    : ["Send", "Joke", "Lost", "Resend", "Repeat"]
+---
+
+<figure
+  class="av st"
+  data-ack-visual
+  data-delivery={delivery}
+  data-from={sender}
+  data-to={receiver}
+  data-y={wireY}
+  style={`--av-message: ${people.Sebastian.avatar}`}
+  aria-label={delivery === "at-most-once"
+    ? "Step-by-step diagram: The sender sends Dad a message and forgets about it. The network loses the message, the sender never sends it again, and Dad's joke is never told."
+    : "Step-by-step diagram: The sender sends Dad a message and waits for an ack. Dad tells his joke, but the network loses his ack, so the sender sends the message again and Dad tells the joke a second time."}
+>
+  <StepPills steps={steps} />
+
+  <svg class="av-svg" viewBox="0 0 420 87" aria-hidden="true">
+    <text class="av-head" x={sender} y="18">Sender</text>
+    <text class="av-head" x={receiver} y="18">Dad</text>
+
+    <line class="av-wire" x1={sender} y1={wireY} x2={receiver} y2={wireY}></line>
+    <circle
+      class="av-timer"
+      data-timer
+      cx={sender}
+      cy={wireY}
+      r="13"
+      transform={`rotate(-90 ${sender} ${wireY})`}></circle>
+    <circle class="av-node" data-sender cx={sender} cy={wireY} r="8"></circle>
+    <circle class="av-node" cx={receiver} cy={wireY} r="8"></circle>
+
+    <g class="av-bubble" data-bubble>
+      <path d={bubblePath}></path>
+      <text x={receiver} y={bubble.bottom - 7.5} data-bubble-text></text>
+    </g>
+
+    <g data-messages></g>
+  </svg>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import { createStepper } from "@/components/blog/module-of-the-week/stepper/stepper"
+
+  // What moves on the way into a state
+  type Move = "fire" | "drop-message" | "send" | "joke" | "drop-ack" | "resend" | "repeat"
+  type View = {
+    move?: Move
+    // Read out to screen readers
+    text: string
+    // How far along the wire a message, or Dad's ack on its way back, is
+    // sitting, if one is
+    message?: number
+    ack?: number
+    // How much of the sender's timer is left, while it's waiting for an ack
+    timer: number | null
+    // Dad's joke: not yet, told, told twice, or never
+    joke: "none" | "told" | "twice" | "never"
+    // The sender has its ack
+    acked?: boolean
+  }
+
+  // Where the network loses things, part of the way across
+  const LOST_AT = 0.5
+
+  const VIEWS: Record<string, Array<View>> = {
+    "at-most-once": [
+      { text: "Click Step to send Dad a message", timer: null, joke: "none" },
+      {
+        move: "fire",
+        text: "The sender sends a message, and forgets about it",
+        message: LOST_AT,
+        timer: null,
+        joke: "none",
+      },
+      {
+        move: "drop-message",
+        text: "The network loses the message. The sender never finds out, so it never sends it again",
+        timer: null,
+        joke: "none",
+      },
+      {
+        text: "Dad never sees the message, so Sebastian never gets his joke",
+        timer: null,
+        joke: "never",
+      },
+    ],
+    "at-least-once": [
+      { text: "Click Step to send Dad a message", timer: null, joke: "none" },
+      {
+        move: "send",
+        text: "The sender sends a message, and starts a timer while it waits for an ack",
+        timer: 0.75,
+        joke: "none",
+      },
+      {
+        move: "joke",
+        text: "Dad tells his joke, and sends an ack back",
+        ack: LOST_AT,
+        timer: 0.5,
+        joke: "told",
+      },
+      {
+        move: "drop-ack",
+        text: "The network loses the ack",
+        timer: 0.3,
+        joke: "told",
+      },
+      {
+        move: "resend",
+        text: "The sender's timer runs out with no ack, so it sends the message again",
+        timer: 0.75,
+        joke: "told",
+      },
+      {
+        move: "repeat",
+        text: "Dad doesn't know he's already answered, so he tells the joke again. This time, the ack makes it back",
+        timer: null,
+        joke: "twice",
+        acked: true,
+      },
+    ],
+  }
+
+  const BUBBLE = { none: "", told: "Joke", twice: "Joke ×2", never: "No joke" }
+
+  const SVG = "http://www.w3.org/2000/svg"
+  const TRAVEL = 1100
+  const FALL = 700
+  const ease = (v: number) => v * v * (3 - 2 * v)
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  // Runs `fn` with progress from 0 to 1 over `ms`, stopping early once
+  // `alive` turns false
+  const tween = (ms: number, fn: (p: number) => void, alive: () => boolean) =>
+    new Promise<void>((resolve) => {
+      if (reduceMotion()) return resolve()
+      const start = performance.now()
+      const tick = (now: number) => {
+        if (!alive()) return resolve()
+        const p = Math.min(1, (now - start) / ms)
+        fn(p)
+        if (p < 1) requestAnimationFrame(tick)
+        else resolve()
+      }
+      requestAnimationFrame(tick)
+    })
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-ack-visual]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const views = VIEWS[root.dataset.delivery!]!
+    const from = Number(root.dataset.from)
+    const to = Number(root.dataset.to)
+    const y0 = Number(root.dataset.y)
+    const layer = q<SVGGElement>("[data-messages]")
+    const timer = q<SVGCircleElement>("[data-timer]")
+    const senderNode = q<SVGCircleElement>("[data-sender]")
+    const bubble = q<SVGGElement>("[data-bubble]")
+    const bubbleText = q<SVGTextElement>("[data-bubble-text]")
+    const caption = q<HTMLElement>("[data-caption]")
+
+    const circumference = 2 * Math.PI * 13
+    timer.style.strokeDasharray = String(circumference)
+    const setTimer = (left: number | null) => {
+      timer.style.opacity = left === null ? "0" : "1"
+      timer.style.strokeDashoffset = String(circumference * (1 - (left ?? 0)))
+    }
+    // Runs the sender's timer down from one amount to another
+    const drain = (a: number, b: number) => (p: number) => setTimer(a + (b - a) * p)
+
+    const setJoke = (joke: View["joke"]) => {
+      bubble.dataset.state = joke
+      bubbleText.textContent = BUBBLE[joke]
+    }
+
+    // A message or an ack on the wire. Messages go out from the sender, and
+    // acks come back from Dad.
+    const envelope = (kind: "message" | "ack") => {
+      const g = document.createElementNS(SVG, "g")
+      g.setAttribute("class", `av-env is-${kind}`)
+      g.innerHTML =
+        kind === "ack"
+          ? `<circle r="6.5"></circle><path class="av-check" d="M -3 0.2 L -0.8 2.4 L 3.2 -2.4"></path>`
+          : `<rect x="-7" y="-5" width="14" height="10" rx="1.5"></rect><path d="M -6.5 -4.5 L 0 0.8 L 6.5 -4.5"></path>`
+      const back = kind === "ack"
+      const x = (f: number) => (back ? to - (to - from) * f : from + (to - from) * f)
+      const place = (f: number) => g.setAttribute("transform", `translate(${x(f)} ${y0})`)
+      layer.append(g)
+      return { g, x, back, place }
+    }
+    // Crosses the wire, or stops `until` of the way across and stays there
+    const fly = (
+      kind: "message" | "ack",
+      alive: () => boolean,
+      onStep?: (p: number) => void,
+      until = 1,
+    ) => {
+      const env = envelope(kind)
+      env.place(0)
+      return tween(
+        TRAVEL * until,
+        (p) => {
+          env.place(until * ease(p))
+          onStep?.(p)
+        },
+        alive,
+      ).then(() => {
+        if (until === 1) env.g.remove()
+      })
+    }
+    // Turns red and falls off the wire where the network loses it
+    const fall = (kind: "message" | "ack", alive: () => boolean, onStep?: (p: number) => void) => {
+      const env = envelope(kind)
+      env.g.classList.add("is-lost")
+      const dir = env.back ? -1 : 1
+      return tween(
+        FALL,
+        (p) => {
+          env.g.setAttribute(
+            "transform",
+            `translate(${env.x(LOST_AT) + 8 * dir * p} ${y0 + 40 * p * p}) rotate(${120 * dir * p})`,
+          )
+          env.g.style.opacity = String(1 - p)
+          onStep?.(p)
+        },
+        alive,
+      )
+    }
+
+    const apply = (k: number) => {
+      const v = views[k]!
+      layer.replaceChildren()
+      if (v.message !== undefined) envelope("message").place(v.message)
+      if (v.ack !== undefined) envelope("ack").place(v.ack)
+      setTimer(v.timer)
+      setJoke(v.joke)
+      senderNode.classList.toggle("is-lit", v.acked === true)
+      caption.textContent = k === 0 ? v.text : `${k}. ${v.text}`
+    }
+
+    const advance = async (next: number, alive: () => boolean) => {
+      const was = views[next - 1]!
+      const v = views[next]!
+      if (v.move === "fire") {
+        await fly("message", alive, undefined, LOST_AT)
+      } else if (v.move === "drop-message") {
+        layer.replaceChildren()
+        await fall("message", alive)
+      } else if (v.move === "send") {
+        await fly("message", alive, drain(1, v.timer!))
+      } else if (v.move === "joke") {
+        setJoke("told")
+        await fly("ack", alive, drain(was.timer!, v.timer!), LOST_AT)
+      } else if (v.move === "drop-ack") {
+        layer.replaceChildren()
+        await fall("ack", alive, drain(was.timer!, v.timer!))
+      } else if (v.move === "resend") {
+        // The timer runs out, and the same message goes again
+        await tween(600, drain(was.timer!, 0), alive)
+        if (!alive()) return
+        await fly("message", alive, drain(1, v.timer!))
+      } else if (v.move === "repeat") {
+        setJoke("twice")
+        await fly("ack", alive, drain(was.timer!, 0.5))
+      }
+    }
+
+    createStepper({
+      root,
+      first: 1,
+      last: views.length - 1,
+      apply,
+      advance,
+      stop: () => layer.replaceChildren(),
+    })
+  }
+</script>
+
+<style is:global>
+  .av {
+    --av-ink: #3f3f46;
+    --av-muted: #71717a;
+    --av-line: #d4d4d8;
+    --av-surface: #ffffff;
+    --av-ok: #15803d;
+    --av-bad: #dc2626;
+    --st-ink: var(--av-ink);
+    --st-muted: var(--av-muted);
+    --st-line: var(--av-line);
+    --st-surface: var(--av-surface);
+    margin: 1.5rem 0;
+  }
+  html.dark .av {
+    --av-ink: #e4e4e7;
+    --av-muted: #a1a1aa;
+    --av-line: #3f3f46;
+    --av-surface: #09090b;
+    --av-ok: #4ade80;
+    --av-bad: #f87171;
+  }
+  /* The steps speak for themselves, so the caption is only for screen
+     readers */
+  .av .st-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .av .st-controls {
+    margin-top: 0.25rem;
+  }
+
+  .av-svg {
+    display: block;
+    width: 100%;
+    max-width: 32rem;
+    height: auto;
+    margin: 0 auto;
+    overflow: visible;
+  }
+  .av svg text {
+    text-anchor: middle;
+  }
+  .av svg .av-head {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--av-ink);
+  }
+  .av-wire {
+    stroke: var(--av-ink);
+    stroke-width: 1.5;
+  }
+  .av-node {
+    fill: var(--av-surface);
+    stroke: var(--av-ink);
+    stroke-width: 1.5;
+    transition: fill 200ms ease;
+  }
+  .av-node.is-lit {
+    fill: var(--av-ok);
+  }
+  /* How long the sender will keep waiting for an ack, running down */
+  .av-timer {
+    fill: none;
+    stroke: var(--av-muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  /* Dad's joke: a speech bubble once he's told it, red when something's
+     gone wrong */
+  .av-bubble {
+    transition: opacity 300ms ease;
+  }
+  .av-bubble[data-state="none"] {
+    opacity: 0;
+  }
+  .av-bubble path {
+    fill: var(--av-surface);
+    stroke: var(--av-ink);
+    stroke-width: 1;
+    transition:
+      fill 200ms ease,
+      stroke 200ms ease;
+  }
+  .av svg .av-bubble text {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--av-ink);
+  }
+  .av-bubble[data-state="never"] path,
+  .av-bubble[data-state="twice"] path {
+    fill: color-mix(in oklab, var(--av-bad) 10%, var(--av-surface));
+    stroke: var(--av-bad);
+  }
+  .av-bubble[data-state="never"] path {
+    stroke-dasharray: 3 2;
+  }
+  .av svg .av-bubble[data-state="never"] text,
+  .av svg .av-bubble[data-state="twice"] text {
+    fill: var(--av-bad);
+  }
+
+  /* Messages are envelopes, and acks are round check marks */
+  .av-env rect {
+    fill: var(--av-message);
+    stroke: var(--av-surface);
+    stroke-width: 0.8;
+  }
+  .av-env circle {
+    fill: var(--av-ok);
+    stroke: var(--av-surface);
+    stroke-width: 0.8;
+  }
+  .av-env path {
+    fill: none;
+    stroke: var(--av-surface);
+    stroke-width: 0.8;
+    stroke-linejoin: round;
+  }
+  .av-env .av-check {
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+  /* Anything the network lost, on its way down */
+  .av-env.is-lost rect,
+  .av-env.is-lost circle {
+    fill: var(--av-bad);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .av-node,
+    .av-bubble,
+    .av-bubble path {
+      transition: none;
+    }
+  }
+</style>
