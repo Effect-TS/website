@@ -1,0 +1,851 @@
+---
+// Part 2's Dad in a two-runner cluster, crashed one step at a time: Mike's
+// question reaches Dad, Dad answers it with the UDP joke, Sebastian's message lands in his unread
+// queue on Runner 1, and Runner 1 crashes. Once its lock on the shard
+// expires, Runner 2 starts a brand new Dad. Sebastian asks again, and the new
+// Dad tells the UDP joke a second time.
+//
+// The shard, and which runner owns it, are worked out at build time with the
+// same hash and hash ring that Cluster uses.
+
+import * as Hash from "effect/Hash"
+import * as HashRing from "effect/HashRing"
+import * as PrimaryKey from "effect/PrimaryKey"
+import { people, warning } from "../3/palette"
+import StepCallout from "@/components/blog/module-of-the-week/stepper/StepCallout.astro"
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import StepPills from "@/components/blog/module-of-the-week/stepper/StepPills.astro"
+
+const SHARDS = 300
+const entityId = "#engineering"
+
+const ownerOf = (live: Array<number>) => {
+  const ring = HashRing.make<{ n: number; [PrimaryKey.symbol]: () => string }>()
+  for (const n of live) {
+    HashRing.add(ring, { n, [PrimaryKey.symbol]: () => `runner-${n}:34431` })
+  }
+  return HashRing.getShards(ring, SHARDS)![shard - 1]!.n
+}
+const shard = Math.abs(Hash.string(entityId) % SHARDS) + 1
+const owner = ownerOf([1, 2])
+// The layout and the post both say Runner 1 crashes and Runner 2 takes over
+if (owner !== 1) {
+  throw new Error(`Expected shard ${shard} on Runner 1, got Runner ${owner}`)
+}
+
+// Blue and green, so neither runner reads as the red of the crash
+const runnerColors = [
+  { light: "#0072b2", dark: "#56b4e9" },
+  { light: "#007a5e", dark: "#3cc39b" },
+]
+
+const steps = ["Ask", "Joke", "Send", "Crash", "Wait", "Shard", "Repeat"]
+const udp = "I'd tell you a UDP joke, but you might not get it."
+---
+
+<figure
+  class="cv st"
+  data-crash-visual
+  data-shard={shard}
+  aria-label={`Step-by-step diagram: Runner 1 crashes while Dad for ${entityId} has an unanswered message, and Runner 2 starts a new Dad who has forgotten everything`}
+  style={[
+    ...runnerColors.flatMap((c, i) => [
+      `--cv-r${i + 1}-light: ${c.light}`,
+      `--cv-r${i + 1}-dark: ${c.dark}`,
+    ]),
+    `--cv-sebastian: ${people.Sebastian.avatar}`,
+    `--cv-mike: ${people.Mike.avatar}`,
+    `--cv-warn: ${warning.background}`,
+    `--cv-warn-ink: ${warning.text}`,
+  ].join("; ")}
+>
+  <StepPills steps={steps} />
+
+  <div class="cv-stage" data-stage>
+    <div class="cv-chat" data-chat>
+      <p class="cv-chat-title">
+        <span class="cv-dot" aria-hidden="true"></span>Slack <span>{entityId}</span>
+      </p>
+      <ol class="cv-messages">
+        <li class="cv-msg" data-chat-mike>
+          <span class="cv-avatar is-mike" aria-hidden="true">M</span>
+          <div>
+            <p class="cv-from">Mike</p>
+            <p class="cv-text">Is anyone else seeing packet loss?</p>
+          </div>
+        </li>
+        <li class="cv-msg" data-chat-joke hidden>
+          <span class="cv-avatar is-dad" aria-hidden="true"></span>
+          <div>
+            <p class="cv-from">DadBot <span class="cv-badge">APP</span></p>
+            <p class="cv-text">{udp}</p>
+          </div>
+        </li>
+        <li class="cv-msg" data-chat-msg="1" hidden>
+          <span class="cv-avatar" aria-hidden="true">S</span>
+          <div>
+            <p class="cv-from">Sebastian</p>
+            <p class="cv-text">Why is this test flaky?</p>
+          </div>
+        </li>
+        <li class="cv-msg" data-chat-msg="2" hidden>
+          <span class="cv-avatar" aria-hidden="true">S</span>
+          <div>
+            <p class="cv-from">Sebastian</p>
+            <p class="cv-text">Hello? Why is this test flaky?</p>
+          </div>
+        </li>
+        <li class="cv-msg" data-chat-reply hidden>
+          <span class="cv-avatar is-dad" aria-hidden="true"></span>
+          <div>
+            <p class="cv-from">
+              DadBot <span class="cv-badge">APP</span>
+              <span class="cv-repeat">Repeat!</span>
+            </p>
+            <p class="cv-text">{udp}</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="cv-runners" data-runners>
+      {
+        [1, 2].map((n) => (
+          <section class="cv-runner" style={`--c: var(--cv-r${n})`} data-runner={n}>
+            <p class="cv-runner-title">
+              <span>Runner {n}</span>
+              <span class="cv-crashed" data-crashed hidden>
+                ✕ Crashed
+              </span>
+            </p>
+            <div class="cv-shard" data-shard-box hidden>
+              <p class="cv-shard-head">
+                <span class="cv-shard-name">Shard {shard}</span>
+                <span class="cv-lock" data-lock>
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <rect x="3" y="7" width="10" height="7" rx="1.5" />
+                    <path d="M5.5 7 V5 a2.5 2.5 0 0 1 5 0 V7" />
+                  </svg>
+                  <span data-lock-text>Lock</span>
+                </span>
+              </p>
+              <div class="cv-dad" data-dad data-state="off">
+                <p class="cv-dad-head">
+                  <span class="cv-avatar is-dad cv-dad-face" aria-hidden="true" />
+                  <span>Dad · {entityId}</span>
+                  <span class="cv-quiet" data-quiet />
+                  <span class="cv-lost" data-lost hidden>
+                    Lost
+                  </span>
+                </p>
+                <dl class="cv-fields">
+                  <div class="cv-row">
+                    <dt>unread</dt>
+                    <dd data-unread>–</dd>
+                  </div>
+                  <div class="cv-row">
+                    <dt>told</dt>
+                    <dd data-told>–</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </section>
+        ))
+      }
+    </div>
+
+    <StepCallout />
+  </div>
+
+  <StepControls />
+</figure>
+
+<script>
+  import {
+    createCallout,
+    createStepper,
+    createTraveler,
+    envelopeSvg,
+    rel as relTo,
+    type Anchor,
+    type Point,
+  } from "@/components/blog/module-of-the-week/stepper/stepper"
+
+  // The post's steps. The first is where the visual starts.
+  type State = "ask" | "joke" | "send" | "crash" | "wait" | "takeover" | "repeat"
+  const STATES: Array<State> = ["ask", "joke", "send", "crash", "wait", "takeover", "repeat"]
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-crash-visual]")) {
+    const q = <T extends Element>(sel: string, from: ParentNode = root) =>
+      from.querySelector<T>(sel)!
+    const shard = root.dataset.shard!
+    const stage = q<HTMLElement>("[data-stage]")
+    const chat = q<HTMLElement>("[data-chat]")
+    const runners = q<HTMLElement>("[data-runners]")
+    const mike = q<HTMLElement>("[data-chat-mike]")
+    const joke = q<HTMLElement>("[data-chat-joke]")
+    const msg1 = q<HTMLElement>('[data-chat-msg="1"]')
+    const msg2 = q<HTMLElement>('[data-chat-msg="2"]')
+    const reply = q<HTMLElement>("[data-chat-reply]")
+    const caption = q<HTMLElement>("[data-caption]")
+
+    // The parts of a runner card that change
+    const runner = (n: number) => {
+      const el = q<HTMLElement>(`[data-runner="${n}"]`)
+      const box = el.querySelector<HTMLElement>("[data-shard-box]")
+      return {
+        el,
+        crashed: q<HTMLElement>("[data-crashed]", el),
+        box,
+        lock: box && q<HTMLElement>("[data-lock]", box),
+        lockText: box && q<HTMLElement>("[data-lock-text]", box),
+        dad: box && q<HTMLElement>("[data-dad]", box),
+        lost: box && q<HTMLElement>("[data-lost]", box),
+        quiet: box && q<HTMLElement>("[data-quiet]", box),
+        unread: box && q<HTMLElement>("[data-unread]", box),
+        told: box && q<HTMLElement>("[data-told]", box),
+      }
+    }
+    const r1 = runner(1)
+    const r2 = runner(2)
+
+    // What each state says
+    const notes: Record<State, { title: string; text: string }> = {
+      ask: {
+        title: "Ask",
+        text: `Mike asks a question, which gets routed to Dad in shard ${shard} on Runner 1`,
+      },
+      joke: {
+        title: "Joke",
+        text: "Dad replies with the UDP joke, and adds it to his told set",
+      },
+      send: {
+        title: "Send",
+        text: "Sebastian's message reaches Dad and is added to his unread queue until the chat settles",
+      },
+      crash: {
+        title: "Crash",
+        text: "Runner 1 crashes before Dad replies",
+      },
+      wait: {
+        title: "Wait",
+        text: "Runner 2 must wait for Runner 1's lock on the shard to expire",
+      },
+      takeover: {
+        title: "Shard",
+        text: "Runner 2 starts a fresh Dad, with nothing unread and no jokes told",
+      },
+      repeat: {
+        title: "Repeat",
+        text: "Sebastian sends another message. The new Dad's told set is empty, so he tells the UDP joke again",
+      },
+    }
+    const at = (name: State) => STATES.indexOf(name)
+    const reached = (k: number, name: State) => k >= at(name)
+
+    const rel = (el: Element) => relTo(stage, el)
+    // Side by side, the chat and the runners are in two columns. Stacked,
+    // the runners are under the chat.
+    const stacked = () => rel(runners).top >= rel(chat).bottom
+    // From a chat message to a Dad. Side by side, across and down the gap
+    // between the columns. Stacked, straight down from the chat.
+    const route = (from: HTMLElement, dad: HTMLElement): Array<Point> => {
+      const c = rel(chat)
+      const d = rel(dad)
+      if (stacked()) {
+        const x = d.right - 28
+        return [
+          { x, y: c.bottom - 8 },
+          { x, y: d.top + 10 },
+        ]
+      }
+      const m = rel(from)
+      const mid = (c.right + rel(runners).left) / 2
+      const y1 = (m.top + m.bottom) / 2
+      const y2 = d.top + 16
+      return [
+        { x: c.right, y: y1 },
+        { x: mid, y: y1 },
+        { x: mid, y: y2 },
+        { x: d.left, y: y2 },
+      ]
+    }
+
+    // Each step's note as a callout next to what it's about. Runner 1's are
+    // under its shard and as wide, over Runner 2 before anything happens
+    // there. Runner 2's are left of it, under the chat, and the chat's are
+    // under the message they're about. Stacked, there's no room, so the
+    // caption shows instead.
+    const callout = createCallout(root, stage)
+    const anchorFor = (k: number): Anchor | null => {
+      if (stacked()) return null
+      const anchors: Record<State, Anchor> = {
+        ask: { el: mike, place: "below" },
+        joke: { el: joke, place: "below" },
+        send: { el: r1.box!, place: "below", width: "target" },
+        crash: { el: r1.box!, place: "below", width: "target" },
+        wait: { el: r2.dad!, place: "left", edge: r2.el },
+        takeover: { el: r2.dad!, place: "left", edge: r2.el },
+        repeat: { el: chat, place: "below", width: "target" },
+      }
+      return anchors[STATES[k]!]
+    }
+
+    const traveler = createTraveler(stage)
+    // How long Dad waits for quiet in step 2. Really 2.5 seconds, which feels
+    // long when you're watching it.
+    const QUIET = 1600
+    const pause = (ms: number) =>
+      new Promise<void>((resolve) =>
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? resolve()
+          : setTimeout(resolve, ms),
+      )
+    const travel = (pts: Array<Point>, cargo: "message" | "reply") =>
+      traveler.travel(pts, `cv-env is-${cargo}`, envelopeSvg)
+
+    const chip = (text: string, kind: "message" | "joke") =>
+      `<span class="cv-chip is-${kind}">${text}</span>`
+
+    let current = 0
+    // Lays out state k from scratch, so Step and the pills agree
+    const apply = (k: number) => {
+      current = k
+      const state = STATES[k]!
+
+      // The chat
+      joke.hidden = !reached(k, "joke")
+      msg1.hidden = !reached(k, "send")
+      msg2.hidden = !reached(k, "repeat")
+      reply.hidden = !reached(k, "repeat")
+
+      // Runner 1: Dad's first home, until it crashes
+      const crashed = reached(k, "crash")
+      r1.el.classList.toggle("is-crashed", crashed)
+      r1.el.classList.toggle("is-active", !reached(k, "crash"))
+      r1.crashed.hidden = !crashed
+      r1.box!.hidden = false
+      r1.lock!.classList.toggle("is-held", !reached(k, "takeover"))
+      r1.lockText!.textContent = reached(k, "takeover")
+        ? "Lock expired"
+        : crashed
+          ? "Lock held, by nobody"
+          : "Lock held ✓"
+      // Waiting for quiet while there's something unread: Mike's question,
+      // then Sebastian's
+      // Waiting for quiet while Sebastian's message is unread. Mike's only
+      // passes through on the way to step 2.
+      const unread = reached(k, "send") ? "Why is this test flaky?" : null
+      r1.dad!.dataset.state = crashed ? "lost" : unread ? "thinking" : "awake"
+      r1.lost!.hidden = !crashed
+      r1.quiet!.innerHTML = ""
+      r1.unread!.innerHTML = unread ? chip(unread, "message") : "empty"
+      r1.told!.innerHTML = reached(k, "joke") ? chip("UDP joke", "joke") : "empty"
+
+      // Runner 2: next in line, then Dad's new home
+      const owns = reached(k, "takeover")
+      r2.el.classList.toggle("is-active", reached(k, "wait"))
+      // Until then, an empty outline the same size, so nothing jumps
+      r2.box!.hidden = false
+      r2.box!.classList.toggle("is-empty", !reached(k, "wait"))
+      r2.lock!.classList.toggle("is-held", owns)
+      r2.lockText!.textContent = owns ? "Lock held ✓" : "Waiting for the lock"
+      r2.dad!.dataset.state = owns ? "awake" : "off"
+      r2.unread!.innerHTML = owns ? "empty" : "–"
+      r2.told!.innerHTML = reached(k, "repeat") ? chip("UDP joke", "joke") : owns ? "empty" : "–"
+
+      caption.textContent = `${k + 1}. ${notes[state].text}`
+      callout.show({ ...notes[state], num: k + 1 }, anchorFor(k))
+    }
+
+    // The travel from the current state to the next
+    const advance = async (next: number, alive: () => boolean) => {
+      const name = STATES[next]!
+      if (name === "joke") {
+        // Mike's question in, Dad waits for the chat to go quiet, and his
+        // joke back out
+        await travel(route(mike, r1.dad!), "message")
+        if (!alive()) return
+        r1.dad!.dataset.state = "thinking"
+        r1.unread!.innerHTML = chip("Is anyone else seeing packet loss?", "message")
+        // The timer runs down while he waits for the chat to go quiet
+        r1.quiet!.innerHTML = `<span class="cv-timer" aria-hidden="true" style="--quiet: ${QUIET}ms"><i></i></span>`
+        await pause(QUIET)
+        if (!alive()) return
+        await travel(route(mike, r1.dad!).reverse(), "reply")
+      } else if (name === "send") {
+        msg1.hidden = false
+        await travel(route(msg1, r1.dad!), "message")
+      } else if (name === "repeat") {
+        // Sebastian's question in, and the same old joke back out
+        msg2.hidden = false
+        await travel(route(msg2, r2.dad!), "message")
+        if (!alive()) return
+        await travel(route(msg2, r2.dad!).reverse(), "reply")
+      }
+    }
+
+    createStepper({
+      root,
+      first: 0,
+      last: STATES.length - 1,
+      apply,
+      advance,
+      stop: traveler.cancel,
+    })
+
+    new ResizeObserver(() => callout.place(anchorFor(current))).observe(stage)
+  }
+</script>
+
+<style is:global>
+  .cv {
+    --cv-ink: #3f3f46;
+    --cv-muted: #71717a;
+    --cv-line: #d4d4d8;
+    --cv-surface: #ffffff;
+    --cv-panel: #fafafa;
+    --cv-slack: #611f69;
+    --cv-dad: #b45309;
+    --cv-red: #dc2626;
+    --cv-r1: var(--cv-r1-light);
+    --cv-r2: var(--cv-r2-light);
+    --st-ink: var(--cv-ink);
+    --st-muted: var(--cv-muted);
+    --st-line: var(--cv-line);
+    --st-surface: var(--cv-surface);
+    margin: 1.5rem 0;
+  }
+  html.dark .cv {
+    --cv-ink: #e4e4e7;
+    --cv-muted: #a1a1aa;
+    --cv-line: #3f3f46;
+    --cv-surface: #09090b;
+    --cv-panel: #111113;
+    --cv-slack: #c084fc;
+    --cv-dad: #fbbf24;
+    --cv-red: #f87171;
+    --cv-r1: var(--cv-r1-dark);
+    --cv-r2: var(--cv-r2-dark);
+  }
+  .cv p {
+    margin: 0;
+  }
+  .cv [hidden] {
+    display: none !important;
+  }
+
+  /* Stage: the chat on the left and the runners on the right, with room
+     between them for messages to travel. Envelopes sit on top. */
+  .cv-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 1rem 3rem;
+    align-items: start;
+    margin-bottom: 1rem;
+  }
+  .cv-env {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 20px;
+    height: 14px;
+    pointer-events: none;
+    --c: var(--cv-sebastian);
+  }
+  .cv-env.is-reply {
+    --c: var(--cv-dad);
+  }
+  .cv-env svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--c);
+    stroke: var(--cv-surface);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .cv-env path {
+    fill: none;
+  }
+
+  /* Chat */
+  .cv-chat {
+    position: relative;
+    border: 1px solid var(--cv-line);
+    border-radius: 0.75rem;
+    background: var(--cv-panel);
+    overflow: hidden;
+  }
+  .cv .cv-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--cv-line);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cv-ink);
+  }
+  .cv-chat-title span:last-child {
+    font-weight: 400;
+    color: var(--cv-muted);
+  }
+  .cv-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--cv-slack);
+  }
+  .cv .cv-msg::before,
+  .cv .cv-msg::marker {
+    content: none;
+  }
+  .cv .cv-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0.75rem;
+    list-style: none;
+  }
+  .cv .cv-msg {
+    display: flex;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+    animation: cv-in 300ms ease;
+  }
+  @keyframes cv-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  .cv-avatar {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.4rem;
+    background: var(--cv-sebastian);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .cv-avatar.is-mike {
+    background: var(--cv-mike);
+  }
+  .cv-avatar.is-dad {
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+  .cv .cv-from {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cv-ink);
+  }
+  .cv-badge {
+    padding: 0 0.25rem;
+    border-radius: 0.2rem;
+    background: var(--cv-slack);
+    color: #fff;
+    font-size: 0.55rem;
+    vertical-align: 1px;
+  }
+  html.dark .cv-badge {
+    color: #1f1f1f;
+  }
+  .cv-repeat,
+  .cv-crashed,
+  .cv-lost {
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--cv-warn);
+    color: var(--cv-warn-ink);
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .cv-crashed {
+    background: var(--cv-red);
+    color: #fff;
+  }
+  html.dark .cv-crashed {
+    color: #1f1f1f;
+  }
+  .cv-lost {
+    background: none;
+    border: 1px solid var(--cv-line);
+    color: var(--cv-muted);
+  }
+  .cv-repeat {
+    margin-left: 0.2rem;
+    vertical-align: 1px;
+  }
+  .cv .cv-text {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--cv-ink);
+  }
+
+  /* Runners */
+  .cv-runners {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .cv-runner {
+    padding: 0.55rem 0.75rem 0.65rem;
+    border: 1px solid var(--cv-line);
+    border-radius: 0.75rem;
+    background: var(--cv-surface);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .cv-runner.is-active {
+    border-color: var(--c);
+    box-shadow: 0 0 0 1px var(--c);
+  }
+  /* A crashed runner: a red dashed outline, and its badge */
+  .cv-runner.is-crashed {
+    border-style: dashed;
+    border-color: var(--cv-red);
+    box-shadow: none;
+    animation: cv-shake 400ms ease-in-out;
+  }
+  @keyframes cv-shake {
+    25% {
+      transform: translateX(-4px);
+    }
+    75% {
+      transform: translateX(4px);
+    }
+  }
+  .cv .cv-runner-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--c);
+  }
+
+  .cv-shard {
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.55rem 0.55rem;
+    border: 1px solid var(--cv-line);
+    border-radius: 0.5rem;
+    animation: cv-in 300ms ease;
+  }
+  /* A runner with no shard yet: the outline of one, labelled empty */
+  .cv-shard.is-empty {
+    position: relative;
+    border-style: dashed;
+    animation: none;
+  }
+  .cv-shard.is-empty > * {
+    visibility: hidden;
+  }
+  .cv-shard.is-empty::after {
+    content: "Empty";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    color: var(--cv-muted);
+  }
+  .cv .cv-shard-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 0.5rem;
+    font-size: 0.75rem;
+  }
+  .cv-shard-name {
+    font-weight: 600;
+    color: var(--cv-ink);
+  }
+  .cv-lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--cv-muted);
+  }
+  .cv-lock svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .cv-lock.is-held {
+    font-weight: 600;
+    color: var(--c);
+  }
+  .cv-runner.is-crashed .cv-lock.is-held {
+    font-weight: 400;
+    color: var(--cv-muted);
+  }
+
+  .cv-dad {
+    margin-top: 0.45rem;
+    padding: 0.4rem 0.55rem;
+    border: 1.5px dashed var(--cv-line);
+    border-radius: 0.5rem;
+    transition:
+      border-color 200ms ease,
+      opacity 200ms ease;
+  }
+  .cv-dad[data-state="off"] {
+    opacity: 0.6;
+  }
+  .cv-dad[data-state="thinking"],
+  .cv-dad[data-state="awake"] {
+    border-style: solid;
+    border-color: var(--cv-ink);
+  }
+  /* Whatever was in the crashed runner's memory, faded out and struck
+     through */
+  .cv-dad[data-state="lost"] .cv-fields,
+  .cv-dad[data-state="lost"] .cv-dad-head > span:nth-child(-n + 2) {
+    opacity: 0.5;
+  }
+  .cv-dad[data-state="lost"] .cv-fields dd {
+    text-decoration: line-through;
+  }
+  .cv-dad[data-state="off"] .cv-dad-face,
+  .cv-dad[data-state="lost"] .cv-dad-face {
+    filter: grayscale(1);
+  }
+  .cv .cv-dad-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cv-ink);
+  }
+  .cv-lost,
+  .cv-quiet {
+    margin-left: auto;
+  }
+  .cv-dad-face {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+  .cv .cv-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.4rem 0 0;
+    font-size: 0.72rem;
+  }
+  .cv-row {
+    display: grid;
+    grid-template-columns: 3.4rem minmax(0, 1fr);
+    align-items: center;
+    height: 1.7rem;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--cv-line);
+    border-radius: 0.35rem;
+    background: var(--cv-surface);
+  }
+  .cv .cv-fields dt {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    font-weight: 400;
+    color: var(--cv-muted);
+  }
+  .cv .cv-fields dd {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--cv-muted);
+  }
+  .cv-chip {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0 0.4rem;
+    border: 1px solid var(--cv-sebastian);
+    border-radius: 999px;
+    color: var(--cv-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    animation: cv-in 300ms ease;
+  }
+  .cv-chip.is-joke {
+    border-color: var(--cv-dad);
+  }
+  /* Dad's quiet timer, running down while he waits in step 2 */
+  .cv-timer {
+    display: block;
+    width: 3.5rem;
+    height: 0.3rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--cv-dad) 25%, transparent);
+    overflow: hidden;
+    vertical-align: middle;
+  }
+  .cv-timer i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--cv-dad);
+    animation: cv-timer var(--quiet) linear both;
+  }
+  @keyframes cv-timer {
+    from {
+      width: 100%;
+    }
+    to {
+      width: 0;
+    }
+  }
+  /* Narrow screens: the chat on top and the runners under it */
+  @media (max-width: 640px) {
+    .cv-stage {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.75rem;
+    }
+    .cv .cv-messages {
+      gap: 0.5rem;
+      padding: 0.6rem 0.75rem;
+    }
+    .cv-runners {
+      gap: 0.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cv .cv-msg,
+    .cv-shard,
+    .cv-chip,
+    .cv-runner.is-crashed,
+    .cv-timer i {
+      animation: none;
+    }
+    .cv-runner,
+    .cv-dad {
+      transition: none;
+    }
+  }
+</style>

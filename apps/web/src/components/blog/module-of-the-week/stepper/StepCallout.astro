@@ -1,0 +1,104 @@
+---
+// The callout that explains each step right next to what it's about, with
+// an arrow pointing at it. Goes inside the stage, which must be positioned.
+// See createCallout in stepper.ts.
+---
+
+<div class="st-callout" data-callout aria-hidden="true" hidden>
+  <p class="st-callout-head">
+    <span class="st-callout-num" data-callout-num></span>
+    <span data-callout-title></span>
+  </p>
+  <p class="st-callout-text" data-callout-text></p>
+</div>
+
+<style is:global>
+  .st-callout {
+    position: absolute;
+    z-index: 4;
+    padding: 0.5rem 0.7rem 0.55rem;
+    border: 1.5px solid var(--st-ink);
+    border-radius: 0.6rem;
+    background: var(--st-surface);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
+    transition:
+      top 350ms ease,
+      left 350ms ease;
+  }
+  .st-callout[hidden] {
+    display: none;
+  }
+  .st .st-callout-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--st-ink);
+  }
+  .st-callout-num {
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--st-ink);
+    color: var(--st-surface);
+    font-size: 0.75rem;
+    letter-spacing: 0;
+  }
+  .st-callout-num[hidden] {
+    display: none;
+  }
+  .st .st-callout-text {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: var(--st-ink);
+  }
+  /* The arrow: a small rotated square on the edge facing the target */
+  .st-callout::after {
+    content: "";
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border: solid var(--st-ink);
+    background: var(--st-surface);
+  }
+  .st-callout[data-place="left"]::after {
+    top: var(--arrow);
+    right: -7px;
+    border-width: 1.5px 1.5px 0 0;
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .st-callout[data-place="below"]::after {
+    top: -7px;
+    left: var(--arrow);
+    border-width: 1.5px 0 0 1.5px;
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .st-callout[data-place="above"]::after {
+    bottom: -7px;
+    left: var(--arrow);
+    border-width: 0 1.5px 1.5px 0;
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .st-callout.is-in {
+    animation: st-callout-in 300ms ease;
+  }
+  @keyframes st-callout-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .st-callout {
+      transition: none;
+    }
+  }
+</style>

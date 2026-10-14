@@ -1,0 +1,72 @@
+---
+// The caption and buttons under a step-through visual. The caption says
+// what the current step is about. While callouts are showing, it's for
+// screen readers only. See stepper.ts.
+
+interface Props {
+  // Adds a Reset button that goes back to the start
+  reset?: boolean
+}
+const { reset = false } = Astro.props
+---
+
+<p class="st-caption" data-caption aria-live="polite"></p>
+
+<div class="st-controls">
+  <button type="button" class="st-button st-primary" data-step>Step</button>
+  {
+    reset && (
+      <button type="button" class="st-button" data-reset>
+        Reset
+      </button>
+    )
+  }
+</div>
+
+<style is:global>
+  .st .st-caption {
+    min-height: 2.6em;
+    margin: 0.9rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-align: center;
+    color: var(--st-ink);
+  }
+  .st.has-callouts .st-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .st-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .st .st-button {
+    padding: 0.4rem 0.9rem;
+    border: 1.5px solid var(--st-ink);
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--st-ink);
+    cursor: pointer;
+  }
+  .st .st-button.st-primary {
+    background: var(--st-ink);
+    color: var(--st-surface);
+  }
+  .st .st-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @media (max-width: 640px) {
+    .st .st-caption {
+      margin-top: 0.6rem;
+    }
+  }
+</style>

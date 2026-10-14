@@ -1,0 +1,480 @@
+---
+// A sender, a receiver, and one wire between them. The sender keeps sending
+// messages, and the wire drops some of them on the way. The sender counts
+// every one as sent either way, and nothing about the drops ever reaches
+// its side.
+//
+// With `ack`, the receiver sends an ack back for every message it gets, and
+// the wire can drop those too. The sender waits for each ack, and if none
+// comes before its timer runs out, it sends the same message again. A lost
+// message and a lost ack look the same to the sender, so a lost ack means
+// the receiver gets the message twice.
+
+import { people } from "../3/palette"
+
+interface Props {
+  ack?: boolean
+}
+const { ack = false } = Astro.props
+
+// Where everything sits, in viewBox units
+const sender = 70
+const receiver = 350
+const wireY = 46
+
+// The counts under each side. With acks, two each, side by side.
+const counts = ack
+  ? [
+      { x: sender - 36, key: "sent", label: "Sent" },
+      { x: sender + 36, key: "resent", label: "Resent" },
+      { x: receiver - 36, key: "got", label: "Received" },
+      { x: receiver + 36, key: "dupes", label: "Duplicates" },
+    ]
+  : [
+      { x: sender, key: "sent", label: "Sent" },
+      { x: receiver, key: "got", label: "Received" },
+    ]
+---
+
+<figure
+  class="wv"
+  data-wire-visual
+  data-ack={String(ack)}
+  data-from={sender}
+  data-to={receiver}
+  data-y={wireY}
+  style={`--wv-message: ${people.Sebastian.avatar}`}
+  aria-label={ack
+    ? "A sender sends messages to a receiver over a wire, and waits for an ack back for each one. The wire drops some messages and some acks. When no ack comes back in time, the sender sends the message again, so a lost ack means the receiver gets the same message twice."
+    : "A sender sends a stream of messages to a receiver over a wire. The wire drops some of them on the way. The sender counts every message as sent, while the receiver gets fewer."}
+>
+  <svg class="wv-svg" viewBox="0 0 420 112" aria-hidden="true">
+    <text class="wv-head" x={sender} y="18">Sender</text>
+    <text class="wv-head" x={receiver} y="18">Receiver</text>
+
+    <line class="wv-wire" x1={sender} y1={wireY} x2={receiver} y2={wireY}></line>
+    {
+      ack && (
+        <circle
+          class="wv-timer"
+          data-timer
+          cx={sender}
+          cy={wireY}
+          r="13"
+          transform={`rotate(-90 ${sender} ${wireY})`}
+        />
+      )
+    }
+    <circle class="wv-node" data-sender cx={sender} cy={wireY} r="8"></circle>
+    <circle class="wv-node" data-receiver cx={receiver} cy={wireY} r="8"></circle>
+    <g data-messages></g>
+
+    {
+      counts.map((c) => (
+        <>
+          <text class="wv-count" data-count={c.key} x={c.x} y={wireY + 40}>
+            0
+          </text>
+          <text class="wv-count-label" x={c.x} y={wireY + 54}>
+            {c.label}
+          </text>
+        </>
+      ))
+    }
+  </svg>
+
+  <div class="wv-controls">
+    <button type="button" class="wv-button" data-play>Pause</button>
+  </div>
+</figure>
+
+<script>
+  // Without acks, a message leaves every INTERVAL seconds. Each one takes
+  // TRAVEL to cross, and dropped ones fall off for FALL seconds.
+  const INTERVAL = 1.3
+  const TRAVEL = 1.8
+  const FALL = 0.7
+  // Which messages the wire drops, and how far along: a fixed pattern that
+  // looks random, so every reader sees the same thing
+  const PATTERN: Array<number | null> = [null, 0.55, null, null, 0.4, null, 0.65, null, 0.5]
+
+  // With acks, one message at a time. The receiver acks PROCESS seconds
+  // after a message arrives, and the sender gives up waiting after TIMEOUT
+  // and sends it again. GAP is the pause before the next message.
+  const ACK_TRAVEL = 1.5
+  const PROCESS = 0.3
+  const TIMEOUT = 2 * ACK_TRAVEL + PROCESS + 0.9
+  const GAP = 0.6
+  // What happens to each send, and where along the wire anything is lost
+  type Outcome = { lose: "nothing" } | { lose: "message" | "ack"; at: number }
+  const OUTCOMES: Array<Outcome> = [
+    { lose: "nothing" },
+    { lose: "message", at: 0.5 },
+    { lose: "nothing" },
+    { lose: "ack", at: 0.45 },
+    { lose: "nothing" },
+    { lose: "nothing" },
+    { lose: "ack", at: 0.6 },
+    { lose: "nothing" },
+    { lose: "message", at: 0.6 },
+    { lose: "nothing" },
+  ]
+
+  const SVG = "http://www.w3.org/2000/svg"
+  const clamp = (v: number) => Math.min(1, Math.max(0, v))
+  const ease = (v: number) => v * v * (3 - 2 * v)
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  // Every send with acks, worked out ahead of time: when it leaves, whether
+  // it's a resend, and whether the receiver has already seen it
+  type Send = { start: number; resend: boolean; duplicate: boolean; outcome: Outcome }
+  const schedule = (count: number) => {
+    const sends: Array<Send> = []
+    const seen = new Set<number>()
+    let start = 0.4
+    let message = 1
+    let resend = false
+    for (let i = 0; i < count; i++) {
+      const outcome = OUTCOMES[i % OUTCOMES.length]!
+      const arrives = outcome.lose !== "message"
+      sends.push({ start, resend, duplicate: arrives && seen.has(message), outcome })
+      if (arrives) seen.add(message)
+      if (outcome.lose === "nothing") {
+        start += ACK_TRAVEL + PROCESS + ACK_TRAVEL + GAP
+        message++
+        resend = false
+      } else {
+        start += TIMEOUT
+        resend = true
+      }
+    }
+    return sends
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-wire-visual]")) {
+    const withAcks = root.dataset.ack === "true"
+    const from = Number(root.dataset.from)
+    const to = Number(root.dataset.to)
+    const y0 = Number(root.dataset.y)
+    const layer = root.querySelector<SVGGElement>("[data-messages]")!
+    const senderNode = root.querySelector<SVGCircleElement>("[data-sender]")!
+    const receiverNode = root.querySelector<SVGCircleElement>("[data-receiver]")!
+    const timer = root.querySelector<SVGCircleElement>("[data-timer]")
+    const play = root.querySelector<HTMLButtonElement>("[data-play]")!
+    const countEl = (key: string) => root.querySelector<SVGTextElement>(`[data-count="${key}"]`)
+
+    // Sets a count, with a little bump whenever it goes up
+    const count = (key: string, n: number) => {
+      const el = countEl(key)
+      if (!el) return
+      const old = Number(el.textContent)
+      el.textContent = String(n)
+      el.classList.toggle("is-bad", key === "dupes" && n > 0)
+      if (n > old && !reduceMotion()) {
+        el.classList.remove("is-bump")
+        void el.getBoundingClientRect()
+        el.classList.add("is-bump")
+      }
+    }
+
+    // One envelope per thing on the wire, made as needed and removed once
+    // it's gone
+    const envelopes = new Map<string, SVGGElement>()
+    let live = new Set<string>()
+    const envelope = (key: string, kind: "message" | "ack") => {
+      live.add(key)
+      let g = envelopes.get(key)
+      if (!g) {
+        g = document.createElementNS(SVG, "g")
+        g.setAttribute("class", `wv-env is-${kind}`)
+        // Messages are envelopes, and acks are round check marks
+        g.innerHTML =
+          kind === "ack"
+            ? `<circle r="6.5"></circle><path class="wv-check" d="M -3 0.2 L -0.8 2.4 L 3.2 -2.4"></path>`
+            : `<rect x="-7" y="-5" width="14" height="10" rx="1.5"></rect><path d="M -6.5 -4.5 L 0 0.8 L 6.5 -4.5"></path>`
+        layer.append(g)
+        envelopes.set(key, g)
+      }
+      return g
+    }
+    const sweep = () => {
+      for (const [key, g] of envelopes) {
+        if (live.has(key)) continue
+        g.remove()
+        envelopes.delete(key)
+      }
+      live = new Set()
+    }
+    // Something `elapsed` seconds into a trip across the wire, in the given
+    // direction. If it's lost `at` of the way along, it turns red and falls
+    // off there. Returns false once it's arrived or finished falling.
+    const fly = (
+      key: string,
+      kind: "message" | "ack",
+      elapsed: number,
+      travel: number,
+      at: number | null,
+      back: boolean,
+    ) => {
+      const along = (f: number) => (back ? to - (to - from) * f : from + (to - from) * f)
+      if (at === null && elapsed >= travel) return false
+      if (at !== null && elapsed >= travel * at + FALL) return false
+      const g = envelope(key, kind)
+      const falling = at !== null && elapsed >= travel * at
+      g.classList.toggle("is-lost", falling)
+      if (!falling) {
+        g.setAttribute("transform", `translate(${along(ease(clamp(elapsed / travel)))} ${y0})`)
+        g.style.opacity = "1"
+      } else {
+        const f = clamp((elapsed - travel * at!) / FALL)
+        const x = along(ease(at!)) + (back ? -8 : 8) * f
+        g.setAttribute(
+          "transform",
+          `translate(${x} ${y0 + 40 * f * f}) rotate(${(back ? -120 : 120) * f})`,
+        )
+        g.style.opacity = String(1 - f)
+      }
+      return true
+    }
+
+    // Without acks: a steady stream, some of it dropped
+    const sentAt = (k: number) => 0.4 + k * INTERVAL
+    const drawStream = (t: number) => {
+      const latest = Math.floor((t - 0.4) / INTERVAL)
+      let received = 0
+      let arrivedRecently = false
+      for (let k = 0; k <= latest; k++) {
+        const at = PATTERN[k % PATTERN.length] ?? null
+        const elapsed = t - sentAt(k)
+        fly(`m${k}`, "message", elapsed, TRAVEL, at, false)
+        if (at === null && elapsed >= TRAVEL) {
+          received++
+          if (elapsed < TRAVEL + 0.35) arrivedRecently = true
+        }
+      }
+      sweep()
+      count("sent", Math.max(0, latest + 1))
+      count("got", received)
+      senderNode.classList.toggle("is-lit", latest >= 0 && t - sentAt(latest) < 0.35)
+      receiverNode.classList.toggle("is-lit", arrivedRecently)
+    }
+
+    // With acks: one message at a time, each waiting on its ack
+    const sends = withAcks ? schedule(400) : []
+    const circumference = 2 * Math.PI * 13
+    const drawAcks = (t: number) => {
+      let sent = 0
+      let resent = 0
+      let received = 0
+      let dupes = 0
+      let senderLit = false
+      let receiverLit = false
+      let waiting: number | null = null
+      for (const [i, s] of sends.entries()) {
+        if (s.start > t) break
+        const e = t - s.start
+        sent++
+        if (s.resend) resent++
+        const lostAt = (what: "message" | "ack") =>
+          s.outcome.lose === what ? (s.outcome as { at: number }).at : null
+
+        // The message, out to the receiver
+        fly(`m${i}`, "message", e, ACK_TRAVEL, lostAt("message"), false)
+        if (s.outcome.lose !== "message" && e >= ACK_TRAVEL) {
+          received++
+          if (s.duplicate) dupes++
+          if (e < ACK_TRAVEL + 0.35) receiverLit = true
+        }
+
+        // The ack, back to the sender
+        const ackStart = ACK_TRAVEL + PROCESS
+        if (s.outcome.lose !== "message" && e >= ackStart) {
+          fly(`a${i}`, "ack", e - ackStart, ACK_TRAVEL, lostAt("ack"), true)
+        }
+        const acked = s.outcome.lose === "nothing"
+        const waitEnd = acked ? ackStart + ACK_TRAVEL : TIMEOUT
+        if (acked && e >= waitEnd && e < waitEnd + 0.35) senderLit = true
+        // How much of the sender's patience is left
+        if (e < waitEnd) waiting = 1 - e / TIMEOUT
+      }
+      sweep()
+      count("sent", sent)
+      count("resent", resent)
+      count("got", received)
+      count("dupes", dupes)
+      senderNode.classList.toggle("is-lit", senderLit)
+      receiverNode.classList.toggle("is-lit", receiverLit)
+      if (timer) {
+        timer.style.opacity = waiting === null ? "0" : "1"
+        timer.style.strokeDasharray = String(circumference)
+        timer.style.strokeDashoffset = String(circumference * (1 - (waiting ?? 0)))
+      }
+    }
+
+    const draw = withAcks ? drawAcks : drawStream
+
+    // A clock that runs while playing and on screen
+    let t = 0
+    let playing = !reduceMotion()
+    let visible = false
+    let frame = 0
+    let last: number | undefined
+    const loop = (now: number) => {
+      if (last !== undefined) t += Math.min(0.1, (now - last) / 1000)
+      last = now
+      draw(t)
+      frame = requestAnimationFrame(loop)
+    }
+    const update = () => {
+      cancelAnimationFrame(frame)
+      last = undefined
+      if (playing && visible) frame = requestAnimationFrame(loop)
+      play.textContent = playing ? "Pause" : "Play"
+    }
+    play.addEventListener("click", () => {
+      playing = !playing
+      update()
+    })
+    new IntersectionObserver(([entry]) => {
+      visible = entry?.isIntersecting ?? false
+      update()
+    }).observe(root)
+
+    // Paused from the start with reduced motion, so show a few messages in
+    if (!playing) t = withAcks ? sends[OUTCOMES.length]!.start - 0.1 : sentAt(PATTERN.length) + 0.9
+    draw(t)
+    update()
+  }
+</script>
+
+<style is:global>
+  .wv {
+    --wv-ink: #3f3f46;
+    --wv-muted: #71717a;
+    --wv-line: #d4d4d8;
+    --wv-surface: #ffffff;
+    --wv-ok: #15803d;
+    --wv-lost: #dc2626;
+    margin: 1.5rem 0;
+  }
+  html.dark .wv {
+    --wv-ink: #e4e4e7;
+    --wv-muted: #a1a1aa;
+    --wv-line: #3f3f46;
+    --wv-surface: #09090b;
+    --wv-ok: #4ade80;
+    --wv-lost: #f87171;
+  }
+
+  .wv-svg {
+    display: block;
+    width: 100%;
+    max-width: 32rem;
+    height: auto;
+    margin: 0 auto;
+    overflow: visible;
+  }
+  .wv svg text {
+    text-anchor: middle;
+  }
+  .wv svg .wv-head {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--wv-ink);
+  }
+  .wv-wire {
+    stroke: var(--wv-ink);
+    stroke-width: 1.5;
+  }
+  .wv-node {
+    fill: var(--wv-surface);
+    stroke: var(--wv-ink);
+    stroke-width: 1.5;
+    transition: fill 200ms ease;
+  }
+  .wv-node.is-lit {
+    fill: var(--wv-ok);
+  }
+  /* How long the sender will keep waiting for an ack, running down */
+  .wv-timer {
+    fill: none;
+    stroke: var(--wv-muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .wv-env rect {
+    fill: var(--wv-message);
+    stroke: var(--wv-surface);
+    stroke-width: 0.8;
+  }
+  .wv-env circle {
+    fill: var(--wv-ok);
+    stroke: var(--wv-surface);
+    stroke-width: 0.8;
+  }
+  /* Something the wire dropped, on its way down */
+  .wv-env.is-lost rect,
+  .wv-env.is-lost circle {
+    fill: var(--wv-lost);
+  }
+  .wv-env path {
+    fill: none;
+    stroke: var(--wv-surface);
+    stroke-width: 0.8;
+    stroke-linejoin: round;
+  }
+  .wv-env .wv-check {
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+  /* The counts: a big number, with a small label under it */
+  .wv svg .wv-count {
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    fill: var(--wv-ink);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .wv svg .wv-count.is-bad {
+    fill: var(--wv-lost);
+  }
+  .wv svg .wv-count.is-bump {
+    animation: wv-bump 300ms ease-out;
+  }
+  @keyframes wv-bump {
+    from {
+      transform: scale(1.25);
+    }
+  }
+  .wv svg .wv-count-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    fill: var(--wv-muted);
+  }
+
+  .wv-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.75rem;
+  }
+  .wv .wv-button {
+    min-width: 5rem;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.9rem;
+    border: 1.5px solid var(--wv-ink);
+    border-radius: 0.5rem;
+    background: none;
+    font-size: 0.85rem;
+    color: var(--wv-ink);
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wv-node {
+      transition: none;
+    }
+  }
+</style>
