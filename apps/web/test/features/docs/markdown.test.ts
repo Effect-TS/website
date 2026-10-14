@@ -302,3 +302,60 @@ for (const file of walkMdx(DOCS_DIR)) {
     )
   })
 }
+
+test("reduces styled HTML blocks to plain markdown", () => {
+  const body = [
+    "Intro.",
+    "",
+    '<div class="not-prose p-4">',
+    '  <div class="font-mono">Out of the box</div>',
+    '  <dl class="grid">',
+    '    <div class="px-4"><dt class="text-sm">Typed errors</dt>',
+    '      <dd class="mt-1">Failures live in the signature.</dd></div>',
+    "  </dl>",
+    "</div>",
+    "",
+    '<ol class="list-none">',
+    '  <li class="pl-0">',
+    '    <a href="/docs/v4/x" class="group flex">',
+    '      <span aria-hidden="true">01</span>',
+    '      <span class="flex-1">Start here</span>',
+    "    </a>",
+    "  </li>",
+    "</ol>",
+  ].join("\n")
+  assert.equal(
+    docsBodyToMarkdown(body),
+    [
+      "Intro.",
+      "",
+      "Out of the box",
+      "",
+      "- **Typed errors**: Failures live in the signature.",
+      "",
+      "- [01 Start here](/docs/v4/x)",
+      "",
+    ].join("\n"),
+  )
+})
+
+test("keeps HTML-like text in code spans and fences, flattens inline tags", () => {
+  const body = [
+    'Value is 10<sup>-scale</sup>, see `<div class="x">` and Array<string>.',
+    "",
+    "```html",
+    '<div class="x"><a href="/y">y</a></div>',
+    "```",
+  ].join("\n")
+  assert.equal(
+    docsBodyToMarkdown(body),
+    [
+      'Value is 10^-scale, see `<div class="x">` and Array<string>.',
+      "",
+      "```html",
+      '<div class="x"><a href="/y">y</a></div>',
+      "```",
+      "",
+    ].join("\n"),
+  )
+})
