@@ -731,16 +731,74 @@ To get Docker, follow these steps:
 
 ### Sentry
 
-To send span data directly to Sentry for analysis, replace the default span processor with Sentry's implementation. This allows you to use Sentry as a backend for tracing and debugging.
+For Sentry JavaScript SDK v11, enable Sentry's OpenTelemetry tracer provider and connect Effect to it with `OtelTracer.layerGlobal`. Sentry v11 removed `SentrySpanProcessor`, so the span processor configuration used by earlier SDK versions no longer applies.
+
+Install `@sentry/node` alongside the tracing dependencies above:
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```sh showLineNumbers=false
+npm install @sentry/node@^11
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```sh showLineNumbers=false
+pnpm add @sentry/node@^11
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="seti:yarn">
+
+```sh showLineNumbers=false
+yarn add @sentry/node@^11
+```
+
+</TabItem>
+
+<TabItem label="Bun" icon="bun">
+
+```sh showLineNumbers=false
+bun add @sentry/node@^11
+```
+
+</TabItem>
+
+</Tabs>
+
+Replace the example DSN with your project's DSN and initialize Sentry before running the traced effect:
 
 **Example** (Configuring Sentry for Tracing)
 
 ```ts twoslash
-import { NodeSdk } from "@effect/opentelemetry"
-import { SentrySpanProcessor } from "@sentry/opentelemetry"
+import { Effect } from "effect"
+import { OtelTracer } from "@effect/opentelemetry"
+import * as Sentry from "@sentry/node"
 
-const NodeSdkLive = NodeSdk.layer(() => ({
-  resource: { serviceName: "example" },
-  spanProcessor: new SentrySpanProcessor(),
-}))
+Sentry.init({
+  dsn: "https://examplePublicKey@o0.ingest.sentry.io/0",
+  enableOpenTelemetrySetup: true,
+  tracesSampleRate: 1,
+})
+
+const program = Effect.void.pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("myspan"),
+)
+
+try {
+  await Effect.runPromise(program.pipe(Effect.provide(OtelTracer.layerGlobal)))
+} finally {
+  // Flush pending spans before this short-lived script exits.
+  await Sentry.flush(2000)
+}
 ```
+
+Look for the span in Sentry's **Explore → Traces** view. Successful spans do not create error issues; error monitoring requires capturing an exception separately.
+
+This example uses Sentry's tracer provider. If your application already has a different OpenTelemetry provider, follow [Sentry's OpenTelemetry setup guide](https://docs.sentry.io/platforms/javascript/guides/node/opentelemetry/) to export that provider's spans over OTLP instead.
