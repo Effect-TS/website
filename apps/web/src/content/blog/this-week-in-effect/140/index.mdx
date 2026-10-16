@@ -1,0 +1,232 @@
+---
+pagefind: false
+title: This Week in Effect - 140
+excerpt: "Cluster delivery in Module of the Week. Effect surpasses 50 million downloads per week. 🚀 Effect Miami scheduled for Nov 9."
+date: 2026-10-16
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+New [Module of the Week](https://effect.website/blog/module-of-the-week/cluster-delivery) post by [Maxwell Brown](https://x.com/maxwellbrown), focusing on **Cluster delivery**.
+
+<Tweet id="2110329912255279387" />
+
+### Effect v4 updates.
+
+Another busy week on `main`, with new modules landing alongside a steady stream of fixes across the platform packages. Here are the most notable changes.
+
+- **Additions**: Added a GraphQL client and generator, a streaming tar codec in `effect/encoding`, `Schema.toCodecGoJson`, Semantic Versioning types with range support, and custom annotation imports for JSON Schema. Also added `Path.resolveWithin` for root-contained path resolution, `Host` helpers (`toFullyQualified`, `toRelative`, `parseHostsFile`), `NetAddress.loopbackAddresses`, `fromInput` functions for the net data types, and `CliOutput.displayWidth`.
+
+<Tweet id="2109012416998826289" />
+
+- **Cluster & workflow**: Added a `detached` option for discarded workflow executions. Failure-suspended workflows now stay parked until resumed or interrupted, suspended callers wake up when their workflow completes, and losing `DurableDeferred.raceAll` waits are released once the race settles. On the cluster side, shards are now handed off one at a time on shutdown, lease-based SQL shard lock renewal was restored, and a new annotation lets cluster RPCs be interrupted on termination. Also fixed the shards gauge after shard release.
+
+- **RPC, HTTP & platform**: RPC gained an `onPingTimeout` option, and premature socket ping timeouts and connection defects that failed synchronously started requests were fixed. Added WebSocket handshake headers alongside subprotocols and `servername` support in client TLS upgrades. Fixed `HttpRouter` prefixes with path params breaking `request.url`, absolute HTTP URLs in opaque-origin documents, a UTF-8 BOM breaking JSON in Node HTTP text, `NodeStream` hangs on premature closure, and several child process edge cases.
+
+- **SQL & persistence**: Exposed TCP keepalive settings in `sql-pg` and fixed released connection pins reaching the next borrower and inferred empty array binding. Fixed connection starvation in PGlite, the MSSQL error listener, the ClickHouse migrator ledger, Redis `PersistedQueue` data loss on lone-surrogate payloads and fractional Redis fixed-window rate limits. Event log replication, remote SQL journal conflicts and persistence expiry checks for reused reads were also fixed.
+
+- **AI**: Fixed OpenAI Responses streams not ending at `data: [DONE]`, web search actions without patterns, service tier and provider-nested error metadata, and reasoning replay alongside tool calls in `openai-compat`. Invalid and undeclared tool calls are now returned when validation is deferred, Anthropic replies from a fallback model now decode correctly, and the Cloudflare provider can send decision images to Clef.
+
+- **Observability**: Fixed several OTLP export issues: histogram overflow buckets, integers outside the int64 range, `NaN` and `Infinity` values, and batches dropped when a span has a 64-bit B3 trace id. The active span is now recorded on OpenTelemetry log records, and the DevTools client reconnects after socket failures.
+
+- **Core & Schema fixes**: Fixed `Duration` conversions and `Duration.times` for very large or non-integer inputs, `Effect.cached*` under synchronous re-entrancy, `Stream.timeout` ending while the next chunk is pending, and atom rebuild loops from late dependency reads. `Match` now keeps the unmatched tail in array prefix patterns and rejects unknown keys in object patterns, `Array.match` exposes `NonEmptyArray` for mutable arrays, and `Schema.Enum` preserves literal member inference. Schema also rejects duplicate tagged union discriminants and merges colliding bounds in JSON Schema export instead of emitting `allOf`.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [Effect v4 Updates](https://www.effect.website/blog?category=effect-v4-updates), starting from the recently published [Effect v4 RC: September 2026 Updates](https://effect.website/blog/effect-v4-rc-september-recap).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Type received and forwarded HTTP request methods as open strings](https://github.com/Effect-TS/effect/pull/8766) (Bug Fix, next-minor)
+- [Type Atom.Serializable encode/decode as Schema.Json](https://github.com/Effect-TS/effect/pull/8763) (Bug Fix, next-minor)
+- [Support duplex additional child-process file descriptors](https://github.com/Effect-TS/effect/pull/8905) (Feature, next-minor)
+- [Add an explicit maxDepth option to Context.makeUnsafe](https://github.com/Effect-TS/effect/pull/8969) (Feature, next-minor)
+- [Export HttpClient.isTransientError and isTransientResponse](https://github.com/Effect-TS/effect/pull/9059) (Feature, next-minor)
+- [Add pool occupancy stats to Pool, PgPool, and PgClient](https://github.com/Effect-TS/effect/pull/9090) (Feature, next-minor)
+- [Add request-level dependencies to McpServer](https://github.com/Effect-TS/effect/pull/9154) (Feature, next-minor)
+- [Fix(sql): load filesystem migrations from their own module](https://github.com/Effect-TS/effect/pull/9157) (Bug Fix, next-minor)
+- [AI: TypeSafe images and Box questions via Decision.locate](https://github.com/Effect-TS/effect/pull/9177) (Feature, next-minor)
+- [Acknowledge discarded RPC calls before running handlers](https://github.com/Effect-TS/effect/pull/9182) (Improvement, next-minor)
+- [Fix(persistence): isolate stores on KeyValueStore and Redis backings](https://github.com/Effect-TS/effect/pull/9223) (Bug Fix, next-minor)
+- [Fix Redis persisted queue claim ownership](https://github.com/Effect-TS/effect/pull/9229) (Bug Fix, next-minor)
+
+### Effect AI
+
+- [AI: TypeSafe images and Box questions via Decision.locate](https://github.com/Effect-TS/effect/pull/9177) (Feature, next-minor)
+
+### Effect Platform
+
+- [Support duplex additional child-process file descriptors](https://github.com/Effect-TS/effect/pull/8905) (Feature, next-minor)
+- [Add pool occupancy stats to Pool, PgPool, and PgClient](https://github.com/Effect-TS/effect/pull/9090) (Feature, next-minor)
+- [Fix(persistence): isolate stores on KeyValueStore and Redis backings](https://github.com/Effect-TS/effect/pull/9223) (Bug Fix, next-minor)
+
+### Effect SQL
+
+- [Fix(sql): load filesystem migrations from their own module](https://github.com/Effect-TS/effect/pull/9157) (Bug Fix, next-minor)
+
+## Community Events
+
+- Very few 2-day passes left for [Effect Days 2026](https://effect.website/effect-days)! The conference is scheduled for December 9–11 in Livorno, Italy.
+
+  <Tweet id="2107551295938650255" />
+
+- Effect Miami is scheduled for Nov 9. Guess who's speaking!!
+
+  <Tweet id="2110796701212500020" />
+
+- [Effect Warsaw #2](https://luma.com/k5o7m2pg) is coming up on November 17!
+
+  <Tweet id="2108246661642285217" />
+
+- A big thank you to the attendees, the organizers, and [evryg](https://www.evryg.com/en) for hosting the **Effect Paris 🇫🇷** meetup this week!
+
+  <Tweet id="2110064051795771834" />
+
+  <Tweet id="2110110914813001807" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Community Highlights
+
+- 📈
+
+<Tweet id="2110063098446873027" />
+
+- Huge congrats to Expand AI – built with Effect.
+
+<Tweet id="2110407713540985345" />
+
+- Coming soon 👀
+
+<Tweet id="2109908203047932125" />
+
+- An EffectTS native ORM
+
+<Tweet id="2110788796883022153" />
+
+- 💅
+
+<Tweet id="2108967930679464082" />
+
+- CAFE stack ☕️
+
+<Tweet id="2110061934179729538" />
+
+<Tweet id="2109022540169433168" />
+
+- Agreed.
+
+<Tweet id="2109349584124449197" />
+
+- Yep! 😎
+
+<Tweet id="2110414246895034654" />
+
+- [**CAFE news**](https://ratstack.sh/news) - By Joel.
+
+- [namera](https://github.com/thenamespace/namera) - EVM smart-account wallets for AI agents. By The Namespace.
+
+- [effect-actions](https://github.com/gjermundgaraba/effect-actions) - define an Effect action once and expose it over HTTP, MCP, native Toolkits, and CLIs. By gjermundgaraba.
+
+- [effetch](https://github.com/monarcode/effetch) - schema-driven HTTP calls on top of Effect v4's `HttpClient`. By monarcode.
+
+- [effect-units](https://github.com/rjdellecese/effect-units/) - typed quantities and unit conversions for Effect, adapted from Elm's `elm-units`. By rjdellecese.
+
+- [effect-platform-chrome](https://github.com/yotamishak/effect-platform-chrome) - Effect v4 services, RPC, and testing utilities for Chrome Manifest V3 extensions. By yotamishak.
+
+- [effect-assistant](https://github.com/dbrxnds/effect-assistant) - build chat assistants that run tools in the background and message the user back, built on Effect and `effect/ai`. By dbrxnds.
+
+- [effect-views](https://github.com/jpowersdev/effect-views) - a prototype for server-rendered HTML and schema-bound forms, built with Effect and htmx. By jpowersdev.
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+New this week: **Bitfocus** & **Warp** are hiring Effect engineers.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 50 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/NF8NIC7aB6Q?si=Pbyc1fXJEW-mMqM5"
+  title="Effect Office Hours 50 🔥"
+/>
+
+- Cluster, Workflows & Cloudflare Durable Objects
+
+<YouTube
+  id="https://www.youtube.com/embed/CBPttaqp9Ec?si=nDyraNfV4-gI_UVW"
+  title="Cluster, Workflows & Cloudflare Durable Objects"
+/>
+
+- Effect Cluster, Part 3 | Module of the Week #5
+
+<YouTube
+  id="https://www.youtube.com/embed/MQnQ87Nv0gU?si=OgLiRD9hhDU3VMz1"
+  title="Effect Cluster, Part 3 | Module of the Week #5"
+/>
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
