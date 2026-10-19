@@ -237,6 +237,8 @@ Output:
 */
 ```
 
+The runtime builds the layer once, on first use. If the build fails, the runtime keeps the failure. Every later run fails with the same error, and the runtime never rebuilds the layer. A transient failure on first use therefore breaks a long-lived runtime until you replace it. To avoid this, apply `Effect.retry` to the effect inside the layer, or wrap the layer with `Layer.retry`.
+
 ### Effect.Tag
 
 When working with runtimes that you pass around, `Effect.Tag` can help simplify the access to services. It lets you define a new tag and embed the service shape directly into the static properties of the tag class.
