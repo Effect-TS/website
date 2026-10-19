@@ -1,0 +1,482 @@
+---
+pagefind: false
+title: Module of the Week - Cluster, Part 4
+slug: module-of-the-week/cluster-idempotency
+packageName: effect/cluster
+excerpt: We give Dad's messages idempotency keys, run into the dual-write problem, and use WithTransaction and a notebook to stop him telling the same joke twice.
+date: 2026-10-19
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import Aside from "@/components/docs/Aside.astro"
+import DadSays from "../3/DadSays.astro"
+import ReaderAsks from "../5/ReaderAsks.astro"
+import ButtonsVisual from "./ButtonsVisual.astro"
+import CrashTimeline from "./CrashTimeline.astro"
+import RetryChat from "./RetryChat.astro"
+import RetryLog from "./RetryLog.astro"
+import RetrySequence from "./RetrySequence.astro"
+import VisualPlaceholder from "./VisualPlaceholder.astro"
+
+In the [previous installment](/blog/module-of-the-week/cluster-delivery) of Module of the Week, we gave Dad persisted messages and taught him to hold his replies until his joke was in the chat. Sebastian's message finally survived a crash.
+
+Then we crashed Dad a little later, and he told the same joke twice.
+
+This week, we're going to stop him repeating himself. That's harder than it sounds, because Dad repeats himself for more than one reason.
+
+By the end of this post, you'll know:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>What makes an operation idempotent</li>
+  <li>How to give messages idempotency keys</li>
+  <li>
+    What the dual-write problem is, and how `WithTransaction` helps with it
+  </li>
+</ol>
+
+## Where we left off
+
+Here's that crash again. Click **Step** to watch Dad crash after he replies, but before the message is marked processed.
+
+<CrashTimeline />
+
+Cluster did exactly what we asked. The message was never marked processed, so Cluster delivered it again when Dad came back. The trouble is that the new Dad has no idea the joke was already told.
+
+Getting the message twice is what at-least-once delivery promised us. Telling the joke twice is the part we can fix.
+
+## Pressing the button twice
+
+Walk up to an elevator and press the call button. Press it again. Press it five more times, if you're that kind of person. You still get one elevator.
+
+Now open a pizza app and press **Order** five times. You get five pizzas.
+
+<ButtonsVisual />
+
+The elevator button is **idempotent**. Pressing it twice has the same effect as pressing it once. The pizza button isn't, and right now, neither is Dad. Send him the same message twice and he'll tell two jokes.
+
+In [Part 3](/blog/module-of-the-week/cluster-delivery#exactly-once), we saw that exactly-once delivery isn't possible. The best you can do is deliver at least once, and have the receiver ignore the copies. We got at-least-once delivery last week. This week, Dad learns to ignore the copies.
+
+<DadSays>
+  Ask me as many times as you like. The answer is still "ask your mother."
+</DadSays>
+
+To ignore a copy, Dad first has to recognize one. And copies don't only come from crashes.
+
+## Slack knocks twice
+
+Since Part 3, our webhook waits for Sebastian's message to be saved to the database before it responds to Slack. That's usually quick. But Slack only waits three seconds for a response. If it doesn't get one, it assumes the request failed and sends the same message again.
+
+Click **Step** to follow Sebastian's message when the database is slow.
+
+{/* TODO: pick one of these and delete the rest */}
+
+**Option 1: a conversation between Slack and our server**
+
+<RetryChat />
+
+**Option 2: a sequence diagram**
+
+<RetrySequence />
+
+**Option 3: Slack's delivery log next to our server's**
+
+<RetryLog />
+
+Once the database takes longer than three seconds, Slack sends Sebastian's message again and the table ends up with two copies. As far as cluster can tell, those are two different messages, so Dad answers both.
+
+<ReaderAsks>Can't we just respond faster?</ReaderAsks>
+
+We should, but it won't fix this. Remember the Two Generals. Our response can get lost on its way back to Slack, and when that happens, Slack sends the message again no matter how fast we were.
+
+We can't stop the copies, so we need a way to tell them apart.
+
+## Idempotency keys
+
+The usual way to tell copies apart is to give every message an ID that stays the same each time it's sent. That ID is called an **idempotency key**.
+
+Stripe's API works this way. You send an `Idempotency-Key` header with each payment. If the request is retried, Stripe sees the same key and doesn't charge the customer twice.
+
+Slack already gives us a key. Every message has a timestamp, `ts`, that's unique within its channel and stays the same when Slack resends it. Every Dad lives in exactly one channel, so `ts` is all he needs.
+
+```ts showLineNumbers=false
+import { Schema } from "effect"
+import { ClusterSchema, Entity } from "effect/cluster"
+import { Rpc } from "effect/rpc"
+
+export const Dad = Entity.make("Dad", [
+  Rpc.make("NewMessage", {
+    payload: {
+      // Slack's timestamp for the message. Unique within a channel, and
+      // the same every time Slack sends it.
+      messageId: Schema.String,
+      from: Schema.String,
+      text: Schema.String,
+    },
+    // Tells cluster how to find the key in a message
+    primaryKey: (payload) => payload.messageId,
+  }),
+]).annotateRpcs(ClusterSchema.Persisted, true)
+```
+
+The webhook passes Slack's `ts` along with the rest of the message:
+
+```ts showLineNumbers=false
+yield *
+  makeDad(event.channel).NewMessage(
+    { messageId: event.ts, from: event.user, text: event.text },
+    { discard: true },
+  )
+```
+
+When cluster saves a message, it now checks whether a message with the same key is already in the table. If there is one, it doesn't save a second.
+
+<VisualPlaceholder name="MessageTableVisual with a key column">
+  The same message table as the top of the post, with a new key column. Replays
+  the slow-database case from RetryVisual. The second copy arrives, its key
+  matches the row already in the table, the row flashes, and the copy bounces
+  off with a "Duplicate" label. One row remains.
+</VisualPlaceholder>
+
+The copy doesn't just vanish, either. Cluster attaches it to the original message, so whoever sent the copy gets the original's reply. To the sender, sending twice looks exactly like sending once.
+
+<Aside>
+  <p>
+    A key only has to be unique for one Dad and one kind of message. Cluster
+    stores it as `Dad/#engineering/NewMessage/<ts>`, so two chats can share a
+    `ts` without clashing. Keys also only work for persisted messages, since
+    those are the ones cluster saves to a table it can check.
+  </p>
+</Aside>
+
+<DadSays>
+  I've got keys for everything. I just don't know what half of them open.
+</DadSays>
+
+So Dad can recognize a copy now. Let's crash him again and see if that's enough.
+
+## Two places at once
+
+Here's the crash from the top of the post, with keys turned on.
+
+<VisualPlaceholder name="MessageTableVisual repeat, with a key column">
+  The same "repeat" scenario from Part 3, with the key column from the previous
+  visual. Runner 1 crashes after Dad posts his joke but before he replies.
+  Cluster replays the same row on Runner 2. The key column never lights up,
+  because no new message arrives. Dad tells the joke again.
+</VisualPlaceholder>
+
+Dad still repeats himself. The key check never runs, because no copy ever arrived. Cluster only checks keys when it saves a new message, and this time it's replaying the message it saved in the first place.
+
+Keys stop a second send, but they can't stop a second run. To see what goes wrong in that second run, look at what Dad does with a message.
+
+He writes it to more than one place. Cluster marks the message as processed in its table, and Dad keeps the message until he posts a joke to Slack. Nothing ties those writes together. If the runner crashes between them, one system has heard about the message and the other hasn't.
+
+Try it below. Drag the crash marker anywhere along the timeline, then swap the order of the two writes.
+
+<VisualPlaceholder name="DualWriteVisual">
+  A timeline with two blocks, "Post to Slack" and "Save joke", and a crash
+  marker you can drag anywhere along it. A toggle swaps the order of the blocks.
+  Underneath, a readout shows what Slack shows and what the database knows at
+  the crash point, and what happens after the restart: "Repeated joke", "Lost
+  joke", or "Fine".
+</VisualPlaceholder>
+
+Whichever order you pick, there's a crash point that goes wrong. Save the joke first and crash before posting, and Dad believes he told a joke nobody heard. Post first and crash before saving, and he tells it again.
+
+This is the **dual-write problem**. Whenever one action has to update two systems, a crash between the updates leaves them disagreeing.
+
+<DadSays>
+  Two places at once? I can barely be in one place without falling asleep.
+</DadSays>
+
+<ReaderAsks>Why not wrap both writes in a transaction?</ReaderAsks>
+
+When both writes go to the same database, that's exactly the fix.
+
+## One transaction
+
+Let's start with the first dual write. When a message reaches Dad, cluster marks it as processed, and Dad has to keep it somewhere until he's answered it.
+
+In Part 3, we got around this by holding the reply. Dad didn't reply to a message until his joke was posted, so cluster didn't mark it processed until then. That works, but every message Dad is still thinking about takes up room in his mailbox, and a busy chat can fill it.
+
+Here's a simpler option. We give Dad an inbox, a `dad_inbox` table in the same database cluster uses for its messages, and his handler inserts each message into it. Then we add the `WithTransaction` annotation, and cluster runs the handler inside the same transaction that marks the message processed.
+
+```ts showLineNumbers=false
+import { Clock, Effect, Schema } from "effect"
+import { ClusterSchema, Entity } from "effect/cluster"
+import { Rpc } from "effect/rpc"
+import { SqlClient } from "effect/sql"
+
+export const Dad = Entity.make("Dad", [
+  Rpc.make("NewMessage", {
+    payload: {
+      messageId: Schema.String,
+      from: Schema.String,
+      text: Schema.String,
+    },
+    primaryKey: (payload) => payload.messageId,
+  })
+    // Run the handler in the same transaction that marks it processed
+    .annotate(ClusterSchema.WithTransaction, true),
+]).annotateRpcs(ClusterSchema.Persisted, true)
+
+export const DadLayer = Dad.toLayer(
+  Effect.gen(function* () {
+    const address = yield* Entity.CurrentAddress
+    const sql = yield* SqlClient.SqlClient
+    const chatId = address.entityId
+
+    // The joke loop goes here. We'll write it in the next section.
+
+    return {
+      // Put the message in Dad's inbox. If this transaction commits, the
+      // message is in the inbox and marked processed. If it doesn't,
+      // neither happened.
+      NewMessage: ({ payload }) =>
+        Effect.gen(function* () {
+          const at = yield* Clock.currentTimeMillis
+          yield* sql`INSERT INTO dad_inbox ${sql.insert({
+            chat: chatId,
+            id: payload.messageId,
+            sender: payload.from,
+            text: payload.text,
+            at,
+          })}`
+        }).pipe(Effect.orDie),
+    }
+  }),
+)
+```
+
+The two writes now commit together or not at all. Flip the switch below and try to crash Dad between them.
+
+<VisualPlaceholder name="DualWriteVisual, transaction mode">
+  The same component as before, with the blocks relabeled "Save to inbox" and
+  "Mark processed", plus a WithTransaction switch. Off: a crash between the
+  blocks loses Sebastian's message or stores it twice. On: a bracket wraps both
+  blocks, and wherever the crash marker lands, both writes roll back together
+  and cluster delivers the message again.
+</VisualPlaceholder>
+
+With `WithTransaction` off, a crash between the two writes either loses Sebastian's message or stores it twice. With it on, there is no "between". If the runner dies anywhere inside the transaction, both writes roll back, and cluster delivers the message again from scratch.
+
+Dad doesn't need `toLayerQueue` anymore, either. He accepts each message as soon as it's safely in his inbox, so his mailbox never fills up. His code ends up looking more like it did in Part 2, a handler plus a background loop.
+
+<Aside type="caution" title="Same database only">
+  <p>
+    This only works if Dad's tables live in the same database as cluster's
+    `SqlMessageStorage`, and his queries go through the same `SqlClient`. A
+    transaction can't span two databases.
+  </p>
+</Aside>
+
+<DadSays>All or nothing. That's also how I approach the buffet.</DadSays>
+
+### Waking Dad up
+
+There's a catch. In Part 3, Sebastian's message stayed unprocessed until Dad answered it, and that's what woke Dad up on a new runner after a crash. Now the message is processed the moment it lands in the inbox. If the runner crashes before Dad tells his joke, cluster has nothing to replay, so nothing wakes Dad up. Sebastian waits until someone else posts in `#engineering`.
+
+`Entity.keepAlive` fixes that. It tells cluster to keep Dad running, and cluster remembers that by saving a message of its own in the same table as everything else. If Dad's runner crashes, the new runner finds that message and starts him back up.
+
+```ts showLineNumbers=false
+NewMessage: ({ payload }) =>
+  Effect.gen(function* () {
+    const at = yield* Clock.currentTimeMillis
+    yield* sql`INSERT INTO dad_inbox ${sql.insert({
+      chat: chatId,
+      id: payload.messageId,
+      sender: payload.from,
+      text: payload.text,
+      at,
+    })}`
+    // Stay awake, even across a crash, until this message is answered
+    yield* Entity.keepAlive(true)
+  }).pipe(Effect.orDie),
+```
+
+The call happens inside the handler, so it's part of the same transaction. Dad accepts the message and promises to stay awake for it in one step. Once his inbox is empty, he calls `Entity.keepAlive(false)`, and cluster is free to put him to sleep.
+
+<DadSays>I'll go to bed when the dishes are done.</DadSays>
+
+Every write in our database is safe now. But Dad's joke still has to go to Slack, and Slack isn't in our database.
+
+## Write it down first
+
+Slack can't join our transaction. There is a protocol for transactions across two systems, called two-phase commit, but both systems have to take part, and Slack doesn't.
+
+So we work around it. Before Dad posts a joke, he writes it down in a notebook, a `dad_jokes` table. His joke loop has three steps:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    Pick a joke and write it in his notebook, marked as not posted yet. In the
+    same transaction, mark the inbox messages it answers.
+  </li>
+  <li>Post the joke to Slack.</li>
+  <li>Mark the joke as posted.</li>
+</ol>
+
+Whenever Dad starts up, he checks his notebook first. If he finds a joke he wrote down but never marked as posted, he posts that joke instead of picking a new one.
+
+```ts showLineNumbers=false
+// Every joke Dad has ever told in this chat, read from his notebook
+const told = new Set(
+  (
+    yield *
+    sql<{ joke: string }>`
+    SELECT joke FROM dad_jokes WHERE chat = ${chatId}
+  `
+  ).map((row) => row.joke),
+)
+
+// Step 1: once the chat goes quiet, pick a joke and write it down
+const writeDownJoke = Effect.gen(function* () {
+  const unread = yield* sql<{
+    id: string
+    sender: string
+    text: string
+    at: number
+  }>`
+    SELECT id, sender, text, at FROM dad_inbox
+    WHERE chat = ${chatId} AND joke IS NULL
+    ORDER BY at
+  `
+  if (unread.length === 0) return
+
+  // Someone posted in the last 2.5 seconds. The chat isn't quiet yet.
+  const now = yield* Clock.currentTimeMillis
+  if (now - unread[unread.length - 1].at < 2500) return
+
+  const joke = yield* punGenerator.generate(
+    unread.map(({ sender, text }) => ({ from: sender, text })),
+    { told },
+  )
+
+  // Write the joke down and mark the messages it answers, together
+  yield* Effect.gen(function* () {
+    const [{ id }] = yield* sql<{ id: number }>`
+      INSERT INTO dad_jokes ${sql.insert({ chat: chatId, joke, posted: false })}
+      RETURNING id
+    `
+    yield* sql`
+      UPDATE dad_inbox SET joke = ${id}
+      WHERE chat = ${chatId} AND id IN ${sql.in(unread.map((m) => m.id))}
+    `
+  }).pipe(sql.withTransaction)
+  told.add(joke)
+})
+
+// Steps 2 and 3: post every joke he wrote down but hasn't told yet
+const tellWrittenJokes = Effect.gen(function* () {
+  const unposted = yield* sql<{ id: number; joke: string }>`
+    SELECT id, joke FROM dad_jokes
+    WHERE chat = ${chatId} AND posted = false
+  `
+  for (const { id, joke } of unposted) {
+    yield* chat.reply(chatId, joke)
+    yield* sql`UPDATE dad_jokes SET posted = true WHERE id = ${id}`
+  }
+})
+
+// Check the inbox every half second, for as long as Dad is awake
+yield *
+  Effect.gen(function* () {
+    yield* tellWrittenJokes
+    yield* writeDownJoke
+    yield* tellWrittenJokes
+
+    // Nothing left to answer, so Dad can go to sleep
+    const [{ waiting }] = yield* sql<{ waiting: number }>`
+    SELECT count(*) AS waiting FROM dad_inbox
+    WHERE chat = ${chatId} AND joke IS NULL
+  `
+    if (waiting === 0) yield* Entity.keepAlive(false)
+  }).pipe(
+    Effect.orDie,
+    Effect.repeat(Schedule.spaced("500 millis")),
+    Effect.forkScoped,
+  )
+```
+
+Step 1 uses a plain `sql.withTransaction`. Cluster's `WithTransaction` covers the handler, and this one is Dad's own transaction, for his own bookkeeping.
+
+Notice that the inbox replaced Dad's in-memory queue, too. Instead of waiting on a queue, he checks his inbox every half second, and once the newest message is 2.5 seconds old, he knows the chat has gone quiet.
+
+Here's Dad's inbox next to his notebook. Crash him between any two steps and watch what happens when he restarts.
+
+<VisualPlaceholder name="NotebookVisual">
+  The dad_inbox and dad_jokes tables side by side, with a crash button in each
+  gap between the three steps. Crash after step 1: the restarted Dad finds the
+  unposted joke and posts it once. Crash after step 3: nothing left to do. Crash
+  after step 2: the restarted Dad finds the joke still marked unposted and posts
+  it a second time (left unresolved, picked up in "The last sliver").
+</VisualPlaceholder>
+
+Crash after step 1, and the restarted Dad finds the joke in his notebook and posts it. Crash after step 3, and there's nothing left to do. Crash after step 2, though, and Dad posts the same joke again. Hold that thought.
+
+<DadSays>I don't need to write it down. I'll remember.</DadSays>
+
+He would not have remembered.
+
+### Dad's memory
+
+The notebook also fixes a problem we've been putting off since Part 2. Dad's `told` set used to live only in memory, so every crash or shard move left us with a Dad who couldn't remember a single joke. Now he fills `told` from his notebook when he starts up. Whichever runner he wakes up on, he knows every joke he's told in this chat.
+
+<Aside>
+  <p>
+    If this looks familiar, it's the core of the transactional outbox pattern.
+    The usual version has a separate process that reads the outbox table and
+    sends each entry, but the idea is the same. Write down what you're about to
+    do in the same transaction as everything else, then do it.
+  </p>
+</Aside>
+
+## The last sliver
+
+Back to step 2. If Dad crashes after posting a joke but before marking it as posted, the restarted Dad finds it unposted in his notebook and posts it again.
+
+To close that gap, Slack would have to recognize the second post as a copy, the way cluster recognizes copies of Sebastian's message. Slack's API would need an idempotency key of its own, and `chat.postMessage` doesn't take one. We could check the channel's history for the joke before posting it again, but that's an extra API call on every restart to cover a gap a few milliseconds wide.
+
+Compare that to where we started. At the top of the post, a crash after Dad posted his joke wiped his memory, and the restarted Dad had no idea what the chat had already heard. Now it takes a crash inside one narrow window, and when it happens, the chat hears the same joke twice, not a random rerun.
+
+<DadSays>
+  If you didn't laugh the first time, I'm legally required to tell it again.
+</DadSays>
+
+## Wrapping up
+
+That's it for this week! To recap what we've learned:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    An operation is idempotent if doing it twice has the same effect as doing it
+    once.
+  </li>
+  <li>
+    `primaryKey` gives a message an idempotency key, so cluster stores one copy
+    no matter how many times the message is sent.
+  </li>
+  <li>
+    Keys can't stop a replayed message from running twice. The cause is the
+    dual-write problem, where one action updates two systems and a crash leaves
+    them disagreeing.
+  </li>
+  <li>
+    `WithTransaction` runs a handler in the same transaction that marks its
+    message processed, so writes in your own database commit together.
+  </li>
+  <li>
+    For writes outside your database, write down what you're about to do first,
+    then do it.
+  </li>
+</ul>
+
+All of the code from this post is [on GitHub](https://github.com/Effect-TS/office-hours/tree/main/packages/module-of-the-week/src/0006-cluster-idempotency), if you'd like to try to make Dad repeat himself.
+
+That was a lot of bookkeeping for one step. Imagine Dad also kept a leaderboard and reacted to the best messages with an emoji. Every step would need its own notebook entries and its own crash checks.
+
+Next time, we'll hand that bookkeeping to Effect Workflow, which records every step for us, and see how it undoes steps when something fails partway through.
+
+Until then, Happy Effecting!

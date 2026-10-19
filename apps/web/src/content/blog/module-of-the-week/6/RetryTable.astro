@@ -1,0 +1,80 @@
+---
+// The message table at the end of the retry visuals: Sebastian's message
+// lands when the first save finishes, and the same message again when the
+// copy is saved. Both rows always take their space, so nothing jumps.
+
+import { AT } from "./retry"
+import { people, warning } from "../3/palette"
+---
+
+<div
+  class="rtb6"
+  style={[
+    `--rtb6-msg-light: ${people.Sebastian.light}`,
+    `--rtb6-msg-dark: ${people.Sebastian.dark}`,
+    `--rtb6-warn: ${warning.background}`,
+    `--rtb6-warn-ink: ${warning.text}`,
+  ].join("; ")}
+>
+  <p class="rtb6-head">Message table</p>
+  {
+    [AT.late, AT.copy].map((at, i) => (
+      <p class="rtb6-row" data-at={at}>
+        <span class="rtb6-who">Sebastian</span>
+        <span class="rtb6-text">Why is this test flaky?</span>
+        {i > 0 && <span class="rtb6-copy">Copy</span>}
+      </p>
+    ))
+  }
+</div>
+
+<style is:global>
+  .rtb6 {
+    --rtb6-msg: var(--rtb6-msg-light);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--st-line);
+    border-radius: var(--radius-md, 6px);
+    font-size: 0.75rem;
+    color: var(--st-ink);
+  }
+  html.dark .rtb6 {
+    --rtb6-msg: var(--rtb6-msg-dark);
+  }
+  .st .rtb6 p {
+    margin: 0;
+    font-size: inherit;
+    line-height: 1.4;
+  }
+  .st .rtb6 .rtb6-head {
+    font-weight: 600;
+    color: var(--st-muted);
+  }
+  .st .rtb6 .rtb6-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .rtb6-who {
+    font-weight: 600;
+    color: var(--rtb6-msg);
+  }
+  .rtb6-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rtb6-copy {
+    margin-left: auto;
+    padding: 0 0.35rem;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--rtb6-warn);
+    color: var(--rtb6-warn-ink);
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+</style>

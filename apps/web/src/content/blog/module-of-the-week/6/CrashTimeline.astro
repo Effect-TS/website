@@ -1,0 +1,890 @@
+---
+// Where Part 3 left Dad, as a timeline with three lanes: Slack, Dad, and the
+// messages table. Sebastian's message comes in from Slack and is saved as
+// unprocessed. Dad reads it, posts his joke, and replies, then crashes before
+// the message is marked processed. The message's bar in the table lane runs
+// straight across the crash, still unprocessed, so when Dad boots up he reads
+// it again and posts the same joke again. Only then is it processed.
+//
+// Everything sits on one grid: a track per lane, and a track per step. On
+// wide stages the lanes are rows and time runs left to right. On narrow
+// ones the lanes turn into columns and time runs top to bottom, so nothing
+// has to scroll sideways. Each item says which step and lane it's in, and the
+// CSS for each layout places it.
+
+import { people, warning } from "../3/palette"
+import StepCallout from "@/components/blog/module-of-the-week/stepper/StepCallout.astro"
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import StepPills from "@/components/blog/module-of-the-week/stepper/StepPills.astro"
+
+const steps = ["Ask", "Read", "Post", "Crash", "Boot up", "Read again", "Post again", "Mark"]
+const ASK = 0
+const READ = 1
+const CRASH = 3
+const BOOT = 4
+const MARK = 7
+
+// What travels between lanes at each step, if anything
+const links: Partial<Record<number, "ask" | "read" | "post" | "mark">> = {
+  [ASK]: "ask",
+  [READ]: "read",
+  2: "post",
+  5: "read",
+  6: "post",
+  [MARK]: "mark",
+}
+
+// The steps where Dad sends something, so he's there before it leaves
+const sends = new Set([2, 6, MARK])
+
+// Places an item at step `t` (through step `end`) in a lane
+const at = (t: number, lane: number, end = t) =>
+  `--t0: ${t + 2}; --t1: ${end + 3}; --n: ${end - t + 1}; --lane: ${lane}`
+---
+
+<figure
+  class="ct6 st"
+  data-ct6-visual
+  aria-label="Step-by-step timeline with three lanes: Slack, Dad, and the messages table. Sebastian asks a question in Slack, and Cluster saves his message as unprocessed. Dad reads Sebastian's unprocessed message, posts the UDP joke to Slack, and replies, then crashes before the message is marked processed. When Dad boots up, the message is still unprocessed, so he reads it again and posts the same joke again. Then he replies again, and this time the message is marked processed."
+  style={[
+    `--ct6-msg-light: ${people.Sebastian.light}`,
+    `--ct6-msg-dark: ${people.Sebastian.dark}`,
+    `--ct6-warn: ${warning.background}`,
+    `--ct6-warn-ink: ${warning.text}`,
+  ].join("; ")}
+>
+  <StepPills steps={steps} />
+
+  <div class="ct6-stage" data-ct6-stage>
+    <div class="ct6-card">
+      <div class="ct6-grid">
+        {
+          /* One track per step, behind everything: the current one is tinted,
+            and it draws what travels between lanes */
+        }
+        {
+          steps.map((_, t) => (
+            <div
+              class:list={["ct6-step", t === CRASH && "is-crash"]}
+              data-ct6-step={t}
+              data-link={links[t]}
+              style={`--t0: ${t + 2}`}
+            />
+          ))
+        }
+
+        <p class="ct6-label" data-ct6-lane="1" style="--lane: 1">Slack</p>
+        <p class="ct6-label" data-ct6-lane="2" style="--lane: 2">Dad</p>
+        <p class="ct6-label" data-ct6-lane="3" style="--lane: 3">Message</p>
+
+        {/* Dad's lifelines: before the crash, and after he boots up */}
+        <span class="ct6-life is-before" data-ct6-life="0" style={at(READ, 2, CRASH)}></span>
+        <span class="ct6-life" data-ct6-life="1" style={at(BOOT, 2, BOOT)}></span>
+
+        {
+          // Dad isn't up yet when the message comes in
+          steps.map(
+            (_, t) =>
+              t >= READ && (
+                <span
+                  class="ct6-item ct6-cell"
+                  data-ct6-at={t}
+                  data-ct6-sends={sends.has(t) || undefined}
+                  style={at(t, 2)}
+                >
+                  {t === READ || t === BOOT ? (
+                    <span class="ct6-face" aria-hidden="true" />
+                  ) : t === CRASH ? (
+                    <span class="ct6-crash" aria-hidden="true">
+                      ✕
+                    </span>
+                  ) : (
+                    <span class="ct6-dot" aria-hidden="true" />
+                  )}
+                  {t === CRASH && <span class="ct6-note is-crash">crashed</span>}
+                  {t === BOOT && <span class="ct6-note">boots up</span>}
+                </span>
+              ),
+          )
+        }
+
+        <span class="ct6-item ct6-cell" data-ct6-at={ASK} style={at(ASK, 1)}>
+          <span class="ct6-ask">Sebastian</span>
+        </span>
+        {
+          [2, 6].map((t) => (
+            <span class="ct6-item ct6-cell" data-ct6-at={t} style={at(t, 1)}>
+              {t === 6 && <span class="ct6-repeat">Repeat!</span>}
+              <span class="ct6-joke">UDP joke</span>
+            </span>
+          ))
+        }
+
+        <span class="ct6-item ct6-bar" data-ct6-at={ASK} data-ct6-bar style={at(ASK, 3)}>
+          unprocessed
+        </span>
+        <span class="ct6-item ct6-cell" data-ct6-at={MARK} style={at(MARK, 3)}>
+          <span class="ct6-done">processed</span>
+        </span>
+      </div>
+    </div>
+
+    <StepCallout />
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import {
+    createCallout,
+    createStepper,
+    createTraveler,
+    envelopeSvg,
+    rel,
+    type Anchor,
+    type Point,
+  } from "@/components/blog/module-of-the-week/stepper/stepper"
+
+  // Short enough to fit the callout in two lines
+  const VIEWS: Array<{ title: string; text: string }> = [
+    { title: "Ask", text: "Sebastian sends a message in Slack, and Cluster saves it" },
+    { title: "Read", text: "Dad reads Sebastian's message" },
+    { title: "Post", text: "The chat is quiet, so Dad posts his joke" },
+    { title: "Crash", text: "Dad's runner crashes before the message is marked processed" },
+    { title: "Boot up", text: "Dad boots up again and remembers nothing" },
+    { title: "Read again", text: "The message is still unprocessed, so he reads it again" },
+    { title: "Post again", text: "He doesn't know he told the joke, so he tells it again" },
+    { title: "Mark", text: "The message is now marked processed" },
+  ]
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const READ = 1
+  const CRASH = 3
+  const BOOT = 4
+  // The bar stops short of the step that marks it processed
+  const LAST_UNPROCESSED = 6
+  // The stage width where the steps get too narrow for their chips, and the
+  // lanes turn into columns. Matches the container query in the styles.
+  const WIDE = 680
+  // How long the message's bar and Dad's lifeline take to stretch to the next
+  // step, before anything travels
+  const GROW_MS = 250
+  // How long an envelope takes between lanes. Its line draws in alongside it.
+  const SEND_MS = 450
+  // Which lane each kind of envelope leaves from, and which it goes to
+  const ROUTES: Record<string, [from: number, to: number]> = {
+    ask: [1, 3],
+    read: [3, 2],
+    post: [2, 1],
+    mark: [2, 3],
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-ct6-visual]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const stage = q<HTMLElement>("[data-ct6-stage]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const bar = q<HTMLElement>("[data-ct6-bar]")
+    const lives = [q<HTMLElement>('[data-ct6-life="0"]'), q<HTMLElement>('[data-ct6-life="1"]')]
+    const steps = [...root.querySelectorAll<HTMLElement>("[data-ct6-step]")]
+    const items = [...root.querySelectorAll<HTMLElement>("[data-ct6-at]")]
+    const senders = [...root.querySelectorAll<HTMLElement>("[data-ct6-sends]")]
+    const lanes = [...root.querySelectorAll<HTMLElement>("[data-ct6-lane]")]
+    root.style.setProperty("--ct6-send", `${SEND_MS}ms`)
+
+    // The callout goes under the current step on wide stages. When time runs
+    // down the page instead, there's no room, so the caption shows.
+    const wide = () => stage.clientWidth >= WIDE
+    const callout = createCallout(root, stage)
+    const anchorFor = (k: number): Anchor | null =>
+      wide() ? { el: steps[k]!, place: "below", width: 250 } : null
+
+    // Stretches something placed at step `from` through step `to`
+    const span = (el: HTMLElement, from: number, to: number) => {
+      el.style.setProperty("--t1", String(to + 3))
+      el.style.setProperty("--n", String(to - from + 1))
+    }
+
+    // Dad's first lifeline grows up to the crash, then greys out. The second
+    // starts when he boots up.
+    const drawLives = (k: number) => {
+      const [before, after] = lives as [HTMLElement, HTMLElement]
+      span(before, READ, Math.max(READ, Math.min(k, CRASH)))
+      before.classList.toggle("is-on", k > READ)
+      before.classList.toggle("is-gone", k >= CRASH)
+      span(after, BOOT, Math.max(k, BOOT))
+      after.classList.toggle("is-on", k > BOOT)
+    }
+
+    // State 0 is the empty timeline, before Sebastian asks, so the first Step
+    // sends his message in. Step pill n is state n, which shows step n - 1.
+    const READY = { title: "Ready", text: "Click Step, and Sebastian sends his message" }
+    // Says what happens at step k, and marks it in the pills and its column.
+    // Stepping forward, this happens on the click, before the envelope lands.
+    const pills = [...root.querySelectorAll<HTMLElement>("[data-step-pill]")]
+    const box = q<HTMLElement>("[data-callout]")
+    let said = ""
+    const describe = (k: number) => {
+      for (const [t, el] of steps.entries()) el.classList.toggle("is-current", t === k)
+      for (const [t, el] of pills.entries()) {
+        if (t === k) el.setAttribute("aria-current", "step")
+        else el.removeAttribute("aria-current")
+        el.classList.toggle("is-done", t < k)
+      }
+      const view = VIEWS[k] ?? READY
+      caption.textContent = k < 0 ? view.text : `${k + 1}. ${view.text}`
+
+      // The callout glides from where it is to the new step, and its words
+      // dim and come back. Both are transform and opacity animations, which
+      // keep running smoothly while the envelope travels.
+      const from = box.hidden ? null : box.getBoundingClientRect()
+      for (const a of box.getAnimations({ subtree: true })) a.cancel()
+      callout.show({ ...view, num: k < 0 ? undefined : k + 1 }, anchorFor(Math.max(0, k)))
+      const changed = view.text !== said
+      said = view.text
+      if (!from || box.hidden || reduceMotion()) return
+      const to = box.getBoundingClientRect()
+      const dx = from.left - to.left
+      const dy = from.top - to.top
+      if (dx || dy) {
+        box.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+          duration: 250,
+          easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+        })
+      }
+      if (changed) {
+        for (const el of box.children) {
+          el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 200, easing: "ease-out" })
+        }
+      }
+    }
+
+    let current = 0
+    const apply = (state: number) => {
+      current = state
+      const k = state - 1
+      for (const el of items) el.classList.toggle("is-on", Number(el.dataset.ct6At) <= k)
+      for (const [t, el] of steps.entries()) {
+        el.classList.toggle("is-on", t <= k)
+        el.classList.remove("is-sending")
+      }
+      span(bar, 0, Math.max(0, Math.min(k, LAST_UNPROCESSED)))
+      drawLives(k)
+      describe(k)
+    }
+
+    // The middle of a lane at a step. Lanes are rows on wide stages, and
+    // columns on narrow ones.
+    const middle = (el: Element): Point => {
+      const r = rel(stage, el)
+      return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+    }
+    const point = (lane: number, t: number): Point => {
+      const l = middle(lanes[lane - 1]!)
+      const s = middle(steps[t]!)
+      return wide() ? { x: s.x, y: l.y } : { x: l.x, y: s.y }
+    }
+
+    // Stepping forward, whatever travels at the next step goes as an
+    // envelope, drawing its line behind it. It lands as the step comes in.
+    const traveler = createTraveler(stage)
+    // Stretches a bar or lifeline to step `to`, then reveals the new length
+    // from where it ended. A span on the grid can't animate, but a clip can.
+    const growing = new Set<Animation>()
+    const grow = (el: HTMLElement, from: number, to: number) => {
+      const was = el.getBoundingClientRect()
+      const wasOn = el.classList.contains("is-on")
+      el.classList.add("is-on")
+      span(el, from, to)
+      const now = el.getBoundingClientRect()
+      const across = wide()
+      // A line that wasn't showing grows from nothing
+      const added = across
+        ? now.width - (wasOn ? was.width : 0)
+        : now.height - (wasOn ? was.height : 0)
+      if (added <= 0 || reduceMotion()) return
+      const clip = across ? `inset(0 ${added}px 0 0)` : `inset(0 0 ${added}px 0)`
+      const anim = el.animate(
+        [
+          { clipPath: clip, opacity: 1 },
+          { clipPath: "inset(0)", opacity: 1 },
+        ],
+        {
+          duration: GROW_MS,
+          easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+        },
+      )
+      growing.add(anim)
+      anim.onfinish = anim.oncancel = () => growing.delete(anim)
+      return anim.finished.catch(() => {})
+    }
+    const extend = (next: number) => {
+      const [before, after] = lives as [HTMLElement, HTMLElement]
+      const runs: Array<Promise<unknown> | undefined> = []
+      // The bar is there from the first step, and stops once it's processed
+      if (next > 0 && next <= LAST_UNPROCESSED) runs.push(grow(bar, 0, next))
+      if (next > READ && next <= CRASH) runs.push(grow(before, READ, next))
+      if (next > BOOT) runs.push(grow(after, BOOT, next))
+      return Promise.all(runs)
+    }
+
+    const advance = async (state: number, alive: () => boolean) => {
+      const next = state - 1
+      describe(next)
+      await extend(next)
+      const link = steps[next]!.dataset.link
+      if (!link || !alive()) return
+      const [from, to] = ROUTES[link]!
+      for (const el of senders) {
+        if (Number(el.dataset.ct6At) === next) el.classList.add("is-on")
+      }
+      steps[next]!.classList.add("is-sending")
+      await traveler.travel(
+        [point(from, next), point(to, next)],
+        `ct6-env is-${link}`,
+        envelopeSvg,
+        SEND_MS,
+      )
+    }
+
+    createStepper({
+      root,
+      first: 1,
+      last: VIEWS.length,
+      apply,
+      advance,
+      stop: () => {
+        traveler.cancel()
+        for (const a of [...growing]) a.cancel()
+      },
+    })
+    new ResizeObserver(() => callout.place(anchorFor(Math.max(0, current - 1)))).observe(stage)
+  }
+</script>
+
+<style is:global>
+  .ct6 {
+    --ct6-ink: #3f3f46;
+    --ct6-muted: #71717a;
+    --ct6-line: #d4d4d8;
+    --ct6-surface: #ffffff;
+    --ct6-panel: #fafafa;
+    --ct6-dad: #b45309;
+    --ct6-ok: #15803d;
+    --ct6-red: #dc2626;
+    --ct6-msg: var(--ct6-msg-light);
+    /* The lines between rows: lighter than the card's border */
+    --ct6-rule: color-mix(in oklab, var(--ct6-line) 60%, transparent);
+    /* Fast out of the gate, then settles */
+    --ct6-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --st-ink: var(--ct6-ink);
+    --st-muted: var(--ct6-muted);
+    --st-line: var(--ct6-line);
+    --st-surface: var(--ct6-surface);
+    /* How big each lane is across, and each step along */
+    --ct6-lane: 3.75rem;
+    --ct6-label: 5.25rem;
+    margin: 1.5rem 0;
+  }
+  html.dark .ct6 {
+    --ct6-ink: #e4e4e7;
+    --ct6-muted: #a1a1aa;
+    --ct6-line: #3f3f46;
+    --ct6-surface: #09090b;
+    --ct6-panel: #111113;
+    --ct6-dad: #fbbf24;
+    --ct6-ok: #4ade80;
+    --ct6-red: #f87171;
+    --ct6-msg: var(--ct6-msg-dark);
+  }
+  .ct6 p {
+    margin: 0;
+  }
+  /* The layout follows the stage's width, not the screen's, since the
+     sidebar next to the post can leave it narrow on a wide screen */
+  .ct6-stage {
+    position: relative;
+    container: ct6 / inline-size;
+  }
+  /* Room for a callout two lines tall */
+  .ct6.has-callouts .ct6-stage {
+    padding-bottom: 5.5rem;
+  }
+  .ct6-card {
+    border: 1px solid var(--ct6-line);
+    border-radius: 1rem;
+    background: var(--ct6-surface);
+    overflow: hidden;
+  }
+
+  /* Wide: lanes are rows, time runs left to right */
+  .ct6-grid {
+    display: grid;
+    /* The first step is never narrower than the bar's label, which starts
+       out just one step long */
+    grid-template-columns: var(--ct6-label) minmax(5.5rem, 1fr) repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(3, var(--ct6-lane));
+    /* A line between each lane */
+    background:
+      linear-gradient(var(--ct6-rule), var(--ct6-rule)) 0 var(--ct6-lane) / 100% 1px no-repeat,
+      linear-gradient(var(--ct6-rule), var(--ct6-rule)) 0 calc(var(--ct6-lane) * 2) / 100% 1px
+        no-repeat;
+    font-size: 0.72rem;
+    color: var(--ct6-ink);
+  }
+  .ct6-grid > * {
+    grid-column: var(--t0) / var(--t1, auto);
+    grid-row: var(--lane);
+  }
+  .ct6 .ct6-label {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 0.85rem;
+    background: var(--ct6-panel);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .ct6 .ct6-label:not(:first-of-type) {
+    border-top: 1px solid var(--ct6-rule);
+  }
+  .ct6-grid > .ct6-step {
+    grid-column: var(--t0);
+    grid-row: 1 / 4;
+  }
+
+  /* Each step's track: tinted while it's current, with a line between the
+     lanes for whatever travels */
+  .ct6-step {
+    position: relative;
+    transition: background-color 200ms ease;
+  }
+  .ct6-step.is-current {
+    background: color-mix(in oklab, var(--ct6-ink) 5%, transparent);
+  }
+  .ct6-step[data-link]::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 1.5px;
+    height: var(--ct6-lane);
+    margin-left: -0.75px;
+    opacity: 0;
+    /* Each line grows from the lane that sends, toward the one that gets it */
+    transform: scaleY(0);
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .ct6-step[data-link="post"]::before {
+    top: calc(var(--ct6-lane) / 2);
+    background: var(--ct6-dad);
+    transform-origin: bottom;
+  }
+  /* Sebastian's message goes from Slack straight to the table, past Dad,
+     who isn't up yet */
+  .ct6-step[data-link="ask"]::before {
+    top: calc(var(--ct6-lane) / 2);
+    height: calc(var(--ct6-lane) * 2);
+    background: var(--ct6-msg);
+    transform-origin: top;
+  }
+  .ct6-step[data-link="read"]::before {
+    top: calc(var(--ct6-lane) * 1.5);
+    background: var(--ct6-msg);
+    transform-origin: bottom;
+  }
+  .ct6-step[data-link="mark"]::before {
+    top: calc(var(--ct6-lane) * 1.5);
+    background: var(--ct6-ok);
+    transform-origin: top;
+  }
+  .ct6-step.is-on[data-link]::before {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform 240ms var(--ct6-ease);
+  }
+  /* While an envelope travels, its line keeps pace with it */
+  .ct6-step.is-sending[data-link]::before {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform var(--ct6-send) ease-in-out;
+  }
+
+  /* The envelope, on top of everything, in the color of what it carries */
+  .ct6-env {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 20px;
+    height: 14px;
+    pointer-events: none;
+    --c: var(--ct6-msg);
+  }
+  .ct6-env.is-post {
+    --c: var(--ct6-dad);
+  }
+  .ct6-env.is-mark {
+    --c: var(--ct6-ok);
+  }
+  .ct6-env svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--c);
+    stroke: var(--ct6-surface);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .ct6-env path {
+    fill: none;
+  }
+
+  /* The crash: a red line straight through every lane */
+  .ct6-step.is-crash::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1.5px dashed var(--ct6-red);
+    opacity: 0;
+    /* Cuts down through every lane */
+    transform: scaleY(0);
+    transform-origin: top;
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .ct6-step.is-crash.is-on::after {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform 320ms var(--ct6-ease);
+  }
+
+  /* What's in each lane, coming in when its step does. Going back, it
+     leaves quicker than it came. */
+  .ct6-item {
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.95);
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .ct6-item.is-on {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 220ms var(--ct6-ease),
+      transform 220ms var(--ct6-ease);
+  }
+  .ct6-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  /* Dad's lifelines, along the middle of his lane */
+  .ct6-life {
+    position: relative;
+    align-self: center;
+    height: 2px;
+    /* From the middle of its first step to the middle of its last */
+    margin: 0 calc(50% / var(--n));
+    background: var(--ct6-dad);
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+  .ct6-life.is-on {
+    opacity: 1;
+  }
+  .ct6-life.is-gone {
+    background: none;
+    border-top: 2px dashed var(--ct6-line);
+  }
+
+  .ct6-face {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+  .ct6-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--ct6-dad);
+  }
+  .ct6-crash {
+    display: grid;
+    place-items: center;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: var(--ct6-red);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  html.dark .ct6-crash {
+    color: #1f1f1f;
+  }
+  /* A small jolt as Dad goes down */
+  .ct6-item.is-on .ct6-crash {
+    animation: ct6-jolt 300ms ease-out 60ms;
+  }
+  @keyframes ct6-jolt {
+    25% {
+      transform: translateX(-2px);
+    }
+    50% {
+      transform: translateX(2px);
+    }
+    75% {
+      transform: translateX(-1px);
+    }
+  }
+  /* Notes sit under their mark without pushing it off the lifeline */
+  .ct6-note {
+    position: absolute;
+    top: calc(50% + 0.85rem);
+    font-size: 0.66rem;
+    color: var(--ct6-muted);
+    white-space: nowrap;
+  }
+  /* It sits on the crash line, so it covers it */
+  .ct6-note.is-crash {
+    padding: 0 0.2rem;
+    background: var(--ct6-surface);
+    color: var(--ct6-red);
+    font-weight: 600;
+  }
+
+  .ct6-ask,
+  .ct6-joke,
+  .ct6-done {
+    padding: 0.1rem 0.45rem;
+    border: 1.5px solid var(--ct6-dad);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--ct6-surface);
+    white-space: nowrap;
+  }
+  .ct6-ask {
+    border-color: var(--ct6-msg);
+    color: var(--ct6-msg);
+    font-weight: 600;
+  }
+  .ct6-done {
+    border-color: var(--ct6-ok);
+    color: var(--ct6-ok);
+    font-weight: 600;
+  }
+  .ct6-repeat {
+    padding: 0 0.35rem;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--ct6-warn);
+    color: var(--ct6-warn-ink);
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+  /* Just after the joke it's stuck to */
+  .ct6-item.is-on .ct6-repeat {
+    animation: ct6-pop 220ms var(--ct6-ease) 150ms both;
+  }
+  @keyframes ct6-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  /* The message's bar: one piece from when it's saved until it's processed,
+     right across the crash */
+  .ct6-bar {
+    align-self: center;
+    /* Snug, so its label fits while the bar is still one step long */
+    margin: 0 0.25rem;
+    padding: 0.15rem 0.3rem;
+    border: 1.5px solid var(--ct6-msg);
+    border-radius: var(--radius-sm, 4px);
+    background: color-mix(in oklab, var(--ct6-msg) 14%, var(--ct6-surface));
+    font-size: 0.66rem;
+    /* At the start, so it stays put while the bar grows */
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* A quieter callout: a hairline box with no shadow, and the step's
+     number and name in plain text */
+  .ct6 .st-callout {
+    padding: 0.45rem 0.65rem 0.5rem;
+    border: 1px solid var(--ct6-line);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: none;
+    /* The script moves it between steps, with a transform */
+    transition: none;
+  }
+  .ct6 .st-callout.is-in {
+    animation: none;
+  }
+  .ct6 .st-callout[data-place]::after {
+    width: 9px;
+    height: 9px;
+    border-color: var(--ct6-line);
+  }
+  .ct6 .st-callout[data-place="below"]::after {
+    top: -5.5px;
+    border-width: 1px 0 0 1px;
+  }
+  .ct6 .st-callout-head {
+    gap: 0.35rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .ct6 .st-callout-num {
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--ct6-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+  }
+  .ct6 .st-callout-text {
+    font-size: 0.78rem;
+    color: var(--ct6-muted);
+  }
+
+  /* Narrow: lanes are columns, time runs top to bottom. WIDE in the script
+     matches this. */
+  @container ct6 (width < 680px) {
+    .ct6-card {
+      --ct6-lane: 2.9rem;
+    }
+    .ct6-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: 2.25rem repeat(8, var(--ct6-lane));
+      background: none;
+    }
+    .ct6-grid > * {
+      grid-row: var(--t0) / var(--t1, auto);
+      grid-column: var(--lane);
+    }
+    .ct6 .ct6-label {
+      grid-row: 1;
+      grid-column: var(--lane);
+      justify-content: center;
+      padding: 0;
+      border-bottom: 1px solid var(--ct6-rule);
+    }
+    .ct6 .ct6-label:not(:first-of-type) {
+      border-top: none;
+    }
+    .ct6-grid > .ct6-step {
+      grid-row: var(--t0);
+      grid-column: 1 / 4;
+    }
+    /* Here the rows are steps, so the lines go between those */
+    .ct6-step + .ct6-step {
+      border-top: 1px solid var(--ct6-rule);
+    }
+    /* Lane centers sit at a sixth, a half, and five sixths across */
+    .ct6-step[data-link]::before {
+      top: 50%;
+      left: auto;
+      width: calc(100% / 3);
+      height: 1.5px;
+      margin: -0.75px 0 0;
+      transform: scaleX(0);
+    }
+    .ct6-step[data-link="ask"]::before {
+      top: 50%;
+      left: calc(100% / 6);
+      width: calc(100% * 2 / 3);
+      height: 1.5px;
+      transform-origin: left;
+    }
+    .ct6-step[data-link="post"]::before {
+      top: 50%;
+      left: calc(100% / 6);
+      transform-origin: right;
+    }
+    .ct6-step[data-link="read"]::before,
+    .ct6-step[data-link="mark"]::before {
+      top: 50%;
+      left: 50%;
+    }
+    .ct6-step[data-link="read"]::before {
+      transform-origin: right;
+    }
+    .ct6-step[data-link="mark"]::before {
+      transform-origin: left;
+    }
+    .ct6-step.is-crash::after {
+      top: 50%;
+      bottom: auto;
+      left: 0;
+      right: 0;
+      border-left: none;
+      border-top: 1.5px dashed var(--ct6-red);
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    .ct6-life {
+      align-self: stretch;
+      justify-self: center;
+      width: 2px;
+      height: auto;
+      margin: calc(var(--ct6-lane) / 2) 0;
+    }
+    .ct6-life.is-gone {
+      border-top: none;
+      border-left: 2px dashed var(--ct6-line);
+    }
+    .ct6-note {
+      top: 50%;
+      left: calc(50% + 0.9rem);
+      transform: translateY(-50%);
+    }
+    .ct6-bar {
+      align-self: stretch;
+      justify-self: center;
+      width: calc(100% - 1rem);
+      margin: 0.45rem 0;
+      padding: 0.35rem 0.25rem;
+      border-radius: var(--radius-md, 6px);
+      text-align: center;
+    }
+  }
+
+  /* Keep the fades, but nothing moves or grows */
+  @media (prefers-reduced-motion: reduce) {
+    .ct6 .ct6-step::before,
+    .ct6 .ct6-step::after,
+    .ct6 .ct6-item {
+      transform: none;
+    }
+    .ct6 .ct6-crash,
+    .ct6 .ct6-repeat {
+      animation: none;
+    }
+  }
+</style>
