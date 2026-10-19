@@ -1,0 +1,74 @@
+---
+import { Image } from "astro:assets"
+import TwitterLogo from "@/assets/logos/twitter/Twitter.svg"
+import { cn } from "@/lib/utils"
+
+/**
+ * A speaker portrait with name, company and X link set into its foot. With
+ * `bio` set, the card turns into the MC card: the portrait in the left half and
+ * the role and bio beside it.
+ */
+interface Props {
+  readonly speaker: {
+    readonly name: string
+    readonly company: string
+    readonly photo: ImageMetadata
+    readonly x: string
+    readonly bio?: string
+  }
+  readonly class?: string | undefined
+}
+
+const { speaker, class: className } = Astro.props
+const isHost = speaker.bio !== undefined
+---
+
+<div
+  class={cn(
+    "relative overflow-hidden border border-zinc-800 bg-zinc-950",
+    isHost && "col-span-2 flex",
+    className,
+  )}
+>
+  <div class={isHost ? "relative aspect-4/5 w-1/2 shrink-0 md:aspect-auto" : "h-full"}>
+    <Image
+      src={speaker.photo}
+      alt={speaker.name}
+      class={cn(
+        "w-full object-cover opacity-80",
+        isHost ? "absolute inset-0 h-full" : "aspect-4/5 h-full",
+      )}
+    />
+    <div
+      class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/60 to-transparent p-3 pt-12 lg:p-4 lg:pt-16"
+    >
+      <h3 class="text-base leading-[1.1] font-semibold text-white lg:text-lg lg:leading-[1.1]">
+        {speaker.name}
+      </h3>
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-xs leading-normal text-zinc-300 lg:text-sm">{speaker.company}</p>
+        <a
+          href={`https://x.com/${speaker.x}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${speaker.name} on X`}
+          class="shrink-0 text-zinc-300 transition-colors hover:text-white"
+        >
+          <TwitterLogo width={16} height={16} class="size-4" />
+        </a>
+      </div>
+    </div>
+  </div>
+  {
+    isHost && (
+      <div class="flex flex-1 flex-col p-3 lg:p-4">
+        <span class="self-start border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider whitespace-nowrap text-zinc-400 uppercase">
+          MC &amp; speaker
+        </span>
+        <p class="mt-auto pt-3 text-sm leading-relaxed text-zinc-400 lg:text-[0.9375rem]">
+          {speaker.bio}
+        </p>
+      </div>
+    )
+  }
+</div>
