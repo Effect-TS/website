@@ -41,6 +41,8 @@ import datapizza from "@/assets/effect-days/datapizza.svg"
 import novelcrafter from "@/assets/effect-days/novelcrafter.svg"
 import executor from "@/assets/effect-days/executor-mono.png"
 import august from "@/assets/effect-days/august.png"
+import maximilian from "@/assets/effect-days/maximilian.png"
+import academind from "@/assets/effect-days/academind.svg"
 
 const PROGRAM = [
   {
@@ -68,78 +70,45 @@ const PROGRAM = [
 
 const SPEAKERS = [
   {
-    name: "Dillon Mulroy",
-    company: "Cloudflare",
-    photo: dillonMulroy,
-    x: "dillon_mulroy",
-  },
-  {
     name: "Kit Langton",
     company: "OpenCode",
     photo: kitLangton,
     x: "kitlangton",
+    host: true,
+    bio: "Built Visual Effect to watch fibers misbehave and the Effect Institute to explain why. Then moved OpenCode to Effect, and hasn't typed a line of code since.",
   },
-  {
-    name: "Rhys Sullivan",
-    company: "Executor",
-    photo: rhysSullivan,
-    x: "RhysSullivan",
-  },
-  {
-    name: "Leonie Gräßel",
-    company: "Novelcrafter",
-    photo: leonie,
-    x: "spaceemotion",
-  },
-  {
-    name: "Julius Marminge",
-    company: "T3 Code",
-    photo: juliusMarminge,
-    x: "jullerino",
-  },
-  {
-    name: "Adam Rankin",
-    company: "Warp",
-    photo: adamRankin,
-    x: "rankintweets",
-  },
-  {
-    name: "Julia Ortiz",
-    company: "silklang.org",
-    photo: juliaOrtiz,
-    x: "JuliaScript",
-  },
-  {
-    name: "Kyle Mistele",
-    company: "HumanLayer",
-    photo: kyleMistele,
-    x: "0xblacklight",
-  },
-  {
-    name: "Sam Goodwin",
-    company: "Alchemy",
-    photo: samGoodwin,
-    x: "samgoodwin89",
-  },
-  {
-    name: "Devin Jameson",
-    company: "Foldkit",
-    photo: devinJameson,
-    x: "devinjameson",
-  },
-  {
-    name: "John A. De Goes",
-    company: "Ziverge",
-    photo: johnDeGoes,
-    x: "jdegoes",
-  },
+  { name: "Adam Rankin", company: "Warp", photo: adamRankin, x: "rankintweets" },
+  { name: "Rhys Sullivan", company: "Executor", photo: rhysSullivan, x: "RhysSullivan" },
+  { name: "Dillon Mulroy", company: "Cloudflare", photo: dillonMulroy, x: "dillon_mulroy" },
+  { name: "Sam Goodwin", company: "Alchemy", photo: samGoodwin, x: "samgoodwin89" },
+  { name: "Devin Jameson", company: "Foldkit", photo: devinJameson, x: "devinjameson" },
+  { name: "John A. De Goes", company: "Ziverge", photo: johnDeGoes, x: "jdegoes" },
   {
     name: "Michael Arnaldi",
     company: "Effectful Technologies",
     photo: michaelArnaldi,
     x: "MichaelArnaldi",
   },
+  { name: "Maximilian Schwarzmüller", company: "Academind", photo: maximilian, x: "maxedapps" },
+  { name: "Julia Ortiz", company: "silklang.org", photo: juliaOrtiz, x: "JuliaScript" },
+  { name: "Leonie Gräßel", company: "Novelcrafter", photo: leonie, x: "spaceemotion" },
+  { name: "Julius Marminge", company: "T3 Code", photo: juliusMarminge, x: "jullerino" },
+  { name: "Kyle Mistele", company: "HumanLayer", photo: kyleMistele, x: "0xblacklight" },
 ]
+
+/* Cards per row after the host's: four narrow and three wide in turn, the
+   host's two-cell card opening the first four. */
+const SPEAKER_ROWS = [2, 3, 4, 3]
+const FOUR_ROW_COLUMN = ["lg:col-start-1", "lg:col-start-2", "lg:col-start-4", "lg:col-start-5"]
+const HOST = SPEAKERS.find((speaker) => speaker.host)!
+const GUESTS = SPEAKERS.filter((speaker) => !speaker.host)
+const SPEAKER_GRID = SPEAKER_ROWS.map((_, row) => ({
+  four: row % 2 === 0,
+  cards: GUESTS.slice(
+    SPEAKER_ROWS.slice(0, row).reduce((sum, n) => sum + n, 0),
+    SPEAKER_ROWS.slice(0, row + 1).reduce((sum, n) => sum + n, 0),
+  ),
+}))
 
 const PASSES = [
   {
@@ -202,9 +171,9 @@ const SPONSOR_TIERS = [
   {
     tier: "Community",
     label: "Community",
-    cols: "grid-cols-1 min-[22.5rem]:grid-cols-3",
-    cellClass: "h-20 lg:h-24",
-    logoBox: "h-6",
+    cols: "grid-cols-2 sm:grid-cols-4",
+    cellClass: "h-16 sm:h-20 lg:h-24",
+    logoBox: "h-12",
   },
 ]
 
@@ -278,6 +247,13 @@ const SPONSORS = [
     logo: august,
     logoHeight: "h-5",
     websiteUrl: "https://www.august.computer/",
+  },
+  {
+    name: "Academind",
+    tier: "Community",
+    logo: academind,
+    logoHeight: "h-12",
+    websiteUrl: "https://academind.com/",
   },
 ]
 
@@ -472,42 +448,158 @@ const FAQ_COLUMNS = [
     <div class="grid grid-cols-1 gap-0 md:grid-cols-2 md:items-baseline-last md:gap-8">
       <SectionHeader eyebrow="Speakers" title="Who you'll hear from" />
       <p class="mt-4 text-lg text-zinc-400 md:mt-0">
-        Engineers building on Effect in production, from the teams behind the tools you use. More
-        speakers to be announced.
+        Builders, maintainers and educators shipping with Effect, from Cloudflare and Warp to
+        OpenCode and Alchemy.
       </p>
     </div>
 
-    <div
-      class="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[repeat(2,1fr)_0px_repeat(2,1fr)] lg:[&>*:nth-child(4n+1)]:col-start-1 lg:[&>*:nth-child(4n+2)]:col-start-2 lg:[&>*:nth-child(4n+3)]:col-start-4 lg:[&>*:nth-child(4n)]:col-start-5"
-    >
+    <div class="mt-12 grid grid-cols-2 gap-4 md:flex md:flex-col">
       {
-        SPEAKERS.map((speaker) => (
-          <div class="flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950">
-            <Image
-              src={speaker.photo}
-              alt={speaker.name}
-              class="aspect-4/5 w-full border-b border-zinc-800 object-cover opacity-80"
-            />
-            <div class="flex flex-1 flex-col p-4">
-              <h3 class="text-lg font-semibold text-white">{speaker.name}</h3>
-              <div class="flex items-center justify-between gap-2">
-                <p class="mt-1 text-sm leading-normal text-zinc-400">{speaker.company}</p>
-                {speaker.x && (
-                  <a
-                    href={`https://x.com/${speaker.x}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${speaker.name} on X`}
-                    class="mt-1 shrink-0 text-zinc-400 transition-colors hover:text-white"
-                  >
-                    <TwitterLogo width={16} height={16} class="size-4" />
-                  </a>
-                )}
+        SPEAKER_GRID.map(({ four, cards }, row) => (
+          <div
+            class:list={[
+              "contents md:grid md:gap-4",
+              four
+                ? "md:grid-cols-4 lg:grid-cols-[repeat(2,1fr)_0px_repeat(2,1fr)]"
+                : "md:grid-cols-3",
+            ]}
+          >
+            {row === 0 && (
+              <div class="relative col-span-2 flex overflow-hidden border border-zinc-800 bg-zinc-950 lg:col-start-1">
+                <div class="relative aspect-4/5 w-1/2 shrink-0 md:aspect-auto">
+                  <Image
+                    src={HOST.photo}
+                    alt={HOST.name}
+                    class="absolute inset-0 h-full w-full object-cover opacity-80"
+                  />
+                  <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/60 to-transparent p-3 pt-12 lg:p-4 lg:pt-16">
+                    <h3 class="text-base leading-[1.1] font-semibold text-white lg:text-lg lg:leading-[1.1]">
+                      {HOST.name}
+                    </h3>
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-xs leading-normal text-zinc-300 lg:text-sm">{HOST.company}</p>
+                      <a
+                        href={`https://x.com/${HOST.x}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${HOST.name} on X`}
+                        class="shrink-0 text-zinc-300 transition-colors hover:text-white"
+                      >
+                        <TwitterLogo width={16} height={16} class="size-4" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex flex-1 flex-col p-3 lg:p-4">
+                  <span class="self-start border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider whitespace-nowrap text-zinc-400 uppercase">
+                    MC &amp; speaker
+                  </span>
+                  <p class="mt-auto pt-3 text-sm leading-relaxed text-zinc-400 lg:text-[0.9375rem]">
+                    {HOST.bio}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+            {cards.map((speaker, index) => (
+              <div
+                class:list={[
+                  "relative overflow-hidden border border-zinc-800 bg-zinc-950",
+                  four && FOUR_ROW_COLUMN[index + (row === 0 ? 2 : 0)],
+                ]}
+              >
+                <Image
+                  src={speaker.photo}
+                  alt={speaker.name}
+                  class="aspect-4/5 h-full w-full object-cover opacity-80"
+                />
+                <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/60 to-transparent p-3 pt-12 lg:p-4 lg:pt-16">
+                  <h3 class="text-base leading-[1.1] font-semibold text-white lg:text-lg lg:leading-[1.1]">
+                    {speaker.name}
+                  </h3>
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs leading-normal text-zinc-300 lg:text-sm">{speaker.company}</p>
+                    <a
+                      href={`https://x.com/${speaker.x}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${speaker.name} on X`}
+                      class="shrink-0 text-zinc-300 transition-colors hover:text-white"
+                    >
+                      <TwitterLogo width={16} height={16} class="size-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ))
       }
+    </div>
+  </Section>
+
+  <SectionDivider />
+
+  <Section id="sponsors">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-baseline-last sm:justify-between">
+      <SectionHeader eyebrow="Sponsors" title="Made possible by" />
+      <a
+        href="mailto:contact@effectful.co?subject=Effect Days Livorno - Sponsorship"
+        class="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+      >
+        Become a sponsor
+        <ArrowUpRight size={12} aria-hidden="true" />
+      </a>
+    </div>
+
+    <div class="mt-10 md:mt-12">
+      <div class="grid gap-px border border-zinc-800 bg-zinc-800">
+        {
+          SPONSOR_TIERS.map((tier) => {
+            const marks = SPONSORS.filter((sponsor) => sponsor.tier === tier.tier)
+            if (marks.length === 0) return null
+            return (
+              <div class="grid gap-px lg:grid-cols-[9.5rem_1fr]">
+                <div class="flex items-center bg-zinc-900 px-4 py-2.5 lg:bg-zinc-950 lg:px-5 lg:py-0">
+                  <p class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                    {tier.label}
+                  </p>
+                </div>
+                <div class:list={["grid gap-px", tier.cols]}>
+                  {marks.map((sponsor) => (
+                    <a
+                      href={sponsor.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${sponsor.name} — visit website`}
+                      class:list={[
+                        "group relative flex items-center justify-center bg-zinc-950 px-3 transition-colors duration-200 hover:bg-zinc-900 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white md:px-8",
+                        tier.cellClass,
+                      ]}
+                    >
+                      <span
+                        class:list={["flex max-w-full items-center justify-center", tier.logoBox]}
+                      >
+                        <img
+                          src={sponsor.logo.src}
+                          alt={sponsor.name}
+                          width={sponsor.logo.width}
+                          height={sponsor.logo.height}
+                          class={`${sponsor.logoHeight} w-auto max-w-full object-contain brightness-0 invert`}
+                        />
+                      </span>
+                      <ArrowUpRight
+                        size={16}
+                        aria-hidden="true"
+                        class="absolute top-3 right-3 text-zinc-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )
+          })
+        }
+      </div>
     </div>
   </Section>
 
@@ -784,72 +876,6 @@ const FAQ_COLUMNS = [
               </div>
             </div>
           ))
-        }
-      </div>
-    </div>
-  </Section>
-
-  <SectionDivider />
-
-  <Section id="sponsors">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-baseline-last sm:justify-between">
-      <SectionHeader eyebrow="Sponsors" title="Made possible by" />
-      <a
-        href="mailto:contact@effectful.co?subject=Effect Days Livorno - Sponsorship"
-        class="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
-      >
-        Become a sponsor
-        <ArrowUpRight size={12} aria-hidden="true" />
-      </a>
-    </div>
-
-    <div class="mt-10 md:mt-12">
-      <div class="grid gap-px border border-zinc-800 bg-zinc-800">
-        {
-          SPONSOR_TIERS.map((tier) => {
-            const marks = SPONSORS.filter((sponsor) => sponsor.tier === tier.tier)
-            if (marks.length === 0) return null
-            return (
-              <div class="grid gap-px lg:grid-cols-[9.5rem_1fr]">
-                <div class="flex items-center bg-zinc-900 px-4 py-2.5 lg:bg-zinc-950 lg:px-5 lg:py-0">
-                  <p class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
-                    {tier.label}
-                  </p>
-                </div>
-                <div class:list={["grid gap-px", tier.cols]}>
-                  {marks.map((sponsor) => (
-                    <a
-                      href={sponsor.websiteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${sponsor.name} — visit website`}
-                      class:list={[
-                        "group relative flex items-center justify-center bg-zinc-950 px-3 transition-colors duration-200 hover:bg-zinc-900 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white md:px-8",
-                        tier.cellClass,
-                      ]}
-                    >
-                      <span
-                        class:list={["flex max-w-full items-center justify-center", tier.logoBox]}
-                      >
-                        <img
-                          src={sponsor.logo.src}
-                          alt={sponsor.name}
-                          width={sponsor.logo.width}
-                          height={sponsor.logo.height}
-                          class={`${sponsor.logoHeight} w-auto max-w-full object-contain brightness-0 invert`}
-                        />
-                      </span>
-                      <ArrowUpRight
-                        size={16}
-                        aria-hidden="true"
-                        class="absolute top-3 right-3 text-zinc-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                      />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )
-          })
         }
       </div>
     </div>
