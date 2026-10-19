@@ -45,9 +45,7 @@ const detectSearchShortcut = (): SearchShortcut => {
     ? userAgentData.platform
     : undefined
 
-  const platform = (
-    platformFromUserAgentData ?? navigator.platform
-  ).toLowerCase()
+  const platform = (platformFromUserAgentData ?? "").toLowerCase()
   const userAgent = navigator.userAgent.toLowerCase()
 
   const isApplePlatform =
