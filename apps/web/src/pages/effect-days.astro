@@ -9,6 +9,7 @@ import Card from "@/components/effect-days/Card.astro"
 import PurchaseRow from "@/components/effect-days/PurchaseRow.astro"
 import EnjoyEffectDaysCTA from "@/components/effect-days/EnjoyEffectDaysCTA.astro"
 import SaveToCalendar from "@/components/effect-days/SaveToCalendar.astro"
+import SpeakerCard from "@/components/effect-days/SpeakerCard.astro"
 
 import ed242 from "@/assets/effect-days/ed-24-2.png"
 import ed252 from "@/assets/effect-days/ed-25-2.png"
@@ -20,7 +21,6 @@ import livorno6 from "@/assets/effect-days/livorno-6.avif"
 import livorno7 from "@/assets/effect-days/livorno-7.avif"
 import EffectfulWhite from "@/assets/effect-days/Effectful-white.svg"
 import ziverge from "@/assets/effect-days/ziverge.svg"
-import TwitterLogo from "@/assets/logos/twitter/Twitter.svg"
 import dillonMulroy from "@/assets/effect-days/dillon-mulroy.png"
 import kitLangton from "@/assets/effect-days/kit-langton.png"
 import rhysSullivan from "@/assets/effect-days/rhys-sullivan.png"
@@ -68,15 +68,15 @@ const PROGRAM = [
   },
 ]
 
-const SPEAKERS = [
-  {
-    name: "Kit Langton",
-    company: "OpenCode",
-    photo: kitLangton,
-    x: "kitlangton",
-    host: true,
-    bio: "Built Visual Effect to watch fibers misbehave and the Effect Institute to explain why. Then moved OpenCode to Effect, and hasn't typed a line of code since.",
-  },
+const HOST = {
+  name: "Kit Langton",
+  company: "OpenCode",
+  photo: kitLangton,
+  x: "kitlangton",
+  bio: "Built Visual Effect to watch fibers misbehave and the Effect Institute to explain why. Then moved OpenCode to Effect, and hasn't typed a line of code since.",
+}
+
+const GUESTS = [
   { name: "Adam Rankin", company: "Warp", photo: adamRankin, x: "rankintweets" },
   { name: "Rhys Sullivan", company: "Executor", photo: rhysSullivan, x: "RhysSullivan" },
   { name: "Dillon Mulroy", company: "Cloudflare", photo: dillonMulroy, x: "dillon_mulroy" },
@@ -96,19 +96,22 @@ const SPEAKERS = [
   { name: "Kyle Mistele", company: "HumanLayer", photo: kyleMistele, x: "0xblacklight" },
 ]
 
-/* Cards per row after the host's: four narrow and three wide in turn, the
-   host's two-cell card opening the first four. */
+/* Cards per row after the MC's: four narrow and three wide in turn. The MC's
+   two-cell card opens the first four. From lg, four-across rows leave a
+   zero-width spacer track (column 3) between two pairs for the centre line. */
 const SPEAKER_ROWS = [2, 3, 4, 3]
-const FOUR_ROW_COLUMN = ["lg:col-start-1", "lg:col-start-2", "lg:col-start-4", "lg:col-start-5"]
-const HOST = SPEAKERS.find((speaker) => speaker.host)!
-const GUESTS = SPEAKERS.filter((speaker) => !speaker.host)
-const SPEAKER_GRID = SPEAKER_ROWS.map((_, row) => ({
-  four: row % 2 === 0,
-  cards: GUESTS.slice(
-    SPEAKER_ROWS.slice(0, row).reduce((sum, n) => sum + n, 0),
-    SPEAKER_ROWS.slice(0, row + 1).reduce((sum, n) => sum + n, 0),
-  ),
-}))
+const FOUR_ROW_COLUMNS = ["lg:col-start-1", "lg:col-start-2", "lg:col-start-4", "lg:col-start-5"]
+let next = 0
+const SPEAKER_GRID = SPEAKER_ROWS.map((count, row) => {
+  const columns = row % 2 === 0 ? FOUR_ROW_COLUMNS.slice(row === 0 ? 2 : 0) : []
+  return {
+    wide: row % 2 !== 0,
+    cards: GUESTS.slice(next, (next += count)).map((speaker, i) => ({
+      speaker,
+      column: columns[i],
+    })),
+  }
+})
 
 const PASSES = [
   {
@@ -455,81 +458,18 @@ const FAQ_COLUMNS = [
 
     <div class="mt-12 grid grid-cols-2 gap-4 md:flex md:flex-col">
       {
-        SPEAKER_GRID.map(({ four, cards }, row) => (
+        SPEAKER_GRID.map(({ wide, cards }, row) => (
           <div
             class:list={[
               "contents md:grid md:gap-4",
-              four
-                ? "md:grid-cols-4 lg:grid-cols-[repeat(2,1fr)_0px_repeat(2,1fr)]"
-                : "md:grid-cols-3",
+              wide
+                ? "md:grid-cols-3"
+                : "md:grid-cols-4 lg:grid-cols-[repeat(2,1fr)_0px_repeat(2,1fr)]",
             ]}
           >
-            {row === 0 && (
-              <div class="relative col-span-2 flex overflow-hidden border border-zinc-800 bg-zinc-950 lg:col-start-1">
-                <div class="relative aspect-4/5 w-1/2 shrink-0 md:aspect-auto">
-                  <Image
-                    src={HOST.photo}
-                    alt={HOST.name}
-                    class="absolute inset-0 h-full w-full object-cover opacity-80"
-                  />
-                  <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/60 to-transparent p-3 pt-12 lg:p-4 lg:pt-16">
-                    <h3 class="text-base leading-[1.1] font-semibold text-white lg:text-lg lg:leading-[1.1]">
-                      {HOST.name}
-                    </h3>
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="text-xs leading-normal text-zinc-300 lg:text-sm">{HOST.company}</p>
-                      <a
-                        href={`https://x.com/${HOST.x}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${HOST.name} on X`}
-                        class="shrink-0 text-zinc-300 transition-colors hover:text-white"
-                      >
-                        <TwitterLogo width={16} height={16} class="size-4" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-                <div class="flex flex-1 flex-col p-3 lg:p-4">
-                  <span class="self-start border border-zinc-600 bg-zinc-950 px-2 py-0.5 font-mono text-xs font-medium tracking-wider whitespace-nowrap text-zinc-400 uppercase">
-                    MC &amp; speaker
-                  </span>
-                  <p class="mt-auto pt-3 text-sm leading-relaxed text-zinc-400 lg:text-[0.9375rem]">
-                    {HOST.bio}
-                  </p>
-                </div>
-              </div>
-            )}
-            {cards.map((speaker, index) => (
-              <div
-                class:list={[
-                  "relative overflow-hidden border border-zinc-800 bg-zinc-950",
-                  four && FOUR_ROW_COLUMN[index + (row === 0 ? 2 : 0)],
-                ]}
-              >
-                <Image
-                  src={speaker.photo}
-                  alt={speaker.name}
-                  class="aspect-4/5 h-full w-full object-cover opacity-80"
-                />
-                <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/60 to-transparent p-3 pt-12 lg:p-4 lg:pt-16">
-                  <h3 class="text-base leading-[1.1] font-semibold text-white lg:text-lg lg:leading-[1.1]">
-                    {speaker.name}
-                  </h3>
-                  <div class="flex items-center justify-between gap-2">
-                    <p class="text-xs leading-normal text-zinc-300 lg:text-sm">{speaker.company}</p>
-                    <a
-                      href={`https://x.com/${speaker.x}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${speaker.name} on X`}
-                      class="shrink-0 text-zinc-300 transition-colors hover:text-white"
-                    >
-                      <TwitterLogo width={16} height={16} class="size-4" />
-                    </a>
-                  </div>
-                </div>
-              </div>
+            {row === 0 && <SpeakerCard speaker={HOST} class="lg:col-start-1" />}
+            {cards.map(({ speaker, column }) => (
+              <SpeakerCard speaker={speaker} class={column} />
             ))}
           </div>
         ))
