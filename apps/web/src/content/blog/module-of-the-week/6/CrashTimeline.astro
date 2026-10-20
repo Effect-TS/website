@@ -1,6 +1,6 @@
 ---
 // Where Part 3 left Dad, as a timeline with three lanes: Slack, Dad, and the
-// messages table. Sebastian's message comes in from Slack and is saved as
+// database. Sebastian's message comes in from Slack and is saved as
 // unprocessed. Dad reads it, posts his joke, and replies, then crashes before
 // the message is marked processed. The message's bar in the table lane runs
 // straight across the crash, still unprocessed, so when Dad boots up he reads
@@ -45,7 +45,7 @@ const at = (t: number, lane: number, end = t) =>
 <figure
   class="ct6 st"
   data-ct6-visual
-  aria-label="Step-by-step timeline with three lanes: Slack, Dad, and the messages table. Sebastian asks a question in Slack, and Cluster saves his message as unprocessed. Dad reads Sebastian's unprocessed message, posts the UDP joke to Slack, and replies, then crashes before the message is marked processed. When Dad boots up, the message is still unprocessed, so he reads it again and posts the same joke again. Then he replies again, and this time the message is marked processed."
+  aria-label="Step-by-step timeline with three lanes: Slack, Dad, and the database. Sebastian asks a question in Slack, and Cluster saves his message as unprocessed. Dad reads Sebastian's unprocessed message, posts the UDP joke to Slack, and replies, then crashes before the message is marked processed. When Dad boots up, the message is still unprocessed, so he reads it again and posts the same joke again. Then he replies again, and this time the message is marked processed."
   style={[
     `--ct6-msg-light: ${people.Sebastian.light}`,
     `--ct6-msg-dark: ${people.Sebastian.dark}`,
@@ -75,7 +75,7 @@ const at = (t: number, lane: number, end = t) =>
 
         <p class="ct6-label" data-ct6-lane="1" style="--lane: 1">Slack</p>
         <p class="ct6-label" data-ct6-lane="2" style="--lane: 2">Dad</p>
-        <p class="ct6-label" data-ct6-lane="3" style="--lane: 3">Message</p>
+        <p class="ct6-label" data-ct6-lane="3" style="--lane: 3">Database</p>
 
         {/* Dad's lifelines: before the crash, and after he boots up */}
         <span class="ct6-life is-before" data-ct6-life="0" style={at(READ, 2, CRASH)}></span>
@@ -147,11 +147,15 @@ const at = (t: number, lane: number, end = t) =>
   } from "@/components/blog/module-of-the-week/stepper/stepper"
 
   // Short enough to fit the callout in two lines
-  const VIEWS: Array<{ title: string; text: string }> = [
+  const VIEWS: Array<{ title: string; text: string; html?: string }> = [
     { title: "Ask", text: "Sebastian sends a message in Slack, and Cluster saves it" },
     { title: "Read", text: "Dad reads Sebastian's message" },
     { title: "Post", text: "The chat is quiet, so Dad posts his joke" },
-    { title: "Crash", text: "Dad's runner crashes before the message is marked processed" },
+    {
+      title: "Crash",
+      text: "Dad's runner crashes BEFORE the message is marked processed",
+      html: "Dad's runner crashes <strong>BEFORE</strong> the message is marked processed",
+    },
     { title: "Boot up", text: "Dad boots up again and remembers nothing" },
     { title: "Read again", text: "The message is still unprocessed, so he reads it again" },
     { title: "Post again", text: "He doesn't know he told the joke, so he tells it again" },
@@ -217,7 +221,10 @@ const at = (t: number, lane: number, end = t) =>
 
     // State 0 is the empty timeline, before Sebastian asks, so the first Step
     // sends his message in. Step pill n is state n, which shows step n - 1.
-    const READY = { title: "Ready", text: "Click Step, and Sebastian sends his message" }
+    const READY: (typeof VIEWS)[number] = {
+      title: "Ready",
+      text: "Click Step, and Sebastian sends his message",
+    }
     // Says what happens at step k, and marks it in the pills and its column.
     // Stepping forward, this happens on the click, before the envelope lands.
     const pills = [...root.querySelectorAll<HTMLElement>("[data-step-pill]")]
@@ -231,7 +238,7 @@ const at = (t: number, lane: number, end = t) =>
         el.classList.toggle("is-done", t < k)
       }
       const view = VIEWS[k] ?? READY
-      caption.textContent = k < 0 ? view.text : `${k + 1}. ${view.text}`
+      caption.innerHTML = k < 0 ? view.text : `${k + 1}. ${view.html ?? view.text}`
 
       // The callout glides from where it is to the new step, and its words
       // dim and come back. Both are transform and opacity animations, which
@@ -411,7 +418,7 @@ const at = (t: number, lane: number, end = t) =>
   }
   .ct6-card {
     border: 1px solid var(--ct6-line);
-    border-radius: 1rem;
+    border-radius: var(--radius-md, 6px);
     background: var(--ct6-surface);
     overflow: hidden;
   }
@@ -658,18 +665,26 @@ const at = (t: number, lane: number, end = t) =>
       transform: translateX(-1px);
     }
   }
+  /* Notes sit beside their mark, on the middle of the lane, without pushing
+     it off the lifeline */
   /* Notes sit under their mark without pushing it off the lifeline */
   .ct6-note {
     position: absolute;
     top: calc(50% + 0.85rem);
+    /* Centered under the mark, whatever the browser does with the flex
+       position of something absolutely placed */
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 0.66rem;
     color: var(--ct6-muted);
     white-space: nowrap;
   }
-  /* It sits on the crash line, so it covers it */
+  /* The crash note sits beside its mark instead, in the middle of the lane.
+     Nothing runs to the right of a crash, and it clears the next face. */
   .ct6-note.is-crash {
-    padding: 0 0.2rem;
-    background: var(--ct6-surface);
+    top: 50%;
+    left: calc(50% + 0.95rem);
+    transform: translateY(-50%);
     color: var(--ct6-red);
     font-weight: 600;
   }
@@ -776,6 +791,17 @@ const at = (t: number, lane: number, end = t) =>
   /* Narrow: lanes are columns, time runs top to bottom. WIDE in the script
      matches this. */
   @container ct6 (width < 680px) {
+    /* Here the crash line runs across, through the note, so it covers it */
+    .ct6-note.is-crash {
+      padding: 0 0.2rem;
+      background: var(--ct6-surface);
+    }
+    /* Here every note sits beside its mark, since time runs down the page */
+    .ct6-note {
+      top: 50%;
+      left: calc(50% + 1rem);
+      transform: translateY(-50%);
+    }
     .ct6-card {
       --ct6-lane: 2.9rem;
     }
@@ -858,11 +884,6 @@ const at = (t: number, lane: number, end = t) =>
     .ct6-life.is-gone {
       border-top: none;
       border-left: 2px dashed var(--ct6-line);
-    }
-    .ct6-note {
-      top: 50%;
-      left: calc(50% + 0.9rem);
-      transform: translateY(-50%);
     }
     .ct6-bar {
       align-self: stretch;

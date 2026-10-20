@@ -187,11 +187,18 @@ export function createCallout(root: HTMLElement, stage: HTMLElement) {
   }
 
   const show = (
-    note: { title: string; text: string; num?: number | undefined },
+    // `html` is the text with markup, such as a word in bold
+    note: {
+      title: string
+      text: string
+      html?: string | undefined
+      num?: number | undefined
+    },
     anchor: Anchor | null,
   ) => {
     const changed = text.textContent !== note.text
-    text.textContent = note.text
+    if (note.html) text.innerHTML = note.html
+    else text.textContent = note.text
     title.textContent = note.title
     num.textContent = note.num ? String(note.num) : ""
     num.hidden = !note.num

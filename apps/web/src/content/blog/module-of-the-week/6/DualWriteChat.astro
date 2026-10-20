@@ -1,0 +1,610 @@
+---
+// The dual write, told through the chat. A slim track has Dad's two writes
+// and a crash marker to drag between them, plus a button to swap their
+// order. Under that, a line naming what went wrong, and #engineering, drawn
+// like the Slack window in Part 1. A divider marks Dad's crash and restart:
+// above it is what he posted before the crash, and below it what he posts
+// once he's back. One joke, the same joke twice, or no answer at all.
+
+import { people, warning } from "../3/palette"
+---
+
+<figure
+  class="dc6"
+  data-dc6
+  aria-label="Dad's handler posts his joke to Slack and marks the message processed. Drag the crash between the two writes, or swap their order, and the chat shows what Slack looks like after Dad restarts: one joke, the joke twice, or no answer."
+  style={[
+    `--dc6-seb: ${people.Sebastian.avatar}`,
+    `--dc6-warn: ${warning.background}`,
+    `--dc6-warn-ink: ${warning.text}`,
+  ].join("; ")}
+>
+  <div class="dc6-card">
+    <div>
+      {/* What went wrong and why, next to the button that swaps the writes */}
+      <div class="dc6-bar">
+        <p class="dc6-result" aria-live="polite">
+          <span class="dc6-tag" data-dc6-tag></span>
+          <span data-dc6-why></span>
+        </p>
+        <button type="button" class="dc6-swap" data-dc6-swap>Swap order</button>
+      </div>
+
+      <div class="dc6-track" data-dc6-track>
+        <span class="dc6-rail" aria-hidden="true"></span>
+        {
+          [0, 1, 2].map((i) => (
+            <button type="button" class="dc6-slot" data-dc6-slot style={`--col: ${i * 2 + 1}`}>
+              <span class="dc6-tick" aria-hidden="true" />
+            </button>
+          ))
+        }
+        <span class="dc6-step is-post" data-dc6-step="post">Post joke</span>
+        <span class="dc6-step is-mark" data-dc6-step="mark">Mark processed</span>
+        {/* What the line is: Dad's handler, from the message arriving to done */}
+        <span class="dc6-end is-start">Message arrives</span>
+        <span class="dc6-end is-done">Done</span>
+        <div
+          class="dc6-crash"
+          data-dc6-crash
+          role="slider"
+          tabindex="0"
+          aria-label="Crash point"
+          aria-valuemin="0"
+          aria-valuemax="2"
+        >
+          <span class="dc6-x" aria-hidden="true">✕</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dc6-chat">
+      {/* A window's title bar, so the chat reads as Slack itself */}
+      <p class="dc6-head">
+        <span class="dc6-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="dc6-title"><b>#engineering</b> · Slack</span>
+      </p>
+      <ol class="dc6-msgs">
+        <li class="dc6-msg">
+          <span class="dc6-avatar" aria-hidden="true">S</span>
+          <div>
+            <p class="dc6-who"><b>Sebastian</b> <span class="dc6-time">2:14 PM</span></p>
+            <p class="dc6-text">Why is this test flaky?</p>
+          </div>
+        </li>
+        {
+          /* Dad's joke before the crash, if he got to post it. Then the
+            restart, and under it his joke after the restart, or a note in
+            its place. */
+        }
+        {
+          [
+            { when: "before", time: "2:14 PM" },
+            { when: "after", time: "2:15 PM" },
+          ].map(({ when, time }) => {
+            const joke = (
+              <div class="dc6-msg is-joke" data-dc6-joke={when}>
+                <svg viewBox="-10 -10 20 20" class="dc6-face" aria-hidden="true">
+                  <circle r="9.4" fill="#fde7c8" stroke="#3f3f46" stroke-width="1.1" />
+                  <path
+                    d="M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6"
+                    fill="none"
+                    stroke="#3f3f46"
+                    stroke-width="1.1"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="-3.2" cy="-1.6" r="1.15" fill="#3f3f46" />
+                  <circle cx="3.2" cy="-1.6" r="1.15" fill="#3f3f46" />
+                  <path
+                    d="M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z"
+                    fill="#3f3f46"
+                  />
+                </svg>
+                <div>
+                  <p class="dc6-who">
+                    <b>Dad</b>
+                    <span class="dc6-app">APP</span>
+                    <span class="dc6-time">{time}</span>
+                    {when === "after" && <span class="dc6-tag is-warn dc6-repeat">Repeat!</span>}
+                  </p>
+                  <p class="dc6-text">I'd tell you a UDP joke, but you might not get it.</p>
+                </div>
+              </div>
+            )
+            return when === "before" ? (
+              <li class="dc6-before">{joke}</li>
+            ) : (
+              <>
+                <li class="dc6-restart" aria-hidden="true">
+                  <span>Dad crashed and restarted</span>
+                </li>
+                <li class="dc6-after">
+                  {joke}
+                  <p class="dc6-note" data-dc6-note="none">
+                    <span class="dc6-tag is-red">No answer</span>
+                  </p>
+                  <p class="dc6-note" data-dc6-note="idle">
+                    Nothing to redo
+                  </p>
+                </li>
+              </>
+            )
+          })
+        }
+      </ol>
+    </div>
+  </div>
+</figure>
+
+<script>
+  import { createCrashSlider, flip, outcome, type Order } from "./dualwrite"
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-dc6]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const steps = {
+      post: q<HTMLElement>('[data-dc6-step="post"]'),
+      mark: q<HTMLElement>('[data-dc6-step="mark"]'),
+    }
+    const before = q<HTMLElement>('[data-dc6-joke="before"]')
+    const after = q<HTMLElement>('[data-dc6-joke="after"]')
+    const none = q<HTMLElement>('[data-dc6-note="none"]')
+    const idle = q<HTMLElement>('[data-dc6-note="idle"]')
+    const tag = q<HTMLElement>("[data-dc6-tag]")
+    const why = q<HTMLElement>("[data-dc6-why]")
+    let order: Order = "post"
+
+    const show = (slot: number) => {
+      const second: Order = order === "post" ? "mark" : "post"
+      // A write after the crash never happens
+      steps[order].classList.toggle("is-skipped", slot < 1)
+      steps[second].classList.toggle("is-skipped", slot < 2)
+      const { posted, processed, jokes } = outcome(order, slot)
+      // An unprocessed message comes back after the restart, and Dad answers
+      // it again
+      before.classList.toggle("is-on", posted)
+      before.parentElement!.hidden = !posted
+      after.classList.toggle("is-on", !processed)
+      after.classList.toggle("is-repeat", posted)
+      none.classList.toggle("is-on", jokes === 0)
+      idle.classList.toggle("is-on", posted && processed)
+
+      const [label, kind, reason] =
+        jokes === 2
+          ? [
+              "Repeated joke",
+              "warn",
+              "Dad crashed after posting, so he processed the same message again",
+            ]
+          : jokes === 0
+            ? ["Lost joke", "red", "Dad crashed before posting, so Sebastian never got a joke"]
+            : slot === 0
+              ? ["Ok", "ok", "Dad crashed before doing anything"]
+              : ["Ok", "ok", "Dad answered Sebastian with one joke"]
+      tag.textContent = label
+      tag.dataset.kind = kind
+      why.textContent = reason
+    }
+
+    root.dataset.order = order
+    const crash = createCrashSlider({
+      track: q("[data-dc6-track]"),
+      marker: q("[data-dc6-crash]"),
+      slots: [...root.querySelectorAll<HTMLElement>("[data-dc6-slot]")],
+      axis: "x",
+      // Where the post's opening crash happened
+      initial: 1,
+      onChange: show,
+    })
+    q("[data-dc6-swap]").addEventListener("click", () => {
+      flip([steps.post, steps.mark], () => {
+        order = order === "post" ? "mark" : "post"
+        root.dataset.order = order
+      })
+      show(crash.get())
+    })
+  }
+</script>
+
+<style is:global>
+  .dc6 {
+    --dc6-ink: #3f3f46;
+    --dc6-muted: #71717a;
+    --dc6-line: #d4d4d8;
+    --dc6-surface: #ffffff;
+    --dc6-panel: #fafafa;
+    --dc6-dad: #b45309;
+    --dc6-ok: #15803d;
+    --dc6-red: #dc2626;
+    --dc6-rule: color-mix(in oklab, var(--dc6-line) 60%, transparent);
+    margin: 1.5rem 0;
+    color: var(--dc6-ink);
+    font-size: 0.75rem;
+    container: dc6 / inline-size;
+  }
+  html.dark .dc6 {
+    --dc6-ink: #e4e4e7;
+    --dc6-muted: #a1a1aa;
+    --dc6-line: #3f3f46;
+    --dc6-surface: #09090b;
+    --dc6-panel: #111113;
+    --dc6-dad: #fbbf24;
+    --dc6-ok: #4ade80;
+    --dc6-red: #f87171;
+  }
+  .dc6 p {
+    margin: 0;
+    font-size: inherit;
+    line-height: 1.4;
+  }
+  /* One card: the diagram on top, and the Slack window under it */
+  .dc6-card {
+    border: 1px solid var(--dc6-line);
+    border-radius: var(--radius-md, 6px);
+    background: var(--dc6-surface);
+    overflow: hidden;
+  }
+  .dc6-chat {
+    border-top: 1px solid var(--dc6-line);
+  }
+  .dc6-bar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem 0 0.9rem;
+  }
+  .dc6-swap {
+    flex: none;
+  }
+  .dc6-swap {
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--dc6-line);
+    border-radius: var(--radius-md, 6px);
+    background: var(--dc6-surface);
+    color: var(--dc6-ink);
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .dc6-swap:hover {
+    background: var(--dc6-panel);
+  }
+
+  /* The two writes, with a slot before, between, and after */
+  .dc6-track {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2rem 1fr 2rem 1fr 2rem;
+    align-items: center;
+    row-gap: 0.3rem;
+    padding: 1.6rem 0.5rem 0.75rem;
+  }
+  /* Under the caps, just inside them, so a crash at either end clears them */
+  .dc6-end {
+    grid-row: 2;
+    color: var(--dc6-muted);
+    font-size: 0.66rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  /* Each label lines up with its cap, in the middle of the end slot */
+  .dc6-end.is-start {
+    grid-column: 1 / 3;
+    justify-self: start;
+    margin-left: calc(1rem - 1px);
+  }
+  .dc6-end.is-done {
+    grid-column: 4 / 6;
+    justify-self: end;
+    margin-right: calc(1rem - 1px);
+  }
+  /* From the first cap to the last, the middles of the end slots */
+  .dc6-rail {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin: 0 1rem;
+    border-top: 2px solid var(--dc6-rule);
+  }
+  .dc6-slot {
+    grid-column: var(--col);
+    grid-row: 1;
+    display: grid;
+    place-items: center;
+    align-self: stretch;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+  }
+  .dc6-tick {
+    width: 2px;
+    height: 1rem;
+    border-radius: 1px;
+    background: var(--dc6-line);
+  }
+  .dc6-step {
+    position: relative;
+    grid-row: 1;
+    padding: 0.3rem 0.4rem;
+    border: 1.5px solid var(--dc6-dad);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--dc6-surface);
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .dc6-step.is-mark {
+    border-color: var(--dc6-ok);
+  }
+  .dc6[data-order="post"] .is-post,
+  .dc6[data-order="mark"] .is-mark {
+    grid-column: 2;
+  }
+  .dc6[data-order="post"] .is-mark,
+  .dc6[data-order="mark"] .is-post {
+    grid-column: 4;
+  }
+  /* A write after the crash never happens. It fades without going see
+     through, so the line doesn't show behind it. */
+  .dc6-step.is-skipped {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--dc6-dad) 40%, var(--dc6-surface));
+    color: color-mix(in oklab, var(--dc6-ink) 35%, var(--dc6-surface));
+  }
+  .dc6-step.is-mark.is-skipped {
+    border-color: color-mix(in oklab, var(--dc6-ok) 40%, var(--dc6-surface));
+  }
+  .dc6-crash {
+    position: absolute;
+    top: 0.25rem;
+    /* Down through the steps, stopping above the end labels */
+    bottom: 1.6rem;
+    left: 0;
+    z-index: 2;
+    width: 1.6rem;
+    margin-left: -0.8rem;
+    cursor: grab;
+    touch-action: none;
+  }
+  .dc6-crash::after {
+    content: "";
+    position: absolute;
+    top: 1.15rem;
+    bottom: 0;
+    left: 50%;
+    /* Centered under the handle */
+    margin-left: -1px;
+    border-left: 2px dashed var(--dc6-red);
+  }
+  .dc6-x {
+    display: grid;
+    place-items: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin: 0 auto;
+    border-radius: 999px;
+    background: var(--dc6-red);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    transition: transform 150ms ease-out;
+  }
+  html.dark .dc6-x {
+    color: #1f1f1f;
+  }
+  .dc6-crash:hover .dc6-x,
+  .dc6-crash.is-dragging .dc6-x {
+    transform: scale(1.12);
+  }
+  .dc6-crash.is-dragging {
+    cursor: grabbing;
+  }
+  .dc6-crash:focus-visible {
+    outline: none;
+  }
+  .dc6-crash:focus-visible .dc6-x {
+    box-shadow:
+      0 0 0 2px var(--dc6-surface),
+      0 0 0 4px var(--dc6-red);
+  }
+
+  /* What went wrong, and why */
+  .dc6 .dc6-result {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    align-items: baseline;
+    color: var(--dc6-muted);
+    font-size: 0.78rem;
+  }
+  .dc6-tag[data-kind="ok"] {
+    border: 1px solid var(--dc6-ok);
+    color: var(--dc6-ok);
+  }
+  .dc6-tag[data-kind="warn"] {
+    background: var(--dc6-warn);
+    color: var(--dc6-warn-ink);
+  }
+  .dc6-tag[data-kind="red"] {
+    border: 1px solid var(--dc6-red);
+    color: var(--dc6-red);
+  }
+
+  /* The chat, drawn like Part 1's Slack window */
+  /* The title bar: window buttons on the left, the title in the middle */
+  .dc6 .dc6-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.9rem;
+    border-bottom: 1px solid var(--dc6-rule);
+    background: var(--dc6-panel);
+    color: var(--dc6-muted);
+    font-size: 0.72rem;
+  }
+  .dc6-head b {
+    color: var(--dc6-ink);
+  }
+  .dc6-lights {
+    position: absolute;
+    left: 0.9rem;
+    display: flex;
+    gap: 0.35rem;
+  }
+  .dc6-lights i {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    background: #ff5f57;
+  }
+  .dc6-lights i:nth-child(2) {
+    background: #febc2e;
+  }
+  .dc6-lights i:nth-child(3) {
+    background: #28c840;
+  }
+  .dc6-msgs {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+    margin: 0;
+    padding: 0.9rem;
+    list-style: none;
+  }
+  .dc6 .dc6-msgs > li {
+    grid-column: 1;
+    margin: 0;
+    padding: 0;
+  }
+  .dc6-msg {
+    display: flex;
+    gap: 0.75rem;
+  }
+  .dc6-msg.is-joke,
+  .dc6-note {
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .dc6-msg.is-joke.is-on,
+  .dc6-note.is-on {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
+      transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  /* Under the restart, Dad's joke and the notes share one place, so it's
+     always as tall as a message */
+  .dc6-after {
+    display: grid;
+  }
+  .dc6-after > * {
+    grid-area: 1 / 1;
+  }
+  .dc6 .dc6-note {
+    align-self: start;
+    padding-left: 3rem;
+    color: var(--dc6-muted);
+    font-size: 0.8rem;
+  }
+  .dc6-msg:not(.is-repeat) .dc6-repeat {
+    display: none;
+  }
+  /* Like Slack's "New messages" line, in red */
+  .dc6 .dc6-msgs > .dc6-restart {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    color: var(--dc6-red);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .dc6-restart::before,
+  .dc6-restart::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid var(--dc6-red);
+  }
+  .dc6-avatar,
+  .dc6-face {
+    flex: none;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .dc6-avatar {
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-lg, 8px);
+    background: var(--dc6-seb);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .dc6 .dc6-who {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: baseline;
+    font-size: 0.85rem;
+    line-height: 1.2;
+  }
+  .dc6 .dc6-text {
+    margin-top: 0.2rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .dc6-time {
+    color: var(--dc6-muted);
+    font-size: 0.72rem;
+  }
+  .dc6-app {
+    padding: 0.05rem 0.25rem;
+    border-radius: 3px;
+    background: #611f69;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .dc6-tag {
+    display: inline-block;
+    padding: 0 0.35rem;
+    border-radius: var(--radius-sm, 4px);
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  .dc6-tag.is-warn {
+    background: var(--dc6-warn);
+    color: var(--dc6-warn-ink);
+  }
+  .dc6-tag.is-red {
+    border: 1px solid var(--dc6-red);
+    color: var(--dc6-red);
+  }
+
+  /* Narrow: the button stays at the top right, and what went wrong goes
+     under it, across the full width */
+  @container dc6 (width < 560px) {
+    .dc6-bar {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .dc6-result {
+      order: 1;
+      width: 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dc6-msg.is-joke,
+    .dc6-note,
+    .dc6-x {
+      transform: none;
+      transition: opacity 150ms linear;
+    }
+  }
+</style>
