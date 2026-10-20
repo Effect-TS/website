@@ -1,0 +1,115 @@
+---
+import { ArrowUpRight, Rss } from "@lucide/astro"
+import { getCollection } from "astro:content"
+import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
+import ModuleAuthor from "@/components/module-of-the-week/ModuleAuthor.astro"
+import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import PageLayout from "@/layouts/PageLayout.astro"
+
+const PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLCGIHlTAijhY"
+const SUGGEST_URL = "https://discord.gg/effect-ts"
+
+const entries = (await getCollection("blog")).filter((post) =>
+  post.data.tags.some((tag) => tag.id === "module-of-the-week"),
+)
+
+const intro = entries.find((post) => post.id === "module-of-the-week")
+const modules = entries
+  .filter((post) => post.id !== "module-of-the-week")
+  .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
+  .map((post, index) => ({ post, number: index + 1 }))
+  .reverse()
+
+const buttonClass =
+  "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"
+---
+
+<PageLayout
+  title="Module of the Week | Effect"
+  description="The lesser-known parts of Effect, one module at a time. Every module comes with a blog post and a video."
+  activeSlug="motw"
+  themeable
+>
+  <section class="relative overflow-hidden">
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0"
+      style="background-image: linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px); background-size: 196.667px 178px; background-position: calc(50% + 98.333px) 0; mask-image: linear-gradient(to bottom, black 0%, transparent 70%);"
+    >
+    </div>
+
+    <div class="relative mx-auto w-full max-w-295 px-4 pt-16 pb-16 md:pt-24 md:pb-20">
+      <Eyebrow class="mb-3">// Module of the Week</Eyebrow>
+      <h1 class="text-3xl leading-tighter font-bold tracking-tight text-foreground md:text-4xl">
+        One Effect module, every week
+      </h1>
+      <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
+        The lesser-known parts of Effect, by Maxwell Brown.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a
+          href={PLAYLIST_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          class:list={[buttonClass, "bg-foreground text-background hover:bg-foreground/90"]}
+        >
+          <YouTubeLogo class="size-4" aria-hidden="true" />
+          Watch the playlist
+        </a>
+        <a
+          href={SUGGEST_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          class:list={[
+            buttonClass,
+            "border border-border-strong text-foreground hover:border-muted-foreground hover:bg-muted",
+          ]}
+        >
+          Suggest a module
+          <ArrowUpRight
+            class="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            aria-hidden="true"
+          />
+        </a>
+        <a
+          href="/module-of-the-week/rss.xml"
+          class:list={[
+            buttonClass,
+            "border border-border-strong text-foreground hover:border-muted-foreground hover:bg-muted",
+          ]}
+        >
+          RSS
+          <Rss class="size-4" aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="h-px w-full bg-border"></div>
+
+  <section aria-label="Modules" class="relative pb-24">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <ul class="mt-16 flex flex-col gap-6 md:mt-20">
+        {
+          modules.map(({ post, number }, index) => (
+            <li>
+              <ModuleCard post={post} entry={number} latest={index === 0} />
+            </li>
+          ))
+        }
+        {
+          intro && (
+            <li>
+              <ModuleCard post={intro} label="Start here" />
+            </li>
+          )
+        }
+      </ul>
+    </div>
+  </section>
+
+  <div class="h-px w-full bg-border"></div>
+
+  <ModuleAuthor />
+</PageLayout>

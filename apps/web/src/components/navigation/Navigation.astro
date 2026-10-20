@@ -16,13 +16,21 @@ interface Props {
   readonly version?: string | undefined
 }
 
-const { activeSlug, version } = Astro.props
+const { activeSlug: propSlug, version } = Astro.props
+const pathname = Astro.url.pathname
+const activeSlug: NavigationActiveSlug | undefined =
+  pathname === "/module-of-the-week" ||
+  pathname.startsWith("/module-of-the-week/") ||
+  pathname.startsWith("/blog/module-of-the-week")
+    ? "motw"
+    : propSlug
 
 const showThemeToggle =
   activeSlug === "playground" ||
   activeSlug === "docs" ||
   activeSlug === "api" ||
-  activeSlug === "blog"
+  activeSlug === "blog" ||
+  activeSlug === "motw"
 
 const withVersion = (links: ReadonlyArray<NavigationLink>) =>
   version === undefined

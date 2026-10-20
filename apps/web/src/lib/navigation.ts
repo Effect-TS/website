@@ -12,6 +12,7 @@ export const NAVIGATION_EVENTS = {
 interface NavigationLinkBase {
   readonly id: string
   readonly label: string
+  readonly shortLabel?: string
   readonly group: NavigationGroup
   readonly surfaces: ReadonlyArray<NavigationSurface>
   readonly icon?: "discord" | "github" | "twitter"
@@ -35,6 +36,7 @@ export type NavigationActiveSlug =
   | "api"
   | "blog"
   | "podcast"
+  | "motw"
   | "jobs"
   | "docs"
   | "playground"
@@ -67,10 +69,11 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     surfaces: ["desktop", "mobile"],
   },
   {
-    id: "podcast",
+    id: "motw",
     kind: "internal",
-    label: "Podcast",
-    href: "/podcast",
+    label: "Module of the Week",
+    shortLabel: "MotW",
+    href: "/module-of-the-week",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },

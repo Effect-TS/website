@@ -4,6 +4,7 @@ import { getCollection } from "astro:content"
 import { Link as LinkIcon } from "@lucide/astro"
 
 import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
+import MotwCallout from "@/components/ui/MotwCallout.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
 import ApiCodeExample from "@/features/api-reference/ApiCodeExample.astro"
@@ -16,6 +17,7 @@ import { splitComment } from "@/features/api-reference/comment-sections"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
+import { motwForApiModule } from "@/lib/motw-links"
 import { DOCS_VERSIONS } from "@/lib/versions"
 
 export const prerender = true
@@ -49,6 +51,7 @@ export const getStaticPaths = (async () => {
 const { entry } = Astro.props
 const allEntries = await getCollection("apiReference")
 const reflection = await ApiReference.loadReflection(entry.data)
+const motwId = motwForApiModule(entry.data.modulePath)
 const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
 const displayName = entry.data.packageName.replace("@effect/", "")
 const openGraph = resolveApiReferenceOpenGraph(
@@ -249,6 +252,8 @@ const tocItems = apiModule.groups.map((group) => ({
       <span aria-hidden="true">/</span>
       <span>{moduleName}</span>
     </nav>
+
+    {motwId && <MotwCallout id={motwId} />}
 
     <header class="mb-8 lg:mb-12">
       <h1 class="mb-4! flex flex-wrap items-center gap-3 font-mono md:mb-6!">

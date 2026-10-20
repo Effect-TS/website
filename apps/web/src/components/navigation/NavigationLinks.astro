@@ -27,9 +27,25 @@ const links =
   links.map((link) => (
     <NavigationAnchor
       link={link}
-      class="text-sm font-medium no-underline transition-colors text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+      class={`text-sm font-medium no-underline transition-colors text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white ${link.shortLabel ? "group/tip relative" : ""}`}
       active={link.id === activeSlug}
       activeClass="text-zinc-900 dark:text-white"
-    />
+    >
+      {link.shortLabel ? (
+        <>
+          <span aria-hidden="true">{link.shortLabel}</span>
+          <span class="sr-only">{link.label}</span>
+          <span
+            role="tooltip"
+            aria-hidden="true"
+            class="pointer-events-none absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 rounded-md border border-border-strong bg-background px-2 py-1 text-xs font-medium whitespace-nowrap text-foreground opacity-0 shadow-lg shadow-black/20 transition-opacity delay-150 group-hover/tip:opacity-100 group-focus-visible/tip:opacity-100"
+          >
+            {link.label}
+          </span>
+        </>
+      ) : (
+        link.label
+      )}
+    </NavigationAnchor>
   ))
 }

@@ -36,6 +36,9 @@ const blog = defineCollection({
       featured: z.boolean().optional().default(false),
       featuredImage: image().optional(),
       packageName: z.string().min(1).optional(),
+      video: z
+        .object({ youtubeId: z.string().min(1), duration: z.string().min(1) })
+        .optional(),
     }),
 })
 
@@ -138,6 +141,7 @@ const docs = defineCollection({
       ])
       .optional(),
     draft: z.boolean().optional(),
+    motw: z.string().min(1).optional(),
   }),
 })
 

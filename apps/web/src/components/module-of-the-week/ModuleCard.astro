@@ -1,0 +1,123 @@
+---
+import { ArrowUpRight, FileText, Play } from "@lucide/astro"
+import type { CollectionEntry } from "astro:content"
+import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
+import { FormattedDate } from "@/components/ui/FormattedDate"
+import { cn } from "@/lib/utils"
+
+interface Props {
+  readonly post: CollectionEntry<"blog">
+  readonly entry?: number | undefined
+  readonly latest?: boolean | undefined
+  readonly label?: string | undefined
+  readonly layout?: "row" | "stacked" | undefined
+  readonly class?: string | undefined
+}
+
+const { post, entry, latest = false, label, layout = "row", class: className } = Astro.props
+
+const title = post.data.title.replace(/^Module of the Week\s*-\s*/, "")
+const video = post.data.video
+const videoUrl = video ? `https://www.youtube.com/watch?v=${video.youtubeId}` : undefined
+const twoColumns = layout === "row" && video !== undefined
+const labelRow = "flex items-center gap-2 text-sm font-medium text-muted-foreground"
+const trailing = "size-3.5 text-muted-foreground transition-colors group-hover:text-foreground"
+---
+
+<article
+  class={cn(
+    "grid grid-cols-1 gap-px border border-border bg-border",
+    twoColumns && "md:grid-cols-2",
+    className,
+  )}
+>
+  <div class:list={["bg-background px-5 py-5 lg:px-6", twoColumns && "md:col-span-2"]}>
+    <div class="flex min-h-6.5 flex-wrap items-center gap-x-3 gap-y-2 font-mono text-xs">
+      {
+        (latest || label) && (
+          <span class="border border-border-strong bg-background px-2 py-0.5 font-medium tracking-wider whitespace-nowrap text-muted-foreground uppercase">
+            {label ?? "Latest"}
+          </span>
+        )
+      }
+      {
+        entry !== undefined && (
+          <span class="font-medium text-foreground tabular-nums">
+            {String(entry).padStart(2, "0")}
+          </span>
+        )
+      }
+      {
+        post.data.packageName && (
+          <>
+            <span aria-hidden="true" class="h-3 w-px bg-border-strong" />
+            <span class="truncate text-muted-foreground">from "{post.data.packageName}"</span>
+          </>
+        )
+      }
+      <FormattedDate date={post.data.date} className="text-muted-foreground tabular-nums" />
+    </div>
+    <h3 class="mt-2 text-xl leading-snug font-semibold text-foreground md:text-2xl">{title}</h3>
+  </div>
+
+  {
+    video && videoUrl && (
+      <div class="flex flex-col gap-4 bg-background p-5 lg:px-6">
+        <div class="flex items-center justify-between gap-2">
+          <span class={labelRow}>
+            <YouTubeLogo class="size-4" aria-hidden="true" />
+            Video
+          </span>
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group inline-flex items-center gap-1.5 text-sm font-medium text-foreground no-underline hover:no-underline"
+          >
+            Watch
+            <ArrowUpRight class={trailing} aria-hidden="true" />
+          </a>
+        </div>
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Watch ${title} on YouTube`}
+          class="group relative block aspect-video overflow-hidden border border-border"
+        >
+          <img
+            src={`https://i.ytimg.com/vi/${video.youtubeId}/hqdefault.jpg`}
+            alt=""
+            loading="lazy"
+            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+          <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums transition-colors group-hover:bg-zinc-950">
+            <Play class="size-3 fill-current" aria-hidden="true" />
+            {video.duration}
+          </span>
+        </a>
+      </div>
+    )
+  }
+
+  <a
+    href={`/blog/${post.id}`}
+    class:list={[
+      "group flex flex-col gap-4 bg-background p-5 no-underline transition-colors hover:bg-muted/60 hover:no-underline lg:px-6",
+    ]}
+  >
+    <div class="flex items-center justify-between gap-2">
+      <span class={labelRow}>
+        <FileText class="size-4" aria-hidden="true" />
+        Blog post
+      </span>
+      <span class="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+        Read the post
+        <ArrowUpRight class={trailing} aria-hidden="true" />
+      </span>
+    </div>
+    <p class="text-base leading-relaxed text-muted-foreground md:max-w-md">
+      {post.data.excerpt}
+    </p>
+  </a>
+</article>

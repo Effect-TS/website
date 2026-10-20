@@ -1,0 +1,27 @@
+---
+import { getEntry } from "astro:content"
+
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  readonly id: string
+}
+
+const { id } = Astro.props
+const post = await getEntry("blog", id)
+---
+
+{
+  post && (
+    <aside class="not-prose my-6 rounded-lg border border-border bg-card p-4">
+      <Eyebrow class="mb-2">Module of the Week</Eyebrow>
+      <a
+        href={`/blog/${post.id}`}
+        class="text-base font-semibold text-foreground underline-offset-4 hover:underline"
+      >
+        {post.data.title}
+      </a>
+      <p class="mt-1 text-sm text-muted-foreground">{post.data.excerpt}</p>
+    </aside>
+  )
+}

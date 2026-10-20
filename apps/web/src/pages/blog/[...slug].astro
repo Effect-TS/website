@@ -5,6 +5,7 @@ import { ArrowRightIcon, ArrowUpRightIcon } from "@lucide/astro"
 import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
+import SeriesNav from "@/components/blog/module-of-the-week/SeriesNav.astro"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
@@ -30,8 +31,21 @@ export async function getStaticPaths() {
   })
 
   const sorted = [...posts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  const series = sorted.filter((p) => p.id.startsWith("module-of-the-week/")).reverse()
+  const seriesDigest = digest(series.map((p) => [p.id, p.data.title]))
 
   return sorted.map((post, index) => {
+    const seriesIndex = series.findIndex((p) => p.id === post.id)
+    if (seriesIndex >= 0) {
+      const previous = series[seriesIndex - 1]
+      const next = series[seriesIndex + 1]
+      return {
+        params: { slug: post.id },
+        props: { post },
+        cacheKey: cacheKey(post.digest, references, seriesDigest, previous?.id, next?.id),
+      }
+    }
+
     // Only the neighbours' id and title reach the rendered output, so keying on
     // those keeps a new post from invalidating all 178 pages.
     const previous = sorted[index + 1]
@@ -70,7 +84,18 @@ const avatars = import.meta.glob<{ default: ImageMetadata }>("../../assets/autho
   eager: true,
 })
 
-const sortedPosts = [...allPosts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+const isSeriesPost = post.id.startsWith("module-of-the-week/")
+const seriesPosts = isSeriesPost
+  ? allPosts
+      .filter((p) => p.id.startsWith("module-of-the-week/"))
+      .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
+  : []
+const seriesModules = seriesPosts.map((p) => ({ id: p.id, title: p.data.title }))
+const seriesPosition = seriesModules.findIndex((m) => m.id === post.id) + 1
+
+const sortedPosts = isSeriesPost
+  ? [...seriesPosts].reverse()
+  : [...allPosts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
 const currentIndex = sortedPosts.findIndex((p) => p.id === post.id)
 const prevPost =
   currentIndex >= 0 && currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : null
@@ -128,22 +153,43 @@ const shareShellClass =
         aria-label="Breadcrumb"
         class="flex flex-wrap items-center gap-x-3 gap-y-2 pt-16 pb-1 font-mono text-sm tracking-wider uppercase md:pt-24"
       >
-        <a href="/blog" class="text-muted-foreground transition-colors hover:text-foreground"
-          >Blog</a
-        >
-        <span class="text-subtle-foreground" aria-hidden="true">//</span>
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {
-            sortedTags.map((tag) => (
+        {
+          isSeriesPost ? (
+            <>
               <a
-                href={`/blog?category=${tag.id}`}
+                href="/module-of-the-week"
                 class="text-muted-foreground transition-colors hover:text-foreground"
               >
-                {tag.data.name}
+                Module of the Week
               </a>
-            ))
-          }
-        </div>
+              <span class="text-subtle-foreground" aria-hidden="true">
+                //
+              </span>
+              <span class="text-foreground tabular-nums" aria-current="page">
+                Module #{seriesPosition} of {seriesModules.length}
+              </span>
+            </>
+          ) : (
+            <>
+              <a href="/blog" class="text-muted-foreground transition-colors hover:text-foreground">
+                Blog
+              </a>
+              <span class="text-subtle-foreground" aria-hidden="true">
+                //
+              </span>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                {sortedTags.map((tag) => (
+                  <a
+                    href={`/blog?category=${tag.id}`}
+                    class="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {tag.data.name}
+                  </a>
+                ))}
+              </div>
+            </>
+          )
+        }
       </nav>
 
       <div class="grid grid-cols-1 md:grid-cols-12 md:gap-x-6">
@@ -313,6 +359,14 @@ const shareShellClass =
               />
             </p>
           </div>
+
+          {
+            isSeriesPost && (
+              <div class="mt-12">
+                <SeriesNav currentId={post.id} modules={seriesModules} />
+              </div>
+            )
+          }
 
           <PrevNextNav
             prev={prevPost ? { href: `/blog/${prevPost.id}`, label: prevPost.data.title } : null}

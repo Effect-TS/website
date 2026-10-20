@@ -52,7 +52,14 @@ export const make = Effect.gen(function* () {
         const entryId = slug.slice("blog/".length)
         const metadata = Metadata.blog[entryId]
         if (metadata !== undefined) {
-          return OpenGraphContent.Blog({ props: metadata })
+          const isMotw =
+            entryId === "module-of-the-week" ||
+            entryId.startsWith("module-of-the-week/")
+          return OpenGraphContent.Blog({
+            props: isMotw
+              ? { ...metadata, tags: ["Module of the Week"] }
+              : metadata,
+          })
         }
       }
 
