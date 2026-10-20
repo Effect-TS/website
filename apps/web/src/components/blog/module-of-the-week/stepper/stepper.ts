@@ -85,7 +85,7 @@ export function createStepper(options: {
 
   step.addEventListener("click", () => {
     if (busy || current >= last) return
-    forward()
+    void forward()
   })
   reset?.addEventListener("click", () => {
     stop()
@@ -104,7 +104,7 @@ export function createStepper(options: {
         return
       }
       render(target - 1)
-      forward()
+      void forward()
     })
   }
 

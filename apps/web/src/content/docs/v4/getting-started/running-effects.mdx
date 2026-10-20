@@ -38,7 +38,7 @@ console.log(result)
 result // => 1
 ```
 
-Use `Effect.runSync` to run an effect that does not fail and does not include any asynchronous operations. If the effect fails or involves asynchronous work, it will throw an error, and execution will stop where the failure or async operation occurs.
+Use `Effect.runSync` to run an effect that does not fail and does not include any asynchronous operations. If the effect fails, `Effect.runSync` throws the error. If the effect involves asynchronous work, `Effect.runSync` throws an `AsyncFiberError` instead of waiting for the result. The effect is not interrupted. It keeps running in the background, and its finalizers still run. To stop it, call `Fiber.interrupt` on the `fiber` field of the error.
 
 **Example** (Incorrect Usage with Failing or Async Effects)
 
@@ -100,7 +100,7 @@ Effect.runSyncExit(Effect.fail("my error")) // => Exit.fail("my error")
 
 If the effect contains asynchronous operations, `Effect.runSyncExit` will
 return an `Failure` with a `Die` cause, indicating that the effect cannot be
-resolved synchronously.
+resolved synchronously. The effect is not interrupted. It keeps running in the background.
 
 **Example** (Asynchronous Operation Resulting in Die)
 
@@ -216,7 +216,7 @@ const program = Effect.repeat(
   Schedule.spaced("200 millis"),
 )
 
-//      ┌─── RuntimeFiber<number, never>
+//      ┌─── Fiber<number, never>
 //      ▼
 const fiber = Effect.runFork(program)
 
@@ -257,6 +257,6 @@ The table provides a summary of the available `run*` functions, along with their
 | `runSyncExit`    | `Effect<A, E>` | `Exit<A, E>`          |
 | `runPromise`     | `Effect<A, E>` | `Promise<A>`          |
 | `runPromiseExit` | `Effect<A, E>` | `Promise<Exit<A, E>>` |
-| `runFork`        | `Effect<A, E>` | `RuntimeFiber<A, E>`  |
+| `runFork`        | `Effect<A, E>` | `Fiber<A, E>`         |
 
 You can find the complete list of `run*` functions [here](/docs/v4/api/effect/Effect#category-running).

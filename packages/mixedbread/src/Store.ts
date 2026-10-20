@@ -1,4 +1,4 @@
-import MixedbreadClient from "@mixedbread/sdk"
+import MixedbreadClient, { NotFoundError } from "@mixedbread/sdk"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
@@ -20,6 +20,9 @@ export const StoreMetadata = Schema.Struct({
 })
 export type StoreMetadata = typeof StoreMetadata.Type
 export type StoreMetadataEncoded = typeof StoreMetadata.Encoded
+
+// A copy normally finishes within minutes.
+const COPY_TIMEOUT = "20 minutes"
 
 export const StoreFileMetadata = Schema.Struct({
   file_hash: Schema.String,
@@ -116,6 +119,18 @@ export function makeStoreClient(options: {
     ).pipe(Stream.run(Sink.find((store) => store.name === name)))
   })
 
+  const exists = (storeId: string) =>
+    Effect.tryPromise({
+      try: () => client.stores.retrieve(storeId),
+      catch: (cause) => new UnknownError({ cause }),
+    }).pipe(
+      Effect.as(true),
+      Effect.catchIf(
+        (error) => error.cause instanceof NotFoundError,
+        () => Effect.succeed(false),
+      ),
+    )
+
   const resolve: StoreClient["resolve"] = Effect.fn("Store.resolve")(
     function* (sync) {
       const retrieve = Effect.tryPromise({
@@ -126,13 +141,38 @@ export function makeStoreClient(options: {
       // Preview stores are copied from production, and neither side of a
       // copy accepts file changes until it finishes.
       if (store.copy_state?.status === "in_progress") {
+        const copy = store.copy_state
         yield* Effect.log(
-          `Waiting for the copy involving store ${store.name} to finish`,
+          `Waiting for the copy involving store ${store.name} to finish (${copy.role} of a copy with store ${copy.peer_store_id}, started ${copy.started_at})`,
         )
-        while (store.copy_state?.status === "in_progress") {
-          yield* Effect.sleep("5 seconds")
-          store = yield* retrieve
-        }
+        const wait = Effect.gen(function* () {
+          while (store.copy_state?.status === "in_progress") {
+            // A preview deleted mid-copy leaves the source reporting the copy
+            // long after its target is gone; nothing is left to wait for.
+            if (
+              store.copy_state.role === "source" &&
+              !(yield* exists(store.copy_state.peer_store_id))
+            ) {
+              yield* Effect.logWarning(
+                `Store ${store.name} still reports a copy into deleted store ${store.copy_state.peer_store_id}; synchronizing anyway`,
+              )
+              return
+            }
+            yield* Effect.sleep("5 seconds")
+            store = yield* retrieve
+          }
+        })
+        yield* wait.pipe(
+          Effect.timeoutOrElse({
+            duration: COPY_TIMEOUT,
+            orElse: () =>
+              Effect.fail(
+                new InvalidStoreError({
+                  message: `Timed out after ${COPY_TIMEOUT} waiting for the copy involving store ${store.name} (peer ${store.copy_state?.peer_store_id}) to finish`,
+                }),
+              ),
+          }),
+        )
       }
       if (sync.kind === "preview") {
         if (store.name !== storeName(sync.pullRequest)) {

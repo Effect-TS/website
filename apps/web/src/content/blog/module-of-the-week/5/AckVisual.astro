@@ -231,7 +231,7 @@ const steps =
       return { g, x, back, place }
     }
     // Crosses the wire, or stops `until` of the way across and stays there
-    const fly = (
+    const fly = async (
       kind: "message" | "ack",
       alive: () => boolean,
       onStep?: (p: number) => void,
@@ -239,16 +239,15 @@ const steps =
     ) => {
       const env = envelope(kind)
       env.place(0)
-      return tween(
+      await tween(
         TRAVEL * until,
         (p) => {
           env.place(until * ease(p))
           onStep?.(p)
         },
         alive,
-      ).then(() => {
-        if (until === 1) env.g.remove()
-      })
+      )
+      if (until === 1) env.g.remove()
     }
     // Turns red and falls off the wire where the network loses it
     const fall = (kind: "message" | "ack", alive: () => boolean, onStep?: (p: number) => void) => {
