@@ -6,7 +6,6 @@ import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
 import { getModules } from "@/features/module-of-the-week/http"
-import SeriesNav from "@/components/blog/module-of-the-week/SeriesNav.astro"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
@@ -86,9 +85,9 @@ const avatars = import.meta.glob<{ default: ImageMetadata }>("../../assets/autho
 })
 
 const isSeriesPost = post.id.startsWith("module-of-the-week/")
-const seriesPosts = isSeriesPost ? (await getModules()).map(({ post }) => post) : []
-const seriesModules = seriesPosts.map((p) => ({ id: p.id, title: p.data.title }))
-const seriesPosition = seriesModules.findIndex((m) => m.id === post.id) + 1
+const seriesModules = isSeriesPost ? await getModules() : []
+const seriesPosts = seriesModules.map(({ post }) => post)
+const seriesPosition = seriesModules.find((m) => m.post.id === post.id)?.number
 
 const sortedPosts = isSeriesPost
   ? [...seriesPosts].reverse()
@@ -360,7 +359,35 @@ const shareShellClass =
           {
             isSeriesPost && (
               <div class="mt-12">
-                <SeriesNav currentId={post.id} modules={seriesModules} />
+                <nav
+                  aria-label="Module of the Week series"
+                  class="rounded-md border border-border bg-card/40 p-5"
+                >
+                  <Eyebrow as="p" class="text-xs">
+                    <a href="/module-of-the-week" class="transition-colors hover:text-foreground">
+                      Module of the Week
+                    </a>
+                  </Eyebrow>
+                  <ol class="mt-3 flex flex-col gap-1">
+                    {seriesModules.map(({ post: module, number, title }) => (
+                      <li>
+                        <a
+                          href={`/blog/${module.id}`}
+                          aria-current={module.id === post.id ? "page" : undefined}
+                          class:list={[
+                            "flex gap-3 rounded-md px-2 py-1.5 text-sm leading-snug transition-colors",
+                            module.id === post.id
+                              ? "bg-muted font-medium text-foreground"
+                              : "text-muted-foreground hover:text-foreground",
+                          ]}
+                        >
+                          <span class="font-mono tabular-nums">{number}</span>
+                          <span>{title}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
               </div>
             )
           }

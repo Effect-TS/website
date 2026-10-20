@@ -1,11 +1,15 @@
 ---
-import { ArrowUpRight, Rss } from "@lucide/astro"
+import { ArrowUpRight, Play, Rss } from "@lucide/astro"
 import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
-import ModuleAuthor from "@/components/module-of-the-week/ModuleAuthor.astro"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
 import PageLayout from "@/layouts/PageLayout.astro"
+import { Image } from "astro:assets"
+import DiscordLogo from "@/assets/icons/fa7-brands/discord.svg"
+import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
+import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
+import maxwell from "@/assets/authors/maxwell_brown.png"
 
 const PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLCGIHlTAijhY"
 const SUGGEST_URL = "https://discord.gg/effect-ts"
@@ -14,6 +18,53 @@ const [intro, modules] = await Promise.all([getIntro(), getLatestModules()])
 
 const buttonClass =
   "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"
+
+const DISCORD_HANDLE = "maxwellbrown"
+
+const profiles = [
+  { label: "GitHub", handle: "IMax153", href: "https://github.com/IMax153", Logo: GitHubLogo },
+  {
+    label: "X.com",
+    handle: "@maxwellbrown",
+    href: "https://x.com/maxwellbrown",
+    Logo: TwitterLogo,
+  },
+]
+
+const appearances = [
+  {
+    venue: "AWS Developers",
+    title: "Production-ready AI agents with Effect & Amazon Bedrock",
+    youtubeId: "iLa0d8WF-ng",
+    duration: "56:33",
+  },
+  {
+    venue: "devtools.fm",
+    title: "Effect.ts and Effectful Technologies",
+    youtubeId: "qYohvLtApmM",
+    duration: "55:50",
+  },
+  {
+    venue: "Effect Days 2025",
+    title: "Building Effect-ive Agents",
+    youtubeId: "pQA0fakReas",
+    duration: "32:41",
+  },
+  {
+    venue: "Effect Days 2024",
+    title: "Advanced Effect workshop",
+    youtubeId: "7jOD5okJC00",
+    duration: "2:55:35",
+  },
+]
+
+const cell =
+  "group flex flex-col justify-between gap-4 bg-background px-4 py-5 text-left transition-colors hover:bg-muted/60 lg:col-start-4 lg:px-6"
+const labelRow = "flex items-center gap-2 text-sm font-medium text-muted-foreground"
+const value = "flex items-center justify-between gap-2 font-mono text-sm text-foreground"
+const arrow =
+  "size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+const micro = "font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
 ---
 
 <PageLayout
@@ -102,5 +153,158 @@ const buttonClass =
 
   <div class="h-px w-full bg-border"></div>
 
-  <ModuleAuthor />
+  <section aria-label="Behind the series" class="relative py-24 md:pt-32">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <Eyebrow as="h2" class="mb-3">// Behind the series</Eyebrow>
+
+      <div
+        class="mt-6 grid grid-cols-6 gap-px border border-border bg-border lg:grid-cols-4 lg:grid-rows-3"
+      >
+        <div class="col-span-2 self-start bg-background lg:col-span-1 lg:row-span-3">
+          <Image
+            src={maxwell}
+            alt="Maxwell Brown"
+            widths={[240, 480]}
+            sizes="(min-width: 1024px) 280px, 33vw"
+            class="block aspect-4/5 w-full object-cover opacity-80"
+          />
+        </div>
+
+        <div
+          class="col-span-4 flex items-end bg-background p-4 lg:col-span-2 lg:items-start lg:px-6 lg:py-5"
+        >
+          <div>
+            <h3 class="text-lg leading-tight font-bold tracking-tight text-foreground lg:text-2xl">
+              Maxwell Brown
+            </h3>
+            <p class="mt-1 text-sm font-semibold text-foreground lg:mt-2 lg:text-base">
+              Founding Engineer
+              <span class="font-normal text-muted-foreground"> at Effectful Technologies</span>
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="col-span-6 flex flex-col justify-end bg-background p-4 lg:col-span-2 lg:row-span-2 lg:p-6 lg:pr-10"
+        >
+          <div
+            class="max-w-xl space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base"
+          >
+            <p>
+              Maxwell is a core contributor to Effect, with work across Effect Cluster, the Effect
+              CLI, and Effect AI, and runs Effect Office Hours.
+            </p>
+            <p>
+              In this series, each module is written up as a blog post first, then walked through
+              live at Office Hours, before it's cut into a standalone video.
+            </p>
+          </div>
+        </div>
+
+        {
+          profiles.map(({ label, handle, href, Logo }, index) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class:list={[
+                cell,
+                "col-span-6 sm:col-span-2 lg:col-span-1",
+                index === 0 ? "lg:row-start-1" : "lg:row-start-2",
+              ]}
+            >
+              <span class={labelRow}>
+                <Logo class="size-4" aria-hidden="true" />
+                {label}
+              </span>
+              <span class={value}>
+                <span class="truncate">{handle}</span>
+                <ArrowUpRight class={arrow} aria-hidden="true" />
+              </span>
+            </a>
+          ))
+        }
+        <button
+          type="button"
+          data-copy-handle={DISCORD_HANDLE}
+          aria-label={`Copy Maxwell Brown's Discord handle, ${DISCORD_HANDLE}`}
+          class:list={[
+            cell,
+            "col-span-6 cursor-pointer sm:col-span-2 lg:col-span-1 lg:row-start-3",
+          ]}
+        >
+          <span class={labelRow}>
+            <DiscordLogo class="size-4" aria-hidden="true" />
+            Discord
+          </span>
+          <span class={value}>
+            <span class="truncate">@{DISCORD_HANDLE}</span>
+            <span
+              data-copy-state
+              aria-live="polite"
+              class="font-mono text-xs text-muted-foreground uppercase transition-colors group-hover:text-foreground"
+            >
+              Copy
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <div
+        class="flex items-center justify-between gap-4 border border-t-0 border-border bg-background px-4 py-2.5"
+      >
+        <h3 class={micro}>// Talks & appearances</h3>
+      </div>
+      <ul
+        class="grid grid-cols-1 gap-px border border-t-0 border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {
+          appearances.map((item) => (
+            <li class="bg-background">
+              <a
+                href={`https://www.youtube.com/watch?v=${item.youtubeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group flex h-full flex-col p-4 no-underline transition-colors hover:bg-muted/60 hover:no-underline"
+              >
+                <span class={micro}>{item.venue}</span>
+                <span class="mt-2 text-base leading-snug font-semibold text-balance text-foreground">
+                  {item.title}
+                </span>
+                <div class="mt-auto pt-6">
+                  <div class="relative aspect-video overflow-hidden border border-border">
+                    <img
+                      src={`https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg`}
+                      alt=""
+                      loading="lazy"
+                      class="h-full w-full object-cover opacity-50 grayscale transition duration-300 group-hover:scale-[1.02] group-hover:opacity-100 group-hover:grayscale-0"
+                    />
+                    <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums">
+                      <Play class="size-3 fill-current" aria-hidden="true" />
+                      {item.duration}
+                    </span>
+                  </div>
+                </div>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
 </PageLayout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy-handle]").forEach((button) => {
+    const state = button.querySelector<HTMLElement>("[data-copy-state]")
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copyHandle ?? "")
+        if (state) state.textContent = "Copied"
+        setTimeout(() => {
+          if (state) state.textContent = "Copy"
+        }, 1600)
+      } catch {}
+    })
+  })
+</script>
