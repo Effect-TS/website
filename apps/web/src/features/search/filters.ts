@@ -2,7 +2,7 @@ import type {
   SearchFilter,
   SearchFilterCondition,
 } from "@mixedbread/sdk/resources/shared"
-import type { DocsVersion } from "@/lib/versions"
+import { DOCS_VERSIONS, type DocsVersion } from "@/lib/versions"
 import { SEARCH_GROUPS, type SearchGroup } from "./domain"
 
 /** The only version with indexed changelogs. */
@@ -35,7 +35,22 @@ const groupFilter = (
         : eq("api_version", version)
     }
     case "blog": {
-      return eq("generated_metadata.search.content_source", "blog")
+      // Posts without a version stay visible in both.
+      const blog = eq("generated_metadata.search.content_source", "blog")
+      return version === undefined
+        ? blog
+        : {
+            all: [
+              blog,
+              {
+                none: DOCS_VERSIONS.filter(
+                  (other) => other.value !== version,
+                ).map((other) =>
+                  eq("generated_metadata.search.version", other.value),
+                ),
+              },
+            ],
+          }
     }
     case "changelog": {
       if (version !== undefined && version !== CHANGELOG_VERSION) {

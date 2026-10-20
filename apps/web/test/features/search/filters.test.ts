@@ -7,6 +7,17 @@ const eq = (key: string, value: string) => ({
   value,
 })
 
+const blog = (version: "v3" | "v4") => ({
+  all: [
+    eq("generated_metadata.search.content_source", "blog"),
+    {
+      none: [
+        eq("generated_metadata.search.version", version === "v4" ? "v3" : "v4"),
+      ],
+    },
+  ],
+})
+
 describe("searchFilter", () => {
   test("leaves a search for every group and version unfiltered", () => {
     assert.strictEqual(searchFilter({}), undefined)
@@ -18,7 +29,7 @@ describe("searchFilter", () => {
       any: [
         eq("generated_metadata.search.docs_version", "v4"),
         eq("api_version", "v4"),
-        eq("generated_metadata.search.content_source", "blog"),
+        blog("v4"),
         eq("content_source", "changelog"),
       ],
     })
@@ -29,7 +40,7 @@ describe("searchFilter", () => {
       any: [
         eq("generated_metadata.search.docs_version", "v3"),
         eq("api_version", "v3"),
-        eq("generated_metadata.search.content_source", "blog"),
+        blog("v3"),
       ],
     })
   })
@@ -42,11 +53,15 @@ describe("searchFilter", () => {
     assert.deepStrictEqual(
       searchFilter({ version: "v4", groups: ["blog", "documentation"] }),
       {
-        any: [
-          eq("generated_metadata.search.docs_version", "v4"),
-          eq("generated_metadata.search.content_source", "blog"),
-        ],
+        any: [eq("generated_metadata.search.docs_version", "v4"), blog("v4")],
       },
+    )
+  })
+
+  test("keeps blog posts without a version in every version", () => {
+    assert.deepStrictEqual(
+      searchFilter({ version: "v4", groups: ["blog"] }),
+      blog("v4"),
     )
   })
 

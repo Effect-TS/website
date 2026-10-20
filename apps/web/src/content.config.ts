@@ -45,6 +45,7 @@ const blog = defineCollection({
       featured: z.boolean().optional().default(false),
       featuredImage: image().optional(),
       packageName: z.string().min(1).optional(),
+      version: z.enum(["v3", "v4"]).optional(),
     }),
 })
 

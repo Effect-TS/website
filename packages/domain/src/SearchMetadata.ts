@@ -26,6 +26,8 @@ export type DocumentationStagedSearchMetadata =
 export const BlogStagedSearchMetadata = Schema.Struct({
   schema_version: Schema.Literal(1),
   content_source: Schema.Literal("blog"),
+  // Set on posts about one docs version. Search hides them from the other.
+  version: Schema.optional(Schema.Literals(["v3", "v4"])),
   page_href: Schema.String,
   page_title: Schema.String,
   description: Schema.String,
