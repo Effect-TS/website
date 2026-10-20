@@ -4,6 +4,12 @@ import * as Data from "effect/Data"
 export const INTRO_ID = "module-of-the-week"
 export const MODULE_PREFIX = `${INTRO_ID}/`
 
+/** RSS feed of the series, for `<link rel="alternate">` autodiscovery. */
+export const MODULE_FEED = {
+  title: "Effect Module of the Week",
+  href: "/module-of-the-week/rss.xml",
+} as const
+
 export type ModulePost = CollectionEntry<"blog">
 
 export interface Module {

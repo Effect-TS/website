@@ -12,15 +12,17 @@ interface Props {
   readonly description?: string | undefined
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly themeable?: boolean | undefined
+  readonly feed?: { readonly title: string; readonly href: string } | undefined
 }
 
-const { title, description, activeSlug, themeable = false } = Astro.props
+const { title, description, activeSlug, themeable = false, feed } = Astro.props
 ---
 
 <BaseLayout
   {...title ? { title } : undefined}
   {...description ? { description } : undefined}
   {...!themeable ? { forceDark: true } : undefined}
+  {...feed ? { feed } : undefined}
 >
   <div class="relative min-h-screen bg-background text-foreground antialiased">
     <DitheredOverlay />

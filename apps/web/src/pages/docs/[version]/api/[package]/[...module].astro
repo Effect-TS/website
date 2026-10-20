@@ -51,7 +51,7 @@ export const getStaticPaths = (async () => {
 const { entry } = Astro.props
 const allEntries = await getCollection("apiReference")
 const reflection = await ApiReference.loadReflection(entry.data)
-const motwId = motwForApiModule(entry.data.modulePath)
+const motwId = entry.data.version === "v4" ? motwForApiModule(entry.data.modulePath) : undefined
 const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
 const displayName = entry.data.packageName.replace("@effect/", "")
 const openGraph = resolveApiReferenceOpenGraph(
