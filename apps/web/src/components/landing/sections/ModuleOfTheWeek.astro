@@ -2,66 +2,63 @@
 import { ArrowRight, ArrowUpRight, FileText } from "@lucide/astro"
 import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
-import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
 import { getLatestModules } from "@/features/module-of-the-week/http"
 
 const [latest, ...others] = await getLatestModules()
 const linkClass =
-  "group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
+  "group inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 no-underline transition-colors hover:text-white hover:no-underline"
 ---
 
 {
   latest !== undefined && (
-    <section id="module-of-the-week" class="relative w-full py-24">
+    <section id="module-of-the-week" class="relative w-full py-24 md:pt-40 md:pb-24">
       <div class="mx-auto w-full max-w-295 px-4">
-        <div class="mb-12 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <Eyebrow class="mb-3">// Module of the Week</Eyebrow>
-            <h2 class="max-w-2xl text-2xl leading-tighter font-semibold text-foreground md:text-3xl">
-              One Effect module, every week
-            </h2>
-          </div>
+        <div class="mb-12">
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            // Module of the Week
+          </p>
+          <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+            One Effect module, every week
+          </h2>
+          <p class="mt-5 max-w-lg text-lg leading-relaxed text-zinc-400">
+            Each module starts as a blog post, gets walked through live at Effect Office Hours, and
+            ends up as a standalone video.
+          </p>
           <a
             href="/module-of-the-week"
-            class="group inline-flex items-center gap-2 font-mono text-sm text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
+            class="mt-6 inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-white no-underline transition-colors hover:border-zinc-500 hover:bg-zinc-800 hover:no-underline"
           >
-            All modules
-            <ArrowRight
-              class="size-4 transition-transform group-hover:translate-x-1"
-              aria-hidden="true"
-            />
+            <span>All modules</span>
+            <ArrowRight class="size-4" aria-hidden="true" />
           </a>
         </div>
         <div class="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
           <ModuleCard
             post={latest.post}
             entry={latest.number}
-            latest
             layout="stacked"
             class="lg:col-span-7"
           />
           <ol class="flex flex-col lg:col-span-5">
             {others.slice(0, 6).map(({ post, number, title }) => (
-              <li class="border-t border-border first:border-t-0 first:pt-0 py-5 first:lg:pt-0">
+              <li class="border-t border-zinc-800 first:border-t-0 py-5 first:pt-0 first:lg:pt-3">
                 <div class="flex items-center gap-2 font-mono text-xs">
-                  <span class="font-medium text-foreground tabular-nums">
+                  <span class="font-medium text-white tabular-nums">
                     {String(number).padStart(2, "0")}
                   </span>
                   {post.data.packageName && (
                     <>
-                      <span aria-hidden="true" class="h-3 w-px bg-border-strong" />
-                      <span class="truncate text-muted-foreground">
-                        from "{post.data.packageName}"
-                      </span>
+                      <span aria-hidden="true" class="h-3 w-px bg-zinc-700" />
+                      <span class="truncate text-zinc-400">from "{post.data.packageName}"</span>
                     </>
                   )}
                   <FormattedDate
                     date={post.data.date}
-                    className="ml-auto shrink-0 text-muted-foreground tabular-nums"
+                    className="ml-auto shrink-0 text-zinc-400 tabular-nums"
                   />
                 </div>
-                <h3 class="mt-2 text-lg leading-snug font-semibold text-foreground">{title}</h3>
+                <h3 class="mt-2 text-lg leading-snug font-semibold text-white">{title}</h3>
                 <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                   {post.data.video && (
                     <a

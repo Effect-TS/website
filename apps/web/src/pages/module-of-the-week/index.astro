@@ -1,5 +1,5 @@
 ---
-import { ArrowUpRight, Play, Rss } from "@lucide/astro"
+import { ArrowUpRight, FileText, Rss } from "@lucide/astro"
 import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
@@ -36,25 +36,55 @@ const appearances = [
     venue: "AWS Developers",
     title: "Production-ready AI agents with Effect & Amazon Bedrock",
     youtubeId: "iLa0d8WF-ng",
-    duration: "56:33",
   },
   {
     venue: "devtools.fm",
     title: "Effect.ts and Effectful Technologies",
     youtubeId: "qYohvLtApmM",
-    duration: "55:50",
   },
   {
     venue: "Effect Days 2025",
     title: "Building Effect-ive Agents",
     youtubeId: "pQA0fakReas",
-    duration: "32:41",
   },
   {
     venue: "Effect Days 2024",
     title: "Advanced Effect workshop",
     youtubeId: "7jOD5okJC00",
-    duration: "2:55:35",
+  },
+]
+
+const CHANNEL_SUBSCRIBE_URL =
+  "https://www.youtube.com/channel/UC8wNHsXmEuoikbwRdLeoJQg?sub_confirmation=1"
+
+const followLinks = [
+  {
+    label: "Office Hours",
+    action: "Subscribe on YouTube",
+    href: CHANNEL_SUBSCRIBE_URL,
+    external: true,
+    Icon: YouTubeLogo,
+  },
+  {
+    label: "Discord community",
+    action: "Join the conversation",
+    href: SUGGEST_URL,
+    external: true,
+    Icon: DiscordLogo,
+  },
+  {
+    label: "Blog",
+    action: "Read every post",
+    href: "/blog?category=module-of-the-week#blog-grid",
+    external: false,
+    Icon: FileText,
+  },
+  {
+    label: "RSS",
+    action: "Subscribe to the feed",
+    href: "/module-of-the-week/rss.xml",
+    external: false,
+    Icon: Rss,
   },
 ]
 
@@ -83,18 +113,32 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
 
     <div class="relative mx-auto w-full max-w-295 px-4 pt-16 pb-16 md:pt-24 md:pb-20">
       <Eyebrow class="mb-3">// Module of the Week</Eyebrow>
-      <h1 class="text-3xl leading-tighter font-bold tracking-tight text-foreground md:text-4xl">
-        One Effect module, every week
+      <h1
+        class="text-3xl leading-tighter font-bold tracking-tight text-balance text-foreground md:text-4xl"
+      >
+        The lesser-known parts of <br class="hidden sm:inline" />
+        Effect. {"By\u00a0Maxwell\u00a0Brown."}
       </h1>
       <p class="mt-4 max-w-2xl text-lg text-muted-foreground">
-        The lesser-known parts of Effect, by Maxwell Brown.
+        Each module starts as a blog post, gets walked through live at{" "}
+        {"Effect\u00a0Office\u00a0Hours"}, and ends up as a standalone video.
       </p>
       <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a
+          href="/blog?category=module-of-the-week#blog-grid"
+          class:list={[buttonClass, "bg-foreground text-background hover:bg-foreground/90"]}
+        >
+          <FileText class="size-4" aria-hidden="true" />
+          View all blog posts
+        </a>
         <a
           href={PLAYLIST_URL}
           target="_blank"
           rel="noopener noreferrer"
-          class:list={[buttonClass, "bg-foreground text-background hover:bg-foreground/90"]}
+          class:list={[
+            buttonClass,
+            "border border-border-strong text-foreground hover:border-muted-foreground hover:bg-muted",
+          ]}
         >
           <YouTubeLogo class="size-4" aria-hidden="true" />
           Watch the playlist
@@ -134,16 +178,16 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
     <div class="mx-auto w-full max-w-295 px-4">
       <ul class="mt-16 flex flex-col gap-6 md:mt-20">
         {
-          modules.map(({ post, number }, index) => (
+          modules.map(({ post, number }) => (
             <li>
-              <ModuleCard post={post} entry={number} latest={index === 0} />
+              <ModuleCard post={post} entry={number} />
             </li>
           ))
         }
         {
           intro && (
             <li>
-              <ModuleCard post={intro} label="Start here" />
+              <ModuleCard post={intro} label="Intro" />
             </li>
           )
         }
@@ -193,10 +237,6 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
             <p>
               Maxwell is a core contributor to Effect, with work across Effect Cluster, the Effect
               CLI, and Effect AI, and runs Effect Office Hours.
-            </p>
-            <p>
-              In this series, each module is written up as a blog post first, then walked through
-              live at Office Hours, before it's cut into a standalone video.
             </p>
           </div>
         </div>
@@ -255,9 +295,7 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
       >
         <h3 class={micro}>// Talks & appearances</h3>
       </div>
-      <ul
-        class="grid grid-cols-1 gap-px border border-t-0 border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
-      >
+      <ul class="grid grid-cols-1 gap-px border border-t-0 border-border bg-border md:grid-cols-2">
         {
           appearances.map((item) => (
             <li class="bg-background">
@@ -265,26 +303,58 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
                 href={`https://www.youtube.com/watch?v=${item.youtubeId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="group flex h-full flex-col p-4 no-underline transition-colors hover:bg-muted/60 hover:no-underline"
+                class="group flex h-full items-center gap-4 p-4 no-underline transition-colors hover:bg-muted/60 hover:no-underline"
               >
-                <span class={micro}>{item.venue}</span>
-                <span class="mt-2 text-base leading-snug font-semibold text-balance text-foreground">
-                  {item.title}
-                </span>
-                <div class="mt-auto pt-6">
-                  <div class="relative aspect-video overflow-hidden border border-border">
-                    <img
-                      src={`https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg`}
-                      alt=""
-                      loading="lazy"
-                      class="h-full w-full object-cover opacity-50 grayscale transition duration-300 group-hover:scale-[1.02] group-hover:opacity-100 group-hover:grayscale-0"
-                    />
-                    <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums">
-                      <Play class="size-3 fill-current" aria-hidden="true" />
-                      {item.duration}
-                    </span>
-                  </div>
+                <div class="relative aspect-video w-28 shrink-0 overflow-hidden border border-border sm:w-36">
+                  <img
+                    src={`https://i.ytimg.com/vi/${item.youtubeId}/maxresdefault.jpg`}
+                    alt=""
+                    loading="lazy"
+                    class="h-full w-full object-cover opacity-50 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0"
+                  />
                 </div>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <span class={micro}>{item.venue}</span>
+                  <span class="text-sm leading-snug font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                    {item.title}
+                  </span>
+                </div>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <div class="h-px w-full bg-border"></div>
+
+  <section aria-labelledby="follow-title" class="relative py-24 md:pt-32">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <Eyebrow class="mb-3">// Follow the series</Eyebrow>
+      <h2 id="follow-title" class="text-2xl leading-tighter font-bold text-foreground md:text-3xl">
+        Never miss a module
+      </h2>
+      <ul
+        class="mt-10 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {
+          followLinks.map(({ label, action, href, external, Icon }) => (
+            <li class="bg-background">
+              <a
+                href={href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+                class="group flex h-full flex-col justify-between gap-6 px-4 py-5 no-underline transition-colors hover:bg-muted/60 hover:no-underline lg:px-6"
+              >
+                <span class={labelRow}>
+                  <Icon class="size-4" aria-hidden="true" />
+                  {label}
+                </span>
+                <span class="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
+                  {action}
+                  <ArrowUpRight class={arrow} aria-hidden="true" />
+                </span>
               </a>
             </li>
           ))

@@ -12,7 +12,6 @@ export const NAVIGATION_EVENTS = {
 interface NavigationLinkBase {
   readonly id: string
   readonly label: string
-  readonly shortLabel?: string
   readonly group: NavigationGroup
   readonly surfaces: ReadonlyArray<NavigationSurface>
   readonly icon?: "discord" | "github" | "twitter"
@@ -72,7 +71,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     id: "motw",
     kind: "internal",
     label: "Module of the Week",
-    shortLabel: "MotW",
     href: "/module-of-the-week",
     group: "primary",
     surfaces: ["desktop", "mobile"],
