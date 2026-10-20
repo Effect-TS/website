@@ -1,11 +1,14 @@
 import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import * as ManagedRuntime from "effect/ManagedRuntime"
 import * as Option from "effect/Option"
+import * as AstroContent from "./astro-content"
 import type { ModuleContentError, ModuleNotFound } from "./domain"
-import { layer } from "./live"
 import { Modules } from "./service"
 
-const runtime = ManagedRuntime.make(layer)
+const runtime = ManagedRuntime.make(
+  Modules.layer.pipe(Layer.provide(AstroContent.layer)),
+)
 
 const run = <A>(
   effect: Effect.Effect<A, ModuleContentError | ModuleNotFound, Modules>,
