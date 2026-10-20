@@ -57,6 +57,7 @@ import {
   type BlogSearchResult,
   type ChangelogSearchResult,
   type DocumentationSearchResult,
+  type SearchGroup,
 } from "@/features/search/domain"
 import {
   addRecentSearch,
@@ -184,10 +185,6 @@ const isGroupAvailable = (group: SearchResultGroup, version: DocsVersion) =>
   )
 const MAX_GROUP_RESULTS = 5
 
-type SearchResultsView =
-  | { readonly _tag: "Grouped" }
-  | { readonly _tag: "Section"; readonly section: SearchResult["kind"] }
-
 const searchFailure = (
   cause: Cause.Cause<SearchError>,
 ): {
@@ -219,9 +216,25 @@ const searchFailure = (
   return { reason: "http", httpStatus: 500 }
 }
 
-const searchRequestAtom = Atom.family((query: string) => {
+// A search is keyed by version, result groups and query, one per line.
+const searchRequestKey = (
+  query: string,
+  version: DocsVersion,
+  groups: ReadonlyArray<SearchGroup>,
+) => `${version}\n${groups.join(",")}\n${query}`
+
+const searchRequestAtom = Atom.family((key: string) => {
+  const firstBreak = key.indexOf("\n")
+  const secondBreak = key.indexOf("\n", firstBreak + 1)
+  const version = key.slice(0, firstBreak)
+  const groups = key.slice(firstBreak + 1, secondBreak)
+  const query = key.slice(secondBreak + 1)
   const requestAtom = SearchClient.query("search", "search", {
-    query: { query },
+    query: {
+      query,
+      ...(isDocsVersion(version) ? { version } : {}),
+      ...(groups === "" ? {} : { groups }),
+    },
   })
   let startedAt: number | undefined
 
@@ -245,7 +258,10 @@ const searchRequestAtom = Atom.family((query: string) => {
       }
     }
     return result
-  })
+  }).pipe(
+    // Going back from a filtered search finds the earlier results still there.
+    Atom.setIdleTTL("1 minute"),
+  )
 })
 
 export const allSearchResultsAtom = Atom.make((get) => {
@@ -286,7 +302,35 @@ export const allSearchResultsAtom = Atom.make((get) => {
     version: get(selectedVersionAtom),
   })
 
-  return get(searchRequestAtom(query))
+  return get(
+    searchRequestAtom(
+      searchRequestKey(query, get(selectedVersionAtom), get(activeGroupsAtom)),
+    ),
+  )
+})
+
+// Results in the other version, looked up only when the selected one is empty.
+const alternateVersionResultCountAtom = Atom.make((get) => {
+  const version = get(selectedVersionAtom)
+  const query = get(debouncedSearchQueryAtom)
+  if (
+    query.trim().length === 0 ||
+    !AsyncResult.isSuccess(get(allSearchResultsAtom)) ||
+    get(searchResultsAtom).length > 0
+  ) {
+    return Option.none<number>()
+  }
+  const alternate: DocsVersion = version === "v4" ? "v3" : "v4"
+  return Option.fromNullOr(
+    AsyncResult.getOrElse(
+      get(
+        searchRequestAtom(
+          searchRequestKey(query, alternate, get(activeGroupsAtom)),
+        ),
+      ).pipe(AsyncResult.map((results) => results.length)),
+      () => null,
+    ),
+  )
 })
 
 // Changelog results re-queried for one package, keyed `<slug>:<query>`.
@@ -660,7 +704,6 @@ function SearchVersionMenu() {
 }
 
 function SearchGroupFilters() {
-  const versionResults = useAtomValue(versionResultsAtom)
   const version = useAtomValue(selectedVersionAtom)
   const selectedGroups = useAtomValue(activeGroupsAtom)
   const setSelectedGroups = useAtomSet(selectedGroupsAtom)
@@ -686,25 +729,17 @@ function SearchGroupFilters() {
       >
         {SEARCH_RESULT_GROUPS.filter((group) =>
           isGroupAvailable(group.value, version),
-        ).map((group) => {
-          const count = versionResults.filter(
-            (result) => result.kind === group.value,
-          ).length
-          return (
-            <ToggleGroupItem
-              key={group.value}
-              value={group.value}
-              tabIndex={0}
-              aria-label={`Filter by ${group.label}`}
-              className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-200 bg-transparent px-2 py-0.5 text-center font-mono text-xs font-medium tracking-normal text-zinc-600 normal-case shadow-none hover:bg-zinc-100 hover:text-zinc-900 data-pressed:bg-zinc-900 data-pressed:text-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:data-pressed:bg-zinc-100 dark:data-pressed:text-zinc-950"
-            >
-              <span>in:{group.label}</span>
-              <span className="text-zinc-400 tabular-nums dark:text-zinc-500">
-                {count}
-              </span>
-            </ToggleGroupItem>
-          )
-        })}
+        ).map((group) => (
+          <ToggleGroupItem
+            key={group.value}
+            value={group.value}
+            tabIndex={0}
+            aria-label={`Filter by ${group.label}`}
+            className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-200 bg-transparent px-2 py-0.5 text-center font-mono text-xs font-medium tracking-normal text-zinc-600 normal-case shadow-none hover:bg-zinc-100 hover:text-zinc-900 data-pressed:bg-zinc-900 data-pressed:text-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:data-pressed:bg-zinc-100 dark:data-pressed:text-zinc-950"
+          >
+            in:{group.label}
+          </ToggleGroupItem>
+        ))}
       </ToggleGroup>
     </div>
   )
@@ -925,27 +960,32 @@ function SearchFailure() {
 }
 
 function SearchResultsView() {
-  const [view, setView] = React.useState<SearchResultsView>({ _tag: "Grouped" })
+  const selectedGroups = useAtomValue(activeGroupsAtom)
+  const setSelectedGroups = useAtomSet(selectedGroupsAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
 
-  const showSection = (section: SearchResult["kind"]) => {
-    SearchAnalytics.viewAll(section)
-    setView({ _tag: "Section", section })
-    scrollResultsToTop()
-  }
-
-  const showGroupedResults = () => {
-    setView({ _tag: "Grouped" })
-    scrollResultsToTop()
-  }
-
-  if (view._tag === "Section") {
+  const [section] = selectedGroups.length === 1 ? selectedGroups : []
+  if (section !== undefined) {
     return (
-      <SearchResultsDetail section={view.section} onBack={showGroupedResults} />
+      <SearchResultsDetail
+        section={section}
+        onBack={() => {
+          setSelectedGroups([])
+          scrollResultsToTop()
+        }}
+      />
     )
   }
 
-  return <SearchResultsOverview onViewSection={showSection} />
+  return (
+    <SearchResultsOverview
+      onViewSection={(group) => {
+        SearchAnalytics.viewAll(group)
+        setSelectedGroups([group])
+        scrollResultsToTop()
+      }}
+    />
+  )
 }
 
 function SearchResultsDetail({
@@ -1036,21 +1076,14 @@ function SearchEmptyState() {
   const query = useAtomValue(searchQueryAtom)
   const version = useAtomValue(selectedVersionAtom)
   const selectedGroups = useAtomValue(activeGroupsAtom)
-  const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setVersion = useAtomSet(selectedVersionAtom)
   const clearSelectedGroups = useAtomSet(clearSelectedGroupsAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
-  const allResults = AsyncResult.getOrElse(
-    allSearchResults,
-    (): Array<SearchResult> => [],
+  const alternateVersionResultCount = Option.getOrElse(
+    useAtomValue(alternateVersionResultCountAtom),
+    () => 0,
   )
   const alternateVersion: DocsVersion = version === "v4" ? "v3" : "v4"
-  const alternateVersionResultCount = allResults.filter(
-    (result) =>
-      result.kind !== "blog" &&
-      result.version.toLowerCase() === alternateVersion &&
-      (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
-  ).length
   const noResultsAcrossVersions = alternateVersionResultCount === 0
 
   return (
@@ -1102,22 +1135,10 @@ function SearchEmptyState() {
 
 function AlternateVersionResults() {
   const version = useAtomValue(selectedVersionAtom)
-  const selectedGroups = useAtomValue(activeGroupsAtom)
-  const allSearchResults = useAtomValue(allSearchResultsAtom)
   const setVersion = useAtomSet(selectedVersionAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
-  const allResults = AsyncResult.getOrElse(
-    allSearchResults,
-    (): Array<SearchResult> => [],
-  )
-  const v3ResultCount = allResults.filter(
-    (result) =>
-      result.kind !== "blog" &&
-      result.version.toLowerCase() === "v3" &&
-      (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
-  ).length
 
-  if (version !== "v4" || v3ResultCount === 0) return null
+  if (version !== "v4") return null
 
   return (
     <div className="border-t border-zinc-200 pt-4 text-center dark:border-zinc-800">
@@ -1130,8 +1151,7 @@ function AlternateVersionResults() {
           scrollResultsToTop()
         }}
       >
-        <span className="tabular-nums">{v3ResultCount}</span> more
-        {v3ResultCount === 1 ? " result" : " results"} in v3
+        Search in v3
         <ChevronRight className="size-3.5" />
       </button>
     </div>

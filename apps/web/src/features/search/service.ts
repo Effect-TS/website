@@ -7,7 +7,9 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
-import { SearchError, StoreSearchResponse } from "./domain"
+import type { DocsVersion } from "@/lib/versions"
+import { type SearchGroup, SearchError, StoreSearchResponse } from "./domain"
+import { searchFilter } from "./filters"
 import { groupSearchResults } from "./grouping"
 
 export class Search extends Context.Service<Search>()("app/Search", {
@@ -19,36 +21,25 @@ export class Search extends Context.Service<Search>()("app/Search", {
 
     const decodeSearchResponse = Schema.decodeUnknownEffect(StoreSearchResponse)
 
-    const search = Effect.fn("Search.search")(function* (
-      query: string,
-      packageSlug?: string,
-    ) {
+    const search = Effect.fn("Search.search")(function* (options: {
+      readonly query: string
+      readonly version?: DocsVersion | undefined
+      readonly groups?: ReadonlyArray<SearchGroup> | undefined
+      readonly packageSlug?: string | undefined
+    }) {
+      const filters = searchFilter(options)
+      // No group has content for this version, so there is nothing to ask for.
+      if (filters === null) return []
+
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
             {
-              query,
+              query: options.query,
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
               store_identifiers: [Redacted.value(storeId)],
-              ...(packageSlug === undefined
-                ? {}
-                : {
-                    filters: {
-                      all: [
-                        {
-                          key: "content_source",
-                          operator: "eq",
-                          value: "changelog",
-                        },
-                        {
-                          key: "package_slug",
-                          operator: "eq",
-                          value: packageSlug,
-                        },
-                      ],
-                    },
-                  }),
+              ...(filters === undefined ? {} : { filters }),
             },
             { signal },
           ),

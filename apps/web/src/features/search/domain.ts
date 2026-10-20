@@ -212,6 +212,16 @@ export const SearchResult = Schema.Union([
 ])
 export type SearchResult = typeof SearchResult.Type
 
+export const SEARCH_GROUPS = [
+  "documentation",
+  "api-reference",
+  "blog",
+  "changelog",
+] as const
+export const SearchGroup = Schema.Literals(SEARCH_GROUPS)
+export type SearchGroup = typeof SearchGroup.Type
+export const isSearchGroup = Schema.is(SearchGroup)
+
 export class SearchError extends Schema.TaggedError<SearchError>()(
   "SearchError",
   { cause: Schema.Defect() },
