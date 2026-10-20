@@ -1,25 +1,16 @@
 ---
 import { ArrowUpRight, Rss } from "@lucide/astro"
-import { getCollection } from "astro:content"
 import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleAuthor from "@/components/module-of-the-week/ModuleAuthor.astro"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
 import PageLayout from "@/layouts/PageLayout.astro"
 
 const PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLCGIHlTAijhY"
 const SUGGEST_URL = "https://discord.gg/effect-ts"
 
-const entries = (await getCollection("blog")).filter((post) =>
-  post.data.tags.some((tag) => tag.id === "module-of-the-week"),
-)
-
-const intro = entries.find((post) => post.id === "module-of-the-week")
-const modules = entries
-  .filter((post) => post.id !== "module-of-the-week")
-  .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
-  .map((post, index) => ({ post, number: index + 1 }))
-  .reverse()
+const [intro, modules] = await Promise.all([getIntro(), getLatestModules()])
 
 const buttonClass =
   "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"

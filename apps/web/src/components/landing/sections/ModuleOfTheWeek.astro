@@ -1,24 +1,12 @@
 ---
 import { ArrowRight, ArrowUpRight, FileText } from "@lucide/astro"
-import { getCollection } from "astro:content"
 import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
+import { getLatestModules } from "@/features/module-of-the-week/http"
 
-const modules = (await getCollection("blog"))
-  .filter(
-    (post) =>
-      post.data.tags.some((tag) => tag.id === "module-of-the-week") &&
-      post.filePath?.startsWith("src/content/blog/module-of-the-week/") &&
-      post.filePath.endsWith("/index.mdx"),
-  )
-  .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
-  .map((post, index) => ({ post, number: index + 1 }))
-  .reverse()
-
-const [latest, ...others] = modules
-const shortTitle = (title: string) => title.replace(/^Module of the Week\s*-\s*/, "")
+const [latest, ...others] = await getLatestModules()
 const linkClass =
   "group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
 ---
@@ -54,7 +42,7 @@ const linkClass =
             class="lg:col-span-7"
           />
           <ol class="flex flex-col lg:col-span-5">
-            {others.slice(0, 6).map(({ post, number }) => (
+            {others.slice(0, 6).map(({ post, number, title }) => (
               <li class="border-t border-border first:border-t-0 first:pt-0 py-5 first:lg:pt-0">
                 <div class="flex items-center gap-2 font-mono text-xs">
                   <span class="font-medium text-foreground tabular-nums">
@@ -73,9 +61,7 @@ const linkClass =
                     className="ml-auto shrink-0 text-muted-foreground tabular-nums"
                   />
                 </div>
-                <h3 class="mt-2 text-lg leading-snug font-semibold text-foreground">
-                  {shortTitle(post.data.title)}
-                </h3>
+                <h3 class="mt-2 text-lg leading-snug font-semibold text-foreground">{title}</h3>
                 <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
                   {post.data.video && (
                     <a

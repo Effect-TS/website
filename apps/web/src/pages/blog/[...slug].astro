@@ -5,6 +5,7 @@ import { ArrowRightIcon, ArrowUpRightIcon } from "@lucide/astro"
 import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
+import { getModules } from "@/features/module-of-the-week/http"
 import SeriesNav from "@/components/blog/module-of-the-week/SeriesNav.astro"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
@@ -85,11 +86,7 @@ const avatars = import.meta.glob<{ default: ImageMetadata }>("../../assets/autho
 })
 
 const isSeriesPost = post.id.startsWith("module-of-the-week/")
-const seriesPosts = isSeriesPost
-  ? allPosts
-      .filter((p) => p.id.startsWith("module-of-the-week/"))
-      .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
-  : []
+const seriesPosts = isSeriesPost ? (await getModules()).map(({ post }) => post) : []
 const seriesModules = seriesPosts.map((p) => ({ id: p.id, title: p.data.title }))
 const seriesPosition = seriesModules.findIndex((m) => m.id === post.id) + 1
 

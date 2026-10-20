@@ -1,17 +1,14 @@
 import type { APIContext } from "astro"
 import rss from "@astrojs/rss"
-import { getCollection, getEntries } from "astro:content"
+import { getEntries } from "astro:content"
+import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
 
 export async function GET(context: APIContext) {
-  const posts = await getCollection("blog", ({ data }) =>
-    data.tags.some((tag) => tag.id === "module-of-the-week"),
-  )
-  const sorted = posts.sort(
-    (a, b) => b.data.date.getTime() - a.data.date.getTime(),
-  )
+  const [intro, modules] = await Promise.all([getIntro(), getLatestModules()])
+  const posts = [...modules.map(({ post }) => post), ...(intro ? [intro] : [])]
 
   const items = await Promise.all(
-    sorted.map(async (post) => {
+    posts.map(async (post) => {
       const authors = await getEntries(post.data.authors)
       return {
         title: post.data.title,
