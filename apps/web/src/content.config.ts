@@ -141,7 +141,6 @@ const docs = defineCollection({
       ])
       .optional(),
     draft: z.boolean().optional(),
-    motw: z.string().min(1).optional(),
   }),
 })
 
