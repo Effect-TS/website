@@ -29,15 +29,11 @@ export class VoteStore extends Context.Service<
     readonly votedBy: (
       voter: string,
     ) => Effect.Effect<ReadonlyArray<string>, VoteStoreError>
-    /**
-     * Adds or removes a visitor's vote. A new vote is skipped when the
-     * visitor already has `cap` votes, which shows as `voted: false`.
-     */
+    /** Adds or removes a visitor's vote on a module. A visitor votes once per module. */
     readonly vote: (
       voter: string,
       id: string,
       on: boolean,
-      cap: number,
     ) => Effect.Effect<VoteOutcome, VoteStoreError>
   }
 >()("website/VoteStore") {}
@@ -65,17 +61,11 @@ export const memoryLayer = Layer.sync(VoteStore, () => {
         ),
       ),
 
-    vote: (voter, id, on, cap) =>
+    vote: (voter, id, on) =>
       Effect.sync(() => {
         const voters = votes.get(id) ?? new Set<string>()
-        if (on && !voters.has(voter)) {
-          const active = [...votes.values()].filter((set) =>
-            set.has(voter),
-          ).length
-          if (active < cap) voters.add(voter)
-        } else if (!on) {
-          voters.delete(voter)
-        }
+        if (on) voters.add(voter)
+        else voters.delete(voter)
         votes.set(id, voters)
         return { id, votes: countOf(id), voted: voters.has(voter) }
       }),

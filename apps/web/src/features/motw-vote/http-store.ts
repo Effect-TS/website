@@ -1,7 +1,7 @@
 import {
   type ModuleRef,
-  type ModuleRequest,
-  type ModuleRequestsStore,
+  type RankedModule,
+  type MotwVoteStore,
   VOTE_REFUSALS,
   VoteRefused,
 } from "./domain"
@@ -16,12 +16,12 @@ const request = (path: string, init?: RequestInit) =>
  */
 export const makeHttpStore = (
   moduleIndex: ReadonlyArray<ModuleRef>,
-): ModuleRequestsStore => {
+): MotwVoteStore => {
   const byId = new Map(moduleIndex.map((module) => [module.id, module]))
 
   return {
     list: async () => {
-      const response = await request("/api/module-requests")
+      const response = await request("/api/motw-vote")
       if (!response.ok)
         throw new Error(`Ranking request failed: ${response.status}`)
       const { requests, voted, turnstileSiteKey } = (await response.json()) as {
@@ -35,7 +35,7 @@ export const makeHttpStore = (
       return {
         turnstileSiteKey,
         requests: requests.flatMap(
-          ({ id, votes }): ReadonlyArray<ModuleRequest> => {
+          ({ id, votes }): ReadonlyArray<RankedModule> => {
             const module = byId.get(id)
             return module
               ? [{ ...module, votes, voted: voted.includes(id) }]
@@ -46,7 +46,7 @@ export const makeHttpStore = (
     },
 
     vote: async (module, on, token) => {
-      const response = await request("/api/module-requests/vote", {
+      const response = await request("/api/motw-vote/vote", {
         method: "POST",
         body: JSON.stringify({ id: module.id, on, token }),
       })

@@ -37,20 +37,20 @@ const Website = (
       // Module of the Week votes. Previews get their own empty database, which
       // goes away with the preview. Production keeps its votes if the stack is
       // ever destroyed.
-      const moduleVotes = yield* Cloudflare.D1.Database("ModuleVotes", {
+      const motwVote = yield* Cloudflare.D1.Database("MotwVote", {
         migrations: "./apps/web/migrations",
       }).pipe(Alchemy.RemovalPolicy.retain(stage === "prod"))
 
       // Signs the cookie that tells voters apart. It is made once per stage and
       // kept in the deploy state.
-      const votesSecret = yield* Alchemy.Random("ModuleVotesSecret")
+      const votesSecret = yield* Alchemy.Random("MotwVoteSecret")
 
       // The invisible human check votes need. Production gets a real widget.
       // Other stages use Cloudflare's test keys, whose check always passes,
       // because a widget only runs on the hostnames it lists.
       const turnstile =
         stage === "prod"
-          ? yield* Cloudflare.Turnstile.Widget("ModuleVotesTurnstile", {
+          ? yield* Cloudflare.Turnstile.Widget("MotwVoteTurnstile", {
               domains: ["effect.website"],
               mode: "invisible",
             })
@@ -98,12 +98,12 @@ const Website = (
           MXBAI_VECTOR_STORE_ID: storeId,
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
-          DB: moduleVotes,
-          MODULE_VOTES_SECRET: votesSecret.text,
+          DB: motwVote,
+          MOTW_VOTE_SECRET: votesSecret.text,
           TURNSTILE_SITE_KEY: turnstile?.sitekey ?? TURNSTILE_TEST_SITE_KEY,
           TURNSTILE_SECRET:
             turnstile?.secret ?? Redacted.make(TURNSTILE_TEST_SECRET),
-          MODULE_VOTES_LIMIT: Cloudflare.RateLimit("MODULE_VOTES_LIMIT", {
+          MOTW_VOTE_LIMIT: Cloudflare.RateLimit("MOTW_VOTE_LIMIT", {
             namespaceId: rateLimitNamespaceId(stage),
             simple: { limit: 20, period: 60 },
           }),

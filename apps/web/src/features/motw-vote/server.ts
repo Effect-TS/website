@@ -1,14 +1,13 @@
+import { env } from "cloudflare:workers"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as HttpServer from "effect/http/HttpServer"
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
-import * as ModuleContentLive from "@/features/module-of-the-week/astro-content"
-import { Modules } from "@/features/module-of-the-week/service"
-import { ModuleRequestsApi } from "./api"
-import { apiReferenceLayer } from "./catalog"
+import { MotwVoteApi } from "./api"
+import * as Catalog from "./catalog"
 import * as D1 from "./d1"
-import { ModuleVotes } from "./service"
+import { MotwVotes } from "./service"
 import { siteverifyLayer } from "./turnstile"
 import {
   NIL_VOTER,
@@ -33,50 +32,55 @@ interface Settings {
   readonly turnstile: { readonly siteKey: string; readonly secret: string }
 }
 
-// Cloudflare's test keys for an invisible check that always passes
-const DEV_SETTINGS: Settings = {
-  db: undefined,
-  limiter: undefined,
+// `astro dev` has none of the bindings `alchemy.run.ts` gives the Worker. It
+// keeps votes in memory and uses Cloudflare's test keys for an invisible check
+// that always passes. A deployed Worker never falls back to these.
+const DEV = {
   secret: "development-only-secret",
-  turnstile: {
-    siteKey: "1x00000000000000000000BB",
-    secret: "1x0000000000000000000000000000000AA",
-  },
+  turnstileSiteKey: "1x00000000000000000000BB",
+  turnstileSecret: "1x0000000000000000000000000000000AA",
 }
 
-// `astro dev` has no `cloudflare:workers` module, so the import waits until
-// deployed, where the Worker's bindings come from `alchemy.run.ts`.
-const loadSettings = async (): Promise<Settings> => {
-  if (import.meta.env.DEV) return DEV_SETTINGS
-  const { env } = await import("cloudflare:workers")
-  if (
-    !env.MODULE_VOTES_SECRET ||
-    !env.TURNSTILE_SITE_KEY ||
-    !env.TURNSTILE_SECRET
-  ) {
+const settings = (): Settings => {
+  const dev = import.meta.env.DEV
+  const secret = env.MOTW_VOTE_SECRET ?? (dev ? DEV.secret : undefined)
+  const siteKey =
+    env.TURNSTILE_SITE_KEY ?? (dev ? DEV.turnstileSiteKey : undefined)
+  const turnstileSecret =
+    env.TURNSTILE_SECRET ?? (dev ? DEV.turnstileSecret : undefined)
+  if (!secret || !siteKey || !turnstileSecret) {
     throw new Error(
-      "Module votes are missing MODULE_VOTES_SECRET or the Turnstile keys",
+      "The Worker is missing MOTW_VOTE_SECRET or the Turnstile keys",
     )
   }
   return {
     db: env.DB,
-    limiter: env.MODULE_VOTES_LIMIT,
-    secret: env.MODULE_VOTES_SECRET,
-    turnstile: {
-      siteKey: env.TURNSTILE_SITE_KEY,
-      secret: env.TURNSTILE_SECRET,
-    },
+    limiter: env.MOTW_VOTE_LIMIT,
+    secret,
+    turnstile: { siteKey, secret: turnstileSecret },
   }
 }
 
-let settings: Promise<Settings> | undefined
-const getSettings = () => (settings ??= loadSettings())
+// The site's own origin, for reading build output when there is no `ASSETS`
+// binding, as in `astro dev`.
+let origin = ""
+
+// Build output is read through the Worker's `ASSETS` binding, as in
+// `features/open-graph/fonts.ts`. Its host is ignored.
+const readAsset = (path: string): Promise<Response> => {
+  const assets:
+    | { readonly fetch: (request: Request) => Promise<Response> }
+    | undefined = env.ASSETS
+  return assets
+    ? assets.fetch(new Request(`https://assets.invalid${path}`))
+    : fetch(new URL(path, origin))
+}
 
 const Handlers = HttpApiBuilder.group(
-  ModuleRequestsApi,
-  "moduleRequests",
+  MotwVoteApi,
+  "motwVote",
   Effect.fn(function* (handlers) {
-    const votes = yield* ModuleVotes
+    const votes = yield* MotwVotes
     return handlers
       .handle("ranking", ({ headers }) => votes.ranking(headers["x-voter-id"]))
       .handle("vote", ({ headers, payload }) =>
@@ -88,29 +92,28 @@ const Handlers = HttpApiBuilder.group(
         ),
       )
   }),
-).pipe(Layer.provide(ModuleVotes.layer))
+).pipe(Layer.provide(MotwVotes.layer))
 
 // Votes live in D1 when deployed, and in memory for as long as `astro dev` runs.
 const Dependencies = Layer.unwrap(
-  Effect.promise(getSettings).pipe(
+  Effect.sync(settings).pipe(
     Effect.map(({ db, turnstile }) =>
       Layer.mergeAll(
         db ? D1.layer(db) : memoryLayer,
-        apiReferenceLayer,
-        Modules.layer.pipe(Layer.provide(ModuleContentLive.layer)),
+        Catalog.layer(readAsset),
         siteverifyLayer(turnstile.siteKey, turnstile.secret),
       ),
     ),
   ),
 )
 
-const ModuleRequestsLayer = HttpApiBuilder.layer(ModuleRequestsApi).pipe(
+const MotwVoteLayer = HttpApiBuilder.layer(MotwVoteApi).pipe(
   Layer.provide(Handlers),
   Layer.provide(Dependencies),
   Layer.provide(HttpServer.layerServices),
 )
 
-const { handler } = HttpRouter.toWebHandler(ModuleRequestsLayer)
+const { handler } = HttpRouter.toWebHandler(MotwVoteLayer)
 
 const isHttps = (request: Request) => new URL(request.url).protocol === "https:"
 
@@ -129,19 +132,21 @@ const refusal = (reason: string, status: number, cookie?: string) =>
  * vote succeeds. A cookie that was changed by the client blocks the request.
  */
 export const serve = async (request: Request): Promise<Response> => {
-  const { secret, limiter } = await getSettings()
+  const { secret, limiter } = settings()
   const secure = isHttps(request)
   const post = request.method === "POST"
+  origin = new URL(request.url).origin
 
   if (post) {
     // Browsers send Origin on POSTs. A page on another site cannot vote.
-    const origin = request.headers.get("origin")
-    if (origin !== null && origin !== new URL(request.url).origin)
+    const sender = request.headers.get("origin")
+    if (sender !== null && sender !== origin)
       return refusal("InvalidVoter", 403)
 
     const key = request.headers.get("cf-connecting-ip")
-    if (limiter && key && !(await limiter.limit({ key })).success)
+    if (limiter && key && !(await limiter.limit({ key })).success) {
       return refusal("RateLimited", 429)
+    }
   }
 
   const identity = await identify(request, secret)

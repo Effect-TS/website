@@ -19,13 +19,10 @@ export const Tally = Schema.Struct({
   votes: Schema.Number,
 })
 
-export class ModuleRequestsApiGroup extends HttpApiGroup.make(
-  "moduleRequests",
-  {
-    topLevel: true,
-  },
-).add(
-  HttpApiEndpoint.get("ranking", "/api/module-requests", {
+export class MotwVoteApiGroup extends HttpApiGroup.make("motwVote", {
+  topLevel: true,
+}).add(
+  HttpApiEndpoint.get("ranking", "/api/motw-vote", {
     headers,
     success: Schema.Struct({
       requests: Schema.Array(Tally),
@@ -33,7 +30,7 @@ export class ModuleRequestsApiGroup extends HttpApiGroup.make(
       turnstileSiteKey: Schema.String,
     }),
   }),
-  HttpApiEndpoint.post("vote", "/api/module-requests/vote", {
+  HttpApiEndpoint.post("vote", "/api/motw-vote/vote", {
     headers,
     payload: Schema.Struct({
       id: Schema.String,
@@ -45,6 +42,6 @@ export class ModuleRequestsApiGroup extends HttpApiGroup.make(
   }),
 ) {}
 
-export class ModuleRequestsApi extends HttpApi.make("moduleRequestsApi").add(
-  ModuleRequestsApiGroup,
+export class MotwVoteApi extends HttpApi.make("motwVoteApi").add(
+  MotwVoteApiGroup,
 ) {}

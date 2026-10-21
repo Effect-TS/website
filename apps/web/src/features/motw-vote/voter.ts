@@ -1,7 +1,7 @@
 const encoder = new TextEncoder()
 
 const COOKIE = "motw_voter"
-const COOKIE_PATH = "/api/module-requests"
+const COOKIE_PATH = "/api/motw-vote"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** The voter of a request that carries no valid cookie. It never holds a vote. */

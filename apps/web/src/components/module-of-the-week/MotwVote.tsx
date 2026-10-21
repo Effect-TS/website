@@ -10,19 +10,19 @@ import {
 } from "react"
 import {
   type ModuleRef,
-  type ModuleRequest,
-  type ModuleRequestsStore,
+  type RankedModule,
+  type MotwVoteStore,
   searchModules,
   VoteRefused,
-} from "@/features/module-requests/domain"
-import { makeHttpStore } from "@/features/module-requests/http-store"
-import { solveChallenge } from "@/features/module-requests/turnstile-client"
+} from "@/features/motw-vote/domain"
+import { makeHttpStore } from "@/features/motw-vote/http-store"
+import { solveChallenge } from "@/features/motw-vote/turnstile-client"
 import { cn } from "@/lib/utils"
 
 /** Modules shown at first, and added per "Show more" (three rows of four on desktop). */
 const STEP = 12
 
-const byVotes = (a: ModuleRequest, b: ModuleRequest) =>
+const byVotes = (a: RankedModule, b: RankedModule) =>
   b.votes - a.votes || a.name.localeCompare(b.name)
 
 const voteLabel = (n: number) => `${n} ${n === 1 ? "vote" : "votes"}`
@@ -30,8 +30,6 @@ const voteLabel = (n: number) => `${n} ${n === 1 ? "vote" : "votes"}`
 const refusalText = (error: unknown, name: string): string => {
   if (error instanceof VoteRefused) {
     switch (error.reason) {
-      case "VoteLimit":
-        return `You can +1 only one module at a time. Remove your +1 to vote for ${name}.`
       case "RateLimited":
         return "Too many votes in a short time. Try again in a minute."
       case "Covered":
@@ -54,7 +52,7 @@ const mono = "font-mono text-xs text-muted-foreground"
  * they want covered. The ranking's order is fixed for the visit (sorted on
  * load and when a module joins), so a row never moves away from the pointer.
  */
-export function ModuleRequests({
+export function MotwVote({
   moduleIndex,
   covered = [],
   store: storeProp,
@@ -62,13 +60,13 @@ export function ModuleRequests({
   readonly moduleIndex: ReadonlyArray<ModuleRef>
   /** Ids of modules the series already covered: shown in search, not votable. */
   readonly covered?: ReadonlyArray<string>
-  readonly store?: ModuleRequestsStore
+  readonly store?: MotwVoteStore
 }) {
   const store = useMemo(
     () => storeProp ?? makeHttpStore(moduleIndex),
     [storeProp, moduleIndex],
   )
-  const [requests, setRequests] = useState<ReadonlyArray<ModuleRequest> | null>(
+  const [requests, setRequests] = useState<ReadonlyArray<RankedModule> | null>(
     null,
   )
   const [order, setOrder] = useState<ReadonlyArray<string>>([])
@@ -135,7 +133,7 @@ export function ModuleRequests({
     return solveChallenge(siteKey, challengeRef.current)
   }
 
-  const toggleVote = async (request: ModuleRequest) => {
+  const toggleVote = async (request: RankedModule) => {
     try {
       const on = !request.voted
       const updated = await store.vote(
@@ -167,7 +165,7 @@ export function ModuleRequests({
     const label = `${module.name} (${module.pkg})`
     const existing = votesById.get(module.id)
     const wasVoted = existing?.voted ?? false
-    let list: ReadonlyArray<ModuleRequest>
+    let list: ReadonlyArray<RankedModule>
     try {
       if (!wasVoted) await store.vote(module, true, await humanToken())
       list = (await store.list()).requests

@@ -29,12 +29,9 @@ const TOP = `
 
 const VOTED_BY = `SELECT module_id AS id FROM votes WHERE voter_id = ?1`
 
-// One statement, so the cap holds when two votes arrive together: SQLite runs
-// writes one at a time, and the count in the WHERE sees the earlier write.
 const ADD = `
   INSERT INTO votes (module_id, voter_id, created_at)
-  SELECT ?1, ?2, ?3
-  WHERE (SELECT COUNT(*) FROM votes WHERE voter_id = ?2) < ?4
+  VALUES (?1, ?2, ?3)
   ON CONFLICT (module_id, voter_id) DO NOTHING`
 
 const REMOVE = `DELETE FROM votes WHERE module_id = ?1 AND voter_id = ?2`
@@ -68,12 +65,12 @@ export const layer = (db: D1Database) =>
         ),
       ),
 
-    vote: (voter, id, on, cap) =>
+    vote: (voter, id, on) =>
       Effect.tryPromise({
         try: () =>
           db.batch([
             on
-              ? db.prepare(ADD).bind(id, voter, Date.now(), cap)
+              ? db.prepare(ADD).bind(id, voter, Date.now())
               : db.prepare(REMOVE).bind(id, voter),
             db.prepare(HAS_VOTED).bind(id, voter),
             db.prepare(COUNT).bind(id),

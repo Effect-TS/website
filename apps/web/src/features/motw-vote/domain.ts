@@ -9,14 +9,14 @@ export interface ModuleRef {
 }
 
 /** A module on the ranking, with its votes. */
-export interface ModuleRequest extends ModuleRef {
+export interface RankedModule extends ModuleRef {
   readonly votes: number
   /** Whether the current visitor has +1'd it. */
   readonly voted: boolean
 }
 
-/** How many modules one visitor can +1 at a time. */
-export const VOTE_CAP = 1
+/** Where the build puts the module list the server checks votes against. */
+export const VOTE_DATA_PATH = "/module-of-the-week/vote-data.json"
 
 /** How many modules the ranking returns. */
 export const RANKING_LIMIT = 100
@@ -24,7 +24,6 @@ export const RANKING_LIMIT = 100
 export const VOTE_REFUSALS = [
   "UnknownModule",
   "Covered",
-  "VoteLimit",
   "RateLimited",
   "InvalidVoter",
   "ChallengeFailed",
@@ -44,14 +43,14 @@ export class VoteRefused extends Error {
 }
 
 /** The ranking, and the public key of the human check that votes need. */
-export interface ModuleRequestsSnapshot {
-  readonly requests: ReadonlyArray<ModuleRequest>
+export interface MotwVoteSnapshot {
+  readonly requests: ReadonlyArray<RankedModule>
   readonly turnstileSiteKey: string
 }
 
-export interface ModuleRequestsStore {
+export interface MotwVoteStore {
   /** Every module that has at least one vote. */
-  readonly list: () => Promise<ModuleRequestsSnapshot>
+  readonly list: () => Promise<MotwVoteSnapshot>
   /**
    * Adds or removes the visitor's +1. Adding needs the token of a solved
    * human check. Rejects with `VoteRefused` when the server turns the vote
@@ -61,7 +60,7 @@ export interface ModuleRequestsStore {
     module: ModuleRef,
     on: boolean,
     token?: string,
-  ) => Promise<ModuleRequest>
+  ) => Promise<RankedModule>
 }
 
 /**

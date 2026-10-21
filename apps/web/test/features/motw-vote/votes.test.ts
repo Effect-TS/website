@@ -3,18 +3,14 @@ import { DatabaseSync } from "node:sqlite"
 import { assert, describe, test } from "vite-plus/test"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { ModuleContent } from "../../../src/features/module-of-the-week/content.ts"
-import { Modules } from "../../../src/features/module-of-the-week/service.ts"
-import type { ModulePost } from "../../../src/features/module-of-the-week/domain.ts"
-import { ModuleCatalog } from "../../../src/features/module-requests/catalog.ts"
-import * as D1 from "../../../src/features/module-requests/d1.ts"
-import { VOTE_CAP } from "../../../src/features/module-requests/domain.ts"
-import { ModuleVotes } from "../../../src/features/module-requests/service.ts"
-import { Turnstile } from "../../../src/features/module-requests/turnstile.ts"
+import { ModuleCatalog } from "../../../src/features/motw-vote/catalog.ts"
+import * as D1 from "../../../src/features/motw-vote/d1.ts"
+import { MotwVotes } from "../../../src/features/motw-vote/service.ts"
+import { Turnstile } from "../../../src/features/motw-vote/turnstile.ts"
 import {
   VoteStore,
   memoryLayer,
-} from "../../../src/features/module-requests/vote-store.ts"
+} from "../../../src/features/motw-vote/vote-store.ts"
 
 const migration = readFileSync(
   new URL("../../../migrations/0001_module_votes.sql", import.meta.url),
@@ -67,32 +63,17 @@ const sqliteD1 = (): D1.D1Database => {
   }
 }
 
+// effect/RcMap and effect/cluster/Entity are covered by the series
 const catalog = Layer.succeed(ModuleCatalog, {
-  has: (id) => Effect.succeed(id.startsWith("effect/")),
+  status: (id) =>
+    Effect.succeed(
+      id === "effect/RcMap" || id === "effect/cluster/Entity"
+        ? "covered"
+        : id.startsWith("effect/")
+          ? "votable"
+          : "unknown",
+    ),
 })
-
-const post = (id: string, apiModules?: ReadonlyArray<string>) =>
-  ({
-    id,
-    data: { title: id, date: new Date("2026-09-16"), apiModules },
-  }) as unknown as ModulePost
-
-// The series has covered effect/RcMap and effect/cluster/Entity, in its posts' frontmatter
-const modules = Modules.layer.pipe(
-  Layer.provide(
-    Layer.succeed(ModuleContent, {
-      posts: Effect.succeed([
-        post("module-of-the-week/rcmap", ["effect/RcMap"]),
-        post("module-of-the-week/cluster", [
-          "effect/cluster/Entity",
-          "effect/Fiber",
-        ]),
-        post("module-of-the-week/intro"),
-      ]),
-      intro: Effect.succeedNone,
-    }),
-  ),
-)
 
 // A solved check gives the token "solved". Any other token is turned down.
 const turnstile = Layer.succeed(Turnstile, {
@@ -107,15 +88,13 @@ const stores = {
 
 const withVotes = <A, E>(
   makeStore: () => Layer.Layer<VoteStore>,
-  effect: Effect.Effect<A, E, ModuleVotes>,
+  effect: Effect.Effect<A, E, MotwVotes>,
 ) =>
   Effect.runPromise(
     effect.pipe(
       Effect.provide(
-        ModuleVotes.layer.pipe(
-          Layer.provide(
-            Layer.mergeAll(makeStore(), catalog, modules, turnstile),
-          ),
+        MotwVotes.layer.pipe(
+          Layer.provide(Layer.mergeAll(makeStore(), catalog, turnstile)),
         ),
       ),
     ),
@@ -131,7 +110,7 @@ describe.each(Object.entries(stores))(
       withVotes(
         makeStore,
         Effect.gen(function* () {
-          const votes = yield* ModuleVotes
+          const votes = yield* MotwVotes
           yield* votes.vote(alice, "effect/Stream", true, "solved")
           yield* votes.vote(bob, "effect/Stream", true, "solved")
           yield* votes.vote(
@@ -155,7 +134,7 @@ describe.each(Object.entries(stores))(
       withVotes(
         makeStore,
         Effect.gen(function* () {
-          const votes = yield* ModuleVotes
+          const votes = yield* MotwVotes
           yield* votes.vote(alice, "effect/Pool", true, "solved")
           const again = yield* votes.vote(alice, "effect/Pool", true, "solved")
           assert.deepEqual(again, { id: "effect/Pool", votes: 1, voted: true })
@@ -185,54 +164,58 @@ describe.each(Object.entries(stores))(
         }),
       ))
 
-    test("a visitor holds one vote, and frees it by removing it", () =>
+    test("a visitor votes for as many modules as they like, once each", () =>
       withVotes(
         makeStore,
         Effect.gen(function* () {
-          assert.equal(VOTE_CAP, 1)
-          const votes = yield* ModuleVotes
-          yield* votes.vote(alice, "effect/Pool", true, "solved")
-          const refused = yield* votes
-            .vote(alice, "effect/Stream", true, "solved")
-            .pipe(Effect.flip)
-          assert.equal(refused.reason, "VoteLimit")
-          // Someone else is not held back
-          assert.isTrue(
-            (yield* votes.vote(bob, "effect/Stream", true, "solved")).voted,
+          const votes = yield* MotwVotes
+          for (const id of [
+            "effect/Pool",
+            "effect/Stream",
+            "effect/Schedule",
+          ]) {
+            assert.isTrue((yield* votes.vote(alice, id, true, "solved")).voted)
+          }
+          assert.sameMembers(
+            [...(yield* votes.ranking(alice)).voted],
+            ["effect/Pool", "effect/Stream", "effect/Schedule"],
           )
-          // The vote the visitor already holds still goes through
-          assert.isTrue(
-            (yield* votes.vote(alice, "effect/Pool", true, "solved")).voted,
-          )
-          yield* votes.vote(alice, "effect/Pool", false, undefined)
-          assert.isTrue(
-            (yield* votes.vote(alice, "effect/Stream", true, "solved")).voted,
+          const again = yield* votes.vote(alice, "effect/Pool", true, "solved")
+          assert.deepEqual(again, { id: "effect/Pool", votes: 1, voted: true })
+          assert.lengthOf((yield* votes.ranking(alice)).voted, 3)
+          // Someone else votes for the same module on top
+          assert.deepEqual(
+            yield* votes.vote(bob, "effect/Pool", true, "solved"),
+            {
+              id: "effect/Pool",
+              votes: 2,
+              voted: true,
+            },
           )
         }),
       ))
 
-    test("votes arriving together cannot pass the cap", () =>
+    test("votes arriving together for one module count once", () =>
       withVotes(
         makeStore,
         Effect.gen(function* () {
-          const votes = yield* ModuleVotes
+          const votes = yield* MotwVotes
           yield* Effect.forEach(
-            Array.from({ length: 10 }, (_, n) => n),
-            (n) =>
-              Effect.exit(
-                votes.vote(alice, `effect/Concurrent${n}`, true, "solved"),
-              ),
+            Array.from({ length: 10 }, () => undefined),
+            () => Effect.exit(votes.vote(alice, "effect/Pool", true, "solved")),
             { concurrency: "unbounded" },
           )
-          assert.lengthOf((yield* votes.ranking(alice)).voted, VOTE_CAP)
+          assert.deepEqual((yield* votes.ranking(alice)).requests, [
+            { id: "effect/Pool", votes: 1 },
+          ])
         }),
       ))
 
-    test("turns down covered modules from the posts' frontmatter, and unknown ones", () =>
+    test("turns down covered and unknown modules", () =>
       withVotes(
         makeStore,
         Effect.gen(function* () {
-          const votes = yield* ModuleVotes
+          const votes = yield* MotwVotes
           const reason = (id: string) =>
             votes.vote(alice, id, true, "solved").pipe(
               Effect.flip,
@@ -240,7 +223,6 @@ describe.each(Object.entries(stores))(
             )
           assert.equal(yield* reason("effect/RcMap"), "Covered")
           assert.equal(yield* reason("effect/cluster/Entity"), "Covered")
-          assert.equal(yield* reason("effect/Fiber"), "Covered")
           assert.equal(yield* reason("other/Module"), "UnknownModule")
           assert.deepEqual((yield* votes.ranking(alice)).requests, [])
         }),
@@ -250,7 +232,7 @@ describe.each(Object.entries(stores))(
       withVotes(
         makeStore,
         Effect.gen(function* () {
-          const votes = yield* ModuleVotes
+          const votes = yield* MotwVotes
           const reason = (token: string | undefined) =>
             votes.vote(alice, "effect/Pool", true, token).pipe(
               Effect.flip,

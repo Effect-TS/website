@@ -6,12 +6,12 @@ import {
   issueVoter,
   verifyVoter,
   voterCookie,
-} from "../../../src/features/module-requests/voter.ts"
+} from "../../../src/features/motw-vote/voter.ts"
 
 const secret = "test-secret"
 
 const requestWith = (cookie?: string) =>
-  new Request("https://effect.website/api/module-requests", {
+  new Request("https://effect.website/api/motw-vote", {
     headers: cookie === undefined ? {} : { cookie },
   })
 
@@ -69,7 +69,7 @@ test("the cookie cannot be read by scripts or sent to other sites", () => {
   assert.include(cookie, "HttpOnly")
   assert.include(cookie, "SameSite=Lax")
   assert.include(cookie, "Secure")
-  assert.include(cookie, "Path=/api/module-requests")
+  assert.include(cookie, "Path=/api/motw-vote")
   assert.notInclude(voterCookie("value", false), "Secure")
   assert.include(clearedVoterCookie(true), "Max-Age=0")
 })

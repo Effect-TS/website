@@ -2,7 +2,7 @@ import { assert, test } from "vite-plus/test"
 import {
   searchModules,
   type ModuleRef,
-} from "../../../src/features/module-requests/domain.ts"
+} from "../../../src/features/motw-vote/domain.ts"
 
 const module = (pkg: string, name: string): ModuleRef => ({
   id: `${pkg}/${name}`,

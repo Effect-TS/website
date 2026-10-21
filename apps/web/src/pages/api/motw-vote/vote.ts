@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro"
-import { serve } from "@/features/module-requests/server"
+import { serve } from "@/features/motw-vote/server"
 
 export const prerender = false
 
