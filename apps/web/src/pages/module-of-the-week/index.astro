@@ -4,7 +4,6 @@ import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { ModuleRequests } from "@/components/module-of-the-week/ModuleRequests"
-import { COVERED_MODULE_IDS } from "@/features/module-requests/covered"
 import { getApiModules } from "@/features/module-requests/api-modules"
 import { MODULE_FEED } from "@/features/module-of-the-week/domain"
 import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
@@ -23,6 +22,19 @@ const [intro, modules, moduleIndex] = await Promise.all([
   getLatestModules(),
   getApiModules(),
 ])
+
+// API modules the series covered, from the frontmatter of its posts
+const coveredModuleIds = [...new Set(modules.flatMap(({ post }) => post.data.apiModules ?? []))]
+
+// A misspelled id would leave a covered module votable. Skipped when the API
+// reference is missing, as in a checkout that never generated it.
+const knownModuleIds = new Set(moduleIndex.map(({ id }) => id))
+const unknownModuleIds = coveredModuleIds.filter((id) => !knownModuleIds.has(id))
+if (knownModuleIds.size > 0 && unknownModuleIds.length > 0) {
+  throw new Error(
+    `apiModules names modules missing from the API reference: ${unknownModuleIds.join(", ")}`,
+  )
+}
 
 const buttonClass =
   "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"
@@ -228,7 +240,7 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
 
   <div class="h-px w-full bg-border"></div>
 
-  <ModuleRequests client:visible moduleIndex={moduleIndex} covered={COVERED_MODULE_IDS} />
+  <ModuleRequests client:visible moduleIndex={moduleIndex} covered={coveredModuleIds} />
 
   <div class="h-px w-full bg-border"></div>
 

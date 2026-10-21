@@ -16,7 +16,7 @@ export interface ModuleRequest extends ModuleRef {
 }
 
 /** How many modules one visitor can +1 at a time. */
-export const VOTE_CAP = 5
+export const VOTE_CAP = 1
 
 /** How many modules the ranking returns. */
 export const RANKING_LIMIT = 100
@@ -26,6 +26,8 @@ export const VOTE_REFUSALS = [
   "Covered",
   "VoteLimit",
   "RateLimited",
+  "InvalidVoter",
+  "ChallengeFailed",
 ] as const
 
 export type VoteRefusal = (typeof VOTE_REFUSALS)[number]
@@ -41,14 +43,25 @@ export class VoteRefused extends Error {
   }
 }
 
+/** The ranking, and the public key of the human check that votes need. */
+export interface ModuleRequestsSnapshot {
+  readonly requests: ReadonlyArray<ModuleRequest>
+  readonly turnstileSiteKey: string
+}
+
 export interface ModuleRequestsStore {
   /** Every module that has at least one vote. */
-  readonly list: () => Promise<ReadonlyArray<ModuleRequest>>
+  readonly list: () => Promise<ModuleRequestsSnapshot>
   /**
-   * Adds or removes the visitor's +1. Rejects with `VoteRefused` when the
-   * server turns the vote down.
+   * Adds or removes the visitor's +1. Adding needs the token of a solved
+   * human check. Rejects with `VoteRefused` when the server turns the vote
+   * down.
    */
-  readonly vote: (module: ModuleRef, on: boolean) => Promise<ModuleRequest>
+  readonly vote: (
+    module: ModuleRef,
+    on: boolean,
+    token?: string,
+  ) => Promise<ModuleRequest>
 }
 
 /**

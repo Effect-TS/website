@@ -30,11 +30,16 @@ export class ModuleRequestsApiGroup extends HttpApiGroup.make(
     success: Schema.Struct({
       requests: Schema.Array(Tally),
       voted: Schema.Array(Schema.String),
+      turnstileSiteKey: Schema.String,
     }),
   }),
   HttpApiEndpoint.post("vote", "/api/module-requests/vote", {
     headers,
-    payload: Schema.Struct({ id: Schema.String, on: Schema.Boolean }),
+    payload: Schema.Struct({
+      id: Schema.String,
+      on: Schema.Boolean,
+      token: Schema.optional(Schema.String),
+    }),
     success: Schema.Struct({ ...Tally.fields, voted: Schema.Boolean }),
     error: VoteRefusedError,
   }),

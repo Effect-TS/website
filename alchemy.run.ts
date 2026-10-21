@@ -8,9 +8,14 @@ import * as Config from "effect/Config"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import type * as Redacted from "effect/Redacted"
+import * as Redacted from "effect/Redacted"
 
 type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
+
+// Cloudflare's test keys for an invisible check that always passes.
+// https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000BB"
+const TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA"
 
 // Rate-limit namespaces are numbers. Each stage counts in its own, so a preview
 // cannot use up the production limit.
@@ -35,6 +40,21 @@ const Website = (
       const moduleVotes = yield* Cloudflare.D1.Database("ModuleVotes", {
         migrations: "./apps/web/migrations",
       }).pipe(Alchemy.RemovalPolicy.retain(stage === "prod"))
+
+      // Signs the cookie that tells voters apart. It is made once per stage and
+      // kept in the deploy state.
+      const votesSecret = yield* Alchemy.Random("ModuleVotesSecret")
+
+      // The invisible human check votes need. Production gets a real widget.
+      // Other stages use Cloudflare's test keys, whose check always passes,
+      // because a widget only runs on the hostnames it lists.
+      const turnstile =
+        stage === "prod"
+          ? yield* Cloudflare.Turnstile.Widget("ModuleVotesTurnstile", {
+              domains: ["effect.website"],
+              mode: "invisible",
+            })
+          : undefined
 
       return {
         rootDir: "./apps/web",
@@ -79,6 +99,10 @@ const Website = (
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
           DB: moduleVotes,
+          MODULE_VOTES_SECRET: votesSecret.text,
+          TURNSTILE_SITE_KEY: turnstile?.sitekey ?? TURNSTILE_TEST_SITE_KEY,
+          TURNSTILE_SECRET:
+            turnstile?.secret ?? Redacted.make(TURNSTILE_TEST_SECRET),
           MODULE_VOTES_LIMIT: Cloudflare.RateLimit("MODULE_VOTES_LIMIT", {
             namespaceId: rateLimitNamespaceId(stage),
             simple: { limit: 20, period: 60 },

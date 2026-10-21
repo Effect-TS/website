@@ -13,10 +13,10 @@ import {
   type ModuleRequest,
   type ModuleRequestsStore,
   searchModules,
-  VOTE_CAP,
   VoteRefused,
 } from "@/features/module-requests/domain"
 import { makeHttpStore } from "@/features/module-requests/http-store"
+import { solveChallenge } from "@/features/module-requests/turnstile-client"
 import { cn } from "@/lib/utils"
 
 /** Modules shown at first, and added per "Show more" (three rows of four on desktop). */
@@ -31,13 +31,17 @@ const refusalText = (error: unknown, name: string): string => {
   if (error instanceof VoteRefused) {
     switch (error.reason) {
       case "VoteLimit":
-        return `You can have ${VOTE_CAP} +1s at a time. Remove one to add ${name}.`
+        return `You can +1 only one module at a time. Remove your +1 to vote for ${name}.`
       case "RateLimited":
         return "Too many votes in a short time. Try again in a minute."
       case "Covered":
         return `${name} has already been covered.`
       case "UnknownModule":
         return `${name} is not a module we can cover.`
+      case "InvalidVoter":
+        return "Your voting session is not valid. Reload the page and try again."
+      case "ChallengeFailed":
+        return "We could not tell you are not a bot, so your +1 was not saved."
     }
   }
   return "Couldn't save your +1. Try again."
@@ -79,11 +83,14 @@ export function ModuleRequests({
   const [highlight, setHighlight] = useState<string | null>(null)
   const listboxId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
+  const challengeRef = useRef<HTMLDivElement>(null)
+  const [siteKey, setSiteKey] = useState<string | null>(null)
 
   useEffect(() => {
     store
       .list()
-      .then((list) => {
+      .then(({ requests: list, turnstileSiteKey }) => {
+        setSiteKey(turnstileSiteKey)
         setRequests(list)
         setOrder([...list].sort(byVotes).map(({ id }) => id))
       })
@@ -121,9 +128,21 @@ export function ModuleRequests({
     )
   }
 
+  /** The token of an invisible check, which a new +1 needs. */
+  const humanToken = async (): Promise<string> => {
+    if (siteKey === null || challengeRef.current === null)
+      throw new Error("No human check")
+    return solveChallenge(siteKey, challengeRef.current)
+  }
+
   const toggleVote = async (request: ModuleRequest) => {
     try {
-      const updated = await store.vote(request, !request.voted)
+      const on = !request.voted
+      const updated = await store.vote(
+        request,
+        on,
+        on ? await humanToken() : undefined,
+      )
       setRequests((list) =>
         (list ?? []).map((item) => (item.id === updated.id ? updated : item)),
       )
@@ -150,8 +169,8 @@ export function ModuleRequests({
     const wasVoted = existing?.voted ?? false
     let list: ReadonlyArray<ModuleRequest>
     try {
-      if (!wasVoted) await store.vote(module, true)
-      list = await store.list()
+      if (!wasVoted) await store.vote(module, true, await humanToken())
+      list = (await store.list()).requests
     } catch (error) {
       setMessage({ tone: "error", text: refusalText(error, module.name) })
       return
@@ -451,6 +470,7 @@ export function ModuleRequests({
           {message?.text}
         </p>
       </div>
+      <div ref={challengeRef} aria-hidden="true" />
     </section>
   )
 }
