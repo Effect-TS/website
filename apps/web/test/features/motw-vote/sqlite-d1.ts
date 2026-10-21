@@ -1,11 +1,13 @@
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { DatabaseSync, type SQLInputValue } from "node:sqlite"
 import type { D1ClientConfig } from "@effect/sql-d1/D1Client"
 
-const migration = readFileSync(
-  new URL("../../../migrations/0001_module_votes.sql", import.meta.url),
-  "utf8",
-)
+const migrationsDir = new URL("../../../migrations/", import.meta.url)
+
+const migrations = readdirSync(migrationsDir)
+  .filter((file) => file.endsWith(".sql"))
+  .sort()
+  .map((file) => readFileSync(new URL(file, migrationsDir), "utf8"))
 
 interface Statement {
   readonly bind: (...values: ReadonlyArray<SQLInputValue>) => Statement
@@ -19,7 +21,7 @@ interface Statement {
  */
 export const sqliteD1 = (): D1ClientConfig["db"] => {
   const sqlite = new DatabaseSync(":memory:")
-  sqlite.exec(migration)
+  for (const migration of migrations) sqlite.exec(migration)
 
   const statement = (
     query: string,
