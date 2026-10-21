@@ -29,7 +29,11 @@ export const siteverifyLayer = (siteKey: string, secret: string) =>
           const body = new FormData()
           body.set("secret", secret)
           body.set("response", token)
-          const response = await fetch(SITEVERIFY, { method: "POST", body })
+          const response = await fetch(SITEVERIFY, {
+            method: "POST",
+            body,
+            signal: AbortSignal.timeout(5000),
+          })
           const result = (await response.json()) as {
             readonly success?: boolean
           }

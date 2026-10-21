@@ -16,7 +16,10 @@ import {
   VoteRefused,
 } from "@/features/motw-vote/domain"
 import { makeHttpStore } from "@/features/motw-vote/http-store"
-import { solveChallenge } from "@/features/motw-vote/turnstile-client"
+import {
+  ChallengeUnavailable,
+  solveChallenge,
+} from "@/features/motw-vote/turnstile-client"
 import { cn } from "@/lib/utils"
 
 /** Modules shown at first, and added per "Show more" (three rows of four on desktop). */
@@ -28,6 +31,8 @@ const byVotes = (a: RankedModule, b: RankedModule) =>
 const voteLabel = (n: number) => `${n} ${n === 1 ? "vote" : "votes"}`
 
 const refusalText = (error: unknown, name: string): string => {
+  if (error instanceof ChallengeUnavailable)
+    return "The bot check could not run. Turn off content blockers or try another browser, then try again."
   if (error instanceof VoteRefused) {
     switch (error.reason) {
       case "RateLimited":
@@ -44,6 +49,8 @@ const refusalText = (error: unknown, name: string): string => {
   }
   return "Couldn't save your +1. Try again."
 }
+
+const CHECKING = "Checking you are not a bot…"
 
 const mono = "font-mono text-xs text-muted-foreground"
 
@@ -83,23 +90,55 @@ export function MotwVote({
   const inputRef = useRef<HTMLInputElement>(null)
   const challengeRef = useRef<HTMLDivElement>(null)
   const [siteKey, setSiteKey] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const busyRef = useRef(false)
 
   useEffect(() => {
+    let current = true
     store
       .list()
       .then(({ requests: list, turnstileSiteKey }) => {
+        if (!current) return
+        setFailed(false)
         setSiteKey(turnstileSiteKey)
         setRequests(list)
         setOrder([...list].sort(byVotes).map(({ id }) => id))
       })
       .catch(() => {
+        if (!current) return
+        setFailed(true)
         setRequests([])
         setMessage({
           tone: "error",
           text: "Couldn't load the suggestions. Try again later.",
         })
       })
-  }, [store])
+    return () => {
+      current = false
+    }
+  }, [store, attempt])
+
+  const retryLoad = () => {
+    setRequests(null)
+    setMessage(null)
+    setAttempt((n) => n + 1)
+  }
+
+  /** One vote request at a time, so a first vote cannot create two voters. */
+  const exclusive = async (task: () => Promise<void>) => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    try {
+      await task()
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+  }
 
   const ordered = useMemo(() => {
     const byId = new Map(
@@ -130,28 +169,35 @@ export function MotwVote({
   const humanToken = async (): Promise<string> => {
     if (siteKey === null || challengeRef.current === null)
       throw new Error("No human check")
-    return solveChallenge(siteKey, challengeRef.current)
-  }
-
-  const toggleVote = async (request: RankedModule) => {
+    setChecking(true)
     try {
-      const on = !request.voted
-      const updated = await store.vote(
-        request,
-        on,
-        on ? await humanToken() : undefined,
-      )
-      setRequests((list) =>
-        (list ?? []).map((item) => (item.id === updated.id ? updated : item)),
-      )
-      setMessage(null)
-    } catch (error) {
-      setMessage({ tone: "error", text: refusalText(error, request.name) })
+      return await solveChallenge(siteKey, challengeRef.current)
+    } finally {
+      setChecking(false)
     }
   }
 
+  const toggleVote = (request: RankedModule) =>
+    exclusive(async () => {
+      try {
+        const on = !request.voted
+        const updated = await store.vote(
+          request,
+          on,
+          on ? await humanToken() : undefined,
+        )
+        setRequests((list) =>
+          (list ?? []).map((item) => (item.id === updated.id ? updated : item)),
+        )
+        setMessage(null)
+      } catch (error) {
+        setMessage({ tone: "error", text: refusalText(error, request.name) })
+      }
+    })
+
   /** +1 a module picked from the search. */
-  const pick = async (module: ModuleRef) => {
+  const pick = (module: ModuleRef) => {
+    if (busyRef.current) return Promise.resolve()
     setOpen(false)
     setQuery("")
     if (coveredIds.has(module.id)) {
@@ -159,37 +205,40 @@ export function MotwVote({
         tone: "error",
         text: `${module.name} has already been covered. Find it in the modules above.`,
       })
-      return
+      return Promise.resolve()
     }
-    // Name plus package, since some names exist in more than one package
-    const label = `${module.name} (${module.pkg})`
-    const existing = votesById.get(module.id)
-    const wasVoted = existing?.voted ?? false
-    let list: ReadonlyArray<RankedModule>
-    try {
-      if (!wasVoted) await store.vote(module, true, await humanToken())
-      list = (await store.list()).requests
-    } catch (error) {
-      setMessage({ tone: "error", text: refusalText(error, module.name) })
-      return
-    }
-    setRequests(list)
-    const nextOrder = existing
-      ? order
-      : [...list].sort(byVotes).map(({ id }) => id)
-    if (!existing) setOrder(nextOrder)
-    setMessage({
-      tone: "ok",
-      text: wasVoted
-        ? `You've already +1'd ${label}.`
-        : existing
-          ? `+1 added to ${label}.`
-          : `Added ${label} with your +1.`,
+    return exclusive(async () => {
+      // Name plus package, since some names exist in more than one package
+      const label = `${module.name} (${module.pkg})`
+      const existing = votesById.get(module.id)
+      const wasVoted = existing?.voted ?? false
+      let list: ReadonlyArray<RankedModule>
+      try {
+        if (!wasVoted) await store.vote(module, true, await humanToken())
+        list = (await store.list()).requests
+      } catch (error) {
+        setMessage({ tone: "error", text: refusalText(error, module.name) })
+        return
+      }
+      setRequests(list)
+      const nextOrder = existing
+        ? order
+        : [...list].sort(byVotes).map(({ id }) => id)
+      if (!existing) setOrder(nextOrder)
+      setMessage({
+        tone: "ok",
+        text: wasVoted
+          ? `You've already +1'd ${label}.`
+          : existing
+            ? `+1 added to ${label}.`
+            : `Added ${label} with your +1.`,
+      })
+      // Make sure its row is on screen, then mark it
+      const index = nextOrder.indexOf(module.id)
+      if (index >= 0)
+        setCount((c) => (index >= c ? Math.ceil((index + 1) / STEP) * STEP : c))
+      flash(module.id)
     })
-    // Make sure its row is on screen, then mark it
-    const index = nextOrder.indexOf(module.id)
-    if (index >= count) setCount(Math.ceil((index + 1) / STEP) * STEP)
-    flash(module.id)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -207,6 +256,7 @@ export function MotwVote({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (busyRef.current) return
     const choice = results[active] ?? results[0]
     if (!query.trim()) {
       inputRef.current?.focus()
@@ -221,6 +271,7 @@ export function MotwVote({
     }
   }
 
+  const status = checking ? { tone: "ok" as const, text: CHECKING } : message
   const total = ordered.length
   const shown = Math.min(total, count)
   const smFill = shown % 2
@@ -288,7 +339,8 @@ export function MotwVote({
               </div>
               <button
                 type="submit"
-                className="inline-flex shrink-0 cursor-pointer items-center gap-2 border-l border-border-strong px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                disabled={busy}
+                className="inline-flex shrink-0 cursor-pointer items-center gap-2 border-l border-border-strong px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:bg-transparent"
               >
                 <Plus className="size-3.5" aria-hidden="true" />
                 Suggest
@@ -348,7 +400,7 @@ export function MotwVote({
                             ? "Covered"
                             : request?.voted
                               ? "Your +1 ✓"
-                              : request
+                              : request && request.votes > 0
                                 ? voteLabel(request.votes)
                                 : "+1"}
                         </span>
@@ -366,6 +418,14 @@ export function MotwVote({
             <p className="px-4 py-6 text-sm text-muted-foreground lg:px-5">
               Loading suggestions…
             </p>
+          ) : failed ? (
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="flex w-full cursor-pointer items-center justify-center px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              Try again
+            </button>
           ) : total === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground lg:px-5">
               No suggestions yet. Search for a module above and be the first to
@@ -393,13 +453,14 @@ export function MotwVote({
                   <button
                     type="button"
                     onClick={() => void toggleVote(request)}
+                    disabled={busy}
                     aria-pressed={request.voted}
                     aria-label={`${request.voted ? "Remove your +1 from" : "+1"} ${request.name}, ${voteLabel(request.votes)}`}
                     className={cn(
-                      "inline-flex min-w-14 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 py-1 font-mono text-xs tabular-nums transition-colors",
+                      "inline-flex min-w-14 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 py-1 font-mono text-xs tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                       request.voted
                         ? "border-foreground bg-foreground text-background"
-                        : "border-border-strong text-muted-foreground hover:border-muted-foreground hover:text-foreground",
+                        : "border-border-strong text-muted-foreground enabled:hover:border-muted-foreground enabled:hover:text-foreground",
                     )}
                   >
                     <ArrowUp className="size-3" aria-hidden="true" />
@@ -455,17 +516,17 @@ export function MotwVote({
           aria-live="polite"
           className={cn(
             "text-sm",
-            message
+            status
               ? cn(
                   "mt-3",
-                  message.tone === "error"
+                  status.tone === "error"
                     ? "text-red-600 dark:text-red-400"
                     : "text-muted-foreground",
                 )
               : "sr-only",
           )}
         >
-          {message?.text}
+          {status?.text}
         </p>
       </div>
       <div ref={challengeRef} aria-hidden="true" />

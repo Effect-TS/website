@@ -21,11 +21,10 @@ export interface D1Result {
 }
 
 const TOP = `
-  SELECT module_id AS id, COUNT(*) AS votes
-  FROM votes
-  GROUP BY module_id
-  ORDER BY votes DESC, module_id ASC
-  LIMIT ?1`
+  SELECT module_id AS id, votes
+  FROM tallies
+  WHERE votes > 0
+  ORDER BY votes DESC, module_id ASC`
 
 const VOTED_BY = `SELECT module_id AS id FROM votes WHERE voter_id = ?1`
 
@@ -36,15 +35,20 @@ const ADD = `
 
 const REMOVE = `DELETE FROM votes WHERE module_id = ?1 AND voter_id = ?2`
 
+const SYNC_TALLY = `
+  INSERT INTO tallies (module_id, votes)
+  VALUES (?1, (SELECT COUNT(*) FROM votes WHERE module_id = ?1))
+  ON CONFLICT (module_id) DO UPDATE SET votes = excluded.votes`
+
 const HAS_VOTED = `SELECT 1 AS found FROM votes WHERE module_id = ?1 AND voter_id = ?2`
 
-const COUNT = `SELECT COUNT(*) AS votes FROM votes WHERE module_id = ?1`
+const COUNT = `SELECT votes FROM tallies WHERE module_id = ?1`
 
 export const layer = (db: D1Database) =>
   Layer.succeed(VoteStore, {
-    top: (limit) =>
+    top: () =>
       Effect.tryPromise({
-        try: () => db.batch([db.prepare(TOP).bind(limit)]),
+        try: () => db.batch([db.prepare(TOP)]),
         catch: (cause) => new VoteStoreError({ cause }),
       }).pipe(
         Effect.map(([result]) =>
@@ -72,12 +76,13 @@ export const layer = (db: D1Database) =>
             on
               ? db.prepare(ADD).bind(id, voter, Date.now())
               : db.prepare(REMOVE).bind(id, voter),
+            db.prepare(SYNC_TALLY).bind(id),
             db.prepare(HAS_VOTED).bind(id, voter),
             db.prepare(COUNT).bind(id),
           ]),
         catch: (cause) => new VoteStoreError({ cause }),
       }).pipe(
-        Effect.map(([, voted, count]) => ({
+        Effect.map(([, , voted, count]) => ({
           id,
           votes: Number(count?.results[0]?.votes ?? 0),
           voted: (voted?.results.length ?? 0) > 0,

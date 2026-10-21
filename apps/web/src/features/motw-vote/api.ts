@@ -10,6 +10,11 @@ export class VoteRefusedError extends Schema.TaggedError<VoteRefusedError>()(
   { httpApiStatus: 409 },
 ) {}
 
+const MAX_ID_LENGTH = 200
+
+// Turnstile tokens are at most 2048 characters
+const MAX_TOKEN_LENGTH = 2048
+
 const VoterId = Schema.String.check(Schema.isUUID())
 
 const headers = { "x-voter-id": VoterId }
@@ -33,9 +38,11 @@ export class MotwVoteApiGroup extends HttpApiGroup.make("motwVote", {
   HttpApiEndpoint.post("vote", "/api/motw-vote/vote", {
     headers,
     payload: Schema.Struct({
-      id: Schema.String,
+      id: Schema.String.check(Schema.isMaxLength(MAX_ID_LENGTH)),
       on: Schema.Boolean,
-      token: Schema.optional(Schema.String),
+      token: Schema.optional(
+        Schema.String.check(Schema.isMaxLength(MAX_TOKEN_LENGTH)),
+      ),
     }),
     success: Schema.Struct({ ...Tally.fields, voted: Schema.Boolean }),
     error: VoteRefusedError,

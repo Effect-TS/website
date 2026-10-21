@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs"
 import { DatabaseSync } from "node:sqlite"
-import { assert, describe, test } from "vite-plus/test"
+import { afterEach, assert, describe, test } from "vite-plus/test"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { ModuleCatalog } from "../../../src/features/motw-vote/catalog.ts"
 import * as D1 from "../../../src/features/motw-vote/d1.ts"
 import { MotwVotes } from "../../../src/features/motw-vote/service.ts"
 import { Turnstile } from "../../../src/features/motw-vote/turnstile.ts"
+import { NIL_VOTER } from "../../../src/features/motw-vote/voter.ts"
 import {
   VoteStore,
   memoryLayer,
@@ -64,16 +65,36 @@ const sqliteD1 = (): D1.D1Database => {
 }
 
 // effect/RcMap and effect/cluster/Entity are covered by the series
+const covered = new Set(["effect/RcMap", "effect/cluster/Entity"])
+
+const retired = new Set<string>()
+
 const catalog = Layer.succeed(ModuleCatalog, {
   status: (id) =>
     Effect.succeed(
-      id === "effect/RcMap" || id === "effect/cluster/Entity"
+      covered.has(id)
         ? "covered"
-        : id.startsWith("effect/")
+        : id.startsWith("effect/") && !retired.has(id)
           ? "votable"
           : "unknown",
     ),
 })
+
+const recordingStore = (calls: Array<string>) =>
+  Layer.effect(
+    VoteStore,
+    Effect.gen(function* () {
+      const store = yield* VoteStore
+      return {
+        top: () => (calls.push("top"), store.top()),
+        votedBy: (voter) => (calls.push("votedBy"), store.votedBy(voter)),
+        vote: (voter, id, on) => (
+          calls.push("vote"),
+          store.vote(voter, id, on)
+        ),
+      }
+    }),
+  ).pipe(Layer.provide(memoryLayer))
 
 // A solved check gives the token "solved". Any other token is turned down.
 const turnstile = Layer.succeed(Turnstile, {
@@ -106,6 +127,13 @@ const bob = "22222222-2222-4222-8222-222222222222"
 describe.each(Object.entries(stores))(
   "module votes on the %s store",
   (_, makeStore) => {
+    afterEach(() => {
+      covered.clear()
+      covered.add("effect/RcMap")
+      covered.add("effect/cluster/Entity")
+      retired.clear()
+    })
+
     test("counts votes and ranks by votes, then by id", () =>
       withVotes(
         makeStore,
@@ -246,5 +274,85 @@ describe.each(Object.entries(stores))(
           )
         }),
       ))
+
+    test("the ranking has no limit", () =>
+      withVotes(
+        makeStore,
+        Effect.gen(function* () {
+          const votes = yield* MotwVotes
+          const ids = Array.from({ length: 150 }, (_, i) => `effect/M${i}`)
+          yield* Effect.forEach(ids, (id) =>
+            votes.vote(alice, id, true, "solved"),
+          )
+          const { requests, voted } = yield* votes.ranking(alice)
+          assert.lengthOf(requests, 150)
+          assert.lengthOf(voted, 150)
+        }),
+      ))
+
+    test("the ranking drops modules that became covered", () =>
+      withVotes(
+        makeStore,
+        Effect.gen(function* () {
+          const votes = yield* MotwVotes
+          yield* votes.vote(alice, "effect/Pool", true, "solved")
+          yield* votes.vote(bob, "effect/Pool", true, "solved")
+          yield* votes.vote(alice, "effect/Stream", true, "solved")
+          covered.add("effect/Pool")
+          const { requests, voted } = yield* votes.ranking(alice)
+          assert.deepEqual(requests, [{ id: "effect/Stream", votes: 1 }])
+          assert.deepEqual(voted, ["effect/Stream"])
+        }),
+      ))
+
+    test("the ranking drops modules the catalog does not know", () =>
+      withVotes(
+        makeStore,
+        Effect.gen(function* () {
+          const votes = yield* MotwVotes
+          yield* votes.vote(alice, "effect/Gone", true, "solved")
+          yield* votes.vote(alice, "effect/Pool", true, "solved")
+          retired.add("effect/Gone")
+          const { requests, voted } = yield* votes.ranking(alice)
+          assert.deepEqual(requests, [{ id: "effect/Pool", votes: 1 }])
+          assert.deepEqual(voted, ["effect/Pool"])
+        }),
+      ))
+
+    test("a removal from the nil voter does not reach the store", () => {
+      const calls: Array<string> = []
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const votes = yield* MotwVotes
+          const removed = yield* votes.vote(
+            NIL_VOTER,
+            "effect/Pool",
+            false,
+            undefined,
+          )
+          assert.deepEqual(removed, {
+            id: "effect/Pool",
+            votes: 0,
+            voted: false,
+          })
+          const reason = yield* votes
+            .vote(NIL_VOTER, "effect/Pool", true, "solved")
+            .pipe(
+              Effect.flip,
+              Effect.map((error) => error.reason),
+            )
+          assert.equal(reason, "InvalidVoter")
+          assert.deepEqual(calls, [])
+        }).pipe(
+          Effect.provide(
+            MotwVotes.layer.pipe(
+              Layer.provide(
+                Layer.mergeAll(recordingStore(calls), catalog, turnstile),
+              ),
+            ),
+          ),
+        ),
+      )
+    })
   },
 )

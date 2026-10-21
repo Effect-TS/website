@@ -22,9 +22,7 @@ export class VoteStore extends Context.Service<
   VoteStore,
   {
     /** The modules with most votes first, ties by id. */
-    readonly top: (
-      limit: number,
-    ) => Effect.Effect<ReadonlyArray<Tally>, VoteStoreError>
+    readonly top: () => Effect.Effect<ReadonlyArray<Tally>, VoteStoreError>
     /** Ids of the modules a visitor has a vote on. */
     readonly votedBy: (
       voter: string,
@@ -45,13 +43,12 @@ export const memoryLayer = Layer.sync(VoteStore, () => {
   const countOf = (id: string) => votes.get(id)?.size ?? 0
 
   return {
-    top: (limit) =>
+    top: () =>
       Effect.sync(() =>
         [...votes.entries()]
           .map(([id, voters]) => ({ id, votes: voters.size }))
           .filter(({ votes }) => votes > 0)
-          .sort((a, b) => b.votes - a.votes || a.id.localeCompare(b.id))
-          .slice(0, limit),
+          .sort((a, b) => b.votes - a.votes || a.id.localeCompare(b.id)),
       ),
 
     votedBy: (voter) =>

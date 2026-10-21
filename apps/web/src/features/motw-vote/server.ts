@@ -61,9 +61,9 @@ const settings = (): Settings => {
   }
 }
 
-// The site's own origin, for reading build output when there is no `ASSETS`
-// binding, as in `astro dev`.
-let origin = ""
+// The dev server's own origin, for reading build output when there is no
+// `ASSETS` binding. A deployed Worker never sets it.
+let devOrigin = ""
 
 // Build output is read through the Worker's `ASSETS` binding, as in
 // `features/open-graph/fonts.ts`. Its host is ignored.
@@ -71,9 +71,11 @@ const readAsset = (path: string): Promise<Response> => {
   const assets:
     | { readonly fetch: (request: Request) => Promise<Response> }
     | undefined = env.ASSETS
-  return assets
-    ? assets.fetch(new Request(`https://assets.invalid${path}`))
-    : fetch(new URL(path, origin))
+  if (assets) return assets.fetch(new Request(`https://assets.invalid${path}`))
+  if (!import.meta.env.DEV) {
+    return Promise.reject(new Error("The Worker has no ASSETS binding"))
+  }
+  return fetch(new URL(path, devOrigin))
 }
 
 const Handlers = HttpApiBuilder.group(
@@ -117,25 +119,54 @@ const { handler } = HttpRouter.toWebHandler(MotwVoteLayer)
 
 const isHttps = (request: Request) => new URL(request.url).protocol === "https:"
 
-const refusal = (reason: string, status: number, cookie?: string) =>
-  Response.json(
+const NO_STORE = "private, no-store"
+
+const refusal = (reason: string, status: number, cookie?: string) => {
+  const headers = new Headers({ "cache-control": NO_STORE })
+  if (cookie) headers.set("set-cookie", cookie)
+  return Response.json(
     { _tag: "VoteRefusedError", reason },
-    { status, ...(cookie ? { headers: { "set-cookie": cookie } } : {}) },
+    { status, headers },
   )
+}
+
+const respond = (response: Response, cookie?: string) => {
+  const result = new Response(response.body, response)
+  result.headers.set("cache-control", NO_STORE)
+  if (cookie) result.headers.append("set-cookie", cookie)
+  return result
+}
+
+const removesVote = async (request: Request) => {
+  const body: unknown = await request
+    .clone()
+    .json()
+    .catch(() => undefined)
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "on" in body &&
+    body.on === false
+  )
+}
 
 /**
  * Runs a request through the API as the voter its cookie names. The API trusts
  * the `x-voter-id` header, so it is always set here, from a cookie signed with
  * the server's secret, and never taken from the client.
  *
- * A POST without a valid cookie gets a new voter, whose cookie is set once the
- * vote succeeds. A cookie that was changed by the client blocks the request.
+ * A POST that adds a vote without a valid cookie gets a new voter, whose
+ * cookie is set once the vote succeeds. A POST that removes a vote without one
+ * runs as `NIL_VOTER`, who holds nothing, and gets no cookie. A POST with a
+ * cookie that was changed by the client is refused. A GET with one is answered
+ * as anonymous, and the cookie is cleared.
  */
 export const serve = async (request: Request): Promise<Response> => {
   const { secret, limiter } = settings()
   const secure = isHttps(request)
   const post = request.method === "POST"
-  origin = new URL(request.url).origin
+  const origin = new URL(request.url).origin
+  if (import.meta.env.DEV) devOrigin = origin
 
   if (post) {
     // Browsers send Origin on POSTs. A page on another site cannot vote.
@@ -150,21 +181,21 @@ export const serve = async (request: Request): Promise<Response> => {
   }
 
   const identity = await identify(request, secret)
-  if (identity.tampered)
-    return refusal("InvalidVoter", 403, clearedVoterCookie(secure))
+  const cleared = identity.tampered ? clearedVoterCookie(secure) : undefined
+  if (post && identity.tampered) return refusal("InvalidVoter", 403, cleared)
 
   const issued =
-    post && identity.voter === undefined ? await issueVoter(secret) : undefined
+    post && identity.voter === undefined && !(await removesVote(request))
+      ? await issueVoter(secret)
+      : undefined
   const voter = issued?.voter ?? identity.voter ?? NIL_VOTER
 
   const headers = new Headers(request.headers)
   headers.set("x-voter-id", voter)
   const response = await handler(new Request(request, { headers }))
 
-  if (issued && response.ok) {
-    const withCookie = new Response(response.body, response)
-    withCookie.headers.append("set-cookie", voterCookie(issued.token, secure))
-    return withCookie
-  }
-  return response
+  return respond(
+    response,
+    issued && response.ok ? voterCookie(issued.token, secure) : cleared,
+  )
 }

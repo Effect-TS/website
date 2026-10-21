@@ -6,3 +6,8 @@ CREATE TABLE votes (
 );
 
 CREATE INDEX votes_by_voter ON votes (voter_id);
+
+CREATE TABLE tallies (
+  module_id TEXT    PRIMARY KEY,
+  votes     INTEGER NOT NULL
+);

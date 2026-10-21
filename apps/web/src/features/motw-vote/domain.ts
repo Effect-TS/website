@@ -18,9 +18,6 @@ export interface RankedModule extends ModuleRef {
 /** Where the build puts the module list the server checks votes against. */
 export const VOTE_DATA_PATH = "/module-of-the-week/vote-data.json"
 
-/** How many modules the ranking returns. */
-export const RANKING_LIMIT = 100
-
 export const VOTE_REFUSALS = [
   "UnknownModule",
   "Covered",
