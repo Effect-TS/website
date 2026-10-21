@@ -1,0 +1,1221 @@
+---
+// With `keys`, the same story once messages have idempotency keys. The copy
+// arrives with the same key as the first message, so it's a duplicate and
+// isn't saved. Its save can only finish once the first one does, so the
+// webhook replies to both at once: the first reply too late, the copy's in
+// time. The database keeps one row.
+//
+// The retry as a timeline with lanes, like the crash timeline at the top of
+// the post: Slack, our webhook, and two rows in the database. Sebastian
+// posts, and Slack sends his message to the webhook, then waits. The webhook
+// only replies once the message is saved, and the save is slow, so Slack
+// hears nothing for three seconds and sends the same message again. The
+// first save finishes and the reply arrives too late. Then the copy is
+// saved, Slack gets its reply in time, and the database has the message
+// twice.
+//
+// Everything sits on one grid, a track per lane and a track per step. On
+// wide stages the lanes are rows and time runs left to right. On narrow
+// ones the lanes turn into columns and time runs top to bottom.
+
+import { people, warning } from "../3/palette"
+import StepCallout from "@/components/blog/module-of-the-week/stepper/StepCallout.astro"
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import StepPills from "@/components/blog/module-of-the-week/stepper/StepPills.astro"
+
+interface Props {
+  // Messages have idempotency keys, so the copy isn't saved twice
+  keys?: boolean
+}
+const { keys = false } = Astro.props
+
+const steps = keys
+  ? ["Post", "Send", "Retry", "Replies"]
+  : ["Post", "Send", "Retry", "Too late", "Copy"]
+const SEND = 1
+const RETRY = 2
+const LATE = 3
+const COPY = 4
+
+// Lanes, top to bottom: Slack, the webhook, then the database's two rows
+const SLACK = 1
+const WEBHOOK = 2
+const ROW = 3
+const COPY_ROW = 4
+
+// The lanes each step's line spans, through the webhook, and what travels
+// along it. With keys, both replies go back at the last step, side by side:
+// the first message's, then the copy's.
+type Kind = "msg" | "late" | "reply"
+type Link = { lanes: [from: number, to: number]; kind: Kind }
+const links: Partial<Record<number, Link & { also?: Link }>> = keys
+  ? {
+      [SEND]: { lanes: [SLACK, ROW], kind: "msg" },
+      [RETRY]: { lanes: [SLACK, COPY_ROW], kind: "msg" },
+      [LATE]: {
+        lanes: [ROW, SLACK],
+        kind: "late",
+        also: { lanes: [COPY_ROW, SLACK], kind: "reply" },
+      },
+    }
+  : {
+      [SEND]: { lanes: [SLACK, ROW], kind: "msg" },
+      [RETRY]: { lanes: [SLACK, COPY_ROW], kind: "msg" },
+      [LATE]: { lanes: [ROW, SLACK], kind: "late" },
+      [COPY]: { lanes: [COPY_ROW, SLACK], kind: "reply" },
+    }
+
+// The middle of a lane, down from the top on wide stages, as lane heights
+// and row heights. The database's rows are shorter than the other lanes.
+const center = (lane: number) => (lane <= WEBHOOK ? [lane - 0.5, 0] : [WEBHOOK, lane - 2.5])
+const size = ([lanes, rows]: Array<number>) =>
+  `calc(var(--rl6-lane) * ${lanes} + var(--rl6-row) * ${rows})`
+
+// Where a step's line starts and how long it is. Wide, that's down from the
+// top. Narrow, it's in lanes from the left, which are all the same width.
+// The second line's, for a step with two, is the same with a 2 on the end.
+const place = ({ lanes }: Link, suffix = "") => {
+  const lo = Math.min(...lanes)
+  const hi = Math.max(...lanes)
+  const [x0, y0] = center(lo) as [number, number]
+  const [x1, y1] = center(hi) as [number, number]
+  return [
+    `--top${suffix}: ${size([x0, y0])}`,
+    `--len${suffix}: ${size([x1 - x0, y1 - y0])}`,
+    `--a${suffix}: ${lo - 0.5}`,
+    `--d${suffix}: ${hi - lo}`,
+  ]
+}
+const line = (t: number) => {
+  const l = links[t]
+  if (!l) return ""
+  return [...place(l), ...(l.also ? place(l.also, "2") : [])].join("; ")
+}
+const dir = (t: number) => {
+  const l = links[t]
+  return l && (l.lanes[0] < l.lanes[1] ? "down" : "up")
+}
+
+// Places an item at step `t` (through step `end`) in a lane
+const at = (t: number, lane: number, end = t) =>
+  `--t0: ${t + 2}; --t1: ${end + 3}; --n: ${end - t + 1}; --lane: ${lane}`
+---
+
+<figure
+  class="rl6 st"
+  data-rl6-visual
+  data-keys={keys || undefined}
+  aria-label={keys
+    ? "Step-by-step timeline with lanes for Slack, our webhook, and the database. Sebastian posts in Slack, and Slack sends his message to the webhook, then waits up to three seconds for a reply. The webhook starts saving the message, and the save is slow. After three seconds with no reply, Slack sends the same message again. It has the same key as the first, so it's a duplicate and isn't saved. When the first save finishes, the webhook replies to both. The first reply is too late, but the reply to the copy reaches Slack in time, and the database has one row."
+    : "Step-by-step timeline with lanes for Slack, our webhook, and two rows in the database. Sebastian posts in Slack, and Slack sends his message to the webhook, then waits up to three seconds for a reply. The webhook starts saving the message, and only replies once it's saved. The save is slow, so after three seconds with no reply, Slack sends the same message again. The first save finishes, and the reply reaches Slack too late. Then the copy is saved and its reply reaches Slack in time, so the database has the message twice."}
+  style={[
+    `--rl6-msg-light: ${people.Sebastian.light}`,
+    `--rl6-msg-dark: ${people.Sebastian.dark}`,
+    `--rl6-warn: ${warning.background}`,
+    `--rl6-warn-ink: ${warning.text}`,
+  ].join("; ")}
+>
+  <StepPills steps={steps} />
+
+  <div class="rl6-stage" data-rl6-stage>
+    <div class="rl6-card">
+      <div class="rl6-grid">
+        {/* One track per step, behind everything. It draws what travels. */}
+        {
+          steps.map((_, t) => (
+            <div
+              class:list={["rl6-step", links[t]?.also && "is-split"]}
+              data-rl6-step={t}
+              data-link={links[t]?.kind}
+              data-dir={dir(t)}
+              style={`--t0: ${t + 2}; ${line(t)}`}
+            />
+          ))
+        }
+
+        <p class="rl6-label" style={`--lane: ${SLACK}`}>Slack</p>
+        <p class="rl6-label" style={`--lane: ${WEBHOOK}`}>Webhook</p>
+        <p class="rl6-label is-table" style={`--lane: ${ROW}`}>Database</p>
+        {/* The middle of each lane, for the envelopes */}
+        {
+          [SLACK, WEBHOOK, ROW, COPY_ROW].map((lane) => (
+            <span class="rl6-anchor" data-rl6-lane={lane} style={`--lane: ${lane}`} />
+          ))
+        }
+
+        <span class="rl6-item rl6-cell" data-rl6-at={0} style={at(0, SLACK)}>
+          <span class="rl6-chip" data-rl6-head>Sebastian</span>
+        </span>
+        {/* His message heads out from his box, then down to the webhook */}
+        <span class="rl6-feed" data-rl6-feed style={at(0, SLACK, SEND)}></span>
+
+        {/* Slack's wait, from when it sends until it hears nothing back */}
+        <span
+          class="rl6-line is-wait"
+          data-rl6-line
+          data-from={SEND}
+          data-to={RETRY}
+          style={at(SEND, SLACK)}
+        >
+          <span class="rl6-line-label">waits 3s</span>
+        </span>
+        <span class="rl6-item rl6-cell" data-rl6-at={RETRY} data-rl6-sends style={at(RETRY, SLACK)}>
+          <span class="rl6-chip is-red" data-rl6-tail>No reply</span>
+        </span>
+        {
+          keys ? (
+            <span class="rl6-item rl6-cell is-split" data-rl6-at={LATE} style={at(LATE, SLACK)}>
+              <span class="rl6-chip is-red is-late">Too late</span>
+              <span class="rl6-chip is-ok">On time</span>
+            </span>
+          ) : (
+            <>
+              <span class="rl6-item rl6-cell" data-rl6-at={LATE} style={at(LATE, SLACK)}>
+                <span class="rl6-chip is-red is-late">Too late</span>
+              </span>
+              <span class="rl6-item rl6-cell" data-rl6-at={COPY} style={at(COPY, SLACK)}>
+                <span class="rl6-chip is-ok">On time</span>
+              </span>
+            </>
+          )
+        }
+
+        {/* The webhook passes each message on, and each reply back */}
+        {
+          steps.slice(SEND).map((_, i) => {
+            const t = i + SEND
+            const split = Boolean(links[t]?.also)
+            return (
+              <span
+                class:list={["rl6-item rl6-cell", split && "is-split"]}
+                data-rl6-at={t}
+                data-rl6-sends
+                style={at(t, WEBHOOK)}
+              >
+                {(split ? [0, 1] : [0]).map(() => (
+                  <span class="rl6-hook" aria-hidden="true">
+                    <span class="rl6-face" />
+                  </span>
+                ))}
+              </span>
+            )
+          })
+        }
+
+        {/* The two saves. They start when the message arrives, and run long. */}
+        <span class="rl6-save" data-rl6-save={SEND} data-done={LATE} style={at(SEND, ROW)}>
+          <span class="rl6-saving">saving <span class="rl6-spin" aria-hidden="true"></span></span>
+          <span class="rl6-saved">saved</span>
+          {keys && <span class="rl6-key">key 1337</span>}
+        </span>
+        {
+          /* With keys, the copy has the same key as the first message, so it's
+            a duplicate from the moment it arrives. It stays until the webhook
+            replies to it, along with the first. */
+        }
+        {
+          keys ? (
+            <span
+              class="rl6-save is-dupe"
+              data-rl6-save={RETRY}
+              data-done={RETRY}
+              data-until={LATE}
+              style={at(RETRY, COPY_ROW)}
+            >
+              <span class="rl6-dupe">Duplicate</span>
+              <span class="rl6-more">
+                not saved <span class="rl6-key">key 1337</span>
+              </span>
+            </span>
+          ) : (
+            <span
+              class="rl6-save"
+              data-rl6-save={RETRY}
+              data-done={COPY}
+              style={at(RETRY, COPY_ROW)}
+            >
+              <span class="rl6-saving">
+                saving <span class="rl6-spin" aria-hidden="true" />
+              </span>
+              <span class="rl6-saved">
+                saved <span class="rl6-copy">Copy</span>
+              </span>
+            </span>
+          )
+        }
+      </div>
+    </div>
+
+    <StepCallout />
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import {
+    createCallout,
+    createStepper,
+    createTraveler,
+    envelopeSvg,
+    rel,
+    type Anchor,
+    type Point,
+  } from "@/components/blog/module-of-the-week/stepper/stepper"
+
+  // Short enough to fit the callout in two lines
+  const STORY: Array<{ title: string; text: string }> = [
+    { title: "Post", text: "Sebastian posts a question in Slack" },
+    { title: "Send", text: "Slack waits up to 3s while the webhook persists the message" },
+    { title: "Retry", text: "No reply after 3s, so Slack sends it again" },
+    { title: "Too late", text: "The first save finishes, but the reply is too late" },
+    { title: "Copy", text: "The copy is saved too. Now there are two." },
+  ]
+  // The same story, with idempotency keys
+  const KEYED: Array<{ title: string; text: string }> = [
+    ...STORY.slice(0, 2),
+    { title: "Retry", text: "Slack retries, but the idempotency key stops a duplicate save" },
+    {
+      title: "Replies",
+      text: "The save finishes and both get a reply, but the first is too late",
+    },
+  ]
+  const READY = { title: "Ready", text: "Click Step, and Sebastian posts his question" }
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  // The stage width where the steps get too narrow for their chips, and the
+  // lanes turn into columns. Matches the container query in the styles.
+  const WIDE = 600
+  // How long a line or a save takes to stretch to the next step, before
+  // anything travels
+  const GROW_MS = 250
+  // How long an envelope takes from end to end, through the webhook
+  const SEND_MS = 550
+  // How long Sebastian's message takes from his box to where it turns down
+  const FEED_MS = 250
+  const SEND = 1
+  // Where a step with two replies puts them, across it. Matches the styles.
+  const SPLIT = [0.3, 0.7] as const
+  // The lanes each step's envelope passes through
+  // What travels at each step: the lanes an envelope passes through, how far
+  // across its step it goes, and what it carries if that's not the step's
+  type Trip = { lanes: Array<number>; at?: number; kind?: string }
+  const TRIPS: Record<number, Array<Trip>> = {
+    1: [{ lanes: [1, 2, 3] }],
+    2: [{ lanes: [1, 2, 4] }],
+    3: [{ lanes: [3, 2, 1] }],
+    4: [{ lanes: [4, 2, 1] }],
+  }
+  // With keys, both replies go back at once, side by side
+  const KEYED_TRIPS: Record<number, Array<Trip>> = {
+    1: TRIPS[1]!,
+    2: TRIPS[2]!,
+    3: [
+      { lanes: [3, 2, 1], at: SPLIT[0], kind: "late" },
+      { lanes: [4, 2, 1], at: SPLIT[1], kind: "reply" },
+    ],
+  }
+  const ease = "cubic-bezier(0.23, 1, 0.32, 1)"
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-rl6-visual]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const keyed = root.hasAttribute("data-keys")
+    const VIEWS = keyed ? KEYED : STORY
+    const trips = keyed ? KEYED_TRIPS : TRIPS
+    const stage = q<HTMLElement>("[data-rl6-stage]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const lines = [...root.querySelectorAll<HTMLElement>("[data-rl6-line]")]
+    const saves = [...root.querySelectorAll<HTMLElement>("[data-rl6-save]")]
+    const steps = [...root.querySelectorAll<HTMLElement>("[data-rl6-step]")]
+    const items = [...root.querySelectorAll<HTMLElement>("[data-rl6-at]")]
+    const senders = items.filter((el) => el.hasAttribute("data-rl6-sends"))
+    const lanes = [...root.querySelectorAll<HTMLElement>("[data-rl6-lane]")]
+    const tail = q<HTMLElement>("[data-rl6-tail]")
+    const head = q<HTMLElement>("[data-rl6-head]")
+    const feed = q<HTMLElement>("[data-rl6-feed]")
+
+    // The callout goes under the current step on wide stages. When time runs
+    // down the page instead, there's no room, so the caption shows.
+    const wide = () => stage.clientWidth >= WIDE
+    const callout = createCallout(root, stage)
+    const anchorFor = (k: number): Anchor | null =>
+      wide() ? { el: steps[k]!, place: "below", width: 250 } : null
+
+    // Stretches something placed at step `from` through step `to`
+    const span = (el: HTMLElement, from: number, to: number) => {
+      el.style.setProperty("--t1", String(to + 3))
+      el.style.setProperty("--n", String(to - from + 1))
+    }
+    // Lines and saves run from their first step until they end: `data-to`
+    // for a line, and for a save `data-until`, or else when it's done
+    const from = (el: HTMLElement) => Number(el.dataset.from ?? el.dataset.rl6Save)
+    const end = (el: HTMLElement) => Number(el.dataset.to ?? el.dataset.until ?? el.dataset.done)
+    const stretch = (el: HTMLElement, k: number) => {
+      const to = Math.max(from(el), Math.min(k, end(el)))
+      span(el, from(el), to)
+      el.classList.toggle("is-short", to === from(el))
+      // A line stops at the edge of the chip at its end, so its label sits
+      // in the middle of what shows
+      if (el.dataset.to) el.classList.toggle("is-over", k >= end(el))
+    }
+    // Half a chip, along the way time runs
+    const half = (el: HTMLElement) => (wide() ? el.offsetWidth : el.offsetHeight) / 2
+    const measure = () => {
+      root.style.setProperty("--rl6-tail", `${half(tail)}px`)
+      root.style.setProperty("--rl6-head", `${half(head)}px`)
+    }
+
+    const lengths = (k: number) => {
+      for (const el of [...lines, ...saves]) {
+        stretch(el, k)
+        el.classList.toggle("is-on", k >= from(el))
+      }
+    }
+    // A save that's finished says so
+    const finish = (k: number) => {
+      for (const el of saves) el.classList.toggle("is-done", k >= Number(el.dataset.done))
+    }
+
+    // Says what happens at step k, and marks it in the pills and its column.
+    // Stepping forward, this happens on the click, before the envelope lands.
+    const pills = [...root.querySelectorAll<HTMLElement>("[data-step-pill]")]
+    const box = q<HTMLElement>("[data-callout]")
+    let said = ""
+    const describe = (k: number) => {
+      for (const [t, el] of steps.entries()) el.classList.toggle("is-current", t === k)
+      for (const [t, el] of pills.entries()) {
+        if (t === k) el.setAttribute("aria-current", "step")
+        else el.removeAttribute("aria-current")
+        el.classList.toggle("is-done", t < k)
+      }
+      const view = VIEWS[k] ?? READY
+      caption.textContent = k < 0 ? view.text : `${k + 1}. ${view.text}`
+
+      // The callout glides to the new step, and its words dim and come back
+      const was = box.hidden ? null : box.getBoundingClientRect()
+      for (const a of box.getAnimations({ subtree: true })) a.cancel()
+      callout.show({ ...view, num: k < 0 ? undefined : k + 1 }, anchorFor(Math.max(0, k)))
+      const changed = view.text !== said
+      said = view.text
+      if (!was || box.hidden || reduceMotion()) return
+      const now = box.getBoundingClientRect()
+      const dx = was.left - now.left
+      const dy = was.top - now.top
+      if (dx || dy) {
+        box.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+          duration: 250,
+          easing: ease,
+        })
+      }
+      if (changed) {
+        for (const el of box.children) {
+          el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 200, easing: "ease-out" })
+        }
+      }
+    }
+
+    let current = 0
+    const apply = (state: number) => {
+      current = state
+      const k = state - 1
+      for (const el of items) el.classList.toggle("is-on", Number(el.dataset.rl6At) <= k)
+      for (const [t, el] of steps.entries()) {
+        el.classList.toggle("is-on", t <= k)
+        el.classList.remove("is-sending")
+      }
+      measure()
+      feed.classList.toggle("is-on", k >= SEND)
+      lengths(k)
+      finish(k)
+      describe(k)
+    }
+
+    // The middle of a lane at a step. Lanes are rows on wide stages, and
+    // columns on narrow ones.
+    const middle = (el: Element): Point => {
+      const r = rel(stage, el)
+      return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+    }
+    // `at` is how far across the step, from its start
+    const point = (lane: number, t: number, at = 0.5): Point => {
+      const l = middle(lanes[lane - 1]!)
+      const s = rel(stage, steps[t]!)
+      return wide()
+        ? { x: s.left + (s.right - s.left) * at, y: l.y }
+        : { x: l.x, y: s.top + (s.bottom - s.top) * at }
+    }
+
+    // Stretches a line or a save to step `next`, then reveals the new length
+    // from where it ended. A span on the grid can't animate, but a clip can.
+    // The clip leaves room around a line for its label, which keeps to the
+    // middle of the line and glides along as it grows.
+    const traveler = createTraveler(stage)
+    const growing = new Set<Animation>()
+    const track = (anim: Animation) => {
+      growing.add(anim)
+      anim.onfinish = anim.oncancel = () => growing.delete(anim)
+      return anim.finished.catch(() => {})
+    }
+    const grow = (el: HTMLElement, next: number) => {
+      const label = el.querySelector<HTMLElement>(".rl6-line-label")
+      const was = el.getBoundingClientRect()
+      const labelWas = label?.getBoundingClientRect()
+      const wasOn = el.classList.contains("is-on")
+      el.classList.add("is-on")
+      stretch(el, next)
+      const now = el.getBoundingClientRect()
+      const across = wide()
+      // One that wasn't showing grows from nothing
+      const added = across
+        ? now.width - (wasOn ? was.width : 0)
+        : now.height - (wasOn ? was.height : 0)
+      if (added <= 0 || reduceMotion()) return
+      const clip = across ? `inset(-2rem ${added}px -2rem 0)` : `inset(0 -8rem ${added}px -8rem)`
+      const open = across ? "inset(-2rem 0 -2rem 0)" : "inset(0 -8rem 0 -8rem)"
+      const runs = [
+        track(
+          el.animate([{ clipPath: clip }, { clipPath: open }], { duration: GROW_MS, easing: ease }),
+        ),
+      ]
+      if (label && labelWas) {
+        const labelNow = label.getBoundingClientRect()
+        const dx = labelWas.left - labelNow.left
+        const dy = labelWas.top - labelNow.top
+        runs.push(
+          track(
+            label.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+              duration: GROW_MS,
+              easing: ease,
+            }),
+          ),
+        )
+      }
+      return Promise.all(runs)
+    }
+    const extend = (next: number) =>
+      Promise.all(
+        [...lines, ...saves]
+          // Still going, and already started
+          .filter((el) => next > from(el) && next <= end(el))
+          .map((el) => grow(el, next)),
+      )
+
+    const advance = async (state: number, alive: () => boolean) => {
+      const next = state - 1
+      describe(next)
+      await extend(next)
+      // A save finishes before its reply goes out
+      finish(next)
+      const going = trips[next]
+      if (!going || !alive()) return
+      for (const el of senders) {
+        if (Number(el.dataset.rl6At) === next) el.classList.add("is-on")
+      }
+      const step = steps[next]!
+      const envelope = `rl6-env is-${step.dataset.link}`
+      // Sebastian's message leaves the edge of his box first, drawing its
+      // line along behind it
+      if (next === SEND) {
+        const from = point(1, 0)
+        const edge = wide()
+          ? { ...from, x: from.x + half(head) }
+          : { ...from, y: from.y + half(head) }
+        feed.classList.add("is-on")
+        if (!reduceMotion()) {
+          const hidden = wide() ? "inset(0 100% 0 0)" : "inset(0 0 100% 0)"
+          track(
+            feed.animate([{ clipPath: hidden }, { clipPath: "inset(0)" }], {
+              duration: FEED_MS,
+              easing: "ease-in-out",
+            }),
+          )
+        }
+        await traveler.travel([edge, point(1, next)], envelope, envelopeSvg, FEED_MS)
+        if (!alive()) return
+      }
+      step.classList.add("is-sending")
+      await Promise.all(
+        going.map((trip) =>
+          traveler.travel(
+            trip.lanes.map((lane) => point(lane, next, trip.at)),
+            trip.kind ? `rl6-env is-${trip.kind}` : envelope,
+            envelopeSvg,
+            SEND_MS,
+          ),
+        ),
+      )
+    }
+
+    createStepper({
+      root,
+      first: 1,
+      last: VIEWS.length,
+      apply,
+      advance,
+      stop: () => {
+        traveler.cancel()
+        for (const a of [...growing]) a.cancel()
+      },
+    })
+    new ResizeObserver(() => {
+      measure()
+      callout.place(anchorFor(Math.max(0, current - 1)))
+    }).observe(stage)
+  }
+</script>
+
+<style is:global>
+  .rl6 {
+    --rl6-ink: #3f3f46;
+    --rl6-muted: #71717a;
+    --rl6-line: #d4d4d8;
+    --rl6-surface: #ffffff;
+    --rl6-panel: #fafafa;
+    --rl6-ok: #15803d;
+    --rl6-red: #dc2626;
+    --rl6-msg: var(--rl6-msg-light);
+    /* The lines between rows: lighter than the card's border */
+    --rl6-rule: color-mix(in oklab, var(--rl6-line) 60%, transparent);
+    --rl6-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --st-ink: var(--rl6-ink);
+    --st-muted: var(--rl6-muted);
+    --st-line: var(--rl6-line);
+    --st-surface: var(--rl6-surface);
+    /* How big each lane is across, and each of the database's rows */
+    --rl6-lane: 3.5rem;
+    --rl6-row: 2.5rem;
+    --rl6-send: 550ms;
+    --rl6-label: 6.5rem;
+    margin: 1.5rem 0;
+  }
+  html.dark .rl6 {
+    --rl6-ink: #e4e4e7;
+    --rl6-muted: #a1a1aa;
+    --rl6-line: #3f3f46;
+    --rl6-surface: #09090b;
+    --rl6-panel: #111113;
+    --rl6-ok: #4ade80;
+    --rl6-red: #f87171;
+    --rl6-msg: var(--rl6-msg-dark);
+  }
+  .rl6 p {
+    margin: 0;
+  }
+  .rl6-stage {
+    position: relative;
+    container: rl6 / inline-size;
+  }
+  /* Room for a callout two lines tall */
+  .rl6.has-callouts .rl6-stage {
+    padding-bottom: 5.5rem;
+  }
+  .rl6-card {
+    border: 1px solid var(--rl6-line);
+    border-radius: var(--radius-md, 6px);
+    background: var(--rl6-surface);
+    overflow: hidden;
+  }
+
+  /* Wide: lanes are rows, time runs left to right */
+  .rl6-grid {
+    display: grid;
+    grid-template-columns: var(--rl6-label) repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(2, var(--rl6-lane)) repeat(2, var(--rl6-row));
+    /* A line under Slack and under the webhook. The database's two rows
+       share a lane. */
+    background:
+      linear-gradient(var(--rl6-rule), var(--rl6-rule)) 0 var(--rl6-lane) / 100% 1px no-repeat,
+      linear-gradient(var(--rl6-rule), var(--rl6-rule)) 0 calc(var(--rl6-lane) * 2) / 100% 1px
+        no-repeat;
+    font-size: 0.72rem;
+    color: var(--rl6-ink);
+  }
+  .rl6-grid > * {
+    grid-column: var(--t0) / var(--t1, auto);
+    grid-row: var(--lane);
+  }
+  .rl6 .rl6-label {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 0.85rem;
+    background: var(--rl6-panel);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .rl6 .rl6-label:not(:first-of-type) {
+    border-top: 1px solid var(--rl6-rule);
+  }
+  .rl6 .rl6-label.is-table {
+    grid-row: 3 / 5;
+  }
+  .rl6-grid > .rl6-anchor {
+    grid-column: 1;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .rl6-grid > .rl6-step {
+    grid-column: var(--t0);
+    grid-row: 1 / 5;
+  }
+
+  /* Each step's track: tinted while it's current, with a line across the
+     lanes for whatever travels */
+  .rl6-step {
+    position: relative;
+    transition: background-color 200ms ease;
+  }
+  .rl6-step.is-current {
+    background: color-mix(in oklab, var(--rl6-ink) 5%, transparent);
+  }
+  .rl6-step[data-link]::before {
+    content: "";
+    position: absolute;
+    top: var(--top);
+    left: 50%;
+    width: 2px;
+    height: var(--len);
+    margin-left: -1px;
+    background: var(--rl6-msg);
+    opacity: 0;
+    /* Each line grows from the lane that sends */
+    transform: scaleY(0);
+    transform-origin: top;
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .rl6-step[data-dir="up"]::before {
+    transform-origin: bottom;
+  }
+  .rl6-step[data-link="late"]::before {
+    background: var(--rl6-red);
+  }
+  .rl6-step[data-link="reply"]::before {
+    background: var(--rl6-ok);
+  }
+  .rl6-step.is-on[data-link]::before {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform 240ms var(--rl6-ease);
+  }
+  /* While an envelope travels, its line keeps pace with it */
+  .rl6-step.is-sending[data-link]::before {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform var(--rl6-send) ease-in-out;
+  }
+
+  /* A step with two replies draws them side by side: the first message's on
+     the left, and the copy's on the right. SPLIT in the script matches. */
+  .rl6-step.is-split::before {
+    left: 30%;
+  }
+  .rl6-step.is-split::after {
+    content: "";
+    position: absolute;
+    top: var(--top2);
+    left: 70%;
+    width: 2px;
+    height: var(--len2);
+    margin-left: -1px;
+    background: var(--rl6-ok);
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .rl6-step.is-split.is-on::after {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform 240ms var(--rl6-ease);
+  }
+  .rl6-step.is-split.is-sending::after {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 80ms ease-out,
+      transform var(--rl6-send) ease-in-out;
+  }
+  /* With keys there are four steps, and the last is wider, for two replies */
+  .rl6[data-keys] .rl6-grid {
+    grid-template-columns: var(--rl6-label) repeat(3, minmax(0, 1fr)) minmax(0, 1.6fr);
+  }
+  .rl6-cell.is-split > * {
+    position: absolute;
+    top: 50%;
+    translate: -50% -50%;
+  }
+  .rl6-cell.is-split > :first-child {
+    left: 30%;
+  }
+  .rl6-cell.is-split > :last-child {
+    left: 70%;
+  }
+
+  .rl6-env {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 20px;
+    height: 14px;
+    pointer-events: none;
+    --c: var(--rl6-msg);
+  }
+  .rl6-env.is-late {
+    --c: var(--rl6-red);
+  }
+  .rl6-env.is-reply {
+    --c: var(--rl6-ok);
+  }
+  .rl6-env svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--c);
+    stroke: var(--rl6-surface);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .rl6-env path {
+    fill: none;
+  }
+
+  /* What's in each lane, coming in when its step does. Going back, it
+     leaves quicker than it came. */
+  .rl6-item {
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.95);
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+  .rl6-item.is-on {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 220ms var(--rl6-ease),
+      transform 220ms var(--rl6-ease);
+  }
+  .rl6-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+  /* From the edge of Sebastian's box to the middle of the step that sends */
+  .rl6-feed {
+    align-self: center;
+    height: 0;
+    margin: 0 calc(50% / var(--n)) 0 calc(50% / var(--n) + var(--rl6-head, 0px));
+    border-top: 2px solid var(--rl6-msg);
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+  }
+  .rl6-feed.is-on {
+    opacity: 1;
+  }
+  /* The webhook: Dad's face in a box, since it's part of his bot */
+  .rl6-hook {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1.5px solid var(--rl6-line);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--rl6-surface);
+  }
+  .rl6-face {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    background: #fde7c8
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-10 -10 20 20'%3E%3Ccircle r='9.2' fill='none' stroke='%233f3f46' stroke-width='1.2'/%3E%3Cpath d='M-7.4 -4.6 Q-4 -9.6 0 -8.2 Q4 -9.6 7.4 -4.6' fill='none' stroke='%233f3f46' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='-3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Ccircle cx='3.2' cy='-1.6' r='1.15' fill='%233f3f46'/%3E%3Cpath d='M-5.2 3.4 Q-2.6 1.2 0 2.8 Q2.6 1.2 5.2 3.4 Q2.6 5.6 0 4.2 Q-2.6 5.6 -5.2 3.4Z' fill='%233f3f46'/%3E%3C/svg%3E")
+      center / cover;
+  }
+  .rl6-chip {
+    padding: 0.1rem 0.45rem;
+    border: 1.5px solid var(--rl6-msg);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--rl6-surface);
+    color: var(--rl6-msg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .rl6-chip.is-red {
+    border-color: var(--rl6-red);
+    color: var(--rl6-red);
+  }
+  .rl6-chip.is-ok {
+    border-color: var(--rl6-ok);
+    color: var(--rl6-ok);
+  }
+  /* A small shake as the reply turns up too late */
+  .rl6-item.is-on .rl6-chip.is-late {
+    animation: rl6-jolt 300ms ease-out 60ms;
+  }
+  @keyframes rl6-jolt {
+    25% {
+      transform: translateX(-2px);
+    }
+    50% {
+      transform: translateX(2px);
+    }
+    75% {
+      transform: translateX(-1px);
+    }
+  }
+
+  /* Slack's wait: a dotted line along its lane, from the middle of the step
+     that sends to the middle of the one where it stops waiting */
+  .rl6-line {
+    position: relative;
+    align-self: center;
+    height: 0;
+    margin: 0 calc(50% / var(--n));
+    border-top: 2px dotted var(--rl6-muted);
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .rl6-line.is-over {
+    margin-right: calc(50% / var(--n) + var(--rl6-tail, 0px));
+  }
+  .rl6-line.is-on {
+    opacity: 1;
+  }
+  /* Over the middle of the line. The script moves it with a transform, so
+     it's centered with translate. */
+  .rl6-line-label {
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    translate: -50% 0;
+    font-size: 0.66rem;
+    color: var(--rl6-muted);
+    white-space: nowrap;
+  }
+
+  /* A save: dashed while it's going, solid once it's in the table */
+  .rl6-save {
+    position: relative;
+    align-self: center;
+    margin: 0 0.25rem;
+    padding: 0.15rem 0.35rem;
+    border: 1.5px dashed var(--rl6-msg);
+    border-radius: var(--radius-sm, 4px);
+    background: color-mix(in oklab, var(--rl6-msg) 8%, var(--rl6-surface));
+    font-size: 0.66rem;
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      opacity 200ms ease,
+      background-color 200ms ease;
+  }
+  .rl6-save.is-on {
+    opacity: 1;
+  }
+  /* Wide, the two rows sit close together in the middle of their lane */
+  @container rl6 (width >= 600px) {
+    .rl6-save[data-rl6-save="1"] {
+      align-self: end;
+      margin-bottom: 0.2rem;
+    }
+    .rl6-save[data-rl6-save="2"] {
+      align-self: start;
+      margin-top: 0.2rem;
+    }
+  }
+  .rl6-save.is-done {
+    border-style: solid;
+    background: color-mix(in oklab, var(--rl6-msg) 16%, var(--rl6-surface));
+  }
+  .rl6-saving {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  /* A small ring that turns while the database works */
+  .rl6-spin {
+    width: 0.6rem;
+    height: 0.6rem;
+    border: 1.5px solid color-mix(in oklab, var(--rl6-msg) 30%, transparent);
+    border-top-color: var(--rl6-msg);
+    border-radius: 999px;
+    animation: rl6-spin 700ms linear infinite;
+  }
+  @keyframes rl6-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+  .rl6-saved,
+  .rl6-save.is-done .rl6-saving {
+    display: none;
+  }
+  .rl6-save.is-done .rl6-saved {
+    display: inline;
+  }
+  .rl6-copy {
+    margin-left: 0.2rem;
+    padding: 0 0.35rem;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--rl6-warn);
+    color: var(--rl6-warn-ink);
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+  /* The message's key, in the row */
+  .rl6-key {
+    margin-left: 0.4rem;
+    color: var(--rl6-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.6rem;
+  }
+  /* The copy's save, once it finds the key taken: no row */
+  .rl6-save.is-dupe.is-done {
+    border-color: var(--rl6-muted);
+    background: var(--rl6-surface);
+    border-style: dashed;
+  }
+  /* One step long, there's only room for the tag */
+  .rl6-save.is-dupe.is-short .rl6-more {
+    display: none;
+  }
+  .rl6-more {
+    margin-left: 0.3rem;
+  }
+  .rl6-dupe {
+    padding: 0 0.35rem;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--rl6-warn);
+    color: var(--rl6-warn-ink);
+    font-size: 0.62rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .rl6-save.is-done .rl6-dupe {
+    animation: rl6-pop 220ms var(--rl6-ease) 100ms both;
+  }
+  .rl6-save.is-done .rl6-copy {
+    animation: rl6-pop 220ms var(--rl6-ease) 100ms both;
+  }
+  @keyframes rl6-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  /* A quieter callout, like the crash timeline's */
+  .rl6 .st-callout {
+    padding: 0.45rem 0.65rem 0.5rem;
+    border: 1px solid var(--rl6-line);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: none;
+    transition: none;
+  }
+  .rl6 .st-callout.is-in {
+    animation: none;
+  }
+  .rl6 .st-callout[data-place]::after {
+    width: 9px;
+    height: 9px;
+    border-color: var(--rl6-line);
+  }
+  .rl6 .st-callout[data-place="below"]::after {
+    top: -5.5px;
+    border-width: 1px 0 0 1px;
+  }
+  .rl6 .st-callout-head {
+    gap: 0.35rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .rl6 .st-callout-num {
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--rl6-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+  }
+  .rl6 .st-callout-text {
+    font-size: 0.78rem;
+    color: var(--rl6-muted);
+  }
+
+  /* Narrow: lanes are columns, time runs top to bottom. WIDE in the script
+     matches this. */
+  @container rl6 (width < 600px) {
+    .rl6-card {
+      --rl6-lane: 2.9rem;
+    }
+    .rl6-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: 2.5rem repeat(5, var(--rl6-lane));
+      background: none;
+    }
+    .rl6-grid > * {
+      grid-row: var(--t0) / var(--t1, auto);
+      grid-column: var(--lane);
+    }
+    .rl6 .rl6-label {
+      grid-row: 1;
+      grid-column: var(--lane);
+      justify-content: center;
+      padding: 0 0.25rem;
+      border-bottom: 1px solid var(--rl6-rule);
+      text-align: center;
+    }
+    .rl6 .rl6-label:not(:first-of-type) {
+      border-top: none;
+    }
+    .rl6 .rl6-label.is-table {
+      grid-row: 1;
+      grid-column: 3 / 5;
+    }
+    .rl6-grid > .rl6-anchor {
+      grid-row: 1;
+      grid-column: var(--lane);
+    }
+    .rl6-grid > .rl6-step {
+      grid-row: var(--t0);
+      grid-column: 1 / 5;
+    }
+    .rl6-step + .rl6-step {
+      border-top: 1px solid var(--rl6-rule);
+    }
+    /* Lane centers sit at an eighth, three eighths, and so on across */
+    .rl6-step[data-link]::before {
+      top: 50%;
+      left: calc(var(--a) * 25%);
+      width: calc(var(--d) * 25%);
+      height: 2px;
+      margin: -1px 0 0;
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    .rl6-step[data-dir="up"]::before {
+      transform-origin: right;
+    }
+    .rl6-step.is-split::before {
+      top: 30%;
+    }
+    .rl6-step.is-split::after {
+      top: 70%;
+      left: calc(var(--a2) * 25%);
+      width: calc(var(--d2) * 25%);
+      height: 2px;
+      margin: -1px 0 0;
+      transform: scaleX(0);
+      transform-origin: right;
+    }
+    .rl6[data-keys] .rl6-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: 2.5rem repeat(3, var(--rl6-lane)) calc(var(--rl6-lane) * 1.6);
+    }
+    .rl6-cell.is-split > :first-child,
+    .rl6-cell.is-split > :last-child {
+      left: 50%;
+    }
+    .rl6-cell.is-split > :first-child {
+      top: 30%;
+    }
+    .rl6-cell.is-split > :last-child {
+      top: 70%;
+    }
+    .rl6-line {
+      align-self: stretch;
+      justify-self: center;
+      width: 0;
+      height: auto;
+      /* From the middle of its first step to the middle of its last */
+      margin: calc(var(--rl6-lane) / 2) 0;
+      border-top: none;
+      border-left: 2px dotted var(--rl6-muted);
+    }
+    .rl6-feed {
+      align-self: stretch;
+      justify-self: center;
+      width: 0;
+      height: auto;
+      margin: calc(var(--rl6-lane) / 2 + var(--rl6-head, 0px)) 0 calc(var(--rl6-lane) / 2);
+      border-top: none;
+      border-left: 2px solid var(--rl6-msg);
+    }
+    .rl6-line.is-over {
+      margin-right: 0;
+      margin-bottom: calc(var(--rl6-lane) / 2 + var(--rl6-tail, 0px));
+    }
+    .rl6-line-label {
+      top: 50%;
+      bottom: auto;
+      left: 0.5rem;
+      translate: 0 -50%;
+    }
+    .rl6-chip {
+      padding: 0.1rem 0.3rem;
+    }
+    .rl6-save {
+      align-self: stretch;
+      justify-self: center;
+      width: calc(100% - 0.75rem);
+      margin: 0.4rem 0;
+      padding: 0.3rem 0.2rem;
+      text-align: center;
+    }
+    .rl6-copy {
+      display: block;
+      width: fit-content;
+      margin: 0.2rem auto 0;
+    }
+    .rl6-key {
+      display: block;
+      margin: 0.2rem 0 0;
+    }
+    .rl6-dupe {
+      display: block;
+      width: fit-content;
+      margin: 0 auto 0.15rem;
+    }
+  }
+
+  /* Keep the fades, but nothing moves or grows */
+  @media (prefers-reduced-motion: reduce) {
+    .rl6 .rl6-step::before,
+    .rl6 .rl6-item {
+      transform: none;
+    }
+    .rl6 .rl6-chip,
+    .rl6 .rl6-dupe,
+    .rl6 .rl6-copy {
+      animation: none;
+    }
+    /* It pulses instead of turning */
+    .rl6 .rl6-spin {
+      animation: rl6-pulse 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes rl6-pulse {
+      to {
+        opacity: 0.35;
+      }
+    }
+  }
+</style>

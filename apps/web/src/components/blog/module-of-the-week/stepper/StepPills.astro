@@ -51,11 +51,12 @@ const { steps } = Astro.props
   .st .st-step {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.35rem;
     margin: 0;
-    padding: 0.15rem 0.55rem 0.15rem 0.2rem;
+    padding: 0.15rem 0.55rem;
     border: 1px solid var(--st-line);
-    border-radius: 999px;
+    /* The same corners as the buttons */
+    border-radius: var(--radius-md, 6px);
     background: none;
     font: inherit;
     font-size: 0.72rem;
@@ -72,22 +73,15 @@ const { steps } = Astro.props
     outline: 2px solid var(--st-ink);
     outline-offset: 2px;
   }
+  /* The number is plain text, like the callout's */
   .st-step-num {
-    display: grid;
-    place-items: center;
-    width: 1.2rem;
-    height: 1.2rem;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--st-ink) 10%, transparent);
-    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.68rem;
+    opacity: 0.6;
   }
   .st .st-step.is-done {
     border-color: color-mix(in oklab, var(--st-ink) 45%, transparent);
     color: var(--st-ink);
-  }
-  .st .st-step.is-done .st-step-num {
-    background: color-mix(in oklab, var(--st-ink) 22%, transparent);
   }
   .st .st-step[aria-current="step"] {
     border-color: var(--st-ink);
@@ -95,9 +89,9 @@ const { steps } = Astro.props
     color: var(--st-surface);
     font-weight: 600;
   }
+  /* Full strength against the filled pill */
   .st .st-step[aria-current="step"] .st-step-num {
-    background: var(--st-surface);
-    color: var(--st-ink);
+    opacity: 1;
   }
 
   /* Narrow screens: one row, and only the current pill keeps its label */
@@ -105,9 +99,6 @@ const { steps } = Astro.props
     .st .st-steps {
       flex-wrap: nowrap;
       margin-bottom: 0.7rem;
-    }
-    .st .st-step:not([aria-current="step"]) {
-      padding-right: 0.2rem;
     }
     .st .st-step:not([aria-current="step"]) .st-step-label {
       display: none;

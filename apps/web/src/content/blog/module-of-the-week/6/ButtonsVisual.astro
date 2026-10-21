@@ -1,0 +1,323 @@
+---
+// Two buttons to press as often as you like. Calling the elevator lights
+// its button once, however many times you press it. Ordering a pizza adds a
+// pizza every time.
+//
+// Each card counts its presses, so the difference between pressing and what
+// pressing did is right there.
+
+const cards = [
+  { id: "elevator", action: "Call elevator" },
+  { id: "pizza", action: "Order pizza" },
+] as const
+---
+
+<figure
+  class="bt6 st"
+  data-bt6-visual
+  aria-label="Two buttons. Pressing Call elevator any number of times brings one elevator. Pressing Order pizza brings a pizza for every press."
+>
+  <div class="bt6-cards">
+    {
+      cards.map((card) => (
+        <section class="bt6-card" data-bt6-card={card.id}>
+          <div class="bt6-result" data-bt6-result aria-live="polite">
+            {card.id === "elevator" && (
+              <div class="bt6-elevator">
+                <span class="bt6-light" data-bt6-light aria-hidden="true" />
+                <span class="bt6-status" data-bt6-status>
+                  No elevator yet
+                </span>
+              </div>
+            )}
+            {card.id === "pizza" && (
+              <p class="bt6-empty" data-bt6-empty>
+                No pizza yet
+              </p>
+            )}
+          </div>
+
+          <button type="button" class="st-button st-primary bt6-press" data-bt6-press>
+            {card.action}
+          </button>
+          <p class="bt6-count" data-bt6-count>
+            Pressed 0 times
+          </p>
+        </section>
+      ))
+    }
+  </div>
+
+  <div class="st-controls">
+    <button type="button" class="st-button" data-bt6-reset>Reset</button>
+  </div>
+</figure>
+
+<script>
+  // More than this and the card would overflow, so the rest are counted.
+  // Narrow cards fit three and the count on one line.
+  const MAX_SHOWN = 6
+  const MAX_SHOWN_NARROW = 3
+  // Matches the container query in the styles
+  const NARROW = 480
+
+  // A whole pizza from above: crust, a rim of sauce, cheese cut into slices,
+  // pepperoni, and a couple of basil leaves
+  const pizzaSvg = `<svg viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="15" class="bt6-crust"/>
+    <circle cx="16" cy="16" r="12.2" class="bt6-sauce"/>
+    <circle cx="16" cy="16" r="11.2" class="bt6-cheese"/>
+    <path d="M16 4.8V27.2M4.8 16H27.2M8.1 8.1L23.9 23.9M23.9 8.1L8.1 23.9" class="bt6-cut"/>
+    <circle cx="11.5" cy="10.5" r="2.3" class="bt6-pep"/>
+    <circle cx="20.5" cy="11.5" r="2.3" class="bt6-pep"/>
+    <circle cx="10.5" cy="19.5" r="2.3" class="bt6-pep"/>
+    <circle cx="19.5" cy="20.5" r="2.3" class="bt6-pep"/>
+    <circle cx="16" cy="16" r="1.8" class="bt6-pep"/>
+    <ellipse cx="15.5" cy="9" rx="1.6" ry="0.9" transform="rotate(-30 15.5 9)" class="bt6-basil"/>
+    <ellipse cx="22.5" cy="16.5" rx="1.6" ry="0.9" transform="rotate(40 22.5 16.5)" class="bt6-basil"/>
+    <ellipse cx="14" cy="23" rx="1.6" ry="0.9" transform="rotate(10 14 23)" class="bt6-basil"/>
+  </svg>`
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-bt6-visual]")) {
+    const cards = [...root.querySelectorAll<HTMLElement>("[data-bt6-card]")]
+    const presses = new Map<HTMLElement, number>()
+    const narrow = () => root.clientWidth < NARROW
+
+    const render = (card: HTMLElement, added: boolean) => {
+      const n = presses.get(card) ?? 0
+      card.querySelector("[data-bt6-count]")!.textContent =
+        `Pressed ${n} ${n === 1 ? "time" : "times"}`
+      const kind = card.dataset.bt6Card
+
+      // The elevator only ever comes once
+      if (kind === "elevator") {
+        const light = card.querySelector<HTMLElement>("[data-bt6-light]")!
+        const was = light.classList.contains("is-on")
+        light.classList.toggle("is-on", n > 0)
+        if (added && was) {
+          // Pressing again changes nothing, and the light says so
+          light.animate([{ transform: "scale(0.9)" }, { transform: "none" }], {
+            duration: 160,
+            easing: "ease-out",
+          })
+        }
+        card.querySelector("[data-bt6-status]")!.textContent =
+          n > 0 ? "1 elevator on its way" : "No elevator yet"
+        return
+      }
+
+      // Pizzas pile up, one for every press
+      const result = card.querySelector<HTMLElement>("[data-bt6-result]")!
+      const empty = card.querySelector<HTMLElement>("[data-bt6-empty]")!
+      empty.hidden = n > 0
+      result.querySelectorAll(".bt6-item, .bt6-more").forEach((el) => el.remove())
+      const max = narrow() ? MAX_SHOWN_NARROW : MAX_SHOWN
+      const shown = Math.min(n, max)
+      for (let i = 0; i < shown; i++) {
+        const el = document.createElement("span")
+        el.className = `bt6-item is-${kind}`
+        el.innerHTML = pizzaSvg
+        // Only the newest one comes in
+        if (added && i === shown - 1 && n <= max) el.classList.add("is-new")
+        result.append(el)
+      }
+      if (n > max) {
+        const more = document.createElement("span")
+        more.className = "bt6-more"
+        more.textContent = `+${n - max} more`
+        result.append(more)
+      }
+    }
+
+    for (const card of cards) {
+      card.querySelector("[data-bt6-press]")!.addEventListener("click", () => {
+        presses.set(card, (presses.get(card) ?? 0) + 1)
+        render(card, true)
+      })
+      render(card, false)
+    }
+    root.querySelector("[data-bt6-reset]")!.addEventListener("click", () => {
+      for (const card of cards) {
+        presses.set(card, 0)
+        render(card, false)
+      }
+    })
+    // Recount when the cards cross between wide and narrow
+    let wasNarrow = narrow()
+    new ResizeObserver(() => {
+      if (narrow() === wasNarrow) return
+      wasNarrow = narrow()
+      for (const card of cards) render(card, false)
+    }).observe(root)
+  }
+</script>
+
+<style is:global>
+  .bt6 {
+    --bt6-ink: #3f3f46;
+    --bt6-muted: #71717a;
+    --bt6-line: #d4d4d8;
+    --bt6-surface: #ffffff;
+    --bt6-panel: #fafafa;
+    --bt6-ok: #15803d;
+    --st-ink: var(--bt6-ink);
+    --st-muted: var(--bt6-muted);
+    --st-line: var(--bt6-line);
+    --st-surface: var(--bt6-surface);
+    --bt6-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    margin: 1.5rem 0;
+    container: bt6 / inline-size;
+  }
+  html.dark .bt6 {
+    --bt6-ink: #e4e4e7;
+    --bt6-muted: #a1a1aa;
+    --bt6-line: #3f3f46;
+    --bt6-surface: #09090b;
+    --bt6-panel: #111113;
+    --bt6-ok: #4ade80;
+  }
+  .bt6 p {
+    margin: 0;
+  }
+
+  .bt6-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .bt6-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem;
+    border: 1px solid var(--bt6-line);
+    border-radius: var(--radius-lg, 8px);
+    background: var(--bt6-surface);
+    color: var(--bt6-ink);
+  }
+  /* What pressing did. A fixed height, so the cards don't jump as it fills. */
+  .bt6-result {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    align-self: stretch;
+    height: 5.5rem;
+    padding: 0.5rem;
+    /* Concentric with the card: its radius, less the padding */
+    border-radius: calc(var(--radius-lg, 8px) - 0.25rem);
+    background: var(--bt6-panel);
+  }
+  .bt6 .bt6-empty,
+  .bt6-status,
+  .bt6-more {
+    font-size: 0.72rem;
+    color: var(--bt6-muted);
+  }
+
+  .bt6-elevator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  /* The call button's light, lit once you've pressed it at all */
+  .bt6-light {
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 1.5px solid var(--bt6-line);
+    border-radius: 999px;
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .bt6-light.is-on {
+    border-color: var(--bt6-ok);
+    background: color-mix(in oklab, var(--bt6-ok) 30%, var(--bt6-surface));
+    box-shadow: 0 0 10px color-mix(in oklab, var(--bt6-ok) 45%, transparent);
+  }
+
+  .bt6-item.is-pizza svg {
+    display: block;
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+  .bt6-crust {
+    fill: #d9a35b;
+    stroke: #b7803c;
+    stroke-width: 0.8;
+  }
+  .bt6-sauce {
+    fill: #c8432b;
+  }
+  .bt6-cheese {
+    fill: #f7d27a;
+  }
+  .bt6-cut {
+    fill: none;
+    stroke: #e2b45c;
+    stroke-width: 0.6;
+  }
+  .bt6-pep {
+    fill: #b3261e;
+  }
+  .bt6-basil {
+    fill: #3f8f3a;
+  }
+  .bt6-item.is-new {
+    animation: bt6-in 220ms var(--bt6-ease);
+  }
+  @keyframes bt6-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  .bt6 .bt6-press {
+    transition: transform 160ms ease-out;
+  }
+  .bt6 .bt6-press:active {
+    transform: scale(0.97);
+  }
+  .bt6 .bt6-count {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--bt6-muted);
+  }
+
+  /* Still side by side when narrow, just snugger */
+  @container bt6 (width < 480px) {
+    .bt6-cards {
+      gap: 0.5rem;
+    }
+    .bt6-card {
+      padding: 0.65rem;
+    }
+    .bt6-result {
+      gap: 0.25rem;
+      padding: 0.4rem;
+    }
+    .bt6-item.is-pizza svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+    .bt6 .bt6-press {
+      padding-inline: 0.7rem;
+      font-size: 0.8rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bt6-item.is-new {
+      animation: none;
+    }
+    .bt6 .bt6-press:active {
+      transform: none;
+    }
+  }
+</style>
