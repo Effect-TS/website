@@ -40,7 +40,7 @@ const KEY = "catalog"
  * A catalog that reads its data through `load`. A read that succeeds is kept
  * for good. A read that fails is not kept, so the next call reads again.
  */
-const memoized = <E>(load: Effect.Effect<MotwVoteData, E>) =>
+export const memoized = <E>(load: Effect.Effect<MotwVoteData, E>) =>
   Effect.gen(function* () {
     const cache = yield* Cache.makeWith(
       () =>
@@ -89,17 +89,3 @@ export const layer: Layer.Layer<ModuleCatalog, never, HttpClient.HttpClient> =
       )
     }),
   )
-
-/**
- * The catalog straight from the content collections, for `astro dev`, which
- * has no build output to read. The import stays here so a build leaves
- * `astro:content` out of the Worker.
- */
-export const devLayer: Layer.Layer<ModuleCatalog> = Layer.effect(
-  ModuleCatalog,
-  memoized(
-    Effect.tryPromise(() => import("./vote-data")).pipe(
-      Effect.flatMap(({ getVoteData }) => Effect.tryPromise(getVoteData)),
-    ),
-  ),
-)

@@ -55,7 +55,11 @@ const AssetsHttpClient = Layer.effect(
 )
 
 const ModuleCatalog = import.meta.env.DEV
-  ? Catalog.devLayer
+  ? Layer.unwrap(
+      Effect.promise(() => import("./catalog-dev")).pipe(
+        Effect.map((dev) => dev.layer),
+      ),
+    )
   : Catalog.layer.pipe(Layer.provide(AssetsHttpClient))
 
 const Dependencies = Layer.mergeAll(
