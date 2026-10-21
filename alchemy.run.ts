@@ -12,6 +12,14 @@ import type * as Redacted from "effect/Redacted"
 
 type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
 
+// Rate-limit namespaces are numbers. Each stage counts in its own, so a preview
+// cannot use up the production limit.
+const rateLimitNamespaceId = (stage: string): number => {
+  let hash = 0
+  for (const char of stage) hash = (hash * 31 + char.charCodeAt(0)) % 90_000
+  return 1_000 + hash
+}
+
 const Website = (
   storeId: StoreId,
   searchApiKey: Config.Config<Redacted.Redacted<string>>,
@@ -20,6 +28,13 @@ const Website = (
     "WebsiteWorker",
     Effect.gen(function* () {
       const stage = yield* Alchemy.Stage
+
+      // Module of the Week votes. Previews get their own empty database, which
+      // goes away with the preview. Production keeps its votes if the stack is
+      // ever destroyed.
+      const moduleVotes = yield* Cloudflare.D1.Database("ModuleVotes", {
+        migrations: "./apps/web/migrations",
+      }).pipe(Alchemy.RemovalPolicy.retain(stage === "prod"))
 
       return {
         rootDir: "./apps/web",
@@ -63,6 +78,11 @@ const Website = (
           MXBAI_VECTOR_STORE_ID: storeId,
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
+          DB: moduleVotes,
+          MODULE_VOTES_LIMIT: Cloudflare.RateLimit("MODULE_VOTES_LIMIT", {
+            namespaceId: rateLimitNamespaceId(stage),
+            simple: { limit: 20, period: 60 },
+          }),
         },
         sessionKVBindingName: false,
         prerenderEnvironment: "node" as const,

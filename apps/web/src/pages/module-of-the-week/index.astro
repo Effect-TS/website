@@ -1,8 +1,11 @@
 ---
-import { ArrowUpRight, FileText, Rss } from "@lucide/astro"
+import { ArrowDown, ArrowUpRight, FileText, Plus, Rss } from "@lucide/astro"
 import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { ModuleRequests } from "@/components/module-of-the-week/ModuleRequests"
+import { COVERED_MODULE_IDS } from "@/features/module-requests/covered"
+import { getApiModules } from "@/features/module-requests/api-modules"
 import { MODULE_FEED } from "@/features/module-of-the-week/domain"
 import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
 import PageLayout from "@/layouts/PageLayout.astro"
@@ -15,7 +18,11 @@ import maxwell from "@/assets/authors/maxwell_brown.png"
 const PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLCGIHlTAijhY"
 const SUGGEST_URL = "https://discord.gg/effect-ts"
 
-const [intro, modules] = await Promise.all([getIntro(), getLatestModules()])
+const [intro, modules, moduleIndex] = await Promise.all([
+  getIntro(),
+  getLatestModules(),
+  getApiModules(),
+])
 
 const buttonClass =
   "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"
@@ -146,17 +153,15 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
           Watch the playlist
         </a>
         <a
-          href={SUGGEST_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#vote"
           class:list={[
             buttonClass,
             "border border-border-strong text-foreground hover:border-muted-foreground hover:bg-muted",
           ]}
         >
           Suggest a module
-          <ArrowUpRight
-            class="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          <ArrowDown
+            class="size-4 transition-transform group-hover:translate-y-0.5"
             aria-hidden="true"
           />
         </a>
@@ -180,6 +185,29 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
   <section aria-label="Modules" class="relative pb-24">
     <div class="mx-auto w-full max-w-295 px-4">
       <ul class="mt-16 flex flex-col gap-6 md:mt-20">
+        <li>
+          <a
+            href="#vote"
+            class="group flex items-center justify-between gap-4 border border-border bg-background px-5 py-2.5 no-underline transition-colors hover:bg-muted/60 hover:no-underline lg:px-6"
+          >
+            <span class="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                class="flex size-7 shrink-0 items-center justify-center rounded-sm border border-dashed border-border-strong text-muted-foreground transition-colors group-hover:border-muted-foreground group-hover:text-foreground"
+              >
+                <Plus class="size-4" />
+              </span>
+              <span class="text-sm font-semibold text-foreground">Want a module covered?</span>
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground"
+            >
+              <span class="hidden sm:inline">Suggest it or +1 it</span>
+              <span class="sm:hidden">Vote</span>
+              <ArrowDown class="size-3.5" aria-hidden="true" />
+            </span>
+          </a>
+        </li>
         {
           modules.map(({ post, number }) => (
             <li>
@@ -200,7 +228,11 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
 
   <div class="h-px w-full bg-border"></div>
 
-  <section aria-label="Behind the series" class="relative py-24 md:pt-32">
+  <ModuleRequests client:visible moduleIndex={moduleIndex} covered={COVERED_MODULE_IDS} />
+
+  <div class="h-px w-full bg-border"></div>
+
+  <section aria-label="Behind the series" class="relative py-24 md:pt-40">
     <div class="mx-auto w-full max-w-295 px-4">
       <Eyebrow as="h2" class="mb-3">// Behind the series</Eyebrow>
 
