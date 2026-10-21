@@ -1,75 +1,65 @@
-import { assert, test } from "vite-plus/test"
-import {
-  NIL_VOTER,
-  clearedVoterCookie,
-  identify,
-  issueVoter,
-  verifyVoter,
-  voterCookie,
-} from "../../../src/features/motw-vote/voter.ts"
+import { assert, describe, test } from "vite-plus/test"
+import * as ConfigProvider from "effect/ConfigProvider"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
+import { VoterSigner } from "../../../src/features/motw-vote/voter.ts"
 
-const secret = "test-secret"
+const signerWith = (secret: string) =>
+  VoterSigner.layer.pipe(
+    Layer.provide(
+      ConfigProvider.layer(
+        ConfigProvider.fromEnvRecord({ MOTW_VOTE_SECRET: secret }),
+      ),
+    ),
+  )
 
-const requestWith = (cookie?: string) =>
-  new Request("https://effect.website/api/motw-vote", {
-    headers: cookie === undefined ? {} : { cookie },
+const withSigner = <A>(
+  secret: string,
+  use: (signer: VoterSigner["Service"]) => Effect.Effect<A>,
+) =>
+  Effect.runPromise(
+    Effect.flatMap(VoterSigner, use).pipe(Effect.provide(signerWith(secret))),
+  )
+
+describe("voter signer", () => {
+  test("recognises a voter it issued", () =>
+    withSigner("secret", (signer) =>
+      Effect.gen(function* () {
+        const { id, token } = yield* signer.issue
+        assert.deepStrictEqual(signer.verify(token), Option.some(id))
+      }),
+    ))
+
+  test("issues a different voter each time", () =>
+    withSigner("secret", (signer) =>
+      Effect.gen(function* () {
+        const [a, b] = yield* Effect.all([signer.issue, signer.issue])
+        assert.notEqual(a.id, b.id)
+      }),
+    ))
+
+  test("rejects a changed id or signature, another secret, and junk", async () => {
+    const { id, token } = await withSigner("secret", (signer) => signer.issue)
+    const [, signature = ""] = token.split(".")
+    const other = "99999999-9999-4999-8999-999999999999"
+    const invalid = [
+      `${other}.${signature}`,
+      `${id}.${signature.slice(0, -2)}AA`,
+      id,
+      `${id}.`,
+      `${id}.${signature}.extra`,
+      `not-a-uuid.${signature}`,
+      "",
+    ]
+    await withSigner("secret", (signer) =>
+      Effect.sync(() => {
+        for (const value of invalid)
+          assert.isTrue(Option.isNone(signer.verify(value)))
+      }),
+    )
+    await withSigner("another-secret", (signer) =>
+      Effect.sync(() => assert.isTrue(Option.isNone(signer.verify(token)))),
+    )
   })
-
-test("a voter it issued is recognised from its cookie value", async () => {
-  const { voter, token } = await issueVoter(secret)
-  assert.equal(await verifyVoter(secret, token), voter)
-  assert.notEqual(voter, NIL_VOTER)
-})
-
-test("issues a different voter each time", async () => {
-  const [a, b] = await Promise.all([issueVoter(secret), issueVoter(secret)])
-  assert.notEqual(a.voter, b.voter)
-})
-
-test("blocks a changed id, a changed signature, another secret, and junk", async () => {
-  const { voter, token } = await issueVoter(secret)
-  const [, signature] = token.split(".")
-  const other = "99999999-9999-4999-8999-999999999999"
-  assert.isUndefined(await verifyVoter(secret, `${other}.${signature}`))
-  assert.isUndefined(
-    await verifyVoter(secret, `${voter}.${signature?.slice(0, -2)}AA`),
-  )
-  assert.isUndefined(await verifyVoter("another-secret", token))
-  assert.isUndefined(await verifyVoter(secret, voter))
-  assert.isUndefined(await verifyVoter(secret, `${voter}.`))
-  assert.isUndefined(await verifyVoter(secret, `${voter}.${signature}.extra`))
-  assert.isUndefined(await verifyVoter(secret, `not-a-uuid.${signature}`))
-  assert.isUndefined(await verifyVoter(secret, ""))
-})
-
-test("identifies a request by its cookie", async () => {
-  const { voter, token } = await issueVoter(secret)
-  assert.deepEqual(await identify(requestWith(), secret), {
-    voter: undefined,
-    tampered: false,
-  })
-  assert.deepEqual(
-    await identify(requestWith(`theme=dark; motw_voter=${token}`), secret),
-    {
-      voter,
-      tampered: false,
-    },
-  )
-  assert.deepEqual(
-    await identify(requestWith(`motw_voter=${voter}.forged`), secret),
-    {
-      voter: undefined,
-      tampered: true,
-    },
-  )
-})
-
-test("the cookie cannot be read by scripts or sent to other sites", () => {
-  const cookie = voterCookie("value", true)
-  assert.include(cookie, "HttpOnly")
-  assert.include(cookie, "SameSite=Lax")
-  assert.include(cookie, "Secure")
-  assert.include(cookie, "Path=/api/motw-vote")
-  assert.notInclude(voterCookie("value", false), "Secure")
-  assert.include(clearedVoterCookie(true), "Max-Age=0")
 })

@@ -11,3 +11,9 @@ CREATE TABLE tallies (
   module_id TEXT    PRIMARY KEY,
   votes     INTEGER NOT NULL
 );
+
+CREATE TABLE rate_limits (
+  key        TEXT    PRIMARY KEY,
+  count      INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);

@@ -1,7 +1,13 @@
+import * as Arr from "effect/Array"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import * as HashMap from "effect/HashMap"
+import * as HashSet from "effect/HashSet"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
+import * as Order from "effect/Order"
+import * as Ref from "effect/Ref"
 
 export class VoteStoreError extends Data.TaggedError("VoteStoreError")<{
   readonly cause: unknown
@@ -21,7 +27,7 @@ export interface VoteOutcome extends Tally {
 export class VoteStore extends Context.Service<
   VoteStore,
   {
-    /** The modules with most votes first, ties by id. */
+    /** Every module with votes, most votes first, ties by id. */
     readonly top: () => Effect.Effect<ReadonlyArray<Tally>, VoteStoreError>
     /** Ids of the modules a visitor has a vote on. */
     readonly votedBy: (
@@ -36,35 +42,63 @@ export class VoteStore extends Context.Service<
   }
 >()("website/VoteStore") {}
 
+/** The order of `top`: most votes first, then by id. */
+export const byRank: Order.Order<Tally> = Order.combine(
+  Order.mapInput(Order.Number, ({ votes }: Tally) => -votes),
+  Order.mapInput(Order.String, ({ id }: Tally) => id),
+)
+
+type Ballots = HashMap.HashMap<string, HashSet.HashSet<string>>
+
 /** Votes held in this process only. For local development and tests. */
-export const memoryLayer = Layer.sync(VoteStore, () => {
-  const votes = new Map<string, Set<string>>()
+export const memoryLayer = Layer.effect(
+  VoteStore,
+  Effect.gen(function* () {
+    const ballots = yield* Ref.make<Ballots>(HashMap.empty())
 
-  const countOf = (id: string) => votes.get(id)?.size ?? 0
+    const votersOf = (all: Ballots, id: string) =>
+      Option.getOrElse(HashMap.get(all, id), () => HashSet.empty<string>())
 
-  return {
-    top: () =>
-      Effect.sync(() =>
-        [...votes.entries()]
-          .map(([id, voters]) => ({ id, votes: voters.size }))
-          .filter(({ votes }) => votes > 0)
-          .sort((a, b) => b.votes - a.votes || a.id.localeCompare(b.id)),
-      ),
+    const top = Effect.fn("VoteStore.memory.top")(function* () {
+      const all = yield* Ref.get(ballots)
+      return Arr.sort(
+        Arr.fromIterable(HashMap.toEntries(all)).map(([id, voters]) => ({
+          id,
+          votes: HashSet.size(voters),
+        })),
+        byRank,
+      ).filter(({ votes }) => votes > 0)
+    })
 
-    votedBy: (voter) =>
-      Effect.sync(() =>
-        [...votes.entries()].flatMap(([id, voters]) =>
-          voters.has(voter) ? [id] : [],
+    const votedBy = Effect.fn("VoteStore.memory.votedBy")(function* (
+      voter: string,
+    ) {
+      const all = yield* Ref.get(ballots)
+      return Arr.sort(
+        HashMap.toEntries(all).flatMap(([id, voters]) =>
+          HashSet.has(voters, voter) ? [id] : [],
         ),
-      ),
+        Order.String,
+      )
+    })
 
-    vote: (voter, id, on) =>
-      Effect.sync(() => {
-        const voters = votes.get(id) ?? new Set<string>()
-        if (on) voters.add(voter)
-        else voters.delete(voter)
-        votes.set(id, voters)
-        return { id, votes: countOf(id), voted: voters.has(voter) }
-      }),
-  }
-})
+    const vote = Effect.fn("VoteStore.memory.vote")(function* (
+      voter: string,
+      id: string,
+      on: boolean,
+    ) {
+      return yield* Ref.modify(ballots, (all) => {
+        const voters = votersOf(all, id)
+        const next = on
+          ? HashSet.add(voters, voter)
+          : HashSet.remove(voters, voter)
+        return [
+          { id, votes: HashSet.size(next), voted: on },
+          HashMap.set(all, id, next),
+        ]
+      })
+    })
+
+    return VoteStore.of({ top, votedBy, vote })
+  }),
+)

@@ -1,201 +1,73 @@
 import { env } from "cloudflare:workers"
+import * as D1Client from "@effect/sql-d1/D1Client"
+import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as FetchHttpClient from "effect/http/FetchHttpClient"
+import * as HttpClient from "effect/http/HttpClient"
+import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as HttpServer from "effect/http/HttpServer"
-import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
-import { MotwVoteApi } from "./api"
+import * as RateLimiter from "effect/persistence/RateLimiter"
+import { MotwVoteLive } from "./api-live"
 import * as Catalog from "./catalog"
-import * as D1 from "./d1"
-import { MotwVotes } from "./service"
-import { siteverifyLayer } from "./turnstile"
-import {
-  NIL_VOTER,
-  clearedVoterCookie,
-  identify,
-  issueVoter,
-  voterCookie,
-} from "./voter"
+import * as RateLimitStore from "./rate-limit-store"
+import * as Turnstile from "./turnstile"
+import * as SqlVoteStore from "./sql-vote-store"
 import { memoryLayer } from "./vote-store"
 
-interface Settings {
-  readonly db: D1.D1Database | undefined
-  readonly limiter:
-    | {
-        readonly limit: (options: {
-          readonly key: string
-        }) => Promise<{ readonly success: boolean }>
-      }
-    | undefined
-  /** Signs the voter cookie. */
-  readonly secret: string
-  readonly turnstile: { readonly siteKey: string; readonly secret: string }
-}
+// `astro dev` has none of the bindings or secrets `alchemy.run.ts` gives the
+// Worker. It keeps votes in memory and uses Cloudflare's test keys for an
+// invisible check that always passes. A deployed Worker never gets these.
+const DevConfig = ConfigProvider.layerAdd(
+  ConfigProvider.fromEnvRecord({
+    MOTW_VOTE_SECRET: "development-only-secret",
+    TURNSTILE_SITE_KEY: "1x00000000000000000000BB",
+    TURNSTILE_SECRET: "1x0000000000000000000000000000000AA",
+  }),
+  { asPrimary: false },
+)
 
-// `astro dev` has none of the bindings `alchemy.run.ts` gives the Worker. It
-// keeps votes in memory and uses Cloudflare's test keys for an invisible check
-// that always passes. A deployed Worker never falls back to these.
-const DEV = {
-  secret: "development-only-secret",
-  turnstileSiteKey: "1x00000000000000000000BB",
-  turnstileSecret: "1x0000000000000000000000000000000AA",
-}
-
-const settings = (): Settings => {
-  const dev = import.meta.env.DEV
-  const secret = env.MOTW_VOTE_SECRET ?? (dev ? DEV.secret : undefined)
-  const siteKey =
-    env.TURNSTILE_SITE_KEY ?? (dev ? DEV.turnstileSiteKey : undefined)
-  const turnstileSecret =
-    env.TURNSTILE_SECRET ?? (dev ? DEV.turnstileSecret : undefined)
-  if (!secret || !siteKey || !turnstileSecret) {
-    throw new Error(
-      "The Worker is missing MOTW_VOTE_SECRET or the Turnstile keys",
+// Votes and rate limits live in D1 when deployed
+const Persistence = env.DB
+  ? Layer.mergeAll(SqlVoteStore.layer, RateLimitStore.layer).pipe(
+      Layer.provide(Layer.orDie(D1Client.layer({ db: env.DB }))),
     )
-  }
-  return {
-    db: env.DB,
-    limiter: env.MOTW_VOTE_LIMIT,
-    secret,
-    turnstile: { siteKey, secret: turnstileSecret },
-  }
-}
-
-// The dev server's own origin, for reading build output when there is no
-// `ASSETS` binding. A deployed Worker never sets it.
-let devOrigin = ""
+  : Layer.mergeAll(memoryLayer, RateLimiter.layerStoreMemory)
 
 // Build output is read through the Worker's `ASSETS` binding, as in
-// `features/open-graph/fonts.ts`. Its host is ignored.
-const readAsset = (path: string): Promise<Response> => {
-  const assets:
-    | { readonly fetch: (request: Request) => Promise<Response> }
-    | undefined = env.ASSETS
-  if (assets) return assets.fetch(new Request(`https://assets.invalid${path}`))
-  if (!import.meta.env.DEV) {
-    return Promise.reject(new Error("The Worker has no ASSETS binding"))
-  }
-  return fetch(new URL(path, devOrigin))
-}
-
-const Handlers = HttpApiBuilder.group(
-  MotwVoteApi,
-  "motwVote",
-  Effect.fn(function* (handlers) {
-    const votes = yield* MotwVotes
-    return handlers
-      .handle("ranking", ({ headers }) => votes.ranking(headers["x-voter-id"]))
-      .handle("vote", ({ headers, payload }) =>
-        votes.vote(
-          headers["x-voter-id"],
-          payload.id,
-          payload.on,
-          payload.token,
-        ),
-      )
-  }),
-).pipe(Layer.provide(MotwVotes.layer))
-
-// Votes live in D1 when deployed, and in memory for as long as `astro dev` runs.
-const Dependencies = Layer.unwrap(
-  Effect.sync(settings).pipe(
-    Effect.map(({ db, turnstile }) =>
-      Layer.mergeAll(
-        db ? D1.layer(db) : memoryLayer,
-        Catalog.layer(readAsset),
-        siteverifyLayer(turnstile.siteKey, turnstile.secret),
-      ),
+// `features/open-graph/fonts.ts`. The host of its URLs is ignored.
+const AssetsHttpClient = Layer.effect(
+  HttpClient.HttpClient,
+  Effect.map(
+    HttpClient.HttpClient,
+    HttpClient.mapRequest(
+      HttpClientRequest.prependUrl("https://assets.invalid"),
+    ),
+  ),
+).pipe(
+  Layer.provide(FetchHttpClient.layer),
+  Layer.provide(
+    Layer.succeed(FetchHttpClient.Fetch, (input, init) =>
+      env.ASSETS.fetch(new Request(input, init)),
     ),
   ),
 )
 
-const MotwVoteLayer = HttpApiBuilder.layer(MotwVoteApi).pipe(
-  Layer.provide(Handlers),
-  Layer.provide(Dependencies),
-  Layer.provide(HttpServer.layerServices),
+const ModuleCatalog = import.meta.env.DEV
+  ? Catalog.devLayer
+  : Catalog.layer.pipe(Layer.provide(AssetsHttpClient))
+
+const Dependencies = Layer.mergeAll(
+  Persistence,
+  ModuleCatalog,
+  Turnstile.layer.pipe(Layer.provide(FetchHttpClient.layer)),
 )
 
-const { handler } = HttpRouter.toWebHandler(MotwVoteLayer)
+const MotwVoteRoutes = MotwVoteLive.pipe(
+  Layer.provide(Dependencies),
+  Layer.provide(HttpServer.layerServices),
+  Layer.provide(import.meta.env.DEV ? DevConfig : Layer.empty),
+)
 
-const isHttps = (request: Request) => new URL(request.url).protocol === "https:"
-
-const NO_STORE = "private, no-store"
-
-const refusal = (reason: string, status: number, cookie?: string) => {
-  const headers = new Headers({ "cache-control": NO_STORE })
-  if (cookie) headers.set("set-cookie", cookie)
-  return Response.json(
-    { _tag: "VoteRefusedError", reason },
-    { status, headers },
-  )
-}
-
-const respond = (response: Response, cookie?: string) => {
-  const result = new Response(response.body, response)
-  result.headers.set("cache-control", NO_STORE)
-  if (cookie) result.headers.append("set-cookie", cookie)
-  return result
-}
-
-const removesVote = async (request: Request) => {
-  const body: unknown = await request
-    .clone()
-    .json()
-    .catch(() => undefined)
-  return (
-    typeof body === "object" &&
-    body !== null &&
-    "on" in body &&
-    body.on === false
-  )
-}
-
-/**
- * Runs a request through the API as the voter its cookie names. The API trusts
- * the `x-voter-id` header, so it is always set here, from a cookie signed with
- * the server's secret, and never taken from the client.
- *
- * A POST that adds a vote without a valid cookie gets a new voter, whose
- * cookie is set once the vote succeeds. A POST that removes a vote without one
- * runs as `NIL_VOTER`, who holds nothing, and gets no cookie. A POST with a
- * cookie that was changed by the client is refused. A GET with one is answered
- * as anonymous, and the cookie is cleared.
- */
-export const serve = async (request: Request): Promise<Response> => {
-  const { secret, limiter } = settings()
-  const secure = isHttps(request)
-  const post = request.method === "POST"
-  const origin = new URL(request.url).origin
-  if (import.meta.env.DEV) devOrigin = origin
-
-  if (post) {
-    // Browsers send Origin on POSTs. A page on another site cannot vote.
-    const sender = request.headers.get("origin")
-    if (sender !== null && sender !== origin)
-      return refusal("InvalidVoter", 403)
-
-    const key = request.headers.get("cf-connecting-ip")
-    if (limiter && key && !(await limiter.limit({ key })).success) {
-      return refusal("RateLimited", 429)
-    }
-  }
-
-  const identity = await identify(request, secret)
-  const cleared = identity.tampered ? clearedVoterCookie(secure) : undefined
-  if (post && identity.tampered) return refusal("InvalidVoter", 403, cleared)
-
-  const issued =
-    post && identity.voter === undefined && !(await removesVote(request))
-      ? await issueVoter(secret)
-      : undefined
-  const voter = issued?.voter ?? identity.voter ?? NIL_VOTER
-
-  const headers = new Headers(request.headers)
-  headers.set("x-voter-id", voter)
-  const response = await handler(new Request(request, { headers }))
-
-  return respond(
-    response,
-    issued && response.ok ? voterCookie(issued.token, secure) : cleared,
-  )
-}
+export const { handler } = HttpRouter.toWebHandler(MotwVoteRoutes)

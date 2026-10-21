@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro"
-import { serve } from "@/features/motw-vote/server"
+import { handler } from "@/features/motw-vote/server"
 
 export const prerender = false
 
-export const GET: APIRoute = ({ request }) => serve(request)
+export const GET: APIRoute = ({ request }) => handler(request)

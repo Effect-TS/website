@@ -1,16 +1,24 @@
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { VoteRefusedError } from "./api"
-import { ModuleCatalog, type CatalogError } from "./catalog"
-import { Turnstile, type TurnstileError } from "./turnstile"
-import { NIL_VOTER } from "./voter"
-import { VoteStore, type VoteStoreError } from "./vote-store"
+import * as Option from "effect/Option"
+import { ModuleCatalog } from "./catalog"
+import { VoteRefusedError } from "./errors"
+import { Voter } from "./middleware"
+import { Turnstile } from "./turnstile"
+import { VoterSigner } from "./voter"
+import { VoteStore } from "./vote-store"
 
-const fatal = (error: CatalogError | TurnstileError | VoteStoreError) =>
-  Effect.logError("MotwVotes failed", error).pipe(
-    Effect.andThen(Effect.die(error)),
-  )
+const fatal = (error: unknown) =>
+  Effect.logError(error).pipe(Effect.andThen(Effect.die(error)))
+
+export interface VoteResult {
+  readonly id: string
+  readonly votes: number
+  readonly voted: boolean
+  /** The cookie value of a voter issued by this vote. */
+  readonly issued: Option.Option<string>
+}
 
 export class MotwVotes extends Context.Service<MotwVotes>()(
   "website/MotwVotes",
@@ -19,21 +27,26 @@ export class MotwVotes extends Context.Service<MotwVotes>()(
       const store = yield* VoteStore
       const catalog = yield* ModuleCatalog
       const turnstile = yield* Turnstile
+      const signer = yield* VoterSigner
 
       const isVotable = (id: string) =>
-        catalog.status(id).pipe(Effect.map((status) => status === "votable"))
+        Effect.map(catalog.status(id), (status) => status === "votable")
 
       const ranking = Effect.fn("MotwVotes.ranking")(
-        function* (voter: string) {
-          const [top, votedBy] = yield* Effect.all([
-            store.top(),
-            store.votedBy(voter),
-          ])
+        function* (voter: Voter) {
           const [requests, voted] = yield* Effect.all([
-            Effect.filter(top, ({ id }) => isVotable(id)),
-            Effect.filter(votedBy, isVotable),
+            store.top(),
+            Voter.$match(voter, {
+              Known: ({ id }) => store.votedBy(id),
+              Anonymous: () => Effect.succeed([]),
+              Tampered: () => Effect.succeed([]),
+            }),
           ])
-          return { requests, voted, turnstileSiteKey: turnstile.siteKey }
+          return {
+            requests: yield* Effect.filter(requests, ({ id }) => isVotable(id)),
+            voted: yield* Effect.filter(voted, isVotable),
+            turnstileSiteKey: turnstile.siteKey,
+          }
         },
         Effect.catchTags({
           CatalogError: fatal,
@@ -41,29 +54,62 @@ export class MotwVotes extends Context.Service<MotwVotes>()(
         }),
       )
 
+      const add = Effect.fn("MotwVotes.add")(function* (
+        known: Option.Option<string>,
+        id: string,
+        token: string | undefined,
+      ) {
+        const status = yield* catalog.status(id)
+        if (status !== "votable") {
+          return yield* new VoteRefusedError({
+            reason: status === "covered" ? "Covered" : "UnknownModule",
+          })
+        }
+        if (token === undefined || !(yield* turnstile.verify(token))) {
+          return yield* new VoteRefusedError({ reason: "ChallengeFailed" })
+        }
+        const voter = yield* Option.match(known, {
+          onSome: (voterId) =>
+            Effect.succeed({ id: voterId, issued: Option.none<string>() }),
+          onNone: () =>
+            Effect.map(signer.issue, ({ id: voterId, token: issued }) => ({
+              id: voterId,
+              issued: Option.some(issued),
+            })),
+        })
+        const outcome = yield* store.vote(voter.id, id, true)
+        return { ...outcome, issued: voter.issued }
+      })
+
       const vote = Effect.fn("MotwVotes.vote")(
         function* (
-          voter: string,
-          id: string,
-          on: boolean,
-          token: string | undefined,
+          voter: Voter,
+          input: {
+            readonly id: string
+            readonly on: boolean
+            readonly token?: string | undefined
+          },
         ) {
-          if (voter === NIL_VOTER) {
-            if (on)
-              return yield* new VoteRefusedError({ reason: "InvalidVoter" })
-            return { id, votes: 0, voted: false }
-          }
-          if (on) {
-            const status = yield* catalog.status(id)
-            if (status === "covered")
-              return yield* new VoteRefusedError({ reason: "Covered" })
-            if (status === "unknown")
-              return yield* new VoteRefusedError({ reason: "UnknownModule" })
-            if (token === undefined || !(yield* turnstile.verify(token))) {
-              return yield* new VoteRefusedError({ reason: "ChallengeFailed" })
-            }
-          }
-          return yield* store.vote(voter, id, on)
+          return yield* Voter.$match(voter, {
+            Tampered: () =>
+              Effect.fail(new VoteRefusedError({ reason: "InvalidVoter" })),
+            Anonymous: () =>
+              input.on
+                ? add(Option.none(), input.id, input.token)
+                : Effect.succeed({
+                    id: input.id,
+                    votes: 0,
+                    voted: false,
+                    issued: Option.none<string>(),
+                  }),
+            Known: ({ id }) =>
+              input.on
+                ? add(Option.some(id), input.id, input.token)
+                : Effect.map(store.vote(id, input.id, false), (outcome) => ({
+                    ...outcome,
+                    issued: Option.none<string>(),
+                  })),
+          })
         },
         Effect.catchTags({
           CatalogError: fatal,

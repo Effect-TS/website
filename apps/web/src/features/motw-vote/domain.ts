@@ -28,38 +28,6 @@ export const VOTE_REFUSALS = [
 
 export type VoteRefusal = (typeof VOTE_REFUSALS)[number]
 
-/** The server turned a vote down. `reason` says why. */
-export class VoteRefused extends Error {
-  readonly reason: VoteRefusal
-
-  constructor(reason: VoteRefusal) {
-    super(reason)
-    this.name = "VoteRefused"
-    this.reason = reason
-  }
-}
-
-/** The ranking, and the public key of the human check that votes need. */
-export interface MotwVoteSnapshot {
-  readonly requests: ReadonlyArray<RankedModule>
-  readonly turnstileSiteKey: string
-}
-
-export interface MotwVoteStore {
-  /** Every module that has at least one vote. */
-  readonly list: () => Promise<MotwVoteSnapshot>
-  /**
-   * Adds or removes the visitor's +1. Adding needs the token of a solved
-   * human check. Rejects with `VoteRefused` when the server turns the vote
-   * down.
-   */
-  readonly vote: (
-    module: ModuleRef,
-    on: boolean,
-    token?: string,
-  ) => Promise<RankedModule>
-}
-
 /**
  * Matches for a search, best first: names equal to, starting with, then
  * containing the query, then package matches. Case-insensitive.

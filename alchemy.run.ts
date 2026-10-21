@@ -17,14 +17,6 @@ type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
 const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000BB"
 const TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA"
 
-// Rate-limit namespaces are numbers. Each stage counts in its own, so a preview
-// cannot use up the production limit.
-const rateLimitNamespaceId = (stage: string): number => {
-  let hash = 0
-  for (const char of stage) hash = (hash * 31 + char.charCodeAt(0)) % 90_000
-  return 1_000 + hash
-}
-
 const Website = (
   storeId: StoreId,
   searchApiKey: Config.Config<Redacted.Redacted<string>>,
@@ -103,10 +95,6 @@ const Website = (
           TURNSTILE_SITE_KEY: turnstile?.sitekey ?? TURNSTILE_TEST_SITE_KEY,
           TURNSTILE_SECRET:
             turnstile?.secret ?? Redacted.make(TURNSTILE_TEST_SECRET),
-          MOTW_VOTE_LIMIT: Cloudflare.RateLimit("MOTW_VOTE_LIMIT", {
-            namespaceId: rateLimitNamespaceId(stage),
-            simple: { limit: 20, period: 60 },
-          }),
         },
         sessionKVBindingName: false,
         prerenderEnvironment: "node" as const,
