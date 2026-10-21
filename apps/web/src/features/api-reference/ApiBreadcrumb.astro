@@ -1,0 +1,46 @@
+---
+/**
+ * Breadcrumb of the API reference and changelog pages: `API Reference / v4`
+ * followed by the page's own trail. A crumb without `href` is the current page.
+ */
+export interface ApiBreadcrumbItem {
+  readonly label: string
+  readonly href?: string | undefined
+}
+
+interface Props {
+  readonly version: string
+  readonly trail?: ReadonlyArray<ApiBreadcrumbItem>
+}
+
+const { version, trail = [] } = Astro.props
+
+const crumbs: ReadonlyArray<ApiBreadcrumbItem> = [
+  { label: "API Reference", href: `/docs/${version}/api` },
+  { label: version, href: `/docs/${version}/api` },
+  ...trail,
+]
+---
+
+<nav
+  aria-label="Breadcrumb"
+  class="mb-5 flex flex-wrap items-center gap-3 font-mono text-xs tracking-wider text-muted-foreground uppercase not-prose lg:mb-8"
+>
+  {
+    crumbs.map((crumb, index) => (
+      <>
+        {index > 0 && <span aria-hidden="true">/</span>}
+        {crumb.href === undefined ? (
+          <span>{crumb.label}</span>
+        ) : (
+          <a
+            href={crumb.href}
+            class="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {crumb.label}
+          </a>
+        )}
+      </>
+    ))
+  }
+</nav>

@@ -25,7 +25,9 @@ runs:
         repository: Effect-TS/effect
         ref: ${{ inputs.v3-revision }}
         path: .effect-source-v3
-        fetch-depth: 1
+        # Changelog release dates come from tags, so keep the full history.
+        fetch-depth: 0
+        filter: blob:none
 
     - name: Checkout Effect v4
       id: checkout-v4
@@ -34,7 +36,8 @@ runs:
         repository: Effect-TS/effect
         ref: ${{ inputs.v4-revision }}
         path: .effect-source-v4
-        fetch-depth: 1
+        fetch-depth: 0
+        filter: blob:none
 
     - name: Restore v3 API reference cache
       if: inputs.cache == 'true'
@@ -42,7 +45,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: apps/web/.data/api-reference/v3
-        key: api-reference-v3-${{ runner.os }}-${{ steps.checkout-v3.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+        key: api-reference-v3-${{ runner.os }}-${{ steps.checkout-v3.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/src/Changelog.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'packages/domain/src/Changelog.ts', 'pnpm-lock.yaml') }}
 
     - name: Restore v4 API reference cache
       if: inputs.cache == 'true'
@@ -50,7 +53,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: apps/web/.data/api-reference/v4
-        key: api-reference-v4-${{ runner.os }}-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+        key: api-reference-v4-${{ runner.os }}-${{ steps.checkout-v4.outputs.commit }}-${{ hashFiles('packages/api-reference/src/Generate.ts', 'packages/api-reference/src/Changelog.ts', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'packages/domain/src/Changelog.ts', 'pnpm-lock.yaml') }}
 
     - name: Generate v3 API reference
       if: inputs.cache != 'true' || steps.cache-v3.outputs.cache-hit != 'true'

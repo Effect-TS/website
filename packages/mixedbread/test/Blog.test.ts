@@ -62,3 +62,32 @@ test("derives blog IDs using Astro collection conventions", () => {
     "effect-v4beta-july-recap",
   )
 })
+
+test("stages the docs version of a versioned post", () => {
+  const source = (extra: string) => `---
+title: Release
+excerpt: A release post.
+date: 2024-04-16
+${extra}authors:
+  - michael_arnaldi
+tags:
+  - releases
+---
+
+Body.
+`
+  const versioned = stageBlogPost(source("version: v3\n"), "release.mdx")
+  assert.equal(versioned?.metadata.version, "v3")
+  const yaml = /^---\n([\s\S]*?)\n---/.exec(versioned?.source ?? "")?.[1]
+  assert.ok(yaml)
+  assert.equal(
+    Schema.decodeUnknownSync(Schema.Struct({ search: BlogSearchMetadata }))(
+      parseYaml(yaml),
+    ).search.version,
+    "v3",
+  )
+  assert.equal(
+    stageBlogPost(source(""), "release.mdx")?.metadata.version,
+    undefined,
+  )
+})

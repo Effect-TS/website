@@ -1,9 +1,5 @@
-import { toFile } from "@mixedbread/sdk"
 import * as Effect from "effect/Effect"
-import {
-  MAX_API_CHUNKS_PER_FILE,
-  MAX_MIXEDBREAD_TEXT_LENGTH,
-} from "./Config.ts"
+import { type LocalFile, chunkFiles } from "./ChunkFiles.ts"
 import { UnknownError } from "./Error.ts"
 import {
   ApiReference,
@@ -13,14 +9,7 @@ import { loadApiReferenceDataset } from "@website/api-reference/ApiReferenceData
 import { loadReflection } from "@website/api-reference/Reflection"
 import { createReflectionSymbolResolver } from "@website/api-reference/ReflectionSymbolResolver"
 
-export interface LocalFile {
-  readonly externalId: string
-  readonly fileHash: string
-  readonly metadata: Readonly<Record<string, string>>
-  readonly upload: () =>
-    | ReturnType<typeof toFile>
-    | Promise<ReturnType<typeof toFile>>
-}
+export type { LocalFile }
 
 export const generateApiReferenceFiles = Effect.fn(
   "ApiReferenceFiles.generate",
@@ -118,57 +107,21 @@ export const generateApiReferenceFiles = Effect.fn(
               signature: (declaration.signature ?? "").slice(0, 8_000),
             },
           }))
-          if (
-            chunks.some(
-              (chunk) => chunk.text.length > MAX_MIXEDBREAD_TEXT_LENGTH,
-            )
-          ) {
-            return yield* new UnknownError({
-              cause: new Error(
-                `API search chunk exceeds ${MAX_MIXEDBREAD_TEXT_LENGTH} characters in ${entry.id}`,
-              ),
-            })
-          }
           return chunks
         }),
         { concurrency: 10 },
       )
-      const chunks = nestedChunks.flat()
-      const shards = Array.from(
-        { length: Math.ceil(chunks.length / MAX_API_CHUNKS_PER_FILE) },
-        (_, index) =>
-          chunks.slice(
-            index * MAX_API_CHUNKS_PER_FILE,
-            (index + 1) * MAX_API_CHUNKS_PER_FILE,
-          ),
-      )
-      return yield* Effect.forEach(shards, (shard, index) => {
-        const suffix = String(index + 1).padStart(3, "0")
-        const filename = `${packageEntry.data.packageSlug}-${suffix}.mxjson`
-        const bytes = new TextEncoder().encode(JSON.stringify(shard))
-        return hash(bytes).pipe(
-          Effect.map(
-            (fileHash) =>
-              ({
-                externalId: [
-                  "api-reference",
-                  packageEntry.data.version,
-                  filename,
-                ].join("/"),
-                fileHash,
-                metadata: {
-                  api_version: packageEntry.data.version,
-                  content_source: "api-reference",
-                  package_name: packageEntry.data.packageName,
-                  package_slug: packageEntry.data.packageSlug,
-                },
-                upload: () =>
-                  toFile(bytes, filename, {
-                    type: "application/vnd-mxbai.chunks-json",
-                  }),
-              }) satisfies LocalFile,
-          ),
-        )
+      return yield* chunkFiles({
+        chunks: nestedChunks.flat(),
+        directory: ["api-reference", packageEntry.data.version].join("/"),
+        name: packageEntry.data.packageSlug,
+        metadata: {
+          api_version: packageEntry.data.version,
+          content_source: "api-reference",
+          package_name: packageEntry.data.packageName,
+          package_slug: packageEntry.data.packageSlug,
+        },
+        hash,
       })
     }),
     { concurrency: 10 },

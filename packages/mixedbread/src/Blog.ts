@@ -18,6 +18,7 @@ const Frontmatter = Schema.Struct({
   date: Schema.String,
   authors: Schema.Array(Schema.String),
   tags: Schema.Array(Schema.String),
+  version: Schema.optional(Schema.Literals(["v3", "v4"])),
   draft: Schema.optional(Schema.Boolean),
 })
 const FrontmatterRecord = Schema.Record(Schema.String, Schema.Unknown)
@@ -46,6 +47,9 @@ export function stageBlogPost(
   const baseMetadata: SearchMetadata = {
     schema_version: 1,
     content_source: "blog",
+    ...(frontmatter.version === undefined
+      ? {}
+      : { version: frontmatter.version }),
     page_href: `/blog/${blogPostId(relativePath)}`,
     page_title: frontmatter.title,
     description: frontmatter.excerpt,
