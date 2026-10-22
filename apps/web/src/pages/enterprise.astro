@@ -33,7 +33,7 @@ import SupportFlow from "@/components/enterprise/SupportFlow.astro"
 import GridBackground from "@/components/GridBackground.astro"
 import FrequentlyAskedQuestions from "@/components/landing/blocks/FrequentlyAskedQuestions.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
-import { buttonVariants } from "@/components/ui/Button"
+import ButtonLink from "@/components/ui/ButtonLink.astro"
 import { effect4Support } from "@/data/effect-4-support"
 import PageLayout from "@/layouts/PageLayout.astro"
 
@@ -41,9 +41,6 @@ const CONTACT_EMAIL = "contact@effectful.co"
 const CONTACT_HREF = `mailto:${CONTACT_EMAIL}?subject=Effect%20for%20enterprise`
 const DISCORD_URL = "https://discord.gg/effect-ts"
 const POLICY_UPDATED = "Oct 01, 2026"
-
-const primaryButton = buttonVariants({ variant: "default", size: "lg" })
-const secondaryButton = buttonVariants({ variant: "outline", size: "lg" })
 
 const PAGE_QUESTIONS = [
   { href: "#support", label: "Who can help us adopt and operate it?" },
@@ -283,8 +280,10 @@ const routeLink =
           Get help from the people building it.
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a href={CONTACT_HREF} class={primaryButton}>Talk to the Effect team</a>
-          <a href="#releases" class={secondaryButton}>Review releases and support</a>
+          <ButtonLink href={CONTACT_HREF} variant="primary" size="lg">
+            Talk to the Effect team
+          </ButtonLink>
+          <ButtonLink href="#releases" size="lg">Review releases and support</ButtonLink>
         </div>
       </div>
 
@@ -523,7 +522,7 @@ const routeLink =
   </EnterpriseSection>
 
   <EnterpriseSection id="support" eyebrow="Support" title="Support for your company">
-    <a slot="action" href={CONTACT_HREF} class={secondaryButton}>Talk to the Effect team</a>
+    <ButtonLink slot="action" href={CONTACT_HREF}>Talk to the Effect team</ButtonLink>
     <BorderedGrid class="grid-cols-1 lg:grid-cols-3">
       {
         SUPPORT_OPTIONS.map((o) => (
@@ -594,15 +593,15 @@ const routeLink =
           </p>
         </div>
       </div>
-      <button
-        type="button"
+      <ButtonLink
+        variant="primary"
         data-copy-template={PROPOSAL_TEMPLATE}
-        class:list={[primaryButton, "shrink-0 cursor-pointer gap-2 self-start md:self-auto"]}
+        class="shrink-0 self-start md:self-auto"
       >
         <ClipboardList size={16} data-copy-idle aria-hidden="true" />
         <CircleCheck size={16} data-copy-done class="hidden" aria-hidden="true" />
         <span data-copy-label aria-live="polite">Copy proposal template</span>
-      </button>
+      </ButtonLink>
     </div>
   </EnterpriseSection>
 
@@ -620,7 +619,7 @@ const routeLink =
           <p class="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
             Something we haven't covered? Ask us directly.
           </p>
-          <a href="#contact" class={`${secondaryButton} mt-6`}>Talk to the Effect team</a>
+          <ButtonLink href="#contact" class="mt-6">Talk to the Effect team</ButtonLink>
         </div>
         <div class="mt-8 w-full px-4 lg:mt-0 lg:w-1/2 lg:pt-28 lg:pr-4 lg:pl-3">
           <FrequentlyAskedQuestions items={FAQS} />
@@ -635,7 +634,9 @@ const routeLink =
     title="Find the right next step"
     subtitle="Evaluating Effect for your company or already running it in production?"
   >
-    <a slot="below" href={CONTACT_HREF} class={primaryButton}>Email the Effect team</a>
+    <ButtonLink slot="below" href={CONTACT_HREF} variant="primary">
+      Email the Effect team
+    </ButtonLink>
     <BorderedGrid as="div" class="grid-cols-1 md:grid-cols-2">
       <div class="flex flex-col bg-background p-6 md:p-8">
         <h3 class={cardTitle}>Join the community</h3>
