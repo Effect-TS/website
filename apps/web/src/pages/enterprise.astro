@@ -83,6 +83,12 @@ const downloads = (await getCollection("npmDownloads"))
 const [firstWeek, firstDownloads] = downloads[0]!
 const [lastWeek, lastDownloads] = downloads[downloads.length - 1]!
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 })
+const weekRange = new Intl.DateTimeFormat("en", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
 const weekLabel = new Intl.DateTimeFormat("en", {
   month: "long",
   day: "numeric",
@@ -591,7 +597,7 @@ const routeLink =
       stats={[
         {
           value: compact.format(lastDownloads),
-          label: `Downloads in the week of ${weekLabel.format(new Date(lastWeek))}`,
+          label: `Last complete week reported by npm, ${weekRange.formatRange(new Date(lastWeek), new Date(Date.parse(lastWeek) + 6 * 24 * 60 * 60 * 1000))}`,
         },
         { value: `${Math.round(lastDownloads / firstDownloads)}×`, label: "Growth since 3.x" },
       ]}
