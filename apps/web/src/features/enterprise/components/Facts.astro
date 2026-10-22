@@ -1,20 +1,26 @@
 ---
 import BorderedGrid from "./BorderedGrid.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
-import { facts } from "@/features/enterprise/copy"
 
 interface Props {
   readonly currentVersion: string
 }
 
 const { currentVersion } = Astro.props
+
+const facts = [
+  { label: "Current release", value: `v${currentVersion}` },
+  { label: "License", value: "MIT" },
+  { label: "Enterprise support", value: "NDA and SLAs" },
+  { label: "Private channels", value: "Slack or Discord" },
+]
 ---
 
 <section class="border-t border-border">
   <div class="mx-auto w-full max-w-295 px-4">
     <BorderedGrid as="dl" class="grid-cols-2 border-0 lg:grid-cols-4">
       {
-        facts(currentVersion).map((fact) => (
+        facts.map((fact) => (
           <div class="flex flex-col gap-1 bg-background px-6 py-6">
             <Eyebrow as="dt" class="text-xs">
               {fact.label}

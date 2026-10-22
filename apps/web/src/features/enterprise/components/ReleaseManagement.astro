@@ -1,20 +1,58 @@
 ---
-import SupportTimeline from "@/components/blog/SupportTimeline.astro"
+import { CalendarCheck, GitBranch, LifeBuoy, ShieldCheck } from "@lucide/astro"
+import SupportTimelineChart from "@/components/blog/SupportTimelineChart.astro"
+import SupportTimelineLegend from "@/components/blog/SupportTimelineLegend.astro"
+import { effect4Support } from "@/data/effect-4-support"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import ArrowLink from "./ArrowLink.astro"
 import BorderedGrid from "./BorderedGrid.astro"
 import CardBody from "./CardBody.astro"
 import EnterpriseSection from "./EnterpriseSection.astro"
-import Icon from "./Icon.astro"
-import { RELEASE_PRACTICES } from "@/features/enterprise/copy"
-import { effect4Support } from "@/data/effect-4-support"
-import ArrowLink from "./ArrowLink.astro"
 import GroupBar from "./GroupBar.astro"
-import Eyebrow from "@/components/ui/Eyebrow.astro"
-import {
-  CHANGELOG_HREF,
-  POLICY_UPDATED,
-  RELEASE_COLUMNS,
-  RELEASES,
-} from "@/features/enterprise/copy"
+
+const practices = [
+  {
+    icon: GitBranch,
+    title: "Versioning",
+    body: "Semantic versioning. Stable modules break only in a new major; effect/unstable/* can change in a minor.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Long-term support",
+    body: "Each major line is supported on a published LTS schedule. 4.x is the current LTS.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Release cadence",
+    body: "How often minor and patch releases ship, and how schedule changes are announced.",
+    // The release policy owner still has to confirm this.
+    tbd: true,
+  },
+  {
+    icon: LifeBuoy,
+    title: "Maintenance",
+    body: "Supported lines receive fixes and security patches until end of life. 3.x stays in maintenance alongside 4.x.",
+  },
+]
+
+const columns = ["Release", "Status", "Stable since", "Upgrade guide"]
+
+const releases = [
+  {
+    line: "4.x",
+    status: "Current, LTS",
+    current: true,
+    stable: "Oct 2026",
+    upgrade: { label: "Migrating from 3.x", href: "/blog/releases/effect/40" },
+  },
+  {
+    line: "3.x",
+    status: "Maintenance",
+    current: false,
+    stable: "Apr 2024",
+    upgrade: { label: "Changelog", href: "https://github.com/Effect-TS/effect/releases" },
+  },
+]
 ---
 
 <EnterpriseSection
@@ -25,10 +63,10 @@ import {
 >
   <BorderedGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
     {
-      RELEASE_PRACTICES.map((practice) => (
+      practices.map((practice) => (
         <li class="flex flex-col bg-background px-6 py-5">
           <span class="flex items-center gap-3">
-            <Icon name={practice.icon} />
+            <practice.icon size={20} class="shrink-0 text-muted-foreground" aria-hidden="true" />
             <span class="text-base font-semibold text-foreground">{practice.title}</span>
           </span>
           <CardBody class="mt-2 text-pretty">
@@ -44,97 +82,99 @@ import {
     }
   </BorderedGrid>
 
-  <div class="mt-16">
-    <SupportTimeline {...effect4Support} />
-  </div>
+  <GroupBar class="mt-16">
+    <Fragment slot="label">Release lines</Fragment>
+    <ArrowLink href="https://github.com/Effect-TS/effect/releases">Changelog</ArrowLink>
+  </GroupBar>
 
-  <div class="mt-16">
-    <GroupBar>
-      <Fragment slot="label">Release lines</Fragment>
-      <ArrowLink href={CHANGELOG_HREF}>Changelog</ArrowLink>
-    </GroupBar>
-
-    <div class="hidden overflow-x-auto border border-t-0 border-border md:block">
-      <table class="w-full text-left text-sm">
-        <thead class="bg-card">
-          <tr>
-            {
-              RELEASE_COLUMNS.map((column) => (
-                <th
-                  scope="col"
-                  class="px-4 py-3 align-bottom font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
-                >
-                  {column}
-                </th>
-              ))
-            }
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-border">
+  <div class="hidden overflow-x-auto border border-t-0 border-border md:block">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-card">
+        <tr>
           {
-            RELEASES.map((release) => (
-              <tr class="align-middle">
-                <th scope="row" class="px-4 py-4 font-mono text-base font-semibold text-foreground">
-                  {release.line}
-                </th>
-                <td class="px-4 py-4">
-                  <span class="inline-flex items-center gap-2 text-sm font-medium whitespace-nowrap text-foreground">
-                    <span
-                      aria-hidden="true"
-                      class:list={[
-                        "size-2 rounded-full",
-                        release.current
-                          ? "bg-brand"
-                          : "border border-subtle-foreground bg-transparent",
-                      ]}
-                    />
-                    {release.status}
-                  </span>
-                </td>
-                <td class="px-4 py-4 text-prose-foreground">{release.stable}</td>
-                <td class="px-4 py-4">
-                  <ArrowLink href={release.upgrade.href} class="whitespace-nowrap">
-                    {release.upgrade.label}
-                  </ArrowLink>
-                </td>
-              </tr>
+            columns.map((column) => (
+              <th
+                scope="col"
+                class="px-4 py-3 align-bottom font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
+              >
+                {column}
+              </th>
             ))
           }
-        </tbody>
-      </table>
-    </div>
-
-    <div class="space-y-px border border-t-0 border-border bg-border md:hidden">
-      {
-        RELEASES.map((release) => (
-          <dl class="divide-y divide-border bg-background">
-            <div class="flex items-center justify-between px-4 py-3">
-              <dt class="font-mono text-base font-semibold text-foreground">{release.line}</dt>
-              <dd class="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-                <span
-                  aria-hidden="true"
-                  class:list={[
-                    "size-2 rounded-full",
-                    release.current ? "bg-brand" : "border border-subtle-foreground bg-transparent",
-                  ]}
-                />
-                {release.status}
-              </dd>
-            </div>
-            <div class="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-              <Eyebrow as="dt" class="text-xs">
-                Stable since
-              </Eyebrow>
-              <dd class="text-prose-foreground">{release.stable}</dd>
-            </div>
-            <div class="px-4 py-3">
-              <ArrowLink href={release.upgrade.href}>{release.upgrade.label}</ArrowLink>
-            </div>
-          </dl>
-        ))
-      }
-    </div>
-
-    <Eyebrow class="mt-3 text-right text-xs">Last updated · {POLICY_UPDATED}</Eyebrow>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-border">
+        {
+          releases.map((release) => (
+            <tr class="align-middle">
+              <th scope="row" class="px-4 py-4 font-mono text-base font-semibold text-foreground">
+                {release.line}
+              </th>
+              <td class="px-4 py-4">
+                <span class="inline-flex items-center gap-2 text-sm font-medium whitespace-nowrap text-foreground">
+                  <span
+                    aria-hidden="true"
+                    class:list={[
+                      "size-2 rounded-full",
+                      release.current
+                        ? "bg-brand"
+                        : "border border-subtle-foreground bg-transparent",
+                    ]}
+                  />
+                  {release.status}
+                </span>
+              </td>
+              <td class="px-4 py-4 text-prose-foreground">{release.stable}</td>
+              <td class="px-4 py-4">
+                <ArrowLink href={release.upgrade.href} class="whitespace-nowrap">
+                  {release.upgrade.label}
+                </ArrowLink>
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
   </div>
+
+  <div class="space-y-px border border-t-0 border-border bg-border md:hidden">
+    {
+      releases.map((release) => (
+        <dl class="divide-y divide-border bg-background">
+          <div class="flex items-center justify-between px-4 py-3">
+            <dt class="font-mono text-base font-semibold text-foreground">{release.line}</dt>
+            <dd class="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+              <span
+                aria-hidden="true"
+                class:list={[
+                  "size-2 rounded-full",
+                  release.current ? "bg-brand" : "border border-subtle-foreground bg-transparent",
+                ]}
+              />
+              {release.status}
+            </dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+            <Eyebrow as="dt" class="text-xs">
+              Stable since
+            </Eyebrow>
+            <dd class="text-prose-foreground">{release.stable}</dd>
+          </div>
+          <div class="px-4 py-3">
+            <ArrowLink href={release.upgrade.href}>{release.upgrade.label}</ArrowLink>
+          </div>
+        </dl>
+      ))
+    }
+  </div>
+
+  <GroupBar class="border-t-0">
+    <Fragment slot="label">{effect4Support.title}</Fragment>
+    <SupportTimelineLegend />
+  </GroupBar>
+  <div class="border border-t-0 border-border">
+    <SupportTimelineChart {...effect4Support} />
+  </div>
+
+  <Eyebrow class="mt-3 text-right text-xs">Last updated · Oct 01, 2026</Eyebrow>
 </EnterpriseSection>

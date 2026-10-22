@@ -4,7 +4,6 @@ import ContactMenu from "./ContactMenu"
 import GridBackground from "@/components/GridBackground.astro"
 import ButtonLink from "@/components/ui/ButtonLink.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
-import { CONTACT_HREF, PAGE_QUESTIONS } from "@/features/enterprise/copy"
 import type { ContactMember } from "@/features/enterprise/domain"
 
 interface Props {
@@ -12,6 +11,12 @@ interface Props {
 }
 
 const { members } = Astro.props
+
+const questions = [
+  { href: "#support", label: "Who can help us adopt and operate it?" },
+  { href: "#security", label: "What happens with a security issue?" },
+  { href: "#adoption-guide", label: "How do we propose it internally?" },
+]
 ---
 
 <section class="relative w-full overflow-hidden">
@@ -42,13 +47,7 @@ const { members } = Astro.props
         Get help from the people building it.
       </p>
       <div class="mt-8 flex flex-wrap items-center gap-3">
-        <ContactMenu
-          client:load
-          members={members}
-          emailHref={CONTACT_HREF}
-          variant="primary"
-          size="lg"
-        />
+        <ContactMenu client:load members={members} variant="primary" size="lg" />
         <ButtonLink href="#releases" size="lg">Review releases and support</ButtonLink>
       </div>
     </div>
@@ -57,7 +56,7 @@ const { members } = Astro.props
       <Eyebrow class="text-xs">This page answers</Eyebrow>
       <ol class="mt-4 border-t border-border">
         {
-          PAGE_QUESTIONS.map((question, index) => (
+          questions.map((question, index) => (
             <li class="border-b border-border">
               <a
                 href={question.href}

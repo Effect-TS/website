@@ -4,10 +4,9 @@ import CardBody from "./CardBody.astro"
 import CardTitle from "./CardTitle.astro"
 import ContactMenu from "./ContactMenu"
 import EnterpriseSection from "./EnterpriseSection.astro"
-import Icon from "./Icon.astro"
 import SupportFlow from "./SupportFlow.astro"
-import { CONTACT_HREF, SUPPORT_OPTIONS } from "@/features/enterprise/copy"
 import type { ContactMember } from "@/features/enterprise/domain"
+import { FileSearch, GraduationCap, LifeBuoy } from "@lucide/astro"
 import { Image } from "astro:assets"
 import EffectMark from "@/assets/logos/effect/logo-symbol/svg/effect-logomark-white.svg"
 import EffectfulLogo from "@/assets/effect-days/Effectful-white.svg"
@@ -19,6 +18,24 @@ interface Props {
 }
 
 const { members } = Astro.props
+
+const options = [
+  {
+    icon: FileSearch,
+    title: "Talk through adoption",
+    body: "Bring us your technical questions and plans for using Effect.",
+  },
+  {
+    icon: LifeBuoy,
+    title: "Establish a support relationship",
+    body: "A support agreement with a mutual NDA, service levels, and escalation. Private channels are arranged separately.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Get hands-on help",
+    body: "Implementation, consulting, or training through an adoption partner like Ziverge.",
+  },
+]
 
 const nodeClass = "relative h-full overflow-hidden border bg-background p-6 md:p-8"
 
@@ -32,12 +49,12 @@ const ziverge = ["Implementation", "Consulting", "Team extension", "Training"]
 ---
 
 <EnterpriseSection id="support" eyebrow="Support" title="Support for your company">
-  <ContactMenu slot="action" client:load members={members} emailHref={CONTACT_HREF} />
+  <ContactMenu slot="action" client:load members={members} />
   <BorderedGrid class="grid-cols-1 lg:grid-cols-3">
     {
-      SUPPORT_OPTIONS.map((option) => (
+      options.map((option) => (
         <li class="flex flex-col bg-background p-6 md:p-8">
-          <Icon name={option.icon} size={24} />
+          <option.icon size={24} class="shrink-0 text-muted-foreground" aria-hidden="true" />
           <CardTitle class="mt-6">{option.title}</CardTitle>
           <CardBody class="mt-3">{option.body}</CardBody>
         </li>

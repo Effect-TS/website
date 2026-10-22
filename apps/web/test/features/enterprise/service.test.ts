@@ -3,8 +3,10 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { EnterpriseContent } from "../../../src/features/enterprise/content.ts"
 import { EnterpriseContentError } from "../../../src/features/enterprise/domain.ts"
-import { CONTACT_MEMBERS } from "../../../src/features/enterprise/members.ts"
-import { Enterprise } from "../../../src/features/enterprise/service.ts"
+import {
+  CONTACT_MEMBERS,
+  Enterprise,
+} from "../../../src/features/enterprise/service.ts"
 
 const weeks = [
   { weekStart: "2024-04-15", downloads: 245_399 },

@@ -6,7 +6,6 @@ import CardTitle from "./CardTitle.astro"
 import ContactMenu from "./ContactMenu"
 import EnterpriseSection from "./EnterpriseSection.astro"
 import RouteLink from "./RouteLink.astro"
-import { CONTACT_HREF, DISCORD_URL, SPONSORSHIP_HREF } from "@/features/enterprise/copy"
 import type { ContactMember } from "@/features/enterprise/domain"
 
 interface Props {
@@ -23,19 +22,13 @@ const routes = "mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center
   title="Find the right next step"
   subtitle="Evaluating Effect for your company or already running it in production?"
 >
-  <ContactMenu
-    slot="below"
-    client:load
-    members={members}
-    emailHref={CONTACT_HREF}
-    variant="primary"
-  />
+  <ContactMenu slot="below" client:load members={members} variant="primary" />
   <BorderedGrid as="div" class="grid-cols-1 md:grid-cols-2">
     <div class="flex flex-col bg-background p-6 md:p-8">
       <CardTitle>Join the community</CardTitle>
       <CardBody class="text-pretty">Everyone is welcome.</CardBody>
       <div class={routes}>
-        <RouteLink href={DISCORD_URL}>
+        <RouteLink href="https://discord.gg/effect-ts">
           Public Discord
           <ArrowUpRight size={12} aria-hidden="true" />
         </RouteLink>
@@ -53,7 +46,7 @@ const routes = "mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center
           <Briefcase size={16} aria-hidden="true" />
           Find engineers
         </RouteLink>
-        <RouteLink href={SPONSORSHIP_HREF}>
+        <RouteLink href="mailto:contact@effectful.co?subject=Sponsorship">
           <HeartHandshake size={16} aria-hidden="true" />
           Sponsorship
         </RouteLink>

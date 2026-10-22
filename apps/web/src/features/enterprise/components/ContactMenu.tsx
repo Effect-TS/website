@@ -19,14 +19,12 @@ import { localTime, MemberAvatar } from "./MemberAvatar"
 
 interface Props extends ButtonLinkVariantProps {
   readonly members: ReadonlyArray<ContactMember>
-  readonly emailHref: string
   readonly label?: string
   readonly className?: string
 }
 
 export default function ContactMenu({
   members,
-  emailHref,
   label = "Talk to the Effect team",
   variant,
   size,
@@ -65,7 +63,9 @@ export default function ContactMenu({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          render={<a href={emailHref} />}
+          render={
+            <a href="mailto:contact@effectful.co?subject=Effect%20for%20enterprise" />
+          }
           className="gap-3 px-2 py-2"
         >
           <Mail size={16} aria-hidden="true" className="mx-2.5" />
