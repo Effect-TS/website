@@ -4,7 +4,7 @@ import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint"
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup"
 import { Tally } from "./domain"
 import { VoteRefusedError } from "./errors"
-import { NoStore, SameOrigin, VoteRateLimit, VoterIdentity } from "./middleware"
+import { NoStore, VoteRateLimit, VoterIdentity } from "./middleware"
 
 const MAX_ID_LENGTH = 200
 
@@ -34,7 +34,6 @@ export class MotwVoteApiGroup extends HttpApiGroup.make("motwVote", {
       error: VoteRefusedError,
     }).middleware(VoteRateLimit),
   )
-  .middleware(SameOrigin)
   .middleware(VoterIdentity)
   .middleware(NoStore) {}
 

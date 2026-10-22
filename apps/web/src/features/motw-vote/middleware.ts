@@ -31,12 +31,6 @@ export class VoterIdentity extends HttpApiMiddleware.Service<
   security: { voter: voterCookie },
 }) {}
 
-/** Turns down a POST that another site's page sent. */
-export class SameOrigin extends HttpApiMiddleware.Service<SameOrigin>()(
-  "motw-vote/SameOrigin",
-  { error: VoteRefusedError },
-) {}
-
 /** Limits how fast one client can vote. */
 export class VoteRateLimit extends HttpApiMiddleware.Service<VoteRateLimit>()(
   "motw-vote/VoteRateLimit",

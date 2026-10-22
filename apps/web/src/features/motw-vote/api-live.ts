@@ -4,7 +4,6 @@ import { MotwVoteApi } from "./api"
 import { MotwVoteHandlers } from "./handlers"
 import {
   NoStoreLive,
-  SameOriginLive,
   VoteRateLimitLive,
   VoterIdentityLive,
 } from "./middleware-live"
@@ -20,12 +19,7 @@ export const MotwVoteLive = HttpApiBuilder.layer(MotwVoteApi).pipe(
   Layer.provide(MotwVoteHandlers),
   Layer.provide(MotwVotes.layer),
   Layer.provide(
-    Layer.mergeAll(
-      NoStoreLive,
-      SameOriginLive,
-      VoteRateLimitLive,
-      VoterIdentityLive,
-    ),
+    Layer.mergeAll(NoStoreLive, VoteRateLimitLive, VoterIdentityLive),
   ),
   Layer.provide(VoterSigner.layer),
 )

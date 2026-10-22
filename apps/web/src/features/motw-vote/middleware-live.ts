@@ -10,31 +10,12 @@ import { VoteRefusedError } from "./errors"
 import {
   CurrentVoter,
   NoStore,
-  SameOrigin,
   VoteRateLimit,
   Voter,
   VoterIdentity,
 } from "./middleware"
 import { ClientRateLimit } from "./rate-limit"
 import { VoterSigner } from "./voter"
-
-const originOf = Option.liftThrowable((url: string) => new URL(url).origin)
-
-/** A POST that a page on another site sent is turned down. */
-export const SameOriginLive = Layer.succeed(SameOrigin, (httpEffect) =>
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest
-    const sender = Headers.get(request.headers, "origin")
-    const ownOrigin = originOf(request.originalUrl)
-    if (
-      request.method !== "GET" &&
-      Option.exists(sender, (origin) => !Option.contains(ownOrigin, origin))
-    ) {
-      return yield* new VoteRefusedError({ reason: "InvalidVoter" })
-    }
-    return yield* httpEffect
-  }),
-)
 
 /** Turns away a client that votes too fast. The key is the address Cloudflare reports. */
 export const VoteRateLimitLive = Layer.effect(

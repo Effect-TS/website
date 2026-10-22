@@ -210,25 +210,6 @@ describe("motw vote api", () => {
       assert.include(blocked.headers.get("set-cookie") ?? "", "Max-Age=0")
     }))
 
-  test("a vote from another site is refused", () =>
-    withHandler(async (fetch) => {
-      const body = { id: "effect/Pool", on: true, token: "solved" }
-      const foreign = await fetch(
-        "/vote",
-        vote(body, { origin: "https://evil.example" }),
-      )
-      assert.equal(foreign.status, 409)
-      assert.deepStrictEqual(await foreign.json(), {
-        _tag: "VoteRefusedError",
-        reason: "InvalidVoter",
-      })
-      const own = await fetch(
-        "/vote",
-        vote(body, { origin: "https://effect.website" }),
-      )
-      assert.equal(own.status, 200)
-    }))
-
   test("too large an id or token is a 400", () =>
     withHandler(async (fetch) => {
       const longId = await fetch(
