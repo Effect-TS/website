@@ -1,6 +1,15 @@
 import * as Schema from "effect/Schema"
 
-/** The votes a module has. */
+export const ModuleRef = Schema.Struct({
+  /** `package/modulePath`, e.g. `effect/cluster/Entity`. Unique across packages. */
+  id: Schema.String,
+  /** Import path of the module's folder, e.g. `effect/cluster`. */
+  pkg: Schema.String,
+  name: Schema.String,
+})
+
+export type ModuleRef = typeof ModuleRef.Type
+
 export const Tally = Schema.Struct({
   id: Schema.String,
   votes: Schema.Number,
@@ -8,35 +17,32 @@ export const Tally = Schema.Struct({
 
 export type Tally = typeof Tally.Type
 
-/** A module that can be suggested. */
-export interface ModuleRef {
-  /** `package/modulePath`, e.g. `effect/cluster/Entity`. Unique across packages. */
-  readonly id: string
-  /** Import path of the module's folder, e.g. `effect/cluster`. */
-  readonly pkg: string
-  /** The module's own name, e.g. `Entity`. */
-  readonly name: string
-}
+/** A tally and whether the visitor has a vote on the module afterwards. */
+export const VoteOutcome = Schema.Struct({
+  ...Tally.fields,
+  voted: Schema.Boolean,
+})
 
-/** A module on the ranking, with its votes. */
-export interface RankedModule extends ModuleRef {
-  readonly votes: number
-  /** Whether the current visitor has +1'd it. */
-  readonly voted: boolean
-}
+export type VoteOutcome = typeof VoteOutcome.Type
 
-/** Where the build puts the module list the server checks votes against. */
-export const VOTE_DATA_PATH = "/module-of-the-week/vote-data.json"
+export type RankedModule = ModuleRef & Omit<VoteOutcome, "id">
 
-export const VOTE_REFUSALS = [
+export const VoteRefusal = Schema.Literals([
   "UnknownModule",
   "Covered",
   "RateLimited",
-  "InvalidVoter",
   "ChallengeFailed",
-] as const
+])
 
-export type VoteRefusal = (typeof VOTE_REFUSALS)[number]
+export type VoteRefusal = typeof VoteRefusal.Type
+
+export class VoteRefusedError extends Schema.TaggedError<VoteRefusedError>()(
+  "VoteRefusedError",
+  { reason: VoteRefusal },
+  { httpApiStatus: 409 },
+) {}
+
+export const VOTE_DATA_PATH = "/module-of-the-week/vote-data.json"
 
 /**
  * Matches for a search, best first: names equal to, starting with, then

@@ -27,7 +27,6 @@ declare global {
 const SCRIPT =
   "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
 
-/** The bot check could not run: blocked, failed or too slow. */
 export class ChallengeUnavailable extends Data.TaggedError(
   "ChallengeUnavailable",
 ) {}
@@ -88,7 +87,6 @@ const renderWidget = (turnstile: TurnstileApi, siteKey: string) =>
 export class BotCheck extends Context.Service<
   BotCheck,
   {
-    /** The token of an invisible Turnstile check. A token works once. */
     readonly solve: (
       siteKey: string,
     ) => Effect.Effect<string, ChallengeUnavailable>

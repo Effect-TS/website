@@ -9,25 +9,21 @@ export interface RateLimitBinding {
   }) => Promise<{ readonly success: boolean }>
 }
 
-/**
- * Whether a client may make one more request. Cloudflare keeps the counts, so
- * nothing about the client is stored here.
- */
+/** Cloudflare keeps the counts, so nothing about the client is stored here. */
 export class ClientRateLimit extends Context.Service<
   ClientRateLimit,
   { readonly allow: (key: string) => Effect.Effect<boolean> }
->()("motw-vote/ClientRateLimit") {}
+>()("motw-vote/ClientRateLimit") {
+  static readonly layer = (binding: RateLimitBinding) =>
+    Layer.succeed(this, {
+      allow: (key) =>
+        Effect.map(
+          Effect.promise(() => binding.limit({ key })),
+          ({ success }) => success,
+        ),
+    })
 
-export const layer = (binding: RateLimitBinding) =>
-  Layer.succeed(ClientRateLimit, {
-    allow: (key) =>
-      Effect.map(
-        Effect.promise(() => binding.limit({ key })),
-        ({ success }) => success,
-      ),
+  static readonly layerUnlimited = Layer.succeed(this, {
+    allow: () => Effect.succeed(true),
   })
-
-/** For `astro dev`, which has no binding. */
-export const unlimited = Layer.succeed(ClientRateLimit, {
-  allow: () => Effect.succeed(true),
-})
+}

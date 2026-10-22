@@ -1,15 +1,39 @@
+import * as Context from "effect/Context"
+import type * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as HttpApi from "effect/http-api/HttpApi"
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint"
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup"
-import { Tally } from "./domain"
-import { VoteRefusedError } from "./errors"
-import { NoStore, VoteRateLimit, VoterIdentity } from "./middleware"
+import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware"
+import * as HttpApiSecurity from "effect/http-api/HttpApiSecurity"
+import { Tally, VoteOutcome, VoteRefusedError } from "./domain"
 
-const MAX_ID_LENGTH = 200
+const ModuleId = Schema.String.check(Schema.isMaxLength(200))
 
 // Turnstile tokens are at most 2048 characters
-const MAX_TOKEN_LENGTH = 2048
+const Token = Schema.String.check(Schema.isMaxLength(2048))
+
+export class CurrentVoter extends Context.Service<
+  CurrentVoter,
+  Option.Option<string>
+>()("motw-vote/CurrentVoter") {}
+
+export const voterCookie = HttpApiSecurity.apiKey({
+  key: "motw_voter",
+  in: "cookie",
+})
+
+export class VoterIdentity extends HttpApiMiddleware.Service<
+  VoterIdentity,
+  { provides: CurrentVoter }
+>()("motw-vote/VoterIdentity", {
+  security: { voter: voterCookie },
+}) {}
+
+export class VoteRateLimit extends HttpApiMiddleware.Service<VoteRateLimit>()(
+  "motw-vote/VoteRateLimit",
+  { error: VoteRefusedError },
+) {}
 
 export class MotwVoteApiGroup extends HttpApiGroup.make("motwVote", {
   topLevel: true,
@@ -23,19 +47,16 @@ export class MotwVoteApiGroup extends HttpApiGroup.make("motwVote", {
       }),
     }),
     HttpApiEndpoint.post("vote", "/api/motw-vote/vote", {
-      payload: Schema.Struct({
-        id: Schema.String.check(Schema.isMaxLength(MAX_ID_LENGTH)),
-        on: Schema.Boolean,
-        token: Schema.optional(
-          Schema.String.check(Schema.isMaxLength(MAX_TOKEN_LENGTH)),
-        ),
-      }),
-      success: Schema.Struct({ ...Tally.fields, voted: Schema.Boolean }),
+      payload: Schema.Struct({ id: ModuleId, token: Token }),
+      success: VoteOutcome,
       error: VoteRefusedError,
     }).middleware(VoteRateLimit),
+    HttpApiEndpoint.post("unvote", "/api/motw-vote/unvote", {
+      payload: Schema.Struct({ id: ModuleId }),
+      success: VoteOutcome,
+    }).middleware(VoteRateLimit),
   )
-  .middleware(VoterIdentity)
-  .middleware(NoStore) {}
+  .middleware(VoterIdentity) {}
 
 export class MotwVoteApi extends HttpApi.make("motwVoteApi").add(
   MotwVoteApiGroup,

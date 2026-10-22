@@ -1,6 +1,8 @@
 import { assert, describe, test } from "vite-plus/test"
+import * as Cause from "effect/Cause"
 import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
 import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
 import * as HttpClient from "effect/http/HttpClient"
@@ -11,8 +13,6 @@ import { inspect } from "node:util"
 import {
   SITEVERIFY,
   Turnstile,
-  TurnstileError,
-  layer,
 } from "../../../src/features/motw-vote/turnstile.ts"
 
 const SECRET = "very-secret-value"
@@ -44,11 +44,17 @@ const fake = (
       )
     }),
   )
-  return { seen, layer: Layer.provide(layer, [client, config]) }
+  return { seen, layer: Layer.provide(Turnstile.layer, [client, config]) }
 }
 
 const verify = (token: string) =>
   Turnstile.use((turnstile) => turnstile.verify(token))
+
+const defect = <A, R>(effect: Effect.Effect<A, never, R>) =>
+  Effect.map(Effect.exit(effect), (exit) => {
+    assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause))
+    return exit
+  })
 
 describe("Turnstile", () => {
   test("a solved check verifies, an unsolved one does not", async () => {
@@ -96,48 +102,43 @@ describe("Turnstile", () => {
     })
   })
 
-  test("an answer that is not 2xx fails, and does not leak the secret", async () => {
+  test("an answer that is not 2xx is a defect, and does not leak the secret", async () => {
     const { layer } = fake(() => new Response("down", { status: 503 }))
     const exit = await Effect.runPromise(
-      Effect.flip(verify("t")).pipe(Effect.provide(layer)),
+      defect(verify("t")).pipe(Effect.provide(layer)),
     )
-    assert.instanceOf(exit, TurnstileError)
     assert.notInclude(String(exit), SECRET)
     assert.notInclude(inspect(exit, { depth: 10 }), SECRET)
     assert.notInclude(JSON.stringify(exit), SECRET)
   })
 
-  test("an answer that is not the expected JSON fails", async () => {
+  test("an answer that is not the expected JSON is a defect", async () => {
     for (const body of [
       new Response("<html>oops</html>"),
       Response.json({ ok: true }),
       Response.json({ success: "yes" }),
     ]) {
       const { layer } = fake(() => body)
-      const error = await Effect.runPromise(
-        Effect.flip(verify("t")).pipe(Effect.provide(layer)),
-      )
-      assert.instanceOf(error, TurnstileError)
+      await Effect.runPromise(defect(verify("t")).pipe(Effect.provide(layer)))
     }
   })
 
-  test("a request that takes more than 5 seconds fails", async () => {
+  test("a request that takes more than 5 seconds is a defect", async () => {
     const never = Layer.succeed(
       HttpClient.HttpClient,
       HttpClient.make(() => Effect.never),
     )
-    const error = await Effect.runPromise(
+    await Effect.runPromise(
       Effect.gen(function* () {
-        const fiber = yield* Effect.forkChild(Effect.flip(verify("t")))
+        const fiber = yield* Effect.forkChild(defect(verify("t")))
         yield* TestClock.adjust("4 seconds")
         assert.isUndefined(fiber.pollUnsafe())
         yield* TestClock.adjust("2 seconds")
         return yield* Fiber.join(fiber)
       }).pipe(
-        Effect.provide(Layer.provide(layer, [never, config])),
+        Effect.provide(Layer.provide(Turnstile.layer, [never, config])),
         Effect.provide(TestClock.layer()),
       ),
     )
-    assert.instanceOf(error, TurnstileError)
   })
 })

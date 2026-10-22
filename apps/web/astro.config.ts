@@ -11,7 +11,6 @@ import {
 } from "astro/config"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
-import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
@@ -64,7 +63,6 @@ const config = defineConfig({
       tailwindcss(),
       svgr(),
       openGraphMetadataPlugin({ cacheDir }),
-      cloudflareWorkersFallback(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
         features: "all",

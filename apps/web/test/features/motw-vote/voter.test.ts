@@ -27,7 +27,7 @@ describe("voter signer", () => {
     withSigner("secret", (signer) =>
       Effect.gen(function* () {
         const { id, token } = yield* signer.issue
-        assert.deepStrictEqual(signer.verify(token), Option.some(id))
+        assert.deepStrictEqual(yield* signer.verify(token), Option.some(id))
       }),
     ))
 
@@ -53,13 +53,16 @@ describe("voter signer", () => {
       "",
     ]
     await withSigner("secret", (signer) =>
-      Effect.sync(() => {
-        for (const value of invalid)
-          assert.isTrue(Option.isNone(signer.verify(value)))
-      }),
+      Effect.forEach(invalid, (value) =>
+        Effect.map(signer.verify(value), (voter) =>
+          assert.isTrue(Option.isNone(voter)),
+        ),
+      ),
     )
     await withSigner("another-secret", (signer) =>
-      Effect.sync(() => assert.isTrue(Option.isNone(signer.verify(token)))),
+      Effect.map(signer.verify(token), (voter) =>
+        assert.isTrue(Option.isNone(voter)),
+      ),
     )
   })
 })

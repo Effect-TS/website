@@ -1,6 +1,5 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as Match from "effect/Match"
 import * as Semaphore from "effect/Semaphore"
 import * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
@@ -13,7 +12,7 @@ import {
   searchModules,
 } from "./domain"
 
-/** Modules shown at first, and added per "Show more" (three rows of four on desktop). */
+/** Three rows of four on desktop */
 export const STEP = 12
 
 export interface Message {
@@ -37,7 +36,7 @@ const error = (text: string): Message => ({ tone: "error", text })
 const byVotes = (a: RankedModule, b: RankedModule) =>
   b.votes - a.votes || a.name.localeCompare(b.name)
 
-/** Seeded by the page through `RegistryProvider`, so they must outlive subscribers. */
+// Seeded by the page through `RegistryProvider`, so they must outlive subscribers
 export const moduleIndexAtom = Atom.keepAlive(
   Atom.make<ReadonlyArray<ModuleRef>>([]),
 )
@@ -71,7 +70,7 @@ const loadedAtom = runtime.atom(
   }),
 )
 
-/** The ranking. Writing a function patches the loaded value until the next load. */
+// Writing a function patches the loaded value until the next load
 export const rankingAtom: Atom.Writable<
   Atom.Type<typeof loadedAtom>,
   (ranking: Ranking) => Ranking
@@ -107,24 +106,13 @@ export const statusAtom = Atom.withServerValue(
   () => null,
 )
 
-const refusalText = (reason: VoteRefusal, name: string) =>
-  Match.value(reason).pipe(
-    Match.when("Covered", () => `${name} has already been covered.`),
-    Match.when("UnknownModule", () => `${name} is not a module we can cover.`),
-    Match.when(
-      "RateLimited",
-      () => "Too many votes in a short time. Try again in a minute.",
-    ),
-    Match.when(
-      "InvalidVoter",
-      () => "Your voting session is not valid. Reload the page and try again.",
-    ),
-    Match.when(
-      "ChallengeFailed",
-      () => "We could not tell you are not a bot, so your +1 was not saved.",
-    ),
-    Match.exhaustive,
-  )
+const refusalText = {
+  Covered: (name) => `${name} has already been covered.`,
+  UnknownModule: (name) => `${name} is not a module we can cover.`,
+  RateLimited: () => "Too many votes in a short time. Try again in a minute.",
+  ChallengeFailed: () =>
+    "We could not tell you are not a bot, so your +1 was not saved.",
+} satisfies Record<VoteRefusal, (name: string) => string>
 
 const flashAtom = Atom.keepAlive(
   Atom.fn<string>()(
@@ -136,14 +124,6 @@ const flashAtom = Atom.keepAlive(
   ),
 )
 
-const humanToken = Effect.fnUntraced(function* (
-  get: Atom.FnContext,
-  siteKey: string,
-) {
-  get.set(messageAtom, { tone: "ok", text: "Checking you are not a bot…" })
-  return yield* (yield* BotCheck).solve(siteKey)
-})
-
 const castVote = Effect.fnUntraced(function* (
   get: Atom.FnContext,
   module: ModuleRef,
@@ -151,15 +131,18 @@ const castVote = Effect.fnUntraced(function* (
 ) {
   const { siteKey } = yield* get.result(rankingAtom)
   const client = yield* MotwVoteClient
-  const token = on ? yield* humanToken(get, siteKey) : undefined
-  const tally = yield* client.vote({
-    payload:
-      token === undefined
-        ? { id: module.id, on }
-        : { id: module.id, on, token },
-  })
+  const outcome = on
+    ? yield* Effect.gen(function* () {
+        get.set(messageAtom, {
+          tone: "ok",
+          text: "Checking you are not a bot…",
+        })
+        const token = yield* (yield* BotCheck).solve(siteKey)
+        return yield* client.vote({ payload: { id: module.id, token } })
+      })
+    : yield* client.unvote({ payload: { id: module.id } })
   get.set(rankingAtom, ({ rows, siteKey }) => {
-    const row = { ...module, votes: tally.votes, voted: tally.voted }
+    const row = { ...module, votes: outcome.votes, voted: outcome.voted }
     return {
       siteKey,
       rows: rows.some(({ id }) => id === module.id)
@@ -173,11 +156,8 @@ type VoteFailure = Effect.Error<ReturnType<typeof castVote>>
 
 const lock = Semaphore.makeUnsafe(1)
 
-/**
- * Runs one vote and shows its outcome. A vote that starts while another runs
- * is dropped. Pair with `concurrent: true`, or the atom would interrupt the
- * running vote for the new one.
- */
+// A vote that starts while another runs is dropped. Pair with `concurrent: true`,
+// or the atom would interrupt the running vote for the new one.
 const exclusive =
   (get: Atom.FnContext, name: string) =>
   <R>(vote: Effect.Effect<Message | null, VoteFailure, R>) =>
@@ -185,7 +165,7 @@ const exclusive =
       vote.pipe(
         Effect.catchTags({
           VoteRefusedError: ({ reason }) =>
-            Effect.succeed(error(refusalText(reason, name))),
+            Effect.succeed(error(refusalText[reason](name))),
           ChallengeUnavailable: () =>
             Effect.succeed(
               error(
@@ -202,7 +182,6 @@ const exclusive =
       ),
     )
 
-/** Adds or removes the visitor's +1 on a row of the ranking. */
 export const toggleAtom = runtime.fn<RankedModule>()(
   (row, get) =>
     exclusive(
@@ -212,7 +191,6 @@ export const toggleAtom = runtime.fn<RankedModule>()(
   { concurrent: true },
 )
 
-/** +1 a module picked from the search, and show its row. */
 export const pickAtom = runtime.fn<ModuleRef>()(
   (module, get) =>
     exclusive(
@@ -226,7 +204,7 @@ export const pickAtom = runtime.fn<ModuleRef>()(
           return error(
             `${module.name} has already been covered. Find it in the modules above.`,
           )
-        // Name plus package, since some names exist in more than one package
+        // Some names exist in more than one package
         const label = `${module.name} (${module.pkg})`
         const existing = (yield* get.result(rankingAtom)).rows.find(
           ({ id }) => id === module.id,

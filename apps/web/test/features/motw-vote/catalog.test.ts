@@ -1,16 +1,16 @@
 import { assert, describe, test } from "vite-plus/test"
+import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
 import * as HttpClient from "effect/http/HttpClient"
 import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/http/HttpClientResponse"
 import {
-  CatalogError,
   ModuleCatalog,
-  layer,
+  coveredModuleIds,
 } from "../../../src/features/motw-vote/catalog.ts"
 import { VOTE_DATA_PATH } from "../../../src/features/motw-vote/domain.ts"
-import { coveredModuleIds } from "../../../src/features/motw-vote/vote-data.ts"
 
 const post = (apiModules?: ReadonlyArray<string>) => ({ data: { apiModules } })
 
@@ -30,7 +30,10 @@ const served = (answers: ReadonlyArray<() => Response>) => {
   }).pipe(HttpClient.mapRequest(HttpClientRequest.prependUrl(ORIGIN)))
   return {
     paths,
-    layer: Layer.provide(layer, Layer.succeed(HttpClient.HttpClient, client)),
+    layer: Layer.provide(
+      ModuleCatalog.layer,
+      Layer.succeed(HttpClient.HttpClient, client),
+    ),
   }
 }
 
@@ -89,19 +92,19 @@ describe("ModuleCatalog", () => {
     ["a 200 with HTML", html],
     ["JSON of another shape", () => Response.json({ modules: "all" })],
   ] as const) {
-    test(`${name} fails, and the next call reads again`, async () => {
+    test(`${name} is a defect, and the next call reads again`, async () => {
       const { paths, layer } = served([failure, failure, ok])
       const results = await Effect.runPromise(
         Effect.gen(function* () {
-          const first = yield* Effect.flip(status("effect/Pool"))
-          const second = yield* Effect.flip(status("effect/Pool"))
+          const first = yield* Effect.exit(status("effect/Pool"))
+          const second = yield* Effect.exit(status("effect/Pool"))
           const third = yield* status("effect/Pool")
           const fourth = yield* status("effect/RcMap")
           return { first, second, third, fourth }
         }).pipe(Effect.provide(layer)),
       )
-      assert.instanceOf(results.first, CatalogError)
-      assert.instanceOf(results.second, CatalogError)
+      for (const exit of [results.first, results.second])
+        assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause))
       assert.equal(results.third, "votable")
       assert.equal(results.fourth, "covered")
       assert.equal(paths.length, 3)

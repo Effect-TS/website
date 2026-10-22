@@ -4,7 +4,6 @@ import { pipe } from "effect/Function"
 import * as Order from "effect/Order"
 import type { ModuleRef } from "./domain"
 
-/** Every module of the current API reference, as the list people pick from. */
 export const getApiModules = async (
   version = "v4",
 ): Promise<ReadonlyArray<ModuleRef>> =>

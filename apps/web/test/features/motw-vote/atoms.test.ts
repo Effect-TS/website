@@ -19,7 +19,7 @@ const index = [
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const realFetch = globalThis.fetch
-let posts: Array<{ id: string; on: boolean; token?: string | undefined }> = []
+let posts: Array<{ path: string; id: string; token?: string | undefined }> = []
 let removed = 0
 let reply: (body: { id: string }) => Response
 
@@ -51,7 +51,6 @@ const loaded = async (registry: AtomRegistry.AtomRegistry) => {
 const decodeVote = Schema.decodeUnknownSync(
   Schema.Struct({
     id: Schema.String,
-    on: Schema.Boolean,
     token: Schema.optional(Schema.String),
   }),
 )
@@ -100,7 +99,7 @@ beforeEach(() => {
           turnstileSiteKey: "key",
         })
       const body = decodeVote(await request.json())
-      posts.push(body)
+      posts.push({ path: new URL(request.url).pathname, ...body })
       await sleep(60)
       return reply(body)
     },
@@ -137,7 +136,7 @@ describe("votes", () => {
     registry.set(toggleAtom, { ...pool!, voted: true })
     await sleep(300)
     assert.equal(posts.length, 1)
-    assert.equal(posts[0]!.on, false)
+    assert.equal(posts[0]!.path, "/api/motw-vote/unvote")
     assert.isFalse("token" in posts[0]!)
   })
 
