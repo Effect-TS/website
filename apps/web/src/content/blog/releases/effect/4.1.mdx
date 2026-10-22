@@ -1,0 +1,386 @@
+---
+pagefind: false
+title: Effect 4.1 (Release)
+excerpt: New Effect release featuring the effect/crypto modules, Glob module, streaming CSV, HttpApi Problem Details, Decision.locate, and more!
+date: 2026-10-20
+authors:
+  - tim_smart
+tags:
+  - releases
+  - effect
+---
+
+Effect 4.1 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## effect/crypto modules
+
+The single `effect/Crypto` module has been replaced by a set of services under
+`effect/crypto`, one per algorithm family:
+
+- `SecureRandom` for random bytes, integers, shuffling, UUIDs and ULIDs
+- `Digest` for MD5, SHA-1, SHA-256, SHA-384 and SHA-512
+- `Mac`, `Kdf`, `Aead`, `Cipher`, `Signature`, `KeyAgreement` and `KeyWrap`
+- `KeyFormat` and `CryptoError`, plus key schemas in `effect/Schema`
+
+Each family has a `layerWebCrypto` layer that runs on the configurable
+`WebCrypto` reference. `NodeCrypto`, `BunCrypto`, `DenoCrypto` and
+`BrowserCrypto` provide a layer per family, and a combined `layer` with all of
+them.
+
+```ts
+import { NodeCrypto } from "@effect/platform-node"
+import { Effect } from "effect"
+import { Digest, SecureRandom } from "effect/crypto"
+
+const program = Effect.gen(function* () {
+  const random = yield* SecureRandom.SecureRandom
+  const digest = yield* Digest.Digest
+
+  // UUIDv7s are now monotonic, even within the same millisecond
+  const id = yield* random.uuidV7()
+  const checksum = yield* digest.digestHex(
+    Digest.sha256,
+    new TextEncoder().encode(id),
+  )
+
+  yield* Effect.log(id, checksum)
+})
+
+// crypto services are no longer part of the default runtime services,
+// so provide them explicitly
+program.pipe(Effect.provide(NodeCrypto.layer), Effect.runFork)
+```
+
+### Breaking changes
+
+- Use `SecureRandom` for randomness and UUIDs, and `Digest` for hashing.
+  `effect/testing/TestCrypto` has been removed; use `Layer.mock` for the
+  services you need instead.
+- Crypto is no longer included in the runtime `*Services` bundles, so it has
+  to be provided explicitly.
+- `SqlMessageStorage` and `SingleRunner` now require `Digest.Digest` instead of
+  `Crypto.Crypto`. `SqlEventLogServerEncrypted.makeStorage` and `layerStorage`
+  require `Digest.Digest` instead of `EventLogEncryption`.
+- `EventLogEncryption.sha256String` has been removed. Use
+  `digest.digestHex(Digest.sha256, bytes)`.
+- Encoding secret or private keys through the byte / format schemas requires
+  `{ allowEncode: true }`.
+
+Existing workflow IDs, activity idempotency keys, event log table names,
+identities and encrypted batches are unchanged.
+
+## Glob module
+
+An experimental `Glob` module has been added, along with a `FileSystem.glob`
+method that has a shared implementation for Node, Bun and Deno.
+
+```ts
+import { NodeFileSystem } from "@effect/platform-node"
+import { Effect, FileSystem, Glob } from "effect"
+
+// Match paths without touching the file system
+const sources = Glob.make("src/**/*.{ts,tsx}")
+
+Glob.match(sources, "src/ui/Button.tsx") // => true
+Glob.match(sources, "src/.cache/index.ts") // => false
+
+// Or search the file system with the same pattern syntax
+const program = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem
+  const files = yield* fs.glob("src/**/*.ts", {
+    exclude: ["**/*.test.ts"],
+  })
+  yield* Effect.log(files)
+})
+
+program.pipe(Effect.provide(NodeFileSystem.layer), Effect.runFork)
+```
+
+Patterns always use `/` as the separator, and results are relative to `root`
+unless the pattern is absolute.
+
+If you have a custom `FileSystem` implementation, it now needs to provide
+`readDirectoryEntries`. `FileSystem.make` derives `glob` for you.
+
+## Streaming CSV
+
+An unstable `Csv` module has been added to `effect/encoding`, for parsing and
+writing CSV as a stream of text or UTF-8 bytes. It supports header records and
+can convert cells using a `Schema`:
+
+```ts
+import { Effect, Schema, Stream } from "effect"
+import { Csv } from "effect/encoding"
+
+const Person = Schema.Struct({
+  name: Schema.String,
+  age: Schema.Number,
+}).pipe(Schema.encodeKeys({ name: "Full Name", age: "Age (years)" }))
+
+const people = Stream.make("Full Name,Age (years)\nAlice,32\nBob,41\n").pipe(
+  Stream.pipeThroughChannel(Csv.decodeSchemaString(Person)({ headers: true })),
+  Stream.runCollect,
+)
+
+Effect.runPromise(people).then(console.log)
+// [{ name: "Alice", age: 32 }, { name: "Bob", age: 41 }]
+```
+
+## HttpApi Problem Details
+
+`HttpApi` has opt-in support for [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
+Problem Details. `HttpApiError.Problem` declares a typed problem as an error
+class, which endpoints render, document and decode as
+`application/problem+json`:
+
+```ts
+import { Effect, Layer, Schema } from "effect"
+import {
+  HttpApi,
+  HttpApiBuilder,
+  HttpApiEndpoint,
+  HttpApiError,
+  HttpApiGroup,
+  HttpApiMiddleware,
+  HttpApiSchema,
+} from "effect/http-api"
+
+class OutOfCredit extends HttpApiError.Problem<OutOfCredit>()(
+  "OutOfCredit",
+  {
+    type: "https://example.com/probs/out-of-credit",
+    status: 403,
+    title: "You do not have enough credit.",
+  },
+  { balance: Schema.Number },
+) {}
+
+const Api = HttpApi.make("Api")
+  .add(
+    HttpApiGroup.make("shop")
+      .add(
+        HttpApiEndpoint.post("purchase", "/purchase", {
+          success: Schema.String,
+          error: OutOfCredit,
+        }),
+      )
+      .add(
+        HttpApiEndpoint.get("item", "/items/:id", {
+          params: { id: Schema.String },
+          success: Schema.String,
+          // render a built-in error as a problem
+          error: HttpApiError.NotFound.pipe(
+            HttpApiSchema.asProblem({ title: "Item not found" }),
+          ),
+        }),
+      ),
+  )
+  // render request decoding failures as problems too
+  .middleware(HttpApiMiddleware.ProblemDetails)
+
+const ShopLive = HttpApiBuilder.group(Api, "shop", (handlers) =>
+  handlers
+    // responds with 403 and an application/problem+json body:
+    // { type: "https://example.com/probs/out-of-credit", status: 403,
+    //   title: "You do not have enough credit.", balance: 30 }
+    .handle("purchase", () => Effect.fail(new OutOfCredit({ balance: 30 })))
+    .handle("item", () => Effect.fail(new HttpApiError.NotFound())),
+)
+
+const ApiLive = HttpApiBuilder.layer(Api).pipe(
+  Layer.provide(ShopLive),
+  Layer.provide(HttpApiMiddleware.layerProblemDetails()),
+)
+```
+
+With `HttpApiMiddleware.ProblemDetails`, request decoding failures become a
+generic `400` problem, and response encoding failures a `500` problem. Pass
+`{ includeDetails: true }` to `layerProblemDetails` to add per-field `errors`
+to the `400`. The `ProblemDetails` module in `effect/http` has the media type,
+a codec and a response constructor if you need to build problems by hand.
+
+Nothing changes unless you opt in.
+
+## Decision.Image & Decision.locate
+
+Images used by a `Decision` are now declared as fields of the input schema with
+`Decision.Image`, and the new `Decision.locate` answers with a bounding box
+around a target in one of those images.
+
+```ts
+import { Schema } from "effect"
+import { Decision } from "effect/ai"
+
+const FindMug = Decision.make({
+  input: Schema.Struct({ photo: Decision.Image }),
+  decisions: {
+    present: Decision.probability({
+      instructions: "`photo` shows a coffee mug",
+    }),
+    mug: Decision.locate({ image: "photo", instructions: "the coffee mug" }),
+  },
+})
+```
+
+`DecideOptions.images` has been removed. Add `Decision.Image` fields to your
+input schema and refer to each image by its path in your instructions.
+
+Providers opt in to locate decisions with `supportsLocate: true`.
+`TypeSafeDecisionModel` supports both images and locate decisions. Locate
+decisions are sent as Box questions, which need Jev 1.14 (`jev-preview` or
+`jev-1.14.0`). The OpenAI and Cloudflare providers label each image with its
+reference.
+
+## Effect.ignore({ log: "Unhandled" })
+
+`Effect.ignore`, `Effect.ignoreCause` and their `Stream` and `Channel` variants
+accept `log: "Unhandled"`. Failures are then logged at the level set by
+`References.UnhandledLogLevel`, or not at all if it is `undefined`.
+
+```ts
+import { Effect } from "effect"
+
+declare const sendAnalytics: Effect.Effect<void, Error>
+
+const program = sendAnalytics.pipe(Effect.ignore({ log: "Unhandled" }))
+```
+
+On the same theme, failures while releasing resources that nothing is waiting
+on (`RcMap` and `RcRef` idle expiry, `ScopedCache` expiry) are now reported at
+`UnhandledLogLevel` instead of being dropped.
+
+## Pool.stats
+
+The unstable `Pool.stats` API returns how many pool items are idle or in use,
+and how many borrowers are waiting. `PgPool.stats` and `PgClient.poolStats`
+expose the same snapshot for PostgreSQL, so you can export connection pool
+metrics.
+
+```ts
+import { Effect, Pool } from "effect"
+
+declare const pool: Pool.Pool<unknown>
+
+const program = Effect.gen(function* () {
+  const { idle, used, pending } = yield* Pool.stats(pool)
+  yield* Effect.log({ idle, used, pending })
+})
+```
+
+## McpServer request-level dependencies & visibility
+
+`McpServer` handlers can now have their services and middleware supplied per
+request. Registration layers are now passed through the transport's
+`registrations` option, and handler services captured at construction time
+should use `Layer.unwrap` instead of `Layer.provide`.
+
+Building on that, `McpServer.visibility` hides tools, resources and prompts
+per request. A hidden registration is left out of list results, and calling it
+fails as if it was not registered:
+
+```ts
+import { Context, Effect, Layer, Schema } from "effect"
+import { McpServer, Tool, Toolkit } from "effect/ai"
+
+class CurrentUser extends Context.Service<
+  CurrentUser,
+  { readonly isAdmin: boolean }
+>()("CurrentUser") {}
+
+// middleware that provides a service for each request
+const Auth = McpServer.middleware<{ provides: CurrentUser }>()(
+  (effect, { headers }) =>
+    Effect.provideService(effect, CurrentUser, {
+      isAdmin: headers["x-role"] === "admin",
+    }),
+)
+
+// hide registrations from clients that fail the check
+const AdminOnly = McpServer.visibility(() =>
+  Effect.map(CurrentUser, (user) => user.isAdmin),
+)
+
+const AdminTools = Toolkit.make(
+  Tool.make("DeleteUser", { success: Schema.String }),
+)
+
+const Registrations = McpServer.toolkit(AdminTools).pipe(
+  Layer.provide(AdminOnly.combine(Auth).layer),
+  Layer.provide(
+    AdminTools.toLayer({ DeleteUser: () => Effect.succeed("deleted") }),
+  ),
+)
+```
+
+To test your registrations, `McpTest.makeClient` runs them behind an
+in-memory MCP client over the real JSON-RPC encoding.
+
+## Other changes
+
+- CLI help renders inherited flags in their own `INHERITED FLAGS` section.
+  `CliOutput.defaultFormatter` has `"full"`, `"summary"` and `"none"` modes for
+  inherited and global flags. Custom formatters should read ancestor flags
+  from `HelpDoc.inheritedFlags`.
+- `HttpClient.isTransientError` and `HttpClient.isTransientResponse` are now
+  exported, so you can reuse the predicates `retryTransient` uses.
+- `FetchHttpClient` fails with an `EncodeError` on runtimes that don't support
+  streaming request bodies, instead of sending `[object ReadableStream]`. Set
+  `FetchHttpClient.StreamBodyFallback` to `"buffer"` to buffer the body
+  instead.
+- `Context.makeUnsafe` has a `maxDepth` option.
+- `Terminal.size` is a scoped queue that starts with the current terminal
+  dimensions and receives each resize.
+- `RpcServer.make`, its layer and HTTP wrappers have an `onDisconnect` option
+  for observing client disconnects.
+- The event log supports encrypted remote compaction.
+- `SqlMessageStorage.makeEncodedStorage` builds an encoded SQL message storage
+  without running migrations.
+- `@effect/openapi-generator` has an `includeSchemas` option, and supports the
+  `move` operation in OpenAPI patches. Generated `httpclient` clients keep the
+  error and requirement types of the `HttpClient` passed to `make`, so errors
+  and services added by client middleware show up in each operation.
+- `@effect/ai-anthropic` has regenerated its `Generated` module from a newer
+  Anthropic spec. The Skills client methods and file uploads have breaking
+  changes, see the CHANGELOG for details.
+
+## Upgrade notes
+
+A few other changes need attention when upgrading:
+
+- `Persistence` stores on `KeyValueStore` and Redis are now isolated from each
+  other, using `<storeId>:<key>` keys. With `Persistence.layerKvs`, entries
+  written by earlier versions are no longer read, so cached results are
+  recomputed and `Chat.layerPersisted` loses its stored histories. Redis keys
+  only change for store ids containing `%` or `:`. `KeyValueStore.clearPrefix`
+  has been added.
+- Redis `PersistedQueue` locks use a new format. Stop all old workers and let
+  their locks expire before starting upgraded workers on the same prefix.
+- RPC calls with `discard: true` now complete when the server acknowledges
+  them. `SchemaBinary` peers have to be upgraded together.
+- `Toml.parse` returns a `Result` instead of throwing.
+- `sql.insert` and `sql.updateValues` require a non-empty array of rows.
+- `Migrator.fromFileSystem` has moved to `effect/sql/MigratorFileSystem`, so
+  `effect/sql` can be imported under Metro in React Native.
+- Received and forwarded HTTP request methods are typed as `string`. Use
+  `HttpMethod.isHttpMethod` to narrow them.
+- `Atom.Serializable` encodes to and decodes from `Schema.Json`.
+- Node stream and socket pulls are bounded by `chunkSize` (default 4096). If
+  you used `chunkSize` as a byte read size, use the new `readSize` option.
+- `HttpClient.withCookiesRef` takes a `Ref<ReadonlyArray<Cookie>>`, and only
+  sends stored cookies to a matching host, path and scheme. Seed the ref with
+  `Cookies.mergeIntoArray`, or with cookies that set a `domain`.
+- `BunHttpServer` disables Bun's 10 second `idleTimeout` unless you set one, so
+  quiet response streams and slow uploads are no longer cut off. Servers
+  exposed directly to the internet should set `idleTimeout`.
+- `@effect/opentelemetry` no longer re-exports `NodeSdk` and `WebSdk` from the
+  package root. Import them from `@effect/opentelemetry/NodeSdk` and
+  `@effect/opentelemetry/WebSdk`.
+- Custom terminals passed to `Terminal.make` have to provide `size`.
+- `McpServer` middleware that wraps a visibility runs on list requests, so
+  `MiddlewareMethod` includes the list methods. Middleware provided both
+  locally and globally now runs once.
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
