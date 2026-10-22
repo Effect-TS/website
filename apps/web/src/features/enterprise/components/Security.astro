@@ -1,0 +1,61 @@
+---
+import { ArrowUpRight, ChartLine, FolderGit, ShieldCheck } from "@lucide/astro"
+import BorderedGrid from "./BorderedGrid.astro"
+import EnterpriseSection from "./EnterpriseSection.astro"
+
+const links = [
+  {
+    icon: FolderGit,
+    title: "Source and license",
+    body: "Developed in public, MIT licensed.",
+    href: "https://github.com/Effect-TS/effect",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Security reporting and advisories",
+    body: "Private reports, public advisories.",
+    href: "https://github.com/Effect-TS/effect/security",
+  },
+  {
+    icon: ChartLine,
+    title: "npm package",
+    body: "Versions, release history, and weekly downloads.",
+    href: "https://www.npmjs.com/package/effect",
+  },
+]
+---
+
+<EnterpriseSection
+  id="security"
+  eyebrow="Security"
+  title="Security and stewardship"
+  subtitle="Open source, maintained by the Effect team at Effectful Technologies."
+>
+  <BorderedGrid class="grid-cols-1 md:grid-cols-3">
+    {
+      links.map((link) => (
+        <li class="bg-background">
+          <a
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group flex h-full items-start gap-3 px-6 py-5 no-underline transition-colors hover:bg-card hover:no-underline md:px-8"
+          >
+            <link.icon size={20} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="text-base font-semibold text-foreground">{link.title}</span>
+              <span class="text-sm leading-normal text-pretty text-muted-foreground">
+                {link.body}
+              </span>
+            </span>
+            <ArrowUpRight
+              size={18}
+              class="mt-0.5 shrink-0 text-subtle-foreground transition-colors group-hover:text-foreground"
+              aria-hidden="true"
+            />
+          </a>
+        </li>
+      ))
+    }
+  </BorderedGrid>
+</EnterpriseSection>

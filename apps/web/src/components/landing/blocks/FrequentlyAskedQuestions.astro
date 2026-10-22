@@ -4,7 +4,11 @@ interface FaqItem {
   answer: string
 }
 
-const FAQS: FaqItem[] = [
+interface Props {
+  readonly items?: ReadonlyArray<FaqItem>
+}
+
+const DEFAULT_FAQS: ReadonlyArray<FaqItem> = [
   {
     question: "Why is the syntax different from typical TypeScript?",
     answer: `<p>Effect's syntax may feel unfamiliar at first: <code class="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-sm text-zinc-200">yield*</code>, <code class="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-sm text-zinc-200">Effect.gen</code>, <code class="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-sm text-zinc-200">TaggedError</code> … But that's because it's doing something TypeScript can't do on its own.</p><p class="mt-4">That "weirdness" unlocks:</p><ul class="my-0 mt-2 list-disc space-y-1 pl-5"><li>Typed, composable errors.</li><li>Dependency injection with no globals.</li><li>Interruptible workflows.</li><li>Business logic you can reason about, reuse, and test in isolation.</li></ul>`,
@@ -30,11 +34,13 @@ const FAQS: FaqItem[] = [
     answer: `<p>Yes! You can start small, wrapping existing async code or APIs in Effect and expanding from there:</p><pre class="mt-3 mb-3 overflow-x-auto border border-zinc-800 bg-zinc-900/50 p-4"><code class="font-mono text-sm text-zinc-300"><span class="text-zinc-400">// Enter the Effect world</span>\nEffect.tryPromise(() => nonEffectAPI())\n\n<span class="text-zinc-400">// Exit back to normal promises</span>\nEffect.runPromise(myProgram)\n</code></pre><p>From there, you can progressively refactor leaf modules into Effects, moving upward through your codebase.</p>`,
   },
 ]
+
+const { items = DEFAULT_FAQS } = Astro.props
 ---
 
 <div class="space-y-4">
   {
-    FAQS.map(({ question, answer }) => (
+    items.map(({ question, answer }) => (
       <details class="faq-item group rounded-md border border-zinc-700 hover:border-zinc-600 hover:bg-zinc-900/50">
         <summary class="flex cursor-pointer list-none items-center justify-between bg-transparent px-5 py-4 text-base leading-snug font-medium text-zinc-300 hover:bg-transparent hover:text-white">
           {question}

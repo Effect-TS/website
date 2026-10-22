@@ -2,25 +2,17 @@
 import { getCollection } from "astro:content"
 import { ArrowUpRightIcon, PlusIcon } from "@lucide/astro"
 import PageLayout from "@/layouts/PageLayout.astro"
+import CompanyLogoGrid from "@/components/CompanyLogoGrid.astro"
 import GridBackground from "@/components/GridBackground.astro"
+import { getCompanyLogoUrl } from "@/lib/company-logo"
 
 const jobs = (await getCollection("effectJobs")).map((e) => e.data)
-const logos = (await getCollection("effectJobsLogos")).map((e) => e.data)
 
 const lgRemainder = jobs.length % 3
 const ctaSpan = [
   jobs.length % 2 === 0 ? "sm:col-span-2" : "sm:col-span-1",
   lgRemainder === 0 ? "lg:col-span-3" : lgRemainder === 1 ? "lg:col-span-2" : "lg:col-span-1",
 ].join(" ")
-
-const companyLogoUrls = import.meta.glob<string>("/src/assets/company-logos/**/*", {
-  query: "?url",
-  import: "default",
-  eager: true,
-})
-function getLogoUrl(filename: string): string | undefined {
-  return Object.entries(companyLogoUrls).find(([p]) => p.endsWith(`/${filename}`))?.[1]
-}
 
 function linkDisplay(url: string): string {
   try {
@@ -95,7 +87,7 @@ function linkDisplay(url: string): string {
                       >
                         {job.logo ? (
                           <img
-                            src={getLogoUrl(job.logo) ?? job.logo}
+                            src={getCompanyLogoUrl(job.logo) ?? job.logo}
                             alt=""
                             class="max-h-12 max-w-full object-contain"
                           />
@@ -215,48 +207,16 @@ function linkDisplay(url: string): string {
   </section>
 
   {/* Teams running Effect in production */}
-  {
-    logos.length > 0 && (
-      <section class="relative border-t border-zinc-800">
-        <div class="mx-auto w-full max-w-295 px-4">
-          <div class="pt-16 pb-8 md:pt-20 md:pb-10">
-            <p class="mb-8 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
-              // Teams running Effect in production
-            </p>
-            <ul class="grid grid-cols-2 gap-px bg-zinc-800 sm:grid-cols-3 md:grid-cols-6">
-              {logos.map((company) => (
-                <li class="flex aspect-[5/2] items-center justify-center bg-zinc-950">
-                  {company.url ? (
-                    <a
-                      href={company.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={company.name}
-                      class="flex h-full w-full items-center justify-center px-4 transition-opacity hover:opacity-90"
-                    >
-                      <img
-                        src={getLogoUrl(company.logo) ?? company.logo}
-                        alt={company.name}
-                        style={`height: ${company.h ?? "20px"}; filter: ${company.invert ? "brightness(0) invert(1)" : "none"}`}
-                        class="w-auto opacity-90"
-                      />
-                    </a>
-                  ) : (
-                    <img
-                      src={getLogoUrl(company.logo) ?? company.logo}
-                      alt={company.name}
-                      style={`height: ${company.h ?? "20px"}; filter: ${company.invert ? "brightness(0) invert(1)" : "none"}`}
-                      class="w-auto opacity-90"
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-    )
-  }
+  <section class="relative border-t border-zinc-800">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="pt-16 pb-8 md:pt-20 md:pb-10">
+        <p class="mb-8 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          // Teams running Effect in production
+        </p>
+        <CompanyLogoGrid />
+      </div>
+    </div>
+  </section>
 </PageLayout>
 
 <style>
