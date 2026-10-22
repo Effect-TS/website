@@ -68,7 +68,7 @@ const x = (month: number) => ((month - start) / (years * 12)) * 100
     </span>
   </span>
   <div
-    class="grid grid-cols-[auto_1fr] gap-x-3 border-t border-border pt-5 pr-6 pb-6 pl-6 sm:grid-cols-[109px_1fr] sm:gap-x-4 sm:pr-[35px]"
+    class="grid grid-cols-[auto_1fr] gap-x-3 border-t border-border pt-5 pr-6 pb-12 pl-6 sm:grid-cols-[109px_1fr] sm:gap-x-4 sm:pr-[35px]"
   >
     <span class="max-w-14 self-start text-sm leading-5 text-muted-foreground sm:max-w-none">
       If {next} ships in
@@ -93,6 +93,9 @@ const x = (month: number) => ((month - start) / (years * 12)) * 100
       class="pointer-events-none relative col-start-2 row-start-2"
       style={{ gridRow: `2 / span ${rows.length + 1}` }}
       aria-hidden="true"
+      data-timeline
+      data-start={start}
+      data-span={years * 12}
     >
       {
         ticks.map((_, index) => (
@@ -103,6 +106,13 @@ const x = (month: number) => ((month - start) / (years * 12)) * 100
         ))
       }
       <span class="floor absolute top-0 -bottom-[11px]" style={{ left: `${x(floor)}%` }}></span>
+      <span data-today hidden class="absolute top-0 -bottom-[31px] w-px bg-foreground/75">
+        <span
+          class="absolute bottom-[5px] left-0 ml-2 font-mono text-[13px] leading-5 whitespace-nowrap text-foreground"
+        >
+          Today
+        </span>
+      </span>
       <span
         class="absolute -bottom-[6px] ml-2 font-mono text-[13px] leading-5 whitespace-nowrap text-muted-foreground"
         style={{ left: `${x(floor)}%` }}
@@ -171,6 +181,23 @@ const x = (month: number) => ((month - start) / (years * 12)) * 100
     }
   </div>
 </ChartCard>
+
+<script>
+  const toMonths = (date: Date) =>
+    date.getFullYear() * 12 +
+    date.getMonth() +
+    (date.getDate() - 1) / new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+
+  const now = toMonths(new Date())
+  document.querySelectorAll<HTMLElement>("[data-timeline]").forEach((chart) => {
+    const today = chart.querySelector<HTMLElement>("[data-today]")
+    const start = Number(chart.dataset.start)
+    const span = Number(chart.dataset.span)
+    if (!today || now < start || now > start + span) return
+    today.style.left = `${((now - start) / span) * 100}%`
+    today.hidden = false
+  })
+</script>
 
 <style>
   .full {
