@@ -1,18 +1,14 @@
-import { env } from "cloudflare:workers"
-import * as D1Client from "@effect/sql-d1/D1Client"
 import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as FetchHttpClient from "effect/http/FetchHttpClient"
-import * as HttpClient from "effect/http/HttpClient"
-import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as HttpServer from "effect/http/HttpServer"
 import { MotwVoteLive } from "./api-live"
 import * as Catalog from "./catalog"
+import * as Cloudflare from "./cloudflare"
 import * as RateLimit from "./rate-limit"
 import * as Turnstile from "./turnstile"
-import * as SqlVoteStore from "./sql-vote-store"
 import { TURNSTILE_TEST_KEYS } from "./turnstile-test-keys"
 import { memoryLayer } from "./vote-store"
 
@@ -32,31 +28,7 @@ const DevConfig = ConfigProvider.layerAdd(
 // neither binding, so it keeps votes in memory and does not limit.
 const Persistence = import.meta.env.DEV
   ? Layer.mergeAll(memoryLayer, RateLimit.unlimited)
-  : Layer.mergeAll(
-      SqlVoteStore.layer.pipe(
-        Layer.provide(Layer.orDie(D1Client.layer({ db: env.DB }))),
-      ),
-      RateLimit.layer(env.MOTW_VOTE_LIMIT),
-    )
-
-// Build output is read through the Worker's `ASSETS` binding, as in
-// `features/open-graph/fonts.ts`. The host of its URLs is ignored.
-const AssetsHttpClient = Layer.effect(
-  HttpClient.HttpClient,
-  Effect.map(
-    HttpClient.HttpClient,
-    HttpClient.mapRequest(
-      HttpClientRequest.prependUrl("https://assets.invalid"),
-    ),
-  ),
-).pipe(
-  Layer.provide(FetchHttpClient.layer),
-  Layer.provide(
-    Layer.succeed(FetchHttpClient.Fetch, (input, init) =>
-      env.ASSETS.fetch(new Request(input, init)),
-    ),
-  ),
-)
+  : Layer.mergeAll(Cloudflare.Votes, Cloudflare.Limits)
 
 const ModuleCatalog = import.meta.env.DEV
   ? Layer.unwrap(
@@ -64,7 +36,7 @@ const ModuleCatalog = import.meta.env.DEV
         Effect.map((dev) => dev.layer),
       ),
     )
-  : Catalog.layer.pipe(Layer.provide(AssetsHttpClient))
+  : Catalog.layer.pipe(Layer.provide(Cloudflare.Assets))
 
 const Dependencies = Layer.mergeAll(
   Persistence,
