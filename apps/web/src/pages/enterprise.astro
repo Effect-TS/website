@@ -31,6 +31,7 @@ import EnterpriseSection from "@/components/enterprise/EnterpriseSection.astro"
 import GroupBar from "@/components/enterprise/GroupBar.astro"
 import SupportTimeline from "@/components/blog/SupportTimeline.astro"
 import SupportFlow from "@/components/enterprise/SupportFlow.astro"
+import CompanyLogoGrid from "@/components/CompanyLogoGrid.astro"
 import GridBackground from "@/components/GridBackground.astro"
 import FrequentlyAskedQuestions from "@/components/landing/blocks/FrequentlyAskedQuestions.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
@@ -44,6 +45,11 @@ const avatarModules = import.meta.glob<{ default: ImageMetadata }>("../assets/au
   eager: true,
 })
 const authors = await getCollection("blogAuthors")
+const [effectPackage] = await getCollection(
+  "apiReference",
+  ({ data }) => data.version === "v4" && data.packageName === "effect",
+)
+if (!effectPackage) throw new Error("Missing v4 effect entry in the API reference dataset")
 const scheduleUrl = (scheduleId: string) =>
   `https://calendar.google.com/calendar/appointments/schedules/${scheduleId}?gv=true`
 
@@ -82,10 +88,9 @@ const PAGE_QUESTIONS = [
 ]
 
 const FACTS = [
-  { label: "License", value: "MIT" },
-  { label: "Current release", value: "v4 stable" },
-  { label: "Enterprise support", value: "NDA and SLAs" },
-  { label: "Private channels", value: "Slack or Discord" },
+  { label: "Current release", value: `v${effectPackage.data.packageVersion}`, featured: true },
+  { label: "Enterprise support", value: "NDA and SLAs", featured: false },
+  { label: "Private channels", value: "Slack or Discord", featured: false },
 ]
 
 const RELEASE_PRACTICES = [
@@ -357,11 +362,23 @@ const routeLink =
       <BorderedGrid as="dl" class="grid-cols-2 border-0 lg:grid-cols-4">
         {
           FACTS.map((fact) => (
-            <div class="flex flex-col gap-1 bg-background px-6 py-6">
+            <div
+              class:list={[
+                "flex flex-col gap-1 bg-background px-6 py-6",
+                fact.featured && "col-span-2",
+              ]}
+            >
               <Eyebrow as="dt" class="text-xs">
                 {fact.label}
               </Eyebrow>
-              <dd class="text-lg font-semibold text-foreground">{fact.value}</dd>
+              <dd
+                class:list={[
+                  "font-semibold text-foreground",
+                  fact.featured ? "text-4xl md:text-5xl" : "text-lg",
+                ]}
+              >
+                {fact.value}
+              </dd>
             </div>
           ))
         }
@@ -530,6 +547,12 @@ const routeLink =
         ))
       }
     </BorderedGrid>
+
+    <GroupBar class="border-t-0">
+      <Fragment slot="label">More teams using Effect</Fragment>
+      <ArrowLink href="/effect-jobs">Effect Jobs</ArrowLink>
+    </GroupBar>
+    <CompanyLogoGrid class="border border-t-0 border-border" />
 
     <GroupBar id="ecosystem" class="scroll-mt-24 border-t-0">
       <Fragment slot="label">Ecosystem projects</Fragment>
