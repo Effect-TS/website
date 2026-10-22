@@ -56,7 +56,7 @@ export default function ContactMenu({
                   {member.name}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {member.title} · {localTime(member.timezone)}
+                  {localTime(member.timezone)}
                 </span>
               </span>
             </DropdownMenuItem>
