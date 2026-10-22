@@ -1,17 +1,14 @@
 ---
-/**
- * CTA button for Astro pages. Renders `<a>` with `href`, otherwise `<button>`.
- * Outlines use `inset-ring`, not `border`, so every variant has the same height.
- */
-interface Props {
+import { buttonLinkVariants, type ButtonLinkVariantProps } from "./button-link"
+
+/** CTA button for Astro pages. Renders `<a>` with `href`, otherwise `<button>`. */
+interface Props extends ButtonLinkVariantProps {
   readonly href?: string | undefined
-  readonly variant?: "primary" | "secondary"
-  readonly size?: "sm" | "md" | "lg"
   readonly class?: string | undefined
   readonly [attribute: string]: unknown
 }
 
-const { href, variant = "secondary", size = "md", class: className, ...attributes } = Astro.props
+const { href, variant, size, class: className, ...attributes } = Astro.props
 const Tag = href ? "a" : "button"
 const external = href?.startsWith("http")
 ---
@@ -20,17 +17,7 @@ const external = href?.startsWith("http")
   {...href ? { href } : { type: "button" }}
   {...external ? { target: "_blank", rel: "noopener noreferrer" } : {}}
   {...attributes}
-  class:list={[
-    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md font-medium no-underline transition-all hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0",
-    variant === "primary" &&
-      "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]",
-    variant === "secondary" &&
-      "bg-card text-foreground inset-ring inset-ring-border-strong hover:bg-muted hover:inset-ring-subtle-foreground",
-    size === "sm" && "px-4 py-2 text-sm",
-    size === "md" && "px-5 py-2.5 text-sm",
-    size === "lg" && "px-6 py-3 text-base",
-    className,
-  ]}
+  class:list={[buttonLinkVariants({ variant, size }), className]}
 >
   <slot />
 </Tag>

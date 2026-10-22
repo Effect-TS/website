@@ -45,6 +45,7 @@ const blogAuthors = defineCollection({
     name: z.string().min(1),
     title: z.string().min(1),
     url: z.url(),
+    timezone: z.string().min(1).optional(),
   }),
 })
 
