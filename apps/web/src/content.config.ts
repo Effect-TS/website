@@ -1,6 +1,7 @@
 import { file, glob } from "astro/loaders"
 import { z } from "astro/zod"
 import { defineCollection, reference } from "astro:content"
+import { npmDownloadsLoader } from "./features/npm-downloads/loader"
 import { apiReferenceLoader } from "./features/api-reference/loader"
 import { ApiReferenceContentEntry } from "./features/api-reference/schema"
 import { PodcastEpisodeEntry } from "./features/podcast/collection"
@@ -46,6 +47,15 @@ const blogAuthors = defineCollection({
     title: z.string().min(1),
     url: z.url(),
     timezone: z.string().min(1).optional(),
+  }),
+})
+
+const npmDownloads = defineCollection({
+  loader: npmDownloadsLoader({ packageName: "effect", from: "2024-04-15" }),
+  schema: z.object({
+    packageName: z.string(),
+    weekStart: z.string(),
+    downloads: z.number().int(),
   }),
 })
 
@@ -154,4 +164,5 @@ export const collections = {
   merch,
   effectJobs,
   effectJobsLogos,
+  npmDownloads,
 }

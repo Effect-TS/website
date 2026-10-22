@@ -40,7 +40,6 @@ import ContactDialog from "@/components/enterprise/contact/ContactDialog"
 import ContactMenu from "@/components/enterprise/contact/ContactMenu"
 import ButtonLink from "@/components/ui/ButtonLink.astro"
 import { effect4Support } from "@/data/effect-4-support"
-import { getWeeklyDownloads } from "@/lib/npm-downloads"
 import PageLayout from "@/layouts/PageLayout.astro"
 
 const avatarModules = import.meta.glob<{ default: ImageMetadata }>("../assets/authors/*.png", {
@@ -78,7 +77,9 @@ const members = await Promise.all(
   }),
 )
 
-const downloads = await getWeeklyDownloads("effect", "2024-04-15")
+const downloads = (await getCollection("npmDownloads"))
+  .map(({ data }) => [data.weekStart, data.downloads] as const)
+  .sort(([a], [b]) => a.localeCompare(b))
 const [firstWeek, firstDownloads] = downloads[0]!
 const [lastWeek, lastDownloads] = downloads[downloads.length - 1]!
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 })
@@ -556,20 +557,6 @@ const routeLink =
     </GroupBar>
     <CompanyLogoGrid class="border border-t-0 border-border" />
 
-    <TrendChart
-      label="effect"
-      title="Weekly npm downloads"
-      description={`Weekly downloads of the effect package grew from ${firstDownloads.toLocaleString("en")} in the week of ${weekLabel.format(new Date(firstWeek))} to ${lastDownloads.toLocaleString("en")} in the week of ${weekLabel.format(new Date(lastWeek))}.`}
-      data={downloads}
-      stats={[
-        {
-          value: compact.format(lastDownloads),
-          label: `Downloads in the week of ${weekLabel.format(new Date(lastWeek))}`,
-        },
-        { value: `${Math.round(lastDownloads / firstDownloads)}×`, label: "Growth since 3.x" },
-      ]}
-    />
-
     <GroupBar id="ecosystem" class="scroll-mt-24 border-t-0">
       <Fragment slot="label">Ecosystem projects</Fragment>
     </GroupBar>
@@ -595,6 +582,20 @@ const routeLink =
         ))
       }
     </BorderedGrid>
+
+    <TrendChart
+      label="effect"
+      title="Weekly npm downloads"
+      description={`Weekly downloads of the effect package grew from ${firstDownloads.toLocaleString("en")} in the week of ${weekLabel.format(new Date(firstWeek))} to ${lastDownloads.toLocaleString("en")} in the week of ${weekLabel.format(new Date(lastWeek))}.`}
+      data={downloads}
+      stats={[
+        {
+          value: compact.format(lastDownloads),
+          label: `Downloads in the week of ${weekLabel.format(new Date(lastWeek))}`,
+        },
+        { value: `${Math.round(lastDownloads / firstDownloads)}×`, label: "Growth since 3.x" },
+      ]}
+    />
   </EnterpriseSection>
 
   <EnterpriseSection id="support" eyebrow="Support" title="Support for your company">
