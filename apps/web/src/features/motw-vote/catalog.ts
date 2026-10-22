@@ -17,21 +17,12 @@ export const MotwVoteData = Schema.Struct({
 
 export type MotwVoteData = typeof MotwVoteData.Type
 
-/** The API modules the posts name in their `apiModules` frontmatter. */
-export const coveredModuleIds = (
-  posts: ReadonlyArray<{
-    readonly data: { readonly apiModules?: ReadonlyArray<string> | undefined }
-  }>,
-): ReadonlyArray<string> => [
-  ...new Set(posts.flatMap((post) => post.data.apiModules ?? [])),
-]
-
 export type ModuleStatus = "votable" | "covered" | "unknown"
 
 export class ModuleCatalog extends Context.Service<
   ModuleCatalog,
   { readonly status: (id: string) => Effect.Effect<ModuleStatus> }
->()("motw-vote/ModuleCatalog") {
+>()("website/ModuleCatalog") {
   /** A read that succeeds is kept for good. A read that fails is not, so the next call reads again. */
   static readonly layerFrom = <E>(load: Effect.Effect<MotwVoteData, E>) =>
     Layer.effect(

@@ -16,7 +16,7 @@ const Token = Schema.String.check(Schema.isMaxLength(2048))
 export class CurrentVoter extends Context.Service<
   CurrentVoter,
   Option.Option<string>
->()("motw-vote/CurrentVoter") {}
+>()("website/CurrentVoter") {}
 
 export const voterCookie = HttpApiSecurity.apiKey({
   key: "motw_voter",
@@ -26,12 +26,12 @@ export const voterCookie = HttpApiSecurity.apiKey({
 export class VoterIdentity extends HttpApiMiddleware.Service<
   VoterIdentity,
   { provides: CurrentVoter }
->()("motw-vote/VoterIdentity", {
+>()("website/VoterIdentity", {
   security: { voter: voterCookie },
 }) {}
 
 export class VoteRateLimit extends HttpApiMiddleware.Service<VoteRateLimit>()(
-  "motw-vote/VoteRateLimit",
+  "website/VoteRateLimit",
   { error: VoteRefusedError },
 ) {}
 

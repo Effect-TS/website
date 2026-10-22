@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro"
-import { getVoteData } from "@/features/motw-vote/vote-data"
+import { getVoteData } from "@/features/motw-vote/http"
 
 // Written at build time. The vote server reads it through the `ASSETS` binding
 // to check which modules can be voted for.

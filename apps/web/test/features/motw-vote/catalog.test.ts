@@ -6,13 +6,8 @@ import * as Layer from "effect/Layer"
 import * as HttpClient from "effect/http/HttpClient"
 import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/http/HttpClientResponse"
-import {
-  ModuleCatalog,
-  coveredModuleIds,
-} from "../../../src/features/motw-vote/catalog.ts"
+import { ModuleCatalog } from "../../../src/features/motw-vote/catalog.ts"
 import { VOTE_DATA_PATH } from "../../../src/features/motw-vote/domain.ts"
-
-const post = (apiModules?: ReadonlyArray<string>) => ({ data: { apiModules } })
 
 const data = {
   modules: ["effect/RcMap", "effect/Pool", "effect/Stream"],
@@ -46,21 +41,6 @@ const html = () =>
 
 const status = (id: string) =>
   ModuleCatalog.use((catalog) => catalog.status(id))
-
-describe("coveredModuleIds", () => {
-  test("is the posts' frontmatter, without repeats", () => {
-    assert.deepEqual(
-      coveredModuleIds([
-        post(["effect/RcMap"]),
-        post(["effect/cluster/Entity", "effect/cluster/ClusterSchema"]),
-        post(["effect/cluster/Entity"]),
-        post(),
-      ]),
-      ["effect/RcMap", "effect/cluster/Entity", "effect/cluster/ClusterSchema"],
-    )
-    assert.deepEqual(coveredModuleIds([]), [])
-  })
-})
 
 describe("ModuleCatalog", () => {
   test("tells votable, covered and unknown modules apart, from one read", async () => {

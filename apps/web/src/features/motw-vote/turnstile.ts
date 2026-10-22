@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
+import * as FetchHttpClient from "effect/http/FetchHttpClient"
 import * as HttpClient from "effect/http/HttpClient"
 import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/http/HttpClientResponse"
@@ -26,8 +27,8 @@ export class Turnstile extends Context.Service<
     /** Whether a token came from a solved check. A token works once. */
     readonly verify: (token: string) => Effect.Effect<boolean>
   }
->()("motw-vote/Turnstile") {
-  static readonly layer: Layer.Layer<
+>()("website/Turnstile") {
+  static readonly layerNoDeps: Layer.Layer<
     Turnstile,
     ConfigError,
     HttpClient.HttpClient
@@ -58,5 +59,9 @@ export class Turnstile extends Context.Service<
 
       return Turnstile.of({ siteKey, verify })
     }),
+  )
+
+  static readonly layer = this.layerNoDeps.pipe(
+    Layer.provide(FetchHttpClient.layer),
   )
 }

@@ -1,16 +1,14 @@
+import * as Array from "effect/Array"
+import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Order from "effect/Order"
 import * as Semaphore from "effect/Semaphore"
 import * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import { BotCheck } from "./bot-check"
 import { MotwVoteClient } from "./client"
-import {
-  type ModuleRef,
-  type RankedModule,
-  type VoteRefusal,
-  searchModules,
-} from "./domain"
+import type { ModuleRef, RankedModule, VoteRefusal } from "./domain"
 
 /** Three rows of four on desktop */
 export const STEP = 12
@@ -25,16 +23,26 @@ interface Ranking {
   readonly siteKey: string
 }
 
-export type NavigationKey = "ArrowDown" | "ArrowUp" | "Escape"
+class VoteLock extends Context.Service<VoteLock, Semaphore.Semaphore>()(
+  "app/VoteLock",
+) {
+  static readonly layer = Layer.effect(this, Semaphore.make(1))
+}
 
-const runtime = Atom.runtime(
-  Layer.mergeAll(MotwVoteClient.layer, BotCheck.layer),
+const runtime = Atom.runtime((get) =>
+  Layer.mergeAll(
+    get(MotwVoteClient.runtime.layer),
+    BotCheck.layer,
+    VoteLock.layer,
+  ),
 )
 
 const error = (text: string): Message => ({ tone: "error", text })
 
-const byVotes = (a: RankedModule, b: RankedModule) =>
-  b.votes - a.votes || a.name.localeCompare(b.name)
+const byVotes = Order.combine(
+  Order.mapInput(Order.Number, ({ votes }: RankedModule) => -votes),
+  Order.mapInput(Order.String, ({ name }: RankedModule) => name),
+)
 
 // Seeded by the page through `RegistryProvider`, so they must outlive subscribers
 export const moduleIndexAtom = Atom.keepAlive(
@@ -42,32 +50,24 @@ export const moduleIndexAtom = Atom.keepAlive(
 )
 export const coveredAtom = Atom.keepAlive(Atom.make<ReadonlyArray<string>>([]))
 
-export const queryAtom = Atom.make("")
-export const activeAtom = Atom.make(0)
-export const openAtom = Atom.make(false)
 export const countAtom = Atom.make(STEP)
 export const messageAtom = Atom.make<Message | null>(null)
 export const highlightAtom = Atom.make<string | null>(null)
 
-export const searchResultsAtom = Atom.make((get) =>
-  searchModules(get(moduleIndexAtom), get(queryAtom)),
-)
+const requestsAtom = MotwVoteClient.query("motwVote", "ranking", {})
 
-const loadedAtom = runtime.atom(
-  Effect.fnUntraced(function* (get) {
-    const client = yield* MotwVoteClient
-    const { requests, voted, turnstileSiteKey } = yield* client.ranking()
-    const modules = new Map(get(moduleIndexAtom).map((m) => [m.id, m]))
-    const rows = requests.flatMap(({ id, votes }) => {
-      const module = modules.get(id)
-      return module ? [{ ...module, votes, voted: voted.includes(id) }] : []
-    })
-    const ranking: Ranking = {
-      rows: rows.sort(byVotes),
-      siteKey: turnstileSiteKey,
-    }
-    return ranking
-  }),
+const loadedAtom = Atom.make((get) =>
+  AsyncResult.map(
+    get(requestsAtom),
+    ({ requests, voted, turnstileSiteKey }): Ranking => {
+      const modules = new Map(get(moduleIndexAtom).map((m) => [m.id, m]))
+      const rows = Array.flatMap(requests, ({ id, votes }) => {
+        const module = modules.get(id)
+        return module ? [{ ...module, votes, voted: voted.includes(id) }] : []
+      })
+      return { rows: Array.sort(rows, byVotes), siteKey: turnstileSiteKey }
+    },
+  ),
 )
 
 // Writing a function patches the loaded value until the next load
@@ -78,7 +78,7 @@ export const rankingAtom: Atom.Writable<
   Atom.writable(
     (get) => get(loadedAtom),
     (ctx, patch) => ctx.setSelf(AsyncResult.map(ctx.get(rankingAtom), patch)),
-    (refresh) => refresh(loadedAtom),
+    (refresh) => refresh(requestsAtom),
   ),
 )
 
@@ -145,39 +145,39 @@ const castVote = Effect.fnUntraced(function* (
     const row = { ...module, votes: outcome.votes, voted: outcome.voted }
     return {
       siteKey,
-      rows: rows.some(({ id }) => id === module.id)
-        ? rows.map((r) => (r.id === module.id ? row : r))
-        : [...rows, row].sort(byVotes),
+      rows: Array.some(rows, ({ id }) => id === module.id)
+        ? Array.map(rows, (r) => (r.id === module.id ? row : r))
+        : Array.sort(Array.append(rows, row), byVotes),
     }
   })
 })
 
 type VoteFailure = Effect.Error<ReturnType<typeof castVote>>
 
-const lock = Semaphore.makeUnsafe(1)
-
 // A vote that starts while another runs is dropped. Pair with `concurrent: true`,
 // or the atom would interrupt the running vote for the new one.
 const exclusive =
   (get: Atom.FnContext, name: string) =>
   <R>(vote: Effect.Effect<Message | null, VoteFailure, R>) =>
-    lock.withPermitsIfAvailable(1)(
-      vote.pipe(
-        Effect.catchTags({
-          VoteRefusedError: ({ reason }) =>
-            Effect.succeed(error(refusalText[reason](name))),
-          ChallengeUnavailable: () =>
-            Effect.succeed(
-              error(
-                "The bot check could not run. Turn off content blockers or try another browser, then try again.",
+    Effect.flatMap(VoteLock, (lock) =>
+      lock.withPermitsIfAvailable(1)(
+        vote.pipe(
+          Effect.catchTags({
+            VoteRefusedError: ({ reason }) =>
+              Effect.succeed(error(refusalText[reason](name))),
+            ChallengeUnavailable: () =>
+              Effect.succeed(
+                error(
+                  "The bot check could not run. Turn off content blockers or try another browser, then try again.",
+                ),
               ),
-            ),
-        }),
-        Effect.catch(() =>
-          Effect.succeed(error("Couldn't save your +1. Try again.")),
-        ),
-        Effect.tap((message) =>
-          Effect.sync(() => get.set(messageAtom, message)),
+          }),
+          Effect.catch(() =>
+            Effect.succeed(error("Couldn't save your +1. Try again.")),
+          ),
+          Effect.tap((message) =>
+            Effect.sync(() => get.set(messageAtom, message)),
+          ),
         ),
       ),
     )
@@ -198,8 +198,6 @@ export const pickAtom = runtime.fn<ModuleRef>()(
       module.name,
     )(
       Effect.gen(function* () {
-        get.set(openAtom, false)
-        get.set(queryAtom, "")
         if (get(coveredAtom).includes(module.id))
           return error(
             `${module.name} has already been covered. Find it in the modules above.`,
@@ -234,36 +232,3 @@ export const votingAtom = Atom.make(
     AsyncResult.isWaiting(get(toggleAtom)) ||
     AsyncResult.isWaiting(get(pickAtom)),
 )
-
-export const changeQueryAtom = Atom.fnSync<string>()((value, get) => {
-  get.set(queryAtom, value)
-  get.set(activeAtom, 0)
-  get.set(openAtom, true)
-  if (get(messageAtom)?.tone === "error") get.set(messageAtom, null)
-})
-
-export const navigateAtom = Atom.fnSync<NavigationKey>()((key, get) => {
-  if (key === "Escape") return get.set(openAtom, false)
-  get.set(openAtom, true)
-  const last = get(searchResultsAtom).length - 1
-  get.set(
-    activeAtom,
-    key === "ArrowDown"
-      ? Math.min(get(activeAtom) + 1, last)
-      : Math.max(get(activeAtom) - 1, 0),
-  )
-})
-
-export const submitAtom = Atom.fnSync<void>()((_, get) => {
-  if (get(votingAtom)) return
-  const query = get(queryAtom).trim()
-  const results = get(searchResultsAtom)
-  const choice = results[get(activeAtom)] ?? results[0]
-  if (!query) get.set(messageAtom, error("Search for a module to +1."))
-  else if (!choice)
-    get.set(
-      messageAtom,
-      error(`No module matches "${query}". Try another name.`),
-    )
-  else get.set(pickAtom, choice)
-})

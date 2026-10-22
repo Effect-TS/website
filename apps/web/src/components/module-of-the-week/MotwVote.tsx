@@ -1,10 +1,11 @@
 import { RegistryProvider, useAtomValue } from "@effect/atom-react"
+import { useMemo } from "react"
 import {
   coveredAtom,
   moduleIndexAtom,
   statusAtom,
 } from "@/features/motw-vote/atoms"
-import type { ModuleRef } from "@/features/motw-vote/domain"
+import { toModuleRef } from "@/features/motw-vote/domain"
 import { cn } from "@/lib/utils"
 import { ModuleSearch } from "./ModuleSearch"
 import { Suggestions } from "./Suggestions"
@@ -15,13 +16,19 @@ import { Suggestions } from "./Suggestions"
  * load and when a module joins), so a row never moves away from the pointer.
  */
 export function MotwVote({
-  moduleIndex,
+  modules,
+  packages,
   covered = [],
 }: {
-  readonly moduleIndex: ReadonlyArray<ModuleRef>
+  readonly modules: ReadonlyArray<string>
+  readonly packages: Readonly<Record<string, string>>
   /** Ids of modules the series already covered: shown in search, not votable. */
   readonly covered?: ReadonlyArray<string>
 }) {
+  const moduleIndex = useMemo(
+    () => modules.map(toModuleRef(packages)),
+    [modules, packages],
+  )
   return (
     <RegistryProvider
       initialValues={[

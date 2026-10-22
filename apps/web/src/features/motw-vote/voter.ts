@@ -13,13 +13,12 @@ const TOKEN =
 
 const encoder = new TextEncoder()
 
-export const SecureCookie = Context.Reference<boolean>(
-  "motw-vote/SecureCookie",
-  { defaultValue: () => true },
-)
+export const SecureCookie = Context.Reference<boolean>("website/SecureCookie", {
+  defaultValue: () => true,
+})
 
 export class VoterSigner extends Context.Service<VoterSigner>()(
-  "motw-vote/VoterSigner",
+  "website/VoterSigner",
   {
     make: Effect.gen(function* () {
       const secret = yield* Config.Redacted("MOTW_VOTE_SECRET")

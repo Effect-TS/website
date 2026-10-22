@@ -4,10 +4,8 @@ import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
 import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { MotwVote } from "@/components/module-of-the-week/MotwVote"
-import { getApiModules } from "@/features/motw-vote/api-modules"
-import { coveredModuleIds } from "@/features/motw-vote/catalog"
+import { getMotwPage } from "@/features/motw-vote/http"
 import { MODULE_FEED } from "@/features/module-of-the-week/domain"
-import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
 import PageLayout from "@/layouts/PageLayout.astro"
 import { Image } from "astro:assets"
 import DiscordLogo from "@/assets/icons/fa7-brands/discord.svg"
@@ -18,24 +16,7 @@ import maxwell from "@/assets/authors/maxwell_brown.png"
 const PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLCGIHlTAijhY"
 const SUGGEST_URL = "https://discord.gg/effect-ts"
 
-const [intro, modules, moduleIndex] = await Promise.all([
-  getIntro(),
-  getLatestModules(),
-  getApiModules(),
-])
-
-// API modules the series covered, from the frontmatter of its posts
-const covered = coveredModuleIds(modules.map(({ post }) => post))
-
-// A misspelled id would leave a covered module votable. Skipped when the API
-// reference is missing, as in a checkout that never generated it.
-const knownModuleIds = new Set(moduleIndex.map(({ id }) => id))
-const unknownModuleIds = covered.filter((id) => !knownModuleIds.has(id))
-if (knownModuleIds.size > 0 && unknownModuleIds.length > 0) {
-  throw new Error(
-    `apiModules names modules missing from the API reference: ${unknownModuleIds.join(", ")}`,
-  )
-}
+const { intro, modules, vote } = await getMotwPage()
 
 const buttonClass =
   "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"
@@ -241,7 +222,7 @@ const micro = "font-mono text-xs font-medium tracking-wider text-muted-foregroun
 
   <div class="h-px w-full bg-border"></div>
 
-  <MotwVote client:visible moduleIndex={moduleIndex} covered={covered} />
+  <MotwVote client:visible modules={vote.ids} packages={vote.packages} covered={vote.covered} />
 
   <div class="h-px w-full bg-border"></div>
 

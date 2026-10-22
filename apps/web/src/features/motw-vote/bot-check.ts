@@ -1,8 +1,6 @@
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
-import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
-import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
 
 interface TurnstileApi {
@@ -31,8 +29,13 @@ export class ChallengeUnavailable extends Data.TaggedError(
   "ChallengeUnavailable",
 ) {}
 
+// The script sets `window.turnstile`, so a loaded script needs no cache
 const loadScript = Effect.callback<TurnstileApi, ChallengeUnavailable>(
   (resume) => {
+    if (window.turnstile) {
+      resume(Effect.succeed(window.turnstile))
+      return
+    }
     const element = document.createElement("script")
     element.src = SCRIPT
     element.async = true
@@ -87,30 +90,23 @@ const renderWidget = (turnstile: TurnstileApi, siteKey: string) =>
 export class BotCheck extends Context.Service<
   BotCheck,
   {
+    /** The token of an invisible Turnstile check. A token works once. */
     readonly solve: (
       siteKey: string,
     ) => Effect.Effect<string, ChallengeUnavailable>
   }
 >()("app/BotCheck") {
-  static readonly layer = Layer.effect(
-    BotCheck,
-    Effect.gen(function* () {
-      const script = yield* Effect.cachedWithTTL(loadScript, (exit) =>
-        Exit.isSuccess(exit) ? Duration.infinity : Duration.zero,
-      )
-      return BotCheck.of({
-        solve: (siteKey) =>
-          Effect.gen(function* () {
-            const turnstile = yield* script
-            return yield* renderWidget(turnstile, siteKey)
-          }).pipe(
-            Effect.scoped,
-            Effect.timeout("20 seconds"),
-            Effect.catchTag("TimeoutError", () =>
-              Effect.fail(new ChallengeUnavailable()),
-            ),
-          ),
-      })
-    }),
-  )
+  static readonly layer = Layer.succeed(this, {
+    solve: Effect.fn("BotCheck.solve")(
+      function* (siteKey: string) {
+        const turnstile = yield* loadScript
+        return yield* renderWidget(turnstile, siteKey)
+      },
+      Effect.scoped,
+      Effect.timeout("20 seconds"),
+      Effect.catchTag("TimeoutError", () =>
+        Effect.fail(new ChallengeUnavailable()),
+      ),
+    ),
+  })
 }

@@ -1,46 +1,72 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Plus, Search } from "lucide-react"
-import { useId, useRef } from "react"
+import { useId, useMemo, useRef, useState } from "react"
 import {
-  activeAtom,
-  changeQueryAtom,
   coveredAtom,
-  navigateAtom,
-  openAtom,
+  messageAtom,
+  moduleIndexAtom,
   pickAtom,
-  queryAtom,
-  searchResultsAtom,
   statusAtom,
-  submitAtom,
   talliesAtom,
   votingAtom,
-  type NavigationKey,
 } from "@/features/motw-vote/atoms"
+import { type ModuleRef, searchModules } from "@/features/motw-vote/domain"
 import { cn } from "@/lib/utils"
 import { mono, voteLabel } from "./motw-vote-text"
 
-const isNavigationKey = (key: string): key is NavigationKey =>
+const isNavigationKey = (
+  key: string,
+): key is "ArrowDown" | "ArrowUp" | "Escape" =>
   key === "ArrowDown" || key === "ArrowUp" || key === "Escape"
 
 export function ModuleSearch() {
   const listboxId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
-  const query = useAtomValue(queryAtom)
-  const results = useAtomValue(searchResultsAtom)
-  const active = useAtomValue(activeAtom)
-  const open = useAtomValue(openAtom)
+  const [query, setQuery] = useState("")
+  const [active, setActive] = useState(0)
+  const [open, setOpen] = useState(false)
+  const index = useAtomValue(moduleIndexAtom)
+  const results = useMemo(() => searchModules(index, query), [index, query])
   const status = useAtomValue(statusAtom)
   const voting = useAtomValue(votingAtom)
   const tallies = useAtomValue(talliesAtom)
   const covered = useAtomValue(coveredAtom)
-  const changeQuery = useAtomSet(changeQueryAtom)
-  const navigate = useAtomSet(navigateAtom)
-  const submit = useAtomSet(submitAtom)
-  const setActive = useAtomSet(activeAtom)
-  const setOpen = useAtomSet(openAtom)
-  const pick = useAtomSet(pickAtom)
+  const setMessage = useAtomSet(messageAtom)
+  const pickModule = useAtomSet(pickAtom)
 
   const showDrop = open && query.trim().length > 0
+
+  const pick = (module: ModuleRef) => {
+    setOpen(false)
+    setQuery("")
+    pickModule(module)
+  }
+
+  const submit = () => {
+    if (voting) return
+    const trimmed = query.trim()
+    const choice = results[active] ?? results[0]
+    if (!trimmed) {
+      setMessage({ tone: "error", text: "Search for a module to +1." })
+    } else if (!choice) {
+      setMessage({
+        tone: "error",
+        text: `No module matches "${trimmed}". Try another name.`,
+      })
+    } else {
+      pick(choice)
+    }
+  }
+
+  const navigate = (key: "ArrowDown" | "ArrowUp" | "Escape") => {
+    if (key === "Escape") return setOpen(false)
+    setOpen(true)
+    setActive(
+      key === "ArrowDown"
+        ? Math.min(active + 1, results.length - 1)
+        : Math.max(active - 1, 0),
+    )
+  }
 
   return (
     <form
@@ -64,7 +90,14 @@ export function ModuleSearch() {
             ref={inputRef}
             id="module-search"
             value={query}
-            onChange={(event) => changeQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setActive(0)
+              setOpen(true)
+              setMessage((message) =>
+                message?.tone === "error" ? null : message,
+              )
+            }}
             onFocus={() => setOpen(true)}
             onBlur={() => setOpen(false)}
             onKeyDown={(event) => {

@@ -4,7 +4,8 @@ import * as Layer from "effect/Layer"
 import { ModuleCatalog } from "./catalog"
 import { ClientRateLimit } from "./rate-limit"
 import { TURNSTILE_TEST_KEYS } from "./turnstile-test-keys"
-import { getVoteData } from "./vote-data"
+import * as AstroContent from "./astro-content"
+import { VoteData } from "./vote-data"
 import { SecureCookie } from "./voter"
 import { VoteStore } from "./vote-store"
 
@@ -13,7 +14,12 @@ import { VoteStore } from "./vote-store"
 export const layer = Layer.mergeAll(
   VoteStore.layerMemory,
   ClientRateLimit.layerUnlimited,
-  ModuleCatalog.layerFrom(Effect.tryPromise(getVoteData)),
+  Layer.unwrap(
+    Effect.gen(function* () {
+      const { data } = yield* VoteData
+      return ModuleCatalog.layerFrom(data)
+    }),
+  ).pipe(Layer.provide(AstroContent.layer)),
   Layer.succeed(SecureCookie, false),
   ConfigProvider.layerAdd(
     ConfigProvider.fromEnvRecord({

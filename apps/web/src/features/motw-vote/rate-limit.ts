@@ -13,7 +13,7 @@ export interface RateLimitBinding {
 export class ClientRateLimit extends Context.Service<
   ClientRateLimit,
   { readonly allow: (key: string) => Effect.Effect<boolean> }
->()("motw-vote/ClientRateLimit") {
+>()("website/ClientRateLimit") {
   static readonly layer = (binding: RateLimitBinding) =>
     Layer.succeed(this, {
       allow: (key) =>

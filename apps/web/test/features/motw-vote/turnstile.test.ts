@@ -44,7 +44,7 @@ const fake = (
       )
     }),
   )
-  return { seen, layer: Layer.provide(Turnstile.layer, [client, config]) }
+  return { seen, layer: Layer.provide(Turnstile.layerNoDeps, [client, config]) }
 }
 
 const verify = (token: string) =>
@@ -136,7 +136,7 @@ describe("Turnstile", () => {
         yield* TestClock.adjust("2 seconds")
         return yield* Fiber.join(fiber)
       }).pipe(
-        Effect.provide(Layer.provide(Turnstile.layer, [never, config])),
+        Effect.provide(Layer.provide(Turnstile.layerNoDeps, [never, config])),
         Effect.provide(TestClock.layer()),
       ),
     )

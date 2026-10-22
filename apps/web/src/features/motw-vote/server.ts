@@ -3,7 +3,6 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
-import * as FetchHttpClient from "effect/http/FetchHttpClient"
 import * as Headers from "effect/http/Headers"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as HttpServer from "effect/http/HttpServer"
@@ -169,9 +168,9 @@ const Environment: Layer.Layer<VoteStore | ClientRateLimit | ModuleCatalog> =
     ),
   )
 
-export const { handler } = HttpRouter.toWebHandler(
+export const { dispose, handler } = HttpRouter.toWebHandler(
   MotwVoteLive.pipe(
-    Layer.provide(Turnstile.layer.pipe(Layer.provide(FetchHttpClient.layer))),
+    Layer.provide(Turnstile.layer),
     Layer.provide(Environment),
     Layer.provide(HttpServer.layerServices),
   ),

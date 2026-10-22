@@ -37,7 +37,7 @@ export class VoteStore extends Context.Service<
     readonly add: (voter: string, id: string) => Effect.Effect<VoteOutcome>
     readonly remove: (voter: string, id: string) => Effect.Effect<VoteOutcome>
   }
->()("motw-vote/VoteStore") {
+>()("website/VoteStore") {
   static readonly layerMemory = Layer.effect(
     this,
     Effect.gen(function* () {

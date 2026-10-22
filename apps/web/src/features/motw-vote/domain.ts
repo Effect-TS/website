@@ -1,3 +1,7 @@
+import * as Array from "effect/Array"
+import { pipe } from "effect/Function"
+import * as Order from "effect/Order"
+import * as Result from "effect/Result"
 import * as Schema from "effect/Schema"
 
 export const ModuleRef = Schema.Struct({
@@ -25,6 +29,18 @@ export const VoteOutcome = Schema.Struct({
 
 export type VoteOutcome = typeof VoteOutcome.Type
 
+/** `effect/cluster/Entity` is package `effect`, folder `cluster`, name `Entity`. */
+export const toModuleRef =
+  (packages: Readonly<Record<string, string>>) =>
+  (id: string): ModuleRef => {
+    const [slug = "", ...path] = id.split("/")
+    return {
+      id,
+      pkg: [packages[slug] ?? slug, ...path.slice(0, -1)].join("/"),
+      name: path.at(-1) ?? slug,
+    }
+  }
+
 export type RankedModule = ModuleRef & Omit<VoteOutcome, "id">
 
 export const VoteRefusal = Schema.Literals([
@@ -44,6 +60,17 @@ export class VoteRefusedError extends Schema.TaggedError<VoteRefusedError>()(
 
 export const VOTE_DATA_PATH = "/module-of-the-week/vote-data.json"
 
+interface Match {
+  readonly module: ModuleRef
+  readonly rank: number
+}
+
+const byRank = Order.combineAll<Match>([
+  Order.mapInput(Order.Number, ({ rank }) => rank),
+  Order.mapInput(Order.Number, ({ module }) => module.name.length),
+  Order.mapInput(Order.String, ({ module }) => module.name),
+])
+
 /**
  * Matches for a search, best first: names equal to, starting with, then
  * containing the query, then package matches. Case-insensitive.
@@ -55,22 +82,20 @@ export const searchModules = (
 ): ReadonlyArray<ModuleRef> => {
   const q = query.trim().toLowerCase()
   if (q === "") return []
-  const rank = ({ name, id }: ModuleRef) => {
+  const rank = ({ name, id }: ModuleRef): Result.Result<number, void> => {
     const lower = name.toLowerCase()
-    if (lower === q) return 0
-    if (lower.startsWith(q)) return 1
-    if (lower.includes(q)) return 2
-    return id.toLowerCase().includes(q) ? 3 : -1
+    if (lower === q) return Result.succeed(0)
+    if (lower.startsWith(q)) return Result.succeed(1)
+    if (lower.includes(q)) return Result.succeed(2)
+    return id.toLowerCase().includes(q) ? Result.succeed(3) : Result.failVoid
   }
-  return index
-    .map((module) => ({ module, rank: rank(module) }))
-    .filter(({ rank }) => rank >= 0)
-    .sort(
-      (a, b) =>
-        a.rank - b.rank ||
-        a.module.name.length - b.module.name.length ||
-        a.module.name.localeCompare(b.module.name),
-    )
-    .slice(0, limit)
-    .map(({ module }) => module)
+  return pipe(
+    index,
+    Array.filterMap((module) =>
+      Result.map(rank(module), (rank): Match => ({ module, rank })),
+    ),
+    Array.sort(byRank),
+    Array.take(limit),
+    Array.map(({ module }) => module),
+  )
 }
