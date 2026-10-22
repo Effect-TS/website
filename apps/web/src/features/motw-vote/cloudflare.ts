@@ -20,7 +20,8 @@ export const Votes = SqlVoteStore.layer.pipe(
 export const Limits = RateLimit.layer(env.MOTW_VOTE_LIMIT)
 
 // Build output is read through the `ASSETS` binding, as in
-// `features/open-graph/fonts.ts`. The host of its URLs is ignored.
+// `features/open-graph/fonts.ts`. The host of its URLs is ignored. The fetch
+// client is fresh: a shared one would send every other request to `ASSETS` too.
 /** An HTTP client that reads the build output. */
 export const Assets = Layer.effect(
   HttpClient.HttpClient,
@@ -31,7 +32,7 @@ export const Assets = Layer.effect(
     ),
   ),
 ).pipe(
-  Layer.provide(FetchHttpClient.layer),
+  Layer.provide(Layer.fresh(FetchHttpClient.layer)),
   Layer.provide(
     Layer.succeed(FetchHttpClient.Fetch, (input, init) =>
       env.ASSETS.fetch(new Request(input, init)),
