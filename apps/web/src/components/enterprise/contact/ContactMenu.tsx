@@ -47,7 +47,7 @@ export default function ContactMenu({
           {members.map((member) => (
             <DropdownMenuItem
               key={member.id}
-              disabled={!member.scheduleId}
+              disabled={!member.scheduleUrl}
               onClick={() => open(member)}
               className="gap-3 px-2 py-2"
             >
@@ -57,7 +57,7 @@ export default function ContactMenu({
                   {member.name}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {member.scheduleId
+                  {member.scheduleUrl
                     ? [
                         member.title,
                         member.timezone && localTime(member.timezone),

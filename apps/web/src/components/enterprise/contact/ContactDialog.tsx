@@ -6,14 +6,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { scheduleUrl } from "@/data/enterprise-contact"
 import { activeContactAtom } from "./atoms"
 import { localTime, MemberAvatar } from "./MemberAvatar"
 
 export default function ContactDialog() {
   const member = useAtomValue(activeContactAtom)
   const setActive = useAtomSet(activeContactAtom)
-  const url = member?.scheduleId ? scheduleUrl(member.scheduleId) : undefined
+  const url = member?.scheduleUrl
 
   return (
     <Dialog

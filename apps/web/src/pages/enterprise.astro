@@ -38,15 +38,25 @@ import ContactDialog from "@/components/enterprise/contact/ContactDialog"
 import ContactMenu from "@/components/enterprise/contact/ContactMenu"
 import ButtonLink from "@/components/ui/ButtonLink.astro"
 import { effect4Support } from "@/data/effect-4-support"
-import { CONTACT_MEMBER_IDS, SCHEDULE_IDS } from "@/data/enterprise-contact"
 import PageLayout from "@/layouts/PageLayout.astro"
 
 const avatarModules = import.meta.glob<{ default: ImageMetadata }>("../assets/authors/*.png", {
   eager: true,
 })
 const authors = await getCollection("blogAuthors")
+const scheduleUrl = (scheduleId: string) =>
+  `https://calendar.google.com/calendar/appointments/schedules/${scheduleId}?gv=true`
+
+// Booking ids for the iframes. A member without one cannot be booked yet.
+const CONTACT_MEMBERS: ReadonlyArray<{ id: string; scheduleId?: string }> = [
+  { id: "michael_arnaldi" },
+  { id: "maxwell_brown" },
+  { id: "sebastian_lorenz" },
+  { id: "tim_smart" },
+]
+
 const members = await Promise.all(
-  CONTACT_MEMBER_IDS.map(async (id) => {
+  CONTACT_MEMBERS.map(async ({ id, scheduleId }) => {
     const author = authors.find((entry) => entry.id === id)
     if (!author) throw new Error(`Missing blog author "${id}"`)
     const avatar = avatarModules[`../assets/authors/${id}.png`]?.default
@@ -55,7 +65,7 @@ const members = await Promise.all(
       name: author.data.name,
       title: author.data.title,
       timezone: author.data.timezone,
-      scheduleId: SCHEDULE_IDS[id],
+      scheduleUrl: scheduleId && scheduleUrl(scheduleId),
       avatar:
         avatar && (await getImage({ src: avatar, width: 96, height: 96, format: "webp" })).src,
     }
