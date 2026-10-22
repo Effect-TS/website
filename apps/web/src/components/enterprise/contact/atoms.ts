@@ -4,9 +4,9 @@ export interface ContactMember {
   readonly id: string
   readonly name: string
   readonly title: string
-  readonly avatar?: string | undefined
-  readonly timezone?: string | undefined
-  readonly scheduleUrl?: string | undefined
+  readonly avatar: string
+  readonly timezone: string
+  readonly scheduleUrl: string
 }
 
 /** Member whose booking dialog is open. Shared by every menu island and the dialog island. */

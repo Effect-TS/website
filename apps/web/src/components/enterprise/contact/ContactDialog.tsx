@@ -12,7 +12,6 @@ import { localTime, MemberAvatar } from "./MemberAvatar"
 export default function ContactDialog() {
   const member = useAtomValue(activeContactAtom)
   const setActive = useAtomSet(activeContactAtom)
-  const url = member?.scheduleUrl
 
   return (
     <Dialog
@@ -24,7 +23,7 @@ export default function ContactDialog() {
         className="z-250 h-[85vh] grid-rows-[auto_1fr] gap-0 overflow-hidden p-0 sm:max-w-3xl"
         aria-describedby={undefined}
       >
-        {member && url && (
+        {member && (
           <>
             <div className="flex items-center gap-3 border-b border-border py-3 pr-14 pl-4">
               <MemberAvatar member={member} className="size-10" />
@@ -33,17 +32,11 @@ export default function ContactDialog() {
                   {member.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  {[
-                    member.title,
-                    member.timezone &&
-                      `${localTime(member.timezone)} local time`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {member.title} · {localTime(member.timezone)} local time
                 </DialogDescription>
               </div>
               <a
-                href={url}
+                href={member.scheduleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground hover:no-underline sm:inline-flex"
@@ -54,7 +47,7 @@ export default function ContactDialog() {
             </div>
             <iframe
               key={member.id}
-              src={url}
+              src={member.scheduleUrl}
               title={`Book a call with ${member.name}`}
               className="size-full bg-white"
             />

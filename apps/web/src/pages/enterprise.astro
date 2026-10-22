@@ -47,27 +47,25 @@ const authors = await getCollection("blogAuthors")
 const scheduleUrl = (scheduleId: string) =>
   `https://calendar.google.com/calendar/appointments/schedules/${scheduleId}?gv=true`
 
-// Booking ids for the iframes. A member without one cannot be booked yet.
-const CONTACT_MEMBERS: ReadonlyArray<{ id: string; scheduleId?: string }> = [
-  { id: "michael_arnaldi" },
-  { id: "maxwell_brown" },
-  { id: "sebastian_lorenz" },
-  { id: "tim_smart" },
+const CONTACT_MEMBERS: ReadonlyArray<{ id: string; scheduleId: string }> = [
+  { id: "michael_arnaldi", scheduleId: "TODO" },
+  { id: "maxwell_brown", scheduleId: "TODO" },
+  { id: "sebastian_lorenz", scheduleId: "TODO" },
+  { id: "tim_smart", scheduleId: "TODO" },
 ]
 
 const members = await Promise.all(
   CONTACT_MEMBERS.map(async ({ id, scheduleId }) => {
     const author = authors.find((entry) => entry.id === id)
-    if (!author) throw new Error(`Missing blog author "${id}"`)
     const avatar = avatarModules[`../assets/authors/${id}.png`]?.default
+    if (!author?.data.timezone || !avatar) throw new Error(`Incomplete contact member "${id}"`)
     return {
       id,
       name: author.data.name,
       title: author.data.title,
       timezone: author.data.timezone,
-      scheduleUrl: scheduleId && scheduleUrl(scheduleId),
-      avatar:
-        avatar && (await getImage({ src: avatar, width: 96, height: 96, format: "webp" })).src,
+      scheduleUrl: scheduleUrl(scheduleId),
+      avatar: (await getImage({ src: avatar, width: 96, height: 96, format: "webp" })).src,
     }
   }),
 )
