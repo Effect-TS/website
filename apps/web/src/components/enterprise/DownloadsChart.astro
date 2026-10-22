@@ -1,0 +1,18 @@
+---
+import TrendChart from "@/components/blog/TrendChart.astro"
+import type { DownloadsChart } from "@/features/npm-downloads/chart"
+
+interface Props {
+  readonly chart: DownloadsChart
+}
+
+const { chart } = Astro.props
+---
+
+<TrendChart
+  label="effect"
+  title="Weekly npm downloads"
+  description={chart.description}
+  data={chart.data}
+  stats={[chart.latest, chart.growth]}
+/>

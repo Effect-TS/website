@@ -1,4 +1,4 @@
-import type { ContactMember } from "./atoms"
+import type { ContactMember } from "@/features/enterprise/domain"
 
 export function MemberAvatar({
   member,

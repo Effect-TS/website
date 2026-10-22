@@ -1,0 +1,39 @@
+---
+import {
+  CalendarCheck,
+  ChartLine,
+  FileSearch,
+  FolderGit,
+  GitBranch,
+  GraduationCap,
+  LifeBuoy,
+  ShieldCheck,
+} from "@lucide/astro"
+import type { IconName } from "@/features/enterprise/copy"
+
+interface Props {
+  readonly name: IconName
+  readonly size?: number
+  readonly class?: string | undefined
+}
+
+const icons = {
+  "calendar-check": CalendarCheck,
+  "chart-line": ChartLine,
+  "file-search": FileSearch,
+  "folder-git": FolderGit,
+  "git-branch": GitBranch,
+  "graduation-cap": GraduationCap,
+  "life-buoy": LifeBuoy,
+  "shield-check": ShieldCheck,
+} as const satisfies Record<IconName, unknown>
+
+const { name, size = 20, class: className } = Astro.props
+const Component = icons[name]
+---
+
+<Component
+  size={size}
+  class:list={["shrink-0 text-muted-foreground", className]}
+  aria-hidden="true"
+/>

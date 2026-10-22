@@ -13,7 +13,8 @@ import {
   buttonLinkVariants,
   type ButtonLinkVariantProps,
 } from "@/components/ui/button-link"
-import { activeContactAtom, type ContactMember } from "./atoms"
+import { activeContactAtom } from "@/features/enterprise/atoms"
+import type { ContactMember } from "@/features/enterprise/domain"
 import { localTime, MemberAvatar } from "./MemberAvatar"
 
 interface Props extends ButtonLinkVariantProps {

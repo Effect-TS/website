@@ -1,0 +1,36 @@
+---
+import { FileText } from "@lucide/astro"
+import CardBody from "@/components/enterprise/CardBody.astro"
+import CardTitle from "@/components/enterprise/CardTitle.astro"
+import CopyTemplateButton from "@/components/enterprise/CopyTemplateButton"
+import EnterpriseSection from "@/components/enterprise/EnterpriseSection.astro"
+import { PROPOSAL_TEMPLATE } from "@/features/enterprise/copy"
+---
+
+<EnterpriseSection
+  id="adoption-guide"
+  eyebrow="Adoption guide"
+  title="Bring Effect to your team"
+  subtitle="Preparing an internal proposal? Start with our template."
+>
+  <div
+    class="flex flex-col gap-6 border border-border bg-background p-6 md:flex-row md:items-center md:justify-between md:p-8"
+  >
+    <div class="flex items-start gap-4">
+      <FileText size={24} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <div>
+        <CardTitle>Proposal template</CardTitle>
+        <CardBody class="max-w-xl">
+          Problem, pilot, maintenance plan, security, and tradeoffs. Ready to adapt for your
+          architecture review.
+        </CardBody>
+      </div>
+    </div>
+    <CopyTemplateButton
+      client:load
+      text={PROPOSAL_TEMPLATE}
+      label="Copy proposal template"
+      className="shrink-0 self-start md:self-auto"
+    />
+  </div>
+</EnterpriseSection>

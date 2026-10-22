@@ -6,7 +6,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { activeContactAtom } from "./atoms"
+import { activeContactAtom } from "@/features/enterprise/atoms"
 import { localTime, MemberAvatar } from "./MemberAvatar"
 
 export default function ContactDialog() {

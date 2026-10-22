@@ -1,0 +1,28 @@
+---
+import BorderedGrid from "@/components/enterprise/BorderedGrid.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { facts } from "@/features/enterprise/copy"
+
+interface Props {
+  readonly currentVersion: string
+}
+
+const { currentVersion } = Astro.props
+---
+
+<section class="border-t border-border">
+  <div class="mx-auto w-full max-w-295 px-4">
+    <BorderedGrid as="dl" class="grid-cols-2 border-0 lg:grid-cols-4">
+      {
+        facts(currentVersion).map((fact) => (
+          <div class="flex flex-col gap-1 bg-background px-6 py-6">
+            <Eyebrow as="dt" class="text-xs">
+              {fact.label}
+            </Eyebrow>
+            <dd class="text-lg font-semibold text-foreground">{fact.value}</dd>
+          </div>
+        ))
+      }
+    </BorderedGrid>
+  </div>
+</section>

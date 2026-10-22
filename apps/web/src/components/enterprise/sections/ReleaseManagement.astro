@@ -1,0 +1,46 @@
+---
+import SupportTimeline from "@/components/blog/SupportTimeline.astro"
+import BorderedGrid from "@/components/enterprise/BorderedGrid.astro"
+import CardBody from "@/components/enterprise/CardBody.astro"
+import EnterpriseSection from "@/components/enterprise/EnterpriseSection.astro"
+import Icon from "@/components/enterprise/Icon.astro"
+import { RELEASE_PRACTICES } from "@/features/enterprise/copy"
+import { effect4Support } from "@/data/effect-4-support"
+import ReleaseLines from "./ReleaseLines.astro"
+---
+
+<EnterpriseSection
+  id="releases"
+  eyebrow="Release management"
+  title="Plan your adoption and upgrades"
+  subtitle="How Effect versions, supports, and ships releases."
+>
+  <BorderedGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    {
+      RELEASE_PRACTICES.map((practice) => (
+        <li class="flex flex-col bg-background px-6 py-5">
+          <span class="flex items-center gap-3">
+            <Icon name={practice.icon} />
+            <span class="text-base font-semibold text-foreground">{practice.title}</span>
+          </span>
+          <CardBody class="mt-2 text-pretty">
+            {practice.body}
+            {practice.tbd && (
+              <span class="ml-1 inline-flex items-center rounded-sm border border-dashed border-border-strong px-1.5 py-0.5 font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                TBD
+              </span>
+            )}
+          </CardBody>
+        </li>
+      ))
+    }
+  </BorderedGrid>
+
+  <div class="mt-16">
+    <SupportTimeline {...effect4Support} />
+  </div>
+
+  <div class="mt-16">
+    <ReleaseLines />
+  </div>
+</EnterpriseSection>

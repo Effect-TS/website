@@ -1,0 +1,63 @@
+---
+import { ArrowUpRight, Briefcase, HeartHandshake, MapPin } from "@lucide/astro"
+import BorderedGrid from "@/components/enterprise/BorderedGrid.astro"
+import CardBody from "@/components/enterprise/CardBody.astro"
+import CardTitle from "@/components/enterprise/CardTitle.astro"
+import ContactMenu from "@/components/enterprise/contact/ContactMenu"
+import EnterpriseSection from "@/components/enterprise/EnterpriseSection.astro"
+import RouteLink from "@/components/enterprise/RouteLink.astro"
+import { CONTACT_HREF, DISCORD_URL, SPONSORSHIP_HREF } from "@/features/enterprise/copy"
+import type { ContactMember } from "@/features/enterprise/domain"
+
+interface Props {
+  readonly members: ReadonlyArray<ContactMember>
+}
+
+const { members } = Astro.props
+const routes = "mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-x-8"
+---
+
+<EnterpriseSection
+  id="contact"
+  eyebrow="Get in touch"
+  title="Find the right next step"
+  subtitle="Evaluating Effect for your company or already running it in production?"
+>
+  <ContactMenu
+    slot="below"
+    client:load
+    members={members}
+    emailHref={CONTACT_HREF}
+    variant="primary"
+  />
+  <BorderedGrid as="div" class="grid-cols-1 md:grid-cols-2">
+    <div class="flex flex-col bg-background p-6 md:p-8">
+      <CardTitle>Join the community</CardTitle>
+      <CardBody class="text-pretty">Everyone is welcome.</CardBody>
+      <div class={routes}>
+        <RouteLink href={DISCORD_URL}>
+          Public Discord
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </RouteLink>
+        <RouteLink href="/community-hub">
+          <MapPin size={16} aria-hidden="true" />
+          Community Hub
+        </RouteLink>
+      </div>
+    </div>
+    <div class="flex flex-col bg-background p-6 md:p-8">
+      <CardTitle>Work with Effect</CardTitle>
+      <CardBody class="text-pretty">For companies hiring or sponsoring.</CardBody>
+      <div class={routes}>
+        <RouteLink href="/effect-jobs">
+          <Briefcase size={16} aria-hidden="true" />
+          Find engineers
+        </RouteLink>
+        <RouteLink href={SPONSORSHIP_HREF}>
+          <HeartHandshake size={16} aria-hidden="true" />
+          Sponsorship
+        </RouteLink>
+      </div>
+    </div>
+  </BorderedGrid>
+</EnterpriseSection>

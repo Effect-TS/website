@@ -1,0 +1,42 @@
+---
+import { ArrowUpRight } from "@lucide/astro"
+import BorderedGrid from "@/components/enterprise/BorderedGrid.astro"
+import EnterpriseSection from "@/components/enterprise/EnterpriseSection.astro"
+import Icon from "@/components/enterprise/Icon.astro"
+import { SECURITY_LINKS } from "@/features/enterprise/copy"
+---
+
+<EnterpriseSection
+  id="security"
+  eyebrow="Security"
+  title="Security and stewardship"
+  subtitle="Open source, maintained by the Effect team at Effectful Technologies."
+>
+  <BorderedGrid class="grid-cols-1 md:grid-cols-3">
+    {
+      SECURITY_LINKS.map((link) => (
+        <li class="bg-background">
+          <a
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group flex h-full items-start gap-3 px-6 py-5 no-underline transition-colors hover:bg-card hover:no-underline md:px-8"
+          >
+            <Icon name={link.icon} class="mt-0.5" />
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="text-base font-semibold text-foreground">{link.title}</span>
+              <span class="text-sm leading-normal text-pretty text-muted-foreground">
+                {link.body}
+              </span>
+            </span>
+            <ArrowUpRight
+              size={18}
+              class="mt-0.5 shrink-0 text-subtle-foreground transition-colors group-hover:text-foreground"
+              aria-hidden="true"
+            />
+          </a>
+        </li>
+      ))
+    }
+  </BorderedGrid>
+</EnterpriseSection>
