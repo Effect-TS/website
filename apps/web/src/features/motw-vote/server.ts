@@ -5,7 +5,6 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 import * as Headers from "effect/http/Headers"
 import * as HttpRouter from "effect/http/HttpRouter"
-import * as HttpServer from "effect/http/HttpServer"
 import * as HttpServerRequest from "effect/http/HttpServerRequest"
 import * as HttpServerResponse from "effect/http/HttpServerResponse"
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
@@ -153,23 +152,3 @@ export const MotwVoteLive = Layer.mergeAll(
   ),
   NoStore,
 ).pipe(Layer.provide(VoterSigner.layer))
-
-const Environment: Layer.Layer<VoteStore | ClientRateLimit | ModuleCatalog> =
-  Layer.unwrap(
-    Effect.promise(() =>
-      import.meta.env.DEV ? import("./dev") : import("./cloudflare"),
-    ).pipe(
-      Effect.map(
-        ({ layer }): Layer.Layer<VoteStore | ClientRateLimit | ModuleCatalog> =>
-          layer,
-      ),
-    ),
-  )
-
-export const { dispose, handler } = HttpRouter.toWebHandler(
-  MotwVoteLive.pipe(
-    Layer.provide(Turnstile.layer),
-    Layer.provide(Environment),
-    Layer.provide(HttpServer.layerServices),
-  ),
-)
