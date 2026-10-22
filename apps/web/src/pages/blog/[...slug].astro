@@ -5,6 +5,8 @@ import { ArrowRightIcon, ArrowUpRightIcon } from "@lucide/astro"
 import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
+import { MODULE_FEED, MODULE_PREFIX } from "@/features/module-of-the-week/domain"
+import { getModules } from "@/features/module-of-the-week/http"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
@@ -30,8 +32,21 @@ export async function getStaticPaths() {
   })
 
   const sorted = [...posts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  const series = sorted.filter((p) => p.id.startsWith(MODULE_PREFIX)).reverse()
+  const seriesDigest = digest(series.map((p) => [p.id, p.data.title]))
 
   return sorted.map((post, index) => {
+    const seriesIndex = series.findIndex((p) => p.id === post.id)
+    if (seriesIndex >= 0) {
+      const previous = series[seriesIndex - 1]
+      const next = series[seriesIndex + 1]
+      return {
+        params: { slug: post.id },
+        props: { post },
+        cacheKey: cacheKey(post.digest, references, seriesDigest, previous?.id, next?.id),
+      }
+    }
+
     // Only the neighbours' id and title reach the rendered output, so keying on
     // those keeps a new post from invalidating all 178 pages.
     const previous = sorted[index + 1]
@@ -70,7 +85,14 @@ const avatars = import.meta.glob<{ default: ImageMetadata }>("../../assets/autho
   eager: true,
 })
 
-const sortedPosts = [...allPosts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+const isSeriesPost = post.id.startsWith(MODULE_PREFIX)
+const seriesModules = isSeriesPost ? await getModules() : []
+const seriesPosts = seriesModules.map(({ post }) => post)
+const seriesPosition = seriesModules.find((m) => m.post.id === post.id)?.number
+
+const sortedPosts = isSeriesPost
+  ? [...seriesPosts].reverse()
+  : [...allPosts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
 const currentIndex = sortedPosts.findIndex((p) => p.id === post.id)
 const prevPost =
   currentIndex >= 0 && currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : null
@@ -93,8 +115,9 @@ const shareShellClass =
 <PageLayout
   title={`${post.data.title} | Effect Blog`}
   description={post.data.excerpt}
-  activeSlug="blog"
+  activeSlug={isSeriesPost ? "motw" : "blog"}
   themeable
+  {...isSeriesPost ? { feed: MODULE_FEED } : undefined}
 >
   <section class="relative overflow-hidden">
     <div aria-hidden="true" class="pointer-events-none absolute inset-0 z-0">
@@ -128,22 +151,43 @@ const shareShellClass =
         aria-label="Breadcrumb"
         class="flex flex-wrap items-center gap-x-3 gap-y-2 pt-16 pb-1 font-mono text-sm tracking-wider uppercase md:pt-24"
       >
-        <a href="/blog" class="text-muted-foreground transition-colors hover:text-foreground"
-          >Blog</a
-        >
-        <span class="text-subtle-foreground" aria-hidden="true">//</span>
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {
-            sortedTags.map((tag) => (
+        {
+          isSeriesPost ? (
+            <>
               <a
-                href={`/blog?category=${tag.id}`}
+                href="/module-of-the-week"
                 class="text-muted-foreground transition-colors hover:text-foreground"
               >
-                {tag.data.name}
+                Module of the Week
               </a>
-            ))
-          }
-        </div>
+              <span class="text-subtle-foreground" aria-hidden="true">
+                //
+              </span>
+              <span class="text-foreground tabular-nums" aria-current="page">
+                Module #{seriesPosition} of {seriesModules.length}
+              </span>
+            </>
+          ) : (
+            <>
+              <a href="/blog" class="text-muted-foreground transition-colors hover:text-foreground">
+                Blog
+              </a>
+              <span class="text-subtle-foreground" aria-hidden="true">
+                //
+              </span>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                {sortedTags.map((tag) => (
+                  <a
+                    href={`/blog?category=${tag.id}`}
+                    class="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {tag.data.name}
+                  </a>
+                ))}
+              </div>
+            </>
+          )
+        }
       </nav>
 
       <div class="grid grid-cols-1 md:grid-cols-12 md:gap-x-6">
@@ -313,6 +357,42 @@ const shareShellClass =
               />
             </p>
           </div>
+
+          {
+            isSeriesPost && (
+              <div class="mt-12">
+                <nav
+                  aria-label="Module of the Week series"
+                  class="rounded-md border border-border bg-card/40 p-5"
+                >
+                  <Eyebrow as="p" class="text-xs">
+                    <a href="/module-of-the-week" class="transition-colors hover:text-foreground">
+                      Module of the Week
+                    </a>
+                  </Eyebrow>
+                  <ol class="mt-3 flex flex-col gap-1">
+                    {seriesModules.map(({ post: module, number, title }) => (
+                      <li>
+                        <a
+                          href={`/blog/${module.id}`}
+                          aria-current={module.id === post.id ? "page" : undefined}
+                          class:list={[
+                            "flex gap-3 rounded-md px-2 py-1.5 text-sm leading-snug transition-colors",
+                            module.id === post.id
+                              ? "bg-muted font-medium text-foreground"
+                              : "text-muted-foreground hover:text-foreground",
+                          ]}
+                        >
+                          <span class="font-mono tabular-nums">{number}</span>
+                          <span>{title}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              </div>
+            )
+          }
 
           <PrevNextNav
             prev={prevPost ? { href: `/blog/${prevPost.id}`, label: prevPost.data.title } : null}

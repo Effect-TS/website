@@ -49,6 +49,7 @@ export function MOTWScrollRail({
       title="Module of the Week"
       ariaLabel="Module of the Week posts"
       viewAllHref={viewAllHref}
+      titleHref={viewAllHref}
     >
       {posts.map((post, i) => (
         <MOTWCard key={post.id} post={post} entry={posts.length - i} />
