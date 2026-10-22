@@ -7,7 +7,7 @@ import { EnterpriseContentError, type ContactMember } from "./domain"
 import { CONTACT_MEMBERS, scheduleUrl } from "./members"
 
 export class Enterprise extends Context.Service<Enterprise>()(
-  "website/Enterprise",
+  "app/Enterprise",
   {
     make: Effect.gen(function* () {
       const content = yield* EnterpriseContent
@@ -55,5 +55,5 @@ export class Enterprise extends Context.Service<Enterprise>()(
     }),
   },
 ) {
-  static layer = Layer.effect(this, this.make)
+  static readonly layer = Layer.effect(this, this.make)
 }

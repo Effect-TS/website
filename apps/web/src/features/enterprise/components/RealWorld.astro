@@ -1,0 +1,104 @@
+---
+import ArrowLink from "./ArrowLink.astro"
+import TrendChart from "@/components/blog/TrendChart.astro"
+import EnterpriseSection from "./EnterpriseSection.astro"
+import GroupBar from "./GroupBar.astro"
+import CompanyLogoGrid from "@/components/CompanyLogoGrid.astro"
+import type { DownloadsChart as DownloadsChartModel } from "@/features/npm-downloads/chart"
+import { ArrowUpRight } from "@lucide/astro"
+import { Image } from "astro:assets"
+import BorderedGrid from "./BorderedGrid.astro"
+import CardBody from "./CardBody.astro"
+import { STORIES_HREF } from "@/features/enterprise/copy"
+import { ECOSYSTEM_PROJECTS, PRODUCTION_STORIES } from "@/features/enterprise/showcase"
+import CardTitle from "./CardTitle.astro"
+
+interface Props {
+  readonly downloads: DownloadsChartModel
+}
+
+const { downloads } = Astro.props
+---
+
+<EnterpriseSection
+  id="production"
+  eyebrow="Adoption"
+  title="Effect in the real world"
+  subtitle="See where teams use Effect and the problems they are solving."
+>
+  <GroupBar>
+    <Fragment slot="label">In production</Fragment>
+    <ArrowLink href={STORIES_HREF}>More stories</ArrowLink>
+  </GroupBar>
+  <BorderedGrid flush class="grid-cols-1 md:grid-cols-2">
+    {
+      PRODUCTION_STORIES.map((story) => (
+        <li>
+          <a
+            href={story.href}
+            {...(story.href.startsWith("http")
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {})}
+            class="group flex h-full flex-col bg-background px-6 py-5 no-underline transition-colors hover:bg-card hover:no-underline md:px-8"
+          >
+            <span class="flex items-start justify-between gap-4">
+              <span class="flex h-8 items-center">
+                <Image
+                  src={story.logo}
+                  alt={story.company}
+                  class:list={[story.logoHeight, "w-auto"]}
+                />
+              </span>
+              <ArrowUpRight
+                size={18}
+                class="shrink-0 text-subtle-foreground transition-colors group-hover:text-foreground"
+                aria-hidden="true"
+              />
+            </span>
+            <CardBody class="mt-3">{story.useCase}</CardBody>
+          </a>
+        </li>
+      ))
+    }
+  </BorderedGrid>
+
+  <GroupBar class="border-t-0">
+    <Fragment slot="label">More teams using Effect</Fragment>
+    <ArrowLink href="/effect-jobs">Effect Jobs</ArrowLink>
+  </GroupBar>
+  <CompanyLogoGrid class="border border-t-0 border-border" />
+
+  <GroupBar id="ecosystem" class="scroll-mt-24 border-t-0">
+    <Fragment slot="label">Ecosystem projects</Fragment>
+  </GroupBar>
+  <BorderedGrid as="div" flush class="grid-cols-1 lg:grid-cols-2">
+    {
+      ECOSYSTEM_PROJECTS.map((project) => (
+        <article class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 bg-background p-6 md:p-8">
+          <div class="flex items-center gap-4">
+            <span class="flex size-14 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
+              <Image src={project.mark} alt="" class="size-7" />
+            </span>
+            <div>
+              <CardTitle as="h4">{project.name}</CardTitle>
+              <p class="text-sm text-muted-foreground">{project.kind}</p>
+            </div>
+          </div>
+          <div class="flex flex-col items-start gap-2">
+            {project.links.map((link) => (
+              <ArrowLink href={link.href}>{link.label}</ArrowLink>
+            ))}
+          </div>
+        </article>
+      ))
+    }
+  </BorderedGrid>
+
+  <TrendChart
+    label="effect"
+    title="Weekly npm downloads"
+    description={downloads.description}
+    data={downloads.data}
+    stats={[downloads.latest, downloads.growth]}
+  />
+</EnterpriseSection>

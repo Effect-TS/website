@@ -27,4 +27,4 @@ export class EnterpriseContent extends Context.Service<
       EnterpriseContentError
     >
   }
->()("website/EnterpriseContent") {}
+>()("app/EnterpriseContent") {}

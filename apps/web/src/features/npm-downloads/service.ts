@@ -60,13 +60,14 @@ const make = (retryDelay: Schedule.Schedule<unknown>) =>
 
 /** Download counts from the npm registry. Needs an `HttpClient`. */
 export class NpmDownloads extends Context.Service<NpmDownloads>()(
-  "website/NpmDownloads",
+  "app/NpmDownloads",
   {
     make: make(Schedule.exponential("1 second")),
   },
 ) {
-  static layer = Layer.effect(this, this.make)
+  static readonly layer = Layer.effect(this, this.make)
   /** Same service with another retry delay, for tests. */
-  static layerWithRetryDelay = (retryDelay: Schedule.Schedule<unknown>) =>
-    Layer.effect(this, make(retryDelay))
+  static readonly layerWithRetryDelay = (
+    retryDelay: Schedule.Schedule<unknown>,
+  ) => Layer.effect(this, make(retryDelay))
 }
