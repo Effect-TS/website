@@ -1,4 +1,5 @@
 import { afterEach, assert, beforeEach, describe, test } from "vite-plus/test"
+import * as Schema from "effect/Schema"
 import * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import {
@@ -18,7 +19,7 @@ const index = [
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const realFetch = globalThis.fetch
-let posts: Array<{ id: string; on: boolean; token?: string }> = []
+let posts: Array<{ id: string; on: boolean; token?: string | undefined }> = []
 let removed = 0
 let reply: (body: { id: string }) => Response
 
@@ -46,6 +47,14 @@ const loaded = async (registry: AtomRegistry.AtomRegistry) => {
       ),
   )
 }
+
+const decodeVote = Schema.decodeUnknownSync(
+  Schema.Struct({
+    id: Schema.String,
+    on: Schema.Boolean,
+    token: Schema.optional(Schema.String),
+  }),
+)
 
 beforeEach(() => {
   posts = []
@@ -90,11 +99,7 @@ beforeEach(() => {
           voted: [],
           turnstileSiteKey: "key",
         })
-      const body = (await request.json()) as {
-        id: string
-        on: boolean
-        token?: string
-      }
+      const body = decodeVote(await request.json())
       posts.push(body)
       await sleep(60)
       return reply(body)

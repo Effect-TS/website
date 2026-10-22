@@ -5,12 +5,9 @@ import { pipe } from "effect/Function"
 import * as Layer from "effect/Layer"
 import * as Order from "effect/Order"
 import { ModuleContent } from "./content"
-import { ModuleNotFound, type Module, type ModulePost } from "./domain"
+import { withoutPrefix, type Module, type ModulePost } from "./domain"
 
 const byDate = Order.mapInput(Order.Date, (post: ModulePost) => post.data.date)
-
-const withoutPrefix = (title: string) =>
-  title.replace(/^Module of the Week\s*-\s*/, "")
 
 export class Modules extends Context.Service<Modules>()("website/Modules", {
   make: Effect.gen(function* () {
@@ -33,18 +30,7 @@ export class Modules extends Context.Service<Modules>()("website/Modules", {
 
     const latest = Effect.map(modules, Array.reverse)
 
-    /** Looks a module up by its number or its post id. */
-    const module = Effect.fn("Modules.module")(function* (
-      ref: number | string,
-    ) {
-      const all = yield* modules
-      const match = all.find(
-        (candidate) => candidate.number === ref || candidate.post.id === ref,
-      )
-      return match ?? (yield* new ModuleNotFound({ ref }))
-    })
-
-    return { modules, latest, intro: content.intro, module } as const
+    return { modules, latest, intro: content.intro } as const
   }),
 }) {
   static layer = Layer.effect(this, this.make)

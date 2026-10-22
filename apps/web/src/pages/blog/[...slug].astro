@@ -5,7 +5,7 @@ import { ArrowRightIcon, ArrowUpRightIcon } from "@lucide/astro"
 import LinkedInLogo from "@/assets/icons/fa7-brands/linkedin.svg"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
 import CopyLinkButton from "@/components/blog/CopyLinkButton"
-import { MODULE_FEED } from "@/features/module-of-the-week/domain"
+import { MODULE_FEED, MODULE_PREFIX } from "@/features/module-of-the-week/domain"
 import { getModules } from "@/features/module-of-the-week/http"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
@@ -32,7 +32,7 @@ export async function getStaticPaths() {
   })
 
   const sorted = [...posts].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
-  const series = sorted.filter((p) => p.id.startsWith("module-of-the-week/")).reverse()
+  const series = sorted.filter((p) => p.id.startsWith(MODULE_PREFIX)).reverse()
   const seriesDigest = digest(series.map((p) => [p.id, p.data.title]))
 
   return sorted.map((post, index) => {
@@ -85,7 +85,7 @@ const avatars = import.meta.glob<{ default: ImageMetadata }>("../../assets/autho
   eager: true,
 })
 
-const isSeriesPost = post.id.startsWith("module-of-the-week/")
+const isSeriesPost = post.id.startsWith(MODULE_PREFIX)
 const seriesModules = isSeriesPost ? await getModules() : []
 const seriesPosts = seriesModules.map(({ post }) => post)
 const seriesPosition = seriesModules.find((m) => m.post.id === post.id)?.number
@@ -115,7 +115,7 @@ const shareShellClass =
 <PageLayout
   title={`${post.data.title} | Effect Blog`}
   description={post.data.excerpt}
-  activeSlug="blog"
+  activeSlug={isSeriesPost ? "motw" : "blog"}
   themeable
   {...isSeriesPost ? { feed: MODULE_FEED } : undefined}
 >

@@ -8,12 +8,12 @@ import * as HttpClient from "effect/http/HttpClient"
 import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as HttpServer from "effect/http/HttpServer"
-import * as RateLimiter from "effect/persistence/RateLimiter"
 import { MotwVoteLive } from "./api-live"
 import * as Catalog from "./catalog"
-import * as RateLimitStore from "./rate-limit-store"
+import * as RateLimit from "./rate-limit"
 import * as Turnstile from "./turnstile"
 import * as SqlVoteStore from "./sql-vote-store"
+import { TURNSTILE_TEST_KEYS } from "./turnstile-test-keys"
 import { memoryLayer } from "./vote-store"
 
 // `astro dev` has none of the bindings or secrets `alchemy.run.ts` gives the
@@ -22,18 +22,22 @@ import { memoryLayer } from "./vote-store"
 const DevConfig = ConfigProvider.layerAdd(
   ConfigProvider.fromEnvRecord({
     MOTW_VOTE_SECRET: "development-only-secret",
-    TURNSTILE_SITE_KEY: "1x00000000000000000000BB",
-    TURNSTILE_SECRET: "1x0000000000000000000000000000000AA",
+    TURNSTILE_SITE_KEY: TURNSTILE_TEST_KEYS.siteKey,
+    TURNSTILE_SECRET: TURNSTILE_TEST_KEYS.secret,
   }),
   { asPrimary: false },
 )
 
-// Votes and rate limits live in D1 when deployed
-const Persistence = env.DB
-  ? Layer.mergeAll(SqlVoteStore.layer, RateLimitStore.layer).pipe(
-      Layer.provide(Layer.orDie(D1Client.layer({ db: env.DB }))),
+// Votes live in D1, and Cloudflare counts the rate limit. `astro dev` has
+// neither binding, so it keeps votes in memory and does not limit.
+const Persistence = import.meta.env.DEV
+  ? Layer.mergeAll(memoryLayer, RateLimit.unlimited)
+  : Layer.mergeAll(
+      SqlVoteStore.layer.pipe(
+        Layer.provide(Layer.orDie(D1Client.layer({ db: env.DB }))),
+      ),
+      RateLimit.layer(env.MOTW_VOTE_LIMIT),
     )
-  : Layer.mergeAll(memoryLayer, RateLimiter.layerStoreMemory)
 
 // Build output is read through the Worker's `ASSETS` binding, as in
 // `features/open-graph/fonts.ts`. The host of its URLs is ignored.

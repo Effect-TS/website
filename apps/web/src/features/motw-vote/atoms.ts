@@ -63,7 +63,11 @@ const loadedAtom = runtime.atom(
       const module = modules.get(id)
       return module ? [{ ...module, votes, voted: voted.includes(id) }] : []
     })
-    return { rows: rows.sort(byVotes), siteKey: turnstileSiteKey } as Ranking
+    const ranking: Ranking = {
+      rows: rows.sort(byVotes),
+      siteKey: turnstileSiteKey,
+    }
+    return ranking
   }),
 )
 

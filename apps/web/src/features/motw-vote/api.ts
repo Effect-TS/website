@@ -2,6 +2,7 @@ import * as Schema from "effect/Schema"
 import * as HttpApi from "effect/http-api/HttpApi"
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint"
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup"
+import { Tally } from "./domain"
 import { VoteRefusedError } from "./errors"
 import { NoStore, SameOrigin, VoteRateLimit, VoterIdentity } from "./middleware"
 
@@ -9,11 +10,6 @@ const MAX_ID_LENGTH = 200
 
 // Turnstile tokens are at most 2048 characters
 const MAX_TOKEN_LENGTH = 2048
-
-export const Tally = Schema.Struct({
-  id: Schema.String,
-  votes: Schema.Number,
-})
 
 export class MotwVoteApiGroup extends HttpApiGroup.make("motwVote", {
   topLevel: true,

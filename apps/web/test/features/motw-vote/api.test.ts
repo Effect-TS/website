@@ -4,14 +4,19 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as HttpServer from "effect/http/HttpServer"
-import * as RateLimiter from "effect/persistence/RateLimiter"
+import * as Schema from "effect/Schema"
 import { MotwVoteLive } from "../../../src/features/motw-vote/api-live.ts"
 import {
   ModuleCatalog,
   type ModuleStatus,
 } from "../../../src/features/motw-vote/catalog.ts"
+import * as RateLimit from "../../../src/features/motw-vote/rate-limit.ts"
 import { Turnstile } from "../../../src/features/motw-vote/turnstile.ts"
 import { memoryLayer } from "../../../src/features/motw-vote/vote-store.ts"
+
+const decodeRefusal = Schema.decodeUnknownSync(
+  Schema.Struct({ reason: Schema.String }),
+)
 
 const BASE = "https://effect.website/api/motw-vote"
 
@@ -21,23 +26,36 @@ const statuses: Record<string, ModuleStatus> = {
   "effect/RcMap": "covered",
 }
 
-const dependencies = Layer.mergeAll(
-  memoryLayer,
-  RateLimiter.layerStoreMemory,
-  Layer.succeed(ModuleCatalog, {
-    status: (id) => Effect.succeed(statuses[id] ?? "unknown"),
-  }),
-  Layer.succeed(Turnstile, {
-    siteKey: "site-key",
-    verify: (token) => Effect.succeed(token === "solved"),
-  }),
-)
+// Cloudflare counts per key. This double allows 20 calls for each.
+const rateLimit = (limit: number) => {
+  const counts = new Map<string, number>()
+  return RateLimit.layer({
+    limit: async ({ key }) => {
+      const count = (counts.get(key) ?? 0) + 1
+      counts.set(key, count)
+      return { success: count <= limit }
+    },
+  })
+}
+
+const dependencies = () =>
+  Layer.mergeAll(
+    rateLimit(20),
+    memoryLayer,
+    Layer.succeed(ModuleCatalog, {
+      status: (id) => Effect.succeed(statuses[id] ?? "unknown"),
+    }),
+    Layer.succeed(Turnstile, {
+      siteKey: "site-key",
+      verify: (token) => Effect.succeed(token === "solved"),
+    }),
+  )
 
 // One handler per test: each has its own store and rate limits
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     MotwVoteLive.pipe(
-      Layer.provide(dependencies),
+      Layer.provide(dependencies()),
       Layer.provide(HttpServer.layerServices),
       Layer.provide(
         ConfigProvider.layer(
@@ -142,7 +160,7 @@ describe("motw vote api", () => {
         assert.equal(response.status, 409)
         assert.equal(response.headers.get("cache-control"), "private, no-store")
         assert.isNull(response.headers.get("set-cookie"))
-        return ((await response.json()) as { reason: string }).reason
+        return decodeRefusal(await response.json()).reason
       }
       assert.equal(
         await refusal({ id: "effect/RcMap", on: true, token: "solved" }),

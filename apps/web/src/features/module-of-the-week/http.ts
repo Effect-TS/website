@@ -3,7 +3,7 @@ import * as Layer from "effect/Layer"
 import * as ManagedRuntime from "effect/ManagedRuntime"
 import * as Option from "effect/Option"
 import * as AstroContent from "./astro-content"
-import type { ModuleContentError, ModuleNotFound } from "./domain"
+import type { ModuleContentError } from "./domain"
 import { Modules } from "./service"
 
 const runtime = ManagedRuntime.make(
@@ -11,7 +11,7 @@ const runtime = ManagedRuntime.make(
 )
 
 const run = <A>(
-  effect: Effect.Effect<A, ModuleContentError | ModuleNotFound, Modules>,
+  effect: Effect.Effect<A, ModuleContentError, Modules>,
 ): Promise<A> => runtime.runPromise(effect)
 
 /** Modules in publication order, numbered from 1. */
@@ -34,13 +34,5 @@ export const getIntro = () =>
   run(
     Effect.gen(function* () {
       return Option.getOrUndefined(yield* (yield* Modules).intro)
-    }),
-  )
-
-/** Finds a module by number or post id. Rejects with `ModuleNotFound`. */
-export const getModule = (ref: number | string) =>
-  run(
-    Effect.gen(function* () {
-      return yield* (yield* Modules).module(ref)
     }),
   )

@@ -3,6 +3,7 @@ import type { OpenGraphError } from "@website/open-graph/OpenGraph"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import { INTRO_ID, MODULE_PREFIX } from "@/features/module-of-the-week/domain"
 import * as OpenGraphRenderer from "./renderer"
 import { OpenGraphContent, MetadataNotFound } from "./model"
 
@@ -53,8 +54,7 @@ export const make = Effect.gen(function* () {
         const metadata = Metadata.blog[entryId]
         if (metadata !== undefined) {
           const isMotw =
-            entryId === "module-of-the-week" ||
-            entryId.startsWith("module-of-the-week/")
+            entryId === INTRO_ID || entryId.startsWith(MODULE_PREFIX)
           return OpenGraphContent.Blog({
             props: isMotw
               ? { ...metadata, tags: ["Module of the Week"] }

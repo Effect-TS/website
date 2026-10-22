@@ -1,11 +1,12 @@
 import { getLatestModules } from "@/features/module-of-the-week/http"
-import type { ModulePost } from "@/features/module-of-the-week/domain"
 import { getApiModules } from "./api-modules"
 import type { MotwVoteData } from "./catalog"
 
 /** The API modules the posts name in their `apiModules` frontmatter. */
 export const coveredModuleIds = (
-  posts: ReadonlyArray<ModulePost>,
+  posts: ReadonlyArray<{
+    readonly data: { readonly apiModules?: ReadonlyArray<string> | undefined }
+  }>,
 ): ReadonlyArray<string> => [
   ...new Set(posts.flatMap((post) => post.data.apiModules ?? [])),
 ]

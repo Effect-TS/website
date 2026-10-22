@@ -34,14 +34,17 @@ export class MotwVotes extends Context.Service<MotwVotes>()(
 
       const ranking = Effect.fn("MotwVotes.ranking")(
         function* (voter: Voter) {
-          const [requests, voted] = yield* Effect.all([
-            store.top(),
-            Voter.$match(voter, {
-              Known: ({ id }) => store.votedBy(id),
-              Anonymous: () => Effect.succeed([]),
-              Tampered: () => Effect.succeed([]),
-            }),
-          ])
+          const [requests, voted] = yield* Effect.all(
+            [
+              store.top(),
+              Voter.$match(voter, {
+                Known: ({ id }) => store.votedBy(id),
+                Anonymous: () => Effect.succeed([]),
+                Tampered: () => Effect.succeed([]),
+              }),
+            ],
+            { concurrency: "unbounded" },
+          )
           return {
             requests: yield* Effect.filter(requests, ({ id }) => isVotable(id)),
             voted: yield* Effect.filter(voted, isVotable),
@@ -96,12 +99,12 @@ export class MotwVotes extends Context.Service<MotwVotes>()(
             Anonymous: () =>
               input.on
                 ? add(Option.none(), input.id, input.token)
-                : Effect.succeed({
+                : Effect.map(store.count(input.id), (votes) => ({
                     id: input.id,
-                    votes: 0,
+                    votes,
                     voted: false,
                     issued: Option.none<string>(),
-                  }),
+                  })),
             Known: ({ id }) =>
               input.on
                 ? add(Option.some(id), input.id, input.token)

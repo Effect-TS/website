@@ -22,6 +22,20 @@ describe.each(Object.entries(stores))("vote store: %s", (_, makeStore) => {
   const run = <A, E>(effect: Effect.Effect<A, E, VoteStore>) =>
     Effect.runPromise(effect.pipe(Effect.provide(makeStore())))
 
+  test("counts the votes of one module", () =>
+    run(
+      Effect.gen(function* () {
+        const store = yield* VoteStore
+        assert.equal(yield* store.count("effect/Stream"), 0)
+        yield* store.vote(alice, "effect/Stream", true)
+        yield* store.vote(bob, "effect/Stream", true)
+        yield* store.vote(alice, "effect/Pool", true)
+        assert.equal(yield* store.count("effect/Stream"), 2)
+        yield* store.vote(bob, "effect/Stream", false)
+        assert.equal(yield* store.count("effect/Stream"), 1)
+      }),
+    ))
+
   test("starts empty", () =>
     run(
       Effect.gen(function* () {

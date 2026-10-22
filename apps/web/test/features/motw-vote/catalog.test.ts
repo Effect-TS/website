@@ -11,10 +11,8 @@ import {
 } from "../../../src/features/motw-vote/catalog.ts"
 import { VOTE_DATA_PATH } from "../../../src/features/motw-vote/domain.ts"
 import { coveredModuleIds } from "../../../src/features/motw-vote/vote-data.ts"
-import type { ModulePost } from "../../../src/features/module-of-the-week/domain.ts"
 
-const post = (apiModules?: ReadonlyArray<string>) =>
-  ({ data: { apiModules } }) as unknown as ModulePost
+const post = (apiModules?: ReadonlyArray<string>) => ({ data: { apiModules } })
 
 const data = {
   modules: ["effect/RcMap", "effect/Pool", "effect/Stream"],

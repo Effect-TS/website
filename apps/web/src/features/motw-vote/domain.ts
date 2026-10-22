@@ -1,3 +1,13 @@
+import * as Schema from "effect/Schema"
+
+/** The votes a module has. */
+export const Tally = Schema.Struct({
+  id: Schema.String,
+  votes: Schema.Number,
+})
+
+export type Tally = typeof Tally.Type
+
 /** A module that can be suggested. */
 export interface ModuleRef {
   /** `package/modulePath`, e.g. `effect/cluster/Entity`. Unique across packages. */

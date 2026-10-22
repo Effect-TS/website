@@ -1,6 +1,7 @@
 import type { APIContext } from "astro"
 import rss from "@astrojs/rss"
 import { getEntries } from "astro:content"
+import { MODULE_FEED } from "@/features/module-of-the-week/domain"
 import { getIntro, getLatestModules } from "@/features/module-of-the-week/http"
 
 export async function GET(context: APIContext) {
@@ -21,7 +22,7 @@ export async function GET(context: APIContext) {
   )
 
   return rss({
-    title: "Effect Module of the Week",
+    title: MODULE_FEED.title,
     description:
       "A weekly look at the lesser-known parts of Effect, one module at a time",
     site: context.site!,

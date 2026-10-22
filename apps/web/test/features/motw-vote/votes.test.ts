@@ -129,7 +129,7 @@ describe("motw votes", () => {
       }),
     ))
 
-  test("a removal needs no check, and an anonymous one never reaches the store", () =>
+  test("a removal needs no check, and an anonymous one removes nothing and reports the real count", () =>
     run(() =>
       Effect.gen(function* () {
         const votes = yield* MotwVotes
@@ -138,7 +138,7 @@ describe("motw votes", () => {
         const nobody = yield* votes.vote(anonymous, input("effect/Pool", false))
         assert.deepStrictEqual(nobody, {
           id: "effect/Pool",
-          votes: 0,
+          votes: 1,
           voted: false,
           issued: Option.none(),
         })

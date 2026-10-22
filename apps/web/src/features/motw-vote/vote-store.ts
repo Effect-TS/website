@@ -8,17 +8,13 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Order from "effect/Order"
 import * as Ref from "effect/Ref"
+import type { Tally } from "./domain"
 
 export class VoteStoreError extends Data.TaggedError("VoteStoreError")<{
   readonly cause: unknown
 }> {}
 
-export interface Tally {
-  readonly id: string
-  readonly votes: number
-}
-
-export interface VoteOutcome extends Tally {
+interface VoteOutcome extends Tally {
   /** Whether the visitor has a vote on the module after the call. */
   readonly voted: boolean
 }
@@ -29,6 +25,8 @@ export class VoteStore extends Context.Service<
   {
     /** Every module with votes, most votes first, ties by id. */
     readonly top: () => Effect.Effect<ReadonlyArray<Tally>, VoteStoreError>
+    /** The votes one module has. */
+    readonly count: (id: string) => Effect.Effect<number, VoteStoreError>
     /** Ids of the modules a visitor has a vote on. */
     readonly votedBy: (
       voter: string,
@@ -43,7 +41,7 @@ export class VoteStore extends Context.Service<
 >()("website/VoteStore") {}
 
 /** The order of `top`: most votes first, then by id. */
-export const byRank: Order.Order<Tally> = Order.combine(
+const byRank: Order.Order<Tally> = Order.combine(
   Order.mapInput(Order.Number, ({ votes }: Tally) => -votes),
   Order.mapInput(Order.String, ({ id }: Tally) => id),
 )
@@ -82,6 +80,10 @@ export const memoryLayer = Layer.effect(
       )
     })
 
+    const count = Effect.fn("VoteStore.memory.count")(function* (id: string) {
+      return HashSet.size(votersOf(yield* Ref.get(ballots), id))
+    })
+
     const vote = Effect.fn("VoteStore.memory.vote")(function* (
       voter: string,
       id: string,
@@ -99,6 +101,6 @@ export const memoryLayer = Layer.effect(
       })
     })
 
-    return VoteStore.of({ top, votedBy, vote })
+    return VoteStore.of({ top, count, votedBy, vote })
   }),
 )

@@ -2,6 +2,7 @@
 import { ArrowUpRight, Play } from "@lucide/astro"
 import type { CollectionEntry } from "astro:content"
 import { FormattedDate } from "@/components/ui/FormattedDate"
+import { withoutPrefix } from "@/features/module-of-the-week/domain"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 
 const { post, entry, label, layout = "row", class: className } = Astro.props
 
-const title = post.data.title.replace(/^Module of the Week\s*-\s*/, "")
+const title = withoutPrefix(post.data.title)
 const video = post.data.video
 const videoUrl = video ? `https://www.youtube.com/watch?v=${video.youtubeId}` : undefined
 const twoColumns = layout === "row" && video !== undefined

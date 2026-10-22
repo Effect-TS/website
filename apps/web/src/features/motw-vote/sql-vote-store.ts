@@ -1,12 +1,13 @@
 import * as Clock from "effect/Clock"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as SqlSchema from "effect/sql/SqlSchema"
 import { D1Client } from "@effect/sql-d1/D1Client"
+import { Tally } from "./domain"
 import { VoteStore, VoteStoreError } from "./vote-store"
 
-const TallyRow = Schema.Struct({ id: Schema.String, votes: Schema.Number })
 const IdRow = Schema.Struct({ id: Schema.String })
 const CountRow = Schema.Struct({ votes: Schema.Number })
 const FoundRow = Schema.Struct({ found: Schema.Number })
@@ -26,12 +27,18 @@ export const layer: Layer.Layer<VoteStore, never, D1Client> = Layer.effect(
 
     const top = SqlSchema.findAll({
       Request: Schema.Void,
-      Result: TallyRow,
+      Result: Tally,
       execute: () => sql`
         SELECT module_id AS id, votes
         FROM tallies
         WHERE votes > 0
         ORDER BY votes DESC, module_id ASC`,
+    })
+
+    const count = SqlSchema.findOneOption({
+      Request: Schema.String,
+      Result: CountRow,
+      execute: (id) => sql`SELECT votes FROM tallies WHERE module_id = ${id}`,
     })
 
     const votedBy = SqlSchema.findAll({
@@ -82,6 +89,16 @@ export const layer: Layer.Layer<VoteStore, never, D1Client> = Layer.effect(
 
     return VoteStore.of({
       top: () => top().pipe(toStoreError),
+      count: (id) =>
+        count(id).pipe(
+          Effect.map((row) =>
+            Option.match(row, {
+              onNone: () => 0,
+              onSome: ({ votes }) => votes,
+            }),
+          ),
+          toStoreError,
+        ),
       votedBy: (voter) =>
         votedBy(voter).pipe(
           Effect.map((rows) => rows.map(({ id }) => id)),

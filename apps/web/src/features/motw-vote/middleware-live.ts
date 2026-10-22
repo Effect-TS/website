@@ -1,13 +1,11 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as Match from "effect/Match"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 import * as Headers from "effect/http/Headers"
 import * as HttpEffect from "effect/http/HttpEffect"
 import * as HttpServerRequest from "effect/http/HttpServerRequest"
 import * as HttpServerResponse from "effect/http/HttpServerResponse"
-import * as RateLimiter from "effect/persistence/RateLimiter"
 import { VoteRefusedError } from "./errors"
 import {
   CurrentVoter,
@@ -17,6 +15,7 @@ import {
   Voter,
   VoterIdentity,
 } from "./middleware"
+import { ClientRateLimit } from "./rate-limit"
 import { VoterSigner } from "./voter"
 
 const originOf = Option.liftThrowable((url: string) => new URL(url).origin)
@@ -37,31 +36,20 @@ export const SameOriginLive = Layer.succeed(SameOrigin, (httpEffect) =>
   }),
 )
 
-/** 20 votes a minute for each client address. */
+/** Turns away a client that votes too fast. The key is the address Cloudflare reports. */
 export const VoteRateLimitLive = Layer.effect(
   VoteRateLimit,
   Effect.gen(function* () {
-    const limiter = yield* RateLimiter.RateLimiter
+    const rateLimit = yield* ClientRateLimit
     return (httpEffect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
         const key = Headers.get(request.headers, "cf-connecting-ip").pipe(
           Option.getOrElse(() => "unknown"),
         )
-        yield* limiter
-          .consume({ key, limit: 20, window: "1 minute", onExceeded: "fail" })
-          .pipe(
-            Effect.catchTag("RateLimiterError", ({ reason }) =>
-              Match.value(reason).pipe(
-                Match.tag(
-                  "RateLimitExceeded",
-                  () => new VoteRefusedError({ reason: "RateLimited" }),
-                ),
-                Match.tag("RateLimitStoreError", Effect.die),
-                Match.exhaustive,
-              ),
-            ),
-          )
+        if (!(yield* rateLimit.allow(key))) {
+          return yield* new VoteRefusedError({ reason: "RateLimited" })
+        }
         return yield* httpEffect
       })
   }),

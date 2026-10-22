@@ -10,6 +10,10 @@ export const MODULE_FEED = {
   href: "/module-of-the-week/rss.xml",
 } as const
 
+/** A post title without its "Module of the Week - " prefix. */
+export const withoutPrefix = (title: string): string =>
+  title.replace(/^Module of the Week\s*-\s*/, "")
+
 export type ModulePost = CollectionEntry<"blog">
 
 export interface Module {
@@ -22,8 +26,4 @@ export interface Module {
 
 export class ModuleContentError extends Data.TaggedError("ModuleContentError")<{
   readonly cause: unknown
-}> {}
-
-export class ModuleNotFound extends Data.TaggedError("ModuleNotFound")<{
-  readonly ref: number | string
 }> {}
