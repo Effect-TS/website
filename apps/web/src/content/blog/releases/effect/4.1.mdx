@@ -1,7 +1,7 @@
 ---
 pagefind: false
 title: Effect 4.1 (Release)
-excerpt: New Effect release featuring the effect/crypto modules, Glob module, streaming CSV, Decision.locate, and more!
+excerpt: New Effect release featuring the effect/crypto modules, Glob module, streaming CSV, HttpApi Problem Details, Decision.locate, and more!
 date: 2026-10-20
 authors:
   - tim_smart
@@ -127,6 +127,81 @@ Effect.runPromise(people).then(console.log)
 // [{ name: "Alice", age: 32 }, { name: "Bob", age: 41 }]
 ```
 
+## HttpApi Problem Details
+
+`HttpApi` has opt-in support for [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
+Problem Details. `HttpApiError.Problem` declares a typed problem as an error
+class, which endpoints render, document and decode as
+`application/problem+json`:
+
+```ts
+import { Effect, Layer, Schema } from "effect"
+import {
+  HttpApi,
+  HttpApiBuilder,
+  HttpApiEndpoint,
+  HttpApiError,
+  HttpApiGroup,
+  HttpApiMiddleware,
+  HttpApiSchema,
+} from "effect/http-api"
+
+class OutOfCredit extends HttpApiError.Problem<OutOfCredit>()(
+  "OutOfCredit",
+  {
+    type: "https://example.com/probs/out-of-credit",
+    status: 403,
+    title: "You do not have enough credit.",
+  },
+  { balance: Schema.Number },
+) {}
+
+const Api = HttpApi.make("Api")
+  .add(
+    HttpApiGroup.make("shop")
+      .add(
+        HttpApiEndpoint.post("purchase", "/purchase", {
+          success: Schema.String,
+          error: OutOfCredit,
+        }),
+      )
+      .add(
+        HttpApiEndpoint.get("item", "/items/:id", {
+          params: { id: Schema.String },
+          success: Schema.String,
+          // render a built-in error as a problem
+          error: HttpApiError.NotFound.pipe(
+            HttpApiSchema.asProblem({ title: "Item not found" }),
+          ),
+        }),
+      ),
+  )
+  // render request decoding failures as problems too
+  .middleware(HttpApiMiddleware.ProblemDetails)
+
+const ShopLive = HttpApiBuilder.group(Api, "shop", (handlers) =>
+  handlers
+    // responds with 403 and an application/problem+json body:
+    // { type: "https://example.com/probs/out-of-credit", status: 403,
+    //   title: "You do not have enough credit.", balance: 30 }
+    .handle("purchase", () => Effect.fail(new OutOfCredit({ balance: 30 })))
+    .handle("item", () => Effect.fail(new HttpApiError.NotFound())),
+)
+
+const ApiLive = HttpApiBuilder.layer(Api).pipe(
+  Layer.provide(ShopLive),
+  Layer.provide(HttpApiMiddleware.layerProblemDetails()),
+)
+```
+
+With `HttpApiMiddleware.ProblemDetails`, request decoding failures become a
+generic `400` problem, and response encoding failures a `500` problem. Pass
+`{ includeDetails: true }` to `layerProblemDetails` to add per-field `errors`
+to the `400`. The `ProblemDetails` module in `effect/http` has the media type,
+a codec and a response constructor if you need to build problems by hand.
+
+Nothing changes unless you opt in.
+
 ## Decision.Image & Decision.locate
 
 Images used by a `Decision` are now declared as fields of the input schema with
@@ -193,12 +268,53 @@ const program = Effect.gen(function* () {
 })
 ```
 
-## McpServer request-level dependencies
+## McpServer request-level dependencies & visibility
 
 `McpServer` handlers can now have their services and middleware supplied per
 request. Registration layers are now passed through the transport's
 `registrations` option, and handler services captured at construction time
 should use `Layer.unwrap` instead of `Layer.provide`.
+
+Building on that, `McpServer.visibility` hides tools, resources and prompts
+per request. A hidden registration is left out of list results, and calling it
+fails as if it was not registered:
+
+```ts
+import { Context, Effect, Layer, Schema } from "effect"
+import { McpServer, Tool, Toolkit } from "effect/ai"
+
+class CurrentUser extends Context.Service<
+  CurrentUser,
+  { readonly isAdmin: boolean }
+>()("CurrentUser") {}
+
+// middleware that provides a service for each request
+const Auth = McpServer.middleware<{ provides: CurrentUser }>()(
+  (effect, { headers }) =>
+    Effect.provideService(effect, CurrentUser, {
+      isAdmin: headers["x-role"] === "admin",
+    }),
+)
+
+// hide registrations from clients that fail the check
+const AdminOnly = McpServer.visibility(() =>
+  Effect.map(CurrentUser, (user) => user.isAdmin),
+)
+
+const AdminTools = Toolkit.make(
+  Tool.make("DeleteUser", { success: Schema.String }),
+)
+
+const Registrations = McpServer.toolkit(AdminTools).pipe(
+  Layer.provide(AdminOnly.combine(Auth).layer),
+  Layer.provide(
+    AdminTools.toLayer({ DeleteUser: () => Effect.succeed("deleted") }),
+  ),
+)
+```
+
+To test your registrations, `McpTest.makeClient` runs them behind an
+in-memory MCP client over the real JSON-RPC encoding.
 
 ## Other changes
 
@@ -213,10 +329,17 @@ should use `Layer.unwrap` instead of `Layer.provide`.
   `FetchHttpClient.StreamBodyFallback` to `"buffer"` to buffer the body
   instead.
 - `Context.makeUnsafe` has a `maxDepth` option.
+- `Terminal.size` is a scoped queue that starts with the current terminal
+  dimensions and receives each resize.
+- `RpcServer.make`, its layer and HTTP wrappers have an `onDisconnect` option
+  for observing client disconnects.
+- The event log supports encrypted remote compaction.
 - `SqlMessageStorage.makeEncodedStorage` builds an encoded SQL message storage
   without running migrations.
 - `@effect/openapi-generator` has an `includeSchemas` option, and supports the
-  `move` operation in OpenAPI patches.
+  `move` operation in OpenAPI patches. Generated `httpclient` clients keep the
+  error and requirement types of the `HttpClient` passed to `make`, so errors
+  and services added by client middleware show up in each operation.
 - `@effect/ai-anthropic` has regenerated its `Generated` module from a newer
   Anthropic spec. The Skills client methods and file uploads have breaking
   changes, see the CHANGELOG for details.
@@ -244,6 +367,19 @@ A few other changes need attention when upgrading:
 - `Atom.Serializable` encodes to and decodes from `Schema.Json`.
 - Node stream and socket pulls are bounded by `chunkSize` (default 4096). If
   you used `chunkSize` as a byte read size, use the new `readSize` option.
+- `HttpClient.withCookiesRef` takes a `Ref<ReadonlyArray<Cookie>>`, and only
+  sends stored cookies to a matching host, path and scheme. Seed the ref with
+  `Cookies.mergeIntoArray`, or with cookies that set a `domain`.
+- `BunHttpServer` disables Bun's 10 second `idleTimeout` unless you set one, so
+  quiet response streams and slow uploads are no longer cut off. Servers
+  exposed directly to the internet should set `idleTimeout`.
+- `@effect/opentelemetry` no longer re-exports `NodeSdk` and `WebSdk` from the
+  package root. Import them from `@effect/opentelemetry/NodeSdk` and
+  `@effect/opentelemetry/WebSdk`.
+- Custom terminals passed to `Terminal.make` have to provide `size`.
+- `McpServer` middleware that wraps a visibility runs on list requests, so
+  `MiddlewareMethod` includes the list methods. Middleware provided both
+  locally and globally now runs once.
 
 There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
 
