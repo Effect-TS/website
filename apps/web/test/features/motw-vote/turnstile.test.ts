@@ -13,7 +13,7 @@ import { inspect } from "node:util"
 import {
   SITEVERIFY,
   Turnstile,
-} from "../../../src/features/motw-vote/turnstile.ts"
+} from "../../../src/features/motw-vote/guards.ts"
 
 const SECRET = "very-secret-value"
 

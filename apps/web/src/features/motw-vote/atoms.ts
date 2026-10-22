@@ -1,13 +1,14 @@
 import * as Array from "effect/Array"
-import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Order from "effect/Order"
-import * as Semaphore from "effect/Semaphore"
 import * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
-import { BotCheck } from "./bot-check"
-import { MotwVoteClient } from "./client"
+import {
+  BotCheck,
+  MotwVoteClient,
+  VoteLock,
+  layer as clientLayer,
+} from "./client"
 import type { ModuleRef, RankedModule, VoteRefusal } from "./domain"
 
 /** Three rows of four on desktop */
@@ -23,19 +24,7 @@ interface Ranking {
   readonly siteKey: string
 }
 
-class VoteLock extends Context.Service<VoteLock, Semaphore.Semaphore>()(
-  "app/VoteLock",
-) {
-  static readonly layer = Layer.effect(this, Semaphore.make(1))
-}
-
-const runtime = Atom.runtime((get) =>
-  Layer.mergeAll(
-    get(MotwVoteClient.runtime.layer),
-    BotCheck.layer,
-    VoteLock.layer,
-  ),
-)
+const runtime = Atom.runtime(clientLayer)
 
 const error = (text: string): Message => ({ tone: "error", text })
 

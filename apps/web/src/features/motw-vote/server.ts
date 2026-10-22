@@ -18,9 +18,7 @@ import {
 } from "./api"
 import { ModuleCatalog } from "./catalog"
 import { VoteRefusedError } from "./domain"
-import { ClientRateLimit } from "./rate-limit"
-import { Turnstile } from "./turnstile"
-import { SecureCookie, VoterSigner } from "./voter"
+import { ClientRateLimit, SecureCookie, Turnstile, VoterSigner } from "./guards"
 import { VoteStore } from "./vote-store"
 
 const VoteRateLimitLive = Layer.effect(

@@ -6,6 +6,6 @@ declare module "cloudflare:workers" {
     /** Module of the Week votes. */
     readonly DB: import("@effect/sql-d1/D1Client").D1ClientConfig["db"]
     /** Limits how fast one client can vote. */
-    readonly MOTW_VOTE_LIMIT: import("@/features/motw-vote/rate-limit").RateLimitBinding
+    readonly MOTW_VOTE_LIMIT: import("@/features/motw-vote/guards").RateLimitBinding
   }
 }

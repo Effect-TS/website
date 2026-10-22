@@ -2,11 +2,10 @@ import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { ModuleCatalog } from "./catalog"
-import { ClientRateLimit } from "./rate-limit"
+import { ClientRateLimit, SecureCookie } from "./guards"
 import { TURNSTILE_TEST_KEYS } from "./turnstile-test-keys"
-import * as AstroContent from "./astro-content"
+import * as AstroContent from "./http"
 import { VoteData } from "./vote-data"
-import { SecureCookie } from "./voter"
 import { VoteStore } from "./vote-store"
 
 // Only `server.ts` imports this file, and only in development, so a build

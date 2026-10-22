@@ -6,13 +6,10 @@ import { ModuleContent } from "../../../src/features/module-of-the-week/content.
 import type { ModulePost } from "../../../src/features/module-of-the-week/domain.ts"
 import { Modules } from "../../../src/features/module-of-the-week/service.ts"
 import {
-  ApiModules,
   ApiReferenceContent,
-  type ApiModuleEntry,
-} from "../../../src/features/motw-vote/api-modules.ts"
-import {
   UnknownCoveredModules,
   VoteData,
+  type ApiModuleEntry,
 } from "../../../src/features/motw-vote/vote-data.ts"
 
 const entry = (
@@ -36,15 +33,11 @@ const layer = (
   posts: ReadonlyArray<ModulePost>,
 ) =>
   VoteData.layer.pipe(
-    Layer.provideMerge(
+    Layer.provide(
       Layer.mergeAll(
-        ApiModules.layer.pipe(
-          Layer.provide(
-            Layer.succeed(ApiReferenceContent, {
-              entries: Effect.succeed(entries),
-            }),
-          ),
-        ),
+        Layer.succeed(ApiReferenceContent, {
+          entries: Effect.succeed(entries),
+        }),
         Modules.layer.pipe(
           Layer.provide(
             Layer.succeed(ModuleContent, {
@@ -64,35 +57,6 @@ const entries = [
   entry("effect", "cluster/Entity"),
 ]
 
-describe("ApiModules", () => {
-  test("sorts ids by name, then package, and names each package by slug", () =>
-    Effect.runPromise(
-      ApiModules.use((apiModules) => apiModules.index).pipe(
-        Effect.provide(
-          ApiModules.layer.pipe(
-            Layer.provide(
-              Layer.succeed(ApiReferenceContent, {
-                entries: Effect.succeed(entries),
-              }),
-            ),
-          ),
-        ),
-        Effect.map((index) => {
-          assert.deepEqual(index.ids, [
-            "sql-d1/D1Client",
-            "effect/cluster/Entity",
-            "effect/Schedule",
-            "effect/unstable/Schedule",
-          ])
-          assert.deepEqual(index.packages, {
-            effect: "effect",
-            "sql-d1": "@effect/sql-d1",
-          })
-        }),
-      ),
-    ))
-})
-
 describe("VoteData", () => {
   test("covers the modules the posts name, once each", () =>
     Effect.runPromise(
@@ -110,6 +74,25 @@ describe("VoteData", () => {
             ["effect/Schedule", "effect/cluster/Entity"],
           )
           assert.equal(snapshot.ids.length, 4)
+        }),
+      ),
+    ))
+
+  test("sorts ids by name, then package, and names each package by slug", () =>
+    Effect.runPromise(
+      VoteData.use((voteData) => voteData.snapshot).pipe(
+        Effect.provide(layer(entries, [])),
+        Effect.map(({ ids, packages }) => {
+          assert.deepEqual(ids, [
+            "sql-d1/D1Client",
+            "effect/cluster/Entity",
+            "effect/Schedule",
+            "effect/unstable/Schedule",
+          ])
+          assert.deepEqual(packages, {
+            effect: "effect",
+            "sql-d1": "@effect/sql-d1",
+          })
         }),
       ),
     ))

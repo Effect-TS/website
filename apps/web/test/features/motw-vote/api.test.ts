@@ -9,9 +9,11 @@ import {
   ModuleCatalog,
   type ModuleStatus,
 } from "../../../src/features/motw-vote/catalog.ts"
-import { ClientRateLimit } from "../../../src/features/motw-vote/rate-limit.ts"
 import { MotwVoteLive } from "../../../src/features/motw-vote/server.ts"
-import { Turnstile } from "../../../src/features/motw-vote/turnstile.ts"
+import {
+  ClientRateLimit,
+  Turnstile,
+} from "../../../src/features/motw-vote/guards.ts"
 import { VoteStore } from "../../../src/features/motw-vote/vote-store.ts"
 
 const decodeRefusal = Schema.decodeUnknownSync(

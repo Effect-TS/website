@@ -6,7 +6,7 @@ import * as FetchHttpClient from "effect/http/FetchHttpClient"
 import * as HttpClient from "effect/http/HttpClient"
 import * as HttpClientRequest from "effect/http/HttpClientRequest"
 import { ModuleCatalog } from "./catalog"
-import { ClientRateLimit } from "./rate-limit"
+import { ClientRateLimit } from "./guards"
 import { VoteStore } from "./vote-store"
 
 // Reads the build output through the `ASSETS` binding, as in

@@ -3,7 +3,7 @@ import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import { VoterSigner } from "../../../src/features/motw-vote/voter.ts"
+import { VoterSigner } from "../../../src/features/motw-vote/guards.ts"
 
 const signerWith = (secret: string) =>
   VoterSigner.layer.pipe(
