@@ -31,6 +31,7 @@ import EnterpriseSection from "@/components/enterprise/EnterpriseSection.astro"
 import GroupBar from "@/components/enterprise/GroupBar.astro"
 import SupportTimeline from "@/components/blog/SupportTimeline.astro"
 import SupportFlow from "@/components/enterprise/SupportFlow.astro"
+import TrendChart from "@/components/blog/TrendChart.astro"
 import CompanyLogoGrid from "@/components/CompanyLogoGrid.astro"
 import GridBackground from "@/components/GridBackground.astro"
 import FrequentlyAskedQuestions from "@/components/landing/blocks/FrequentlyAskedQuestions.astro"
@@ -39,6 +40,7 @@ import ContactDialog from "@/components/enterprise/contact/ContactDialog"
 import ContactMenu from "@/components/enterprise/contact/ContactMenu"
 import ButtonLink from "@/components/ui/ButtonLink.astro"
 import { effect4Support } from "@/data/effect-4-support"
+import { getWeeklyDownloads } from "@/lib/npm-downloads"
 import PageLayout from "@/layouts/PageLayout.astro"
 
 const avatarModules = import.meta.glob<{ default: ImageMetadata }>("../assets/authors/*.png", {
@@ -76,6 +78,17 @@ const members = await Promise.all(
   }),
 )
 
+const downloads = await getWeeklyDownloads("effect", "2024-04-15")
+const [firstWeek, firstDownloads] = downloads[0]!
+const [lastWeek, lastDownloads] = downloads[downloads.length - 1]!
+const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 })
+const weekLabel = new Intl.DateTimeFormat("en", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
 const CONTACT_EMAIL = "contact@effectful.co"
 const CONTACT_HREF = `mailto:${CONTACT_EMAIL}?subject=Effect%20for%20enterprise`
 const DISCORD_URL = "https://discord.gg/effect-ts"
@@ -88,9 +101,10 @@ const PAGE_QUESTIONS = [
 ]
 
 const FACTS = [
-  { label: "Current release", value: `v${effectPackage.data.packageVersion}`, featured: true },
-  { label: "Enterprise support", value: "NDA and SLAs", featured: false },
-  { label: "Private channels", value: "Slack or Discord", featured: false },
+  { label: "License", value: "MIT" },
+  { label: "Current release", value: `v${effectPackage.data.packageVersion}` },
+  { label: "Enterprise support", value: "NDA and SLAs" },
+  { label: "Private channels", value: "Slack or Discord" },
 ]
 
 const RELEASE_PRACTICES = [
@@ -362,23 +376,11 @@ const routeLink =
       <BorderedGrid as="dl" class="grid-cols-2 border-0 lg:grid-cols-4">
         {
           FACTS.map((fact) => (
-            <div
-              class:list={[
-                "flex flex-col gap-1 bg-background px-6 py-6",
-                fact.featured && "col-span-2",
-              ]}
-            >
+            <div class="flex flex-col gap-1 bg-background px-6 py-6">
               <Eyebrow as="dt" class="text-xs">
                 {fact.label}
               </Eyebrow>
-              <dd
-                class:list={[
-                  "font-semibold text-foreground",
-                  fact.featured ? "text-4xl md:text-5xl" : "text-lg",
-                ]}
-              >
-                {fact.value}
-              </dd>
+              <dd class="text-lg font-semibold text-foreground">{fact.value}</dd>
             </div>
           ))
         }
@@ -553,6 +555,20 @@ const routeLink =
       <ArrowLink href="/effect-jobs">Effect Jobs</ArrowLink>
     </GroupBar>
     <CompanyLogoGrid class="border border-t-0 border-border" />
+
+    <TrendChart
+      label="effect"
+      title="Weekly npm downloads"
+      description={`Weekly downloads of the effect package grew from ${firstDownloads.toLocaleString("en")} in the week of ${weekLabel.format(new Date(firstWeek))} to ${lastDownloads.toLocaleString("en")} in the week of ${weekLabel.format(new Date(lastWeek))}.`}
+      data={downloads}
+      stats={[
+        {
+          value: compact.format(lastDownloads),
+          label: `Downloads in the week of ${weekLabel.format(new Date(lastWeek))}`,
+        },
+        { value: `${Math.round(lastDownloads / firstDownloads)}×`, label: "Growth since 3.x" },
+      ]}
+    />
 
     <GroupBar id="ecosystem" class="scroll-mt-24 border-t-0">
       <Fragment slot="label">Ecosystem projects</Fragment>
