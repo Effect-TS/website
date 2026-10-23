@@ -1,0 +1,215 @@
+---
+pagefind: false
+title: This Week in Effect - 141
+excerpt: "Cluster idempotency in Module of the Week. A big push on EventLog and a native McpClient land in Effect v4. Effect Miami 🌴 speakers announced."
+date: 2026-10-23
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026 ✨](https://www.effect.website/effect-days)
+
+## Technology
+
+New [Module of the Week](https://effect.website/blog/module-of-the-week/cluster-idempotency) post by [Maxwell Brown](https://x.com/maxwellbrown), delving into **Cluster idempotency**.
+
+<Tweet id="2112972015208636709" />
+
+### Effect v4 updates.
+
+A week of new modules and a big push on `EventLog`, alongside the ongoing stream of fixes across the codebase. Here are the most notable changes.
+
+- **Additions**: Added a native `McpClient`, `effect/persistence/CircuitBreaker`, `Schema.toStandardJSONSchemaV1`, a `TextDiff` module for minimal edit scripts and unified diffs, and Cloudflare AI Gateway support. Streaming encodings now include zip, XML and `JsonArray` for large JSON arrays, and `Base64Url.encodePadded` was added. Also added typed HTTP date and `Retry-After` header values to `Headers`, `FileSystem.lstat`, `Flag.withNegation` and `Flag.withoutNegation`, `Command.validate` for rules across CLI flags, a `skipInitialRun` option for seeded effect atoms, and deterministic concurrent property checking for tests.
+
+- **EventLog**: Entries are now encrypted in batches and get ids from a hybrid logical clock, with `EventLog.writeMany` and monotonic entry ids. Conflicts are ordered by entry id across journals and server, writes are acknowledged rather than echoed to the writer, and compaction can now drop entries only. `SqlEventJournal` gained upload checkpoints and secondary indexes, and remote replay was sped up with cached conflict payloads, indexed lookups and less per-entry overhead. Also fixed out-of-order unencrypted replication, duplicate encrypted SQL event broadcasts, and several IndexedDB journal and checkpoint issues.
+
+- **Cluster & workflow**: Fixed shard release stalling on a defect restart, `ClusterCron` initial scheduling recovery, duplicate workflow compensations after memory-engine replays, and interrupts being lost while a workflow run saves its `Suspended` reply. Stalled shard releases are now warned about repeatedly, with a new releasing-shards gauge and a shard release duration timer. Cluster storage reads also wake up when an entity registers.
+
+- **HTTP, RPC & platform**: Added opt-in request batching to the HTTP RPC client protocol, streaming request payload support to `HttpApi`, and HTTP/2 servers in `NodeHttpServer`. Forwarded headers now require a trusted proxy policy. Fixed `HttpClient.followRedirects` dying on an invalid `Location` header, `basicAuth` credentials not being encoded as UTF-8, multipart `Content-Disposition` filename decoding, and `NodeHttpServer` ending failed streamed responses as complete. On the runtime side, fixed Bun WebSocket interruption on close, Deno response failures and `Socket.readerString` corrupting characters split across frames.
+
+- **SQL & AI**: `PgClient` gained an `onAcquire` hook and an `acquireTimeout`, PostgreSQL server errors are preserved when the connection closes, and `SqlClient` callbacks now run after the outermost transaction commits. SQL `PersistedQueue` settlements are fenced by acquisition. On the AI side, added the OpenAI `safety_identifier` and `prompt_cache_retention` request options plus prompt cache breakpoints on image and file input, and fixed composed tool failure causes being lost and retry classification for provider response decoding failures.
+
+- **Core, Schema & collections**: The audit kept going with fixes for `Cause.pretty` on cyclic cause chains, `Fiber.runIn` and `Effect.forkIn` hanging, scoped forks running after scope closure, `Effect.repeat` turning a `Done` failure into a success, and `Stream.retry` slowing down on every retry. Defects now take precedence over typed failures in more recovery operators. Schema fixes cover `Schema.Tuple` encoding with omitted optional elements, Unicode casing checks, `Schema.toFormatter` and `Schema.toTaggedUnion`. Layers are now memoized by identity, and finite number and base64 validation run in linear time.
+
+- **Config, CLI & parsers**: Fixed YAML block scalars with tabs, `Ini.parse` dropping a trailing backslash, TOML empty quoted keys, `Config.schema` dropping record keys for non-string key schemas, `OTEL_RESOURCE_ATTRIBUTES` values containing `=`, and several CLI lexer edge cases with clustered short options. Also fixed `DateTime.formatIsoDate` for extended years, `zoneFromString` rejecting `GMT`, and nanosecond precision in `Duration` strings and inputs.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [Effect v4 Updates](https://www.effect.website/blog?category=effect-v4-updates), starting from the recently published [Effect v4 RC: September 2026 Updates](https://effect.website/blog/effect-v4-rc-september-recap).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Render inherited CLI flags in their own help section with formatter collapse options](https://github.com/Effect-TS/effect/pull/9276) (Bug Fix, next-minor)
+- [Add schema-aware streaming CSV encoding and decoding](https://github.com/Effect-TS/effect/pull/9291) (Feature, next-minor)
+- [Expose migration-free encoded SQL message storage construction](https://github.com/Effect-TS/effect/pull/9330) (Feature, next-minor)
+- [Set column to undefined on CSV header errors](https://github.com/Effect-TS/effect/pull/9427) (Bug Fix, next-minor)
+- [Add Unhandled logging option to ignore combinators](https://github.com/Effect-TS/effect/pull/9510) (Bug Fix, next-minor)
+- [Report unobserved resource release defects](https://github.com/Effect-TS/effect/pull/9388) (Bug Fix, next-minor)
+- [Fix sql.insert and sql.updateValues crashing on an empty list](https://github.com/Effect-TS/effect/pull/9453) (Bug Fix, next-minor)
+- [Add Glob module and portable FileSystem.glob](https://github.com/Effect-TS/effect/pull/9438) (Feature, next-minor)
+- [Fix TOML inline tables and arrays being extended after definition](https://github.com/Effect-TS/effect/pull/9537) (Bug Fix, next-minor)
+- [Fix TOML multiline strings that end with quotes before the delimiter](https://github.com/Effect-TS/effect/pull/9532) (Bug Fix, next-minor)
+- [Detect unsupported FetchHttpClient streaming request bodies](https://github.com/Effect-TS/effect/pull/9567) (Bug Fix, next-minor)
+- [Replace effect/Crypto with per-family effect/crypto modules](https://github.com/Effect-TS/effect/pull/9126) (Feature, next-minor)
+- [Fix(http): send stored cookies only to the matching host](https://github.com/Effect-TS/effect/pull/9614) (Bug Fix, next-minor)
+- [Add terminal resize stream](https://github.com/Effect-TS/effect/pull/9639) (Bug Fix, next-minor)
+- [Allow database clock lag in PersistedQueue SQL delay tests](https://github.com/Effect-TS/effect/pull/9642) (Bug Fix, next-minor)
+- [Add encrypted remote compaction to the event log](https://github.com/Effect-TS/effect/pull/9571) (Improvement, next-minor)
+- [Add McpTest in-memory client for McpServer registrations](https://github.com/Effect-TS/effect/pull/9657) (Feature, next-minor)
+- [Add opt-in RFC 9457 Problem Details to HttpApi](https://github.com/Effect-TS/effect/pull/9706) (Feature, next-minor)
+- [Add RpcServer onDisconnect option](https://github.com/Effect-TS/effect/pull/9688) (Bug Fix, next-minor)
+- [Fix Toml.parse accepting out of range dates and times](https://github.com/Effect-TS/effect/pull/9648) (Bug Fix, next-minor)
+- [Add request-aware visibility to McpServer](https://github.com/Effect-TS/effect/pull/9661) (Improvement, next-minor)
+
+### Effect AI
+
+- [Restore Anthropic spec fetching and schema regeneration](https://github.com/Effect-TS/effect/pull/9509) (Bug Fix, next-minor)
+- [Raise pnpm fetch timeout for large CI tarball downloads](https://github.com/Effect-TS/effect/pull/9627) (Bug Fix, next-minor)
+
+### Effect Cluster
+
+- [Wait for failure-suspended workflow activity replay in test](https://github.com/Effect-TS/effect/pull/9456) (Bug Fix, next-minor)
+
+### Effect OpenAPI
+
+- [Parameterize OpenAPI client with error/requirements generics](https://github.com/Effect-TS/effect/pull/6402) (Feature, next-minor)
+
+### Effect Opentelemetry
+
+- [Fix(opentelemetry): keep optional trace sdk peers out of the root entrypoint](https://github.com/Effect-TS/effect/pull/9689) (Bug Fix, next-minor)
+
+### Effect Platform
+
+- [Bound synchronous Node readable and socket drains](https://github.com/Effect-TS/effect/pull/9327) (Bug Fix, next-minor)
+- [Add Glob module and portable FileSystem.glob](https://github.com/Effect-TS/effect/pull/9438) (Feature, next-minor)
+- [Replace effect/Crypto with per-family effect/crypto modules](https://github.com/Effect-TS/effect/pull/9126) (Feature, next-minor)
+- [Add terminal resize stream](https://github.com/Effect-TS/effect/pull/9639) (Bug Fix, next-minor)
+- [Default Bun idle timeouts to off and document streaming timeouts](https://github.com/Effect-TS/effect/pull/9705) (Bug Fix, next-minor)
+
+### Effect SQL
+
+- [Fix(sql-mssql): keep interrupted requests leased until Tedious settles them](https://github.com/Effect-TS/effect/pull/9636) (Bug Fix, next-minor)
+
+## Community Events
+
+- If you're thinking of joining [Effect Days 2026](https://effect.website/effect-days) this December in Italy, you'd better hurry.
+
+  <Tweet id="2113601344254730465" />
+
+- All three Effect Miami speakers have been announced! The meetup is scheduled for Nov 9.
+
+  <Tweet id="2112243628894486614" />
+
+  <Tweet id="2112577694646878386" />
+
+  <Tweet id="2112940615004561917" />
+
+- [Effect Warsaw #2](https://luma.com/k5o7m2pg) is coming up on November 17!
+
+  <Tweet id="2108246661642285217" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Community Highlights
+
+- Max at **Cloudflare Connect**!
+
+  <Tweet id="2113024081499164765" />
+
+- If we had a penny...
+
+  <Tweet id="2113658579119124877" />
+
+- 💯
+
+  <Tweet id="2111849982626009202" />
+
+- [effect-api-query](https://github.com/ueberBrot/effect-api-query) - generate typed TanStack Query options and cache keys from Effect RPC and HTTP API contracts. By ueberBrot.
+
+- [kabuki](https://github.com/pkishorez/monorepo/tree/main/packages/kabuki) - run your app as a tree of state-machine Actors outside React, built on Effect Schema, scoped Effects, and Layers. By pkishorez.
+
+- [effect-snowflake](https://github.com/RyanCallahan312/effect-extensions/tree/main/packages/effect-snowflake) - an Effect v4 Snowflake client built on Apache Arrow ADBC, returning results as Arrow tables and record batches. By RyanCallahan312.
+
+- [effect-mongodb](https://github.com/doubleloop-io/effect-mongodb) - Effect-based APIs for working with MongoDB. Version 0.8.0 is out and supports Effect v4. By doubleloop-io.
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page featuring open roles from companies that use Effect. We’ll keep it updated as new opportunities come in.
+
+New this week: **Bitfocus** & **Warp** are hiring Effect engineers.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 51 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/N0XcgJ_khjM?si=r_5f-qZyehmHiY1y"
+  title="Effect Office Hours 51 🔥"
+/>
+
+- Native Arbitraries, Schema Binary, and PostgreSQL | Office Hours 43
+
+<YouTube
+  id="https://www.youtube.com/embed/7JbRfQQGMrg?si=L1F-NbArNdZN5E3Q"
+  title="Native Arbitraries, Schema Binary, and PostgreSQL | Office Hours 43"
+/>
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
