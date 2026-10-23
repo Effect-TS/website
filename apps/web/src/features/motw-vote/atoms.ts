@@ -17,6 +17,9 @@ export const STEP = 12
 export interface Message {
   readonly tone: "ok" | "error"
   readonly text: string
+  /** Shown in monospace between `text` and `suffix`. */
+  readonly pkg?: string
+  readonly suffix?: string
 }
 
 interface Ranking {
@@ -27,6 +30,13 @@ interface Ranking {
 const runtime = Atom.runtime(clientLayer)
 
 const error = (text: string): Message => ({ tone: "error", text })
+
+const ok = (module: ModuleRef, text: string, suffix = "."): Message => ({
+  tone: "ok",
+  text,
+  pkg: module.pkg,
+  suffix,
+})
 
 const byVotes = Order.combine(
   Order.mapInput(Order.Number, ({ votes }: RankedModule) => -votes),
@@ -42,6 +52,7 @@ export const coveredAtom = Atom.keepAlive(Atom.make<ReadonlyArray<string>>([]))
 export const countAtom = Atom.make(STEP)
 export const messageAtom = Atom.make<Message | null>(null)
 export const highlightAtom = Atom.make<string | null>(null)
+export const addedAtom = Atom.make(false)
 
 const requestsAtom = MotwVoteClient.query("motwVote", "ranking", {})
 
@@ -113,6 +124,16 @@ const flashAtom = Atom.keepAlive(
   ),
 )
 
+const confirmAtom = Atom.keepAlive(
+  Atom.fn<void>()(
+    Effect.fnUntraced(function* (_, get) {
+      get.set(addedAtom, true)
+      yield* Effect.sleep("2 seconds")
+      get.set(addedAtom, false)
+    }),
+  ),
+)
+
 const castVote = Effect.fnUntraced(function* (
   get: Atom.FnContext,
   module: ModuleRef,
@@ -122,10 +143,6 @@ const castVote = Effect.fnUntraced(function* (
   const client = yield* MotwVoteClient
   const outcome = on
     ? yield* Effect.gen(function* () {
-        get.set(messageAtom, {
-          tone: "ok",
-          text: "Checking you are not a bot…",
-        })
         const token = yield* (yield* BotCheck).solve(siteKey)
         return yield* client.vote({ payload: { id: module.id, token } })
       })
@@ -176,7 +193,16 @@ export const toggleAtom = runtime.fn<RankedModule>()(
     exclusive(
       get,
       row.name,
-    )(castVote(get, row, !row.voted).pipe(Effect.as(null))),
+    )(
+      Effect.sync(() => get.set(addedAtom, false)).pipe(
+        Effect.andThen(castVote(get, row, !row.voted)),
+        Effect.as(
+          row.voted
+            ? ok(row, `Removed your +1 from ${row.name}`)
+            : ok(row, `+1 added to ${row.name}`),
+        ),
+      ),
+    ),
   { concurrent: true },
 )
 
@@ -191,29 +217,32 @@ export const pickAtom = runtime.fn<ModuleRef>()(
           return error(
             `${module.name} has already been covered. Find it in the modules above.`,
           )
-        // Some names exist in more than one package
-        const label = `${module.name} (${module.pkg})`
         const existing = (yield* get.result(rankingAtom)).rows.find(
           ({ id }) => id === module.id,
         )
         const wasVoted = existing?.voted ?? false
-        if (!wasVoted) yield* castVote(get, module, true)
+        if (!wasVoted) {
+          yield* castVote(get, module, true)
+          get.set(confirmAtom, undefined)
+        }
         const { rows } = yield* get.result(rankingAtom)
         const index = rows.findIndex(({ id }) => id === module.id)
         if (index >= get(countAtom))
           get.set(countAtom, Math.ceil((index + 1) / STEP) * STEP)
         get.set(flashAtom, module.id)
-        return {
-          tone: "ok",
-          text: wasVoted
-            ? `You've already +1'd ${label}.`
-            : existing
-              ? `+1 added to ${label}.`
-              : `Added ${label} with your +1.`,
-        } satisfies Message
+        // Some names exist in more than one package
+        return wasVoted
+          ? ok(module, `You've already +1'd ${module.name}`)
+          : existing
+            ? ok(module, `+1 added to ${module.name}`)
+            : ok(module, `Added ${module.name}`, " with your +1.")
       }),
     ),
   { concurrent: true },
+)
+
+export const suggestingAtom = Atom.make((get) =>
+  AsyncResult.isWaiting(get(pickAtom)),
 )
 
 export const votingAtom = Atom.make(

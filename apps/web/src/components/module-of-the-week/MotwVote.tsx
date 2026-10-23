@@ -1,12 +1,7 @@
-import { RegistryProvider, useAtomValue } from "@effect/atom-react"
+import { RegistryProvider } from "@effect/atom-react"
 import { useMemo } from "react"
-import {
-  coveredAtom,
-  moduleIndexAtom,
-  statusAtom,
-} from "@/features/motw-vote/atoms"
+import { coveredAtom, moduleIndexAtom } from "@/features/motw-vote/atoms"
 import { toModuleRef } from "@/features/motw-vote/domain"
-import { cn } from "@/lib/utils"
 import { ModuleSearch } from "./ModuleSearch"
 import { Suggestions } from "./Suggestions"
 
@@ -42,7 +37,6 @@ export function MotwVote({
 }
 
 function Section() {
-  const status = useAtomValue(statusAtom)
   return (
     <section
       id="vote"
@@ -60,26 +54,9 @@ function Section() {
           >
             What should we cover next?
           </h2>
-          <ModuleSearch />
         </div>
+        <ModuleSearch />
         <Suggestions />
-        <p
-          id="module-suggestion-message"
-          aria-live="polite"
-          className={cn(
-            "text-sm",
-            status
-              ? cn(
-                  "mt-3",
-                  status.tone === "error"
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-muted-foreground",
-                )
-              : "sr-only",
-          )}
-        >
-          {status?.text}
-        </p>
       </div>
     </section>
   )
