@@ -79,7 +79,25 @@ describe("releaseChunks", () => {
       chunks[0]?.generated_metadata.page_href,
       "/docs/v4/api/sql-pg/changelog",
     )
-    assert.include(chunks[0]?.text, "# @effect/sql-pg 4.0.0")
+    assert.include(chunks[0]?.text, "# @effect/sql-pg changelog · 4.0.0\n")
+  })
+})
+
+describe("release heading", () => {
+  test("names the package, version and release date", () => {
+    const [chunk] = releaseChunks(pkg, [
+      {
+        version: "4.0.4",
+        date: "2026-10-13",
+        breaking: false,
+        body: "### Patch Changes\n\n- Fix pool leak.",
+      },
+    ])
+    assert.isTrue(
+      chunk?.text.startsWith(
+        "# @effect/sql-pg changelog · 4.0.4 · October 13, 2026\n\n",
+      ),
+    )
   })
 })
 

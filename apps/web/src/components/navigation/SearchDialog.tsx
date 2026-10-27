@@ -360,15 +360,19 @@ const baseVersionResultsAtom = Atom.make((get) => {
 
 // The scope control only makes sense when the query matched several packages.
 const changelogPackagesAtom = Atom.make((get) => {
-  const packages = get(baseVersionResultsAtom).filter(
-    (result): result is ChangelogSearchResult => result.kind === "changelog",
+  const packages = new Map(
+    get(baseVersionResultsAtom)
+      .filter(
+        (result): result is ChangelogSearchResult =>
+          result.kind === "changelog",
+      )
+      .flatMap((result) => [
+        { name: result.packageName, slug: result.packageSlug },
+        ...result.chunks.flatMap((chunk) => chunk.alsoIn ?? []),
+      ])
+      .map((candidate) => [candidate.slug, candidate] as const),
   )
-  return packages.length < 2
-    ? []
-    : packages.map(({ packageName, packageSlug }) => ({
-        name: packageName,
-        slug: packageSlug,
-      }))
+  return packages.size < 2 ? [] : [...packages.values()]
 })
 
 const activeChangelogPackageAtom = Atom.make((get) =>
@@ -1375,6 +1379,18 @@ function PackageItem({
               >
                 {chunk.snippet}
               </p>
+              {chunk.alsoIn !== undefined && chunk.alsoIn.length > 0 ? (
+                <p className="mt-0.5 line-clamp-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                  Also in{" "}
+                  {chunk.alsoIn
+                    .slice(0, 3)
+                    .map(({ name }) => name)
+                    .join(", ")}
+                  {chunk.alsoIn.length > 3
+                    ? ` +${chunk.alsoIn.length - 3} more`
+                    : ""}
+                </p>
+              ) : null}
             </a>
           ))}
         </div>

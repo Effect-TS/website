@@ -64,6 +64,14 @@ function markdownSection(
 
 type Grouped = Map<string, DeepMutable<SearchResult>>
 
+// Packages released in lockstep repeat the same notes. Two chunks of one
+// version with the same text are one set of notes.
+const releaseNotesKey = (version: string, text: string): string =>
+  `${version}\n${text
+    .replace(/^# .*\n+/, "")
+    .replace(/\s+/g, " ")
+    .trim()}`
+
 /** The result listed under `href`, created on first sight. */
 function resultFor<R extends DeepMutable<SearchResult>>(
   grouped: Grouped,
@@ -92,6 +100,7 @@ export function groupSearchResults(
   response: StoreSearchResponse,
 ): ReadonlyArray<SearchResult> {
   const grouped: Grouped = new Map()
+  const releaseNotes = new Map<string, DeepMutable<SearchResultChunk>>()
 
   response.data.forEach((chunk) => {
     const id = `${chunk.file_id}-${chunk.chunk_index}`
@@ -128,6 +137,18 @@ export function groupSearchResults(
       const generated = chunk.generated_metadata
       if (!Schema.is(ChangelogGeneratedMetadata)(generated)) return
       const href = generated.page_href
+      const notesKey = releaseNotesKey(generated.version, chunk.text)
+      const sameNotes = releaseNotes.get(notesKey)
+      if (sameNotes !== undefined) {
+        const others = (sameNotes.alsoIn ??= [])
+        if (!others.some(({ slug }) => slug === metadata.package_slug)) {
+          others.push({
+            name: metadata.package_name,
+            slug: metadata.package_slug,
+          })
+        }
+        return
+      }
       const page = resultFor(grouped, "changelog", href, () => ({
         kind: "changelog",
         id: href,
@@ -140,13 +161,15 @@ export function groupSearchResults(
         chunks: [],
       }))
       if (page === undefined) return
-      addChunk(page, {
+      const match: DeepMutable<SearchResultChunk> = {
         id,
         href: `${href}#${generated.version}`,
         title: generated.version,
         snippet: extractSnippet(chunk.text).replace(/^-\s+/, ""),
         score: chunk.score,
-      })
+      }
+      addChunk(page, match)
+      releaseNotes.set(notesKey, match)
       return
     }
 

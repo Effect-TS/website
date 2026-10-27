@@ -76,6 +76,23 @@ export function splitText(text: string, limit: number): Array<string> {
   return parts
 }
 
+const releaseDate = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+  year: "numeric",
+})
+
+/** `# @effect/sql-pg changelog · 4.0.4 · October 13, 2026` */
+const releaseHeading = (name: string, release: ChangelogRelease): string =>
+  `# ${[
+    `${name} changelog`,
+    release.version,
+    ...(release.date === undefined
+      ? []
+      : [releaseDate.format(new Date(`${release.date}T00:00:00Z`))]),
+  ].join(" · ")}\n\n`
+
 /** One chunk per release part, oldest release first. */
 export function releaseChunks(
   changelog: {
@@ -89,7 +106,7 @@ export function releaseChunks(
   return releases.toReversed().flatMap((release) => {
     const text = searchBody(release.body)
     if (text === "") return []
-    const heading = `# ${changelog.name} ${release.version}\n\n`
+    const heading = releaseHeading(changelog.name, release)
     return splitText(text, MAX_CHANGELOG_CHUNK_LENGTH - heading.length - 1).map(
       (part) => ({
         type: "text" as const,

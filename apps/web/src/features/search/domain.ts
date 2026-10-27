@@ -146,6 +146,10 @@ export type StoreSearchResponse = typeof StoreSearchResponse.Type
 export const SearchResultChunk = Schema.Struct({
   id: Schema.String,
   detail: Schema.optional(Schema.String),
+  // Other packages that published the same release notes.
+  alsoIn: Schema.optional(
+    Schema.Array(Schema.Struct({ name: Schema.String, slug: Schema.String })),
+  ),
   href: Schema.String,
   title: Schema.String,
   snippet: Schema.String,

@@ -61,18 +61,18 @@ const apiChunk = (anchor: string, text = "# run\n\nRuns an effect.") =>
     },
   }) as const
 
-const changelogChunk = (version: string, text: string) =>
+const changelogChunk = (version: string, text: string, slug = "sql-pg") =>
   ({
     text,
     metadata: {
       channel: "v4",
       content_source: "changelog",
-      package_name: "@effect/sql-pg",
-      package_slug: "sql-pg",
+      package_name: `@effect/${slug}`,
+      package_slug: slug,
     },
     generated: {
       type: "text",
-      page_href: "/docs/v4/api/sql-pg/changelog",
+      page_href: `/docs/v4/api/${slug}/changelog`,
       version,
     },
   }) as const
@@ -200,6 +200,35 @@ describe("groupSearchResults", () => {
       ],
     )
     assert.strictEqual(page.chunks[0]?.snippet, "Fix the pool leak.")
+  })
+
+  test("lists release notes that several packages share once", () => {
+    const notes = (slug: string) =>
+      `# @effect/${slug} changelog · 4.0.0\n\n- Effect 4.0 is the first stable release.`
+    const results = group([
+      chunk(changelogChunk("4.0.0", notes("sql-pg")), 0),
+      chunk(changelogChunk("4.0.0", notes("sql-mssql"), "sql-mssql"), 1),
+      chunk(changelogChunk("4.0.0", notes("sql-d1"), "sql-d1"), 2),
+      chunk(
+        changelogChunk(
+          "4.0.1",
+          "# @effect/sql-mssql changelog · 4.0.1\n\n- Fix the pool leak.",
+          "sql-mssql",
+        ),
+        3,
+      ),
+    ])
+    assert.deepStrictEqual(
+      results.map(({ href }) => href),
+      ["/docs/v4/api/sql-pg/changelog", "/docs/v4/api/sql-mssql/changelog"],
+    )
+    const [shared, own] = results
+    assert.deepStrictEqual(shared?.chunks[0]?.alsoIn, [
+      { name: "@effect/sql-mssql", slug: "sql-mssql" },
+      { name: "@effect/sql-d1", slug: "sql-d1" },
+    ])
+    assert.strictEqual(own?.chunks[0]?.title, "4.0.1")
+    assert.isUndefined(own?.chunks[0]?.alsoIn)
   })
 
   test("groups documentation sections under their parent heading", () => {

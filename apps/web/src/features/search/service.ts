@@ -12,6 +12,17 @@ import { type SearchGroup, SearchError, StoreSearchResponse } from "./domain"
 import { searchFilter } from "./filters"
 import { groupSearchResults } from "./grouping"
 
+// A changelog-only search has many repeated notes to collapse, so it asks for more.
+const topK = (options: {
+  readonly groups?: ReadonlyArray<SearchGroup> | undefined
+  readonly packageSlug?: string | undefined
+}) =>
+  options.packageSlug === undefined &&
+  options.groups?.length === 1 &&
+  options.groups[0] === "changelog"
+    ? 40
+    : 20
+
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
     const apiKey = yield* Config.Redacted("MXBAI_API_KEY")
@@ -36,7 +47,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
           mxbai.stores.search(
             {
               query: options.query,
-              top_k: 20,
+              top_k: topK(options),
               search_options: { rerank: true, return_metadata: true },
               store_identifiers: [Redacted.value(storeId)],
               ...(filters === undefined ? {} : { filters }),
