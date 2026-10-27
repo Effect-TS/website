@@ -1,0 +1,109 @@
+---
+import { ArrowRight, ArrowUpRight, Play } from "@lucide/astro"
+import type { CollectionEntry } from "astro:content"
+import { FormattedDate } from "@/components/ui/FormattedDate"
+import { withoutPrefix } from "@/features/module-of-the-week/domain"
+import { cn } from "@/lib/utils"
+
+interface Props {
+  readonly post: CollectionEntry<"blog">
+  readonly entry?: number | undefined
+  /** Shown in place of the entry number, for posts that are not numbered modules. */
+  readonly label?: string | undefined
+  readonly layout?: "row" | "stacked" | undefined
+  readonly class?: string | undefined
+}
+
+const { post, entry, label, layout = "row", class: className } = Astro.props
+
+const title = withoutPrefix(post.data.title)
+const video = post.data.video
+const videoUrl = video ? `https://www.youtube.com/watch?v=${video.youtubeId}` : undefined
+const twoColumns = layout === "row" && video !== undefined
+---
+
+<article
+  class={cn(
+    "grid grid-cols-1 gap-px border border-border bg-border",
+    twoColumns && "md:grid-cols-2 lg:grid-cols-12",
+    className,
+  )}
+>
+  <div
+    class:list={[
+      "flex items-baseline justify-between gap-4 bg-background px-5 py-3 lg:px-6",
+      twoColumns && "md:col-span-2 lg:col-span-12",
+    ]}
+  >
+    <div class="flex min-w-0 items-baseline gap-3 font-mono text-xs">
+      <span class="shrink-0 font-medium text-subtle-foreground tabular-nums">
+        {label ?? String(entry).padStart(2, "0")}
+      </span>
+      {
+        post.data.packageName && (
+          <span class="truncate text-muted-foreground">from "{post.data.packageName}"</span>
+        )
+      }
+    </div>
+    <FormattedDate
+      date={post.data.date}
+      className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+    />
+  </div>
+
+  {
+    video && videoUrl && (
+      <div class:list={["bg-background", twoColumns && "lg:col-span-5"]}>
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Watch ${title} on YouTube (opens in a new tab)`}
+          class="group relative block aspect-video h-full w-full overflow-hidden"
+        >
+          <img
+            src={`https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`}
+            alt=""
+            loading="lazy"
+            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+          <span
+            aria-hidden="true"
+            class="absolute top-1/2 left-1/2 flex size-12 -translate-1/2 items-center justify-center rounded-full border border-white/30 bg-zinc-950/80 text-white transition-colors group-hover:border-white/60 group-hover:bg-zinc-950"
+          >
+            <Play class="size-5 fill-current" />
+          </span>
+          <span class="absolute top-2 right-2 inline-flex items-center rounded-sm bg-zinc-950/80 p-1 text-white transition-colors group-hover:bg-zinc-950">
+            <ArrowUpRight class="size-3.5" aria-hidden="true" />
+          </span>
+          <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums transition-colors group-hover:bg-zinc-950">
+            <Play class="size-3 fill-current" aria-hidden="true" />
+            {video.duration}
+          </span>
+        </a>
+      </div>
+    )
+  }
+
+  <a
+    href={`/blog/${post.id}`}
+    class:list={[
+      "group flex flex-col bg-background no-underline transition-colors hover:bg-muted/60 hover:no-underline",
+      twoColumns && "lg:col-span-7",
+    ]}
+  >
+    <div class="flex-1 p-5 lg:p-6">
+      <h3 class="text-lg leading-snug font-semibold text-balance text-foreground">{title}</h3>
+      <p class="mt-2 text-base leading-relaxed text-pretty text-muted-foreground">
+        {post.data.excerpt}
+      </p>
+    </div>
+    <div class="flex items-center justify-between gap-2 border-t border-border px-5 py-4 lg:px-6">
+      <span class="text-sm font-semibold text-foreground">Read the blog post</span>
+      <ArrowRight
+        class="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground"
+        aria-hidden="true"
+      />
+    </div>
+  </a>
+</article>

@@ -35,6 +35,7 @@ export type NavigationActiveSlug =
   | "api"
   | "blog"
   | "podcast"
+  | "motw"
   | "jobs"
   | "docs"
   | "playground"
@@ -67,10 +68,10 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     surfaces: ["desktop", "mobile"],
   },
   {
-    id: "podcast",
+    id: "motw",
     kind: "internal",
-    label: "Podcast",
-    href: "/podcast",
+    label: "Module of the Week",
+    href: "/module-of-the-week",
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },

@@ -46,6 +46,11 @@ const blog = defineCollection({
       featuredImage: image().optional(),
       packageName: z.string().min(1).optional(),
       version: z.enum(["v3", "v4"]).optional(),
+      /** API reference modules a Module of the Week post covers, as `package/modulePath`. */
+      apiModules: z.array(z.string().min(1)).optional(),
+      video: z
+        .object({ youtubeId: z.string().min(1), duration: z.string().min(1) })
+        .optional(),
     }),
 })
 

@@ -4,13 +4,22 @@ import * as Command from "alchemy/Command"
 import * as GitHub from "alchemy/GitHub"
 import * as Output from "alchemy/Output"
 import * as Mixedbread from "@website/alchemy-mixedbread"
+import { TURNSTILE_TEST_KEYS } from "./apps/web/src/features/motw-vote/turnstile-test-keys.ts"
 import * as Config from "effect/Config"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import type * as Redacted from "effect/Redacted"
+import * as Redacted from "effect/Redacted"
 
 type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
+
+// Each stage counts in its own rate-limit namespace, so a preview cannot use up
+// the production limit. Namespaces are numbers.
+const rateLimitNamespaceId = (stage: string): number => {
+  let hash = 0
+  for (const char of stage) hash = (hash * 31 + char.charCodeAt(0)) % 90_000
+  return 1_000 + hash
+}
 
 const Website = (
   storeId: StoreId,
@@ -20,6 +29,28 @@ const Website = (
     "WebsiteWorker",
     Effect.gen(function* () {
       const stage = yield* Alchemy.Stage
+
+      // Module of the Week votes. Previews get their own empty database, which
+      // goes away with the preview. Production keeps its votes if the stack is
+      // ever destroyed.
+      const motwVote = yield* Cloudflare.D1.Database("MotwVote", {
+        migrations: "./apps/web/migrations",
+      }).pipe(Alchemy.RemovalPolicy.retain(stage === "prod"))
+
+      // Signs the cookie that tells voters apart. It is made once per stage and
+      // kept in the deploy state.
+      const votesSecret = yield* Alchemy.Random("MotwVoteSecret")
+
+      // The invisible human check votes need. Production gets a real widget.
+      // Other stages use Cloudflare's test keys, whose check always passes,
+      // because a widget only runs on the hostnames it lists.
+      const turnstile =
+        stage === "prod"
+          ? yield* Cloudflare.Turnstile.Widget("MotwVoteTurnstile", {
+              domains: ["effect.website"],
+              mode: "invisible",
+            })
+          : undefined
 
       return {
         rootDir: "./apps/web",
@@ -63,6 +94,16 @@ const Website = (
           MXBAI_VECTOR_STORE_ID: storeId,
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
+          DB: motwVote,
+          MOTW_VOTE_SECRET: votesSecret.text,
+          TURNSTILE_SITE_KEY: turnstile?.sitekey ?? TURNSTILE_TEST_KEYS.siteKey,
+          TURNSTILE_SECRET:
+            turnstile?.secret ?? Redacted.make(TURNSTILE_TEST_KEYS.secret),
+          // 20 votes a minute for each client address
+          MOTW_VOTE_LIMIT: Cloudflare.RateLimit("MOTW_VOTE_LIMIT", {
+            namespaceId: rateLimitNamespaceId(stage),
+            simple: { limit: 20, period: 60 },
+          }),
         },
         sessionKVBindingName: false,
         prerenderEnvironment: "node" as const,

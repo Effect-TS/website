@@ -17,6 +17,7 @@ interface Props {
   readonly description?: string | undefined
   readonly forceDark?: boolean | undefined
   readonly ogImageVersion?: string | undefined
+  readonly feed?: { readonly title: string; readonly href: string } | undefined
 }
 
 const {
@@ -24,6 +25,7 @@ const {
   description,
   forceDark = false,
   ogImageVersion,
+  feed,
 } = Astro.props
 
 const getOgImagePath = () => {
@@ -193,6 +195,7 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
           ...(markdownHref
             ? [{ rel: "alternate", type: "text/markdown", href: markdownHref, title: "Markdown" }]
             : []),
+          ...(feed ? [{ rel: "alternate", type: "application/rss+xml", ...feed }] : []),
         ],
       }}
       {...description ? { description } : undefined}

@@ -1,0 +1,363 @@
+---
+import { ArrowDown, ArrowUpRight, FileText, Rss } from "@lucide/astro"
+import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
+import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { MotwVote } from "@/components/module-of-the-week/MotwVote"
+import { getMotwPage } from "@/features/motw-vote/http"
+import { MODULE_FEED } from "@/features/module-of-the-week/domain"
+import PageLayout from "@/layouts/PageLayout.astro"
+import { Image } from "astro:assets"
+import DiscordLogo from "@/assets/icons/fa7-brands/discord.svg"
+import GitHubLogo from "@/assets/icons/fa7-brands/github.svg"
+import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
+import maxwell from "@/assets/authors/maxwell_brown.png"
+
+const SUGGEST_URL = "https://discord.gg/effect-ts"
+
+const { intro, modules, vote } = await getMotwPage()
+
+const buttonClass =
+  "group inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium no-underline transition-all hover:no-underline"
+
+const DISCORD_HANDLE = "maxwellbrown"
+
+const profiles = [
+  { label: "GitHub", handle: "IMax153", href: "https://github.com/IMax153", Logo: GitHubLogo },
+  {
+    label: "X.com",
+    handle: "@maxwellbrown",
+    href: "https://x.com/maxwellbrown",
+    Logo: TwitterLogo,
+  },
+]
+
+const appearances = [
+  {
+    venue: "AWS Developers",
+    title: "Production-ready AI agents with Effect & Amazon Bedrock",
+    youtubeId: "iLa0d8WF-ng",
+  },
+  {
+    venue: "devtools.fm",
+    title: "Effect.ts and Effectful Technologies",
+    youtubeId: "qYohvLtApmM",
+  },
+  {
+    venue: "Effect Days 2025",
+    title: "Building Effect-ive Agents",
+    youtubeId: "pQA0fakReas",
+  },
+  {
+    venue: "Effect Days 2024",
+    title: "Advanced Effect workshop",
+    youtubeId: "7jOD5okJC00",
+  },
+]
+
+const CHANNEL_SUBSCRIBE_URL =
+  "https://www.youtube.com/channel/UC8wNHsXmEuoikbwRdLeoJQg?sub_confirmation=1"
+
+const followLinks = [
+  {
+    label: "Office Hours",
+    action: "Subscribe on YouTube",
+    href: CHANNEL_SUBSCRIBE_URL,
+    external: true,
+    Icon: YouTubeLogo,
+  },
+  {
+    label: "Discord community",
+    action: "Join the conversation",
+    href: SUGGEST_URL,
+    external: true,
+    Icon: DiscordLogo,
+  },
+  {
+    label: "Blog",
+    action: "Read every post",
+    href: "/blog?category=module-of-the-week#blog-grid",
+    external: false,
+    Icon: FileText,
+  },
+  {
+    label: "RSS",
+    action: "Subscribe to the feed",
+    href: MODULE_FEED.href,
+    external: false,
+    Icon: Rss,
+  },
+]
+
+const cell =
+  "group flex flex-col justify-between gap-4 bg-background px-4 py-5 text-left transition-colors hover:bg-muted/60 lg:col-start-4 lg:px-6"
+const labelRow = "flex items-center gap-2 text-sm font-medium text-muted-foreground"
+const value = "flex items-center justify-between gap-2 font-mono text-sm text-foreground"
+const arrow =
+  "size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+const micro = "font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
+---
+
+<PageLayout
+  title="Module of the Week | Effect"
+  description="The lesser-known parts of Effect, one module at a time. Every module comes with a blog post and a video."
+  activeSlug="motw"
+  feed={MODULE_FEED}
+  themeable
+>
+  <section class="relative overflow-hidden">
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0"
+      style="background-image: linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px); background-size: 196.667px 178px; background-position: calc(50% + 98.333px) 0; mask-image: linear-gradient(to bottom, black 0%, transparent 70%);"
+    >
+    </div>
+
+    <div class="relative mx-auto w-full max-w-295 px-4 pt-16 pb-16 md:pt-24 md:pb-20">
+      <Eyebrow class="mb-3">// Module of the Week</Eyebrow>
+      <h1
+        class="text-3xl leading-tighter font-bold tracking-tight text-balance text-foreground md:text-4xl"
+      >
+        The lesser-known parts of <br class="hidden sm:inline" />
+        Effect. {"By\u00a0Maxwell\u00a0Brown."}
+      </h1>
+      <p class="mt-4 max-w-[34.5rem] text-lg text-muted-foreground">
+        Each module starts as a blog post, gets walked through live at Effect Office Hours, and ends
+        up as a standalone video.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a
+          href="#vote"
+          class:list={[buttonClass, "bg-foreground text-background hover:bg-foreground/90"]}
+        >
+          Suggest a module
+          <ArrowDown
+            class="size-4 transition-transform group-hover:translate-y-0.5"
+            aria-hidden="true"
+          />
+        </a>
+        <a
+          href={MODULE_FEED.href}
+          aria-label={`${MODULE_FEED.title} RSS feed`}
+          class="group inline-flex items-center gap-1.5 px-2 font-mono text-sm text-foreground transition-colors sm:ml-1"
+        >
+          RSS
+          <Rss
+            class="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground"
+            aria-hidden="true"
+          />
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="h-px w-full bg-border"></div>
+
+  <section aria-label="Modules" class="relative pb-24">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <ul class="mt-16 flex flex-col gap-6 md:mt-20">
+        {
+          modules.map(({ post, number }) => (
+            <li>
+              <ModuleCard post={post} entry={number} />
+            </li>
+          ))
+        }
+        {
+          intro && (
+            <li>
+              <ModuleCard post={intro} label="Intro" />
+            </li>
+          )
+        }
+      </ul>
+    </div>
+  </section>
+
+  <div class="h-px w-full bg-border"></div>
+
+  <MotwVote client:visible modules={vote.ids} packages={vote.packages} covered={vote.covered} />
+
+  <div class="h-px w-full bg-border"></div>
+
+  <section aria-label="Behind the series" class="relative py-24 md:pt-40">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <Eyebrow as="h2" class="mb-3">// Behind the series</Eyebrow>
+
+      <div
+        class="mt-6 grid grid-cols-6 gap-px border border-border bg-border lg:grid-cols-4 lg:grid-rows-3"
+      >
+        <div class="col-span-2 self-start bg-background lg:col-span-1 lg:row-span-3">
+          <Image
+            src={maxwell}
+            alt="Maxwell Brown"
+            widths={[240, 480]}
+            sizes="(min-width: 1024px) 280px, 33vw"
+            class="block aspect-4/5 w-full object-cover opacity-80"
+          />
+        </div>
+
+        <div
+          class="col-span-4 flex items-end bg-background p-4 lg:col-span-2 lg:items-start lg:px-6 lg:py-5"
+        >
+          <div>
+            <h3 class="text-lg leading-tight font-bold tracking-tight text-foreground lg:text-2xl">
+              Maxwell Brown
+            </h3>
+            <p class="mt-1 text-sm font-semibold text-foreground lg:mt-2 lg:text-base">
+              Founding Engineer
+              <span class="font-normal text-muted-foreground"> at Effectful Technologies</span>
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="col-span-6 flex flex-col justify-end bg-background p-4 lg:col-span-2 lg:row-span-2 lg:p-6 lg:pr-10"
+        >
+          <div
+            class="max-w-xl space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base"
+          >
+            <p>
+              Maxwell is a core contributor to Effect, with work across Effect Cluster, the Effect
+              CLI, and Effect AI, and runs Effect Office Hours.
+            </p>
+          </div>
+        </div>
+
+        {
+          profiles.map(({ label, handle, href, Logo }, index) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class:list={[
+                cell,
+                "col-span-6 sm:col-span-2 lg:col-span-1",
+                index === 0 ? "lg:row-start-1" : "lg:row-start-2",
+              ]}
+            >
+              <span class={labelRow}>
+                <Logo class="size-4" aria-hidden="true" />
+                {label}
+              </span>
+              <span class={value}>
+                <span class="truncate">{handle}</span>
+                <ArrowUpRight class={arrow} aria-hidden="true" />
+              </span>
+            </a>
+          ))
+        }
+        <button
+          type="button"
+          data-copy-handle={DISCORD_HANDLE}
+          aria-label={`Copy Maxwell Brown's Discord handle, ${DISCORD_HANDLE}`}
+          class:list={[
+            cell,
+            "col-span-6 cursor-pointer sm:col-span-2 lg:col-span-1 lg:row-start-3",
+          ]}
+        >
+          <span class={labelRow}>
+            <DiscordLogo class="size-4" aria-hidden="true" />
+            Discord
+          </span>
+          <span class={value}>
+            <span class="truncate">@{DISCORD_HANDLE}</span>
+            <span
+              data-copy-state
+              aria-live="polite"
+              class="font-mono text-xs text-muted-foreground uppercase transition-colors group-hover:text-foreground"
+            >
+              Copy
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <div
+        class="flex items-center justify-between gap-4 border border-t-0 border-border bg-background px-4 py-2.5"
+      >
+        <h3 class={micro}>// Talks & appearances</h3>
+      </div>
+      <ul class="grid grid-cols-1 gap-px border border-t-0 border-border bg-border md:grid-cols-2">
+        {
+          appearances.map((item) => (
+            <li class="bg-background">
+              <a
+                href={`https://www.youtube.com/watch?v=${item.youtubeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group flex h-full items-center gap-4 p-4 no-underline transition-colors hover:bg-muted/60 hover:no-underline"
+              >
+                <div class="relative aspect-video w-28 shrink-0 overflow-hidden border border-border sm:w-36">
+                  <img
+                    src={`https://i.ytimg.com/vi/${item.youtubeId}/maxresdefault.jpg`}
+                    alt=""
+                    loading="lazy"
+                    class="h-full w-full object-cover opacity-50 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0"
+                  />
+                </div>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <span class={micro}>{item.venue}</span>
+                  <span class="text-sm leading-snug font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                    {item.title}
+                  </span>
+                </div>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <div class="h-px w-full bg-border"></div>
+
+  <section aria-labelledby="follow-title" class="relative">
+    <div class="mx-auto w-full max-w-295 px-4 py-24 md:pt-40">
+      <Eyebrow class="mb-3">// Follow the series</Eyebrow>
+      <h2 id="follow-title" class="text-2xl leading-tighter font-bold text-foreground md:text-3xl">
+        Never miss a module
+      </h2>
+      <ul
+        class="mt-12 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {
+          followLinks.map(({ label, action, href, external, Icon }) => (
+            <li class="bg-background">
+              <a
+                href={href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+                class="group flex h-full flex-col justify-between gap-6 px-4 py-5 no-underline transition-colors hover:bg-muted/60 hover:no-underline lg:px-6"
+              >
+                <span class={labelRow}>
+                  <Icon class="size-4" aria-hidden="true" />
+                  {label}
+                </span>
+                <span class="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
+                  {action}
+                  <ArrowUpRight class={arrow} aria-hidden="true" />
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+</PageLayout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy-handle]").forEach((button) => {
+    const state = button.querySelector<HTMLElement>("[data-copy-state]")
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copyHandle ?? "")
+        if (state) state.textContent = "Copied"
+        setTimeout(() => {
+          if (state) state.textContent = "Copy"
+        }, 1600)
+      } catch {}
+    })
+  })
+</script>

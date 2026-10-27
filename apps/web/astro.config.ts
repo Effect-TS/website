@@ -12,6 +12,7 @@ import {
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
 import { latestReleasePlugin } from "./src/features/changelog/latest-release-plugin"
+import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
@@ -70,6 +71,7 @@ const config = defineConfig({
         channel: defaultDocsVersion,
         slug: "effect",
       }),
+      cloudflareWorkersFallback(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
         features: "all",

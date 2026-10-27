@@ -5,11 +5,13 @@ export function ScrollRail({
   title,
   ariaLabel,
   viewAllHref,
+  titleHref,
   children,
 }: {
   title: string
   ariaLabel: string
   viewAllHref: string
+  titleHref?: string
   children: ReactNode
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -37,7 +39,16 @@ export function ScrollRail({
     <section aria-label={ariaLabel} className="pt-16 pb-2 md:pt-20">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          {title}
+          {titleHref ? (
+            <a
+              href={titleHref}
+              className="underline-offset-4 transition-colors hover:underline"
+            >
+              {title}
+            </a>
+          ) : (
+            title
+          )}
         </h2>
         <div className="flex items-center gap-5">
           <a

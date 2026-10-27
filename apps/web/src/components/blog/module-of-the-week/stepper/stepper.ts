@@ -187,11 +187,18 @@ export function createCallout(root: HTMLElement, stage: HTMLElement) {
   }
 
   const show = (
-    note: { title: string; text: string; num?: number | undefined },
+    // `html` is the text with markup, such as a word in bold
+    note: {
+      title: string
+      text: string
+      html?: string | undefined
+      num?: number | undefined
+    },
     anchor: Anchor | null,
   ) => {
     const changed = text.textContent !== note.text
-    text.textContent = note.text
+    if (note.html) text.innerHTML = note.html
+    else text.textContent = note.text
     title.textContent = note.title
     num.textContent = note.num ? String(note.num) : ""
     num.hidden = !note.num
@@ -206,10 +213,16 @@ export function createCallout(root: HTMLElement, stage: HTMLElement) {
   return { show, place }
 }
 
-// Envelopes and the like, moving along a path of points on the stage
+// Envelopes and the like, moving along a path of points on the stage. The
+// trip takes longer the farther it goes, unless `duration` says otherwise.
 export function createTraveler(stage: HTMLElement) {
   const running = new Set<Animation>()
-  const travel = (pts: ReadonlyArray<Point>, className: string, html: string) =>
+  const travel = (
+    pts: ReadonlyArray<Point>,
+    className: string,
+    html: string,
+    duration?: number,
+  ) =>
     new Promise<void>((resolve) => {
       if (reduceMotion()) return resolve()
       const lengths = pts
@@ -229,7 +242,7 @@ export function createTraveler(stage: HTMLElement) {
       el.innerHTML = html
       stage.append(el)
       const anim = el.animate(frames, {
-        duration: Math.min(1100, Math.max(600, total * 3)),
+        duration: duration ?? Math.min(1100, Math.max(600, total * 3)),
         easing: "ease-in-out",
       })
       running.add(anim)

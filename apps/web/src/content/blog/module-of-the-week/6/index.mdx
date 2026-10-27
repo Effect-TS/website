@@ -1,0 +1,361 @@
+---
+pagefind: false
+title: Module of the Week - Cluster, Part 4
+slug: module-of-the-week/cluster-idempotency
+packageName: effect/cluster
+excerpt: We look at idempotency and the dual-write problem, then use idempotency keys and transactions to safely handle messages that arrive more than once.
+date: 2026-10-19
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import Aside from "@/components/docs/Aside.astro"
+import DadSays from "../3/DadSays.astro"
+import ReaderAsks from "../5/ReaderAsks.astro"
+import ButtonsVisual from "./ButtonsVisual.astro"
+import CrashTimeline from "./CrashTimeline.astro"
+import DualWriteChat from "./DualWriteChat.astro"
+import RetryLanes from "./RetryLanes.astro"
+
+In the [previous installment](/blog/module-of-the-week/cluster-delivery) of Module of the Week, we gave Dad persisted messages, so Sebastian's question survives a runner crash.
+
+Unfortunately that left us with a new problem: if Dad crashes after telling his joke but before the message is marked as having been processed, he'll process that message again and risk telling the same joke twice.
+
+This week we're going to fix that.
+
+By the end of this post, you'll know:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>What makes an operation idempotent</li>
+  <li>How to give messages idempotency keys</li>
+  <li>What the dual-write problem is, and how to work around it</li>
+</ol>
+
+## The Repeated Joke
+
+Let's replay last week's crash. Click **Step**, and keep an eye on the message in the database.
+
+<CrashTimeline />
+
+Cluster isn't doing anything wrong here. The message was never marked `processed`, so when Dad restarted, cluster sent it to him again. The problem is that our new Dad doesn't know he's already seen that message, so he processes it again and risks telling the same joke twice.
+
+That's at-least-once delivery working as intended: our `Dad` entity gets every message at _least_ once, and sometimes _more_ than once. We can't stop him getting a message twice, but we can stop him answering it twice.
+
+## Idempotency
+
+Walk up to an elevator and press the call button. Press it again. Press it five more times, if you're that kind of person. You still get one elevator.
+
+Now open a pizza app and press **Order** five times. You get five pizzas.
+
+Try it yourself. Press **Call elevator** and **Order pizza** as many times as you like.
+
+<ButtonsVisual />
+
+The elevator button is **idempotent**: pressing it twice does the same thing as pressing it once. The pizza button isn't.
+
+<Aside type="note" title="Idempotence">
+
+Idempotence is the property of certain operations in mathematics and computer science whereby they can be applied multiple times without changing the result beyond the initial application ([Wikipedia](https://en.wikipedia.org/wiki/Idempotence)).
+
+</Aside>
+
+Right now, Dad is closer to the pizza button. Send him a copy of a message he's already answered, and he'll answer it again.
+
+Back in [Part 3](/blog/module-of-the-week/cluster-delivery#exactly-once), we saw that exactly-once delivery isn't possible. The best you can do is deliver every message at least once, and have whoever receives it ignore any copies. We got at-least-once delivery last time by turning on persisted messages. Ignoring the copies is up to Dad.
+
+<DadSays>
+  Ask me as many times as you like. The answer is still "ask your mother."
+</DadSays>
+
+## Slack Retries
+
+Our Slack webhook currently waits for a message to be saved to the database before it responds. Saving a message is usually quick, but Slack only gives us three seconds to respond. If we don't respond within the three second window, Slack will assume something went wrong and send the message again.
+
+Click **Step** to follow Sebastian's message when the database is slow.
+
+<RetryLanes />
+
+A slow save means Slack sends the message again, and we end up with two copies in the database. Cluster can't tell they're the same message, so if the copy reaches Dad after he's already replied with a joke, he will reply again and potentially repeat himself.
+
+<ReaderAsks>Can't we just respond faster?</ReaderAsks>
+
+Yea we could, but it won't fully solve the problem. Remember the [Two Generals Problem](/blog/module-of-the-week/cluster-delivery#two-generals)? Even a fast webhook response can get lost on its way back to Slack.
+
+## Idempotency Keys
+
+The usual way to spot a copy is to give every message an ID that stays the same each time it's sent. That ID is called an **idempotency key**.
+
+<Aside type="tip" title="Idempotency Keys in the Wild">
+
+A good example is Stripe's API. Retry a payment with the same `Idempotency-Key` header, and the customer is only charged once.
+
+</Aside>
+
+Slack already gives us one. Every message has a timestamp, `ts`, that's unique within its channel and stays the same when Slack sends the message again. We pass it along as `messageId`, and `primaryKey` tells cluster to use it as the message's idempotency key:
+
+```ts showLineNumbers=false
+import { Schema } from "effect"
+import { ClusterSchema, Entity } from "effect/cluster"
+import { Rpc } from "effect/rpc"
+
+export const Dad = Entity.make("Dad", [
+  Rpc.make("NewMessage", {
+    payload: {
+      // Slack's `ts` for the message: unique per channel, and the same
+      // every time Slack sends it
+      messageId: Schema.String,
+      from: Schema.String,
+      text: Schema.String,
+    },
+    // Use Slack's `ts` as the idempotency key
+    primaryKey: (payload) => payload.messageId,
+  }),
+]).annotateRpcs(ClusterSchema.Persisted, true)
+```
+
+The webhook passes Slack's `ts` along with the rest of the message:
+
+```ts showLineNumbers=false
+// Our Slack webhook, called once we've checked the request really came
+// from Slack
+const handleMessage = Effect.fn("handleMessage")(function* (
+  event: SlackMessageEvent,
+) {
+  const makeDad = yield* Dad.client
+
+  // Doesn't return until the message is saved
+  yield* makeDad(event.channel).NewMessage(
+    // Same `ts` every time Slack sends it
+    { messageId: event.ts, from: event.user, text: event.text },
+    { discard: true },
+  )
+
+  // Once we're done here, the route replies to Slack
+})
+```
+
+Now cluster checks the key before it saves a message. Here's the slow database again, with keys:
+
+<RetryLanes keys />
+
+When Slack fails to receive a response within the three second window, it sends the message again. Our cluster recognizes the message as a copy, so it skips saving the message to the database, and once the first save finishes, our webhook responds to both the original message and the copy.
+
+<DadSays>
+  I've got keys for everything. I just don't know what half of them open.
+</DadSays>
+
+## Dual Writes
+
+Let's go back to the failure scenario that we described at the beginning of this post: Dad posts his joke to chat and then crashes before cluster marks the message as processed. When Dad boots back up again, cluster redelivers the unprocessed message to Dad causing him to reply to it a second time.
+
+Unfortunately, idempotency keys don't help us here. The message was not sent twice so there's no duplicate for a key to catch. Cluster is delivering the same message again because as far as it knows Dad never finished with it.
+
+The problem is that fully processing a message requires us to write to two different places. Dad posts his joke to Slack and _then_ cluster marks the message as processed in the database. If Dad crashes after the first write, the second one never happens.
+
+Here are those two writes on a line. Drag the `X` to pick when Dad crashes, and look at the chat to see what happens after he restarts. Then press **Swap order** and try again.
+
+<DualWriteChat />
+
+No matter which order you pick, a crash between writes breaks something. If Dad posts his joke first, he can end up answering Sebastian twice. If the message is marked as processed first, he can end up not answering at all.
+
+This is called the **dual-write problem**. Any time one action has to write to two different systems, a crash between the writes can leave the two systems out of sync.
+
+<ReaderAsks>Why not wrap both writes in a transaction?</ReaderAsks>
+
+We would if we could, but a transaction only covers writes to one database, and posting to Slack isn't a database write.
+
+What we can do is move the Slack post out of Dad's handler. If the handler only writes to our database, both of its writes can go in the same transaction, and we can deal with Slack separately.
+
+## Transactional Handlers
+
+In Part 3, Dad held his reply until his joke was posted, so the message stayed unprocessed until then. That's what tied the joke to "processed" in the first place.
+
+Instead, we'll give Dad an inbox: a `dad_inbox` table in the same database cluster uses for its messages. The `WithTransaction` annotation tells cluster to run his handler inside the transaction that marks the message processed:
+
+```ts showLineNumbers=false
+export const Dad = Entity.make("Dad", [
+  Rpc.make("NewMessage", {
+    payload: {
+      messageId: Schema.String,
+      from: Schema.String,
+      text: Schema.String,
+    },
+    primaryKey: (payload) => payload.messageId,
+  })
+    // Run the handler inside the transaction that marks the message processed
+    .annotate(ClusterSchema.WithTransaction, true),
+]).annotateRpcs(ClusterSchema.Persisted, true)
+```
+
+Here's Dad's layer. All his handler does now is put the message in his inbox:
+
+```ts showLineNumbers=false collapse={15-98}
+import { Clock, Effect, Schedule } from "effect"
+import { Entity } from "effect/cluster"
+import { SqlClient } from "effect/sql"
+import { Chat } from "./Chat.ts"
+import { Dad } from "./Dad.ts"
+import { PunGenerator } from "./PunGenerator.ts"
+
+export const DadLayer = Dad.toLayer(
+  Effect.gen(function* () {
+    const address = yield* Entity.CurrentAddress
+    const sql = yield* SqlClient.SqlClient
+    const chatId = address.entityId
+
+    // In the background, Dad reads his inbox and posts jokes to Slack
+    const punGenerator = yield* PunGenerator
+    const chat = yield* Chat
+
+    // Jokes Dad's already told in this chat
+    const notebook = yield* sql<{ joke: string }>`
+      SELECT joke FROM dad_jokes WHERE chat = ${chatId}
+    `.pipe(Effect.orDie)
+    const told = new Set(notebook.map((row) => row.joke))
+
+    // Wait for the chat to go quiet for 2.5s, then come up with one
+    // joke for all the unanswered messages
+    const writeDownJoke = Effect.gen(function* () {
+      const unread = yield* sql<{
+        id: string
+        sender: string
+        text: string
+        at: number
+      }>`
+        SELECT id, sender, text, at FROM dad_inbox
+        WHERE chat = ${chatId} AND joke IS NULL
+        ORDER BY at
+      `
+      const newest = unread.at(-1)
+      if (newest === undefined) return
+      const now = yield* Clock.currentTimeMillis
+      if (now - newest.at < 2500) return
+
+      const joke = yield* punGenerator.generate(
+        unread.map(({ sender, text }) => ({ from: sender, text })),
+        { told },
+      )
+
+      // Write the joke down and link the messages to it in one go
+      yield* sql.withTransaction(
+        Effect.gen(function* () {
+          const [entry] = yield* sql<{ id: number }>`
+            INSERT INTO dad_jokes ${sql.insert({ chat: chatId, joke, posted: false })}
+            RETURNING id
+          `
+          yield* sql`
+            UPDATE dad_inbox SET joke = ${entry!.id}
+            WHERE chat = ${chatId}
+              AND id IN ${sql.in(unread.map((message) => message.id))}
+          `
+        }),
+      )
+      told.add(joke)
+    })
+
+    // Post any jokes that are written down but haven't gone out yet
+    const tellWrittenJokes = Effect.gen(function* () {
+      const unposted = yield* sql<{ id: number; joke: string }>`
+        SELECT id, joke FROM dad_jokes
+        WHERE chat = ${chatId} AND posted = false
+        ORDER BY id
+      `
+      for (const { id, joke } of unposted) {
+        yield* chat.reply(chatId, joke)
+        yield* sql`UPDATE dad_jokes SET posted = true WHERE id = ${id}`
+      }
+    })
+
+    // Every 500ms while Dad's awake (the only code that posts to Slack)
+    yield* Effect.gen(function* () {
+      // Post anything left over from before a crash
+      yield* tellWrittenJokes
+      yield* writeDownJoke
+      yield* tellWrittenJokes
+
+      // Let Dad sleep once his inbox is empty
+      yield* sql.withTransaction(
+        Effect.gen(function* () {
+          const [{ waiting }] = yield* sql<{ waiting: number }>`
+            SELECT count(*) AS waiting FROM dad_inbox
+            WHERE chat = ${chatId} AND joke IS NULL
+          `
+          if (waiting === 0) yield* Entity.keepAlive(false)
+        }),
+      )
+    }).pipe(
+      Effect.orDie,
+      Effect.repeat(Schedule.spaced("500 millis")),
+      Effect.forkScoped,
+    )
+
+    return Dad.of({
+      // Only writes to our database, never to Slack
+      NewMessage: ({ payload }) =>
+        Effect.gen(function* () {
+          // Saved together with "processed", or not at all
+          yield* sql`INSERT INTO dad_inbox ${sql.insert({
+            chat: chatId,
+            id: payload.messageId,
+            sender: payload.from,
+            text: payload.text,
+          })}`
+          // Keep Dad running, even across crashes, until he's answered everything
+          yield* Entity.keepAlive(true)
+        }).pipe(
+          // Don't judge me
+          Effect.orDie,
+          // keepAlive needs Dad's address
+          Effect.provideService(Entity.CurrentAddress, address),
+        ),
+    })
+  }),
+)
+```
+
+There's a lot hiding in that collapsed part. Expand it if you're feeling brave. We'll be tidying it up in a later post anyway. For now, let's focus on the handler.
+
+<DadSays>You opened it, didn't you? I'm not mad, just disappointed.</DadSays>
+
+Now either the message lands in Dad's inbox and gets marked processed, or neither happens and cluster sends it again.
+
+There's a catch, though. Once a message is marked as `processed`, cluster won't send it to Dad again, so if he crashes before answering it there's nothing to wake him back up. `Entity.keepAlive(true)` keeps him running until he calls `Entity.keepAlive(false)` with an empty inbox.
+
+<Aside type="caution" title="Same database only">
+
+We should also note that this strategy only works if Dad's custom tables are in the same database that cluster uses for its messages, AND that his queries go through the same `SqlClient`. A transaction can't span two databases.
+
+</Aside>
+
+The joke still has to get to Slack, though. The collapsed loop handles that with a **transactional outbox**: Dad writes each joke to a `dad_jokes` table before posting it, and marks it as posted afterwards. If he crashes in between, he posts the joke he wrote down instead of coming up with a new one.
+
+That still leaves a very small gap. If Dad crashes after posting a joke to chat but before marking it as posted, he'll post it again when he restarts. Slack would need to accept an idempotency key to prevent that, and it doesn't.
+
+For now that's a risk we're going to have to live with.
+
+## Delegating to Workflows
+
+We handled every crash in this post by hand: keys for Slack's retries, a transaction for our own writes, and an outbox for the joke. That's a lot of work for one joke, and every additional step we add to Dad's handler will need the same care.
+
+Next time, we'll use Effect Workflow to make all of this a lot easier. Workflow keeps track of which steps Dad has already finished, so after a crash, he carries on from where he left off. Each step still needs to be idempotent, but the rest is handled by Effect Workflow.
+
+<DadSays>I'm not lazy. I'm delegating.</DadSays>
+
+## Wrapping up
+
+That's it for this week! To recap what we've learned:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    An operation is idempotent if doing it twice has the same effect as doing it
+    once
+  </li>
+  <li>Idempotency keys let a receiver recognize and ignore copies</li>
+  <li>The dual-write problem, where a crash leaves two systems out of sync</li>
+</ul>
+
+All of the code from this post is [on GitHub](https://github.com/Effect-TS/office-hours/tree/main/packages/module-of-the-week/src/0006-cluster-idempotency), if you'd like to try to make Dad repeat himself.
+
+Until next time, Happy Effecting!
