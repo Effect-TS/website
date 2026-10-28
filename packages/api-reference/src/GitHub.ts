@@ -1,3 +1,4 @@
+// Validation only (EFF-3064): changes the API reference generator digest.
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
