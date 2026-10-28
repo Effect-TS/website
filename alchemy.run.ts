@@ -129,6 +129,9 @@ export default Alchemy.Stack(
     const sha = yield* Config.String("WEBSITE_REVISION")
     let storeId: StoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
     let searchApiKey = Config.Redacted("MXBAI_API_KEY")
+    // Set when the preview has its own search store, to the synchronization
+    // the preview comment waits for.
+    let searchSynchronized: Output.Output<unknown> | undefined
 
     if (previewStoreEnabled && Option.isSome(pullRequest)) {
       const store = yield* Mixedbread.VectorStore("PreviewSearchStore", {
@@ -172,9 +175,10 @@ export default Alchemy.Stack(
         },
         timeout: "30 minutes",
       })
-      storeId = Output.all(store.id, synchronization.hash.input).pipe(
-        Output.map(([id]) => id),
-      )
+      // The Worker only needs the store's ID, so the website builds while the
+      // store synchronizes.
+      storeId = store.id
+      searchSynchronized = synchronization.hash.input
       // The production search key is scoped to the production store. Mixedbread
       // only issues API keys from its web app, so preview stores share a key
       // created there that can search any store tagged `effect-website-preview`.
@@ -187,6 +191,13 @@ export default Alchemy.Stack(
       onNone: () => Effect.void,
       onSome: (issueNumber) =>
         Effect.gen(function* () {
+          // Only announce the preview once its search reflects the pull request.
+          const url =
+            searchSynchronized === undefined
+              ? website.url
+              : Output.all(website.url, searchSynchronized).pipe(
+                  Output.map(([url]) => url),
+                )
           yield* GitHub.Comment("preview-comment", {
             owner: "Effect-TS",
             repository: "website",
@@ -194,7 +205,7 @@ export default Alchemy.Stack(
             body: Output.interpolate`
               ## Cloudflare Preview
 
-              **URL:** ${website.url}
+              **URL:** ${url}
 
               Built from commit [${sha.slice(0, 7)}](https://github.com/Effect-TS/website/commit/${sha}).
 

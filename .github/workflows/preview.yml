@@ -83,14 +83,23 @@ jobs:
         with:
           cache: true
 
+      # Caches are keyed by the API reference data first: the restored
+      # snapshot, or `generated` when this pull request generated its own.
+      - name: Name Astro incremental build cache
+        id: astro-cache
+        env:
+          SNAPSHOT: ${{ steps.api-reference-snapshot.outputs.restored == 'true' && steps.api-reference-snapshot.outputs.tag || 'generated' }}
+        run: echo "prefix=astro-incremental-$RUNNER_OS-$SNAPSHOT" >> "$GITHUB_OUTPUT"
+
       - name: Restore Astro incremental build cache
         uses: actions/cache/restore@v5
         with:
           path: apps/web/.astro-cache
-          key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
           restore-keys: |
-            astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-
-            astro-incremental-${{ runner.os }}-main-
+            ${{ steps.astro-cache.outputs.prefix }}-pr-${{ github.event.pull_request.number }}-
+            ${{ steps.astro-cache.outputs.prefix }}-main-
+            astro-incremental-${{ runner.os }}-
 
       - name: Write public build inputs
         run: node apps/web/scripts/write-alchemy-build-input.mjs
@@ -119,19 +128,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify generated API reference links
+        id: verify-links
         run: |
           if [[ -d apps/web/dist/client/docs ]]; then
             node apps/web/scripts/verify-api-reference-links.mjs apps/web/dist/client
+            echo "built=true" >> "$GITHUB_OUTPUT"
           else
             echo "Alchemy reused the unchanged deployment; no local build output to verify."
           fi
 
+      # Without a build, the cache directory is still the one restored above,
+      # which may belong to another snapshot.
       - name: Save Astro incremental build cache
-        if: success() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+        if: success() && steps.verify-links.outputs.built == 'true' && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
         uses: actions/cache/save@v5
         with:
           path: apps/web/.astro-cache
-          key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
   cleanup:
     needs: authorize
