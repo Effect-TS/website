@@ -549,12 +549,16 @@ html {
 :root {
   /* AnnouncementBanner (h-10) stacked above the navbar (h-16) and, on docs
      pages, the docs sub-navbar, all pinned in one `sticky top-0` wrapper.
-     Rails pinned below it can't read those heights in CSS, so they offset by
-     this. The banner and sub-navbar publish their measured heights. */
+     Rails pinned below it offset by this. The banner publishes its measured
+     height; the sub-navbar height is fixed below. */
   --sticky-header-height: calc(
     4rem + var(--announcement-height, 2.5rem) +
       var(--secondary-nav-height, 0rem)
   );
+}
+
+:root:has([data-docs-subnav]) {
+  --secondary-nav-height: 2.75rem;
 }
 
 body {

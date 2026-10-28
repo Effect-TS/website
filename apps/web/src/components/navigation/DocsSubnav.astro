@@ -16,8 +16,11 @@ const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: s
 ]
 ---
 
-<effect-docs-subnav class="block w-full border-b border-border bg-background/85 backdrop-blur-sm">
-  <div class="mx-auto flex h-11 w-full max-w-352 items-center gap-4 px-4">
+<div
+  data-docs-subnav
+  class="h-(--secondary-nav-height) w-full border-b border-border bg-background/85 backdrop-blur-sm"
+>
+  <div class="mx-auto flex h-full w-full max-w-352 items-center gap-4 px-4">
     <div
       role="group"
       aria-label="Documentation version"
@@ -58,28 +61,4 @@ const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: s
       }
     </nav>
   </div>
-</effect-docs-subnav>
-
-<script>
-  class DocsSubnavElement extends HTMLElement {
-    #resize = new ResizeObserver(() => {
-      document.documentElement.style.setProperty(
-        "--secondary-nav-height",
-        `${this.getBoundingClientRect().height}px`,
-      )
-    })
-
-    connectedCallback() {
-      this.#resize.observe(this)
-    }
-
-    disconnectedCallback() {
-      this.#resize.disconnect()
-      document.documentElement.style.removeProperty("--secondary-nav-height")
-    }
-  }
-
-  if (!customElements.get("effect-docs-subnav")) {
-    customElements.define("effect-docs-subnav", DocsSubnavElement)
-  }
-</script>
+</div>
