@@ -1,0 +1,85 @@
+---
+import type { DocsNavSection } from "@/lib/docs-sections"
+import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
+
+interface Props {
+  readonly section: DocsNavSection
+  readonly version?: string | undefined
+}
+
+const { section, version = defaultDocsVersion } = Astro.props
+
+const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: string }> = [
+  { key: "onboarding", label: "Onboarding", href: `/docs/${version}` },
+  { key: "guides", label: "Guides", href: `/docs/${version}/guides` },
+  { key: "api", label: "Reference", href: `/docs/${version}/api` },
+]
+---
+
+<effect-docs-subnav class="block w-full border-b border-border bg-background/85 backdrop-blur-sm">
+  <div class="mx-auto flex h-11 w-full max-w-352 items-center gap-4 px-4">
+    <div
+      role="group"
+      aria-label="Documentation version"
+      class="hidden shrink-0 gap-1 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900"
+    >
+      {
+        DOCS_VERSIONS.map(({ value, label }) => (
+          <a
+            href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
+            aria-label={`Effect ${label} documentation`}
+            aria-current={version === value ? "page" : undefined}
+            class:list={[
+              "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
+              version === value
+                ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
+                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
+            ]}
+          >
+            {label}
+          </a>
+        ))
+      }
+    </div>
+
+    <div class="hidden h-4.5 w-px bg-zinc-300 md:block dark:bg-zinc-700" aria-hidden="true"></div>
+
+    <nav aria-label="Documentation sections" class="flex h-full min-w-0 items-center gap-6">
+      {
+        SECTION_LINKS.map((link) => (
+          <a
+            href={link.href}
+            aria-current={link.key === section ? "page" : undefined}
+            class="flex h-full items-center border-b-2 border-transparent text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground aria-[current=page]:border-foreground aria-[current=page]:text-foreground"
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</effect-docs-subnav>
+
+<script>
+  class DocsSubnavElement extends HTMLElement {
+    #resize = new ResizeObserver(() => {
+      document.documentElement.style.setProperty(
+        "--secondary-nav-height",
+        `${this.getBoundingClientRect().height}px`,
+      )
+    })
+
+    connectedCallback() {
+      this.#resize.observe(this)
+    }
+
+    disconnectedCallback() {
+      this.#resize.disconnect()
+      document.documentElement.style.removeProperty("--secondary-nav-height")
+    }
+  }
+
+  if (!customElements.get("effect-docs-subnav")) {
+    customElements.define("effect-docs-subnav", DocsSubnavElement)
+  }
+</script>

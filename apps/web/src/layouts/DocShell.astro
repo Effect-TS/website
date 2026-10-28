@@ -1,5 +1,6 @@
 ---
-import DocsNavigation from "@/components/navigation/DocsNavigation.astro"
+import DocsSubnav from "@/components/navigation/DocsSubnav.astro"
+import Navigation from "@/components/navigation/Navigation.astro"
 import Footer from "@/components/Footer.astro"
 import SidebarScrollMemory from "@/components/ui/sidebar/SidebarScrollMemory.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
@@ -45,7 +46,9 @@ const railClass =
   {...description ? { description } : undefined}
   {...ogImageVersion ? { ogImageVersion } : undefined}
 >
-  <DocsNavigation section={navSection} version={version} />
+  <Navigation activeSlug={activeSlug === "api" ? "api" : "docs"} version={version}>
+    <DocsSubnav slot="secondary" section={navSection} version={version} />
+  </Navigation>
 
   <div class="relative w-full">
     <slot name="mobile-nav" />
