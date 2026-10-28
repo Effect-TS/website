@@ -1,47 +1,24 @@
 ---
 import NavigationAnchor from "@/components/navigation/NavigationAnchor.astro"
 import NavigationMenuItem from "@/components/navigation/NavigationMenuItem.astro"
-import {
-  getNavigationLinks,
-  isNavigationLinkActive,
-  type NavigationActiveSlug,
-  type NavigationDocsSection,
-  type NavigationLink,
-} from "@/lib/navigation"
+import type { NavigationItemView } from "@/lib/navigation"
 
 interface Props {
-  readonly activeSlug?: NavigationActiveSlug | undefined
-  readonly version?: string | undefined
-  readonly docsSection?: NavigationDocsSection | undefined
+  readonly items: ReadonlyArray<NavigationItemView>
 }
 
-const { activeSlug, version, docsSection } = Astro.props
-
-const links =
-  version === undefined
-    ? getNavigationLinks("desktop", "primary")
-    : getNavigationLinks("desktop", "primary").map((link): NavigationLink => {
-        if (link.kind !== "internal") return link
-        if (link.id === "docs") return { ...link, href: `/docs/${version}` as `/${string}` }
-        return link
-      })
+const { items } = Astro.props
 ---
 
 {
-  links.map((link) =>
-    link.kind === "internal" && link.menu !== undefined ? (
-      <NavigationMenuItem
-        link={link}
-        active={isNavigationLinkActive(link, activeSlug)}
-        activeSlug={activeSlug}
-        docsSection={docsSection}
-        version={version}
-      />
+  items.map((item) =>
+    item.entries.length > 0 ? (
+      <NavigationMenuItem item={item} />
     ) : (
       <NavigationAnchor
-        link={link}
-        class={`text-sm font-medium no-underline transition-colors text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white`}
-        active={isNavigationLinkActive(link, activeSlug)}
+        link={item.link}
+        class="text-sm font-medium no-underline transition-colors text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        active={item.active}
         activeClass="text-zinc-900 dark:text-white"
       />
     ),

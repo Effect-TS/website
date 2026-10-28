@@ -1,36 +1,19 @@
 ---
 import { Search, X } from "@lucide/astro"
 import { ArrowUpRight, ChevronDown } from "@lucide/astro"
-import {
-  isNavigationLinkActive,
-  isNavigationEntryActive,
-  resolveNavigationMenuEntry,
-  type NavigationActiveSlug,
-  type NavigationDocsSection,
-  type NavigationLink,
-} from "@/lib/navigation"
+import type { NavigationItemView, NavigationLink } from "@/lib/navigation"
 import DiscordIcon from "@/assets/icons/fa7-brands/discord.svg"
 import GitHubIcon from "@/assets/icons/fa7-brands/github.svg"
 import TwitterIcon from "@/assets/icons/fa7-brands/x-twitter.svg"
 import ThemeToggle from "@/components/ui/ThemeToggle"
 
 interface Props {
-  readonly primaryLinks: ReadonlyArray<NavigationLink>
+  readonly primaryItems: ReadonlyArray<NavigationItemView>
   readonly socialLinks: ReadonlyArray<NavigationLink>
-  readonly activeSlug?: NavigationActiveSlug | undefined
-  readonly docsSection?: NavigationDocsSection | undefined
-  readonly version?: string | undefined
   readonly showThemeToggle?: boolean
 }
 
-const {
-  primaryLinks,
-  socialLinks,
-  activeSlug,
-  docsSection,
-  version,
-  showThemeToggle = false,
-} = Astro.props
+const { primaryItems, socialLinks, showThemeToggle = false } = Astro.props
 ---
 
 <effect-mobile-menu class="ml-auto flex items-center gap-2">
@@ -92,9 +75,8 @@ const {
       <nav aria-label="Mobile" class="flex-1 overflow-y-auto px-6 py-6">
         <div class="space-y-1">
           {
-            primaryLinks.map((link) => {
-              const active = isNavigationLinkActive(link, activeSlug)
-              if (link.kind === "internal" && link.menu !== undefined) {
+            primaryItems.map(({ link, href, active, entries }) => {
+              if (entries.length > 0) {
                 return (
                   <details class="group" open={active || undefined}>
                     <summary
@@ -112,29 +94,23 @@ const {
                       />
                     </summary>
                     <ul class="mt-1 mb-2 ml-3 space-y-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-800">
-                      {link.menu.map((entry) => {
-                        const external = entry.href.startsWith("https://")
-                        const { href, alternates } = resolveNavigationMenuEntry(entry, version)
+                      {entries.map((entry) => {
                         return (
                           <li class="flex flex-wrap items-center gap-1">
                             <a
-                              href={href}
-                              target={external ? "_blank" : undefined}
-                              rel={external ? "noopener noreferrer" : undefined}
+                              href={entry.href}
+                              target={entry.external ? "_blank" : undefined}
+                              rel={entry.external ? "noopener noreferrer" : undefined}
                               data-role="menu-link"
-                              aria-current={
-                                isNavigationEntryActive(entry, { activeSlug, docsSection })
-                                  ? "page"
-                                  : undefined
-                              }
+                              aria-current={entry.active ? "page" : undefined}
                               class="block min-w-32 flex-1 rounded-md px-3 py-2 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:bg-zinc-100 aria-[current=page]:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-white"
                             >
                               <span class="inline-flex items-center gap-1">
                                 {entry.label}
-                                {external && <ArrowUpRight size={14} aria-hidden="true" />}
+                                {entry.external && <ArrowUpRight size={14} aria-hidden="true" />}
                               </span>
                             </a>
-                            {alternates.map((alternate) => (
+                            {entry.alternates.map((alternate) => (
                               <a
                                 href={alternate.href}
                                 data-role="menu-link"
@@ -153,7 +129,7 @@ const {
               }
               return (
                 <a
-                  href={link.href}
+                  href={href}
                   target={link.kind === "external" ? link.target : undefined}
                   rel={link.kind === "external" ? link.rel : undefined}
                   data-role="menu-link"

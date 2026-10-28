@@ -1,3 +1,4 @@
+import type { DocsNavSection } from "@/lib/docs-sections"
 import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/docs-versions"
 
 export type NavigationSurface = "desktop" | "mobile"
@@ -19,23 +20,23 @@ interface NavigationLinkBase {
   readonly icon?: "discord" | "github" | "twitter"
 }
 
-export type NavigationDocsSection = "onboarding" | "guides" | "api"
+type DocsPath = "" | "/guides" | "/api"
 
 export interface NavigationMenuEntry {
   readonly id: string
   readonly label: string
   readonly description: string
   readonly slug?: NavigationActiveSlug
-  readonly docsSection?: NavigationDocsSection
+  readonly docsSection?: DocsNavSection
   readonly href: `/${string}` | `https://${string}`
-  readonly docsPath?: "" | "/guides" | "/api"
+  readonly docsPath?: DocsPath
 }
 
 export interface InternalNavigationLink extends NavigationLinkBase {
   readonly kind: "internal"
   readonly href: `/${string}`
+  readonly docsPath?: DocsPath
   readonly menu?: ReadonlyArray<NavigationMenuEntry>
-  readonly activeSlugs?: ReadonlyArray<NavigationActiveSlug>
 }
 
 export interface ExternalNavigationLink extends NavigationLinkBase {
@@ -149,37 +150,50 @@ const communityMenu: ReadonlyArray<NavigationMenuEntry> = [
   },
 ]
 
-const primaryLink = (
-  link: Omit<InternalNavigationLink, "kind" | "group" | "surfaces">,
-): InternalNavigationLink => ({
-  ...link,
-  kind: "internal",
-  group: "primary",
-  surfaces: ["desktop", "mobile"],
-})
-
 export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
-  primaryLink({
+  {
     id: "docs",
+    kind: "internal",
     label: "Docs",
     href: `/docs/${defaultDocsVersion}`,
+    docsPath: "",
     menu: docsMenu,
-    activeSlugs: ["docs", "api", "motw", "podcast", "myths"],
-  }),
-  primaryLink({ id: "playground", label: "Play", href: "/play" }),
-  primaryLink({ id: "blog", label: "Blog", href: "/blog" }),
-  primaryLink({
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
+  {
+    id: "playground",
+    kind: "internal",
+    label: "Play",
+    href: "/play",
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
+  {
+    id: "blog",
+    kind: "internal",
+    label: "Blog",
+    href: "/blog",
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
+  {
     id: "community",
+    kind: "internal",
     label: "Community",
     href: "/community-hub",
     menu: communityMenu,
-    activeSlugs: ["community", "jobs", "adoption-partners", "merch"],
-  }),
-  primaryLink({
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
+  {
     id: "effect-days",
+    kind: "internal",
     label: "Effect Days",
     href: "/effect-days",
-  }),
+    group: "primary",
+    surfaces: ["desktop", "mobile"],
+  },
   {
     id: "github",
     kind: "external",
@@ -224,65 +238,79 @@ export const getNavigationLinks = (
   })
 }
 
-export const applyVersionToLinks = (
-  version: string,
-  links: ReadonlyArray<NavigationLink>,
-): ReadonlyArray<NavigationLink> => {
-  return links.map((link): NavigationLink => {
-    if (link.kind !== "internal") return link
-    if (link.id === "docs")
-      return { ...link, href: `/docs/${version}` as `/${string}` }
-    return link
-  })
+export interface NavigationContext {
+  readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly docsSection?: DocsNavSection | undefined
+  readonly version?: string | undefined
 }
 
-export const isNavigationLinkActive = (
-  link: NavigationLink,
-  activeSlug: NavigationActiveSlug | undefined,
-): boolean => {
-  if (activeSlug === undefined) return false
-  if (link.id === activeSlug) return true
-  return (
-    link.kind === "internal" &&
-    (link.activeSlugs?.includes(activeSlug) ?? false)
-  )
-}
-
-export const isNavigationEntryActive = (
-  entry: NavigationMenuEntry,
-  context: {
-    readonly activeSlug: NavigationActiveSlug | undefined
-    readonly docsSection: NavigationDocsSection | undefined
-  },
-): boolean => {
-  if (entry.slug === undefined || entry.slug !== context.activeSlug)
-    return false
-  return (
-    entry.docsSection === undefined || entry.docsSection === context.docsSection
-  )
-}
-
-export interface ResolvedNavigationMenuEntry {
+export interface NavigationEntryView {
+  readonly id: string
+  readonly label: string
+  readonly description: string
   readonly href: string
+  readonly external: boolean
+  readonly active: boolean
   readonly alternates: ReadonlyArray<{
     readonly label: string
     readonly href: string
   }>
 }
 
-export const resolveNavigationMenuEntry = (
-  entry: NavigationMenuEntry,
-  version: string = defaultDocsVersion,
-): ResolvedNavigationMenuEntry => {
-  const { docsPath } = entry
-  if (docsPath === undefined) return { href: entry.href, alternates: [] }
-  return {
-    href: `/docs/${version}${docsPath}`,
-    alternates: DOCS_VERSIONS.filter(({ value }) => value !== version).map(
-      ({ value, label }) => ({
-        label,
-        href: `/docs/${value}${docsPath}`,
-      }),
-    ),
-  }
+export interface NavigationItemView {
+  readonly link: NavigationLink
+  readonly href: string
+  readonly active: boolean
+  readonly entries: ReadonlyArray<NavigationEntryView>
 }
+
+const resolveHref = (
+  target: { readonly href: string; readonly docsPath?: DocsPath },
+  version: string,
+): string =>
+  target.docsPath === undefined
+    ? target.href
+    : `/docs/${version}${target.docsPath}`
+
+// Resolves versions and active state once, so components only render.
+export const buildNavigation = (
+  surface: NavigationSurface,
+  group: NavigationGroup,
+  {
+    activeSlug,
+    docsSection,
+    version = defaultDocsVersion,
+  }: NavigationContext = {},
+): ReadonlyArray<NavigationItemView> =>
+  getNavigationLinks(surface, group).map((link): NavigationItemView => {
+    const menu = link.kind === "internal" ? (link.menu ?? []) : []
+    return {
+      link,
+      href: resolveHref(link, version),
+      active:
+        activeSlug !== undefined &&
+        (link.id === activeSlug ||
+          menu.some((entry) => entry.slug === activeSlug)),
+      entries: menu.map((entry) => ({
+        id: entry.id,
+        label: entry.label,
+        description: entry.description,
+        href: resolveHref(entry, version),
+        external: entry.href.startsWith("https://"),
+        active:
+          entry.slug !== undefined &&
+          entry.slug === activeSlug &&
+          (entry.docsSection === undefined ||
+            entry.docsSection === docsSection),
+        alternates:
+          entry.docsPath === undefined
+            ? []
+            : DOCS_VERSIONS.filter(({ value }) => value !== version).map(
+                ({ value, label }) => ({
+                  label,
+                  href: `/docs/${value}${entry.docsPath}`,
+                }),
+              ),
+      })),
+    }
+  })
