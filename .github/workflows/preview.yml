@@ -12,8 +12,41 @@ concurrency:
 permissions: {}
 
 jobs:
+  authorize:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      allowed: ${{ steps.permission.outputs.allowed }}
+    steps:
+      - name: Check PR author repository permission
+        id: permission
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Preserve the existing trust exception for the Janitor app's immutable ID.
+            if (context.payload.pull_request.user.id === 349016676) {
+              core.setOutput("allowed", "true")
+              return
+            }
+            let permission = "none"
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                ...context.repo,
+                username: context.payload.pull_request.user.login,
+              })
+              permission = data.permission
+            } catch (error) {
+              if (error.status !== 404) throw error
+            }
+            const allowed = ["write", "maintain", "admin"].includes(permission)
+            core.setOutput("allowed", String(allowed))
+            core.info(`PR author repository permission: ${permission}; preview allowed: ${allowed}`)
+
   deploy:
-    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+    needs: authorize
+    if: github.event.action != 'closed' && needs.authorize.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -101,7 +134,8 @@ jobs:
           key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
   cleanup:
-    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+    needs: authorize
+    if: github.event.action == 'closed' && needs.authorize.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
