@@ -33,7 +33,6 @@ const withVersion = (links: ReadonlyArray<NavigationLink>) =>
     : links.map((link): NavigationLink => {
         if (link.kind !== "internal") return link
         if (link.id === "docs") return { ...link, href: `/docs/${version}` as `/${string}` }
-        if (link.id === "api") return { ...link, href: `/docs/${version}/api` as `/${string}` }
         return link
       })
 
@@ -65,6 +64,7 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
           socialLinks={mobileSocialLinks}
           activeSlug={activeSlug}
           docsSection={docsSection}
+          version={version}
           showThemeToggle={showThemeToggle}
         />
 

@@ -21,12 +21,6 @@ interface NavigationLinkBase {
 
 export type NavigationDocsSection = "onboarding" | "guides" | "api"
 
-export interface NavigationMenuVersion {
-  readonly label: string
-  readonly href: `/${string}`
-  readonly current: boolean
-}
-
 export interface NavigationMenuEntry {
   readonly id: string
   readonly label: string
@@ -34,7 +28,7 @@ export interface NavigationMenuEntry {
   readonly slug?: NavigationActiveSlug
   readonly docsSection?: NavigationDocsSection
   readonly href: `/${string}` | `https://${string}`
-  readonly versions?: ReadonlyArray<NavigationMenuVersion>
+  readonly docsPath?: "" | "/guides" | "/api"
 }
 
 export interface InternalNavigationLink extends NavigationLinkBase {
@@ -67,15 +61,6 @@ export type NavigationActiveSlug =
   | "adoption-partners"
   | "merch"
 
-const docsVersionLinks = (
-  suffix: "" | "/guides" | "/api",
-): ReadonlyArray<NavigationMenuVersion> =>
-  DOCS_VERSIONS.map(({ value, label }) => ({
-    label,
-    href: `/docs/${value}${suffix}`,
-    current: value === defaultDocsVersion,
-  }))
-
 const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
   {
     id: "docs-onboarding",
@@ -84,7 +69,7 @@ const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
     slug: "docs",
     docsSection: "onboarding",
     href: `/docs/${defaultDocsVersion}`,
-    versions: docsVersionLinks(""),
+    docsPath: "",
   },
   {
     id: "docs-guides",
@@ -93,7 +78,7 @@ const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
     slug: "docs",
     docsSection: "guides",
     href: `/docs/${defaultDocsVersion}/guides`,
-    versions: docsVersionLinks("/guides"),
+    docsPath: "/guides",
   },
   {
     id: "docs-api",
@@ -102,7 +87,7 @@ const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
     slug: "api",
     docsSection: "api",
     href: `/docs/${defaultDocsVersion}/api`,
-    versions: docsVersionLinks("/api"),
+    docsPath: "/api",
   },
   {
     id: "motw",
@@ -275,4 +260,29 @@ export const isNavigationEntryActive = (
   return (
     entry.docsSection === undefined || entry.docsSection === context.docsSection
   )
+}
+
+export interface ResolvedNavigationMenuEntry {
+  readonly href: string
+  readonly alternates: ReadonlyArray<{
+    readonly label: string
+    readonly href: string
+  }>
+}
+
+export const resolveNavigationMenuEntry = (
+  entry: NavigationMenuEntry,
+  version: string = defaultDocsVersion,
+): ResolvedNavigationMenuEntry => {
+  const { docsPath } = entry
+  if (docsPath === undefined) return { href: entry.href, alternates: [] }
+  return {
+    href: `/docs/${version}${docsPath}`,
+    alternates: DOCS_VERSIONS.filter(({ value }) => value !== version).map(
+      ({ value, label }) => ({
+        label,
+        href: `/docs/${value}${docsPath}`,
+      }),
+    ),
+  }
 }

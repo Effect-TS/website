@@ -3,6 +3,7 @@ import { ArrowUpRight, ChevronDown } from "@lucide/astro"
 import NavigationAnchor from "@/components/navigation/NavigationAnchor.astro"
 import {
   isNavigationEntryActive,
+  resolveNavigationMenuEntry,
   type InternalNavigationLink,
   type NavigationActiveSlug,
   type NavigationDocsSection,
@@ -13,9 +14,10 @@ interface Props {
   readonly active: boolean
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly docsSection?: NavigationDocsSection | undefined
+  readonly version?: string | undefined
 }
 
-const { link, active, activeSlug, docsSection } = Astro.props
+const { link, active, activeSlug, docsSection, version } = Astro.props
 const menu = link.menu ?? []
 const panelId = `navigation-menu-${link.id}`
 ---
@@ -52,18 +54,19 @@ const panelId = `navigation-menu-${link.id}`
       {
         menu.map((entry) => {
           const external = entry.href.startsWith("https://")
+          const { href, alternates } = resolveNavigationMenuEntry(entry, version)
           const entryActive = isNavigationEntryActive(entry, { activeSlug, docsSection })
           return (
             <li class:list={["relative rounded-md hover:bg-muted", entryActive && "bg-accent"]}>
               <a
-                href={entry.href}
+                href={href}
                 target={external ? "_blank" : undefined}
                 rel={external ? "noopener noreferrer" : undefined}
                 aria-current={entryActive ? "page" : undefined}
                 data-role="entry"
                 class:list={[
                   "flex flex-col rounded-md px-3 py-2 no-underline",
-                  entry.versions && "pr-20",
+                  alternates.length > 0 && "pr-14",
                 ]}
               >
                 <span class="inline-flex items-center gap-1 text-sm font-medium text-foreground">
@@ -74,21 +77,16 @@ const panelId = `navigation-menu-${link.id}`
                   {entry.description}
                 </span>
               </a>
-              {entry.versions && (
+              {alternates.length > 0 && (
                 <div class="absolute top-2 right-2 flex gap-1">
-                  {entry.versions.map((version) => (
+                  {alternates.map((alternate) => (
                     <a
-                      href={version.href}
+                      href={alternate.href}
                       data-role="entry"
-                      aria-label={`${entry.label} ${version.label}`}
-                      class:list={[
-                        "rounded-sm border px-1.5 font-mono text-xs no-underline transition-colors",
-                        version.current
-                          ? "border-transparent bg-secondary font-semibold text-foreground"
-                          : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
-                      ]}
+                      aria-label={`${entry.label} ${alternate.label}`}
+                      class="flex min-h-6 min-w-6 items-center justify-center rounded-sm border border-border px-1.5 font-mono text-xs text-muted-foreground no-underline transition-colors hover:border-border-strong hover:text-foreground"
                     >
-                      {version.label}
+                      {alternate.label}
                     </a>
                   ))}
                 </div>

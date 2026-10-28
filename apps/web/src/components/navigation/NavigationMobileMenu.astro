@@ -4,6 +4,7 @@ import { ArrowUpRight, ChevronDown } from "@lucide/astro"
 import {
   isNavigationLinkActive,
   isNavigationEntryActive,
+  resolveNavigationMenuEntry,
   type NavigationActiveSlug,
   type NavigationDocsSection,
   type NavigationLink,
@@ -18,10 +19,18 @@ interface Props {
   readonly socialLinks: ReadonlyArray<NavigationLink>
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly docsSection?: NavigationDocsSection | undefined
+  readonly version?: string | undefined
   readonly showThemeToggle?: boolean
 }
 
-const { primaryLinks, socialLinks, activeSlug, docsSection, showThemeToggle = false } = Astro.props
+const {
+  primaryLinks,
+  socialLinks,
+  activeSlug,
+  docsSection,
+  version,
+  showThemeToggle = false,
+} = Astro.props
 ---
 
 <effect-mobile-menu class="ml-auto flex items-center gap-2">
@@ -105,10 +114,11 @@ const { primaryLinks, socialLinks, activeSlug, docsSection, showThemeToggle = fa
                     <ul class="mt-1 mb-2 ml-3 space-y-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-800">
                       {link.menu.map((entry) => {
                         const external = entry.href.startsWith("https://")
+                        const { href, alternates } = resolveNavigationMenuEntry(entry, version)
                         return (
                           <li class="flex flex-wrap items-center gap-1">
                             <a
-                              href={entry.href}
+                              href={href}
                               target={external ? "_blank" : undefined}
                               rel={external ? "noopener noreferrer" : undefined}
                               data-role="menu-link"
@@ -124,19 +134,14 @@ const { primaryLinks, socialLinks, activeSlug, docsSection, showThemeToggle = fa
                                 {external && <ArrowUpRight size={14} aria-hidden="true" />}
                               </span>
                             </a>
-                            {entry.versions?.map((version) => (
+                            {alternates.map((alternate) => (
                               <a
-                                href={version.href}
+                                href={alternate.href}
                                 data-role="menu-link"
-                                aria-label={`${entry.label} ${version.label}`}
-                                class:list={[
-                                  "shrink-0 whitespace-nowrap rounded-sm border px-2 py-0.5 font-mono text-xs no-underline transition-colors",
-                                  version.current
-                                    ? "border-transparent bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
-                                    : "border-zinc-300 text-zinc-600 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-white",
-                                ]}
+                                aria-label={`${entry.label} ${alternate.label}`}
+                                class="flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-sm border border-zinc-300 px-2 font-mono text-xs whitespace-nowrap text-zinc-600 no-underline transition-colors hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-white"
                               >
-                                {version.label}
+                                {alternate.label}
                               </a>
                             ))}
                           </li>
