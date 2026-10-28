@@ -108,8 +108,8 @@ If you have a custom `FileSystem` implementation, it now needs to provide
 An unstable `CommandLine` module has been added to `effect/process`, for
 quoting and joining command lines for POSIX shells, PowerShell and Windows
 programs. `ChildProcess` uses it to split templates, and now accepts `Redacted`
-arguments and `env` values, which reach the child unchanged but are never
-shown in logs.
+arguments and `env` values, which are passed to the child unchanged and are
+never shown in errors.
 
 ```ts
 import { Redacted } from "effect"
@@ -134,13 +134,17 @@ CommandLine.display(["deploy", "--token", token])
 // => "deploy --token <redacted>"
 ```
 
+`CommandLine.display` hides `Redacted` values, but `join` and `quote` include
+them, because their output is meant to run. Don't log what they return.
+
 ### Breaking changes
 
 - `ChildProcess.make` templates throw a `CommandLineError` for shell syntax
   such as `|`, `$HOME` or `*`. Quote those characters or pass them with `${}`.
 - With the `shell` option, templates cannot contain `${}` values, and extra
   arguments fail with `BadArgument`. Pass the whole script as the command,
-  built with `CommandLine.join`.
+  built with `CommandLine.join`, and name a POSIX shell: on Windows,
+  `shell: true` runs `cmd.exe`, which no `CommandLine` format quotes safely.
 - `ChildProcess.TemplateExpression` and `ChildProcess.TemplateExpressionItem`
   have been removed. Use the `CommandLine` types of the same name.
 
@@ -410,8 +414,10 @@ To test your registrations, `McpTest.makeClient` runs them behind an
 in-memory MCP client over the real JSON-RPC encoding.
 
 The `McpServer` layers also have a `cacheHints` option, which sets how long
-clients may treat discovery and list results as fresh, for example
-`cacheHints: { tools: { ttl: "1 minute", cacheScope: "private" } }`.
+clients on the `2026-07-28` MCP revision may treat discovery and list results
+as fresh, for example
+`cacheHints: { tools: { ttl: "1 minute", cacheScope: "private" } }`. Earlier
+revisions ignore it, and `resources/read` results always have a zero TTL.
 
 ## Other changes
 
