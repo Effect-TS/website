@@ -13,7 +13,12 @@ permissions: {}
 
 jobs:
   deploy:
-    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+    # Trust the Janitor app by its immutable GitHub user ID, never arbitrary bots.
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association) ||
+      github.event.pull_request.user.id == 349016676)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -101,7 +106,12 @@ jobs:
           key: astro-incremental-${{ runner.os }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
   cleanup:
-    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+    # Keep the trust gate aligned with deploy so Janitor previews are cleaned up.
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association) ||
+      github.event.pull_request.user.id == 349016676)
     runs-on: ubuntu-latest
     permissions:
       contents: read
