@@ -62,6 +62,7 @@ export class Mixedbread extends Context.Service<
     readonly syncProduction: (
       revision: string,
       scope?: SyncScope,
+      wait?: boolean,
     ) => Effect.Effect<void, MixedbreadError>
     readonly deleteStore: (
       options: DeleteOptions,
@@ -262,7 +263,11 @@ export class Mixedbread extends Context.Service<
 
     const deleteStore = stores.deletePreview
 
-    const syncProduction = (revision: string, scope: SyncScope = "all") =>
+    const syncProduction = (
+      revision: string,
+      scope: SyncScope = "all",
+      wait = false,
+    ) =>
       Option.match(configuredStoreId, {
         onNone: () =>
           Effect.fail(
@@ -277,6 +282,7 @@ export class Mixedbread extends Context.Service<
               kind: "production",
               revision,
               storeId: Redacted.value(storeId),
+              wait,
             },
             scope,
           ),

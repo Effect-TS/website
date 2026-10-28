@@ -21,6 +21,11 @@ export class FailedToIndexError extends Data.TaggedError("FailedToIndexError")<{
   }
 }
 
+export class FileIndexingError extends Data.TaggedError("FileIndexingError")<{
+  readonly externalId: string
+  readonly status: string
+}> {}
+
 export class FileInProgressError extends Data.TaggedError(
   "FileInProgressError",
 )<{

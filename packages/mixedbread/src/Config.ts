@@ -22,12 +22,14 @@ export interface PreviewSyncOptions {
   readonly pullRequest: number
   readonly revision: string
   readonly storeId: string
+  readonly wait?: boolean
 }
 
 export interface ProductionSyncOptions {
   readonly kind: "production"
   readonly revision: string
   readonly storeId: string
+  readonly wait?: boolean
 }
 
 export type SyncOptions = PreviewSyncOptions | ProductionSyncOptions

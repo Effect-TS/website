@@ -52,6 +52,66 @@ export function reconcileApiReferenceFiles<
   return { changedFiles, staleFiles }
 }
 
+// Indexing is asynchronous: an upload returns while the file is still pending.
+export const waitForIndexing = Effect.fn("ApiReferenceSync.waitForIndexing")(
+  function* (options: {
+    readonly files: ReadonlyArray<{
+      readonly externalId: string
+      readonly id: string
+    }>
+    readonly retrieve: (
+      id: string,
+    ) => Effect.Effect<
+      { readonly status?: string | undefined; readonly last_error?: unknown },
+      FailedToIndexError
+    >
+    readonly interval?: Duration.Input
+    readonly timeout?: Duration.Input
+  }) {
+    yield* Effect.forEach(
+      options.files,
+      ({ externalId, id }) =>
+        Effect.gen(function* () {
+          const file = yield* options.retrieve(id)
+          if (file.status === "failed" || file.status === "cancelled") {
+            return yield* new FailedToIndexError({
+              externalId,
+              cause: file.last_error ?? file.status,
+            })
+          }
+          if (file.status !== "completed") {
+            return yield* new FileIndexingError({
+              externalId,
+              status: file.status ?? "unknown",
+            })
+          }
+        }).pipe(
+          Effect.retry({
+            while: (error: FailedToIndexError | FileIndexingError) =>
+              error._tag === "FileIndexingError",
+            schedule: Schedule.spaced(options.interval ?? "5 seconds"),
+          }),
+          Effect.mapError((error) =>
+            error._tag === "FileIndexingError"
+              ? new FailedToIndexError({ externalId, cause: error.status })
+              : error,
+          ),
+          Effect.timeoutOrElse({
+            duration: options.timeout ?? "10 minutes",
+            orElse: () =>
+              Effect.fail(
+                new FailedToIndexError({
+                  externalId,
+                  cause: new Error("Timed out waiting for indexing"),
+                }),
+              ),
+          }),
+        ),
+      { concurrency: 20, discard: true },
+    )
+  },
+)
+
 export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
   function* (options: {
     readonly branch: string
@@ -107,7 +167,7 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
       { concurrency: UPLOAD_CONCURRENCY },
     )
 
-    yield* Effect.forEach(
+    const uploaded = yield* Effect.forEach(
       changedFiles,
       Effect.fnUntraced(function* ({ externalId, fileHash, metadata, upload }) {
         const now = yield* DateTime.now
@@ -198,14 +258,34 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
           })
         }
         yield* Effect.log(`Synchronized API reference file: ${externalId}`)
+        return { externalId, id: remoteFile.id }
       }),
       { concurrency: UPLOAD_CONCURRENCY },
     )
+
+    if (sync.wait === true && uploaded.length > 0) {
+      yield* waitForIndexing({
+        files: uploaded,
+        retrieve: (id) =>
+          Effect.tryPromise({
+            try: () =>
+              client.stores.files.retrieve(id, { store_identifier: store.id }),
+            catch: (cause) =>
+              new FailedToIndexError({
+                externalId: id,
+                cause,
+              }),
+          }),
+      })
+      yield* Effect.log(`Indexed ${uploaded.length} API reference files`)
+    }
   },
 )
 import MixedbreadClient from "@mixedbread/sdk"
 import * as DateTime from "effect/DateTime"
+import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
+import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import {
@@ -216,6 +296,7 @@ import {
 import {
   FailedToDeleteError,
   FailedToIndexError,
+  FileIndexingError,
   FileInProgressError,
   fileInProgressConflict,
   UnknownError,
