@@ -29,6 +29,7 @@ const scope = Flag.Literals("scope", ["all", "markdown", "api-reference"]).pipe(
 )
 
 const wait = Flag.Boolean("wait").pipe(
+  Flag.withDefault(false),
   Flag.withDescription(
     "Wait until every uploaded API reference file is indexed",
   ),
