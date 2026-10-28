@@ -75,7 +75,7 @@ const { primaryItems, socialLinks, showThemeToggle = false } = Astro.props
       <nav aria-label="Mobile" class="flex-1 overflow-y-auto px-6 py-6">
         <div class="space-y-1">
           {
-            primaryItems.map(({ link, href, active, entries }) => {
+            primaryItems.map(({ link, active, entries }) => {
               if (entries.length > 0) {
                 return (
                   <details class="group" open={active || undefined}>
@@ -96,30 +96,20 @@ const { primaryItems, socialLinks, showThemeToggle = false } = Astro.props
                     <ul class="mt-1 mb-2 ml-3 space-y-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-800">
                       {entries.map((entry) => {
                         return (
-                          <li class="flex flex-wrap items-center gap-1">
+                          <li>
                             <a
                               href={entry.href}
                               target={entry.external ? "_blank" : undefined}
                               rel={entry.external ? "noopener noreferrer" : undefined}
                               data-role="menu-link"
                               aria-current={entry.active ? "page" : undefined}
-                              class="block min-w-32 flex-1 rounded-md px-3 py-2 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:bg-zinc-100 aria-[current=page]:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-white"
+                              class="block rounded-md px-3 py-2 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:bg-zinc-100 aria-[current=page]:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-white"
                             >
                               <span class="inline-flex items-center gap-1">
                                 {entry.label}
                                 {entry.external && <ArrowUpRight size={14} aria-hidden="true" />}
                               </span>
                             </a>
-                            {entry.alternates.map((alternate) => (
-                              <a
-                                href={alternate.href}
-                                data-role="menu-link"
-                                aria-label={`${entry.label} ${alternate.label}`}
-                                class="flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-sm border border-zinc-300 px-2 font-mono text-xs whitespace-nowrap text-zinc-600 no-underline transition-colors hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-white"
-                              >
-                                {alternate.label}
-                              </a>
-                            ))}
                           </li>
                         )
                       })}
@@ -129,7 +119,7 @@ const { primaryItems, socialLinks, showThemeToggle = false } = Astro.props
               }
               return (
                 <a
-                  href={href}
+                  href={link.href}
                   target={link.kind === "external" ? link.target : undefined}
                   rel={link.kind === "external" ? link.rel : undefined}
                   data-role="menu-link"

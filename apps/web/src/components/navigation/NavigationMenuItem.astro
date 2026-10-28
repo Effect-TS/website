@@ -11,7 +11,7 @@ const { item } = Astro.props
 
 <div class="group/menu relative flex items-center gap-1">
   <a
-    href={item.href}
+    href={item.link.href}
     aria-current={item.active ? "page" : undefined}
     class="text-sm font-medium text-zinc-500 no-underline transition-colors hover:text-zinc-900 group-has-[details[open]]/menu:text-zinc-900 aria-[current=page]:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:group-has-[details[open]]/menu:text-white dark:aria-[current=page]:text-white"
   >
@@ -35,18 +35,13 @@ const { item } = Astro.props
       >
         {
           item.entries.map((entry) => (
-            <li
-              class:list={[
-                "flex items-start gap-1 rounded-md hover:bg-muted",
-                entry.active && "bg-accent",
-              ]}
-            >
+            <li class:list={["rounded-md hover:bg-muted", entry.active && "bg-accent"]}>
               <a
                 href={entry.href}
                 target={entry.external ? "_blank" : undefined}
                 rel={entry.external ? "noopener noreferrer" : undefined}
                 aria-current={entry.active ? "page" : undefined}
-                class="flex flex-1 flex-col rounded-md px-3 py-2 no-underline"
+                class="flex flex-col rounded-md px-3 py-2 no-underline"
               >
                 <span class="inline-flex items-center gap-1 text-sm font-medium text-foreground">
                   {entry.label}
@@ -56,15 +51,6 @@ const { item } = Astro.props
                   {entry.description}
                 </span>
               </a>
-              {entry.alternates.map((alternate) => (
-                <a
-                  href={alternate.href}
-                  aria-label={`${entry.label} ${alternate.label}`}
-                  class="mt-2 mr-2 flex min-h-6 min-w-6 items-center justify-center rounded-sm border border-border px-1.5 font-mono text-xs text-muted-foreground no-underline transition-colors hover:border-border-strong hover:text-foreground"
-                >
-                  {alternate.label}
-                </a>
-              ))}
             </li>
           ))
         }

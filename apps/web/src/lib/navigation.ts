@@ -1,5 +1,5 @@
 import type { DocsNavSection } from "@/lib/docs-sections"
-import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/docs-versions"
+import { defaultDocsVersion } from "@/lib/docs-versions"
 
 export type NavigationSurface = "desktop" | "mobile"
 
@@ -20,8 +20,6 @@ interface NavigationLinkBase {
   readonly icon?: "discord" | "github" | "twitter"
 }
 
-type DocsPath = "" | "/guides" | "/api"
-
 export interface NavigationMenuEntry {
   readonly id: string
   readonly label: string
@@ -29,13 +27,11 @@ export interface NavigationMenuEntry {
   readonly slug?: NavigationActiveSlug
   readonly docsSection?: DocsNavSection
   readonly href: `/${string}` | `https://${string}`
-  readonly docsPath?: DocsPath
 }
 
 export interface InternalNavigationLink extends NavigationLinkBase {
   readonly kind: "internal"
   readonly href: `/${string}`
-  readonly docsPath?: DocsPath
   readonly menu?: ReadonlyArray<NavigationMenuEntry>
 }
 
@@ -70,7 +66,6 @@ const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
     slug: "docs",
     docsSection: "onboarding",
     href: `/docs/${defaultDocsVersion}`,
-    docsPath: "",
   },
   {
     id: "docs-guides",
@@ -79,7 +74,6 @@ const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
     slug: "docs",
     docsSection: "guides",
     href: `/docs/${defaultDocsVersion}/guides`,
-    docsPath: "/guides",
   },
   {
     id: "docs-api",
@@ -88,7 +82,6 @@ const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
     slug: "api",
     docsSection: "api",
     href: `/docs/${defaultDocsVersion}/api`,
-    docsPath: "/api",
   },
   {
     id: "motw",
@@ -156,7 +149,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     kind: "internal",
     label: "Docs",
     href: `/docs/${defaultDocsVersion}`,
-    docsPath: "",
     menu: docsMenu,
     group: "primary",
     surfaces: ["desktop", "mobile"],
@@ -241,7 +233,6 @@ export const getNavigationLinks = (
 export interface NavigationContext {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly docsSection?: DocsNavSection | undefined
-  readonly version?: string | undefined
 }
 
 export interface NavigationEntryView {
@@ -251,42 +242,24 @@ export interface NavigationEntryView {
   readonly href: string
   readonly external: boolean
   readonly active: boolean
-  readonly alternates: ReadonlyArray<{
-    readonly label: string
-    readonly href: string
-  }>
 }
 
 export interface NavigationItemView {
   readonly link: NavigationLink
-  readonly href: string
   readonly active: boolean
   readonly entries: ReadonlyArray<NavigationEntryView>
 }
 
-const resolveHref = (
-  target: { readonly href: string; readonly docsPath?: DocsPath },
-  version: string,
-): string =>
-  target.docsPath === undefined
-    ? target.href
-    : `/docs/${version}${target.docsPath}`
-
-// Resolves versions and active state once, so components only render.
+// Resolves active state once, so components only render.
 export const buildNavigation = (
   surface: NavigationSurface,
   group: NavigationGroup,
-  {
-    activeSlug,
-    docsSection,
-    version = defaultDocsVersion,
-  }: NavigationContext = {},
+  { activeSlug, docsSection }: NavigationContext = {},
 ): ReadonlyArray<NavigationItemView> =>
   getNavigationLinks(surface, group).map((link): NavigationItemView => {
     const menu = link.kind === "internal" ? (link.menu ?? []) : []
     return {
       link,
-      href: resolveHref(link, version),
       active:
         activeSlug !== undefined &&
         (link.id === activeSlug ||
@@ -295,22 +268,13 @@ export const buildNavigation = (
         id: entry.id,
         label: entry.label,
         description: entry.description,
-        href: resolveHref(entry, version),
+        href: entry.href,
         external: entry.href.startsWith("https://"),
         active:
           entry.slug !== undefined &&
           entry.slug === activeSlug &&
           (entry.docsSection === undefined ||
             entry.docsSection === docsSection),
-        alternates:
-          entry.docsPath === undefined
-            ? []
-            : DOCS_VERSIONS.filter(({ value }) => value !== version).map(
-                ({ value, label }) => ({
-                  label,
-                  href: `/docs/${value}${entry.docsPath}`,
-                }),
-              ),
       })),
     }
   })
