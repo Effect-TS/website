@@ -103,6 +103,47 @@ unless the pattern is absolute.
 If you have a custom `FileSystem` implementation, it now needs to provide
 `readDirectoryEntries`. `FileSystem.make` derives `glob` for you.
 
+## CommandLine & ChildProcess
+
+An unstable `CommandLine` module has been added to `effect/process`, for
+quoting and joining command lines for POSIX shells, PowerShell and Windows
+programs. `ChildProcess` uses it to split templates, and now accepts `Redacted`
+arguments and `env` values, which reach the child unchanged but are never
+shown in logs.
+
+```ts
+import { Redacted } from "effect"
+import { ChildProcess, CommandLine } from "effect/process"
+
+const message = "fix: handle empty input"
+const token = Redacted.make("hunter2")
+
+// quotes group words, and each `${}` value is a single argument
+const commit = ChildProcess.make`git commit -m ${message}`
+
+const deploy = ChildProcess.make("deploy", ["--token", token], {
+  env: { REGISTRY_TOKEN: token },
+})
+
+// build one string for transports that take a whole command line, like SSH
+CommandLine.join(["git", "commit", "-m", message])
+// => Result.succeed("git commit -m 'fix: handle empty input'")
+
+// or render a command for logs
+CommandLine.display(["deploy", "--token", token])
+// => "deploy --token <redacted>"
+```
+
+### Breaking changes
+
+- `ChildProcess.make` templates throw a `CommandLineError` for shell syntax
+  such as `|`, `$HOME` or `*`. Quote those characters or pass them with `${}`.
+- With the `shell` option, templates cannot contain `${}` values, and extra
+  arguments fail with `BadArgument`. Pass the whole script as the command,
+  built with `CommandLine.join`.
+- `ChildProcess.TemplateExpression` and `ChildProcess.TemplateExpressionItem`
+  have been removed. Use the `CommandLine` types of the same name.
+
 ## Streaming CSV
 
 An unstable `Csv` module has been added to `effect/encoding`, for parsing and
@@ -268,6 +309,55 @@ const program = Effect.gen(function* () {
 })
 ```
 
+## ISO 8601 durations
+
+`Duration.formatIso` and `Duration.fromIso` convert durations to and from ISO
+8601 strings, and `Schema.DurationFromIsoString` decodes them in a schema.
+
+```ts
+import { Duration, Schema } from "effect"
+
+Duration.formatIso(Duration.minutes(90)) // => Option.some("PT1H30M")
+Duration.fromIso("P1W2D") // => Option.some(Duration.days(9))
+
+const Settings = Schema.Struct({
+  timeout: Schema.DurationFromIsoString,
+})
+
+Schema.decodeUnknownSync(Settings)({ timeout: "PT30S" })
+// => { timeout: Duration.seconds(30) }
+```
+
+Only exact units are supported: weeks, days, hours, minutes and seconds. Years
+and months are rejected, because they have no fixed length.
+
+`Duration.toMicros` has also been added, for converting durations to
+microseconds.
+
+## Match.literals
+
+The unstable `Match.literals` and `Match.literalsExhaustive` APIs match a union
+of string or number literals with a record of handlers:
+
+```ts
+import { Match } from "effect"
+
+type Status = "draft" | "review" | "published"
+
+const label = Match.type<Status>().pipe(
+  Match.literalsExhaustive({
+    draft: () => "Draft",
+    review: () => "In review",
+    published: () => "Live",
+  }),
+)
+
+label("review") // => "In review"
+```
+
+`Match.literals` handles some of the literals and leaves the matcher open, so
+it can be followed by `Match.orElse` or other patterns.
+
 ## McpServer request-level dependencies & visibility
 
 `McpServer` handlers can now have their services and middleware supplied per
@@ -313,8 +403,15 @@ const Registrations = McpServer.toolkit(AdminTools).pipe(
 )
 ```
 
+Under `layerHttp`, middleware and visibility layers can also use the
+per-request services provided by `HttpRouter.middleware`.
+
 To test your registrations, `McpTest.makeClient` runs them behind an
 in-memory MCP client over the real JSON-RPC encoding.
+
+The `McpServer` layers also have a `cacheHints` option, which sets how long
+clients may treat discovery and list results as fresh, for example
+`cacheHints: { tools: { ttl: "1 minute", cacheScope: "private" } }`.
 
 ## Other changes
 
@@ -329,6 +426,24 @@ in-memory MCP client over the real JSON-RPC encoding.
   `FetchHttpClient.StreamBodyFallback` to `"buffer"` to buffer the body
   instead.
 - `Context.makeUnsafe` has a `maxDepth` option.
+- `Schema.isAscii` checks that a string only contains ASCII characters.
+- `Effect.fnUntraced` and `Effect.fnUntracedEager` accept `{ self }` before
+  the generator body to bind `this`, like `Effect.fn`.
+- `Cron` and `Schedule.cron` have an `onDstOverlap` option that chooses which
+  occurrences of a repeated local time to include when clocks fall back:
+  `"earlier"` (the default), `"later"` or `"both"`.
+- `KeyValueStore` and `SchemaStore` have a `keys` method, implemented by the
+  memory, file system, SQL, Web Storage and IndexedDB stores.
+- `Semaphore.takeScoped` holds permits until the current scope closes.
+- `Config.Record`, `SchemaGetter.splitKeyValue` and
+  `SchemaTransformation.splitKeyValue` have `trim` and `keepEmptyValues`
+  options. `OTEL_RESOURCE_ATTRIBUTES` keys and values are now trimmed and
+  percent-decoded, and entries with an empty value are kept as `""`.
+- `HttpApiSchema.Upgrade` can be used alongside ordinary success responses,
+  for servers that decline the upgrade. `HttpApiClient.isUpgraded` narrows the
+  client result.
+- The AI `NetworkError` has an optional `cause` holding the `HttpClientError`
+  the request failed with, so the reason a request failed is no longer lost.
 - `Terminal.size` is a scoped queue that starts with the current terminal
   dimensions and receives each resize.
 - `RpcServer.make`, its layer and HTTP wrappers have an `onDisconnect` option
@@ -341,8 +456,8 @@ in-memory MCP client over the real JSON-RPC encoding.
   error and requirement types of the `HttpClient` passed to `make`, so errors
   and services added by client middleware show up in each operation.
 - `@effect/ai-anthropic` has regenerated its `Generated` module from a newer
-  Anthropic spec. The Skills client methods and file uploads have breaking
-  changes, see the CHANGELOG for details.
+  Anthropic spec. The Files and Skills client methods and file uploads have
+  breaking changes, see the CHANGELOG for details.
 
 ## Upgrade notes
 
@@ -379,7 +494,18 @@ A few other changes need attention when upgrading:
 - Custom terminals passed to `Terminal.make` have to provide `size`.
 - `McpServer` middleware that wraps a visibility runs on list requests, so
   `MiddlewareMethod` includes the list methods. Middleware provided both
-  locally and globally now runs once.
+  locally and globally now runs once. Unmet per-request services are now
+  `McpRequest<"Requires", S>` layer requirements, replacing
+  `MissingRequestDependencies`.
+- Custom stores built with `KeyValueStore.make` or
+  `KeyValueStore.makeStringOnly` have to provide `keys`. `size` and `isEmpty`
+  on `KeyValueStore.prefix(...)` now only count keys under the prefix.
+- `HttpApiClient.Upgraded` values carry a `[HttpApiClient.UpgradedTypeId]`
+  brand, so hand-built values such as client mocks have to add it.
+- `AiError.HttpRequestDetails` and `Response.HttpRequestDetails` have been
+  removed, so AI errors and response metadata no longer carry request headers
+  or query parameters. `AiError.NetworkError` has `method` and `url` fields
+  instead of `request`.
 
 There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
 
