@@ -77,70 +77,52 @@ const changelogChunk = (version: string, text: string, slug = "sql-pg") =>
     },
   }) as const
 
-const section = (
-  line: number,
-  level: number,
-  title: string,
-  anchor: string,
-  parent: string,
-) =>
-  JSON.stringify({
-    line,
-    level,
-    title,
-    anchor,
-    parent_anchor: parent,
+const markdownChunk = (source: "documentation" | "blog", heading: string) => {
+  const section = (
+    title: string,
+    anchor: string,
+  ): {
+    readonly section_title: string
+    readonly section_anchor: string
+    readonly excerpt: string
+  } => ({
+    section_title: title,
+    section_anchor: anchor,
     excerpt: `${title} excerpt`,
   })
-
-const markdownChunk = (source: "documentation" | "blog", heading: string) => {
-  const search =
+  const generated =
     source === "documentation"
       ? {
-          schema_version: 1,
-          content_source: "documentation",
-          docs_version: "v4",
-          breadcrumbs: ["Guides"],
+          type: "text",
           page_href: "/docs/v4/guides/services",
-          page_label: "Services",
           page_title: "Services",
-          sections: [
-            section(1, 2, "Overview", "overview", ""),
-            section(10, 3, "Layers", "layers", "overview"),
-          ],
+          breadcrumbs: ["Guides"],
+          parent_title: "Overview",
+          parent_anchor: "overview",
+          parent_excerpt: "Overview excerpt",
+          ...(heading === "Layers"
+            ? section("Layers", "layers")
+            : section("Overview", "overview")),
         }
       : {
-          schema_version: 1,
-          content_source: "blog",
+          type: "text",
           page_href: "/blog/post",
           page_title: "A post",
           description: "About things",
           published_at: "2026-01-01",
           authors: ["Jane"],
           tags: ["effect"],
-          sections: [
-            section(1, 2, "Intro", "intro", ""),
-            section(5, 2, "Empty", "", ""),
-          ],
+          ...(heading === "Empty"
+            ? section("Empty", "")
+            : section("Intro", "intro")),
         }
   return {
     text: `## ${heading}\n\nBody text.`,
-    metadata: { content_source: source, file_path: "x.mdx" },
-    generated: {
-      type: "markdown",
-      start_line:
-        heading === "Layers"
-          ? 10
-          : heading === "Intro"
-            ? 1
-            : heading === "Empty"
-              ? 5
-              : 1,
-      num_lines: 3,
-      chunk_headings: [{ level: heading === "Layers" ? 3 : 2, text: heading }],
-      heading_context: [],
-      search,
+    metadata: {
+      content_source: source,
+      ...(source === "documentation" ? { docs_version: "v4" } : {}),
     },
+    generated,
   } as const
 }
 

@@ -16,8 +16,6 @@ const eq = (key: string, value: string): SearchFilterCondition => ({
   value,
 })
 
-// Docs and blog share `content_source: "markdown"` in the store, so each
-// is told apart by the `search` block staged into its generated metadata.
 const groupFilter = (
   group: SearchGroup,
   version: DocsVersion | undefined,
@@ -25,9 +23,10 @@ const groupFilter = (
 ): Filter | undefined => {
   switch (group) {
     case "documentation": {
+      const documentation = eq("content_source", "documentation")
       return version === undefined
-        ? eq("generated_metadata.search.content_source", "documentation")
-        : eq("generated_metadata.search.docs_version", version)
+        ? documentation
+        : { all: [documentation, eq("docs_version", version)] }
     }
     case "api-reference": {
       return version === undefined
@@ -36,7 +35,7 @@ const groupFilter = (
     }
     case "blog": {
       // Posts without a version stay visible in both.
-      const blog = eq("generated_metadata.search.content_source", "blog")
+      const blog = eq("content_source", "blog")
       return version === undefined
         ? blog
         : {
@@ -45,9 +44,7 @@ const groupFilter = (
               {
                 none: DOCS_VERSIONS.filter(
                   (other) => other.value !== version,
-                ).map((other) =>
-                  eq("generated_metadata.search.version", other.value),
-                ),
+                ).map((other) => eq("docs_version", other.value)),
               },
             ],
           }

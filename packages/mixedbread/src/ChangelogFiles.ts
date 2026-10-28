@@ -5,7 +5,7 @@ import {
 import type { ChangelogRelease } from "@website/domain/Changelog"
 import { changelogHref } from "@website/domain/ChangelogView"
 import * as Effect from "effect/Effect"
-import { chunkFiles } from "./ChunkFiles.ts"
+import { chunkFiles, splitText } from "./ChunkFiles.ts"
 import {
   CHANGELOG_INDEX_CHANNELS,
   MAX_CHANGELOG_CHUNK_LENGTH,
@@ -50,30 +50,6 @@ export function searchBody(body: string): string {
     .filter((section) => section.replace(/^###.*$/m, "").trim() !== "")
     .join("")
     .trim()
-}
-
-/** Split text at line boundaries into parts of at most `limit` characters. */
-export function splitText(text: string, limit: number): Array<string> {
-  const parts: Array<string> = []
-  let current = ""
-  const flush = () => {
-    if (current.trim() !== "") parts.push(current.trim())
-    current = ""
-  }
-  for (const line of text.split("\n")) {
-    let rest = line
-    while (rest.length > limit) {
-      const space = rest.lastIndexOf(" ", limit)
-      const cut = space > 0 ? space : limit
-      flush()
-      parts.push(rest.slice(0, cut).trim())
-      rest = rest.slice(cut)
-    }
-    if (current.length + rest.length + 1 > limit) flush()
-    current += `${rest}\n`
-  }
-  flush()
-  return parts
 }
 
 const releaseDate = new Intl.DateTimeFormat("en-US", {

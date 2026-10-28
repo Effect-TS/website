@@ -12,6 +12,30 @@ export interface LocalFile {
     | Promise<ReturnType<typeof toFile>>
 }
 
+/** Split text at line boundaries into parts of at most `limit` characters. */
+export function splitText(text: string, limit: number): Array<string> {
+  const parts: Array<string> = []
+  let current = ""
+  const flush = () => {
+    if (current.trim() !== "") parts.push(current.trim())
+    current = ""
+  }
+  for (const line of text.split("\n")) {
+    let rest = line
+    while (rest.length > limit) {
+      const space = rest.lastIndexOf(" ", limit)
+      const cut = space > 0 ? space : limit
+      flush()
+      parts.push(rest.slice(0, cut).trim())
+      rest = rest.slice(cut)
+    }
+    if (current.length + rest.length + 1 > limit) flush()
+    current += `${rest}\n`
+  }
+  flush()
+  return parts
+}
+
 /** Split chunks into files of at most `size`, filling the first files first. */
 export function shardChunks<A>(
   chunks: ReadonlyArray<A>,

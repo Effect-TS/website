@@ -4,10 +4,12 @@ import type { SearchResult, SearchResultChunk } from "./domain"
 import {
   ApiReferenceGeneratedMetadata,
   ApiReferenceMetadata,
-  BlogGeneratedMetadata,
+  BlogChunkMetadata,
+  BlogMetadata,
   ChangelogGeneratedMetadata,
   ChangelogMetadata,
-  DocumentationGeneratedMetadata,
+  DocumentationChunkMetadata,
+  DocumentationMetadata,
   StoreSearchResponse,
 } from "./domain"
 
@@ -34,32 +36,6 @@ export function extractSnippet(text: string, maxLength: number = 150): string {
     return cleaned
   }
   return cleaned.substring(0, maxLength).trim() + "..."
-}
-
-function markdownSection(
-  generated:
-    | typeof DocumentationGeneratedMetadata.Type
-    | typeof BlogGeneratedMetadata.Type,
-) {
-  const firstHeading = generated.chunk_headings[0]
-  const endLine = generated.start_line + generated.num_lines
-  const chunkSection =
-    firstHeading === undefined
-      ? undefined
-      : generated.search.sections.find(
-          (section) =>
-            section.line >= generated.start_line &&
-            section.line <= endLine &&
-            section.level === firstHeading.level &&
-            section.title === firstHeading.text,
-        )
-  return (
-    chunkSection ??
-    generated.search.sections.findLast(
-      (section) => section.line <= generated.start_line,
-    ) ??
-    generated.search.sections[0]
-  )
 }
 
 type Grouped = Map<string, DeepMutable<SearchResult>>
@@ -173,64 +149,59 @@ export function groupSearchResults(
       return
     }
 
-    const generated = chunk.generated_metadata
-    if (Schema.is(BlogGeneratedMetadata)(generated)) {
-      const href = generated.search.page_href
+    if (Schema.is(BlogMetadata)(chunk.metadata)) {
+      const generated = chunk.generated_metadata
+      if (!Schema.is(BlogChunkMetadata)(generated)) return
+      const href = generated.page_href
       const result = resultFor(grouped, "blog", href, () => ({
         kind: "blog",
         id: href,
-        title: generated.search.page_title,
-        description: generated.search.description,
+        title: generated.page_title,
+        description: generated.description,
         href,
-        publishedAt: new Date(generated.search.published_at),
-        authors: [...generated.search.authors],
-        tags: [...generated.search.tags],
+        publishedAt: new Date(generated.published_at),
+        authors: [...generated.authors],
+        tags: [...generated.tags],
         chunks: [],
       }))
-      if (result === undefined) return
-      const section = markdownSection(generated)
-      if (section === undefined || section.anchor.length === 0) return
+      if (result === undefined || generated.section_anchor.length === 0) return
       addChunk(result, {
         id,
-        href: `${href}#${section.anchor}`,
-        title: section.title,
-        snippet: section.excerpt || extractSnippet(chunk.text),
+        href: `${href}#${generated.section_anchor}`,
+        title: generated.section_title,
+        snippet: generated.excerpt || extractSnippet(chunk.text),
         score: chunk.score,
       })
       return
     }
 
-    if (!Schema.is(DocumentationGeneratedMetadata)(generated)) return
-    const section = markdownSection(generated)
-    if (section === undefined) return
-    const parent =
-      generated.search.sections.find(
-        (candidate) => candidate.anchor === section.parent_anchor,
-      ) ?? section
-
-    const parentHref = parent.anchor
-      ? `${generated.search.page_href}#${parent.anchor}`
-      : generated.search.page_href
+    const metadata = chunk.metadata
+    if (!Schema.is(DocumentationMetadata)(metadata)) return
+    const generated = chunk.generated_metadata
+    if (!Schema.is(DocumentationChunkMetadata)(generated)) return
+    const parentHref = generated.parent_anchor
+      ? `${generated.page_href}#${generated.parent_anchor}`
+      : generated.page_href
     const result = resultFor(grouped, "documentation", parentHref, () => ({
       kind: "documentation",
       id: parentHref,
-      breadcrumbs: [...generated.search.breadcrumbs],
-      description: parent.excerpt,
-      title: parent.title,
+      breadcrumbs: [...generated.breadcrumbs],
+      description: generated.parent_excerpt,
+      title: generated.parent_title,
       href: parentHref,
-      version: generated.search.docs_version,
+      version: metadata.docs_version,
       chunks: [],
     }))
     if (result === undefined) return
-    if (section.anchor === parent.anchor) return
+    if (generated.section_anchor === generated.parent_anchor) return
 
     addChunk(result, {
       id,
-      href: section.anchor
-        ? `${generated.search.page_href}#${section.anchor}`
-        : generated.search.page_href,
-      title: section.title,
-      snippet: section.excerpt || extractSnippet(chunk.text),
+      href: generated.section_anchor
+        ? `${generated.page_href}#${generated.section_anchor}`
+        : generated.page_href,
+      title: generated.section_title,
+      snippet: generated.excerpt || extractSnippet(chunk.text),
       score: chunk.score,
     })
   })

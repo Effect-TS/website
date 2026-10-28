@@ -9,9 +9,8 @@ import {
   generateChangelogFiles,
   releaseChunks,
   searchBody,
-  splitText,
 } from "../src/ChangelogFiles.ts"
-import { shardChunks } from "../src/ChunkFiles.ts"
+import { shardChunks, splitText } from "../src/ChunkFiles.ts"
 import {
   MAX_CHANGELOG_CHUNK_LENGTH,
   MAX_CHUNKS_PER_FILE,

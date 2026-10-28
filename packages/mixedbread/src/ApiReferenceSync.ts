@@ -121,8 +121,13 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
     readonly stores: StoreClient
     readonly sync: SyncOptions
     readonly version: number
+    /** External id prefixes this sync owns; other files are left alone. */
+    readonly prefixes?: ReadonlyArray<string>
+    readonly label?: string
   }) {
     const { branch, client, files, store, stores, sync, version } = options
+    const prefixes = options.prefixes ?? ["api-reference/"]
+    const label = options.label ?? "API reference"
     const duplicateIds = Map.groupBy(files, (file) => file.externalId)
       .entries()
       .filter(([, duplicates]) => duplicates.length > 1)
@@ -138,7 +143,9 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
 
     const remoteFiles = (yield* Stream.runCollect(
       stores.listFiles(store.id),
-    )).filter((file) => file.external_id?.startsWith("api-reference/"))
+    )).filter((file) =>
+      prefixes.some((prefix) => file.external_id?.startsWith(prefix)),
+    )
     const { changedFiles, staleFiles } = reconcileApiReferenceFiles<
       LocalFile,
       MixedbreadClient.Stores.StoreFile
@@ -146,8 +153,8 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
     const unchanged = files.length - changedFiles.length
     yield* Effect.log(
       changedFiles.length === 0
-        ? `API reference index for ${store.name} is up to date; no uploads required (${unchanged} files unchanged)`
-        : `Uploading ${changedFiles.length} changed API reference files to ${store.name} (${unchanged} files unchanged)`,
+        ? `${label} index for ${store.name} is up to date; no uploads required (${unchanged} files unchanged)`
+        : `Uploading ${changedFiles.length} changed ${label} files to ${store.name} (${unchanged} files unchanged)`,
     )
 
     yield* Effect.forEach(
@@ -160,9 +167,7 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
             }),
           catch: (cause) => new FailedToDeleteError({ file, cause }),
         })
-        yield* Effect.log(
-          `Deleted stale API reference file: ${file.external_id}`,
-        )
+        yield* Effect.log(`Deleted stale ${label} file: ${file.external_id}`)
       }),
       { concurrency: UPLOAD_CONCURRENCY },
     )
@@ -257,7 +262,7 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
             cause: remoteFile.last_error ?? remoteFile.status,
           })
         }
-        yield* Effect.log(`Synchronized API reference file: ${externalId}`)
+        yield* Effect.log(`Synchronized ${label} file: ${externalId}`)
         return { externalId, id: remoteFile.id }
       }),
       { concurrency: UPLOAD_CONCURRENCY },
@@ -277,7 +282,7 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
               }),
           }),
       })
-      yield* Effect.log(`Indexed ${uploaded.length} API reference files`)
+      yield* Effect.log(`Indexed ${uploaded.length} ${label} files`)
     }
   },
 )

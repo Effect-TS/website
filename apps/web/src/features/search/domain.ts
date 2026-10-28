@@ -1,15 +1,10 @@
 import * as Schema from "effect/Schema"
 import {
-  BlogSearchMetadata,
-  DocumentationSearchMetadata,
-  DocumentationSearchSection,
+  BlogChunkMetadata,
+  DocumentationChunkMetadata,
 } from "@website/domain/SearchMetadata"
 
-export {
-  BlogSearchMetadata,
-  DocumentationSearchMetadata,
-  DocumentationSearchSection,
-}
+export { BlogChunkMetadata, DocumentationChunkMetadata }
 
 const CommonMetadata = {
   synced: Schema.Boolean,
@@ -22,7 +17,7 @@ const CommonMetadata = {
 export const DocumentationMetadata = Schema.Struct({
   ...CommonMetadata,
   content_source: Schema.Literal("documentation"),
-  file_path: Schema.String,
+  docs_version: Schema.String,
 })
 
 export const ApiReferenceMetadata = Schema.Struct({
@@ -44,7 +39,7 @@ export const ChangelogMetadata = Schema.Struct({
 export const BlogMetadata = Schema.Struct({
   ...CommonMetadata,
   content_source: Schema.Literal("blog"),
-  file_path: Schema.String,
+  docs_version: Schema.optional(Schema.String),
 })
 
 export const MarkdownMetadata = Schema.Struct({
@@ -69,29 +64,6 @@ export const Metadata = Schema.Union([
 
 export type Metadata = typeof Metadata.Type
 
-export const HeadingInfo = Schema.Struct({
-  level: Schema.Int,
-  text: Schema.String,
-})
-
-export const DocumentationGeneratedMetadata = Schema.Struct({
-  type: Schema.Literal("markdown"),
-  start_line: Schema.Int,
-  num_lines: Schema.Int,
-  chunk_headings: Schema.Array(HeadingInfo),
-  heading_context: Schema.Array(HeadingInfo),
-  search: DocumentationSearchMetadata,
-})
-
-export const BlogGeneratedMetadata = Schema.Struct({
-  type: Schema.Literal("markdown"),
-  start_line: Schema.Int,
-  num_lines: Schema.Int,
-  chunk_headings: Schema.Array(HeadingInfo),
-  heading_context: Schema.Array(HeadingInfo),
-  search: BlogSearchMetadata,
-})
-
 export const ApiReferenceGeneratedMetadata = Schema.Struct({
   type: Schema.Literal("text"),
   declaration_anchor: Schema.String,
@@ -112,8 +84,8 @@ export const ChangelogGeneratedMetadata = Schema.Struct({
 export const GeneratedMetadata = Schema.Union([
   ApiReferenceGeneratedMetadata,
   ChangelogGeneratedMetadata,
-  DocumentationGeneratedMetadata,
-  BlogGeneratedMetadata,
+  DocumentationChunkMetadata,
+  BlogChunkMetadata,
   Schema.Record(Schema.String, Schema.Unknown),
 ])
 

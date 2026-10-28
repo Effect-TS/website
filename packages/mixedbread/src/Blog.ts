@@ -1,16 +1,7 @@
 import * as Schema from "effect/Schema"
-import {
-  countLines,
-  frontmatterLines,
-  parseMarkdown,
-  sections,
-  serializeSearchFrontmatter,
-  spliceFrontmatter,
-} from "./Markdown.ts"
-import { BlogStagedSearchMetadata } from "@website/domain/SearchMetadata"
-
-export const SearchMetadata = BlogStagedSearchMetadata
-export type SearchMetadata = typeof BlogStagedSearchMetadata.Type
+import type { BlogChunkMetadata } from "@website/domain/SearchMetadata"
+import { parseMarkdown } from "./Markdown.ts"
+import { markdownChunks } from "./MarkdownChunks.ts"
 
 const Frontmatter = Schema.Struct({
   title: Schema.String,
@@ -21,76 +12,64 @@ const Frontmatter = Schema.Struct({
   version: Schema.optional(Schema.Literals(["v3", "v4"])),
   draft: Schema.optional(Schema.Boolean),
 })
-const FrontmatterRecord = Schema.Record(Schema.String, Schema.Unknown)
 
-export interface StagedBlogPost {
-  readonly source: string
-  readonly metadata: SearchMetadata
+export interface BlogChunk {
+  readonly type: "text"
+  readonly text: string
+  readonly mime_type: "text/plain"
+  readonly generated_metadata: BlogChunkMetadata
 }
 
-export function stageBlogPost(
+export interface BlogPage {
+  readonly href: string
+  /** The docs version the post is about, when it is about one. */
+  readonly version: "v3" | "v4" | undefined
+  readonly directory: string
+  readonly name: string
+  readonly chunks: ReadonlyArray<BlogChunk>
+}
+
+export function blogPage(
   source: string,
   relativePath: string,
-): StagedBlogPost | undefined {
+): BlogPage | undefined {
   const parsed = parseMarkdown(source, "Blog post must have YAML frontmatter")
   const frontmatter = Schema.decodeUnknownSync(Frontmatter)(parsed.frontmatter)
-  const frontmatterRecord = Schema.decodeUnknownSync(FrontmatterRecord)(
-    parsed.frontmatter,
-  )
   if (frontmatter.draft === true) return undefined
 
-  const originalSections = sections(
-    parsed.tree,
-    frontmatter.title,
-    frontmatter.excerpt,
-  )
-  const baseMetadata: SearchMetadata = {
-    schema_version: 1,
-    content_source: "blog",
-    ...(frontmatter.version === undefined
-      ? {}
-      : { version: frontmatter.version }),
-    page_href: `/blog/${blogPostId(relativePath)}`,
-    page_title: frontmatter.title,
+  const id = blogPostId(relativePath)
+  const href = `/blog/${id}`
+  const chunks = markdownChunks(source, parsed, {
+    title: frontmatter.title,
     description: frontmatter.excerpt,
-    published_at: frontmatter.date,
-    authors: frontmatter.authors,
-    tags: frontmatter.tags,
-    sections: originalSections,
-  }
-  const provisionalFrontmatter = serializeSearchFrontmatter(
-    frontmatterRecord,
-    baseMetadata,
-    "blog",
-  )
-  const lineDelta =
-    countLines(provisionalFrontmatter) -
-    frontmatterLines(parsed, "Blog frontmatter is missing source lines")
-  const metadata: SearchMetadata = {
-    ...baseMetadata,
-    sections: originalSections.map((section) => ({
-      ...section,
-      line: section.line === 1 ? 1 : section.line + lineDelta,
-    })),
-  }
-  const finalFrontmatter = serializeSearchFrontmatter(
-    frontmatterRecord,
-    metadata,
-    "blog",
-  )
-  if (countLines(finalFrontmatter) !== countLines(provisionalFrontmatter)) {
-    throw new Error(
-      `Blog metadata changed frontmatter height for ${relativePath}`,
-    )
-  }
+    context: `Effect blog · ${frontmatter.date}${
+      frontmatter.tags.length === 0 ? "" : ` · ${frontmatter.tags.join(", ")}`
+    }`,
+  }).map(({ text, section }) => ({
+    type: "text" as const,
+    text,
+    mime_type: "text/plain" as const,
+    generated_metadata: {
+      type: "text" as const,
+      page_href: href,
+      page_title: frontmatter.title,
+      description: frontmatter.excerpt,
+      published_at: frontmatter.date,
+      authors: frontmatter.authors,
+      tags: frontmatter.tags,
+      section_title: section.title,
+      section_anchor: section.anchor,
+      excerpt: section.excerpt,
+    },
+  }))
+
+  const parts = id.split("/")
   return {
-    source: spliceFrontmatter(
-      source,
-      parsed,
-      finalFrontmatter,
-      "Blog frontmatter is missing source offsets",
-    ),
-    metadata,
+    href,
+    version: frontmatter.version,
+    directory: ["blog", ...parts.slice(0, -1)].join("/"),
+    name: parts.at(-1) ?? id,
+    chunks,
   }
 }
 
