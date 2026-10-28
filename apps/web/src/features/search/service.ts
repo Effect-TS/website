@@ -12,6 +12,9 @@ import { type SearchGroup, SearchError, StoreSearchResponse } from "./domain"
 import { searchFilter } from "./filters"
 import { groupSearchResults } from "./grouping"
 
+// Reranked scores of nonsense queries stay under 0.08, and real ones start above 0.4.
+const MIN_SCORE = 0.1
+
 // A changelog-only search has many repeated notes to collapse, so it asks for more.
 const topK = (options: {
   readonly groups?: ReadonlyArray<SearchGroup> | undefined
@@ -48,7 +51,11 @@ export class Search extends Context.Service<Search>()("app/Search", {
             {
               query: options.query,
               top_k: topK(options),
-              search_options: { rerank: true, return_metadata: true },
+              search_options: {
+                rerank: true,
+                return_metadata: true,
+                score_threshold: MIN_SCORE,
+              },
               store_identifiers: [Redacted.value(storeId)],
               ...(filters === undefined ? {} : { filters }),
             },

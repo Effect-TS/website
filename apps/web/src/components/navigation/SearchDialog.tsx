@@ -309,30 +309,6 @@ export const allSearchResultsAtom = Atom.make((get) => {
   )
 })
 
-// Results in the other version, looked up only when the selected one is empty.
-const alternateVersionResultCountAtom = Atom.make((get) => {
-  const version = get(selectedVersionAtom)
-  const query = get(debouncedSearchQueryAtom)
-  if (
-    query.trim().length === 0 ||
-    !AsyncResult.isSuccess(get(allSearchResultsAtom)) ||
-    get(searchResultsAtom).length > 0
-  ) {
-    return Option.none<number>()
-  }
-  const alternate: DocsVersion = version === "v4" ? "v3" : "v4"
-  return Option.fromNullOr(
-    AsyncResult.getOrElse(
-      get(
-        searchRequestAtom(
-          searchRequestKey(query, alternate, get(activeGroupsAtom)),
-        ),
-      ).pipe(AsyncResult.map((results) => results.length)),
-      () => null,
-    ),
-  )
-})
-
 // Changelog results re-queried for one package, keyed `<slug>:<query>`.
 const scopedChangelogRequestAtom = Atom.family((key: string) => {
   const separator = key.indexOf(":")
@@ -1015,16 +991,20 @@ function SearchResultsDetail({
         All results
       </Button>
       {section === "changelog" ? <ChangelogPackageFilter /> : null}
-      <ul className="space-y-2">
-        {results.map((result, index) => (
-          <SearchResultItem
-            key={result.id}
-            result={result}
-            rank={index + 1}
-            view="section"
-          />
-        ))}
-      </ul>
+      {results.length === 0 ? (
+        <SearchEmptyState />
+      ) : (
+        <ul className="space-y-2">
+          {results.map((result, index) => (
+            <SearchResultItem
+              key={result.id}
+              result={result}
+              rank={index + 1}
+              view="section"
+            />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -1078,17 +1058,8 @@ function SearchResultsOverview({
 
 function SearchEmptyState() {
   const query = useAtomValue(searchQueryAtom)
-  const version = useAtomValue(selectedVersionAtom)
   const selectedGroups = useAtomValue(activeGroupsAtom)
-  const setVersion = useAtomSet(selectedVersionAtom)
   const clearSelectedGroups = useAtomSet(clearSelectedGroupsAtom)
-  const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
-  const alternateVersionResultCount = Option.getOrElse(
-    useAtomValue(alternateVersionResultCountAtom),
-    () => 0,
-  )
-  const alternateVersion: DocsVersion = version === "v4" ? "v3" : "v4"
-  const noResultsAcrossVersions = alternateVersionResultCount === 0
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
@@ -1101,11 +1072,11 @@ function SearchEmptyState() {
       <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
         No results for &ldquo;{query.trim()}&rdquo;
       </p>
-      {selectedGroups.length === 0 && noResultsAcrossVersions ? (
+      {selectedGroups.length === 0 ? (
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Check spelling or try a broader term
         </p>
-      ) : selectedGroups.length > 0 && noResultsAcrossVersions ? (
+      ) : (
         <Button
           type="button"
           variant="outline"
@@ -1117,21 +1088,6 @@ function SearchEmptyState() {
         >
           Search everywhere
         </Button>
-      ) : (
-        <button
-          type="button"
-          className="mt-1 flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-          onClick={() => {
-            SearchAnalytics.versionChange(version, alternateVersion)
-            setVersion(alternateVersion)
-            scrollResultsToTop()
-          }}
-        >
-          See{" "}
-          <span className="tabular-nums">{alternateVersionResultCount}</span>{" "}
-          more results in {alternateVersion}
-          <ChevronRight className="size-3.5" />
-        </button>
       )}
     </div>
   )
