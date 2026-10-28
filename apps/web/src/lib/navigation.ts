@@ -1,4 +1,4 @@
-import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
+import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/docs-versions"
 
 export type NavigationSurface = "desktop" | "mobile"
 
