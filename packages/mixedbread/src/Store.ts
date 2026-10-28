@@ -5,10 +5,11 @@ import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
-import type {
-  DeleteOptions,
-  PreviewSyncOptions,
-  SyncOptions,
+import {
+  API_MAX_RETRIES,
+  type DeleteOptions,
+  type PreviewSyncOptions,
+  type SyncOptions,
 } from "./Config.ts"
 import { InvalidStoreError, UnknownError } from "./Error.ts"
 
@@ -28,6 +29,16 @@ export const StoreFileMetadata = Schema.Struct({
   file_hash: Schema.String,
   version: Schema.Int,
 })
+
+export const makeClient = (
+  apiKey: string,
+  fetch?: typeof globalThis.fetch,
+): MixedbreadClient =>
+  new MixedbreadClient({
+    apiKey,
+    maxRetries: API_MAX_RETRIES,
+    ...(fetch === undefined ? {} : { fetch }),
+  })
 
 export interface StoreClient {
   readonly deletePreview: (

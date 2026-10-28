@@ -5,7 +5,10 @@ export const MAX_CHANGELOG_CHUNK_LENGTH = 2_000
 // Docs and blog chunks follow the same budget as changelog chunks.
 export const MAX_MARKDOWN_CHUNK_LENGTH = MAX_CHANGELOG_CHUNK_LENGTH
 export const CHANGELOG_INDEX_CHANNELS = ["v4"] as const
-export const UPLOAD_CONCURRENCY = 100
+// Uploads and deletes share the write limit; 100 at once hit it.
+export const UPLOAD_CONCURRENCY = 20
+// The client waits out each 429 for the time the API asks, so a burst passes.
+export const API_MAX_RETRIES = 8
 export const FILE_UPLOAD_ATTEMPTS = 3
 export const DEFAULT_DOCUMENTATION_DIRECTORY = "apps/web/src/content/docs"
 export const DEFAULT_BLOG_DIRECTORY = "apps/web/src/content/blog"

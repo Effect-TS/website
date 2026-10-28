@@ -33,7 +33,7 @@ import {
   generateBlogFiles,
   generateDocumentationFiles,
 } from "./MarkdownFiles.ts"
-import { makeStoreClient } from "./Store.ts"
+import { makeClient, makeStoreClient } from "./Store.ts"
 
 type MixedbreadError =
   | FailedToDeleteError
@@ -91,7 +91,7 @@ export class Mixedbread extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const fs = yield* FileSystem.FileSystem
     const path = yield* Path.Path
-    const client = new MixedbreadClient({ apiKey: Redacted.value(apiKey) })
+    const client = makeClient(Redacted.value(apiKey))
     const stores = makeStoreClient({ client, repository, storePrefix })
 
     const hash = Effect.fn("Mixedbread.hash")(function* (bytes: Uint8Array) {
