@@ -5,15 +5,17 @@ import {
   getNavigationLinks,
   isNavigationLinkActive,
   type NavigationActiveSlug,
+  type NavigationDocsSection,
   type NavigationLink,
 } from "@/lib/navigation"
 
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly version?: string | undefined
+  readonly docsSection?: NavigationDocsSection | undefined
 }
 
-const { activeSlug, version } = Astro.props
+const { activeSlug, version, docsSection } = Astro.props
 
 const links =
   version === undefined
@@ -32,6 +34,7 @@ const links =
         link={link}
         active={isNavigationLinkActive(link, activeSlug)}
         activeSlug={activeSlug}
+        docsSection={docsSection}
       />
     ) : (
       <NavigationAnchor

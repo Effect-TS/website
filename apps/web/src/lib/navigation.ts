@@ -19,6 +19,8 @@ interface NavigationLinkBase {
   readonly icon?: "discord" | "github" | "twitter"
 }
 
+export type NavigationDocsSection = "onboarding" | "guides" | "api"
+
 export interface NavigationMenuVersion {
   readonly label: string
   readonly href: `/${string}`
@@ -30,6 +32,7 @@ export interface NavigationMenuEntry {
   readonly label: string
   readonly description: string
   readonly slug?: NavigationActiveSlug
+  readonly docsSection?: NavigationDocsSection
   readonly href: `/${string}` | `https://${string}`
   readonly versions?: ReadonlyArray<NavigationMenuVersion>
 }
@@ -65,7 +68,7 @@ export type NavigationActiveSlug =
   | "merch"
 
 const docsVersionLinks = (
-  suffix: "" | "/api",
+  suffix: "" | "/guides" | "/api",
 ): ReadonlyArray<NavigationMenuVersion> =>
   DOCS_VERSIONS.map(({ value, label }) => ({
     label,
@@ -75,18 +78,29 @@ const docsVersionLinks = (
 
 const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
   {
-    id: "docs-home",
-    label: "Documentation",
-    description: "Onboarding and guides",
+    id: "docs-onboarding",
+    label: "Onboarding",
+    description: "Core concepts, in order",
     slug: "docs",
+    docsSection: "onboarding",
     href: `/docs/${defaultDocsVersion}`,
     versions: docsVersionLinks(""),
   },
   {
+    id: "docs-guides",
+    label: "Guides",
+    description: "Each topic in more detail",
+    slug: "docs",
+    docsSection: "guides",
+    href: `/docs/${defaultDocsVersion}/guides`,
+    versions: docsVersionLinks("/guides"),
+  },
+  {
     id: "docs-api",
-    label: "API reference",
+    label: "Reference",
     description: "Packages, modules and exports",
     slug: "api",
+    docsSection: "api",
     href: `/docs/${defaultDocsVersion}/api`,
     versions: docsVersionLinks("/api"),
   },
@@ -246,5 +260,19 @@ export const isNavigationLinkActive = (
   return (
     link.kind === "internal" &&
     (link.activeSlugs?.includes(activeSlug) ?? false)
+  )
+}
+
+export const isNavigationEntryActive = (
+  entry: NavigationMenuEntry,
+  context: {
+    readonly activeSlug: NavigationActiveSlug | undefined
+    readonly docsSection: NavigationDocsSection | undefined
+  },
+): boolean => {
+  if (entry.slug === undefined || entry.slug !== context.activeSlug)
+    return false
+  return (
+    entry.docsSection === undefined || entry.docsSection === context.docsSection
   )
 }

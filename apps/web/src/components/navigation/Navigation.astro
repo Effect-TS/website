@@ -8,15 +8,17 @@ import { SearchDialog } from "@/components/navigation/SearchDialog"
 import {
   getNavigationLinks,
   type NavigationActiveSlug,
+  type NavigationDocsSection,
   type NavigationLink,
 } from "@/lib/navigation"
 
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly version?: string | undefined
+  readonly docsSection?: NavigationDocsSection | undefined
 }
 
-const { activeSlug, version } = Astro.props
+const { activeSlug, version, docsSection } = Astro.props
 
 const showThemeToggle =
   activeSlug === "playground" ||
@@ -42,7 +44,9 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
 <div class="sticky top-0 z-100 w-full">
   <AnnouncementBanner />
 
-  <div class="w-full border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
+  <div
+    class="relative z-10 w-full border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
+  >
     <header
       class:list={[
         "@container/navigation relative mx-auto w-full px-4",
@@ -53,13 +57,14 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
         <NavigationLogo />
 
         <div class="ml-8 hidden items-center gap-6 @min-[64rem]/navigation:flex">
-          <NavigationLinks activeSlug={activeSlug} version={version} />
+          <NavigationLinks activeSlug={activeSlug} version={version} docsSection={docsSection} />
         </div>
 
         <NavigationMobileMenu
           primaryLinks={mobilePrimaryLinks}
           socialLinks={mobileSocialLinks}
           activeSlug={activeSlug}
+          docsSection={docsSection}
           showThemeToggle={showThemeToggle}
         />
 

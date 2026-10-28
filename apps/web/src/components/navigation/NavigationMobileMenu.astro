@@ -3,7 +3,9 @@ import { Search, X } from "@lucide/astro"
 import { ArrowUpRight, ChevronDown } from "@lucide/astro"
 import {
   isNavigationLinkActive,
+  isNavigationEntryActive,
   type NavigationActiveSlug,
+  type NavigationDocsSection,
   type NavigationLink,
 } from "@/lib/navigation"
 import DiscordIcon from "@/assets/icons/fa7-brands/discord.svg"
@@ -15,10 +17,11 @@ interface Props {
   readonly primaryLinks: ReadonlyArray<NavigationLink>
   readonly socialLinks: ReadonlyArray<NavigationLink>
   readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly docsSection?: NavigationDocsSection | undefined
   readonly showThemeToggle?: boolean
 }
 
-const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro.props
+const { primaryLinks, socialLinks, activeSlug, docsSection, showThemeToggle = false } = Astro.props
 ---
 
 <effect-mobile-menu class="ml-auto flex items-center gap-2">
@@ -110,7 +113,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
                               rel={external ? "noopener noreferrer" : undefined}
                               data-role="menu-link"
                               aria-current={
-                                entry.slug !== undefined && entry.slug === activeSlug
+                                isNavigationEntryActive(entry, { activeSlug, docsSection })
                                   ? "page"
                                   : undefined
                               }

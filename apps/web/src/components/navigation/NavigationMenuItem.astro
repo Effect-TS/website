@@ -1,15 +1,21 @@
 ---
 import { ArrowUpRight, ChevronDown } from "@lucide/astro"
 import NavigationAnchor from "@/components/navigation/NavigationAnchor.astro"
-import type { InternalNavigationLink, NavigationActiveSlug } from "@/lib/navigation"
+import {
+  isNavigationEntryActive,
+  type InternalNavigationLink,
+  type NavigationActiveSlug,
+  type NavigationDocsSection,
+} from "@/lib/navigation"
 
 interface Props {
   readonly link: InternalNavigationLink
   readonly active: boolean
   readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly docsSection?: NavigationDocsSection | undefined
 }
 
-const { link, active, activeSlug } = Astro.props
+const { link, active, activeSlug, docsSection } = Astro.props
 const menu = link.menu ?? []
 const panelId = `navigation-menu-${link.id}`
 ---
@@ -46,20 +52,14 @@ const panelId = `navigation-menu-${link.id}`
       {
         menu.map((entry) => {
           const external = entry.href.startsWith("https://")
+          const entryActive = isNavigationEntryActive(entry, { activeSlug, docsSection })
           return (
-            <li
-              class:list={[
-                "relative rounded-md hover:bg-muted",
-                entry.slug !== undefined && entry.slug === activeSlug && "bg-accent",
-              ]}
-            >
+            <li class:list={["relative rounded-md hover:bg-muted", entryActive && "bg-accent"]}>
               <a
                 href={entry.href}
                 target={external ? "_blank" : undefined}
                 rel={external ? "noopener noreferrer" : undefined}
-                aria-current={
-                  entry.slug !== undefined && entry.slug === activeSlug ? "page" : undefined
-                }
+                aria-current={entryActive ? "page" : undefined}
                 data-role="entry"
                 class:list={[
                   "flex flex-col rounded-md px-3 py-2 no-underline",
