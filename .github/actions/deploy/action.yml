@@ -53,18 +53,23 @@ runs:
       uses: ./.github/actions/setup
 
     - name: Restore API reference snapshot
+      id: api-reference-snapshot
       uses: ./.github/actions/restore-api-reference-snapshot
       with:
         snapshot: ${{ inputs.api-reference-snapshot }}
 
+    # The snapshot comes first in the key, so a build prefers a cache rendered
+    # from the same API reference data, and a deploy of a new snapshot saves
+    # its own cache instead of colliding with the earlier deploy of the commit.
     - name: Restore Astro incremental build cache
       if: inputs.force-full-build != 'true'
       uses: actions/cache/restore@v5
       with:
         path: apps/web/.astro-cache
-        key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
+        key: astro-incremental-${{ runner.os }}-${{ steps.api-reference-snapshot.outputs.tag }}-main-${{ inputs.website-ref }}
         restore-keys: |
-          astro-incremental-${{ runner.os }}-main-
+          astro-incremental-${{ runner.os }}-${{ steps.api-reference-snapshot.outputs.tag }}-main-
+          astro-incremental-${{ runner.os }}-
 
     # Alchemy's --force re-runs the resource, while deleting this directory
     # forces Astro to re-render every prerendered page during that build.
@@ -102,20 +107,24 @@ runs:
         FORCE_FULL_BUILD: ${{ inputs.force-full-build }}
 
     - name: Verify generated API reference links
+      id: verify-links
       shell: bash
       run: |
         if [[ -d apps/web/dist/client/docs ]]; then
           node apps/web/scripts/verify-api-reference-links.mjs apps/web/dist/client
+          echo "built=true" >> "$GITHUB_OUTPUT"
         else
           echo "Alchemy reused the unchanged deployment; no local build output to verify."
         fi
 
+    # Without a build, the cache directory is still the one restored above,
+    # which may belong to another snapshot.
     - name: Save Astro incremental build cache
-      if: success() && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+      if: success() && steps.verify-links.outputs.built == 'true' && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
       uses: actions/cache/save@v5
       with:
         path: apps/web/.astro-cache
-        key: astro-incremental-${{ runner.os }}-main-${{ inputs.website-ref }}
+        key: astro-incremental-${{ runner.os }}-${{ steps.api-reference-snapshot.outputs.tag }}-main-${{ inputs.website-ref }}
 
     - name: Synchronize Mixedbread production store
       shell: bash
