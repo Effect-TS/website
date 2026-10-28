@@ -1,0 +1,211 @@
+---
+import { ArrowUpRight, ChevronDown } from "@lucide/astro"
+import NavigationAnchor from "@/components/navigation/NavigationAnchor.astro"
+import type { InternalNavigationLink, NavigationActiveSlug } from "@/lib/navigation"
+
+interface Props {
+  readonly link: InternalNavigationLink
+  readonly active: boolean
+  readonly activeSlug?: NavigationActiveSlug | undefined
+}
+
+const { link, active, activeSlug } = Astro.props
+const menu = link.menu ?? []
+const panelId = `navigation-menu-${link.id}`
+---
+
+<effect-navigation-menu class="group/menu relative flex items-center gap-1">
+  <NavigationAnchor
+    link={link}
+    class="text-sm font-medium no-underline transition-colors text-zinc-500 hover:text-zinc-900 group-data-open/menu:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:group-data-open/menu:text-white"
+    active={active}
+    activeClass="text-zinc-900 dark:text-white"
+  />
+  <button
+    type="button"
+    data-role="toggle"
+    aria-expanded="false"
+    aria-controls={panelId}
+    aria-label={`${link.label} menu`}
+    class="flex size-5 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:text-zinc-900 group-data-open/menu:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:group-data-open/menu:text-white"
+  >
+    <ChevronDown
+      class="size-3.5 transition-transform group-data-open/menu:rotate-180"
+      aria-hidden="true"
+    />
+  </button>
+
+  <div
+    id={panelId}
+    data-role="panel"
+    class="absolute top-full -left-3 hidden w-max pt-3 group-data-open/menu:block"
+  >
+    <ul
+      class="grid grid-cols-2 gap-1.5 rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-md"
+    >
+      {
+        menu.map((entry) => {
+          const external = entry.href.startsWith("https://")
+          return (
+            <li
+              class:list={[
+                "relative rounded-md hover:bg-muted",
+                entry.slug !== undefined && entry.slug === activeSlug && "bg-accent",
+              ]}
+            >
+              <a
+                href={entry.href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+                aria-current={
+                  entry.slug !== undefined && entry.slug === activeSlug ? "page" : undefined
+                }
+                data-role="entry"
+                class:list={[
+                  "flex flex-col rounded-md px-3 py-2 no-underline",
+                  entry.versions && "pr-20",
+                ]}
+              >
+                <span class="inline-flex items-center gap-1 text-sm font-medium text-foreground">
+                  {entry.label}
+                  {external && <ArrowUpRight size={14} aria-hidden="true" />}
+                </span>
+                <span class="text-xs whitespace-nowrap text-muted-foreground">
+                  {entry.description}
+                </span>
+              </a>
+              {entry.versions && (
+                <div class="absolute top-2 right-2 flex gap-1">
+                  {entry.versions.map((version) => (
+                    <a
+                      href={version.href}
+                      data-role="entry"
+                      aria-label={`${entry.label} ${version.label}`}
+                      class:list={[
+                        "rounded-sm border px-1.5 font-mono text-xs no-underline transition-colors",
+                        version.current
+                          ? "border-transparent bg-secondary font-semibold text-foreground"
+                          : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
+                      ]}
+                    >
+                      {version.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </li>
+          )
+        })
+      }
+    </ul>
+  </div>
+</effect-navigation-menu>
+
+<script>
+  const OPEN_DELAY_MS = 500
+  const CLOSE_DELAY_MS = 250
+
+  let activeMenu: EffectNavigationMenuElement | null = null
+
+  class EffectNavigationMenuElement extends HTMLElement {
+    #toggle: HTMLButtonElement | null = null
+    #timer: number | undefined
+
+    connectedCallback() {
+      const toggle = this.querySelector("[data-role='toggle']")
+      if (!(toggle instanceof HTMLButtonElement)) return
+      this.#toggle = toggle
+
+      toggle.addEventListener("click", this.#onToggleClick)
+      this.addEventListener("pointerenter", this.#onPointerEnter)
+      this.addEventListener("pointerleave", this.#onPointerLeave)
+      this.addEventListener("focusin", this.#onFocusIn)
+      this.addEventListener("focusout", this.#onFocusOut)
+      this.addEventListener("keydown", this.#onKeyDown)
+      this.addEventListener("click", this.#onClick)
+      document.addEventListener("pointerdown", this.#onDocumentPointerDown)
+    }
+
+    disconnectedCallback() {
+      window.clearTimeout(this.#timer)
+      this.#toggle?.removeEventListener("click", this.#onToggleClick)
+      this.removeEventListener("pointerenter", this.#onPointerEnter)
+      this.removeEventListener("pointerleave", this.#onPointerLeave)
+      this.removeEventListener("focusin", this.#onFocusIn)
+      this.removeEventListener("focusout", this.#onFocusOut)
+      this.removeEventListener("keydown", this.#onKeyDown)
+      this.removeEventListener("click", this.#onClick)
+      document.removeEventListener("pointerdown", this.#onDocumentPointerDown)
+      if (activeMenu === this) activeMenu = null
+    }
+
+    get isOpen() {
+      return this.hasAttribute("data-open")
+    }
+
+    setOpen(open: boolean) {
+      window.clearTimeout(this.#timer)
+      if (open === this.isOpen) return
+      if (open) {
+        if (activeMenu && activeMenu !== this) activeMenu.setOpen(false)
+        activeMenu = this
+      } else if (activeMenu === this) {
+        activeMenu = null
+      }
+      this.toggleAttribute("data-open", open)
+      this.#toggle?.setAttribute("aria-expanded", open ? "true" : "false")
+    }
+
+    #schedule(open: boolean, delay: number) {
+      window.clearTimeout(this.#timer)
+      this.#timer = window.setTimeout(() => this.setOpen(open), delay)
+    }
+
+    #onClick = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-role='entry']")) {
+        this.setOpen(false)
+      }
+    }
+
+    #onToggleClick = () => {
+      this.setOpen(!this.isOpen)
+    }
+
+    #onPointerEnter = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return
+      this.#schedule(true, activeMenu ? 0 : OPEN_DELAY_MS)
+    }
+
+    #onPointerLeave = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return
+      this.#schedule(false, CLOSE_DELAY_MS)
+    }
+
+    #onFocusIn = () => {
+      window.clearTimeout(this.#timer)
+    }
+
+    #onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget
+      if (next instanceof Node && this.contains(next)) return
+      if (this.matches(":hover")) return
+      this.setOpen(false)
+    }
+
+    #onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !this.isOpen) return
+      event.preventDefault()
+      this.setOpen(false)
+      this.#toggle?.focus()
+    }
+
+    #onDocumentPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && this.contains(event.target)) return
+      this.setOpen(false)
+    }
+  }
+
+  if (!customElements.get("effect-navigation-menu")) {
+    customElements.define("effect-navigation-menu", EffectNavigationMenuElement)
+  }
+</script>

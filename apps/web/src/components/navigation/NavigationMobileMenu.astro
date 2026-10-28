@@ -1,6 +1,11 @@
 ---
 import { Search, X } from "@lucide/astro"
-import type { NavigationActiveSlug, NavigationLink } from "@/lib/navigation"
+import { ArrowUpRight, ChevronDown } from "@lucide/astro"
+import {
+  isNavigationLinkActive,
+  type NavigationActiveSlug,
+  type NavigationLink,
+} from "@/lib/navigation"
 import DiscordIcon from "@/assets/icons/fa7-brands/discord.svg"
 import GitHubIcon from "@/assets/icons/fa7-brands/github.svg"
 import TwitterIcon from "@/assets/icons/fa7-brands/x-twitter.svg"
@@ -56,7 +61,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       role="dialog"
       aria-modal="true"
       aria-label="Navigation menu"
-      class="fixed top-0 right-0 flex h-full w-full max-w-[64%] flex-col bg-white shadow-xl dark:bg-zinc-900"
+      class="fixed top-0 right-0 flex h-full w-full max-w-[88%] sm:max-w-sm flex-col bg-white shadow-xl dark:bg-zinc-900"
       style="transform: translateX(100%)"
     >
       <div
@@ -75,23 +80,87 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       <nav aria-label="Mobile" class="flex-1 overflow-y-auto px-6 py-6">
         <div class="space-y-1">
           {
-            primaryLinks.map((link) => (
-              <a
-                href={link.href}
-                target={link.kind === "external" ? link.target : undefined}
-                rel={link.kind === "external" ? link.rel : undefined}
-                data-role="menu-link"
-                aria-current={link.id === activeSlug ? "page" : undefined}
-                class:list={[
-                  "block rounded-md px-3 py-2.5 text-[15px] no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white",
-                  link.id === activeSlug
-                    ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
-                    : "text-zinc-600 dark:text-zinc-300",
-                ]}
-              >
-                {link.label}
-              </a>
-            ))
+            primaryLinks.map((link) => {
+              const active = isNavigationLinkActive(link, activeSlug)
+              if (link.kind === "internal" && link.menu !== undefined) {
+                return (
+                  <details class="group" open={active || undefined}>
+                    <summary
+                      class:list={[
+                        "flex cursor-pointer list-none items-center justify-between rounded-md px-3 py-2.5 text-[15px] transition-colors marker:hidden hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white [&::-webkit-details-marker]:hidden",
+                        active
+                          ? "text-zinc-900 dark:text-white"
+                          : "text-zinc-600 dark:text-zinc-300",
+                      ]}
+                    >
+                      {link.label}
+                      <ChevronDown
+                        class="size-4 shrink-0 transition-transform group-open:rotate-180"
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <ul class="mt-1 mb-2 ml-3 space-y-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-800">
+                      {link.menu.map((entry) => {
+                        const external = entry.href.startsWith("https://")
+                        return (
+                          <li class="flex flex-wrap items-center gap-1">
+                            <a
+                              href={entry.href}
+                              target={external ? "_blank" : undefined}
+                              rel={external ? "noopener noreferrer" : undefined}
+                              data-role="menu-link"
+                              aria-current={
+                                entry.slug !== undefined && entry.slug === activeSlug
+                                  ? "page"
+                                  : undefined
+                              }
+                              class="block min-w-32 flex-1 rounded-md px-3 py-2 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:bg-zinc-100 aria-[current=page]:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-white"
+                            >
+                              <span class="inline-flex items-center gap-1">
+                                {entry.label}
+                                {external && <ArrowUpRight size={14} aria-hidden="true" />}
+                              </span>
+                            </a>
+                            {entry.versions?.map((version) => (
+                              <a
+                                href={version.href}
+                                data-role="menu-link"
+                                aria-label={`${entry.label} ${version.label}`}
+                                class:list={[
+                                  "shrink-0 whitespace-nowrap rounded-sm border px-2 py-0.5 font-mono text-xs no-underline transition-colors",
+                                  version.current
+                                    ? "border-transparent bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
+                                    : "border-zinc-300 text-zinc-600 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-white",
+                                ]}
+                              >
+                                {version.label}
+                              </a>
+                            ))}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </details>
+                )
+              }
+              return (
+                <a
+                  href={link.href}
+                  target={link.kind === "external" ? link.target : undefined}
+                  rel={link.kind === "external" ? link.rel : undefined}
+                  data-role="menu-link"
+                  aria-current={active ? "page" : undefined}
+                  class:list={[
+                    "block rounded-md px-3 py-2.5 text-[15px] no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white",
+                    active
+                      ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                      : "text-zinc-600 dark:text-zinc-300",
+                  ]}
+                >
+                  {link.label}
+                </a>
+              )
+            })
           }
         </div>
 

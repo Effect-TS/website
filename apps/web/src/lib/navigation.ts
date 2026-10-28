@@ -1,3 +1,5 @@
+import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
+
 export type NavigationSurface = "desktop" | "mobile"
 
 export type NavigationGroup = "primary" | "secondary" | "social"
@@ -17,9 +19,26 @@ interface NavigationLinkBase {
   readonly icon?: "discord" | "github" | "twitter"
 }
 
+export interface NavigationMenuVersion {
+  readonly label: string
+  readonly href: `/${string}`
+  readonly current: boolean
+}
+
+export interface NavigationMenuEntry {
+  readonly id: string
+  readonly label: string
+  readonly description: string
+  readonly slug?: NavigationActiveSlug
+  readonly href: `/${string}` | `https://${string}`
+  readonly versions?: ReadonlyArray<NavigationMenuVersion>
+}
+
 export interface InternalNavigationLink extends NavigationLinkBase {
   readonly kind: "internal"
   readonly href: `/${string}`
+  readonly menu?: ReadonlyArray<NavigationMenuEntry>
+  readonly activeSlugs?: ReadonlyArray<NavigationActiveSlug>
 }
 
 export interface ExternalNavigationLink extends NavigationLinkBase {
@@ -41,64 +60,127 @@ export type NavigationActiveSlug =
   | "playground"
   | "community"
   | "effect-days"
+  | "myths"
+  | "adoption-partners"
+  | "merch"
 
-export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
+const docsVersionLinks = (
+  suffix: "" | "/api",
+): ReadonlyArray<NavigationMenuVersion> =>
+  DOCS_VERSIONS.map(({ value, label }) => ({
+    label,
+    href: `/docs/${value}${suffix}`,
+    current: value === defaultDocsVersion,
+  }))
+
+const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
   {
-    id: "docs",
-    kind: "internal",
-    label: "Docs",
-    href: "/docs/v4",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
+    id: "docs-home",
+    label: "Documentation",
+    description: "Onboarding and guides",
+    slug: "docs",
+    href: `/docs/${defaultDocsVersion}`,
+    versions: docsVersionLinks(""),
   },
   {
-    id: "playground",
-    kind: "internal",
-    label: "Play",
-    href: "/play",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
-    id: "blog",
-    kind: "internal",
-    label: "Blog",
-    href: "/blog",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
+    id: "docs-api",
+    label: "API reference",
+    description: "Packages, modules and exports",
+    slug: "api",
+    href: `/docs/${defaultDocsVersion}/api`,
+    versions: docsVersionLinks("/api"),
   },
   {
     id: "motw",
-    kind: "internal",
     label: "Module of the Week",
+    description: "One lesser-known module at a time",
+    slug: "motw",
     href: "/module-of-the-week",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
+  },
+  {
+    id: "podcast",
+    label: "Podcast",
+    description: "Engineers using Effect in production",
+    slug: "podcast",
+    href: "/podcast",
+  },
+  {
+    id: "workshops",
+    label: "Workshops",
+    description: "Recorded sessions on YouTube",
+    href: "https://www.youtube.com/playlist?list=PLDf3uQLaK2B9vHzUNyvOSvoMv61LW7792",
+  },
+  {
+    id: "myths",
+    label: "Myths",
+    description: "Common misconceptions",
+    slug: "myths",
+    href: "/myths",
+  },
+]
+
+const communityMenu: ReadonlyArray<NavigationMenuEntry> = [
+  {
+    id: "community-hub",
+    label: "Community Hub",
+    description: "Meetups, talks and events",
+    slug: "community",
+    href: "/community-hub",
   },
   {
     id: "jobs",
-    kind: "internal",
     label: "Jobs",
+    description: "Open roles using Effect",
+    slug: "jobs",
     href: "/effect-jobs",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
   },
   {
+    id: "adoption-partners",
+    label: "Adoption partners",
+    description: "Get help adopting Effect",
+    slug: "adoption-partners",
+    href: "/adoption-partners",
+  },
+  {
+    id: "merch",
+    label: "Merch",
+    description: "Effect-branded merchandise",
+    slug: "merch",
+    href: "/merch",
+  },
+]
+
+const primaryLink = (
+  link: Omit<InternalNavigationLink, "kind" | "group" | "surfaces">,
+): InternalNavigationLink => ({
+  ...link,
+  kind: "internal",
+  group: "primary",
+  surfaces: ["desktop", "mobile"],
+})
+
+export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
+  primaryLink({
+    id: "docs",
+    label: "Docs",
+    href: `/docs/${defaultDocsVersion}`,
+    menu: docsMenu,
+    activeSlugs: ["docs", "api", "motw", "podcast", "myths"],
+  }),
+  primaryLink({ id: "playground", label: "Play", href: "/play" }),
+  primaryLink({ id: "blog", label: "Blog", href: "/blog" }),
+  primaryLink({
     id: "community",
-    kind: "internal",
     label: "Community",
     href: "/community-hub",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
+    menu: communityMenu,
+    activeSlugs: ["community", "jobs", "adoption-partners", "merch"],
+  }),
+  primaryLink({
     id: "effect-days",
-    kind: "internal",
     label: "Effect Days",
     href: "/effect-days",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
+  }),
   {
     id: "github",
     kind: "external",
@@ -153,4 +235,16 @@ export const applyVersionToLinks = (
       return { ...link, href: `/docs/${version}` as `/${string}` }
     return link
   })
+}
+
+export const isNavigationLinkActive = (
+  link: NavigationLink,
+  activeSlug: NavigationActiveSlug | undefined,
+): boolean => {
+  if (activeSlug === undefined) return false
+  if (link.id === activeSlug) return true
+  return (
+    link.kind === "internal" &&
+    (link.activeSlugs?.includes(activeSlug) ?? false)
+  )
 }
