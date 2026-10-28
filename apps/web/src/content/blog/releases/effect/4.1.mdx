@@ -13,20 +13,11 @@ tags:
 Effect 4.1 has been released! This release includes a number of new features
 and improvements. Here's a summary of what's new:
 
-## effect/crypto modules
+## Crypto services
 
-The single `effect/Crypto` module has been replaced by a set of services under
-`effect/crypto`, one per algorithm family:
-
-- `SecureRandom` for random bytes, integers, shuffling, UUIDs and ULIDs
-- `Digest` for MD5, SHA-1, SHA-256, SHA-384 and SHA-512
-- `Mac`, `Kdf`, `Aead`, `Cipher`, `Signature`, `KeyAgreement` and `KeyWrap`
-- `KeyFormat` and `CryptoError`, plus key schemas in `effect/Schema`
-
-Each family has a `layerWebCrypto` layer that runs on the configurable
-`WebCrypto` reference. `NodeCrypto`, `BunCrypto`, `DenoCrypto` and
-`BrowserCrypto` provide a layer per family, and a combined `layer` with all of
-them.
+The new `effect/crypto` modules cover randomness, hashing, encryption,
+signing and key management. Provide the services explicitly with a platform
+layer such as `NodeCrypto.layer`:
 
 ```ts
 import { NodeCrypto } from "@effect/platform-node"
@@ -37,7 +28,6 @@ const program = Effect.gen(function* () {
   const random = yield* SecureRandom.SecureRandom
   const digest = yield* Digest.Digest
 
-  // UUIDv7s are now monotonic, even within the same millisecond
   const id = yield* random.uuidV7()
   const checksum = yield* digest.digestHex(
     Digest.sha256,
@@ -47,33 +37,15 @@ const program = Effect.gen(function* () {
   yield* Effect.log(id, checksum)
 })
 
-// crypto services are no longer part of the default runtime services,
-// so provide them explicitly
 program.pipe(Effect.provide(NodeCrypto.layer), Effect.runFork)
 ```
 
-### Breaking changes
+These replace `effect/Crypto`. See the upgrade notes below before switching.
 
-- Use `SecureRandom` for randomness and UUIDs, and `Digest` for hashing.
-  `effect/testing/TestCrypto` has been removed; use `Layer.mock` for the
-  services you need instead.
-- Crypto is no longer included in the runtime `*Services` bundles, so it has
-  to be provided explicitly.
-- `SqlMessageStorage` and `SingleRunner` now require `Digest.Digest` instead of
-  `Crypto.Crypto`. `SqlEventLogServerEncrypted.makeStorage` and `layerStorage`
-  require `Digest.Digest` instead of `EventLogEncryption`.
-- `EventLogEncryption.sha256String` has been removed. Use
-  `digest.digestHex(Digest.sha256, bytes)`.
-- Encoding secret or private keys through the byte / format schemas requires
-  `{ allowEncode: true }`.
+## Glob matching and file search
 
-Existing workflow IDs, activity idempotency keys, event log table names,
-identities and encrypted batches are unchanged.
-
-## Glob module
-
-An experimental `Glob` module has been added, along with a `FileSystem.glob`
-method that has a shared implementation for Node, Bun and Deno.
+The experimental `Glob` module matches paths, and `FileSystem.glob` searches
+for files with the same pattern syntax on Node, Bun and Deno.
 
 ```ts
 import { NodeFileSystem } from "@effect/platform-node"
@@ -97,56 +69,8 @@ const program = Effect.gen(function* () {
 program.pipe(Effect.provide(NodeFileSystem.layer), Effect.runFork)
 ```
 
-Patterns always use `/` as the separator, and results are relative to `root`
-unless the pattern is absolute.
-
-If you have a custom `FileSystem` implementation, it now needs to provide
-`readDirectoryEntries`. `FileSystem.make` derives `glob` for you.
-
-## CommandLine & ChildProcess
-
-An unstable `CommandLine` module has been added to `effect/process`, for
-quoting and joining command lines for POSIX shells, PowerShell and Windows
-programs. `ChildProcess` uses it to split templates, and now accepts `Redacted`
-arguments and `env` values, which are passed to the child unchanged and are
-never shown in errors.
-
-```ts
-import { Redacted } from "effect"
-import { ChildProcess, CommandLine } from "effect/process"
-
-const message = "fix: handle empty input"
-const token = Redacted.make("hunter2")
-
-// quotes group words, and each `${}` value is a single argument
-const commit = ChildProcess.make`git commit -m ${message}`
-
-const deploy = ChildProcess.make("deploy", ["--token", token], {
-  env: { REGISTRY_TOKEN: token },
-})
-
-// build one string for transports that take a whole command line, like SSH
-CommandLine.join(["git", "commit", "-m", message])
-// => Result.succeed("git commit -m 'fix: handle empty input'")
-
-// or render a command for logs
-CommandLine.display(["deploy", "--token", token])
-// => "deploy --token <redacted>"
-```
-
-`CommandLine.display` hides `Redacted` values, but `join` and `quote` include
-them, because their output is meant to run. Don't log what they return.
-
-### Breaking changes
-
-- `ChildProcess.make` templates throw a `CommandLineError` for shell syntax
-  such as `|`, `$HOME` or `*`. Quote those characters or pass them with `${}`.
-- With the `shell` option, templates cannot contain `${}` values, and extra
-  arguments fail with `BadArgument`. Pass the whole script as the command,
-  built with `CommandLine.join`, and name a POSIX shell: on Windows,
-  `shell: true` runs `cmd.exe`, which no `CommandLine` format quotes safely.
-- `ChildProcess.TemplateExpression` and `ChildProcess.TemplateExpressionItem`
-  have been removed. Use the `CommandLine` types of the same name.
+Patterns use `/` as the separator. Results are relative to `root` unless the
+pattern is absolute.
 
 ## Streaming CSV
 
@@ -174,22 +98,14 @@ Effect.runPromise(people).then(console.log)
 
 ## HttpApi Problem Details
 
-`HttpApi` has opt-in support for [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
-Problem Details. `HttpApiError.Problem` declares a typed problem as an error
-class, which endpoints render, document and decode as
-`application/problem+json`:
+`HttpApi` can now render, document and decode errors as
+[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details, using
+`application/problem+json`. Declare a typed problem with
+`HttpApiError.Problem` and use it as an endpoint's error schema:
 
 ```ts
-import { Effect, Layer, Schema } from "effect"
-import {
-  HttpApi,
-  HttpApiBuilder,
-  HttpApiEndpoint,
-  HttpApiError,
-  HttpApiGroup,
-  HttpApiMiddleware,
-  HttpApiSchema,
-} from "effect/http-api"
+import { Schema } from "effect"
+import { HttpApiError } from "effect/http-api"
 
 class OutOfCredit extends HttpApiError.Problem<OutOfCredit>()(
   "OutOfCredit",
@@ -200,275 +116,103 @@ class OutOfCredit extends HttpApiError.Problem<OutOfCredit>()(
   },
   { balance: Schema.Number },
 ) {}
-
-const Api = HttpApi.make("Api")
-  .add(
-    HttpApiGroup.make("shop")
-      .add(
-        HttpApiEndpoint.post("purchase", "/purchase", {
-          success: Schema.String,
-          error: OutOfCredit,
-        }),
-      )
-      .add(
-        HttpApiEndpoint.get("item", "/items/:id", {
-          params: { id: Schema.String },
-          success: Schema.String,
-          // render a built-in error as a problem
-          error: HttpApiError.NotFound.pipe(
-            HttpApiSchema.asProblem({ title: "Item not found" }),
-          ),
-        }),
-      ),
-  )
-  // render request decoding failures as problems too
-  .middleware(HttpApiMiddleware.ProblemDetails)
-
-const ShopLive = HttpApiBuilder.group(Api, "shop", (handlers) =>
-  handlers
-    // responds with 403 and an application/problem+json body:
-    // { type: "https://example.com/probs/out-of-credit", status: 403,
-    //   title: "You do not have enough credit.", balance: 30 }
-    .handle("purchase", () => Effect.fail(new OutOfCredit({ balance: 30 })))
-    .handle("item", () => Effect.fail(new HttpApiError.NotFound())),
-)
-
-const ApiLive = HttpApiBuilder.layer(Api).pipe(
-  Layer.provide(ShopLive),
-  Layer.provide(HttpApiMiddleware.layerProblemDetails()),
-)
 ```
 
-With `HttpApiMiddleware.ProblemDetails`, request decoding failures become a
-generic `400` problem, and response encoding failures a `500` problem. Pass
-`{ includeDetails: true }` to `layerProblemDetails` to add per-field `errors`
-to the `400`. The `ProblemDetails` module in `effect/http` has the media type,
-a codec and a response constructor if you need to build problems by hand.
-
+Built-in errors can opt in with `HttpApiSchema.asProblem`. Add
+`HttpApiMiddleware.ProblemDetails` and its layer to render request decoding
+failures as `400` problems and response encoding failures as `500` problems.
 Nothing changes unless you opt in.
 
-## Decision.Image & Decision.locate
+## More highlights
 
-Images used by a `Decision` are now declared as fields of the input schema with
-`Decision.Image`, and the new `Decision.locate` answers with a bounding box
-around a target in one of those images.
-
-```ts
-import { Schema } from "effect"
-import { Decision } from "effect/ai"
-
-const FindMug = Decision.make({
-  input: Schema.Struct({ photo: Decision.Image }),
-  decisions: {
-    present: Decision.probability({
-      instructions: "`photo` shows a coffee mug",
-    }),
-    mug: Decision.locate({ image: "photo", instructions: "the coffee mug" }),
-  },
-})
-```
-
-`DecideOptions.images` has been removed. Add `Decision.Image` fields to your
-input schema and refer to each image by its path in your instructions.
-
-Providers opt in to locate decisions with `supportsLocate: true`.
-`TypeSafeDecisionModel` supports both images and locate decisions. Locate
-decisions are sent as Box questions, which need Jev 1.14 (`jev-preview` or
-`jev-1.14.0`). The OpenAI and Cloudflare providers label each image with its
-reference.
-
-## Effect.ignore({ log: "Unhandled" })
-
-`Effect.ignore`, `Effect.ignoreCause` and their `Stream` and `Channel` variants
-accept `log: "Unhandled"`. Failures are then logged at the level set by
-`References.UnhandledLogLevel`, or not at all if it is `undefined`.
-
-```ts
-import { Effect } from "effect"
-
-declare const sendAnalytics: Effect.Effect<void, Error>
-
-const program = sendAnalytics.pipe(Effect.ignore({ log: "Unhandled" }))
-```
-
-On the same theme, failures while releasing resources that nothing is waiting
-on (`RcMap` and `RcRef` idle expiry, `ScopedCache` expiry) are now reported at
-`UnhandledLogLevel` instead of being dropped.
-
-## Pool.stats
-
-The unstable `Pool.stats` API returns how many pool items are idle or in use,
-and how many borrowers are waiting. `PgPool.stats` and `PgClient.poolStats`
-expose the same snapshot for PostgreSQL, so you can export connection pool
-metrics.
-
-```ts
-import { Effect, Pool } from "effect"
-
-declare const pool: Pool.Pool<unknown>
-
-const program = Effect.gen(function* () {
-  const { idle, used, pending } = yield* Pool.stats(pool)
-  yield* Effect.log({ idle, used, pending })
-})
-```
-
-## ISO 8601 durations
-
-`Duration.formatIso` and `Duration.fromIso` convert durations to and from ISO
-8601 strings, and `Schema.DurationFromIsoString` decodes them in a schema.
-
-```ts
-import { Duration, Schema } from "effect"
-
-Duration.formatIso(Duration.minutes(90)) // => Option.some("PT1H30M")
-Duration.fromIso("P1W2D") // => Option.some(Duration.days(9))
-
-const Settings = Schema.Struct({
-  timeout: Schema.DurationFromIsoString,
-})
-
-Schema.decodeUnknownSync(Settings)({ timeout: "PT30S" })
-// => { timeout: Duration.seconds(30) }
-```
-
-Only exact units are supported: weeks, days, hours, minutes and seconds. Years
-and months are rejected, because they have no fixed length.
-
-`Duration.toMicros` has also been added, for converting durations to
-microseconds.
-
-## Match.literals
-
-The unstable `Match.literals` and `Match.literalsExhaustive` APIs match a union
-of string or number literals with a record of handlers:
-
-```ts
-import { Match } from "effect"
-
-type Status = "draft" | "review" | "published"
-
-const label = Match.type<Status>().pipe(
-  Match.literalsExhaustive({
-    draft: () => "Draft",
-    review: () => "In review",
-    published: () => "Live",
-  }),
-)
-
-label("review") // => "In review"
-```
-
-`Match.literals` handles some of the literals and leaves the matcher open, so
-it can be followed by `Match.orElse` or other patterns.
-
-## McpServer request-level dependencies & visibility
-
-`McpServer` handlers can now have their services and middleware supplied per
-request. Registration layers are now passed through the transport's
-`registrations` option, and handler services captured at construction time
-should use `Layer.unwrap` instead of `Layer.provide`.
-
-Building on that, `McpServer.visibility` hides tools, resources and prompts
-per request. A hidden registration is left out of list results, and calling it
-fails as if it was not registered:
-
-```ts
-import { Context, Effect, Layer, Schema } from "effect"
-import { McpServer, Tool, Toolkit } from "effect/ai"
-
-class CurrentUser extends Context.Service<
-  CurrentUser,
-  { readonly isAdmin: boolean }
->()("CurrentUser") {}
-
-// middleware that provides a service for each request
-const Auth = McpServer.middleware<{ provides: CurrentUser }>()(
-  (effect, { headers }) =>
-    Effect.provideService(effect, CurrentUser, {
-      isAdmin: headers["x-role"] === "admin",
-    }),
-)
-
-// hide registrations from clients that fail the check
-const AdminOnly = McpServer.visibility(() =>
-  Effect.map(CurrentUser, (user) => user.isAdmin),
-)
-
-const AdminTools = Toolkit.make(
-  Tool.make("DeleteUser", { success: Schema.String }),
-)
-
-const Registrations = McpServer.toolkit(AdminTools).pipe(
-  Layer.provide(AdminOnly.combine(Auth).layer),
-  Layer.provide(
-    AdminTools.toLayer({ DeleteUser: () => Effect.succeed("deleted") }),
-  ),
-)
-```
-
-Under `layerHttp`, middleware and visibility layers can also use the
-per-request services provided by `HttpRouter.middleware`.
-
-To test your registrations, `McpTest.makeClient` runs them behind an
-in-memory MCP client over the real JSON-RPC encoding.
-
-The `McpServer` layers also have a `cacheHints` option, which sets how long
-clients on the `2026-07-28` MCP revision may treat discovery and list results
-as fresh, for example
-`cacheHints: { tools: { ttl: "1 minute", cacheScope: "private" } }`. Earlier
-revisions ignore it, and `resources/read` results always have a zero TTL.
-
-## Other changes
-
-- CLI help renders inherited flags in their own `INHERITED FLAGS` section.
-  `CliOutput.defaultFormatter` has `"full"`, `"summary"` and `"none"` modes for
-  inherited and global flags. Custom formatters should read ancestor flags
-  from `HelpDoc.inheritedFlags`.
-- `HttpClient.isTransientError` and `HttpClient.isTransientResponse` are now
-  exported, so you can reuse the predicates `retryTransient` uses.
-- `FetchHttpClient` fails with an `EncodeError` on runtimes that don't support
-  streaming request bodies, instead of sending `[object ReadableStream]`. Set
-  `FetchHttpClient.StreamBodyFallback` to `"buffer"` to buffer the body
-  instead.
-- `Context.makeUnsafe` has a `maxDepth` option.
-- `Schema.isAscii` checks that a string only contains ASCII characters.
-- `Effect.fnUntraced` and `Effect.fnUntracedEager` accept `{ self }` before
-  the generator body to bind `this`, like `Effect.fn`.
-- `Cron` and `Schedule.cron` have an `onDstOverlap` option that chooses which
-  occurrences of a repeated local time to include when clocks fall back:
-  `"earlier"` (the default), `"later"` or `"both"`.
-- `KeyValueStore` and `SchemaStore` have a `keys` method, implemented by the
-  memory, file system, SQL, Web Storage and IndexedDB stores.
-- `Semaphore.takeScoped` holds permits until the current scope closes.
-- `Config.Record`, `SchemaGetter.splitKeyValue` and
-  `SchemaTransformation.splitKeyValue` have `trim` and `keepEmptyValues`
-  options. `OTEL_RESOURCE_ATTRIBUTES` keys and values are now trimmed and
-  percent-decoded, and entries with an empty value are kept as `""`.
-- `HttpApiSchema.Upgrade` can be used alongside ordinary success responses,
-  for servers that decline the upgrade. `HttpApiClient.isUpgraded` narrows the
-  client result.
-- The AI `NetworkError` has an optional `cause` holding the `HttpClientError`
-  the request failed with, so the reason a request failed is no longer lost.
-- `Terminal.size` is a scoped queue that starts with the current terminal
-  dimensions and receives each resize.
-- `RpcServer.make`, its layer and HTTP wrappers have an `onDisconnect` option
-  for observing client disconnects.
-- The event log supports encrypted remote compaction.
-- `SqlMessageStorage.makeEncodedStorage` builds an encoded SQL message storage
-  without running migrations.
-- `@effect/openapi-generator` has an `includeSchemas` option, and supports the
-  `move` operation in OpenAPI patches. Generated `httpclient` clients keep the
-  error and requirement types of the `HttpClient` passed to `make`, so errors
-  and services added by client middleware show up in each operation.
-- `@effect/ai-anthropic` has regenerated its `Generated` module from a newer
-  Anthropic spec. The Files and Skills client methods and file uploads have
-  breaking changes, see the CHANGELOG for details.
+- **Child processes:** `effect/process/CommandLine` quotes and joins command
+  lines. `ChildProcess` accepts `Redacted` arguments and environment values,
+  hiding them in errors. Use `CommandLine.display` for logs; `join` and
+  `quote` include secrets because their output is meant to run.
+- **AI decisions:** `Decision.Image` declares images in the input schema, and
+  `Decision.locate` returns a bounding box around a target. Providers must
+  opt in to locate support.
+- **MCP servers:** supply handler services and middleware per request, and use
+  `McpServer.visibility` to hide tools, resources and prompts for that request.
+  `McpTest.makeClient` tests registrations in memory; `cacheHints` controls
+  discovery caching for clients on the `2026-07-28` protocol revision.
+- **Pool metrics:** `Pool.stats`, `PgPool.stats` and `PgClient.poolStats`
+  report idle items, used items and waiting borrowers.
+- **Durations:** `Duration.fromIso`, `Duration.formatIso` and
+  `Schema.DurationFromIsoString` support ISO 8601 durations with fixed-length
+  units (weeks through seconds, not months or years).
+- **Pattern matching:** `Match.literals` and `Match.literalsExhaustive`
+  match string or number literal unions with a record of handlers.
+- **Failure logging:** `Effect.ignore({ log: "Unhandled" })` uses the configured
+  `UnhandledLogLevel`. Unobserved release failures in `RcMap`, `RcRef` and
+  `ScopedCache` are now reported at that level too.
 
 ## Upgrade notes
 
-A few other changes need attention when upgrading:
+This release includes breaking changes. Expand the notes for the APIs you use,
+and check the [full CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md)
+before upgrading.
 
+<details>
+<summary>Crypto</summary>
+
+- Use `SecureRandom` for randomness and UUIDs, and `Digest` for hashing.
+  `effect/testing/TestCrypto` has been removed; use `Layer.mock` for the
+  services you need instead.
+- Crypto is no longer included in the runtime `*Services` bundles, so it has
+  to be provided explicitly.
+- `SqlMessageStorage` and `SingleRunner` now require `Digest.Digest` instead of
+  `Crypto.Crypto`. `SqlEventLogServerEncrypted.makeStorage` and `layerStorage`
+  require `Digest.Digest` instead of `EventLogEncryption`.
+- `EventLogEncryption.sha256String` has been removed. Use
+  `digest.digestHex(Digest.sha256, bytes)`.
+- Encoding secret or private keys through the byte / format schemas requires
+  `{ allowEncode: true }`.
+
+Existing workflow IDs, activity idempotency keys, event log table names,
+identities and encrypted batches are unchanged.
+
+</details>
+
+<details>
+<summary>Child processes</summary>
+
+- `ChildProcess.make` templates throw a `CommandLineError` for shell syntax
+  such as `|`, `$HOME` or `*`. Quote those characters or pass them with `${}`.
+- With the `shell` option, templates cannot contain `${}` values, and extra
+  arguments fail with `BadArgument`. Pass the whole script as the command,
+  built with `CommandLine.join`, and name a POSIX shell: on Windows,
+  `shell: true` runs `cmd.exe`, which no `CommandLine` format quotes safely.
+- `ChildProcess.TemplateExpression` and `ChildProcess.TemplateExpressionItem`
+  have been removed. Use the `CommandLine` types of the same name.
+
+</details>
+
+<details>
+<summary>File systems, AI and MCP</summary>
+
+- Custom `FileSystem` implementations must provide `readDirectoryEntries`.
+  `FileSystem.make` derives `glob` for you.
+- `DecideOptions.images` has been removed. Add `Decision.Image` fields to
+  your input schema and refer to each image by its path in your instructions.
+- Locate decisions on `TypeSafeDecisionModel` require Jev 1.14
+  (`jev-preview` or `jev-1.14.0`).
+- MCP registration layers now go through the transport's `registrations`
+  option. Use `Layer.unwrap` instead of `Layer.provide` for handler services
+  captured at construction time.
+- `@effect/ai-anthropic` has breaking changes to Files and Skills client
+  methods and file uploads; see its CHANGELOG for details.
+
+</details>
+
+<details>
+<summary>Persistence, networking and other API changes</summary>
+
+- `FetchHttpClient` fails with `EncodeError` on runtimes without streaming
+  request-body support. Set `FetchHttpClient.StreamBodyFallback` to `"buffer"`
+  to buffer the body instead.
+- Custom CLI help formatters should read ancestor flags from
+  `HelpDoc.inheritedFlags`.
 - `Persistence` stores on `KeyValueStore` and Redis are now isolated from each
   other, using `<storeId>:<key>` keys. With `Persistence.layerKvs`, entries
   written by earlier versions are no longer read, so cached results are
@@ -513,6 +257,8 @@ A few other changes need attention when upgrading:
   or query parameters. `AiError.NetworkError` has `method` and `url` fields
   instead of `request`.
 
-There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+</details>
 
-Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
+For all additions and fixes, see the [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Join our [Discord Community](https://discord.gg/effect-ts) to follow the latest updates and discuss the release!
