@@ -23,6 +23,7 @@ const ManifestJson = Schema.fromJsonString(Manifest)
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url))
 const generatorFiles = [
+  "packages/api-reference/src/Changelog.ts",
   "packages/api-reference/src/Generate.ts",
   "packages/api-reference/src/Snapshot.ts",
   "packages/api-reference/src/GitHub.ts",
@@ -30,6 +31,7 @@ const generatorFiles = [
   "packages/api-reference/package.json",
   "packages/domain/src/ApiReference.ts",
   "packages/domain/src/ApiReferenceSnapshot.ts",
+  "packages/domain/src/Changelog.ts",
   "pnpm-lock.yaml",
 ] as const
 

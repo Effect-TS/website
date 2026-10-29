@@ -5,7 +5,7 @@ import remarkFrontmatter from "remark-frontmatter"
 import remarkMdx from "remark-mdx"
 import remarkParse from "remark-parse"
 import { unified } from "unified"
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml"
+import { parse as parseYaml } from "yaml"
 import type { SearchSection } from "@website/domain/SearchMetadata"
 
 const processor = unified()
@@ -13,7 +13,6 @@ const processor = unified()
   .use(remarkMdx)
   .use(remarkFrontmatter, ["yaml"])
 const MAX_EXCERPT_LENGTH = 240
-const MAX_SEARCH_METADATA_LENGTH = 64_000
 
 export interface ParsedMarkdown {
   readonly tree: Root
@@ -29,59 +28,6 @@ export function parseMarkdown(
   const yaml = tree.children.find(isYaml)
   if (yaml === undefined) throw new Error(missingFrontmatterMessage)
   return { tree, yaml, frontmatter: parseYaml(yaml.value) }
-}
-
-export function serializeSearchFrontmatter(
-  frontmatter: Readonly<Record<string, unknown>>,
-  metadata: { readonly sections: ReadonlyArray<SearchSection> },
-  contentName: string,
-): string {
-  const yaml = stringifyYaml(
-    {
-      ...frontmatter,
-      search: {
-        ...metadata,
-        sections: metadata.sections.map((section) => JSON.stringify(section)),
-      },
-    },
-    { lineWidth: 0 },
-  ).trimEnd()
-  if (new TextEncoder().encode(yaml).length > MAX_SEARCH_METADATA_LENGTH) {
-    throw new Error(
-      `Generated ${contentName} frontmatter exceeds ${MAX_SEARCH_METADATA_LENGTH} bytes`,
-    )
-  }
-  return `---\n${yaml}\n---`
-}
-
-export function frontmatterLines(
-  parsed: ParsedMarkdown,
-  missingPositionMessage: string,
-): number {
-  const start = parsed.yaml.position?.start.line
-  const end = parsed.yaml.position?.end.line
-  if (start === undefined || end === undefined) {
-    throw new Error(missingPositionMessage)
-  }
-  return end - start + 1
-}
-
-export function spliceFrontmatter(
-  source: string,
-  parsed: ParsedMarkdown,
-  frontmatter: string,
-  missingPositionMessage: string,
-): string {
-  const start = parsed.yaml.position?.start.offset
-  const end = parsed.yaml.position?.end.offset
-  if (start === undefined || end === undefined) {
-    throw new Error(missingPositionMessage)
-  }
-  return `${source.slice(0, start)}${frontmatter}${source.slice(end)}`
-}
-
-export function countLines(value: string): number {
-  return value.split("\n").length
 }
 
 export function sections(

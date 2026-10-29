@@ -1,11 +1,15 @@
-import * as Schema from "effect/Schema"
 import { assert, test } from "vite-plus/test"
-import { parse as parseYaml } from "yaml"
-import { BlogSearchMetadata } from "@website/domain/SearchMetadata"
-import { blogPostId, stageBlogPost } from "../src/Blog.ts"
+import { blogPage, blogPostId } from "../src/Blog.ts"
 
-test("stages source-preserving blog metadata", () => {
-  const body = `
+const source = (extra = "") => `---
+title: From React to Effect
+excerpt: A practical migration story.
+date: 2025-07-10
+${extra}authors:
+  - maxwell_brown
+tags:
+  - effect
+---
 
 Post introduction.
 
@@ -17,35 +21,30 @@ Because typed errors are useful.
 
 Handle expected failures explicitly.
 `
-  const post = stageBlogPost(
-    `---
-title: From React to Effect
-excerpt: A practical migration story.
-date: 2025-07-10
-authors:
-  - maxwell_brown
-tags:
-  - effect
----${body}`,
-    "from-react-to-effect.mdx",
+
+test("chunks a post with its page metadata", () => {
+  const page = blogPage(source(), "from-react-to-effect.mdx")
+  assert.ok(page)
+  assert.equal(page.href, "/blog/from-react-to-effect")
+  assert.equal(page.directory, "blog")
+  assert.equal(page.name, "from-react-to-effect")
+  assert.equal(page.version, undefined)
+  const [overview, , why] = page.chunks
+  assert.deepInclude(overview?.generated_metadata, {
+    page_title: "From React to Effect",
+    description: "A practical migration story.",
+    published_at: "2025-07-10",
+    section_anchor: "",
+  })
+  assert.deepEqual(overview?.generated_metadata.authors, ["maxwell_brown"])
+  assert.deepEqual(overview?.generated_metadata.tags, ["effect"])
+  assert.equal(why?.generated_metadata.section_anchor, "why-effect")
+  assert.isTrue(
+    why?.text.startsWith(
+      "# From React to Effect\nEffect blog · 2025-07-10 · effect\n\n",
+    ),
   )
-
-  assert.ok(post)
-  assert.equal(post.source.slice(post.source.indexOf("---", 3) + 3), body)
-  assert.equal(post.metadata.page_href, "/blog/from-react-to-effect")
-  assert.equal(post.metadata.published_at, "2025-07-10")
-  assert.deepEqual(post.metadata.authors, ["maxwell_brown"])
-  assert.equal(post.metadata.sections[1]?.anchor, "why-effect")
-
-  const yaml = /^---\n([\s\S]*?)\n---/.exec(post.source)?.[1]
-  assert.ok(yaml)
-  const stagedMetadata = Schema.decodeUnknownSync(
-    Schema.Struct({ search: BlogSearchMetadata }),
-  )(parseYaml(yaml))
-  assert.equal(stagedMetadata.search.sections[2]?.title, "Error handling")
-
-  const restaged = stageBlogPost(post.source, "from-react-to-effect.mdx")
-  assert.deepEqual(restaged, post)
+  assert.include(why?.text, "### Error handling")
 })
 
 test("derives blog IDs using Astro collection conventions", () => {
@@ -61,4 +60,18 @@ test("derives blog IDs using Astro collection conventions", () => {
     blogPostId("effect-v4Beta-july-recap.mdx"),
     "effect-v4beta-july-recap",
   )
+})
+
+test("places a nested post under its path", () => {
+  const page = blogPage(source(), "this-week-in-effect/126/index.mdx")
+  assert.equal(page?.directory, "blog/this-week-in-effect")
+  assert.equal(page?.name, "126")
+})
+
+test("reports the docs version of a versioned post", () => {
+  assert.equal(blogPage(source("version: v3\n"), "release.mdx")?.version, "v3")
+})
+
+test("does not index drafts", () => {
+  assert.equal(blogPage(source("draft: true\n"), "draft.mdx"), undefined)
 })

@@ -28,6 +28,13 @@ const scope = Flag.Literals("scope", ["all", "markdown", "api-reference"]).pipe(
   Flag.withDescription("Content scope to synchronize"),
 )
 
+const wait = Flag.Boolean("wait").pipe(
+  Flag.withDefault(false),
+  Flag.withDescription(
+    "Wait until every uploaded API reference file is indexed",
+  ),
+)
+
 const base = Flag.String("base").pipe(
   Flag.withDescription("Base Git revision to compare"),
 )
@@ -40,21 +47,22 @@ const syncCommand = Command.make("sync", {
   pullRequest: Flag.optional(pullRequest),
   revision,
   scope,
+  wait,
 }).pipe(
   Command.withDescription(
     "Synchronize a Mixedbread documentation search store",
   ),
-  Command.withHandler(({ pullRequest, revision, scope }) =>
+  Command.withHandler(({ pullRequest, revision, scope, wait }) =>
     Option.match(pullRequest, {
       onNone: () =>
         Mixedbread.use((mixedbread) =>
-          mixedbread.syncProduction(revision, scope),
+          mixedbread.syncProduction(revision, scope, wait),
         ),
       onSome: Effect.fnUntraced(function* (pullRequest) {
         const storeId = yield* Config.String("MXBAI_VECTOR_STORE_ID")
         return yield* Mixedbread.use((mixedbread) =>
           mixedbread.syncStore(
-            { kind: "preview", pullRequest, revision, storeId },
+            { kind: "preview", pullRequest, revision, storeId, wait },
             scope,
           ),
         )

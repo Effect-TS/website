@@ -10,7 +10,10 @@ import {
   svgoOptimizer,
 } from "astro/config"
 import { fileURLToPath } from "node:url"
+import * as ManagedRuntime from "effect/ManagedRuntime"
 import svgr from "vite-plugin-svgr"
+import { LatestRelease } from "./src/features/changelog/latest-release"
+import { latestReleasePlugin } from "./src/features/changelog/latest-release-plugin"
 import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
@@ -20,6 +23,7 @@ import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 import { remarkMermaid } from "./src/features/docs/remark-mermaid"
 import { incrementalBuildReport } from "./src/lib/incremental-build-report"
+import { defaultDocsVersion } from "./src/lib/versions"
 
 const FontsourceProvider = fontProviders.fontsource()
 
@@ -28,6 +32,14 @@ const FontsourceProvider = fontProviders.fontsource()
 // restore/save it without caching the whole dependency tree; shared with the
 // plugin so the two cannot drift.
 const cacheDir = new URL("./.astro-cache/", import.meta.url)
+
+const latestRelease = ManagedRuntime.make(
+  LatestRelease.layer({
+    base: new URL("./.data/api-reference/", import.meta.url),
+    channel: defaultDocsVersion,
+    slug: "effect",
+  }),
+)
 
 // https://astro.build/config
 const config = defineConfig({
@@ -64,6 +76,7 @@ const config = defineConfig({
       tailwindcss(),
       svgr(),
       openGraphMetadataPlugin({ cacheDir }),
+      latestReleasePlugin(latestRelease),
       cloudflareWorkersFallback(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],

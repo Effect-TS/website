@@ -2,6 +2,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
 import { SearchApi } from "./api"
+import { isSearchGroup } from "./domain"
 import { Search } from "./service"
 
 const SearchHandlers = HttpApiBuilder.group(
@@ -9,7 +10,14 @@ const SearchHandlers = HttpApiBuilder.group(
   "search",
   Effect.fn(function* (handlers) {
     const search = yield* Search
-    return handlers.handle("search", ({ query }) => search.search(query.query))
+    return handlers.handle("search", ({ query }) =>
+      search.search({
+        query: query.query,
+        packageSlug: query.package,
+        version: query.version,
+        groups: query.groups?.split(",").filter(isSearchGroup),
+      }),
+    )
   }),
 ).pipe(Layer.provide(Search.layer))
 

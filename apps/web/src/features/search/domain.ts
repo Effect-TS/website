@@ -1,15 +1,10 @@
 import * as Schema from "effect/Schema"
 import {
-  BlogSearchMetadata,
-  DocumentationSearchMetadata,
-  DocumentationSearchSection,
+  BlogChunkMetadata,
+  DocumentationChunkMetadata,
 } from "@website/domain/SearchMetadata"
 
-export {
-  BlogSearchMetadata,
-  DocumentationSearchMetadata,
-  DocumentationSearchSection,
-}
+export { BlogChunkMetadata, DocumentationChunkMetadata }
 
 const CommonMetadata = {
   synced: Schema.Boolean,
@@ -22,7 +17,7 @@ const CommonMetadata = {
 export const DocumentationMetadata = Schema.Struct({
   ...CommonMetadata,
   content_source: Schema.Literal("documentation"),
-  file_path: Schema.String,
+  docs_version: Schema.String,
 })
 
 export const ApiReferenceMetadata = Schema.Struct({
@@ -33,10 +28,18 @@ export const ApiReferenceMetadata = Schema.Struct({
   package_slug: Schema.String,
 })
 
+export const ChangelogMetadata = Schema.Struct({
+  ...CommonMetadata,
+  channel: Schema.String,
+  content_source: Schema.Literal("changelog"),
+  package_name: Schema.String,
+  package_slug: Schema.String,
+})
+
 export const BlogMetadata = Schema.Struct({
   ...CommonMetadata,
   content_source: Schema.Literal("blog"),
-  file_path: Schema.String,
+  docs_version: Schema.optional(Schema.String),
 })
 
 export const MarkdownMetadata = Schema.Struct({
@@ -53,35 +56,13 @@ const UnclassifiedMetadata = Schema.Struct({
 export const Metadata = Schema.Union([
   DocumentationMetadata,
   ApiReferenceMetadata,
+  ChangelogMetadata,
   BlogMetadata,
   MarkdownMetadata,
   UnclassifiedMetadata,
 ])
 
 export type Metadata = typeof Metadata.Type
-
-export const HeadingInfo = Schema.Struct({
-  level: Schema.Int,
-  text: Schema.String,
-})
-
-export const DocumentationGeneratedMetadata = Schema.Struct({
-  type: Schema.Literal("markdown"),
-  start_line: Schema.Int,
-  num_lines: Schema.Int,
-  chunk_headings: Schema.Array(HeadingInfo),
-  heading_context: Schema.Array(HeadingInfo),
-  search: DocumentationSearchMetadata,
-})
-
-export const BlogGeneratedMetadata = Schema.Struct({
-  type: Schema.Literal("markdown"),
-  start_line: Schema.Int,
-  num_lines: Schema.Int,
-  chunk_headings: Schema.Array(HeadingInfo),
-  heading_context: Schema.Array(HeadingInfo),
-  search: BlogSearchMetadata,
-})
 
 export const ApiReferenceGeneratedMetadata = Schema.Struct({
   type: Schema.Literal("text"),
@@ -94,10 +75,17 @@ export const ApiReferenceGeneratedMetadata = Schema.Struct({
   signature: Schema.String,
 })
 
+export const ChangelogGeneratedMetadata = Schema.Struct({
+  type: Schema.Literal("text"),
+  page_href: Schema.String,
+  version: Schema.String,
+})
+
 export const GeneratedMetadata = Schema.Union([
   ApiReferenceGeneratedMetadata,
-  DocumentationGeneratedMetadata,
-  BlogGeneratedMetadata,
+  ChangelogGeneratedMetadata,
+  DocumentationChunkMetadata,
+  BlogChunkMetadata,
   Schema.Record(Schema.String, Schema.Unknown),
 ])
 
@@ -130,6 +118,10 @@ export type StoreSearchResponse = typeof StoreSearchResponse.Type
 export const SearchResultChunk = Schema.Struct({
   id: Schema.String,
   detail: Schema.optional(Schema.String),
+  // Other packages that published the same release notes.
+  alsoIn: Schema.optional(
+    Schema.Array(Schema.Struct({ name: Schema.String, slug: Schema.String })),
+  ),
   href: Schema.String,
   title: Schema.String,
   snippet: Schema.String,
@@ -162,6 +154,19 @@ export const ApiReferenceSearchResult = Schema.Struct({
 })
 export type ApiReferenceSearchResult = typeof ApiReferenceSearchResult.Type
 
+export const ChangelogSearchResult = Schema.Struct({
+  kind: Schema.Literal("changelog"),
+  id: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  href: Schema.String,
+  packageName: Schema.String,
+  packageSlug: Schema.String,
+  version: Schema.String,
+  chunks: Schema.Array(SearchResultChunk),
+})
+export type ChangelogSearchResult = typeof ChangelogSearchResult.Type
+
 export const BlogSearchResult = Schema.Struct({
   kind: Schema.Literal("blog"),
   id: Schema.String,
@@ -178,9 +183,20 @@ export type BlogSearchResult = typeof BlogSearchResult.Type
 export const SearchResult = Schema.Union([
   DocumentationSearchResult,
   ApiReferenceSearchResult,
+  ChangelogSearchResult,
   BlogSearchResult,
 ])
 export type SearchResult = typeof SearchResult.Type
+
+export const SEARCH_GROUPS = [
+  "documentation",
+  "api-reference",
+  "blog",
+  "changelog",
+] as const
+export const SearchGroup = Schema.Literals(SEARCH_GROUPS)
+export type SearchGroup = typeof SearchGroup.Type
+export const isSearchGroup = Schema.is(SearchGroup)
 
 export class SearchError extends Schema.TaggedError<SearchError>()(
   "SearchError",

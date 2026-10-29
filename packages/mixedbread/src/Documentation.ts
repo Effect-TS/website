@@ -1,20 +1,7 @@
 import * as Schema from "effect/Schema"
-import {
-  countLines,
-  frontmatterLines,
-  parseMarkdown,
-  sections,
-  serializeSearchFrontmatter,
-  spliceFrontmatter,
-} from "./Markdown.ts"
-import {
-  DocumentationStagedSearchMetadata,
-  SearchSection,
-} from "@website/domain/SearchMetadata"
-
-export const SearchMetadata = DocumentationStagedSearchMetadata
-export { SearchSection }
-export type SearchMetadata = typeof DocumentationStagedSearchMetadata.Type
+import type { DocumentationChunkMetadata } from "@website/domain/SearchMetadata"
+import { parseMarkdown } from "./Markdown.ts"
+import { markdownChunks } from "./MarkdownChunks.ts"
 
 const Frontmatter = Schema.Struct({
   title: Schema.String,
@@ -24,88 +11,75 @@ const Frontmatter = Schema.Struct({
     Schema.Struct({ label: Schema.optional(Schema.String) }),
   ),
 })
-const FrontmatterRecord = Schema.Record(Schema.String, Schema.Unknown)
 
-export interface StagedDocument {
-  readonly source: string
-  readonly metadata: SearchMetadata
+export interface DocumentationChunk {
+  readonly type: "text"
+  readonly text: string
+  readonly mime_type: "text/plain"
+  readonly generated_metadata: DocumentationChunkMetadata
 }
 
-export function stageDocument(
+export interface DocumentationPage {
+  readonly version: string
+  readonly href: string
+  /** Upload id: `<directory>/<name>-001.mxjson`. */
+  readonly directory: string
+  readonly name: string
+  readonly chunks: ReadonlyArray<DocumentationChunk>
+}
+
+export function documentationPage(
   source: string,
   relativePath: string,
-): StagedDocument | undefined {
+): DocumentationPage | undefined {
   const parsed = parseMarkdown(
     source,
     "Documentation file must have YAML frontmatter",
   )
   const frontmatter = Schema.decodeUnknownSync(Frontmatter)(parsed.frontmatter)
-  const frontmatterRecord = Schema.decodeUnknownSync(FrontmatterRecord)(
-    parsed.frontmatter,
-  )
   if (frontmatter.draft === true) return undefined
 
   const pathParts = relativePath
     .replace(/\\/g, "/")
     .replace(/\.(md|mdx)$/, "")
     .split("/")
-  const docsVersion = pathParts[0] ?? "unknown"
+  const version = pathParts[0] ?? "unknown"
   const group = pathParts.length > 2 ? (pathParts[1] ?? "") : ""
-  const groupLabel = titleCase(group)
   const pageLabel = frontmatter.sidebar?.label ?? frontmatter.title
-  const routePath = pathParts.join("/").replace(/(^|\/)index$/, "")
-  const pageHref = `/docs/${routePath}`.replace(/\/+$/, "/")
-  const breadcrumbs = [groupLabel, pageLabel].filter(
+  const breadcrumbs = [titleCase(group), pageLabel].filter(
     (label) => label.length > 0,
   )
-  const originalSections = sections(
-    parsed.tree,
-    frontmatter.title,
-    frontmatter.description,
-  )
-  const baseMetadata: SearchMetadata = {
-    schema_version: 1,
-    content_source: "documentation",
-    docs_version: docsVersion,
-    breadcrumbs,
-    page_href: pageHref,
-    page_label: pageLabel,
-    page_title: frontmatter.title,
-    sections: originalSections,
-  }
-  const provisionalFrontmatter = serializeSearchFrontmatter(
-    frontmatterRecord,
-    baseMetadata,
-    "documentation",
-  )
-  const lineDelta =
-    countLines(provisionalFrontmatter) -
-    frontmatterLines(parsed, "YAML frontmatter is missing source lines")
-  const metadata: SearchMetadata = {
-    ...baseMetadata,
-    sections: originalSections.map((section) => ({
-      ...section,
-      line: section.line === 1 ? 1 : section.line + lineDelta,
-    })),
-  }
-  const finalFrontmatter = serializeSearchFrontmatter(
-    frontmatterRecord,
-    metadata,
-    "documentation",
-  )
-  if (countLines(finalFrontmatter) !== countLines(provisionalFrontmatter)) {
-    throw new Error(
-      `Documentation metadata changed frontmatter height for ${relativePath}`,
-    )
-  }
+  const routePath = pathParts.join("/").replace(/(^|\/)index$/, "")
+  const href = `/docs/${routePath}`.replace(/\/+$/, "/")
+
+  const chunks = markdownChunks(source, parsed, {
+    title: frontmatter.title,
+    description: frontmatter.description,
+    context: `${breadcrumbs.join(" › ")} · Effect ${version} docs`,
+  }).map(({ text, section, parent }) => ({
+    type: "text" as const,
+    text,
+    mime_type: "text/plain" as const,
+    generated_metadata: {
+      type: "text" as const,
+      page_href: href,
+      page_title: frontmatter.title,
+      breadcrumbs,
+      parent_title: parent.title,
+      parent_anchor: parent.anchor,
+      parent_excerpt: parent.excerpt,
+      section_title: section.title,
+      section_anchor: section.anchor,
+      excerpt: section.excerpt,
+    },
+  }))
+
   return {
-    source: spliceFrontmatter(
-      source,
-      parsed,
-      finalFrontmatter,
-      "YAML frontmatter is missing source offsets",
-    ),
-    metadata,
+    version,
+    href,
+    directory: ["documentation", ...pathParts.slice(0, -1)].join("/"),
+    name: pathParts.at(-1) ?? "index",
+    chunks,
   }
 }
 

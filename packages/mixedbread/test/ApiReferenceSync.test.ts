@@ -1,5 +1,9 @@
+import * as Effect from "effect/Effect"
 import { assert, test } from "vite-plus/test"
-import { reconcileApiReferenceFiles } from "../src/ApiReferenceSync.ts"
+import {
+  reconcileApiReferenceFiles,
+  waitForIndexing,
+} from "../src/ApiReferenceSync.ts"
 
 test("reconciles changed, unchanged, and stale API files", () => {
   const local = [
@@ -68,4 +72,44 @@ test("reuploads failed files and files with invalid metadata", () => {
     ).changedFiles.length,
     1,
   )
+})
+
+const files = [{ externalId: "api-reference/v4/file", id: "file_1" }]
+
+test("waits until a pending file completes", async () => {
+  const statuses = ["pending", "in_progress", "completed"]
+  let calls = 0
+  await Effect.runPromise(
+    waitForIndexing({
+      files,
+      interval: "1 millis",
+      retrieve: () => Effect.sync(() => ({ status: statuses[calls++] })),
+    }),
+  )
+  assert.equal(calls, 3)
+})
+
+test("fails when a file fails indexing", async () => {
+  const error = await Effect.runPromise(
+    waitForIndexing({
+      files,
+      interval: "1 millis",
+      retrieve: () =>
+        Effect.succeed({ status: "failed", last_error: "bad chunk" }),
+    }).pipe(Effect.flip),
+  )
+  assert.equal(error._tag, "FailedToIndexError")
+  assert.equal(error.cause, "bad chunk")
+})
+
+test("fails when a file stays pending past the timeout", async () => {
+  const error = await Effect.runPromise(
+    waitForIndexing({
+      files,
+      interval: "1 millis",
+      timeout: "20 millis",
+      retrieve: () => Effect.succeed({ status: "pending" }),
+    }).pipe(Effect.flip),
+  )
+  assert.equal(error._tag, "FailedToIndexError")
 })

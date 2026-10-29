@@ -52,6 +52,66 @@ export function reconcileApiReferenceFiles<
   return { changedFiles, staleFiles }
 }
 
+// Indexing is asynchronous: an upload returns while the file is still pending.
+export const waitForIndexing = Effect.fn("ApiReferenceSync.waitForIndexing")(
+  function* (options: {
+    readonly files: ReadonlyArray<{
+      readonly externalId: string
+      readonly id: string
+    }>
+    readonly retrieve: (
+      id: string,
+    ) => Effect.Effect<
+      { readonly status?: string | undefined; readonly last_error?: unknown },
+      FailedToIndexError
+    >
+    readonly interval?: Duration.Input
+    readonly timeout?: Duration.Input
+  }) {
+    yield* Effect.forEach(
+      options.files,
+      ({ externalId, id }) =>
+        Effect.gen(function* () {
+          const file = yield* options.retrieve(id)
+          if (file.status === "failed" || file.status === "cancelled") {
+            return yield* new FailedToIndexError({
+              externalId,
+              cause: file.last_error ?? file.status,
+            })
+          }
+          if (file.status !== "completed") {
+            return yield* new FileIndexingError({
+              externalId,
+              status: file.status ?? "unknown",
+            })
+          }
+        }).pipe(
+          Effect.retry({
+            while: (error: FailedToIndexError | FileIndexingError) =>
+              error._tag === "FileIndexingError",
+            schedule: Schedule.spaced(options.interval ?? "5 seconds"),
+          }),
+          Effect.mapError((error) =>
+            error._tag === "FileIndexingError"
+              ? new FailedToIndexError({ externalId, cause: error.status })
+              : error,
+          ),
+          Effect.timeoutOrElse({
+            duration: options.timeout ?? "10 minutes",
+            orElse: () =>
+              Effect.fail(
+                new FailedToIndexError({
+                  externalId,
+                  cause: new Error("Timed out waiting for indexing"),
+                }),
+              ),
+          }),
+        ),
+      { concurrency: 20, discard: true },
+    )
+  },
+)
+
 export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
   function* (options: {
     readonly branch: string
@@ -61,8 +121,13 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
     readonly stores: StoreClient
     readonly sync: SyncOptions
     readonly version: number
+    /** External id prefixes this sync owns; other files are left alone. */
+    readonly prefixes?: ReadonlyArray<string>
+    readonly label?: string
   }) {
     const { branch, client, files, store, stores, sync, version } = options
+    const prefixes = options.prefixes ?? ["api-reference/"]
+    const label = options.label ?? "API reference"
     const duplicateIds = Map.groupBy(files, (file) => file.externalId)
       .entries()
       .filter(([, duplicates]) => duplicates.length > 1)
@@ -78,7 +143,9 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
 
     const remoteFiles = (yield* Stream.runCollect(
       stores.listFiles(store.id),
-    )).filter((file) => file.external_id?.startsWith("api-reference/"))
+    )).filter((file) =>
+      prefixes.some((prefix) => file.external_id?.startsWith(prefix)),
+    )
     const { changedFiles, staleFiles } = reconcileApiReferenceFiles<
       LocalFile,
       MixedbreadClient.Stores.StoreFile
@@ -86,8 +153,8 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
     const unchanged = files.length - changedFiles.length
     yield* Effect.log(
       changedFiles.length === 0
-        ? `API reference index for ${store.name} is up to date; no uploads required (${unchanged} files unchanged)`
-        : `Uploading ${changedFiles.length} changed API reference files to ${store.name} (${unchanged} files unchanged)`,
+        ? `${label} index for ${store.name} is up to date; no uploads required (${unchanged} files unchanged)`
+        : `Uploading ${changedFiles.length} changed ${label} files to ${store.name} (${unchanged} files unchanged)`,
     )
 
     yield* Effect.forEach(
@@ -100,14 +167,12 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
             }),
           catch: (cause) => new FailedToDeleteError({ file, cause }),
         })
-        yield* Effect.log(
-          `Deleted stale API reference file: ${file.external_id}`,
-        )
+        yield* Effect.log(`Deleted stale ${label} file: ${file.external_id}`)
       }),
       { concurrency: UPLOAD_CONCURRENCY },
     )
 
-    yield* Effect.forEach(
+    const uploaded = yield* Effect.forEach(
       changedFiles,
       Effect.fnUntraced(function* ({ externalId, fileHash, metadata, upload }) {
         const now = yield* DateTime.now
@@ -197,15 +262,35 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
             cause: remoteFile.last_error ?? remoteFile.status,
           })
         }
-        yield* Effect.log(`Synchronized API reference file: ${externalId}`)
+        yield* Effect.log(`Synchronized ${label} file: ${externalId}`)
+        return { externalId, id: remoteFile.id }
       }),
       { concurrency: UPLOAD_CONCURRENCY },
     )
+
+    if (sync.wait === true && uploaded.length > 0) {
+      yield* waitForIndexing({
+        files: uploaded,
+        retrieve: (id) =>
+          Effect.tryPromise({
+            try: () =>
+              client.stores.files.retrieve(id, { store_identifier: store.id }),
+            catch: (cause) =>
+              new FailedToIndexError({
+                externalId: id,
+                cause,
+              }),
+          }),
+      })
+      yield* Effect.log(`Indexed ${uploaded.length} ${label} files`)
+    }
   },
 )
 import MixedbreadClient from "@mixedbread/sdk"
 import * as DateTime from "effect/DateTime"
+import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
+import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import {
@@ -216,9 +301,10 @@ import {
 import {
   FailedToDeleteError,
   FailedToIndexError,
+  FileIndexingError,
   FileInProgressError,
   fileInProgressConflict,
   UnknownError,
 } from "./Error.ts"
-import type { LocalFile } from "./ApiReferenceFiles.ts"
+import type { LocalFile } from "./ChunkFiles.ts"
 import { StoreFileMetadata, type StoreClient } from "./Store.ts"
