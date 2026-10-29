@@ -5,18 +5,16 @@ import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLinks from "@/components/navigation/NavigationLinks.astro"
 import { SearchDialog } from "@/components/navigation/SearchDialog"
-import {
-  getNavigationLinks,
-  type NavigationActiveSlug,
-  type NavigationLink,
-} from "@/lib/navigation"
+import type { DocsNavSection } from "@/lib/docs-sections"
+import { buildNavigation, getNavigationLinks, type NavigationActiveSlug } from "@/lib/navigation"
 
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly version?: string | undefined
+  readonly docsSection?: DocsNavSection | undefined
 }
 
-const { activeSlug, version } = Astro.props
+const { activeSlug, version, docsSection } = Astro.props
 
 const showThemeToggle =
   activeSlug === "playground" ||
@@ -25,50 +23,45 @@ const showThemeToggle =
   activeSlug === "blog" ||
   activeSlug === "motw"
 
-const withVersion = (links: ReadonlyArray<NavigationLink>) =>
-  version === undefined
-    ? links
-    : links.map((link): NavigationLink => {
-        if (link.kind !== "internal") return link
-        if (link.id === "docs") return { ...link, href: `/docs/${version}` as `/${string}` }
-        if (link.id === "api") return { ...link, href: `/docs/${version}/api` as `/${string}` }
-        return link
-      })
-
-const mobilePrimaryLinks = withVersion(getNavigationLinks("mobile", "primary"))
+const context = { activeSlug, docsSection }
+const desktopItems = buildNavigation("desktop", "primary", context)
+const mobileItems = buildNavigation("mobile", "primary", context)
 const mobileSocialLinks = getNavigationLinks("mobile", "social")
 ---
 
 <div class="sticky top-0 z-100 w-full">
   <AnnouncementBanner />
 
-  <div class="w-full border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
+  <div
+    class="relative z-10 w-full border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
+  >
     <header
       class:list={[
         "@container/navigation relative mx-auto w-full px-4",
         activeSlug === "playground" ? "max-w-none" : "max-w-352",
       ]}
     >
-      <nav class="flex h-16 items-center">
+      <nav aria-label="Main" class="flex h-16 items-center">
         <NavigationLogo />
 
-        <div class="ml-8 hidden items-center gap-6 @min-[64rem]/navigation:flex">
-          <NavigationLinks activeSlug={activeSlug} version={version} />
+        <div class="ml-8 hidden items-center gap-6 @min-[50rem]/navigation:flex">
+          <NavigationLinks items={desktopItems} />
         </div>
 
         <NavigationMobileMenu
-          primaryLinks={mobilePrimaryLinks}
+          primaryItems={mobileItems}
           socialLinks={mobileSocialLinks}
-          activeSlug={activeSlug}
           showThemeToggle={showThemeToggle}
         />
 
-        <div class="ml-auto hidden items-center gap-4.5 @min-[64rem]/navigation:flex">
+        <div class="ml-auto hidden items-center gap-4.5 @min-[50rem]/navigation:flex">
           <NavigationDesktopActions showThemeToggle={showThemeToggle} />
         </div>
       </nav>
     </header>
   </div>
+
+  <slot name="secondary" />
 </div>
 
 <SearchDialog client:only="react" version={version} />
