@@ -1,0 +1,654 @@
+---
+// TellJoke running next to its journal, one beat per Step, like the recipe
+// visual earlier in the post. Each journal row sits level with the line that
+// asks for it. Every activity asks the journal for its name before it does
+// anything: a muted arrow goes over, and the row either says "not found", so
+// the activity runs for real and its result goes in, or lights up, and the
+// result comes back with a green arrow and takes the call's place in the
+// code.
+//
+// Just after WriteJoke, the runner crashes. The code fades, but the journal
+// doesn't. The next Step starts the workflow again from the top. The clock
+// line isn't an activity, so it really does run again, and gets a different
+// time. WriteJoke finds its joke in the journal. PostJoke doesn't find
+// anything, so it runs for the first time.
+
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import { warning } from "../3/palette"
+
+const joke = "I'd tell you a UDP joke…"
+
+// The code, in tokens, coloured like the post's code blocks: [kind, text],
+// where the kind is a keyword, a constant, a function, a string, or plain
+type Token = [kind: "k" | "c" | "f" | "s" | "p", text: string]
+const clockLine: Array<Token> = [
+  ["k", "const"],
+  ["p", " "],
+  ["c", "now"],
+  ["p", " = "],
+  ["k", "new"],
+  ["p", " "],
+  ["f", "Date"],
+  ["p", "()"],
+]
+const jokeAssign: Array<Token> = [
+  ["k", "const"],
+  ["p", " "],
+  ["c", "joke"],
+  ["p", " = "],
+]
+// An activity call, in three parts so it can go on three lines when it
+// needs to
+const call = (name: string): Array<Array<Token>> => [
+  [
+    ["k", "yield*"],
+    ["p", " Activity."],
+    ["f", "make"],
+    ["p", "({"],
+  ],
+  [
+    ["p", "name: "],
+    ["s", `"${name}"`],
+  ],
+  [["p", "})"]],
+]
+---
+
+<figure
+  class="rp7 st"
+  data-rp7-visual
+  aria-label="The TellJoke workflow next to its journal. Each activity asks the journal for its name before doing anything. On the first run WriteJoke isn't found, so it runs and its joke goes in the journal. Then the runner crashes. The workflow runs again from the top: the clock line runs again and gets a different time, WriteJoke finds its joke in the journal and the call is replaced by it without running, and PostJoke isn't found, so it runs."
+  style={`--rp7-warn: ${warning.background}; --rp7-warn-ink: ${warning.text}`}
+>
+  <div class="rp7-stage" data-rp7-stage>
+    <p class="rp7-title rp7-fades" style="--r: 1">Workflow</p>
+    <p class="rp7-title is-journal" style="--r: 1; --mr: 5">Journal</p>
+
+    <span class="rp7-pointer" data-rp7-pointer aria-hidden="true"></span>
+
+    {/* The workflow's body, trimmed to what this is about */}
+    <div class="rp7-row rp7-line rp7-fades" data-rp7-line style="--r: 2">
+      <code>{clockLine.map(([kind, text]) => <span class={`t-${kind}`}>{text}</span>)}</code>
+      <span class="rp7-comment" data-rp7-clock></span>
+    </div>
+    {
+      /* No whitespace between the code's elements, or it shows up in the code */
+      ["WriteJoke", "PostJoke"].map((name, i) => (
+        <div class="rp7-row rp7-line rp7-fades" data-rp7-line style={`--r: ${i + 3}`}>
+          <code>
+            {i === 0 && jokeAssign.map(([kind, text]) => <span class={`t-${kind}`}>{text}</span>)}
+            <span class="rp7-swap" data-rp7-swap>
+              <>
+                <span class="rp7-call">
+                  {call(name).map((part, p) => (
+                    <span class:list={["rp7-part", p === 1 && "rp7-arg"]}>
+                      {part.map(([kind, text]) => (
+                        <span class={`t-${kind}`}>{text}</span>
+                      ))}
+                    </span>
+                  ))}
+                </span>
+                <span class="rp7-value">{i === 0 ? `"${joke}"` : "undefined"}</span>
+              </>
+            </span>
+          </code>
+        </div>
+      ))
+    }
+
+    {/* The journal, a row per activity, level with the line that asks for it */}
+    <div class="rp7-row rp7-entry" data-rp7-entry style="--r: 3; --mr: 6">
+      <span class="rp7-key">WriteJoke</span>
+      <span class="rp7-result" data-rp7-result>–</span>
+    </div>
+    <div class="rp7-row rp7-entry" data-rp7-entry style="--r: 4; --mr: 7">
+      <span class="rp7-key">PostJoke</span>
+      <span class="rp7-result" data-rp7-result>–</span>
+    </div>
+
+    <p class="rp7-crash" aria-hidden="true">✕ Crash</p>
+
+    <svg class="rp7-arrows" data-rp7-arrows aria-hidden="true"></svg>
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import { drawArrow } from "./arrow"
+
+  const NAMES = ["WriteJoke", "PostJoke"]
+  // What each activity leaves in the journal
+  const RESULTS = ["I'd tell you a UDP joke…", "posted"]
+  // The line after which the runner crashes on the first run
+  const CRASH_AFTER = 1
+  // Matches the media query in the styles, where the journal goes under the
+  // code
+  const NARROW = "(max-width: 640px)"
+
+  const clock = (d: Date) =>
+    d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-rp7-visual]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const stage = q<HTMLElement>("[data-rp7-stage]")
+    const pointer = q<HTMLElement>("[data-rp7-pointer]")
+    const clockEl = q<HTMLElement>("[data-rp7-clock]")
+    const lines = [...root.querySelectorAll<HTMLElement>("[data-rp7-line]")]
+    const swaps = [...root.querySelectorAll<HTMLElement>("[data-rp7-swap]")]
+    const entries = [...root.querySelectorAll<HTMLElement>("[data-rp7-entry]")]
+    const results = [...root.querySelectorAll<HTMLElement>("[data-rp7-result]")]
+    const arrows = q<SVGSVGElement>("[data-rp7-arrows]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const stepBtn = q<HTMLButtonElement>("[data-step]")
+    const resetBtn = q<HTMLButtonElement>("[data-reset]")
+
+    // The line about to run, and for an activity, whether it's asked the
+    // journal yet. What's in the journal lives outside the runner, so a crash
+    // doesn't touch it.
+    let at = 0
+    let asked = false
+    let run = 1
+    let recorded = [false, false]
+    let firstTime: Date | null = null
+    let crashed = false
+    let busy = false
+    // Bumped on reset, so an arrow that's still drawing knows to stop
+    let generation = 0
+
+    // Straight across when the journal sits beside the code. Under it, the
+    // arrow runs down the padding on the right, inside the figure.
+    const arrow = (from: Element, to: Element, back: boolean, className = "rp7-arrow") => {
+      const stacked = window.matchMedia(NARROW).matches
+      return drawArrow({
+        stage,
+        layer: arrows,
+        from,
+        to,
+        back,
+        stacked,
+        gutter: stacked ? stage.clientWidth - 12 : undefined,
+        className,
+      })
+    }
+
+    const render = () => {
+      stage.classList.toggle("is-crashed", crashed)
+      const finished = at === lines.length
+      for (const [i, line] of lines.entries()) {
+        line.classList.toggle("is-current", !crashed && !busy && !finished && i === at)
+      }
+      for (const [i, el] of results.entries()) {
+        if (recorded[i]) el.textContent = RESULTS[i]!
+      }
+      const line = lines[Math.min(at, lines.length - 1)]!
+      pointer.style.top = `${line.offsetTop + line.offsetHeight / 2}px`
+      pointer.hidden = crashed || finished
+      stepBtn.disabled = busy || finished
+    }
+
+    // Runs a beat with the controls off, unless Reset comes along first
+    const beat = async (fn: (alive: () => boolean) => Promise<void>) => {
+      const gen = generation
+      busy = true
+      render()
+      await fn(() => gen === generation)
+      if (gen !== generation) return
+      busy = false
+      render()
+    }
+
+    const step = () => {
+      // Back up after the crash: a new run, from the top, with every call
+      // back in the code
+      if (crashed) {
+        crashed = false
+        run = 2
+        at = 0
+        for (const swap of swaps) swap.classList.remove("is-replaced")
+        caption.textContent = "The workflow runs again, from the top"
+        return render()
+      }
+
+      // The clock line isn't an activity, so it just runs, every time
+      if (at === 0) {
+        const now = new Date()
+        if (run === 1) {
+          firstTime = now
+          clockEl.className = "rp7-comment"
+          clockEl.textContent = `// ${clock(now)}`
+          caption.textContent = `The clock says ${clock(now)}`
+        } else {
+          // At least a second on, so the two times never look the same
+          const later = new Date(Math.max(now.getTime(), firstTime!.getTime() + 1000))
+          clockEl.className = "rp7-comment is-again"
+          clockEl.innerHTML = `// <s>${clock(firstTime!)}</s> ${clock(later)}`
+          caption.textContent = `Reading the clock isn't an activity, so it runs again, and this time it says ${clock(later)}`
+        }
+        at = 1
+        return render()
+      }
+
+      // The crash comes once WriteJoke is in the journal
+      if (run === 1 && at === CRASH_AFTER + 1 && !asked) {
+        crashed = true
+        caption.textContent = "The runner crashes. The code stops, but the journal is still there."
+        return render()
+      }
+
+      const i = at - 1
+      const name = NAMES[i]!
+      const line = lines[at]!
+      const entry = entries[i]!
+
+      // First beat: ask the journal for the activity's name
+      if (!asked) {
+        return void beat(async (alive) => {
+          await arrow(line, entry, false, "rp7-arrow is-ask")
+          if (!alive()) return
+          asked = true
+          if (recorded[i]) {
+            entry.classList.add("is-found")
+            caption.textContent = `${name} asks the journal, and finds a result`
+          } else {
+            entry.classList.add("is-missing")
+            results[i]!.textContent = "not found"
+            caption.textContent = `${name} asks the journal, and there's nothing there`
+          }
+        })
+      }
+
+      // Second beat: the result comes back from the journal and takes the
+      // call's place, or the activity runs for real
+      return void beat(async (alive) => {
+        if (recorded[i]) {
+          line.classList.add("is-reading")
+          await arrow(line, entry, true)
+          line.classList.remove("is-reading")
+          if (!alive()) return
+          swaps[i]!.classList.add("is-replaced")
+          setTimeout(() => entry.classList.remove("is-found"), 400)
+          caption.textContent = `${name} doesn't run. Its result comes from the journal instead.`
+        } else {
+          line.classList.add("is-running")
+          await arrow(line, entry, false)
+          line.classList.remove("is-running")
+          if (!alive()) return
+          entry.classList.remove("is-missing")
+          recorded[i] = true
+          caption.textContent = `${name} runs for real, and its result goes in the journal`
+        }
+        asked = false
+        at++
+        if (at === lines.length) caption.textContent = "The workflow finishes"
+      })
+    }
+
+    stepBtn.addEventListener("click", () => {
+      if (!busy) step()
+    })
+
+    resetBtn.addEventListener("click", () => {
+      generation++
+      arrows.replaceChildren()
+      for (const line of lines) line.classList.remove("is-reading", "is-running")
+      for (const swap of swaps) swap.classList.remove("is-replaced")
+      for (const entry of entries) entry.classList.remove("is-found", "is-missing")
+      for (const el of results) el.textContent = "–"
+      clockEl.className = "rp7-comment"
+      clockEl.textContent = ""
+      at = 0
+      asked = false
+      run = 1
+      recorded = [false, false]
+      firstTime = null
+      crashed = busy = false
+      caption.textContent = "Click Step to run the workflow"
+      render()
+    })
+    resetBtn.click()
+    // The pointer is placed from the layout, which changes between wide and
+    // narrow
+    new ResizeObserver(() => render()).observe(stage)
+  }
+</script>
+
+<style is:global>
+  .rp7 {
+    --rp7-ink: #3f3f46;
+    --rp7-muted: #71717a;
+    --rp7-line: #d4d4d8;
+    --rp7-surface: #ffffff;
+    --rp7-ok: #15803d;
+    --rp7-red: #dc2626;
+    --rp7-code-bg: #f6f8fa;
+    --rp7-t-keyword: #d73a49;
+    --rp7-t-constant: #005cc5;
+    --rp7-t-function: #6f42c1;
+    --rp7-t-string: #032f62;
+    --rp7-t-plain: #24292e;
+    --rp7-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --st-ink: var(--rp7-ink);
+    --st-muted: var(--rp7-muted);
+    --st-line: var(--rp7-line);
+    --st-surface: var(--rp7-surface);
+    margin: 1.5rem 0;
+  }
+  html.dark .rp7 {
+    --rp7-ink: #e4e4e7;
+    --rp7-muted: #a1a1aa;
+    --rp7-line: #3f3f46;
+    --rp7-surface: #09090b;
+    --rp7-ok: #4ade80;
+    --rp7-red: #f87171;
+    --rp7-code-bg: #0d1117;
+    --rp7-t-keyword: #f97583;
+    --rp7-t-constant: #79b8ff;
+    --rp7-t-function: #b392f0;
+    --rp7-t-string: #9ecbff;
+    --rp7-t-plain: #e1e4e8;
+  }
+  .rp7 p {
+    margin: 0;
+  }
+
+  /* One grid: the code down the left, and each journal row on the same row
+     as the line that asks for it, with room between for the arrows */
+  .rp7-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 12.5rem;
+    column-gap: 2.75rem;
+    row-gap: 0.35rem;
+    align-items: center;
+    color: var(--rp7-ink);
+  }
+  .rp7-stage > * {
+    grid-row: var(--r);
+    grid-column: 1;
+  }
+  .rp7-stage > .is-journal,
+  .rp7-stage > .rp7-entry {
+    grid-column: 2;
+  }
+  .rp7 .rp7-title {
+    margin-bottom: 0.15rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .rp7-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 2.3rem;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--rp7-line);
+    border-radius: 0.4rem;
+    background: var(--rp7-surface);
+    font-size: 0.85rem;
+    color: var(--rp7-muted);
+    transition:
+      border-color 200ms ease,
+      background-color 200ms ease,
+      color 200ms ease,
+      opacity 250ms ease;
+  }
+  .rp7 .rp7-row code {
+    min-width: 0;
+    padding: 0;
+    background: none;
+    font-size: 0.82rem;
+    color: inherit;
+    white-space: nowrap;
+  }
+  /* The line about to run, and the one running */
+  .rp7-row.is-current,
+  .rp7-row.is-running {
+    border-color: var(--rp7-ink);
+    color: var(--rp7-ink);
+  }
+  /* Reading a result back */
+  .rp7-row.is-reading {
+    border-color: var(--rp7-ok);
+  }
+
+  /* The code's colours, from the GitHub themes the post's code blocks use */
+  .rp7 .t-k {
+    color: var(--rp7-t-keyword);
+  }
+  .rp7 .t-c {
+    color: var(--rp7-t-constant);
+  }
+  .rp7 .t-f {
+    color: var(--rp7-t-function);
+  }
+  .rp7 .t-s {
+    color: var(--rp7-t-string);
+  }
+  .rp7 .t-p {
+    color: var(--rp7-t-plain);
+  }
+  /* Code rows look like code, and the lines that aren't running step back */
+  .rp7-line {
+    background: var(--rp7-code-bg);
+  }
+  .rp7-line code {
+    opacity: 0.7;
+    transition: opacity 200ms ease;
+  }
+  .rp7-line.is-current code,
+  .rp7-line.is-running code,
+  .rp7-line.is-reading code {
+    opacity: 1;
+  }
+
+  /* An activity call, formatted the way you'd write it: the call opens on
+     the line's first row, and its argument and closing brace get rows of
+     their own, indented from the line's start. When the result comes back
+     from the journal, it takes the call's place. */
+  .rp7-swap,
+  .rp7-call {
+    display: inline;
+  }
+  .rp7-part:not(:first-child) {
+    display: block;
+  }
+  .rp7-arg {
+    padding-left: 2ch;
+  }
+  .rp7-value {
+    display: none;
+    padding: 0 0.3rem;
+    border-radius: 0.25rem;
+    background: color-mix(in oklab, var(--rp7-ok) 16%, transparent);
+    color: var(--rp7-ok);
+  }
+  .rp7-swap.is-replaced .rp7-call {
+    display: none;
+  }
+  .rp7-swap.is-replaced .rp7-value {
+    display: inline-block;
+    animation: rp7-in 300ms var(--rp7-ease);
+  }
+  @keyframes rp7-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5em);
+    }
+  }
+
+  /* The clock line's value, as a comment. Run again, it's different. */
+  .rp7-comment {
+    flex: none;
+    margin-left: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--rp7-muted);
+    white-space: nowrap;
+  }
+  .rp7-comment:empty {
+    display: none;
+  }
+  .rp7-comment.is-again {
+    padding: 0 0.3rem;
+    border-radius: 0.25rem;
+    background: var(--rp7-warn);
+    color: var(--rp7-warn-ink);
+  }
+  .rp7-comment s {
+    opacity: 0.6;
+  }
+
+  /* The journal: a name, and what's recorded for it */
+  .rp7-key {
+    flex: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--rp7-muted);
+  }
+  .rp7-result {
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    color: var(--rp7-ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rp7-entry.is-found {
+    border-color: var(--rp7-ok);
+    background: color-mix(in oklab, var(--rp7-ok) 12%, var(--rp7-surface));
+  }
+  .rp7-entry.is-missing {
+    border-style: dashed;
+  }
+  .rp7-entry.is-missing .rp7-result {
+    font-style: italic;
+    color: var(--rp7-muted);
+  }
+
+  /* The line about to run, pointed at from the margin */
+  .rp7-stage > .rp7-pointer {
+    position: absolute;
+    left: -0.85rem;
+    width: 0;
+    height: 0;
+    border-block: 0.3rem solid transparent;
+    border-left: 0.4rem solid var(--rp7-ink);
+    transform: translateY(-50%);
+    transition: top 300ms var(--rp7-ease);
+  }
+  .rp7-pointer[hidden] {
+    display: none;
+  }
+
+  /* The arrows, over everything. Asking is quieter than doing. */
+  .rp7-stage > .rp7-arrows {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .rp7-arrow path {
+    fill: none;
+    stroke: var(--rp7-ink);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .rp7-arrow.is-ask path {
+    stroke: var(--rp7-muted);
+    stroke-width: 1.25;
+  }
+  .rp7-arrow.is-back path {
+    stroke: var(--rp7-ok);
+  }
+  .rp7-arrow.is-gone {
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+
+  /* The crash: the code fades, the journal doesn't */
+  .rp7-stage.is-crashed .rp7-fades {
+    opacity: 0.35;
+  }
+  .rp7 .rp7-crash {
+    z-index: 3;
+    grid-row: 2 / 5;
+    place-self: center;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--rp7-line);
+    border-radius: 999px;
+    background: var(--rp7-surface);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--rp7-red);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+    transition:
+      opacity 200ms ease,
+      transform 200ms var(--rp7-ease);
+  }
+  .rp7-stage.is-crashed .rp7-crash {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* The graphic tells the story, so the caption is for screen readers */
+  .rp7 .st-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .rp7 .st-controls {
+    margin-top: 1rem;
+  }
+
+  /* Narrow screens: the journal goes under the code, the code wraps, and
+     the padding on the right is where the arrows run */
+  @media (max-width: 640px) {
+    .rp7-stage {
+      grid-template-columns: minmax(0, 1fr);
+      padding-right: 1.75rem;
+    }
+    .rp7-stage > .is-journal,
+    .rp7-stage > .rp7-entry {
+      grid-row: var(--mr);
+      grid-column: 1;
+    }
+    .rp7-stage > .is-journal {
+      margin-top: 1rem;
+    }
+    .rp7-row {
+      flex-wrap: wrap;
+      row-gap: 0.15rem;
+    }
+    .rp7 .rp7-row code {
+      font-size: 0.76rem;
+    }
+    .rp7-comment {
+      font-size: 0.72rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rp7-pointer,
+    .rp7-crash,
+    .rp7-row {
+      transition: none !important;
+    }
+    .rp7-swap.is-replaced .rp7-value {
+      animation: none;
+    }
+  }
+</style>

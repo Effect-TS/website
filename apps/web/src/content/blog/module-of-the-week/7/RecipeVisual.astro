@@ -1,0 +1,550 @@
+---
+// Making pancakes from a five-step recipe, ticking off each step as it's
+// done. Each Step does the next step, drawing an arrow from the recipe to the
+// bowl. Just as you're about to add the flour, the doorbell rings.
+//
+// The next Step brings you back, and you start again from step 1. This time
+// each Step checks a row before doing anything: a ticked step is read back
+// from the bowl, with an arrow the other way, and skipped. The first step
+// that isn't ticked is done for real.
+
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+
+const recipe = ["Crack 3 eggs", "Add a cup of milk", "Add a cup of flour", "Whisk", "Pour"]
+// One row in the bowl for each step, so every step has somewhere to land
+const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
+---
+
+<figure
+  class="rc7 st"
+  data-rc7-visual
+  aria-label="A five-step pancake recipe and a bowl. Each step is ticked off as it's done. Just before the flour, the doorbell rings, and when you come back you start again from step 1, skipping each ticked step until you reach one that isn't."
+>
+  <div class="rc7-stage" data-rc7-stage>
+    <section class="rc7-recipe" data-rc7-recipe>
+      <p class="rc7-title">Recipe</p>
+      <span class="rc7-pointer" data-rc7-pointer aria-hidden="true"></span>
+      <ol class="rc7-rows">
+        {
+          recipe.map((text, i) => (
+            <li class="rc7-row" data-rc7-row={i}>
+              <span class="rc7-tick" aria-hidden="true">
+                <svg viewBox="0 0 12 12">
+                  <path d="M2.5 6.2 L5 8.6 L9.5 3.6" />
+                </svg>
+              </span>
+              <span class="rc7-num">{i + 1}</span>
+              <span>{text}</span>
+              <span class="rc7-already" aria-hidden="true">
+                already done
+              </span>
+              <span class="rc7-sr" data-rc7-sr />
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section data-rc7-bowl>
+      <p class="rc7-title">Bowl</p>
+      <dl class="rc7-rows">
+        {
+          bowl.map((name) => (
+            <div class="rc7-row" data-rc7-into>
+              <dt>{name}</dt>
+              <dd data-rc7-amount>–</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </section>
+
+    <svg class="rc7-arrows" data-rc7-arrows aria-hidden="true"></svg>
+
+    <p class="rc7-door" aria-hidden="true">🔔 Ding dong</p>
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import { rel } from "@/components/blog/module-of-the-week/stepper/stepper"
+  import { drawArrow } from "./arrow"
+
+  // The doorbell rings just as you're about to add the flour
+  const DOORBELL_AT = 2
+  // What each step leaves in its row of the bowl
+  const AMOUNTS = ["", "1 cup", "1 cup", "yes", "ready"]
+  const COOKED = [
+    "Three eggs go in the bowl, and you tick off step 1",
+    "A cup of milk goes in, and you tick off step 2",
+    "A cup of flour goes in, and you tick off step 3",
+    "You whisk it all together, and tick off step 4",
+    "Into the pan. Pancakes, just like the recipe says.",
+  ]
+  const SKIPPED = [
+    "the eggs are already in",
+    "the milk's already in",
+    "the flour's already in",
+    "it's already whisked",
+  ]
+
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-rc7-visual]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const stage = q<HTMLElement>("[data-rc7-stage]")
+    const recipe = q<HTMLElement>("[data-rc7-recipe]")
+    const pointer = q<HTMLElement>("[data-rc7-pointer]")
+    const bowl = q<HTMLElement>("[data-rc7-bowl]")
+    const rows = [...root.querySelectorAll<HTMLElement>("[data-rc7-row]")]
+    // Where each step lands in the bowl
+    const into = [...root.querySelectorAll<HTMLElement>("[data-rc7-into]")]
+    const amounts = [...root.querySelectorAll<HTMLElement>("[data-rc7-amount]")]
+    const arrows = q<SVGSVGElement>("[data-rc7-arrows]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const stepBtn = q<HTMLButtonElement>("[data-step]")
+    const resetBtn = q<HTMLButtonElement>("[data-reset]")
+
+    // The step you're on, and which steps are ticked
+    let at = 0
+    let done = rows.map(() => false)
+    let away = false
+    let rung = false
+    // While an arrow draws
+    let busy = false
+    // Bumped on reset, so an arrow that's still drawing knows to stop
+    let generation = 0
+
+    // The arrow between a recipe row and its row in the bowl
+    const arrow = (row: Element, target: Element, back: boolean) =>
+      drawArrow({
+        stage,
+        layer: arrows,
+        from: row,
+        to: target,
+        back,
+        stacked: rel(stage, bowl).top > rel(stage, recipe).bottom,
+        className: "rc7-arrow",
+      })
+
+    const render = () => {
+      stage.classList.toggle("is-away", away)
+      const finished = done.every(Boolean)
+      for (const [i, row] of rows.entries()) {
+        const current = !away && !busy && !finished && i === at
+        row.classList.toggle("is-current", current)
+        row.classList.toggle("is-ticked", done[i]!)
+        row.querySelector("[data-rc7-sr]")!.textContent = done[i]
+          ? " (ticked)"
+          : current
+            ? " (next)"
+            : ""
+      }
+      for (const [i, dd] of amounts.entries()) {
+        dd.replaceChildren(done[i] ? AMOUNTS[i]! : "–")
+      }
+      // Three eggs, drawn
+      if (done[0]) {
+        const eggs = document.createElement("span")
+        eggs.className = "rc7-eggs"
+        eggs.setAttribute("aria-label", "3 eggs")
+        for (let i = 0; i < 3; i++) {
+          eggs.append(Object.assign(document.createElement("i"), { className: "rc7-egg" }))
+        }
+        amounts[0]!.replaceChildren(eggs)
+      }
+      // The pointer sits next to the step you're on, and slides when that
+      // changes. It's gone once the pancakes are done.
+      const row = rows[Math.min(at, rows.length - 1)]!
+      pointer.style.top = `${row.offsetTop + row.offsetHeight / 2}px`
+      pointer.hidden = finished
+      stepBtn.disabled = busy || finished
+    }
+
+    const pause = (ms: number) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms))
+
+    // Draws the arrow, then shows what it did once it lands
+    const play = async (i: number, back: boolean, after: () => void) => {
+      const run = generation
+      busy = true
+      render()
+      const row = rows[i]!
+      if (back) {
+        // Check the tick first, then fetch what's already in the bowl
+        row.classList.add("is-checking")
+        await pause(350)
+        if (run !== generation) return
+        into[i]!.classList.add("is-recalled")
+      }
+      row.classList.add(back ? "is-read" : "is-doing")
+      await arrow(row, into[i]!, back)
+      row.classList.remove("is-read", "is-doing", "is-checking")
+      if (run !== generation) return
+      setTimeout(() => into[i]!.classList.remove("is-recalled"), 400)
+      busy = false
+      after()
+      render()
+    }
+
+    // A ticked step: read it back from the bowl, and skip it. It stays
+    // greyed out, so you can see which steps were replayed.
+    const skip = (i: number) =>
+      play(i, true, () => {
+        rows[i]!.classList.add("is-skipped")
+        at = i + 1
+        caption.textContent = `Step ${i + 1} is ticked, and ${SKIPPED[i]}, so you skip it`
+      })
+
+    // A step that isn't ticked: do it, and tick it off
+    const cook = (i: number) =>
+      play(i, false, () => {
+        done[i] = true
+        at = i + 1
+        caption.textContent = COOKED[i]!
+      })
+
+    const ring = () => {
+      rung = true
+      away = true
+      caption.textContent =
+        "The doorbell rings, and you go and sign for a package. Click Step to go back to the kitchen."
+      render()
+    }
+
+    const comeBack = () => {
+      away = false
+      at = 0
+      caption.textContent =
+        "Back in the kitchen. You start again from step 1, but this time you check the ticks."
+      render()
+    }
+
+    stepBtn.addEventListener("click", () => {
+      if (busy || done.every(Boolean)) return
+      if (away) return comeBack()
+      if (done[at]) return void skip(at)
+      if (at === DOORBELL_AT && !rung) ring()
+      else void cook(at)
+    })
+
+    resetBtn.addEventListener("click", () => {
+      generation++
+      arrows.replaceChildren()
+      for (const row of rows)
+        row.classList.remove("is-doing", "is-read", "is-checking", "is-skipped")
+      for (const el of into) el.classList.remove("is-recalled")
+      at = 0
+      done = rows.map(() => false)
+      away = busy = false
+      rung = false
+      caption.textContent = "Click Step to start cooking"
+      render()
+    })
+    resetBtn.click()
+  }
+</script>
+
+<style is:global>
+  .rc7 {
+    --rc7-ink: #3f3f46;
+    --rc7-muted: #71717a;
+    --rc7-line: #d4d4d8;
+    --rc7-surface: #ffffff;
+    --rc7-ok: #15803d;
+    --rc7-egg: #f3e7d3;
+    --rc7-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --st-ink: var(--rc7-ink);
+    --st-muted: var(--rc7-muted);
+    --st-line: var(--rc7-line);
+    --st-surface: var(--rc7-surface);
+    margin: 1.5rem 0;
+  }
+  html.dark .rc7 {
+    --rc7-ink: #e4e4e7;
+    --rc7-muted: #a1a1aa;
+    --rc7-line: #3f3f46;
+    --rc7-surface: #09090b;
+    --rc7-ok: #4ade80;
+    --rc7-egg: #e9dcc4;
+  }
+  .rc7 p {
+    margin: 0;
+  }
+
+  /* The recipe on the left and the bowl on the right, with room between
+     them for the arrows */
+  .rc7-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem 3rem;
+    align-items: start;
+    color: var(--rc7-ink);
+  }
+  .rc7-stage > section {
+    transition: opacity 250ms ease;
+  }
+  .rc7 .rc7-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .rc7 .rc7-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.45rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .rc7 .rc7-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 1.7rem;
+    margin: 0;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--rc7-line);
+    border-radius: 0.35rem;
+    background: var(--rc7-surface);
+    font-size: 0.72rem;
+    color: var(--rc7-muted);
+    transition:
+      border-color 200ms ease,
+      background-color 200ms ease,
+      color 200ms ease,
+      opacity 250ms ease;
+  }
+  .rc7 .rc7-row > * {
+    transition: opacity 250ms ease;
+  }
+  .rc7 .rc7-row::before,
+  .rc7 .rc7-row::marker {
+    content: none;
+  }
+  /* The step you're on, and the one going into the bowl */
+  .rc7 .rc7-row.is-current,
+  .rc7 .rc7-row.is-doing {
+    border-color: var(--rc7-ink);
+    color: var(--rc7-ink);
+  }
+  /* The one being read back */
+  .rc7 .rc7-row.is-read {
+    border-color: var(--rc7-ok);
+  }
+  /* Checking the tick before skipping the step */
+  .rc7-row.is-checking .rc7-tick {
+    animation: rc7-check 350ms ease-out;
+  }
+  @keyframes rc7-check {
+    50% {
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--rc7-ok) 35%, transparent);
+    }
+  }
+  /* What's already in the bowl, read back */
+  .rc7 .rc7-row.is-recalled {
+    border-color: var(--rc7-ok);
+    background: color-mix(in oklab, var(--rc7-ok) 12%, var(--rc7-surface));
+  }
+  /* A step that was replayed rather than done: faded, and labelled. The
+     label comes in as the step is read back, and stays. */
+  .rc7 .rc7-row.is-skipped:not(.is-read, .is-checking) > :not(.rc7-already) {
+    opacity: 0.45;
+  }
+  .rc7-already {
+    margin-left: auto;
+    font-size: 0.66rem;
+    color: var(--rc7-ok);
+    opacity: 0;
+  }
+  .rc7-row.is-read .rc7-already,
+  .rc7-row.is-skipped .rc7-already {
+    opacity: 1;
+  }
+
+  /* The step you're on, pointed at from the margin */
+  .rc7-recipe {
+    position: relative;
+  }
+  .rc7-pointer {
+    position: absolute;
+    left: -0.85rem;
+    width: 0;
+    height: 0;
+    border-block: 0.3rem solid transparent;
+    border-left: 0.4rem solid var(--rc7-ink);
+    transform: translateY(-50%);
+    transition: top 300ms var(--rc7-ease);
+  }
+  .rc7-pointer[hidden] {
+    display: none;
+  }
+
+  /* The graphic tells the story, so the caption is for screen readers */
+  .rc7 .st-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .rc7 .st-controls {
+    margin-top: 1rem;
+  }
+  .rc7-num,
+  .rc7 dt {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--rc7-muted);
+  }
+  .rc7 dt {
+    width: 4.2rem;
+    margin: 0;
+    font-weight: 400;
+  }
+  .rc7 dd {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    color: var(--rc7-ink);
+  }
+  .rc7-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .rc7-tick {
+    flex: none;
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 1px solid var(--rc7-line);
+    border-radius: 0.2rem;
+  }
+  /* A drawn check rather than a glyph, so it sits dead center */
+  .rc7-tick svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: transparent;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .rc7-row.is-ticked .rc7-tick {
+    border-color: var(--rc7-ok);
+  }
+  .rc7-row.is-ticked .rc7-tick svg {
+    stroke: var(--rc7-ok);
+  }
+
+  .rc7-eggs {
+    display: flex;
+    gap: 0.15rem;
+  }
+  .rc7-egg {
+    width: 0.55rem;
+    height: 0.7rem;
+    border: 1px solid var(--rc7-muted);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    background: var(--rc7-egg);
+  }
+
+  /* The arrows between the recipe and the bowl, over everything */
+  .rc7-arrows {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .rc7-arrow path {
+    fill: none;
+    stroke: var(--rc7-ink);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .rc7-arrow.is-back path {
+    stroke: var(--rc7-ok);
+  }
+  .rc7-arrow.is-gone {
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+
+  /* At the door: the kitchen fades while you're gone */
+  .rc7-stage.is-away > section {
+    opacity: 0.35;
+  }
+  .rc7 .rc7-door {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--rc7-line);
+    border-radius: 999px;
+    background: var(--rc7-surface);
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.95);
+    transition:
+      opacity 200ms ease,
+      transform 200ms var(--rc7-ease);
+  }
+  .rc7-stage.is-away .rc7-door {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  .rc7-stage.is-away .rc7-door {
+    animation: rc7-wobble 450ms ease-in-out 100ms 2;
+  }
+  @keyframes rc7-wobble {
+    25% {
+      transform: translate(-50%, -50%) rotate(4deg);
+    }
+    75% {
+      transform: translate(-50%, -50%) rotate(-4deg);
+    }
+  }
+
+  /* Narrow screens: the bowl under the recipe */
+  @media (max-width: 640px) {
+    .rc7-stage {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rc7-pointer {
+      transition: none;
+    }
+    .rc7-row.is-checking .rc7-tick {
+      animation: none;
+    }
+    .rc7-stage.is-away .rc7-door {
+      animation: none;
+    }
+    .rc7-stage > section,
+    .rc7-door,
+    .rc7 .rc7-row {
+      transition: none;
+    }
+  }
+</style>
