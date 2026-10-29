@@ -10,8 +10,11 @@ import {
   svgoOptimizer,
 } from "astro/config"
 import { fileURLToPath } from "node:url"
+import * as Layer from "effect/Layer"
+import * as FetchHttpClient from "effect/http/FetchHttpClient"
 import svgr from "vite-plugin-svgr"
 import { latestReleasePlugin } from "./src/features/changelog/latest-release-plugin"
+import { NpmRegistry } from "./src/features/changelog/npm-registry"
 import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
@@ -70,6 +73,7 @@ const config = defineConfig({
         base: new URL("./.data/api-reference/", import.meta.url),
         channel: defaultDocsVersion,
         slug: "effect",
+        registry: NpmRegistry.layer.pipe(Layer.provide(FetchHttpClient.layer)),
       }),
       cloudflareWorkersFallback(),
       monacoEditorPlugin({
