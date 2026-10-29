@@ -10,11 +10,10 @@ import {
   svgoOptimizer,
 } from "astro/config"
 import { fileURLToPath } from "node:url"
-import * as Layer from "effect/Layer"
-import * as FetchHttpClient from "effect/http/FetchHttpClient"
+import * as ManagedRuntime from "effect/ManagedRuntime"
 import svgr from "vite-plugin-svgr"
+import { LatestRelease } from "./src/features/changelog/latest-release"
 import { latestReleasePlugin } from "./src/features/changelog/latest-release-plugin"
-import { NpmRegistry } from "./src/features/changelog/npm-registry"
 import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
@@ -33,6 +32,14 @@ const FontsourceProvider = fontProviders.fontsource()
 // restore/save it without caching the whole dependency tree; shared with the
 // plugin so the two cannot drift.
 const cacheDir = new URL("./.astro-cache/", import.meta.url)
+
+const latestRelease = ManagedRuntime.make(
+  LatestRelease.layer({
+    base: new URL("./.data/api-reference/", import.meta.url),
+    channel: defaultDocsVersion,
+    slug: "effect",
+  }),
+)
 
 // https://astro.build/config
 const config = defineConfig({
@@ -69,12 +76,7 @@ const config = defineConfig({
       tailwindcss(),
       svgr(),
       openGraphMetadataPlugin({ cacheDir }),
-      latestReleasePlugin({
-        base: new URL("./.data/api-reference/", import.meta.url),
-        channel: defaultDocsVersion,
-        slug: "effect",
-        registry: NpmRegistry.layer.pipe(Layer.provide(FetchHttpClient.layer)),
-      }),
+      latestReleasePlugin(latestRelease),
       cloudflareWorkersFallback(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],

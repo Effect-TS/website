@@ -1,111 +1,53 @@
-import { createHash } from "node:crypto"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { pathToFileURL } from "node:url"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import { afterEach, assert, test } from "vite-plus/test"
+import * as Layer from "effect/Layer"
+import * as ManagedRuntime from "effect/ManagedRuntime"
+import { LatestRelease } from "../../../src/features/changelog/latest-release.ts"
 import { latestReleasePlugin } from "../../../src/features/changelog/latest-release-plugin.ts"
 import {
-  NpmRegistry,
-  NpmRegistryError,
-  type PublishedRelease,
-} from "../../../src/features/changelog/npm-registry.ts"
+  registryLayer,
+  removeDatasets,
+  served,
+  writeDataset,
+} from "./dataset-fixture.ts"
 
-const directories: Array<string> = []
-afterEach(() => {
-  for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
+afterEach(removeDatasets)
 
 const moduleId = "virtual:latest-release"
 
-const releasesFile = `${JSON.stringify({
-  schemaVersion: 1,
-  releases: [
-    { version: "4.0.0", date: "2026-10-01", breaking: false, body: "" },
-    { version: "3.9.0", date: "2026-09-01", breaking: false, body: "" },
-  ],
-})}\n`
-
-const changelog = {
-  json: "changelog.json",
-  sha256: createHash("sha256").update(releasesFile).digest("hex"),
-  sourceUrl: "https://github.com/Effect-TS/effect/blob/abc/CHANGELOG.md",
-  releaseCount: 2,
-  latestDate: "2026-10-01",
-}
-
-/** Writes the manifests of a v4 dataset that holds `effect`. */
-function setup(options: {
-  changelog: boolean
-  registry?: Layer.Layer<NpmRegistry>
-}) {
-  const base = mkdtempSync(join(tmpdir(), "latest-release-"))
-  directories.push(base)
-  mkdirSync(join(base, "v4", "effect"), { recursive: true })
-  writeFileSync(
-    join(base, "v4", "effect", "manifest.json"),
-    JSON.stringify({
-      schemaVersion: 3,
-      channel: "v4",
-      name: "effect",
-      version: "4.0.0",
-      revision: "abc",
-      description: "The Effect library",
-      npmUrl: "https://www.npmjs.com/package/effect",
-      sourceUrl: "https://github.com/Effect-TS/effect/tree/abc/packages/effect",
-      barrels: [],
-      modules: [],
-      ...(options.changelog ? { changelog } : {}),
-    }),
+function setup(options: { changelog: boolean }) {
+  const dataset = writeDataset(options)
+  const runtime = ManagedRuntime.make(
+    LatestRelease.layerNoDeps(dataset).pipe(
+      Layer.provide(registryLayer(served("4.0.0", { "4.0.0": "2026-10-02" }))),
+    ),
   )
-  writeFileSync(join(base, "v4", "effect", "changelog.json"), releasesFile)
-  writeFileSync(
-    join(base, "v4", "manifest.json"),
-    JSON.stringify({
-      datasetSchemaVersion: 1,
-      channel: "v4",
-      typedocVersion: "0.28.20",
-      typedocSchemaVersion: "2.0",
-      revision: "abc",
-      packages: [
-        { name: "effect", version: "4.0.0", manifest: "effect/manifest.json" },
-      ],
-    }),
-  )
-  const plugin = latestReleasePlugin({
-    base: pathToFileURL(`${base}/`),
-    channel: "v4",
-    slug: "effect",
-    registry: options.registry,
-  })
+  const plugin = latestReleasePlugin(runtime)
   const watched: Array<string> = []
-  const load = async () => {
-    const resolveId = plugin.resolveId as (id: string) => string | undefined
-    const resolved = resolveId(moduleId)
-    assert.isDefined(resolved)
+  const load = async (id = `\0${moduleId}`) => {
     const loadHook = plugin.load as (
       this: { addWatchFile: (file: string) => void },
       id: string,
     ) => Promise<string | undefined>
-    return loadHook.call(
-      { addWatchFile: (file) => watched.push(file) },
-      resolved!,
-    )
+    return loadHook.call({ addWatchFile: (file) => watched.push(file) }, id)
   }
-  return { load, watched }
+  return { plugin, load, watched }
 }
 
-test("exposes the version the API reference shows, with its tag date", async () => {
+test("resolves only its own module id", () => {
+  const { plugin } = setup({ changelog: true })
+  const resolveId = plugin.resolveId as (id: string) => string | undefined
+  assert.strictEqual(resolveId(moduleId), `\0${moduleId}`)
+  assert.isUndefined(resolveId("virtual:other"))
+})
+
+test("exports the release and watches the dataset manifest", async () => {
   const { load, watched } = setup({ changelog: true })
   assert.strictEqual(
     await load(),
-    'export default {"name":"effect","version":"4.0.0","date":"2026-10-01"}',
+    'export default {"name":"effect","version":"4.0.0","date":"2026-10-02"}',
   )
   assert.lengthOf(watched, 1)
+  assert.match(watched[0]!, /v4\/manifest\.json$/)
 })
 
 test("exports null when the package has no changelog", async () => {
@@ -113,76 +55,7 @@ test("exports null when the package has no changelog", async () => {
   assert.strictEqual(await load(), "export default null")
 })
 
-test("exports null without a dataset", async () => {
-  const base = mkdtempSync(join(tmpdir(), "latest-release-"))
-  directories.push(base)
-  const plugin = latestReleasePlugin({
-    base: pathToFileURL(`${base}/`),
-    channel: "v4",
-    slug: "effect",
-  })
-  const loadHook = plugin.load as (
-    this: { addWatchFile: (file: string) => void },
-    id: string,
-  ) => Promise<string | undefined>
-  assert.strictEqual(
-    await loadHook.call({ addWatchFile: () => undefined }, `\0${moduleId}`),
-    "export default null",
-  )
-})
-
-const registry = (
-  published: Effect.Effect<PublishedRelease, NpmRegistryError>,
-) => Layer.succeed(NpmRegistry, NpmRegistry.of({ published: () => published }))
-
-const served = (latest: string, dates: Record<string, string>) =>
-  Effect.succeed({ latest, dates: new Map(Object.entries(dates)) })
-
-test("shows the npm date for the version npm serves", async () => {
-  const { load } = setup({
-    changelog: true,
-    registry: registry(served("4.0.0", { "4.0.0": "2026-10-02" })),
-  })
-  assert.strictEqual(
-    await load(),
-    'export default {"name":"effect","version":"4.0.0","date":"2026-10-02"}',
-  )
-})
-
-test("shows the newest release npm serves when the snapshot is ahead", async () => {
-  const { load } = setup({
-    changelog: true,
-    registry: registry(served("3.9.5", { "3.9.0": "2026-09-02" })),
-  })
-  assert.strictEqual(
-    await load(),
-    'export default {"name":"effect","version":"3.9.0","date":"2026-09-02"}',
-  )
-})
-
-test("falls back to the snapshot when npm fails", async () => {
-  const { load } = setup({
-    changelog: true,
-    registry: registry(Effect.fail(new NpmRegistryError({ cause: "down" }))),
-  })
-  assert.strictEqual(
-    await load(),
-    'export default {"name":"effect","version":"4.0.0","date":"2026-10-01"}',
-  )
-})
-
-test("asks npm once per cache window", async () => {
-  let calls = 0
-  const { load } = setup({
-    changelog: true,
-    registry: registry(
-      Effect.suspend(() => {
-        calls += 1
-        return served("4.0.0", {})
-      }),
-    ),
-  })
-  await load()
-  await load()
-  assert.strictEqual(calls, 1)
+test("ignores other modules", async () => {
+  const { load } = setup({ changelog: true })
+  assert.isUndefined(await load("other"))
 })

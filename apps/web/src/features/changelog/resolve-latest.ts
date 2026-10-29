@@ -1,6 +1,6 @@
 import type { PublishedRelease } from "./npm-registry"
 
-export interface LatestRelease {
+export interface ReleaseSummary {
   readonly name: string
   readonly version: string
   readonly date?: string | undefined
@@ -37,7 +37,7 @@ export const resolveLatestRelease = (input: {
   readonly snapshot: Release
   readonly releases: ReadonlyArray<Release>
   readonly npm: PublishedRelease | undefined
-}): LatestRelease | null => {
+}): ReleaseSummary | null => {
   const { name, snapshot, releases, npm } = input
   if (npm === undefined) return { name, ...snapshot }
   const served = releases
