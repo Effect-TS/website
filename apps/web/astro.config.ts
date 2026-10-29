@@ -125,6 +125,11 @@ const config = defineConfig({
         optional: true,
         default: "https://us.i.posthog.com",
       }),
+      PUBLIC_REO_CLIENT_ID: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+      }),
     },
   },
 
