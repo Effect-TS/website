@@ -15,7 +15,12 @@ export default defineConfig({
   lint: {
     plugins: ["typescript", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    ignorePatterns: [".direnv", "dist"],
+    ignorePatterns: [
+      ".direnv",
+      "dist",
+      // Lesson goal tests import the in-browser `tutorial-test` module.
+      "apps/web/src/content/tutorial/**/main.test.ts",
+    ],
     options: {
       typeAware: true,
       typeCheck: true,
