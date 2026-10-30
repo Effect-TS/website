@@ -1,0 +1,48 @@
+---
+title: Schedule Visualizer
+---
+
+import ScheduleVisualizer from "@/components/schedule-visualizer/ScheduleVisualizerAstro.astro"
+import { Duration, Schedule } from "effect"
+
+<ScheduleVisualizer schedule={Schedule.fixed(Duration.seconds(1))}>
+	<Fragment slot="code">
+	```ts
+	Schedule.fixed(Duration.seconds(1))
+	```
+	</Fragment>
+</ScheduleVisualizer>
+
+<ScheduleVisualizer
+	schedule={Schedule.recurs(2)}
+>
+	<Fragment slot="code">
+	```ts
+	Schedule.recurs(2)
+	```
+	</Fragment>
+</ScheduleVisualizer>
+
+<ScheduleVisualizer
+	schedule={Schedule.fibonacci(Duration.seconds(1))}
+>
+	<Fragment slot="code">
+	```ts
+	Schedule.fibonacci(Duration.seconds(1))
+	```
+	</Fragment>
+</ScheduleVisualizer>
+
+<ScheduleVisualizer
+	schedule={Schedule.exponential(Duration.millis(10), 4).pipe(Schedule.andThenEither(Schedule.spaced(Duration.seconds(1))), Schedule.compose(Schedule.elapsed), Schedule.whileOutput(Duration.lessThanOrEqualTo(Duration.seconds(10))))}
+>
+	<Fragment slot="code">
+	```ts
+	Schedule.exponential(Duration.millis(10), 4).pipe(
+		Schedule.andThenEither(Schedule.spaced(Duration.seconds(1))),
+		Schedule.compose(Schedule.elapsed),
+		Schedule.whileOutput(Duration.lessThanOrEqualTo(Duration.seconds(10)))
+	)
+	```
+	</Fragment>
+</ScheduleVisualizer>
