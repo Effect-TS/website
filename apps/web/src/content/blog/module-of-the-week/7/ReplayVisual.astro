@@ -2,10 +2,10 @@
 // TellJoke running next to its journal, one beat per Step, like the recipe
 // visual earlier in the post. Each journal row sits level with the line that
 // asks for it. Every activity asks the journal for its name before it does
-// anything: a muted arrow goes over, and the row either says "not found", so
-// the activity runs for real and its result goes in, or lights up, and the
-// result comes back with a green arrow and takes the call's place in the
-// code.
+// anything: its name in the code and that name in the journal light up. If
+// there's nothing there, the activity does the work, its result turns up on
+// the line as a comment, and an arrow takes it into the journal. If there
+// is, a green arrow brings that same result back to the line.
 //
 // Just after WriteJoke, the runner crashes. The code fades, but the journal
 // doesn't. The next Step starts the workflow again from the top. The clock
@@ -15,8 +15,6 @@
 
 import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
 import { warning } from "../3/palette"
-
-const joke = "I'd tell you a UDP joke…"
 
 // The code, in tokens, coloured like the post's code blocks: [kind, text],
 // where the kind is a keyword, a constant, a function, a string, or plain
@@ -52,124 +50,166 @@ const call = (name: string): Array<Array<Token>> => [
   ],
   [["p", "})"]],
 ]
+
+// The code as HTML, built here rather than in the markup, where a formatter
+// would add whitespace between the tokens and it would show up in the code
+const escape = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+const tokens = (ts: Array<Token>) =>
+  ts.map(([kind, text]) => `<span class="t-${kind}">${escape(text)}</span>`).join("")
+// An activity's name, marked so it can light up along with the journal row
+// it looks up
+const nameToken = (name: string) =>
+  `<span class="t-s rp7-name" data-rp7-name>"${escape(name)}"</span>`
+// An activity call, on three lines, with a place after its closing brace for
+// a comment saying what it returned
+const activity = (name: string) => {
+  const [open, arg, close] = call(name)
+  const note = `<span class="rp7-note" data-rp7-note></span>`
+  return [
+    `<span>${tokens(open!)}</span>`,
+    `<span class="rp7-break rp7-arg">${tokens(arg!.slice(0, 1))}${nameToken(name)}</span>`,
+    `<span class="rp7-break">${tokens(close!)}${note}</span>`,
+  ].join("")
+}
+const clockHtml = tokens(clockLine)
+const writeHtml = tokens(jokeAssign) + activity("WriteJoke")
+const postHtml = activity("PostJoke")
 ---
 
 <figure
   class="rp7 st"
   data-rp7-visual
-  aria-label="The TellJoke workflow next to its journal. Each activity asks the journal for its name before doing anything. On the first run WriteJoke isn't found, so it runs and its joke goes in the journal. Then the runner crashes. The workflow runs again from the top: the clock line runs again and gets a different time, WriteJoke finds its joke in the journal and the call is replaced by it without running, and PostJoke isn't found, so it runs."
+  aria-label="The TellJoke workflow next to its journal. Each activity asks the journal for its name before doing anything. On the first run WriteJoke isn't found, so it runs and its joke goes in the journal. Then the runner crashes. The workflow runs again from the top: the clock line runs again and gets a different time, WriteJoke finds its joke in the journal and returns it without running, and PostJoke isn't found, so it runs."
   style={`--rp7-warn: ${warning.background}; --rp7-warn-ink: ${warning.text}`}
 >
   <div class="rp7-stage" data-rp7-stage>
     <p class="rp7-title rp7-fades" style="--r: 1">Workflow</p>
     <p class="rp7-title is-journal" style="--r: 1; --mr: 5">Journal</p>
+    <p class="rp7-aside" style="--r: 2">Not an activity, so it isn't journaled</p>
 
     <span class="rp7-pointer" data-rp7-pointer aria-hidden="true"></span>
+    <span class="rp7-spinner" data-rp7-spinner aria-hidden="true" hidden></span>
+    <svg class="rp7-arrows" data-rp7-arrows aria-hidden="true"></svg>
 
     {/* The workflow's body, trimmed to what this is about */}
     <div class="rp7-row rp7-line rp7-fades" data-rp7-line style="--r: 2">
-      <code>{clockLine.map(([kind, text]) => <span class={`t-${kind}`}>{text}</span>)}</code>
+      <code set:html={clockHtml} />
       <span class="rp7-comment" data-rp7-clock></span>
     </div>
-    {
-      /* No whitespace between the code's elements, or it shows up in the code */
-      ["WriteJoke", "PostJoke"].map((name, i) => (
-        <div class="rp7-row rp7-line rp7-fades" data-rp7-line style={`--r: ${i + 3}`}>
-          <code>
-            {i === 0 && jokeAssign.map(([kind, text]) => <span class={`t-${kind}`}>{text}</span>)}
-            <span class="rp7-swap" data-rp7-swap>
-              <>
-                <span class="rp7-call">
-                  {call(name).map((part, p) => (
-                    <span class:list={["rp7-part", p === 1 && "rp7-arg"]}>
-                      {part.map(([kind, text]) => (
-                        <span class={`t-${kind}`}>{text}</span>
-                      ))}
-                    </span>
-                  ))}
-                </span>
-                <span class="rp7-value">{i === 0 ? `"${joke}"` : "undefined"}</span>
-              </>
-            </span>
-          </code>
-        </div>
-      ))
-    }
+    <div class="rp7-row rp7-line rp7-fades" data-rp7-line style="--r: 3">
+      <code set:html={writeHtml} />
+    </div>
+    <div class="rp7-row rp7-line rp7-fades" data-rp7-line style="--r: 4">
+      <code set:html={postHtml} />
+    </div>
 
     {/* The journal, a row per activity, level with the line that asks for it */}
     <div class="rp7-row rp7-entry" data-rp7-entry style="--r: 3; --mr: 6">
-      <span class="rp7-key">WriteJoke</span>
+      <span class="rp7-key" data-rp7-key>WriteJoke</span>
       <span class="rp7-result" data-rp7-result>–</span>
     </div>
     <div class="rp7-row rp7-entry" data-rp7-entry style="--r: 4; --mr: 7">
-      <span class="rp7-key">PostJoke</span>
+      <span class="rp7-key" data-rp7-key>PostJoke</span>
       <span class="rp7-result" data-rp7-result>–</span>
     </div>
 
     <p class="rp7-crash" aria-hidden="true">✕ Crash</p>
-
-    <svg class="rp7-arrows" data-rp7-arrows aria-hidden="true"></svg>
   </div>
 
   <StepControls reset />
 </figure>
 
 <script>
+  import { rel } from "@/components/blog/module-of-the-week/stepper/stepper"
   import { drawArrow } from "./arrow"
 
   const NAMES = ["WriteJoke", "PostJoke"]
   // What each activity leaves in the journal
-  const RESULTS = ["I'd tell you a UDP joke…", "posted"]
+  const RESULTS = ["I'd tell you a UDP joke, but you might not get it.", "posted"]
+  // What the code says it got back, as a comment
+  const RETURNED = [`"I'd tell you a UDP joke…"`, "posted"]
   // The line after which the runner crashes on the first run
   const CRASH_AFTER = 1
-  // Matches the media query in the styles, where the journal goes under the
-  // code
-  const NARROW = "(max-width: 640px)"
+  // Running for real is work, so it takes a while, and the replay feels
+  // quicker for it
+  const WORK_MS = 1000
+  // A terminal spinner, in the corner of an activity's line while it does its
+  // work
+  const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+  const SPIN_MS = 80
+  // How long the journal's answer sits before the activity acts on it
+  const LOOK_MS = 450
 
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const pause = (ms: number) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms))
   const clock = (d: Date) =>
     d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
   for (const root of document.querySelectorAll<HTMLElement>("[data-rp7-visual]")) {
     const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
     const stage = q<HTMLElement>("[data-rp7-stage]")
+    const arrows = q<SVGSVGElement>("[data-rp7-arrows]")
     const pointer = q<HTMLElement>("[data-rp7-pointer]")
+    const spinner = q<HTMLElement>("[data-rp7-spinner]")
     const clockEl = q<HTMLElement>("[data-rp7-clock]")
     const lines = [...root.querySelectorAll<HTMLElement>("[data-rp7-line]")]
-    const swaps = [...root.querySelectorAll<HTMLElement>("[data-rp7-swap]")]
+    const notes = [...root.querySelectorAll<HTMLElement>("[data-rp7-note]")]
     const entries = [...root.querySelectorAll<HTMLElement>("[data-rp7-entry]")]
+    const keys = [...root.querySelectorAll<HTMLElement>("[data-rp7-key]")]
     const results = [...root.querySelectorAll<HTMLElement>("[data-rp7-result]")]
-    const arrows = q<SVGSVGElement>("[data-rp7-arrows]")
+    const names = [...root.querySelectorAll<HTMLElement>("[data-rp7-name]")]
     const caption = q<HTMLElement>("[data-caption]")
     const stepBtn = q<HTMLButtonElement>("[data-step]")
     const resetBtn = q<HTMLButtonElement>("[data-reset]")
 
-    // The line about to run, and for an activity, whether it's asked the
-    // journal yet. What's in the journal lives outside the runner, so a crash
-    // doesn't touch it.
+    // The line about to run. What's in the journal lives outside the runner,
+    // so a crash doesn't touch it.
     let at = 0
-    let asked = false
     let run = 1
     let recorded = [false, false]
     let firstTime: Date | null = null
     let crashed = false
     let busy = false
-    // Bumped on reset, so an arrow that's still drawing knows to stop
+    // Bumped on reset, so a step that's still going knows to stop
     let generation = 0
 
-    // Straight across when the journal sits beside the code. Under it, the
-    // arrow runs down the padding on the right, inside the figure.
-    const arrow = (from: Element, to: Element, back: boolean, className = "rp7-arrow") => {
-      const stacked = window.matchMedia(NARROW).matches
+    // The arrow between an activity's line and its journal row, the same as
+    // the recipe's: the journal sits beside the code, or under it on a
+    // narrow screen, where the arrow goes around inside the right edge.
+    // Writing is ink, and reading back is the same arrow the other way, in
+    // green.
+    const arrow = (line: Element, entry: Element, back: boolean) => {
+      const stacked = rel(stage, entry).top > rel(stage, lines.at(-1)!).bottom
       return drawArrow({
         stage,
         layer: arrows,
-        from,
-        to,
+        from: line,
+        to: entry,
         back,
         stacked,
-        gutter: stacked ? stage.clientWidth - 12 : undefined,
-        className,
+        className: "rp7-arrow",
+        gutter: stacked ? stage.clientWidth - 6 : undefined,
       })
+    }
+
+    // A spinner in the line's top right corner while it works
+    let spinning = 0
+    const spin = (line: HTMLElement) => {
+      let frame = 0
+      spinner.textContent = SPINNER[0]!
+      spinner.style.top = `${line.offsetTop}px`
+      spinner.style.left = `${line.offsetLeft + line.offsetWidth}px`
+      spinner.hidden = false
+      if (reduceMotion()) return
+      spinning = window.setInterval(() => {
+        frame = (frame + 1) % SPINNER.length
+        spinner.textContent = SPINNER[frame]!
+      }, SPIN_MS)
+    }
+    const stopSpinning = () => {
+      window.clearInterval(spinning)
+      spinner.hidden = true
     }
 
     const render = () => {
@@ -205,7 +245,7 @@ const call = (name: string): Array<Array<Token>> => [
         crashed = false
         run = 2
         at = 0
-        for (const swap of swaps) swap.classList.remove("is-replaced")
+        for (const note of notes) note.textContent = ""
         caption.textContent = "The workflow runs again, from the top"
         return render()
       }
@@ -230,7 +270,7 @@ const call = (name: string): Array<Array<Token>> => [
       }
 
       // The crash comes once WriteJoke is in the journal
-      if (run === 1 && at === CRASH_AFTER + 1 && !asked) {
+      if (run === 1 && at === CRASH_AFTER + 1) {
         crashed = true
         caption.textContent = "The runner crashes. The code stops, but the journal is still there."
         return render()
@@ -240,45 +280,47 @@ const call = (name: string): Array<Array<Token>> => [
       const name = NAMES[i]!
       const line = lines[at]!
       const entry = entries[i]!
+      const key = keys[i]!
 
-      // First beat: ask the journal for the activity's name
-      if (!asked) {
-        return void beat(async (alive) => {
-          await arrow(line, entry, false, "rp7-arrow is-ask")
-          if (!alive()) return
-          asked = true
-          if (recorded[i]) {
-            entry.classList.add("is-found")
-            caption.textContent = `${name} asks the journal, and finds a result`
-          } else {
-            entry.classList.add("is-missing")
-            results[i]!.textContent = "not found"
-            caption.textContent = `${name} asks the journal, and there's nothing there`
-          }
-        })
-      }
-
-      // Second beat: the result comes back from the journal and takes the
-      // call's place, or the activity runs for real
+      // One beat: the activity looks itself up in the journal by name. If
+      // there's a result there, an arrow brings it back. If not, the activity
+      // does its work, and an arrow takes its result to the journal.
       return void beat(async (alive) => {
+        // The name in the code and the name in the journal light up
+        // together, which is how the lookup works
+        names[i]!.classList.add("is-lit")
+        key.classList.add("is-lit")
+        entry.classList.add(recorded[i] ? "is-found" : "is-missing")
+        await pause(LOOK_MS)
+        if (!alive()) return
         if (recorded[i]) {
-          line.classList.add("is-reading")
+          // Found: the result that went in on the first run comes back
           await arrow(line, entry, true)
-          line.classList.remove("is-reading")
           if (!alive()) return
-          swaps[i]!.classList.add("is-replaced")
-          setTimeout(() => entry.classList.remove("is-found"), 400)
-          caption.textContent = `${name} doesn't run. Its result comes from the journal instead.`
+          notes[i]!.className = "rp7-note is-journal"
+          notes[i]!.textContent = `// ${RETURNED[i]}`
+          entry.classList.remove("is-found")
+          caption.textContent = `${name} finds its result in the journal, so it doesn't run`
         } else {
-          line.classList.add("is-running")
+          // Not found: it does the work, then its result goes in the journal
+          line.classList.add("is-working")
+          spin(line)
+          await pause(WORK_MS)
+          stopSpinning()
+          line.classList.remove("is-working")
+          if (!alive()) return
+          notes[i]!.className = "rp7-note"
+          notes[i]!.textContent = `// ${RETURNED[i]}`
           await arrow(line, entry, false)
-          line.classList.remove("is-running")
           if (!alive()) return
           entry.classList.remove("is-missing")
           recorded[i] = true
-          caption.textContent = `${name} runs for real, and its result goes in the journal`
+          entry.classList.add("is-written")
+          setTimeout(() => entry.classList.remove("is-written"), 400)
+          caption.textContent = `${name} isn't in the journal, so it runs for real and writes its result there`
         }
-        asked = false
+        names[i]!.classList.remove("is-lit")
+        key.classList.remove("is-lit")
         at++
         if (at === lines.length) caption.textContent = "The workflow finishes"
       })
@@ -290,15 +332,16 @@ const call = (name: string): Array<Array<Token>> => [
 
     resetBtn.addEventListener("click", () => {
       generation++
+      stopSpinning()
       arrows.replaceChildren()
-      for (const line of lines) line.classList.remove("is-reading", "is-running")
-      for (const swap of swaps) swap.classList.remove("is-replaced")
-      for (const entry of entries) entry.classList.remove("is-found", "is-missing")
+      for (const line of lines) line.classList.remove("is-working")
+      for (const note of notes) note.textContent = ""
+      for (const entry of entries) entry.classList.remove("is-found", "is-missing", "is-written")
       for (const el of results) el.textContent = "–"
+      for (const el of [...names, ...keys]) el.classList.remove("is-lit")
       clockEl.className = "rp7-comment"
       clockEl.textContent = ""
       at = 0
-      asked = false
       run = 1
       recorded = [false, false]
       firstTime = null
@@ -353,11 +396,11 @@ const call = (name: string): Array<Array<Token>> => [
   }
 
   /* One grid: the code down the left, and each journal row on the same row
-     as the line that asks for it, with room between for the arrows */
+     as the line that asks for it, with room between for what moves across */
   .rp7-stage {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 12.5rem;
+    grid-template-columns: minmax(0, 1fr) 15rem;
     column-gap: 2.75rem;
     row-gap: 0.35rem;
     align-items: center;
@@ -403,15 +446,10 @@ const call = (name: string): Array<Array<Token>> => [
     color: inherit;
     white-space: nowrap;
   }
-  /* The line about to run, and the one running */
-  .rp7-row.is-current,
-  .rp7-row.is-running {
+  /* The line about to run */
+  .rp7-row.is-current {
     border-color: var(--rp7-ink);
     color: var(--rp7-ink);
-  }
-  /* Reading a result back */
-  .rp7-row.is-reading {
-    border-color: var(--rp7-ok);
   }
 
   /* The code's colours, from the GitHub themes the post's code blocks use */
@@ -438,45 +476,28 @@ const call = (name: string): Array<Array<Token>> => [
     opacity: 0.7;
     transition: opacity 200ms ease;
   }
-  .rp7-line.is-current code,
-  .rp7-line.is-running code,
-  .rp7-line.is-reading code {
+  .rp7-line.is-current code {
     opacity: 1;
   }
 
   /* An activity call, formatted the way you'd write it: the call opens on
      the line's first row, and its argument and closing brace get rows of
-     their own, indented from the line's start. When the result comes back
-     from the journal, it takes the call's place. */
-  .rp7-swap,
-  .rp7-call {
-    display: inline;
-  }
-  .rp7-part:not(:first-child) {
+     their own, indented from the line's start */
+  .rp7-break {
     display: block;
   }
   .rp7-arg {
     padding-left: 2ch;
   }
-  .rp7-value {
-    display: none;
-    padding: 0 0.3rem;
-    border-radius: 0.25rem;
-    background: color-mix(in oklab, var(--rp7-ok) 16%, transparent);
+  /* What the call returned, as a comment after its closing brace: muted
+     when it ran, green when it came from the journal. It takes up a line
+     that's already there, so nothing moves. */
+  .rp7-note:not(:empty) {
+    margin-left: 1ch;
+    color: var(--rp7-muted);
+  }
+  .rp7-note.is-journal {
     color: var(--rp7-ok);
-  }
-  .rp7-swap.is-replaced .rp7-call {
-    display: none;
-  }
-  .rp7-swap.is-replaced .rp7-value {
-    display: inline-block;
-    animation: rp7-in 300ms var(--rp7-ease);
-  }
-  @keyframes rp7-in {
-    from {
-      opacity: 0;
-      transform: translateY(0.5em);
-    }
   }
 
   /* The clock line's value, as a comment. Run again, it's different. */
@@ -501,7 +522,17 @@ const call = (name: string): Array<Array<Token>> => [
     opacity: 0.6;
   }
 
-  /* The journal: a name, and what's recorded for it */
+  /* The journal: a row as tall as the line that asks for it, with the
+     activity's name over what's recorded for it */
+  .rp7-stage > .rp7-entry {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    align-self: stretch;
+    /* The same space on every side */
+    padding: 0.65rem;
+  }
   .rp7-key {
     flex: none;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -510,11 +541,17 @@ const call = (name: string): Array<Array<Token>> => [
   }
   .rp7-result {
     min-width: 0;
-    margin-left: auto;
-    overflow: hidden;
     color: var(--rp7-ink);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
+  }
+  /* Beside the clock line, there's nothing in the journal, and that's the
+     point */
+  .rp7 .rp7-aside {
+    grid-column: 2;
+    padding-left: 0.65rem;
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--rp7-muted);
   }
   .rp7-entry.is-found {
     border-color: var(--rp7-ok);
@@ -543,8 +580,9 @@ const call = (name: string): Array<Array<Token>> => [
     display: none;
   }
 
-  /* The arrows, over everything. Asking is quieter than doing. */
-  .rp7-stage > .rp7-arrows {
+  /* The arrows between the code and the journal, over everything, the same
+     as the recipe's. Writing is ink, and reading back is green. */
+  .rp7-arrows {
     position: absolute;
     inset: 0;
     z-index: 2;
@@ -560,16 +598,56 @@ const call = (name: string): Array<Array<Token>> => [
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  .rp7-arrow.is-ask path {
-    stroke: var(--rp7-muted);
-    stroke-width: 1.25;
-  }
   .rp7-arrow.is-back path {
     stroke: var(--rp7-ok);
   }
   .rp7-arrow.is-gone {
     opacity: 0;
     transition: opacity 300ms ease;
+  }
+
+  /* Running for real: the line stays lit, with a spinner in its top right
+     corner while it works */
+  .rp7-line.is-working {
+    border-color: var(--rp7-ink);
+  }
+  .rp7-line.is-working code {
+    opacity: 1;
+  }
+  .rp7-stage > .rp7-spinner {
+    position: absolute;
+    z-index: 2;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--rp7-ink);
+    /* Placed at the line's top right corner, then pulled inside it */
+    transform: translate(calc(-100% - 0.55rem), 0.45rem);
+  }
+  .rp7-spinner[hidden] {
+    display: none;
+  }
+  /* The name being looked up, lit in the code and in the journal at once */
+  .rp7-name,
+  .rp7-key {
+    border-radius: 0.2rem;
+    transition:
+      background-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .rp7-name.is-lit,
+  .rp7-key.is-lit {
+    background: color-mix(in oklab, var(--rp7-ink) 16%, transparent);
+    box-shadow: 0 0 0 0.15rem color-mix(in oklab, var(--rp7-ink) 16%, transparent);
+  }
+  /* A result just written to the journal */
+  .rp7-entry.is-written {
+    border-color: var(--rp7-ink);
+  }
+  /* The row whose name the question stopped at */
+  .rp7-entry.is-found .rp7-key,
+  .rp7-entry.is-found .rp7-result {
+    color: var(--rp7-ok);
   }
 
   /* The crash: the code fades, the journal doesn't */
@@ -582,7 +660,7 @@ const call = (name: string): Array<Array<Token>> => [
     place-self: center;
     padding: 0.45rem 0.8rem;
     border: 1px solid var(--rp7-line);
-    border-radius: 999px;
+    border-radius: 0.4rem;
     background: var(--rp7-surface);
     font-size: 0.85rem;
     font-weight: 600;
@@ -614,12 +692,12 @@ const call = (name: string): Array<Array<Token>> => [
     margin-top: 1rem;
   }
 
-  /* Narrow screens: the journal goes under the code, the code wraps, and
-     the padding on the right is where the arrows run */
+  /* Narrow screens: the journal goes under the code */
   @media (max-width: 640px) {
     .rp7-stage {
       grid-template-columns: minmax(0, 1fr);
-      padding-right: 1.75rem;
+      /* Room for the arrows to go around, inside the right edge */
+      padding-right: 1.1rem;
     }
     .rp7-stage > .is-journal,
     .rp7-stage > .rp7-entry {
@@ -628,6 +706,9 @@ const call = (name: string): Array<Array<Token>> => [
     }
     .rp7-stage > .is-journal {
       margin-top: 1rem;
+    }
+    .rp7 .rp7-aside {
+      display: none;
     }
     .rp7-row {
       flex-wrap: wrap;
@@ -646,9 +727,6 @@ const call = (name: string): Array<Array<Token>> => [
     .rp7-crash,
     .rp7-row {
       transition: none !important;
-    }
-    .rp7-swap.is-replaced .rp7-value {
-      animation: none;
     }
   }
 </style>

@@ -20,7 +20,7 @@ import DadSays from "../3/DadSays.astro"
 import ReaderAsks from "../5/ReaderAsks.astro"
 import RecipeVisual from "./RecipeVisual.astro"
 import ReplayVisual from "./ReplayVisual.astro"
-import VisualPlaceholder from "./VisualPlaceholder.astro"
+import SleepingVisual from "./SleepingVisual.astro"
 
 In the [previous installment](/blog/module-of-the-week/cluster-idempotency) of Module of the Week, we finally stopped Dad from telling the same joke twice. It took idempotency keys, a transaction, an inbox table, an outbox table, and a loop that checked all of them every 500 milliseconds.
 
@@ -204,45 +204,27 @@ This has one consequence you need to remember.
   </p>
 </Aside>
 
-## Crashing Anywhere
-
-In Part 4, we dragged an `X` along Dad's two writes and found a gap no matter which order we picked. Let's try that again with the workflow.
-
-Drag the `X` to pick when Dad crashes, then look at the chat after he restarts.
-
-<VisualPlaceholder name="WorkflowCrashLine">
-  Same layout and styling as Part 4's `DualWriteChat`. The line has four
-  segments: start workflow, `WriteJoke`, `PostJoke`, done. Drag the `X`
-  anywhere. Almost every position is green: after the restart, the chat shows
-  exactly one joke. The one red region is inside `PostJoke`, after Slack accepts
-  the post but before the journal entry is written. There, the chat shows the
-  joke twice.
-</VisualPlaceholder>
-
-Almost everywhere is fine now. Crash before `WriteJoke` finishes, and its transaction rolls back, so it runs again from scratch. Crash after it, and the joke comes back from the journal.
-
-Except for that one red sliver.
-
-If Slack accepts the joke and the runner crashes before `PostJoke` is written to the journal, the replay posts it again. That's the same gap we had at the end of Part 4. We haven't escaped the Two Generals. Workflow closes every gap _between_ steps, but the gap _inside_ a step is still ours to deal with. If Slack accepted an idempotency key, we could close that one too. It doesn't, so we can't.
-
-This is the rule to remember: **Workflow makes your workflow safe to replay. It doesn't make your activities safe to repeat.** Each activity still needs to be idempotent, or as close to it as the outside world allows.
-
-<DadSays>
-  Every family has one gap. Ours is in the fence. The dog knows.
-</DadSays>
-
 ## Hooking Dad Up
 
 Now let's give Dad's entity its job back. All he does now is collect a batch, start a workflow, and reply to the messages in the batch:
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false collapse={8-15}
 export const DadLayer = Dad.toLayerQueue(
   Effect.gen(function* () {
     const address = yield* Entity.CurrentAddress
 
     return (mailbox, replier) => {
       // Wait for the chat to go quiet for 2.5 seconds, same as Part 3
-      const nextBatch = /* ... */
+      const nextBatch = Effect.gen(function* () {
+        const batch = [yield* Queue.take(mailbox)]
+        while (true) {
+          const next = yield* Queue.take(mailbox).pipe(
+            Effect.timeoutOption("2500 millis"),
+          )
+          if (Option.isNone(next)) return batch
+          batch.push(next.value)
+        }
+      })
 
       return Effect.gen(function* () {
         const batch = yield* nextBatch
@@ -301,38 +283,64 @@ So far, Workflow has mostly replaced code we already had. Now let's use it for s
 
 Dad has a new rule: **if nobody laughs within an hour, he explains the joke.**
 
-```ts showLineNumbers=false
-// Step 2: tell it, and keep the Slack message's ts
-const ts =
-  yield *
-  Activity.make({
-    name: "PostJoke",
-    success: Schema.String,
-    execute: slack.reply(chat, joke),
-  })
+```ts showLineNumbers=false collapse={8-26}
+import { Effect, Schema } from "effect"
+import { ClusterSchema } from "effect/cluster"
+import { SqlClient } from "effect/sql"
+import { Activity, DurableClock } from "effect/workflow"
 
-// Step 3: give the room an hour
-yield * DurableClock.sleep({ name: "WaitForLaughs", duration: "1 hour" })
+export const TellJokeLayer = TellJoke.toLayer(
+  Effect.fn(function* ({ chat, messages }) {
+    const punGenerator = yield* PunGenerator
+    const slack = yield* Chat
+    const sql = yield* SqlClient.SqlClient
 
-// Step 4: count the laughs
-const laughs =
-  yield *
-  Activity.make({
-    name: "CountLaughs",
-    success: Schema.Number,
-    execute: slack.reactionCount(chat, ts),
-  })
+    // Step 1: write a joke he hasn't told in this chat
+    const joke = yield* Activity.make({
+      name: "WriteJoke",
+      success: Schema.String,
+      execute: Effect.gen(function* () {
+        const notebook = yield* sql<{ joke: string }>`
+          SELECT joke FROM dad_jokes WHERE chat = ${chat}
+        `
+        const joke = yield* punGenerator.generate(messages, {
+          told: new Set(notebook.map((row) => row.joke)),
+        })
+        yield* sql`INSERT INTO dad_jokes ${sql.insert({ chat, joke })}`
+        return joke
+      }).pipe(Effect.orDie),
+    }).annotate(ClusterSchema.WithTransaction, true)
 
-// Step 5: if nobody laughed, they must not have got it
-if (laughs === 0) {
-  yield *
-    Activity.make({
-      name: "ExplainJoke",
-      execute: punGenerator
-        .explain(joke)
-        .pipe(Effect.flatMap((explanation) => slack.reply(chat, explanation))),
+    // Step 2: tell it, and keep the Slack message's ts
+    const ts = yield* Activity.make({
+      name: "PostJoke",
+      success: Schema.String,
+      execute: slack.reply(chat, joke),
     })
-}
+
+    // Step 3: give the room an hour
+    yield* DurableClock.sleep({ name: "WaitForLaughs", duration: "1 hour" })
+
+    // Step 4: count the laughs
+    const laughs = yield* Activity.make({
+      name: "CountLaughs",
+      success: Schema.Number,
+      execute: slack.reactionCount(chat, ts),
+    })
+
+    // Step 5: if nobody laughed, they must not have got it
+    if (laughs === 0) {
+      yield* Activity.make({
+        name: "ExplainJoke",
+        execute: punGenerator
+          .explain(joke)
+          .pipe(
+            Effect.flatMap((explanation) => slack.reply(chat, explanation)),
+          ),
+      })
+    }
+  }),
+)
 ```
 
 That's three more steps, and none of them need a table or a flag. `ExplainJoke` is random, just like `WriteJoke`, so it goes inside an activity too.
@@ -346,19 +354,11 @@ When a workflow starts a durable sleep, it **suspends**. It schedules a wake-up 
 
 An hour later, the wake-up message is delivered to whichever runner owns the workflow's shard _at that time_. The workflow runs from the top, every step so far comes back from the journal, and it carries on from `CountLaughs`.
 
-Click **Play** to start the clock, then try switching the runners off.
+Click **Step** to run the workflow, and keep stepping.
 
-<VisualPlaceholder name="SleepingWorkflow">
-  A clock counting down one hour, sped up to about ten seconds, above three
-  runner cards with on/off switches. The workflow is drawn as a small "zzz"
-  token in the database below them, not on any runner. Switch off any runner, or
-  all three, and the clock keeps counting. When it hits zero: if no runner is
-  on, the token waits in the database; when a runner is switched back on, the
-  token moves to it, replays (green "from journal" badges on steps 1-3), and
-  posts the explanation to a small chat panel.
-</VisualPlaceholder>
+<SleepingVisual />
 
-Switch off every runner and the clock keeps counting, because the clock is just a row in the database with a delivery time on it. The moment a runner comes back, Dad wakes up and explains himself.
+While Dad was asleep, nothing was running. All that was left of him was a row in the journal with a time on it. When that time came, the workflow ran from the top, the same as after a crash, and the sleep came back from the journal as done.
 
 <DadSays>If you have to explain it, it's still funny. To me.</DadSays>
 
@@ -371,46 +371,6 @@ Switch off every runner and the clock keeps counting, because the clock is just 
     quiet didn't need to be durable at all.
   </p>
 </Aside>
-
-## Under the Hood
-
-This is my favorite part.
-
-Workflow sounds like a whole new system, with its own database, its own scheduler and its own workers. It isn't. When you run it on the cluster engine, it's built entirely out of the pieces we've covered in this series:
-
-<ul class="[&>li]:my-0 [&>li>p]:my-0">
-  <li>
-    Every workflow is an **entity**, like Dad, from [Part
-    2](/blog/module-of-the-week/cluster-messaging). Its type is
-    `Workflow/TellJoke`, and its ID is the execution ID.
-  </li>
-  <li>
-    Every activity is a **persisted message**, from [Part
-    3](/blog/module-of-the-week/cluster-delivery), and the journal is just the
-    replies to those messages.
-  </li>
-  <li>
-    Each activity's message has a **primary key** made from its name, which is
-    how the replay finds its result. That's Part 4's idempotency keys.
-  </li>
-  <li>
-    A durable clock is a persisted message with a **delivery time** attached, so
-    it sits in the database until it's due.
-  </li>
-</ul>
-
-<VisualPlaceholder name="WorkflowTableVisual">
-  Part 3's `MessageTableVisual`, filled with the rows one `TellJoke` execution
-  leaves behind: the workflow's own message, `WriteJoke`, `PostJoke`, the clock
-  message with its delivery time, `CountLaughs`. Hovering a row highlights the
-  line of workflow code that wrote it.
-</VisualPlaceholder>
-
-The journal we've been talking about this whole post is the same message table from Part 3. Tim didn't build a second system. He arranged the first one differently.
-
-<DadSays>
-  So I've been a workflow this whole time? Nobody tells me anything.
-</DadSays>
 
 ## Wrapping up
 
@@ -426,16 +386,8 @@ That's it for this week! To recap what we've learned:
     outside world, belongs inside one.
   </li>
   <li>
-    Workflow closes the gaps between steps, but each activity still needs to be
-    idempotent.
-  </li>
-  <li>
     `DurableClock.sleep` lets a workflow wait for an hour, or a month, without
     anything running.
-  </li>
-  <li>
-    On a cluster, Workflow is built from entities and persisted messages. You
-    already knew how it worked.
   </li>
 </ul>
 
