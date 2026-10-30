@@ -33,6 +33,12 @@ export default defineConfig({
         resolve: {
           alias: {
             "@/": fileURLToPath(new URL("./apps/web/src/", import.meta.url)),
+            "tutorial-test": fileURLToPath(
+              new URL(
+                "./apps/web/src/features/tutorial/runner/test-api.ts",
+                import.meta.url,
+              ),
+            ),
             "astro:assets": fileURLToPath(
               new URL("./apps/web/test/stubs/astro-assets.ts", import.meta.url),
             ),
