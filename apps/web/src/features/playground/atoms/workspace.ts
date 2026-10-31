@@ -201,20 +201,23 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
         (ctx) => ctx.setSelf(size++),
       ).pipe(Atom.debounce("250 millis"))
 
-      const resetContent = Atom.fn<void>()(
-        Effect.fnUntraced(function* (_, get) {
+      /**
+       * Replaces the files with `target`'s, or with the default workspace's
+       * for the current Effect version.
+       */
+      const resetContent = Atom.fn<Workspace | undefined>()(
+        Effect.fnUntraced(function* (target, get) {
           const currentWorkspace = get(handle.workspace)
           // Switching versions is handled by `switchVersionAtom`.
-          const defaultWorkspace = makeDefaultWorkspace(
-            currentWorkspace.effectVersion,
-          )
+          const baseline =
+            target ?? makeDefaultWorkspace(currentWorkspace.effectVersion)
           const resetWorkspace = new Workspace({
             name: currentWorkspace.name,
-            tree: defaultWorkspace.tree,
-            initialFilePath: defaultWorkspace.initialFilePath,
-            prepare: defaultWorkspace.prepare,
+            tree: baseline.tree,
+            initialFilePath: baseline.initialFilePath,
+            prepare: baseline.prepare,
             shells: currentWorkspace.shells,
-            snapshots: defaultWorkspace.snapshots,
+            snapshots: baseline.snapshots,
           })
           yield* handle.resetWorkspace(resetWorkspace)
           get.set(selectedPath, pathToInitialFile(resetWorkspace))

@@ -1,0 +1,54 @@
+---
+part: 1
+order: 4
+title: Failure you can see
+minutes: 8
+mode: playground
+lessonDir: 04-failure-you-can-see
+---
+
+## The problem
+
+The start file sends a different event, `taxi`, which has a description but no
+`amount`. The terminal says `large expense: no alert`.
+
+That answer is wrong in a quiet way. The rule did not decide "no". It never
+had a number to compare: `Number(undefined)` is `NaN`, and the rule's `gt`
+comparison with `NaN` is false. Rulebook cannot tell "the rule does not match"
+from "the rule could not be checked".
+
+## A failure with a name
+
+The second slot of an Effect type is for this: the ways the effect can fail.
+You give a failure a name by declaring a class for it. Declare `MissingField`
+with `Schema.TaggedError`, carrying the name of the missing `field` as a
+`Schema.String`. Schema gets its own lesson in lesson 6; here it only lists
+what the error carries. The tag, `"MissingField"`, is how you pick this
+failure out later.
+
+In `program`, before matching, check whether the event has the condition's
+field. If it does not, write `return yield* new MissingField({ field })`.
+`yield*` fails the effect with that error. `return` tells TypeScript the path
+ends there, so the lines after it only run when the field exists.
+
+The terminal now reports a `MissingField` failure and the program stops. Hover
+`program`: `Effect<string, MissingField, never>`. The failure is part of the
+type, so anything that uses `program` can see that it fails and how.
+
+## Exercise
+
+A rule can also name an operator `matches` does not know. `matches` falls into
+its `default` branch and returns `false`, the same quiet "no". Add a second
+failure, `UnknownOperator`, carrying the `op`. Keep a list of the four known
+operators and fail with it when the condition's `op` is not one of them.
+
+Hover `program` again. The second slot reads `MissingField | UnknownOperator`:
+every failure you can produce joins the union. The taxi still fails with
+`MissingField`, because that check comes first.
+
+## Now and later
+
+What you need now: failures you expect get a name, fail with `return yield*`,
+and show up in the type. The cost is a class per failure. In lesson 14 the same
+classes travel over HTTP, which is where the Schema inside them earns its
+keep.

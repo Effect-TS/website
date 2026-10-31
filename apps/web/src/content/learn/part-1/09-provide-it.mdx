@@ -1,0 +1,75 @@
+---
+part: 1
+order: 9
+title: Provide it
+minutes: 10
+mode: playground
+lessonDir: 09-provide-it
+---
+
+## The problem
+
+The file is where lesson 8 left it, red at the run line. `main` needs a
+`RuleStore`, `runMain` only runs effects that need nothing, and nothing in the
+file says which rules the store holds. `RuleStore` is only a shape so far.
+
+## A layer
+
+A layer is how a service gets built. `Layer.effect(RuleStore, effect)` says:
+to get a `RuleStore`, run this effect and use what it gives back. Put it on the
+class as `static readonly layer`, so `RuleStore.layer` sits next to the
+declaration.
+
+The implementation can be a plain `Map` from rule name to JSON:
+
+1. Put `largeExpense` and `malformed` back above the class.
+2. Inside `Effect.sync(() => { ... })`, create a `Map` holding both rules.
+   `Effect.sync` turns synchronous code into an effect, so the map is created
+   when the layer is built, not when the file loads.
+3. Return `RuleStore.of({ list: ... })`, where `list` is
+   `Effect.sync(() => Array.from(rules.values()))`. `RuleStore.of` checks that
+   the object has the service's shape.
+
+`Effect.provide(RuleStore.layer)` hands the layer to the program. Add it to
+`program` with `.pipe`. Hover `program`: `Effect<void, SchemaError, never>`.
+The third slot is back to `never`, the red line is gone, and the program runs.
+The laptop gets its alert from the large expense rule, and then the malformed
+rule stops the run with its `SchemaError`, the same as in lesson 7.
+
+The run lines at the bottom use the same function:
+`Effect.provide(program, Telemetry.layer)` gives the program its logging and
+tracing. That is the "provide is lesson 9" in the comment.
+
+## Exercise
+
+Write a second layer, `layerFixtures`, preloaded with three valid rules:
+
+- `large expense`, as before;
+- `within budget`: `amount lt 5000`, message `under 5000`;
+- `not a refund`: `amount neq 0`, message `is not a refund`.
+
+Swap it in by changing one line, the `Effect.provide` on `program`.
+`evaluateAll`, `evaluate` and `program` do not change, because they only know
+the service. Lesson 13 swaps in a memory store for tests the same way, and
+lesson 17 swaps in SQLite with no change to the code that uses it.
+
+## Now and later
+
+What you need now: a service is declared once, used with `yield*`, and
+supplied by a layer; providing the layer takes it out of the third slot. The
+cost is one more concept and one level of indirection: from `yield* RuleStore`
+you cannot jump straight to the code that runs. Unpacked later are layers that
+need other services (lesson 11) and layers that clean up after themselves
+(lesson 18).
+
+## Checkpoint for lessons 8 and 9
+
+The store is provided and the fixture layer swaps in with one line. Hovering
+`program` shows `never` in the third slot. Three alert lines print for the
+laptop:
+
+- `expense 1200 over 500`
+- `expense 1200 under 5000`
+- `expense 1200 is not a refund`
+
+followed by three `skip: missing field amount` lines for the taxi.

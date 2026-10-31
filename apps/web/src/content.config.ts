@@ -3,6 +3,7 @@ import { z } from "astro/zod"
 import { defineCollection, reference } from "astro:content"
 import { apiReferenceLoader } from "./features/api-reference/loader"
 import { ApiReferenceContentEntry } from "./features/api-reference/schema"
+import { LearnEntry } from "./features/learn/collection"
 import { PodcastEpisodeEntry } from "./features/podcast/collection"
 
 const apiReference = defineCollection({
@@ -146,11 +147,23 @@ const docs = defineCollection({
   }),
 })
 
+// The id is the bare lesson slug: the route adds the part and order back.
+const learn = defineCollection({
+  loader: glob({
+    base: "./src/content/learn",
+    pattern: "part-*/*.mdx",
+    generateId: ({ entry }) =>
+      entry.replace(/^part-\d+\/\d+-/, "").replace(/\.mdx$/, ""),
+  }),
+  schema: LearnEntry,
+})
+
 export const collections = {
   apiReference,
   docs,
   docsSidebar,
   docsOnboarding,
+  learn,
   blog,
   blogAuthors,
   blogTags,

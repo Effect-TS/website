@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react"
+import * as Cause from "effect/Cause"
 import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
 import { ChevronRightIcon } from "lucide-react"
@@ -22,8 +23,21 @@ export function TraceDetails({ span }: { readonly span: Span }) {
           </div>
         )}
       </div>
+      {Option.isSome(span.cause) && <TraceError cause={span.cause.value} />}
       <TraceAttributes attributes={Array.from(span.attributes)} />
       <TraceEvents events={span.events} />
+    </div>
+  )
+}
+
+function TraceError({ cause }: { readonly cause: Cause.Cause<unknown> }) {
+  const pretty = useMemo(() => Cause.pretty(cause), [cause])
+  return (
+    <div className="mb-2 rounded-sm border border-destructive/40 bg-destructive/10 px-2 py-1">
+      <div className="text-sm text-destructive">Error</div>
+      <pre className="mt-1 overflow-x-auto font-mono text-xs whitespace-pre-wrap text-foreground">
+        {pretty}
+      </pre>
     </div>
   )
 }

@@ -128,7 +128,10 @@ export class WebContainer extends Context.Service<WebContainer>()(
       function installExe(name: string, script: string) {
         return Effect.promise(async () => {
           await container.fs.writeFile(name, script)
-          await container.spawn("chmod", ["+x", name])
+          // `spawn` resolves once the process starts, so wait for `chmod` to
+          // exit before anything tries to execute the file
+          const chmod = await container.spawn("chmod", ["+x", name])
+          await chmod.exit
         })
       }
 
@@ -1188,6 +1191,25 @@ function stop(exitCode) {
   process.exit(exitCode)
 }
 
+// Resetting the workspace (Solve, Reset) while the compiler watches it can make
+// the WebContainer runtime raise a bare ENOENT object with no stack, path or
+// syscall. The watcher survives it and recompiles on the next change, so only
+// that exact shape is ignored. Anything else stops the program and exits.
+const runtimeResetErrorKeys = new Set(["code", "errno", "message", "path", "syscall"])
+const isRuntimeResetError = (error) =>
+  Object.prototype.toString.call(error) === "[object Object]" &&
+  Object.keys(error).every((key) => runtimeResetErrorKeys.has(key)) &&
+  error.code === "ENOENT" &&
+  error.errno === -2 &&
+  error.message === "no such file or directory" &&
+  error.path === undefined &&
+  error.syscall === undefined
+
+process.on("uncaughtException", (error) => {
+  if (isRuntimeResetError(error)) return
+  console.error(error)
+  stop(1)
+})
 process.once("SIGINT", () => stop(130))
 process.once("SIGTERM", () => stop(143))
 `

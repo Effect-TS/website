@@ -1,0 +1,135 @@
+---
+part: 2
+order: 14
+title: Serve it
+minutes: 22
+mode: local
+---
+
+## The problem
+
+`main.ts` builds an Engine, runs it once and exits, and the memory stores go
+with it. Rules have to be added once and stay. Events have to arrive whenever
+they happen, from a script, a cron job or a phone. The engine must outlive one
+command, so it becomes a server: one process holding one Engine and its stores,
+answering HTTP.
+
+## The API is a value
+
+`HttpApi` describes the server before any of it runs. An endpoint is a method,
+a path and the schemas of what goes in and out:
+`HttpApiEndpoint.post("create", "/", { payload: Rule, success: StoredRule })`.
+Endpoints are grouped, and the groups make the API:
+
+- `rules`: create, list, get, remove, and `POST /rules/:id/run` to run one
+  rule against an event;
+- `events`: `POST /events` submits an event to every matching rule;
+- `runs`: `GET /runs?ruleId=&limit=` lists the run history.
+
+Every schema here already exists in the domain. The API adds no types of its
+own.
+
+<LessonCode file="checkpoints/14/src/api/Api.ts" />
+
+## Handlers
+
+`HttpApiBuilder.group(Api, "rules", ...)` implements one group. Inside an
+`Effect.fn` you `yield*` the services you need, then `handlers.handleAll({...})`
+takes one function per endpoint. Each gets the decoded `params`, `query` and
+`payload`, and the compiler checks the result against the endpoint's success
+schema and the failure against its declared errors. The handlers are thin: one
+call into the services from lessons 12 and 13.
+
+<LessonCode file="checkpoints/14/src/server/Api.ts" />
+
+## Launch it
+
+The server program is layers all the way down. `HttpApiBuilder.layer(Api)`
+turns the handlers into routes, `HttpApiScalar.layer` adds documentation at
+`/docs`, `HttpRouter.serve` serves both, and `NodeHttpServer.layer` listens on
+port 3000. The Engine, the memory stores and `NodeServices.layer` are provided
+underneath.
+
+A layer normally builds, hands over its services and is done. A server has
+nothing to hand over; it should just run. `Layer.launch` builds the layer and
+keeps it running until the program is interrupted, which `runMain` does on
+Ctrl-C.
+
+<LessonCode file="checkpoints/14/src/server/main.ts" />
+
+Start yours with `pnpm dev:server`. It restarts on every file change, and
+every restart empties the memory stores. Lesson 17 fixes that.
+
+## Revisit: typed errors crossing a wire
+
+`get`, `remove` and `run` declare `RuleNotFound` as their error, with
+`HttpApiSchema.status(404)`. The handler fails with the same `RuleNotFound`
+the store fails with, and the server sends it as a 404 with the error as the
+body. `curl -i localhost:3000/rules/nope` answers `404 Not Found` with:
+
+```text
+{"_tag":"RuleNotFound","id":"nope"}
+```
+
+A request that does not match a schema never reaches a handler. A rule without
+an action, or `limit=abc`, gets a 400 from the decoder. In lesson 15 the client
+decodes that 404 back into a `RuleNotFound`.
+
+## Exercise
+
+`GET /runs?limit=-1` comes back with every run except the oldest, because
+`RunLog.list` hands the number to `slice`. `limit=1.5` is accepted too. The
+schema lets through numbers that are not a count.
+
+Make `limit` a whole number greater than 0 in the `runs` query:
+`Schema.Int.check(Schema.isGreaterThan(0))`. Nothing in the handlers or the
+`RunLog` changes.
+
+Check, with `pnpm dev:server` running: `curl -i 'localhost:3000/runs?limit=-1'`
+and `limit=1.5` answer 400, `limit=2` answers 200. The hint and the changed
+file are in `exercises/14/`. From lesson 15 on, the checkpoints include this
+change.
+
+## Now and later
+
+What you need now: the API is one value, handlers implement it group by group,
+and `Layer.launch` runs a server until it is interrupted. The cost is a second
+process to keep running, and a memory store that resets with it. Unpacked
+later: the client derived from the same value (lesson 15), and stores that
+survive a restart (lesson 17).
+
+## Checkpoint
+
+Start the checkpoint's server, then in a second terminal create a rule, submit
+an event, and read the run:
+
+```sh
+pnpm checkpoint 14
+```
+
+```sh
+curl -X POST localhost:3000/rules -H 'content-type: application/json' -d @fixtures/rules/expense.json
+curl -X POST localhost:3000/events -H 'content-type: application/json' -d @fixtures/events/laptop.json
+curl localhost:3000/runs
+```
+
+The event answers with one `succeeded` outcome, and `GET /runs` shows the row.
+[http://localhost:3000/docs](http://localhost:3000/docs) renders the API
+documentation.
+
+## Reference card
+
+| API                                            | What it does                                         | Lesson |
+| ---------------------------------------------- | ---------------------------------------------------- | ------ |
+| `HttpApi.make`, `.add`                         | The API: a value made of groups                      | 14     |
+| `HttpApiGroup.make`, `.add`, `.prefix`         | A group of endpoints under one path                  | 14     |
+| `HttpApiEndpoint.get`, `.post`, `.delete`      | One endpoint: params, query, payload, success, error | 14     |
+| `HttpApiSchema.status`                         | The HTTP status an error is sent with                | 14     |
+| `HttpApiBuilder.group`, `handlers.handleAll`   | Implements a group, one handler per endpoint         | 14     |
+| `HttpApiBuilder.layer`                         | Routes for every endpoint of the API                 | 14     |
+| `HttpApiScalar.layer`                          | API documentation at a path                          | 14     |
+| `HttpRouter.serve`, `NodeHttpServer.layer`     | Serves routes on a Node HTTP server                  | 14     |
+| `Layer.launch`                                 | Builds a layer and runs it until interrupted         | 14     |
+| `Layer.mergeAll`                               | Combines layers side by side                         | 14     |
+| `Schema.Int`, `.check`, `Schema.isGreaterThan` | A number refined by checks                           | 14     |
+| `HttpApiClient.make`                           | A client derived from the API. Unpacked in lesson 15 | 15     |

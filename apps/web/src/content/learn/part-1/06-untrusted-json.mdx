@@ -1,0 +1,73 @@
+---
+part: 1
+order: 6
+title: Untrusted JSON
+minutes: 11
+mode: playground
+lessonDir: 06-untrusted-json
+---
+
+## The problem
+
+Nobody will write rulebook's rules in TypeScript. They arrive as JSON text,
+from a file and later from an HTTP request. The start file has the rules as
+JSON strings, `largeExpense` and `malformed`, and `evaluate` now takes a string
+and reads it with `const rule: Rule = JSON.parse(json)`.
+
+That annotation is a claim TypeScript cannot check. `JSON.parse` returns `any`,
+so `rule` is whatever the text happened to contain. Look at `malformed`: the
+operator is `greater`, the value is the string `"500"`, and there is no
+message. Your `UnknownOperator` check catches the operator. Nothing catches the
+other two.
+
+## A schema
+
+A schema describes a shape once. From it Effect derives the TypeScript type and
+a check that runs on real data.
+
+- `Schema.Struct({ ... })` describes an object, with `Schema.String` and
+  `Schema.Number` for its fields.
+- `Schema.Literals(["eq", "neq", "gt", "lt"])` describes the operator: one of
+  those four strings and nothing else.
+- `Schema.optional(...)` marks the condition as optional, because a rule
+  without one always runs.
+- `type Rule = typeof Rule.Type` gives you the type. Schema and type share the
+  name `Rule`.
+
+Decoding is one line: `Schema.decodeUnknownEffect(Schema.fromJsonString(Rule))`.
+`fromJsonString` parses the text, then the struct checks the result. Call the
+function `decodeRule`. It returns an effect that succeeds with a `Rule` or
+fails with a `SchemaError`. In `evaluate`, `const rule = yield* decodeRule(json)`
+replaces the `JSON.parse` line.
+
+## Exercise
+
+This is the course's first simplification: the schema makes three pieces of
+hand-written code redundant. Delete them.
+
+1. The `interface Rule`. The schema gives you the type.
+2. `UnknownOperator`, the list of operators and the check in `evaluate`. The
+   decode already rejects `greater`.
+3. The `default` branch in `matches`. TypeScript now knows the operator is one
+   of four strings, so the `switch` covers every case without it.
+
+Then read the error for the malformed rule in the terminal:
+
+> `SchemaError: Expected "eq" | "neq" | "gt" | "lt"` at `["condition"]["op"]`
+
+It says what was expected and where. Decoding stops at the first problem, so
+change the operator in `malformed` to `gt` and the next run reports
+`Expected number` at `["condition"]["value"]`. Put `greater` back when you are
+done; lesson 7 needs the rule broken.
+
+Hover `evaluate`: `Effect<string | void, SchemaError, never>`. Two of your
+failures became one that the library defines and reports for you.
+
+## Now and later
+
+What you need now: data from outside goes through a schema once, at the edge,
+and the rest of the program works with a type it can trust. The cost is a
+decode on every input and a schema to keep next to the type. That is worth it
+where data is untrusted. Values you build yourself in TypeScript, like
+`laptop`, don't need one. Lesson 11 extends `Rule` with actions as a tagged
+union, and lesson 17 decodes the same JSON from a database column.

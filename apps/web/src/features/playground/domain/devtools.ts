@@ -1,6 +1,8 @@
 import * as Array from "effect/Array"
+import * as Cause from "effect/Cause"
 import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
+import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as DevToolsSchema from "effect/devtools/DevToolsSchema"
 type ParentSpan = DevToolsSchema.ParentSpan
@@ -64,10 +66,33 @@ export class Span {
     return this.span._tag === "ExternalSpan"
   }
 
+  /**
+   * The cause of the span's failure.
+   *
+   * Will be `None` if the span is external, has not ended, succeeded, or was
+   * only interrupted.
+   */
+  get cause(): Option.Option<Cause.Cause<unknown>> {
+    if (
+      this.span._tag === "ExternalSpan" ||
+      this.span.status._tag !== "Ended"
+    ) {
+      return Option.none()
+    }
+    const exit = this.span.status.exit
+    return Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)
+      ? Option.some(exit.cause)
+      : Option.none()
+  }
+
+  /**
+   * Returns `true` if the span ended with a failure, `false` otherwise.
+   */
   get hasError(): boolean {
     return (
-      this.span._tag !== "ExternalSpan" &&
-      this.span.attributes.get("code.stacktrace") !== undefined
+      Option.isSome(this.cause) ||
+      (this.span._tag !== "ExternalSpan" &&
+        this.span.attributes.get("code.stacktrace") !== undefined)
     )
   }
 

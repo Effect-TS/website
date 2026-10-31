@@ -1,0 +1,107 @@
+---
+part: 2
+order: 11
+title: Setup
+minutes: 15
+mode: guide
+---
+
+From here on rulebook runs on your machine, from a starter project. This page
+gets it running. In the browser track it comes after lesson 10. If you are
+taking Part 1 locally instead of in the playground, do it first, then go back
+to lesson 1 and run each lesson with `pnpm lesson <n>`.
+
+## Before the clock starts
+
+The 15 minutes assume these are already installed:
+
+- Node 22.16 or newer
+- pnpm, or corepack to provide it (`corepack enable`)
+- git
+- a browser
+- for the trace viewer, one of: macOS, Linux with glibc 2.39 or newer
+  (Ubuntu 24.04+, Debian 13+, Fedora 40+), or Docker
+
+Windows through WSL2 is untested.
+
+## 1. Get the starter
+
+```sh
+npx degit Effect-TS/website/courses/rulebook rulebook
+cd rulebook
+```
+
+`degit` copies the directory without the website's git history, so `rulebook`
+is a fresh project of its own. Commit to it as you go if you like.
+
+## 2. Install
+
+```sh
+pnpm install
+```
+
+The Effect packages are pinned to exact versions, the same ones every lesson,
+checkpoint and test in the course was checked against.
+
+## 3. Check the machine and start the viewer
+
+```sh
+pnpm run doctor --viewer
+```
+
+Type the `run`. pnpm has a built-in `doctor` command, and a bare `pnpm doctor`
+runs that one instead of the starter's.
+
+The doctor downloads otel-desktop-viewer v0.6.0 into `.viewer/` the first time,
+prints one line per requirement, and then starts the viewer:
+
+```text
+Downloading https://github.com/CtrlSpice/otel-desktop-viewer/releases/download/v0.6.0/otel-desktop-viewer_linux_amd64.tar.gz
+✓ node    v22.16.0
+✓ pnpm    on PATH
+✓ git     on PATH
+✓ viewer  otel-desktop-viewer v0.6.0 in .viewer/
+
+All set.
+otel-desktop-viewer v0.6.0 (/home/you/rulebook/.viewer/otel-desktop-viewer)
+  UI:        http://localhost:8000
+  OTLP HTTP: http://localhost:4318
+Press Ctrl-C to stop.
+```
+
+Leave this terminal running. Everything else happens in a second one. When the
+binary cannot run on your machine (Linux older than glibc 2.39, for example),
+the viewer line says Docker instead and the same version runs in a container.
+
+A line marked `✗` says what is missing and what to install. Fix it and run
+`pnpm run doctor --viewer` again.
+
+## 4. First run
+
+In a second terminal, in the same directory:
+
+```sh
+pnpm tsx src/run-once.ts
+```
+
+`src/run-once.ts` is the lesson 10 file. It prints the same three alert lines
+and three skips it printed in the browser. Open
+[http://localhost:8000](http://localhost:8000): the trace list has two
+`evaluateAll` traces from the service `rulebook-lessons`. That is setup done.
+[The trace viewer](/learn/part-2/trace-viewer) explains what you are looking
+at.
+
+## Later sessions
+
+- `pnpm viewer` starts the viewer again, without the checks.
+- `pnpm run doctor` checks without downloading or starting anything. CI uses
+  this form.
+
+## What is not covered
+
+Troubleshooting is outside the 15 minutes. The doctor covers what it checks:
+the Node version, pnpm, git, and whether the viewer can run here as a binary or
+through Docker. It does not install Node, pnpm or Docker for you, and this
+course does not cover proxies, firewalls, ports 8000 or 4318 already being in
+use, or running natively on Windows. If the viewer will not start at all, lessons 11
+to 15 still work without it; you need it from lesson 16.

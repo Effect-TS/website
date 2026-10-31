@@ -1,0 +1,71 @@
+---
+part: 1
+order: 8
+title: A place for rules
+minutes: 10
+mode: playground
+lessonDir: 08-a-place-for-rules
+---
+
+## The problem
+
+The rules are constants in this file, and `program` passes them to `evaluate`
+one call at a time. In Part 2 they come from a file and then from the HTTP
+API. In Part 3 they come from SQLite. The code that evaluates rules should not
+change every time the place they come from does. It should ask for "the rules"
+and leave the answer to something else.
+
+## A service
+
+`Context.Service` declares a service: a name and the shape of what it offers,
+with no implementation. Declare `RuleStore` with one member, `list`, an effect
+that gives back the stored rules as JSON strings
+(`Effect.Effect<ReadonlyArray<string>>`). The string you pass at the end,
+`"rulebook/RuleStore"`, is the service's key and must be unique in the
+program.
+
+Inside `Effect.gen` or `Effect.fn`, `const store = yield* RuleStore` hands you
+the implementation, whatever it turns out to be. You use it like any object:
+`yield* store.list`.
+
+Now write `evaluateAll(event)` with `Effect.fn`. It gets the store, lists the
+rules, and evaluates each one against the event with a `for...of` loop and
+`yield* evaluate(json, event)` inside it. A plain loop is enough: each
+`yield*` finishes before the next starts, so rules run one at a time, in order.
+Lesson 21 comes back to that.
+
+In `program`, replace the three `evaluate` calls with `evaluateAll(laptop)` and
+`evaluateAll(taxi)`, and delete the `largeExpense` and `malformed` constants.
+The rules belong to the store now.
+
+Hover `evaluateAll`: `Effect<void, SchemaError, RuleStore>`. The third slot is
+what an effect needs before it can run. It has said `never`, nothing, since
+lesson 2. Now it names `RuleStore`, and `program` carries it too.
+
+## The red line
+
+The run line at the bottom, `NodeRuntime.runMain(main)`, is now underlined in
+red. The terminal shows the same type error, and the program does not start:
+the playground only runs a file that typechecks. The error is long, and the
+part that matters is its last line:
+
+> `Type 'RuleStore' is not assignable to type 'never'.`
+
+This is where the lesson ends. Solve shows the same red line, because it is
+the lesson's end state.
+
+## Exercise
+
+Explain the error in your own words before you open lesson 9. Work through it
+from the inside out:
+
+- Hover `evaluateAll`, `program` and `main` in turn. Where does `RuleStore`
+  enter the third slot, and why does it stay there all the way up?
+- The error says `runMain` wants `never` in that slot. What would it mean to
+  run a program that still needs something?
+- You declared what a `RuleStore` looks like. Where in the file did you say
+  which rules it holds?
+
+The cost of a service shows up right here: every effect that touches it
+carries it in its type until someone supplies it. That is also what made the
+mistake visible before anything ran.

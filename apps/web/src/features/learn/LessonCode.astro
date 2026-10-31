@@ -1,0 +1,18 @@
+---
+import { Code } from "astro-expressive-code/components"
+import { courseFile } from "./lessons"
+
+interface Props {
+  /**
+   * The file's path in `courses/rulebook/`, e.g.
+   * `lessons/part1/02-describe-then-run/solution/main.ts`.
+   */
+  readonly file: string
+  readonly title?: string
+}
+
+const { file, title = file } = Astro.props
+const lang = file.slice(file.lastIndexOf(".") + 1)
+---
+
+<Code code={courseFile(file)} lang={lang} title={title} />

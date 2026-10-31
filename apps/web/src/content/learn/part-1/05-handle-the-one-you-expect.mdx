@@ -1,0 +1,57 @@
+---
+part: 1
+order: 5
+title: Handle the one you expect
+minutes: 8
+mode: playground
+lessonDir: 05-handle-the-one-you-expect
+---
+
+## The problem
+
+The two failures from lesson 4 do not mean the same thing. An event without an
+`amount` is normal: the rule does not apply to it, so rulebook should skip the
+rule and move on. An unknown operator means the rule itself is broken, and
+that should stop things loudly.
+
+The start file moves lesson 4's steps into `evaluate(rule, event)`, a function
+that returns an effect, and runs it twice: the large expense rule on the taxi,
+then a `broken` rule with the operator `greater` on the laptop. Right now the
+taxi's `MissingField` stops the program before the broken rule is even tried.
+
+## Effect.catchTag
+
+`Effect.catchTag("MissingField", (error) => ...)` handles exactly one failure,
+picked by its tag. The handler receives the typed error and returns the effect
+to run in its place. Here that is a log line:
+`skip: missing field ${error.field}`. Every other failure passes through
+untouched.
+
+To attach it you need `.pipe`, which takes a minute to learn. Every effect has
+a `.pipe` method: `effect.pipe(f)` is `f(effect)`, and `effect.pipe(f, g)` is
+`g(f(effect))`. It lets you add steps after an effect, read left to right.
+Inside `evaluate`, add `.pipe(Effect.catchTag(...))` after the `Effect.gen(...)`.
+
+The terminal prints `skip: missing field amount`, and then the program stops on
+`UnknownOperator`. That is the split you want: skip what you expect, stop on
+what is broken.
+
+## Exercise
+
+Hover `evaluate` before and after adding `catchTag`.
+
+- Before: `Effect<string, MissingField | UnknownOperator, never>`.
+- After: `Effect<string | void, UnknownOperator, never>`.
+
+`MissingField` left the error slot because it is handled. The success slot
+picked up `void`, because the skip branch logs and gives back nothing. That is
+honest but not very useful yet; in Part 2, lesson 12 turns a skip into a
+recorded outcome with a reason.
+
+There is a third kind of failure: a thrown exception, which appears in no type
+at all. Part 3 shows what Effect does with it.
+
+## Checkpoint
+
+`MissingField` is handled and logged as a skip. Hovering `evaluate` shows only
+`UnknownOperator` in the second slot.

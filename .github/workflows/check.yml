@@ -37,3 +37,22 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: vp test
+
+  course:
+    name: Course (rulebook)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: courses/rulebook
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      # The runner has Docker, so the viewer check passes through the Docker fallback.
+      - run: pnpm run doctor
