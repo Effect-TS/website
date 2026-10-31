@@ -1,7 +1,7 @@
 ---
 part: 3
 order: 17
-title: Store rules and runs in SQLite
+title: Swap storage behind the same service
 minutes: 22
 mode: local
 ---
@@ -46,9 +46,16 @@ Your `src/` sits directly under the root. In the line that builds `directory`,
 keep one `".."` and remove the other two.
 
 Now open `migrations/0002_runs.sql`. The `runs` table is the run history from
-lesson 12, with one column per field. Notice the `CHECK` on `reason`. It's the
-column contract written into the database: a `failed` row must name one of
-`status`, `timeout` or `io`, and any other row may say anything or nothing.
+lesson 12, with one column per field. Notice the `CHECK` on `reason`. It writes part
+of the column contract into the database: when a `failed` row has a reason, it
+must be one of `status`, `timeout` or `io`. Any other row may say anything or
+nothing.
+
+The `CHECK` can't do the whole job, though. SQLite lets a `NULL` through a
+`CHECK`, so on its own it would accept a `failed` row with no reason at all. The
+`RunResult` schema from lesson 12 covers that half. Its `failed` variant
+requires one of the three reasons, so the Engine never writes a `failed` result
+without one.
 
 ## RuleStore over SQL
 

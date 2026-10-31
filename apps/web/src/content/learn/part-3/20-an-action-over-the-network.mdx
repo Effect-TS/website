@@ -1,7 +1,7 @@
 ---
 part: 3
 order: 20
-title: Send an HTTP request as an action
+title: Tell failures from defects
 minutes: 20
 mode: local
 ---
@@ -47,7 +47,7 @@ You don't need any new code for the timeout. `Effect.timeout` already wraps
 `run` inside the span, so a receiver that takes too long to answer is cut off
 after 10 seconds, interrupted, and recorded as `failed (timeout)`.
 
-## Compare a 500, a timeout and a success
+## Compare a 500, a timeout and a crash
 
 Run three rules against the receiver, one at a time, and read what each one
 leaves behind. With `pnpm receiver` and your server running:
@@ -102,12 +102,17 @@ Plant a bug for two minutes and watch it show up as `crashed`.
 1. In `postMessage`, change the headers line so it trims the `Title` header,
    with a `!` that tells the compiler the headers are there. For
    `post-ok.json`, they aren't.
-2. Add that rule and submit `fixtures/events/laptop.json`.
-3. Read the `crashed` row next to the other two, and find its red span in the
-   viewer.
-4. Put the line back.
+2. Add that rule to your server with `rules add fixtures/rules/post-ok.json`,
+   and note the id it prints.
+3. Run only that rule, with `rules run <post-ok id> --event fixtures/events/laptop.json`.
+   Don't submit the event to every rule. `post-fail` and `post-slow` match
+   expenses too, they have no headers either, and with the bug planted they
+   would crash as well.
+4. Read the `crashed` row next to the other two in `runs list`, and find its
+   red span in the viewer.
+5. Put the line back.
 
-You're done when `pnpm check` passes and the same event against
+You're done when `pnpm check` passes and the same `rules run` against
 `post-ok.json` prints `succeeded`. The exact line, and the file with the bug
 planted, are in `exercises/20/`.
 

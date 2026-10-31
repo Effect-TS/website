@@ -10,12 +10,12 @@
 
    `pnpm check` passes, because the `!` tells the compiler the headers are there. For `fixtures/rules/post-ok.json`, they aren't.
 
-2. With the receiver and the server running, add `fixtures/rules/post-ok.json` and submit `fixtures/events/laptop.json`. The CLI prints `crashed: Cannot read properties of undefined (reading 'Title')`, and the server logs `run crashed` at error level, with the stack.
+2. With the receiver and the server running, add `fixtures/rules/post-ok.json` and note the id it prints. Run only that rule with `rules run <post-ok id> --event fixtures/events/laptop.json`. Don't use `events submit`: `post-fail` and `post-slow` also match expenses, have no headers either, and would crash too. The CLI prints `crashed: Cannot read properties of undefined (reading 'Title')`, and the server logs `run crashed` at error level, with the stack.
 
 3. Run `runs list`. The three rows from this lesson sit side by side: `failed (status)` from `post-fail.json`, `failed (timeout)` from `post-slow.json`, and `crashed` from this one. In the viewer, all three `Engine.execute` spans are red, but only the crashed one carries a stack.
 
 4. Put the line back: `HttpClientRequest.setHeaders(action.headers ?? {}),`.
 
-Check: `pnpm check` passes, and the same event against `post-ok.json` prints `succeeded`.
+Check: `pnpm check` passes, and the same `rules run` against `post-ok.json` prints `succeeded`.
 
 `solution/src/Action.ts` is the file with the bug planted, so you can compare it with yours. The restored file is checkpoint 20's.
