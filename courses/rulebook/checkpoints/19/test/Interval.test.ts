@@ -22,7 +22,7 @@ import { TestClock } from "effect/testing"
 import { Api } from "../src/api/Api.ts"
 import { Engine } from "../src/Engine.ts"
 import * as Migrations from "../src/Migrations.ts"
-import { Rule } from "../src/Rule.ts"
+import { lookup, type Payload, Rule } from "../src/Rule.ts"
 import { RuleStore } from "../src/RuleStore.ts"
 import { RunLog } from "../src/RunLog.ts"
 import * as ApiHandlers from "../src/server/Api.ts"
@@ -328,4 +328,13 @@ describe("Rule", () => {
     assert.isTrue(Exit.isFailure(every(4)))
     assert.isTrue(Exit.isSuccess(every(5)))
   })
+
+  it.effect("lookup reads only fields the payload owns, at every step of the path", () =>
+    Effect.gen(function*() {
+      const missing = (payload: Payload, field: string) =>
+        lookup(payload, field).pipe(Effect.flip, Effect.map((error) => error.field))
+      assert.strictEqual(yield* missing({ type: "expense" }, "toString"), "toString")
+      assert.strictEqual(yield* missing({ status: 200, body: {} }, "body.constructor"), "body.constructor")
+      assert.strictEqual(yield* lookup({ status: 200, body: { status: "ok" } }, "body.status"), "ok")
+    }))
 })

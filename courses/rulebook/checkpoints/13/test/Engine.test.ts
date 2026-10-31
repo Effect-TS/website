@@ -163,6 +163,19 @@ describe("Engine.handleEvent", () => {
     }).pipe(test.provide)
   })
 
+  it.effect("a field the event only inherits, such as toString, is missing: skipped, not acted on", () => {
+    const test = setup()
+    return Effect.gen(function*() {
+      const { ids: [id], runs } = yield* handle([
+        expense("inherited", { condition: { field: "toString", op: "neq", value: "not in payload" } })
+      ], laptop)
+      assert.deepStrictEqual(runs.map((run) => [run.ruleId, run.outcome, run.reason]), [
+        [id, "skipped", "missing field toString"]
+      ])
+      assert.strictEqual(test.writes.length, 0)
+    }).pipe(test.provide)
+  })
+
   it.effect("a FileSystem error is failed with reason io, finalised once, and ends its span as a failure", () => {
     const test = setup()
     return Effect.gen(function*() {
