@@ -1,0 +1,68 @@
+---
+part: 4
+order: 25
+title: "Independent challenge: hints"
+mode: guide
+---
+
+Hints for [lesson 24](/learn/part-4/24-independent-challenge). Read one, try
+again, and come back for the next only if you need it.
+
+## Where the state lives
+
+The Engine already owns everything that runs a rule: the `FiberMap` of loops
+from lesson 19 and `handleEvent` from lesson 21. Whether a rule is paused can
+live next to them, in the Engine layer, as a set of ids. The run log needs no
+new outcome. A paused rule doesn't run, so it writes nothing.
+
+## Pause and resume
+
+`stop` already interrupts a loop and waits for its last row. Pausing an
+interval rule is that, plus remembering the pause. Remember it first, then
+stop the loop, so no event runs the rule while its loop is stopping. Resuming is forgetting the
+pause, then `start`. For an event rule, `handleEvent` leaves paused rules out
+of the rules it runs, so they get no `Engine.execute` at all.
+
+## rules list
+
+The `list` handler asks the Engine `isRunning` for interval rules. It can ask
+whether a rule is paused the same way, and say `paused` before it says
+`running` or `stopped`. `ListedRule` in `src/api/Api.ts` needs the new literal.
+
+## The endpoints
+
+Add `pause` and `resume` to the `rules` group in `src/api/Api.ts`, next to
+`remove`: `POST /rules/:id/pause` and `POST /rules/:id/resume`, each declaring
+`RuleNotFound` as its 404 error. Each handler looks the rule up with
+`store.get` first, so an unknown id fails with `RuleNotFound` exactly as
+`remove` does. The CLI gets both from `ApiClient` with no extra code; the two
+commands catch `RuleNotFound` as `rules remove` does.
+
+## The tests
+
+On the lesson 19 harness:
+
+- The interval test is the lesson 19 core test with pause instead of remove.
+  Await `remote.arrived`, pause, `TestClock.adjust` past `everySeconds`, and
+  assert `remote.requests.length` did not grow and the run rows did not
+  change.
+- For the positive control the poll has to answer, or the second tick would
+  hang too. A `Respond` reply with status 200 is enough. Adjust past one
+  interval and short of the timeout, then assert one more request and one more
+  row.
+- The event test uses the `HttpApiTest` client from lesson 19 and the
+  outcomes `events.submit` returns.
+- For the unknown id, `Effect.flip` on `pause` gives you the `RuleNotFound`,
+  as in lesson 13.
+
+## A restart
+
+Keeping the pause in memory is a fair answer: a server start already restarts
+stopped loops, so a restart also resumes paused ones. Say so in a comment. If
+you want a pause to survive a restart, it needs a column and a migration, and
+that takes longer than 40 minutes.
+
+## The reference
+
+`exercises/24/hint.md` is these hints as one file. Checkpoint 24 is the
+reference solution, and `checkpoints/24/test/Pause.test.ts` its tests.

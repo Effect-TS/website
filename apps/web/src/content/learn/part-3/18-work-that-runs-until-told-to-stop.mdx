@@ -1,0 +1,97 @@
+---
+part: 3
+order: 18
+title: Work that runs until told to stop
+minutes: 15
+mode: local
+---
+
+## The problem
+
+Everything the server does so far answers a request. Lesson 19 adds work
+nobody asked for in the moment: an interval rule polls a URL every few seconds
+for as long as the server runs. Before that loop does anything real, it has to
+get the one thing right that is easy to get wrong: when the server stops, the
+loop stops with it, cleanly, and says so. This lesson builds a loop that does
+nothing useful, so you can watch only that part.
+
+## A heartbeat
+
+Every 30 seconds the heartbeat logs how many rules are stored. In
+`src/Heartbeat.ts`:
+
+<LessonCode file="checkpoints/18/src/Heartbeat.ts" />
+
+Read it from the inside out.
+
+- The `Effect.gen` block is one beat: list the rules, log the count.
+- `Effect.repeat(Schedule.spaced("30 seconds"))` runs the beat, then again 30
+  seconds after each run ends, forever. The first run is immediate. A
+  `Schedule` is a value describing when to go again; `spaced` is the simplest
+  one.
+- `Effect.onInterrupt` runs its effect when the loop is interrupted, and only
+  then. A loop that never ends on its own has exactly one way to stop, so that
+  is where the log goes.
+- `Effect.forkScoped` starts the loop on a fiber of its own and ties that fiber
+  to the current scope. The layer's build finishes straight away, and the loop
+  keeps going in the background.
+
+## Whose scope
+
+`Layer.effectDiscard` builds a layer from an effect and provides no service.
+A layer has a scope: it opens when the layer is built and closes when the
+program that built it ends. `forkScoped` puts the loop in that scope. When the
+scope closes, the loop is interrupted, `onInterrupt` logs, and only then does
+the layer finish closing.
+
+So you never stop the loop yourself. You stop the program, and the program
+closes its layers. In `src/server/main.ts` the heartbeat sits next to the
+served API:
+
+<LessonCode file="checkpoints/18/src/server/main.ts" />
+
+The heartbeat needs `RuleStore`, so it is built after the store and closed
+before it. That order is what makes the shutdown safe: the last thing the loop
+does is never a query against a database that has already closed.
+
+## Ctrl-C
+
+`runMain`, from lesson 11, turns Ctrl-C into an interruption of the main
+fiber. `Layer.launch` was holding the server open; interrupted, it closes the
+layer. That closes the scope, which interrupts the heartbeat, which logs. You
+did not write a signal handler and you do not need one.
+
+## Now and later
+
+What you need now: a loop is an effect with `Effect.repeat` and a `Schedule`,
+a scoped fork ties it to whoever started it, and `Effect.onInterrupt` is where
+cleanup goes. The cost is a fiber that does nothing most of the time. Lesson
+19 replaces the heartbeat with one loop per interval rule, each of which has to
+stop on its own when its rule is removed, not only when the server stops.
+
+## Checkpoint
+
+```sh
+pnpm checkpoint 18 server
+```
+
+The server logs `rules stored: 0` at once and again every 30 seconds. Press
+Ctrl-C. The last log line before the process exits is:
+
+```text
+heartbeat stopped
+```
+
+With the viewer running it is also in the Logs tab, from `rulebook-server`.
+
+## Reference card
+
+| API                         | What it does                                                  | Lesson |
+| --------------------------- | ------------------------------------------------------------- | ------ |
+| `Effect.repeat(schedule)`   | Runs an effect again on a schedule; the first run is at once  | 18     |
+| `Schedule.spaced(duration)` | Again `duration` after each run ends                          | 18     |
+| `Effect.onInterrupt(f)`     | Runs `f` when the effect is interrupted, and only then        | 18     |
+| `Effect.forkScoped`         | Starts an effect on its own fiber, interrupted with the scope | 18     |
+| `Layer.effectDiscard`       | A layer from an effect, providing no service                  | 18     |
+| `Layer.mergeAll`            | Runs layers side by side                                      | 14     |
+| `NodeRuntime.runMain`       | Ctrl-C interrupts the main fiber                              | 11     |

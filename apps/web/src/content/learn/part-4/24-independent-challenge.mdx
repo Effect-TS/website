@@ -6,6 +6,68 @@ minutes: 40
 mode: local
 ---
 
-Pause and resume a rule, on your own, with tests.
+This one is yours. The page says what the program should do, not how; every
+piece you need has appeared before. Budget about 40 minutes. If you get stuck,
+[the hints](/learn/part-4/challenge-hints) say where to look, but try without
+them first.
 
-The lesson text is written in a later step.
+## The problem
+
+A rule that misbehaves, or one you just don't want for a while, can only be
+removed, and removing it throws away the rule and its definition. You want to
+pause it and resume it later, as it was.
+
+## The behaviour
+
+- `rules pause <id>` and `rules resume <id>` in the CLI, going through the
+  server like every other command.
+- A paused rule stays stored. `rules list` shows it as `paused`.
+- A paused rule is skipped by events: it gets no row in `runs list` and no
+  `Engine.execute` span. It did not run, so nothing is recorded.
+- Pausing an interval rule stops its loop. Resuming starts it again.
+- Pausing or resuming an id the server does not know is a typed error, printed
+  by the CLI as one line with a non-zero exit, the same way removing an unknown
+  rule is.
+- Decide what a server restart does to a pause, and say so in a comment. Either
+  answer is fine if it is stated.
+
+## Tests first
+
+Write the tests before the code, on the harness you wrote in lesson 19:
+
+1. An interval rule whose poll never answers. Wait for its first request,
+   pause the rule, then move the test clock past one interval: no new request
+   and no new row.
+2. Resume it and move the clock past one interval again, staying short of the
+   timeout: exactly one new request and one new row. This is the positive
+   control. Without it, test 1 would also pass against a loop that never ran.
+3. An event rule. Pause it and submit an event: no outcome for it and no row.
+   Resume it and submit again: one row.
+4. Pausing an unknown id fails with the typed error.
+
+Run them and watch them fail for the right reason, as in lesson 13, before you
+write the code that makes them pass.
+
+## Show it
+
+With `pnpm receiver --scenario mixed` running, add the four mixed rules to your
+server, pause B, and submit `fixtures/events/laptop.json`. `runs list` shows
+three new rows, not four, and the newest `Engine.handleEvent` trace in the
+viewer has three `Engine.execute` spans, none of them B's. Resume B and submit
+again: four rows, four spans.
+
+## Checkpoint
+
+The paused rule produces no row and no span under the mixed scenario; after
+resume it produces one of each. Your four tests pass.
+
+Checkpoint 24 is one reference solution, and `checkpoints/24/test/` holds its
+tests. Read them after yours pass, not before:
+
+```sh
+pnpm checkpoint 24 test
+```
+
+## Reference card
+
+Nothing new. The card for this lesson is the cards of lessons 13, 14, 15 and 19.

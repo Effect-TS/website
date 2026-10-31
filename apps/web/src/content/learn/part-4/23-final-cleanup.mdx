@@ -1,0 +1,60 @@
+---
+part: 4
+order: 23
+title: Final cleanup
+minutes: 5
+mode: local
+---
+
+## The problem
+
+Each lesson since 11 added a layer where it was needed. The server's stack
+grew in `src/server/main.ts`, one `Layer.provide` at a time, and the CLI's
+grew inline in its run line. Both work. Neither is a place you would look to
+answer "what does this program run on?". Before the challenge, put both stacks
+in one file.
+
+## One Layers.ts
+
+Move the two stacks to `src/Layers.ts`, as two exported values, `server` and
+`cli`:
+
+<LessonCode file="checkpoints/23/src/Layers.ts" />
+
+Nothing in them changed, only where they live. The order is the one you built
+up: each `Layer.provide` supplies what the layers above it need, so the Engine
+is built after the stores and SQLite, and closed before them.
+
+The entrypoints shrink to what an entrypoint is for. The server launches its
+layer:
+
+<LessonCode file="checkpoints/23/src/server/main.ts" />
+
+and the CLI's run line becomes `Effect.provide(Layers.cli)`, its one
+provide. The `Effect.provideService` calls inside the Engine stay: they hand
+one call a service the Engine already holds, which is not the same as building
+the program's layers.
+
+Check: `pnpm check` and `pnpm test` pass, and the lesson 21 checkpoint behaves
+the same on your server.
+
+## Checkpoint
+
+```sh
+pnpm checkpoint 23 server
+```
+
+It serves exactly what checkpoint 22 served. Neither entrypoint contains a
+`Layer.provide` any more, and each has at most one `Effect.provide`;
+`checkpoints/24/test/Layers.test.ts` checks exactly that, so you can run it
+against your own `src/` by copying it to `test/`.
+
+## Reference card
+
+| API                       | What it does                                      | Lesson |
+| ------------------------- | ------------------------------------------------- | ------ |
+| `Layer.provide`           | Supplies what the layer above needs               | 11     |
+| `Layer.provideMerge`      | Supplies it and keeps it in the result            | 12     |
+| `Layer.merge`, `mergeAll` | Layers side by side                               | 14     |
+| `Layer.launch`            | Builds a layer and runs it until interrupted      | 14     |
+| `Effect.provide(layer)`   | Supplies a layer to one effect, once, at the edge | 9      |
