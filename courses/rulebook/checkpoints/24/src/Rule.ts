@@ -69,7 +69,7 @@ export class MissingField extends Schema.TaggedError<MissingField>()("MissingFie
 export const lookup = Effect.fn("lookup")(function*(payload: Payload, field: string) {
   let value: unknown = payload
   for (const key of field.split(".")) {
-    if (!Predicate.isObject(value) || !(key in value)) {
+    if (!Predicate.isObject(value) || !Object.hasOwn(value, key)) {
       return yield* new MissingField({ field })
     }
     value = value[key]
