@@ -95,13 +95,22 @@ const events = Command.make("events").pipe(
 const runsList = Command.make(
   "list",
   {
-    rule: Flag.String("rule").pipe(Flag.withDescription("Only runs of this rule id"), Flag.optional),
-    limit: Flag.Int("limit").pipe(Flag.withDescription("At most this many runs"), Flag.optional)
+    // A flag left out arrives as undefined.
+    rule: Flag.String("rule").pipe(
+      Flag.withDescription("Only runs of this rule id"),
+      Flag.optional,
+      Flag.map(Option.getOrUndefined)
+    ),
+    limit: Flag.Int("limit").pipe(
+      Flag.withDescription("At most this many runs"),
+      Flag.optional,
+      Flag.map(Option.getOrUndefined)
+    )
   },
   Effect.fn("runs.list")(function*({ rule, limit }) {
     const client = yield* ApiClient
     const runs = yield* client.runs.list({
-      query: { ruleId: Option.getOrUndefined(rule), limit: Option.getOrUndefined(limit) }
+      query: { ruleId: rule, limit }
     })
     for (const run of runs) {
       yield* Console.log(`${run.id}  ${run.ruleId}  ${describe(run)}`)

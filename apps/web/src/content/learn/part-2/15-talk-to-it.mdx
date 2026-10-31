@@ -45,9 +45,9 @@ declared, and every handler body is empty. You write the six bodies. Each one
   `client.rules.create`.
 - `rules run` and `events submit` print one outcome per line, with its reason
   or error.
-- `runs list` has two optional flags. A flag declared with `Flag.optional`
-  arrives as an `Option`; `Option.getOrUndefined` turns it into the
-  `string | undefined` the query expects.
+- `runs list` has two optional flags. The supplied declarations hand them to
+  you as `string | undefined` and `number | undefined`, the same shape the
+  query takes, so they go straight into `client.runs.list({ query })`.
 
 Name the handlers with `Effect.fn("rules.add")` and so on. Lesson 16 shows
 why.
@@ -124,13 +124,12 @@ fd657e81-8ced-4afd-9c5e-8213677a25e9: skipped (httpPost actions run from lesson 
 
 ## Reference card
 
-| API                                      | What it does                                               | Lesson |
-| ---------------------------------------- | ---------------------------------------------------------- | ------ |
-| `HttpApiClient.make`                     | A typed client derived from the API                        | 15     |
-| `HttpApiClient.ForApi<typeof Api>`       | The client's type, for a service                           | 15     |
-| `FetchHttpClient.layer`                  | An `HttpClient` built on `fetch`                           | 15     |
-| `Config.String`, `Config.withDefault`    | Reads an environment variable, with a fallback             | 15     |
-| `Command.make`, `Argument`, `Flag`       | CLI declarations (supplied)                                | 15     |
-| `Flag.optional`, `Option.getOrUndefined` | An optional flag, and its value or `undefined`             | 15     |
-| `Console.log`, `Console.error`           | Print to stdout or stderr as an effect                     | 15     |
-| `HttpClient` trace headers               | How a trace crosses into the server. Unpacked in lesson 16 | 16     |
+| API                                   | What it does                                               | Lesson |
+| ------------------------------------- | ---------------------------------------------------------- | ------ |
+| `HttpApiClient.make`                  | A typed client derived from the API                        | 15     |
+| `HttpApiClient.ForApi<typeof Api>`    | The client's type, for a service                           | 15     |
+| `FetchHttpClient.layer`               | An `HttpClient` built on `fetch`                           | 15     |
+| `Config.String`, `Config.withDefault` | Reads an environment variable, with a fallback             | 15     |
+| `Command.make`, `Argument`, `Flag`    | CLI declarations (supplied)                                | 15     |
+| `Console.log`, `Console.error`        | Print to stdout or stderr as an effect                     | 15     |
+| `HttpClient` trace headers            | How a trace crosses into the server. Unpacked in lesson 16 | 16     |

@@ -9,7 +9,7 @@
 //   pnpm cli events submit fixtures/events/laptop.json
 //   pnpm cli runs list --rule <id> --limit 10
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/cli"
 import { isMain } from "../../tools/entrypoint.ts"
 
@@ -64,8 +64,17 @@ const events = Command.make("events").pipe(
 const runsList = Command.make(
   "list",
   {
-    rule: Flag.String("rule").pipe(Flag.withDescription("Only runs of this rule id"), Flag.optional),
-    limit: Flag.Int("limit").pipe(Flag.withDescription("At most this many runs"), Flag.optional)
+    // A flag left out arrives as undefined.
+    rule: Flag.String("rule").pipe(
+      Flag.withDescription("Only runs of this rule id"),
+      Flag.optional,
+      Flag.map(Option.getOrUndefined)
+    ),
+    limit: Flag.Int("limit").pipe(
+      Flag.withDescription("At most this many runs"),
+      Flag.optional,
+      Flag.map(Option.getOrUndefined)
+    )
   },
   // Lesson 15: list runs, newest first.
   Effect.fn(function*({ rule: _rule, limit: _limit }) {})
