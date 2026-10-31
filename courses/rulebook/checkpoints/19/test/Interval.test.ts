@@ -5,7 +5,9 @@ import {
   Cause,
   Effect,
   Exit,
+  Fiber,
   FileSystem,
+  Latch,
   Layer,
   Logger,
   type LogLevel,
@@ -46,12 +48,34 @@ const fileSystem = FileSystem.layerNoop({
 })
 
 // The Engine over the given stores, polling through the fake server.
-const layerEngine = <E>(stores: Layer.Layer<RuleStore | RunLog, E>, reply: Harness.Reply) =>
+const layerEngine = <E>(
+  stores: Layer.Layer<RuleStore | RunLog, E>,
+  reply: Harness.Reply,
+  fs: Layer.Layer<FileSystem.FileSystem> = fileSystem
+) =>
   Engine.layer.pipe(
     Layer.provideMerge(stores),
     Layer.provideMerge(Harness.layer(reply)),
-    Layer.provide(fileSystem)
+    Layer.provide(fs)
   )
+
+// The memory stores, with a RunLog whose terminal write always fails.
+const layerStoresFailingFinish = Layer.merge(
+  RuleStore.layerMemory,
+  Layer.effect(
+    RunLog,
+    Effect.gen(function*() {
+      const inner = yield* RunLog
+      return RunLog.of({ ...inner, finish: () => Effect.die(new Error("disk full")) })
+    })
+  ).pipe(Layer.provide(RunLog.layerMemory))
+)
+
+const expense = (path: string): Rule => ({
+  name: path,
+  trigger: { type: "event", event: "expense" },
+  action: { type: "appendFile", path, message: "expense" }
+})
 
 // The served API over the Engine and the memory stores.
 const layerApp = (reply: Harness.Reply) =>
@@ -223,23 +247,10 @@ describe("interval rules", () => {
 
   it.effect("a failed terminal write is logged with the run id, leaves the row started and keeps the outcome", () => {
     const logs = captureLogs()
-    // The memory RunLog whose terminal write always fails.
-    const runLog = Layer.effect(
-      RunLog,
-      Effect.gen(function*() {
-        const inner = yield* RunLog
-        return RunLog.of({ ...inner, finish: () => Effect.die(new Error("disk full")) })
-      })
-    ).pipe(Layer.provide(RunLog.layerMemory))
-
     return Effect.gen(function*() {
       const store = yield* RuleStore
       for (const path of ["alerts.log", "/denied/alerts.log"]) {
-        yield* store.create({
-          name: path,
-          trigger: { type: "event", event: "expense" },
-          action: { type: "appendFile", path, message: "expense" }
-        })
+        yield* store.create(expense(path))
       }
       const outcomes = yield* (yield* Engine).handleEvent({ type: "expense", amount: 1200 })
       assert.deepStrictEqual(
@@ -259,7 +270,34 @@ describe("interval rules", () => {
         )
       }
     }).pipe(
-      Effect.provide(layerEngine(Layer.merge(RuleStore.layerMemory, runLog), { _tag: "Hang" })),
+      Effect.provide(layerEngine(layerStoresFailingFinish, { _tag: "Hang" })),
+      Effect.provide(logs.layer)
+    )
+  })
+
+  it.effect("an interrupted run whose terminal write fails still ends with only the interruption", () => {
+    const logs = captureLogs()
+    // A FileSystem whose write never completes; `writing` opens when it starts.
+    const writing = Latch.makeUnsafe()
+    const hang = () => Effect.andThen(writing.open, Effect.never)
+    const fileSystem = FileSystem.layerNoop({ writeFileString: hang, writeFile: hang })
+
+    return Effect.gen(function*() {
+      yield* (yield* RuleStore).create(expense("alerts.log"))
+      const fiber = yield* Effect.forkChild((yield* Engine).handleEvent({ type: "expense", amount: 1200 }))
+      yield* writing.await
+      yield* Fiber.interrupt(fiber)
+      const exit = yield* Fiber.await(fiber)
+      assert.isTrue(
+        Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause),
+        "the write failure is not added to the interruption"
+      )
+      const [run, ...others] = yield* (yield* RunLog).list()
+      assert.deepStrictEqual(others, [])
+      assert.strictEqual(run.outcome, "started")
+      assert.isTrue(logs.lines.some((line) => line.level === "Error" && line.text.includes(run.id)))
+    }).pipe(
+      Effect.provide(layerEngine(layerStoresFailingFinish, { _tag: "Hang" }, fileSystem)),
       Effect.provide(logs.layer)
     )
   })
