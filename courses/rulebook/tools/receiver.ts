@@ -2,7 +2,7 @@
 //
 //   pnpm receiver                   listen on http://localhost:4600
 //   pnpm receiver --port 4700       another port
-//   pnpm receiver --scenario mixed  also print the lesson 21 scenario
+//   pnpm receiver --scenario mixed  also print the mixed scenario of lessons 21, 22 and 24
 //
 // Endpoints (any method unless noted):
 //   /ok                 200
@@ -113,7 +113,7 @@ const MixedRule = Schema.fromJsonString(Schema.Struct({
   action: Schema.Struct({ url: Schema.String })
 }))
 
-// Lesson 21 and 22: list the rules of the mixed scenario and what each one
+// Lessons 21, 22 and 24: list the rules of the mixed scenario and what each one
 // should produce, so the receiver's log can be read alongside `runs list`.
 const printMixedScenario = Effect.fn("printMixedScenario")(function*(port: number) {
   const fs = yield* FileSystem.FileSystem

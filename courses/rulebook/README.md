@@ -34,7 +34,7 @@ pnpm run doctor --viewer    # leave it running
 | `pnpm run doctor` | Check Node, pnpm, git and the viewer |
 | `pnpm run doctor --viewer` | Download the viewer if needed, check, then start the viewer |
 | `pnpm viewer` | Start otel-desktop-viewer v0.6.0: UI on http://localhost:8000, OTLP over HTTP on 4318 |
-| `pnpm receiver` | Start the local HTTP receiver on http://localhost:4600 (`--scenario mixed` for lesson 21) |
+| `pnpm receiver` | Start the local HTTP receiver on http://localhost:4600 (`--scenario mixed` for lessons 21, 22 and 24) |
 | `pnpm dev:server` | Run your server from `src/server/main.ts`, restarting on change (lesson 14 on) |
 | `pnpm cli <command>` | Run your CLI from `src/cli/main.ts` (lesson 15 on) |
 | `pnpm checkpoint <n> [...args]` | Run the reference solution for lesson `n` (11 to 24) |
