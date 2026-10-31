@@ -1,6 +1,6 @@
 import { NodeServices } from "@effect/platform-node"
 import { assert, layer } from "@effect/vitest"
-import { Effect, FileSystem, Layer, Schema } from "effect"
+import { Cause, Effect, Exit, FileSystem, Layer, Runtime, Schema } from "effect"
 import { Command } from "effect/cli"
 import { TestConsole } from "effect/testing"
 import * as NodePath from "node:path"
@@ -63,9 +63,17 @@ layer(layerCli, { buildPerTest: true })("CLI", (it) => {
 
       yield* run("rules", "remove", id)
       assert.deepStrictEqual(yield* rules.list, [])
-      const missing = yield* printing(Effect.exit(command(["rules", "remove", id])))
+      const before = (yield* printed).length
+      const exit = yield* Effect.exit(command(["rules", "remove", id]))
+      const missing = (yield* printed).slice(before)
       assert.strictEqual(missing.length, 1, missing.join("\n"))
       assert.include(missing[0], id)
+      // The command still fails, so the process exits non-zero, and runMain
+      // does not report the error again: the one line is all that is printed.
+      if (Exit.isSuccess(exit)) return assert.fail("rules remove of a missing rule exits 0")
+      const error = Cause.squash(exit.cause)
+      assert.notStrictEqual(Runtime.getErrorExitCode(error), 0)
+      assert.isFalse(Runtime.getErrorReported(error), "runMain would print the error after the line")
     }))
 
   it.effect("events submit and rules run print outcomes; runs list sends --rule and --limit", () =>
