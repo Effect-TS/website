@@ -3,20 +3,24 @@ import { assert, describe, it } from "@effect/vitest"
 import { Effect, FileSystem, Stream } from "effect"
 import { ChildProcess } from "effect/process"
 import * as NodePath from "node:path"
-import { pathToFileURL } from "node:url"
 
 // Every Part 1 lesson file runs here the way `pnpm lesson <n>` runs it, tsx in
-// a child process, except that telemetryHooks.ts swaps the supplied
-// Telemetry.ts for TelemetryStub.ts: nothing is exported, and each log is one
-// stdout line naming its span. An alert line is a line that names the Part 1
-// event, as lesson 2's "expense 1200 over 500" does.
+// a child process. Part 1 provides no layer for logging or tracing, so each log
+// is a line from the default logger on stdout. An alert line is a line that
+// names the Part 1 event, as lesson 2's "expense 1200 over 500" does.
 
 const root = NodePath.join(import.meta.dirname, "..", "..", "..")
 const part1 = NodePath.join(root, "lessons", "part1")
 const tsc = NodePath.join(root, "node_modules", "typescript", "bin", "tsc")
-const telemetryHooks = pathToFileURL(NodePath.join(import.meta.dirname, "telemetryHooks.ts")).href
 
 const timeout = 60_000
+
+// Lesson 9 introduces Effect.provide; every file before its solution runs the
+// program as it is.
+const beforeProvide = [
+  ...[2, 3, 4, 5, 6, 7, 8].flatMap((lesson) => [[lesson, "start"], [lesson, "solution"]] as const),
+  [9, "start"] as const
+]
 
 // The end of lesson 8 is one lesson state stored at two paths. It is the only
 // state in lessons/part1/ that must not typecheck.
@@ -37,7 +41,7 @@ const lessonFile = (lesson: number, variant: "start" | "solution") =>
 const collect = (stream: Stream.Stream<Uint8Array, unknown>) => stream.pipe(Stream.decodeText, Stream.mkString)
 
 const run = Effect.fn("run")(function*(file: string) {
-  const handle = yield* ChildProcess.make(process.execPath, ["--import", "tsx", "--import", telemetryHooks, file], {
+  const handle = yield* ChildProcess.make(process.execPath, ["--import", "tsx", file], {
     cwd: root
   })
   const [stdout, stderr, exitCode] = yield* Effect.all([
@@ -112,6 +116,29 @@ describe("Part 1 lesson files", () => {
         yield* fs.readFileString(yield* lessonFile(1, "solution")),
         yield* fs.readFileString(yield* lessonFile(10, "solution"))
       )
+    }).pipe(Effect.provide(NodeServices.layer)))
+
+  it.effect("no lesson file, nor the lesson 10 file that opens Part 2, uses a telemetry layer", () =>
+    Effect.gen(function*() {
+      const fs = yield* FileSystem.FileSystem
+      assert.isFalse(yield* fs.exists(NodePath.join(part1, "Telemetry.ts")), "lessons/part1/Telemetry.ts")
+      const files = [NodePath.join(root, "src", "run-once.ts")]
+      for (let lesson = 1; lesson <= 10; lesson++) {
+        files.push(yield* lessonFile(lesson, "solution"))
+        if (lesson !== 1) files.push(yield* lessonFile(lesson, "start"))
+      }
+      for (const file of files) {
+        assert.notMatch(yield* fs.readFileString(file), /Telemetry/, NodePath.relative(root, file))
+      }
+    }).pipe(Effect.provide(NodeServices.layer)))
+
+  it.effect("no lesson file before lesson 9's solution calls Effect.provide", () =>
+    Effect.gen(function*() {
+      const fs = yield* FileSystem.FileSystem
+      for (const [lesson, variant] of beforeProvide) {
+        const file = yield* lessonFile(lesson, variant)
+        assert.notMatch(yield* fs.readFileString(file), /\bEffect\.provide/, NodePath.relative(root, file))
+      }
     }).pipe(Effect.provide(NodeServices.layer)))
 
   describe.concurrent("typecheck", () => {
@@ -189,12 +216,13 @@ describe("Part 1 lesson files", () => {
       timeout
     )
 
-    it.live("07 log lines carry the evaluate span name", () =>
+    it.live("07 the malformed rule's failure names the evaluate span", () =>
       Effect.gen(function*() {
         const result = yield* runLesson(7, "solution")
-        // The span field of a TelemetryStub.ts line, not `at evaluate` in a
-        // failure's stack trace.
-        assert.match(result.stdout, /^[A-Z]+ \[evaluate\] /m, report(result))
+        assert.match(result.stdout, /SchemaError/, report(result))
+        // The name given to Effect.fn, in the trace runMain prints with the
+        // failure.
+        assert.match(result.stdout, /^\s+at evaluate \(/m, report(result))
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
     it.live("08 start is the lesson 7 end state and prints the same lines as 07", () =>

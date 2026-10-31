@@ -1,7 +1,6 @@
 import * as Option from "effect/Option"
 import { assert, test } from "vite-plus/test"
 import { makeLessonWorkspace } from "../../../src/features/learn/workspace.ts"
-import { makeDefaultWorkspace } from "../../../src/features/playground/domain/workspace.ts"
 
 const lesson = {
   start: `// start\n`,
@@ -28,14 +27,17 @@ test("pins every dependency to an exact version", () => {
   assert.equal(workspace.effectVersion, "v4")
 })
 
-test("holds the lesson start file beside the playground's v4 DevTools", () => {
-  const workspace = makeLessonWorkspace(lesson)
-  const [devTools] = makeDefaultWorkspace("v4")
-    .findFile("src/DevTools.ts")
-    .pipe(Option.getOrThrow)
+// Part 1 provides no layer for logging or tracing, so the lesson file is the
+// only source file, exactly as the local track has it.
+test("holds only the lesson start file, unchanged, in src", () => {
+  const start = `import { NodeRuntime } from "@effect/platform-node"\n`
+  const workspace = makeLessonWorkspace({ start, solution: start })
+  const sources = [...workspace.filePaths]
+    .filter(([node, path]) => node._tag === "File" && path.startsWith("src/"))
+    .map(([, path]) => path)
 
-  assert.equal(contentOf(workspace, "src/main.ts"), lesson.start)
-  assert.equal(contentOf(workspace, "src/DevTools.ts"), devTools.initialContent)
+  assert.deepEqual(sources, ["src/main.ts"])
+  assert.equal(contentOf(workspace, "src/main.ts"), start)
 })
 
 test("the solve variant swaps in the solution file", () => {
