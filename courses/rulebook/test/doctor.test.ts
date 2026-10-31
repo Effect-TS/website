@@ -1,5 +1,7 @@
+import { NodeServices } from "@effect/platform-node"
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Path, Stream } from "effect"
+import { ChildProcess } from "effect/process"
 import * as Doctor from "../tools/doctor.ts"
 
 // The doctor reads the host only through Doctor.Host, so these tests never
@@ -37,4 +39,21 @@ describe("doctor", () => {
     }).pipe(
       Effect.provide(host({ nodeVersion: "v22.15.1", commands: ["git"], viewerBinary: false }))
     ))
+
+  // The command itself: with an empty PATH no host has pnpm, so `pnpm doctor`
+  // must exit non-zero and say so, whatever else the machine has installed.
+  it.live("the doctor command exits non-zero and lists what is missing", () =>
+    Effect.gen(function*() {
+      const path = yield* Path.Path
+      const handle = yield* ChildProcess.make(process.execPath, ["--import", "tsx", "tools/doctor.ts"], {
+        cwd: path.join(import.meta.dirname, ".."),
+        env: { PATH: "" }
+      })
+      const [output, exitCode] = yield* Effect.all([
+        handle.all.pipe(Stream.decodeText, Stream.mkString),
+        handle.exitCode
+      ], { concurrency: "unbounded" })
+      assert.notStrictEqual(Number(exitCode), 0)
+      assert.match(output, /pnpm/)
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)))
 })
