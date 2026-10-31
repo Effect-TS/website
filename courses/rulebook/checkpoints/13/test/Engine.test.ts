@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, FileSystem, Layer, PlatformError, Schema, Tracer } from "effect"
+import { Effect, Exit, FileSystem, Layer, Option, PlatformError, Schema, Tracer } from "effect"
 import { Engine } from "../src/Engine.ts"
 import { Rule } from "../src/Rule.ts"
 import { RuleStore } from "../src/RuleStore.ts"
@@ -7,14 +7,16 @@ import { RunLog } from "../src/RunLog.ts"
 
 // Fresh stores, a recording FileSystem and a capturing tracer for every test.
 // The FileSystem is FileSystem.layerNoop with the two write methods replaced:
-// a write under /denied/ fails with a PlatformError, any other write is
-// recorded together with the run rows that existed when it happened. RunLog
-// is the memory layer with `finish` counted, so a test can see how many times
-// each run was finalised.
+// every write attempt records the rule id of the Engine.execute span it runs
+// inside (undefined outside one); a write under /denied/ then fails with a
+// PlatformError, any other write is recorded together with the run rows that
+// existed when it happened. RunLog is the memory layer with `finish` counted,
+// so a test can see how many times each run was finalised.
 const setup = () => {
   const writes: Array<{ readonly path: string; readonly data: string; readonly flag: string | undefined }> = []
   const rowsAtWrite: Array<ReadonlyArray<{ readonly ruleId: string; readonly outcome: string }>> = []
   const finished: Array<string> = []
+  const executingAtWrite: Array<unknown> = []
   const spans: Array<Tracer.NativeSpan> = []
 
   const runLog = Layer.effect(
@@ -33,17 +35,21 @@ const setup = () => {
     Effect.gen(function*() {
       const log = yield* RunLog
       const record = (path: string, data: string, flag: string | undefined) =>
-        path.startsWith("/denied/")
-          ? Effect.fail(PlatformError.systemError({
-            _tag: "PermissionDenied",
-            module: "FileSystem",
-            method: "writeFile",
-            pathOrDescriptor: path
-          }))
-          : log.list().pipe(Effect.map((rows) => {
-            rowsAtWrite.push(rows)
-            writes.push({ path, data, flag })
-          }))
+        Effect.option(Effect.currentSpan).pipe(Effect.map((span) => {
+          executingAtWrite.push(executingRule(Option.getOrUndefined(span)))
+        })).pipe(Effect.andThen(
+          path.startsWith("/denied/")
+            ? Effect.fail(PlatformError.systemError({
+              _tag: "PermissionDenied",
+              module: "FileSystem",
+              method: "writeFile",
+              pathOrDescriptor: path
+            }))
+            : log.list().pipe(Effect.map((rows) => {
+              rowsAtWrite.push(rows)
+              writes.push({ path, data, flag })
+            }))
+        ))
       return FileSystem.makeNoop({
         writeFileString: (path, data, options) => record(path, data, options?.flag),
         writeFile: (path, data, options) => record(path, new TextDecoder().decode(data), options?.flag)
@@ -67,8 +73,17 @@ const setup = () => {
   const provide = <A, E>(effect: Effect.Effect<A, E, Engine | RuleStore | RunLog>) =>
     effect.pipe(Effect.provide(layer), Effect.withTracer(tracer))
 
-  return { writes, rowsAtWrite, finished, spans, provide }
+  return { writes, rowsAtWrite, finished, executingAtWrite, spans, provide }
 }
+
+// The rule id of the nearest Engine.execute span at or above `span`.
+const executingRule = (span: Tracer.AnySpan | undefined): unknown => {
+  if (span?._tag !== "Span") return undefined
+  if (span.name === "Engine.execute") return span.attributes.get("rule.id")
+  return executingRule(Option.getOrUndefined(span.parent))
+}
+
+const endedWithFailure = (span: Tracer.NativeSpan) => span.status._tag === "Ended" && Exit.isFailure(span.status.exit)
 
 const expense = (name: string, options: {
   readonly condition?: { readonly field: string; readonly op: string; readonly value: unknown }
@@ -106,6 +121,10 @@ describe("Engine.handleEvent", () => {
         runs.map((run) => [run.ruleId, run.trigger, run.outcome]).toSorted(),
         [[large, "event", "succeeded"], [huge, "event", "skipped"]].toSorted()
       )
+      const row = (id: string) => runs.find((run) => run.ruleId === id)!
+      assert.isNull(row(large).reason, "a succeeded row has no reason")
+      assert.isString(row(huge).reason, "a skipped row says why")
+      assert.isNotEmpty(row(huge).reason)
       assert.strictEqual(test.writes.length, 1)
       const [write] = test.writes
       assert.strictEqual(write.path, "alerts.log")
@@ -126,13 +145,15 @@ describe("Engine.handleEvent", () => {
     }).pipe(test.provide)
   })
 
-  it.effect("a missing field is skipped with a reason, not failed", () => {
+  it.effect("a missing field is skipped with a reason in the run history, not failed", () => {
     const test = setup()
     return Effect.gen(function*() {
       const { ids: [id], outcomes, runs } = yield* handle([
         expense("large expense", { condition: { field: "amount", op: "gt", value: 500 } })
       ], { type: "expense", description: "no amount" })
       assert.deepStrictEqual(runs.map((run) => [run.ruleId, run.outcome]), [[id, "skipped"]])
+      assert.match(String(runs[0].reason), /amount/, "the stored row names the missing field")
+      assert.isNull(runs[0].error, "a skip is not an error")
       assert.strictEqual(outcomes.length, 1)
       const [outcome] = outcomes
       assert.strictEqual(outcome.ruleId, id)
@@ -142,21 +163,27 @@ describe("Engine.handleEvent", () => {
     }).pipe(test.provide)
   })
 
-  it.effect("a FileSystem error is failed with reason io and finalised once", () => {
+  it.effect("a FileSystem error is failed with reason io, finalised once, and ends its span as a failure", () => {
     const test = setup()
     return Effect.gen(function*() {
       const { ids: [id], runs } = yield* handle([expense("denied", { path: "/denied/alerts.log" })], laptop)
       assert.deepStrictEqual(runs.map((run) => [run.ruleId, run.outcome, run.reason]), [[id, "failed", "io"]])
       assert.deepStrictEqual(test.finished, runs.map((run) => run.id))
+      assert.deepStrictEqual(test.executingAtWrite, [id], "the failing write runs inside the rule's span")
+      const executions = test.spans.filter((span) => span.name === "Engine.execute")
+      assert.deepStrictEqual(executions.map(endedWithFailure), [true])
     }).pipe(test.provide)
   })
 
-  it.effect("runs each rule inside a span named Engine.execute annotated with the rule id", () => {
+  it.effect("runs each rule's action inside a span named Engine.execute annotated with the rule id and trigger", () => {
     const test = setup()
     return Effect.gen(function*() {
       const { ids } = yield* handle([expense("first", {}), expense("second", {})], laptop)
       const executions = test.spans.filter((span) => span.name === "Engine.execute")
       assert.deepStrictEqual(executions.map((span) => span.attributes.get("rule.id")).toSorted(), ids.toSorted())
+      assert.deepStrictEqual(executions.map((span) => span.attributes.get("rule.trigger")), ["event", "event"])
+      assert.deepStrictEqual(test.executingAtWrite.toSorted(), ids.toSorted())
+      assert.deepStrictEqual(executions.map(endedWithFailure), [false, false])
     }).pipe(test.provide)
   })
 })

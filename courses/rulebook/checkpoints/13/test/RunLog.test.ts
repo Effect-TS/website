@@ -23,4 +23,23 @@ layer(RunLog.layerMemory, { buildPerTest: true })("RunLog memory", (it) => {
       const outcomes = (yield* runLog.list({ ruleId: "a" })).map((run) => run.outcome)
       assert.deepStrictEqual(outcomes, ["started", "succeeded"])
     }))
+
+  // The column contract: on failed, reason is one of status, timeout, io and
+  // error carries the detail; on skipped, reason is free text; otherwise both
+  // are null.
+  it.effect("stores reason and error with each terminal row", () =>
+    Effect.gen(function*() {
+      const runLog = yield* RunLog
+      const skipped = yield* runLog.start({ ruleId: "a", trigger: "event" })
+      const failed = yield* runLog.start({ ruleId: "a", trigger: "event" })
+      const succeeded = yield* runLog.start({ ruleId: "a", trigger: "event" })
+      yield* runLog.finish(skipped.id, { outcome: "skipped", reason: "missing field amount" })
+      yield* runLog.finish(failed.id, { outcome: "failed", reason: "io", error: "permission denied" })
+      yield* runLog.finish(succeeded.id, { outcome: "succeeded" })
+
+      const rows = new Map((yield* runLog.list()).map((run) => [run.id, [run.outcome, run.reason, run.error]]))
+      assert.deepStrictEqual(rows.get(skipped.id), ["skipped", "missing field amount", null])
+      assert.deepStrictEqual(rows.get(failed.id), ["failed", "io", "permission denied"])
+      assert.deepStrictEqual(rows.get(succeeded.id), ["succeeded", null, null])
+    }))
 })
