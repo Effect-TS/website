@@ -7,83 +7,107 @@ mode: playground
 lessonDir: 09-provide-it
 ---
 
-The file is where lesson 8 left it, red at the run line. Here's why:
+The file starts where the previous lesson ended, red at the run line.
+`program` needs a `RuleStore`, `runMain` only runs Effects that need
+nothing, and nothing in the file says which rules the store holds.
 
-- `program` needs a `RuleStore`;
-- `runMain` only runs effects that need nothing;
-- nothing in the file says which rules the store holds.
+By the end of this lesson `RuleStore` has an implementation, `program` runs
+again, and you swap one implementation for another by changing one line.
 
-So far `RuleStore` is only a shape. In this lesson you give it an
-implementation.
+In this lesson you will:
 
-You will learn:
+- build a service with `Layer.effect`
+- provide a layer with `Effect.provide`
+- swap implementations without touching the code that uses the service
 
-- how to build a service with a layer;
-- how to supply a layer with `Effect.provide`;
-- how to swap one implementation for another without touching the code that
-  uses it.
+## 1. Build a layer
 
-## Building a layer
+A **layer** builds a service. `Layer.effect(RuleStore, effect)` reads as "to
+get a `RuleStore`, run this Effect and use what it gives back".
 
-A **layer** is how a service gets built. Add `Layer` to the `effect` import.
+Add `Layer` to the `effect` import. Put the `largeExpense` and `malformed`
+constants back, above the class. Then add the layer to the class as a static
+member, so `RuleStore.layer` sits next to the declaration:
 
-`Layer.effect(RuleStore, effect)` reads as "to get a `RuleStore`, run this
-effect and use what it gives back". Put it on the class as
-`static readonly layer`, so `RuleStore.layer` sits right next to the
-declaration.
+```ts
+static readonly layer = Layer.effect(
+  RuleStore,
+  Effect.sync(() => {
+    const rules = new Map([["large expense", largeExpense], ["malformed", malformed]])
+    return RuleStore.of({ list: Effect.sync(() => Array.from(rules.values())) })
+  })
+)
+```
 
-The implementation can be a plain `Map` from rule name to JSON:
+- `Effect.sync` turns synchronous code into an Effect. The `Map` is created
+  when the layer is built, not when the file loads.
+- `RuleStore.of({ list: ... })` checks that the object has the service's
+  shape.
 
-1. Put `largeExpense` and `malformed` back above the class.
-2. Inside `Effect.sync(() => { ... })`, create a `Map` holding both rules.
-   `Effect.sync` turns synchronous code into an effect, so the map is created
-   when the layer is built, not when the file loads.
-3. Return `RuleStore.of({ list: ... })`, where `list` is
-   `Effect.sync(() => Array.from(rules.values()))`. `RuleStore.of` checks that
-   the object has the service's shape.
+## 2. Provide the layer
 
-## Providing the layer
+Attach `Effect.provide(RuleStore.layer)` to `program` with `.pipe`.
 
-`Effect.provide(RuleStore.layer)` hands the layer to the program. Add it to
-`program` with `.pipe`.
+Hover `program`. The type is `Effect<void, SchemaError, never>`. The
+requirements type is back to `never` and the red line is gone.
 
-Hover `program`: `Effect<void, SchemaError, never>`. The third slot is back to
-`never`, the red line is gone, and the program runs. The laptop gets its alert
-from the large expense rule, and then the malformed rule stops the run with
-its `SchemaError`, just as it did in lesson 7.
+Run the file. The laptop gets its alert from the large expense rule, then the
+malformed rule stops the run with its `SchemaError`, as it did two lessons
+ago.
 
-## Try it: swap the implementation
+## Try it
 
-Write a second layer, `layerFixtures`, preloaded with three valid rules:
+Swap the implementation. Start by adding two more rule constants above the
+class:
 
-- `large expense`, as before;
-- `within budget`: `lt 5000`, message `under 5000`;
-- `very large`: `gt 1000`, message `over 1000`.
+<LessonCode
+  file="lessons/part1/09-provide-it/solution/main.ts"
+  declaration="withinBudget"
+/>
 
-Swap it in by changing one line, the `Effect.provide` on `program`.
+<LessonCode
+  file="lessons/part1/09-provide-it/solution/main.ts"
+  declaration="veryLarge"
+/>
 
-Notice what you didn't touch. `evaluateAll`, `evaluate` and `program` stay the
-same, because they only know the service, not how it was built. Lesson 13
-swaps in an in-memory store for tests the same way, and lesson 17 swaps in
-SQLite with no change to the code that uses it.
+1. Add a second static member, `layerFixtures`, built the same way as
+   `layer`, holding `largeExpense`, `withinBudget` and `veryLarge`.
+2. Change one line, the `Effect.provide` on `program`, to provide
+   `RuleStore.layerFixtures`.
+3. Run the file. Three alert lines print for the laptop:
+   `expense 1200 over 500`, `expense 1200 under 5000` and
+   `expense 1200 over 1000`. Then three `skip: missing field amount` lines
+   print for the taxi, and the program finishes normally.
 
-## Recap
+This is `program` at the end:
 
-- A service is declared once, used with `yield*`, and supplied by a layer.
-- Providing the layer takes the service out of the third slot.
-- The cost is one more concept and one level of indirection. From
-  `yield* RuleStore` you can't jump straight to the code that runs.
-- Later you'll meet layers that need other services (lesson 11) and layers
-  that clean up after themselves (lesson 18).
+<LessonCode
+  file="lessons/part1/09-provide-it/solution/main.ts"
+  declaration="program"
+/>
 
-## Checkpoint for lessons 8 and 9
+`evaluateAll`, `evaluate` and the rest of `program` did not change. They
+know the service, not how it was built.
 
-The store is provided, and the fixture layer swaps in with one line. Hovering
-`program` shows `never` in the third slot. Three alert lines print for the
-laptop:
+## What you learned
 
-- `expense 1200 over 500`
-- `expense 1200 under 5000`
-- `expense 1200 over 1000`
+- A service is defined once, used with `yield*`, and built by a layer.
+- `Effect.provide(layer)` supplies the service and removes it from the
+  requirements type.
+- Swapping a layer changes the implementation without changing the code
+  that uses it.
+  [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) swaps in
+  a test layer this way, and
+  [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart)
+  swaps in SQLite.
+- The cost is one level of indirection. From `yield* RuleStore` you cannot
+  jump straight to the code that runs.
 
-They're followed by three `skip: missing field amount` lines for the taxi.
+## Reference
+
+| API              | What it does                                                   | Introduced in |
+| ---------------- | -------------------------------------------------------------- | ------------- |
+| `Layer.effect`   | Builds a service by running an Effect                          | this lesson   |
+| `RuleStore.of`   | Checks that an object has the service's shape                  | this lesson   |
+| `Effect.sync`    | Turns synchronous code into an Effect                          | this lesson   |
+| `Effect.provide` | Supplies a layer and removes its service from the requirements | this lesson   |

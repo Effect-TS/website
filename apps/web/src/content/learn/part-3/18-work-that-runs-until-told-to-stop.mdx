@@ -6,25 +6,24 @@ minutes: 15
 mode: local
 ---
 
-So far, everything the server does is an answer to a request. Lesson 19 adds
-work that nobody asks for in the moment: an interval rule polls a URL every few
-seconds, for as long as the server runs.
+Everything the server does so far is an answer to a request. The next lesson
+adds work nobody asks for in the moment: an interval rule polls a URL every
+few seconds for as long as the server runs. Before that loop does anything
+real, it has to stop cleanly when the server stops, and say so. In this
+lesson you build a heartbeat, a loop that only logs, so that stopping is the
+only thing to watch.
 
-Before that loop does anything real, it has to get one thing right that's easy
-to get wrong. When the server stops, the loop must stop with it, cleanly, and
-say so. This lesson builds a loop that does nothing useful, so that stopping is
-the only thing you have to watch.
+In this lesson you will:
 
-You will learn:
+- repeat an effect on a schedule with `Effect.repeat` and `Schedule.spaced`
+- run the loop in the background with `Effect.forkScoped`, tied to a layer's
+  scope
+- put cleanup in `Effect.onInterrupt` and see it run on Ctrl-C
 
-- how to repeat an effect on a schedule;
-- how to run a loop in the background, tied to a layer's lifetime;
-- where cleanup goes when a loop is stopped.
+## 1. Write the heartbeat
 
-## Repeating on a schedule
-
-The heartbeat logs how many rules are stored, once at startup and then every
-30 seconds. Here's `src/Heartbeat.ts`:
+Create `src/Heartbeat.ts`. It logs how many rules are stored, once at startup
+and then every 30 seconds:
 
 <LessonCode file="checkpoints/18/src/Heartbeat.ts" />
 
@@ -33,82 +32,91 @@ Read it from the inside out:
 - The inner `Effect.gen` block is one beat: list the rules, log the count.
 - `Effect.repeat(Schedule.spaced("30 seconds"))` runs the beat, then runs it
   again 30 seconds after each run ends, forever. The first run happens at
-  once. A `Schedule` is a value that describes when to go again, and `spaced`
-  is the simplest one.
+  once. A `Schedule` is a value that describes when to go again.
 - `Effect.onInterrupt` runs its effect when the loop is interrupted, and only
-  then. A loop that never ends on its own has exactly one way to stop, so
-  that's where the log goes.
-- `Effect.forkScoped` starts the loop on a fiber of its own and ties that fiber
-  to the current scope. A **fiber** is a piece of work that runs alongside the
-  rest of the program. Because the loop runs on its own fiber, building the
-  layer finishes straight away and the loop carries on in the background.
+  then. A loop that never ends on its own has exactly one way to stop, so the
+  log goes there.
+- `Effect.forkScoped` starts the loop on a fiber of its own and ties that
+  fiber to the current scope. A fiber is a piece of work that runs alongside
+  the rest of the program. Building the layer finishes straight away, and the
+  loop carries on in the background.
 
-## Stopping with the scope
+## 2. Add it to the server
 
 `Layer.effectDiscard` builds a layer from an effect without providing any
-service. Like every layer, it has a **scope**. The scope opens when the layer
-is built and closes when the program that built it ends.
+service. Like every layer, it has a scope. The scope opens when the layer is
+built and closes when the program that built it ends. `forkScoped` puts the
+loop in that scope, so when the scope closes, the loop is interrupted,
+`onInterrupt` logs, and only then does the layer finish closing.
 
-`forkScoped` puts the loop in that scope. So when the scope closes, the loop is
-interrupted, `onInterrupt` logs, and only then does the layer finish closing.
-
-That means you never stop the loop yourself. You stop the program, and the
-program closes its layers. In `src/server/main.ts`, the heartbeat sits next to
-the served API:
+In `src/server/main.ts`, merge the heartbeat with the served API:
 
 <LessonCode file="checkpoints/18/src/server/main.ts" />
 
-The heartbeat needs `RuleStore`, so it's built after the store and closed
-before it. That order is what makes shutdown safe. The loop's last action can
-never be a query against a database that has already closed.
+The heartbeat needs `RuleStore`, so it is built after the store and closed
+before it. The loop's last action can never be a query against a database
+that has already closed.
 
-## What Ctrl-C does
+Run `pnpm dev:server`. The first log line is `rules stored:` with the number
+of rules in `reflex.db`. Another one follows every 30 seconds.
 
-You didn't write a signal handler, and you don't need one. Here's the chain of
-events when you press Ctrl-C:
+## 3. Stop it with Ctrl-C
 
-1. `runMain`, from lesson 11, turns Ctrl-C into an interruption of the main
-   fiber.
-2. `Layer.launch` was holding the server open. Interrupted, it closes the
-   layer.
-3. Closing the layer closes its scope, which interrupts the heartbeat.
-4. The heartbeat's `onInterrupt` logs.
-
-## Recap
-
-- A loop is an effect with `Effect.repeat` and a `Schedule`.
-- `Effect.forkScoped` ties a loop to whoever started it, so it stops when they
-  do.
-- `Effect.onInterrupt` is where cleanup goes.
-- The trade-off is a fiber that does nothing most of the time.
-- Lesson 19 replaces the heartbeat with one loop per interval rule. Each of
-  those has to stop on its own when its rule is removed, not only when the
-  server stops.
-
-## Checkpoint
-
-```sh
-pnpm checkpoint 18 server
-```
-
-The server logs `rules stored:` with the number of rules in `reflex.db`
-(1, the expense rule, if you kept lesson 17's) at once and again every 30
-seconds. Press Ctrl-C. The last log line before the process exits is:
+Press Ctrl-C. The last log line before the process exits is:
 
 ```text
 heartbeat stopped
 ```
 
-With the viewer running, it's also in the Logs tab, from `reflex-server`.
+You did not write a signal handler. This is the chain of events:
 
-## Reference card
+1. `runMain` turns Ctrl-C into an interruption of the main fiber.
+2. `Layer.launch` was holding the server open. Interrupted, it closes the
+   layer.
+3. Closing the layer closes its scope, which interrupts the heartbeat.
+4. The heartbeat's `onInterrupt` logs.
 
-| API                         | What it does                                                  | Lesson |
-| --------------------------- | ------------------------------------------------------------- | ------ |
-| `Effect.repeat(schedule)`   | Runs an effect again on a schedule; the first run is at once  | 18     |
-| `Schedule.spaced(duration)` | Again `duration` after each run ends                          | 18     |
-| `Effect.onInterrupt(f)`     | Runs `f` when the effect is interrupted, and only then        | 18     |
-| `Effect.forkScoped`         | Starts an effect on its own fiber, interrupted with the scope | 18     |
-| `Layer.effectDiscard`       | A layer from an effect, providing no service                  | 18     |
-| `Layer.mergeAll`            | Runs layers side by side                                      | 14     |
-| `NodeRuntime.runMain`       | Ctrl-C interrupts the main fiber                              | 11     |
+## What you learned
+
+- A loop is an effect with `Effect.repeat` and a `Schedule`.
+- `Effect.forkScoped` ties a loop to the scope that started it, so it stops
+  when that scope closes.
+- `Effect.onInterrupt` is where cleanup goes.
+- The cost is a fiber that does nothing most of the time.
+- The next lesson,
+  [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock),
+  replaces the heartbeat with one loop per interval rule. Each of those has to
+  stop on its own when its rule is removed, not only when the server stops.
+
+## Checkpoint
+
+The checkpoint shows the heartbeat logging, then stopping on Ctrl-C. This
+lesson's checkpoint is number 18.
+
+```sh
+pnpm checkpoint 18 server
+```
+
+The server logs `rules stored:` with the number of rules in `reflex.db` at
+once and again every 30 seconds. If you kept the previous checkpoint's expense
+rule, the number is 1. Press Ctrl-C. The last log line before the process
+exits is:
+
+```text
+heartbeat stopped
+```
+
+With the viewer running, the same line is in the Logs tab, from
+`reflex-server`.
+
+## Reference
+
+| API                         | What it does                                                  | Introduced in                                                                             |
+| --------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Effect.repeat(schedule)`   | Runs an effect again on a schedule. The first run is at once  | this lesson                                                                               |
+| `Schedule.spaced(duration)` | Again `duration` after each run ends                          | this lesson                                                                               |
+| `Effect.onInterrupt(f)`     | Runs `f` when the effect is interrupted, and only then        | this lesson                                                                               |
+| `Effect.forkScoped`         | Starts an effect on its own fiber, interrupted with the scope | this lesson                                                                               |
+| `Layer.effectDiscard`       | A layer from an effect, providing no service                  | this lesson                                                                               |
+| `Layer.mergeAll`            | Runs layers side by side                                      | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
+| `NodeRuntime.runMain`       | Ctrl-C interrupts the main fiber                              | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |

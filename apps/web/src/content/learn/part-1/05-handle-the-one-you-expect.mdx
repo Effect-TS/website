@@ -1,98 +1,101 @@
 ---
 part: 1
 order: 5
-title: Recovering from errors
+title: Recovering from errors with catchTag
 minutes: 8
 mode: playground
 lessonDir: 05-handle-the-one-you-expect
 ---
 
-The taxi from lesson 4 stops the whole program. But an expense without an
-amount isn't a disaster. It's normal. The alert simply doesn't apply to it, so
-reflex should note that it skipped the event and move on to the next one.
+The taxi stops the whole program. A missing amount is normal, not a
+disaster. The alert does not apply to that event, so reflex should log that
+it skipped the event and move on to the next one.
 
-To see that working, you need more than one event. In this lesson you add the
-laptop back, check both events with the same code, and turn the taxi's failure
-into a skip.
+By the end of this lesson the program checks two events with the same code.
+The laptop gets its alert, the taxi gets a skip line, and the program
+finishes normally.
 
-You will learn:
+In this lesson you will:
 
-- how to reuse steps by putting them in a function that returns an effect;
-- how to handle one failure by its tag;
-- how to add steps after an effect with `.pipe`.
+- put the steps in a function that returns an Effect, so you can reuse them
+- handle one error by its tag with `Effect.catchTag`
+- attach a step to an Effect with `.pipe`
+- watch the error leave the error type
 
-## Evaluating both events
+## 1. Evaluate both events
 
-Right now `program` checks `taxi` and nothing else. Turn its body into a
-function, `evaluate(event)`, that returns the `Effect.gen` block, with `taxi`
-replaced by `event` throughout.
+Turn the body of `program` into a function, `evaluate(event)`, that returns
+the `Effect.gen` block, with `taxi` replaced by `event` throughout.
 
-Then add the second event, `const laptop: Event = { type: "expense", amount: 1200 }`,
-and make `program` evaluate both, laptop first:
+Add the second event above `taxi`:
+
+<LessonCode
+  file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
+  declaration="laptop"
+/>
+
+Make `program` evaluate both, laptop first:
 
 <LessonCode
   file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
   declaration="program"
 />
 
-The terminal prints the laptop's alert, then the taxi's `MissingField` failure
-stops the program. That's progress, but the taxi still shouldn't be a failure.
+Run the file. The terminal prints the laptop's alert, then the taxi's
+`MissingField` failure stops the program.
 
-## Handling an error with catchTag
+## 2. Handle the error
 
-`Effect.catchTag` handles exactly one failure, picked out by its tag:
+`Effect.catchTag` handles exactly one error, picked out by its tag. Its
+handler receives the typed error and returns the Effect to run instead.
+Every other error passes through untouched.
 
-```ts
-Effect.catchTag("MissingField", (error) => ...)
-```
+Attach it to `evaluate` with `.pipe`, after the `Effect.gen(...)` block:
 
-The handler receives the typed error and returns the effect to run in its
-place. Here, that's a log line: `skip: missing field ${error.field}`. Every
-other failure passes through untouched.
+<LessonCode
+  file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
+  declaration="evaluate"
+/>
 
-## Using .pipe
+Every Effect has a `.pipe` method. `effect.pipe(f)` is the same as
+`f(effect)`, and `effect.pipe(f, g)` is the same as `g(f(effect))`. It lets
+you add steps after an Effect and read them left to right.
 
-To attach `catchTag` to an effect, you need `.pipe`. It takes a minute to
-learn. Every effect has a `.pipe` method:
+Run the file. The terminal prints a log line with the message
+`expense 1200 over 500`, then one with `skip: missing field amount`, and the
+program finishes normally.
 
-- `effect.pipe(f)` is the same as `f(effect)`;
-- `effect.pipe(f, g)` is the same as `g(f(effect))`.
+## 3. Read the error type
 
-It lets you add steps after an effect and read them left to right, in the
-order they apply. Inside `evaluate`, add `.pipe(Effect.catchTag(...))` after
-the `Effect.gen(...)`.
+Hover `evaluate`. Its return type is `Effect<string | void, never, never>`.
 
-Now the terminal prints `expense 1200 over 500`, then
-`skip: missing field amount`, and the program finishes normally.
+Before you added `catchTag`, the return type was
+`Effect<string, MissingField, never>`. `MissingField` has left the error
+type because it is handled, and nothing else can fail, so the error type is
+`never`. The success type gained `void`, because the skip branch logs a line
+and gives back nothing.
 
-## Try it: watch the type change
+## Try it
 
-Hover `evaluate` before and after you add `catchTag`.
+Remove the `.pipe(Effect.catchTag(...))` from `evaluate` and hover `evaluate`
+again. The error type is `MissingField`. Put the `catchTag` back and hover
+once more. The error type is `never`.
 
-- Before: `Effect<string, MissingField, never>`.
-- After: `Effect<string | void, never, never>`.
+## What you learned
 
-`MissingField` has left the error slot, because it's handled. Nothing else can
-fail, so the slot says `never` again. The success slot picked up `void`,
-because the skip branch logs a line and gives back nothing.
-
-That type is honest, but not very useful yet. In Part 2, lesson 12 turns a skip
-into a recorded outcome with a reason.
-
-## Recap
-
-- A function that returns an effect lets you run the same steps on different
-  inputs.
-- `catchTag` handles one failure by its tag and removes it from the second
-  slot.
-- `.pipe` adds steps after an effect, read left to right.
-- Every failure is a decision: handle it here, or leave it in the type for the
+- A function that returns an Effect runs the same steps on different inputs.
+- `Effect.catchTag("Tag", handler)` handles one error by its tag and removes
+  it from the error type.
+- `.pipe` attaches steps to an Effect, read left to right.
+- Every error is a decision: handle it here, or leave it in the type for the
   caller.
-- Not every failure is one you expect. A rule that is itself broken is the
-  next lesson. A thrown exception, which appears in no type at all, is a third
-  kind of failure, and it waits until Part 3.
+- A rule that is itself broken is a different kind of error. The next lesson,
+  [Validating JSON with Schema](/learn/part-1/06-untrusted-json), lets it
+  stop the program.
 
-## Checkpoint
+## Reference
 
-The laptop alerts and the taxi is skipped. Hovering `evaluate` shows `never` in
-the second slot.
+| API               | What it does                                              | Introduced in |
+| ----------------- | --------------------------------------------------------- | ------------- |
+| `Effect.catchTag` | Handles one error by its tag and removes it from the type | this lesson   |
+| `.pipe`           | `x.pipe(f, g)` is `g(f(x))`                               | this lesson   |

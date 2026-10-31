@@ -6,60 +6,82 @@ minutes: 5
 mode: local
 ---
 
-Since lesson 11, every lesson has added a layer exactly where it was needed.
-The server's stack grew in `src/server/main.ts`, one `Layer.provide` at a time.
-The CLI's stack grew inline, in its run line. Both work. But if someone asked
-you "what does this program run on?", neither is a place you'd think to look.
+Each lesson since
+[Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
+added a layer where it was needed. The server's stack grew in
+`src/server/main.ts`, one `Layer.provide` at a time. The CLI's stack grew in
+its run line. Both work, but neither file shows at a glance what the program
+runs on.
 
-Before the challenge, you'll put both stacks in one file. It's a short lesson,
-and nothing changes about what the program does.
+In this lesson you move both stacks into one file, `src/Layers.ts`. The
+program's behaviour does not change.
 
-## Moving the stacks into Layers.ts
+In this lesson you will:
 
-Move the two stacks into `src/Layers.ts`, as two exported values, `server` and
-`cli`:
+- move the server's and the CLI's layers into `src/Layers.ts`
+- reduce each entrypoint to one `provide` or one `launch`
+- confirm that the program still produces the same rows
+
+## 1. Move both stacks into Layers.ts
+
+Create `src/Layers.ts`. Move the server's stack there as an exported value
+named `server`, and the CLI's stack as an exported value named `cli`:
 
 <LessonCode file="checkpoints/23/src/Layers.ts" />
 
-The layers themselves haven't changed, only where they live. The order is the
-one you built up over the course. Each `Layer.provide` supplies what the layers
-above it need, so the Engine is built after the stores and SQLite, and closed
-before them.
+The layers are the same ones you built during the course. Only their location
+changes. Each `Layer.provide` supplies what the layers above it need, so the
+Engine is built after the stores and SQLite, and closed before them.
 
-## Smaller entrypoints
+## 2. Shrink the entrypoints
 
-With the stacks gone, each entrypoint shrinks to what an entrypoint is for.
-The server launches its layer:
+Replace the server's stack with the exported layer. The server entrypoint now
+only launches it:
 
 <LessonCode file="checkpoints/23/src/server/main.ts" />
 
-The CLI's run line becomes `Effect.provide(Layers.cli)`, its only provide.
+In `src/cli/main.ts`, replace the CLI's stack with `Effect.provide(Layers.cli)`.
+That is the CLI's only `provide`.
 
-You'll still see `Effect.provideService` calls inside the Engine. Leave them
-where they are. They hand a single call a service the Engine already holds,
-which is a different job from building the program's layers.
+Leave the `Effect.provideService` calls inside the Engine where they are. They
+hand one call a service the Engine already holds, which is a different job
+from building the program's layers.
 
-To check your work, make sure `pnpm check` and `pnpm test` pass. Then repeat
-the lesson 22 run from an empty `reflex.db`. Your server should give the same
-four rows.
+## 3. Check that nothing changed
+
+Run `pnpm check` and `pnpm test`. Both pass.
+
+Then repeat the run from
+[Diagnosing a request from its trace](/learn/part-3/22-diagnose-it)
+from an empty `reflex.db`. Your server produces the same four rows.
+
+## What you learned
+
+- One file, `src/Layers.ts`, now says what each program runs on.
+- An entrypoint does one thing: `Layer.launch` for the server, one
+  `Effect.provide` for the CLI.
+- `Effect.provideService` inside a service is not a layer stack. It stays
+  where it is.
 
 ## Checkpoint
+
+This lesson's checkpoint is number 23. It serves exactly what checkpoint 22
+served:
 
 ```sh
 pnpm checkpoint 23 server
 ```
 
-It serves exactly what checkpoint 22 served. Neither entrypoint contains a
-`Layer.provide` any more, and each has at most one `Effect.provide`.
-`checkpoints/24/test/Layers.test.ts` checks exactly that. To run it against
-your own `src/`, copy it into `test/`.
+Neither entrypoint contains a `Layer.provide`, and each has at most one
+`Effect.provide`. The test `checkpoints/24/test/Layers.test.ts` checks exactly
+that. To run it against your own `src/`, copy it into `test/`.
 
-## Reference card
+## Reference
 
-| API                       | What it does                                      | Lesson |
-| ------------------------- | ------------------------------------------------- | ------ |
-| `Layer.provide`           | Supplies what the layer above needs               | 11     |
-| `Layer.provideMerge`      | Supplies it and keeps it in the result            | 12     |
-| `Layer.merge`, `mergeAll` | Layers side by side                               | 14     |
-| `Layer.launch`            | Builds a layer and runs it until interrupted      | 14     |
-| `Effect.provide(layer)`   | Supplies a layer to one effect, once, at the edge | 9      |
+| API                       | What it does                                      | Introduced in                                                                             |
+| ------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Layer.provide`           | Supplies what the layer above needs               | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |
+| `Layer.provideMerge`      | Supplies it and keeps it in the result            | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)              |
+| `Layer.merge`, `mergeAll` | Layers side by side                               | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
+| `Layer.launch`            | Builds a layer and runs it until interrupted      | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
+| `Effect.provide(layer)`   | Supplies a layer to one effect, once, at the edge | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |

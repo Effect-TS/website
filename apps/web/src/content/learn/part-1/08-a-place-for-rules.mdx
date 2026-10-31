@@ -7,101 +7,117 @@ mode: playground
 lessonDir: 08-a-place-for-rules
 ---
 
-The rules are still constants in this file, and `program` hands them to
-`evaluate` one call at a time. That won't last. In Part 2 the rules come from a
-file and then from an HTTP API. In Part 3 they come from SQLite.
+The rules are constants in this file, and `program` hands them to `evaluate`
+one call at a time. In Part 2 the rules come from a file and then from an
+HTTP API. In Part 3 they come from SQLite. The code that evaluates rules
+should not change every time the place they are stored does. It should ask
+for the rules and leave it to something else to answer.
 
-The code that evaluates rules shouldn't have to change every time the place
-they're stored does. It should ask for "the rules" and leave it to something
-else to answer.
+By the end of this lesson `evaluateAll` asks a `RuleStore` service for the
+rules. The file ends with a type error at the run line. That is the intended
+end state, and the next lesson fixes it.
 
-You will learn:
+In this lesson you will:
 
-- how to declare a service with `Context.Service`;
-- how to use a service from inside an effect;
-- what the third slot of an Effect's type means.
+- define a service with `Context.Service`
+- use a service inside an Effect with `yield*`
+- read the requirements type of an Effect
+- read the error TypeScript reports when a requirement is not provided
 
-This lesson ends on purpose with a type error. Lesson 9 fixes it.
+## 1. Define the service
 
-## Declaring a service
-
-`Context.Service` declares a **service**: a name and the shape of what it
-offers, with no implementation yet. Add `Context` to the `effect` import, then
-declare `RuleStore`:
+`Context.Service` defines a **service**: a name and the shape of what it
+offers, with no implementation yet. Add `Context` to the `effect` import,
+then declare `RuleStore` below `decodeRule`:
 
 <LessonCode
   file="lessons/part1/08-a-place-for-rules/solution/main.ts"
   declaration="RuleStore"
 />
 
-Like `Schema.TaggedError` in lesson 4, `Context.Service` is called twice:
+Like `Schema.TaggedError`, `Context.Service` is called twice:
 
 - The angle brackets take the class's own name and the shape. This shape has
-  one member, `list`, an effect that gives back the stored rules as JSON
+  one member, `list`, an Effect that gives back the stored rules as JSON
   strings.
 - The string in the second call, `"reflex/RuleStore"`, is the service's key.
   It must be unique in the program.
 
-## Using a service
+## 2. Use the service
 
-Inside `Effect.gen` or `Effect.fn`, `const store = yield* RuleStore` hands you
+Inside `Effect.gen` or `Effect.fn`, `const store = yield* RuleStore` gives you
 the implementation, whatever it turns out to be. From then on you use it like
-any other object, for example `yield* store.list`.
+any object, for example `yield* store.list`.
 
-Now write `evaluateAll(event)` with `Effect.fn`. It should:
+Add `evaluateAll` below `evaluate`:
 
-1. get the store;
-2. list the rules;
-3. evaluate each one against the event, with a `for...of` loop and
-   `yield* evaluate(json, event)` inside it.
+<LessonCode
+  file="lessons/part1/08-a-place-for-rules/solution/main.ts"
+  declaration="evaluateAll"
+/>
 
-A plain loop is enough. Each `yield*` finishes before the next one starts, so
-the rules run one at a time, in order. Lesson 21 comes back to that.
+A plain `for...of` loop is enough. Each `yield*` finishes before the next
+starts, so the rules run one at a time, in order.
 
-In `program`, replace the three `evaluate` calls with `evaluateAll(laptop)` and
-`evaluateAll(taxi)`. Then delete the `largeExpense` and `malformed` constants.
-The rules belong to the store now.
+Change `program` to call `evaluateAll(laptop)` and `evaluateAll(taxi)` in
+place of the three `evaluate` calls:
 
-## The requirements type
+<LessonCode
+  file="lessons/part1/08-a-place-for-rules/solution/main.ts"
+  declaration="program"
+/>
 
-Hover `evaluateAll`: `Effect<void, SchemaError, RuleStore>`.
+Delete the `largeExpense` and `malformed` constants. The rules belong to the
+store now.
 
-The third slot is what an effect needs before it can run. It has said `never`,
-meaning nothing, since lesson 2. Now it names `RuleStore`, and `program`
-carries it too.
+## 3. Read the requirements type
 
-## Reading the missing-service error
+Hover `evaluateAll`. Its return type is
+`Effect<void, SchemaError, RuleStore>`.
 
-Look at the run line at the bottom, `NodeRuntime.runMain(program)`. It's now
-underlined in red. The terminal shows the same type error, and the program
-doesn't start, because the playground only runs a file that typechecks.
+The requirements type is what an Effect needs before it can run. It has
+been `never` since your first Effect. Now it names `RuleStore`, and `program`
+carries it too. Hover `program` to see it.
+
+## 4. Read the error at the run line
+
+Look at the last line, `NodeRuntime.runMain(program)`. It is underlined in
+red, the terminal shows the same type error, and the program does not run.
+The playground only runs a file that typechecks.
 
 The error is long. The part that matters is its last line:
-
-> `Type 'RuleStore' is not assignable to type 'never'.`
+`Type 'RuleStore' is not assignable to type 'never'.` `runMain` only runs an
+Effect whose requirements type is `never`, and `program` still needs a
+`RuleStore`.
 
 This is where the lesson ends. The Solve button shows the same red line,
 because it is the lesson's end state.
 
-## Try it: explain the error
+## Try it
 
-Before you open lesson 9, explain the error in your own words. Work through it
-from the inside out:
+Explain the error in your own words before you open the next lesson.
 
-- Hover `evaluateAll`, then `program`. Where does `RuleStore`
-  enter the third slot, and why does it stay there all the way up?
-- The error says `runMain` wants `never` in that slot. What would it mean to
-  run a program that still needs something?
-- You declared what a `RuleStore` looks like. Where in the file did you say
-  which rules it holds?
+1. Hover `evaluateAll`, then `program`. Find where `RuleStore` enters the
+   requirements type and why it stays there up to `program`.
+2. You declared what a `RuleStore` looks like. Find the place in the file
+   that says which rules it holds. There is none yet.
 
-## Recap
+## What you learned
 
-- `Context.Service` declares a service, and `yield*` hands you its
-  implementation.
-- The third slot of an Effect's type lists what the effect still needs.
-- The cost of a service shows up right here. Every effect that touches it
-  carries it in its type until someone supplies it. That's also what caught
-  the mistake before anything ran.
-- Lesson 9 supplies the service. Lesson 11 uses services that Effect itself
-  ships, in the same way.
+- `Context.Service` defines a service by its name and shape.
+- `yield* RuleStore` inside an Effect gives you the implementation.
+- The requirements type lists the services an Effect still needs. Every
+  Effect that uses a service carries it in its type until something provides
+  it.
+- `runMain` refuses an Effect whose requirements type is not `never`, so a
+  missing service is caught before anything runs.
+- The next lesson,
+  [Providing a service with a layer](/learn/part-1/09-provide-it), provides
+  the service.
+
+## Reference
+
+| API                | What it does                                            | Introduced in |
+| ------------------ | ------------------------------------------------------- | ------------- |
+| `Context.Service`  | Defines a service by its key and shape                  | this lesson   |
+| `yield* RuleStore` | Gives you the service's implementation inside an Effect | this lesson   |

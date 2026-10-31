@@ -6,22 +6,28 @@ minutes: 15
 mode: local
 ---
 
-Imagine something went wrong on one event while you weren't watching. All you
-have is what the program recorded: the run history and the traces. Is that
-enough to work out what happened?
+Something went wrong on one event while you were not watching. All you have
+is what the program recorded: the run history and the traces. In this lesson
+you find out whether that is enough. You write no code. You run the mixed
+scenario from the previous lesson once more and answer four questions about
+it, using only `runs list` and the viewer.
 
-This lesson finds out. You won't write any code. Instead, you run the mixed
-scenario from lesson 21 once more and answer four questions about it, using
-only `runs list` and the viewer.
-
-Don't read the code or the fixture files while you answer. The point is to
+Do not read the code or the fixture files while you answer. The point is to
 learn whether what you built tells you enough on its own.
 
-## Reproducing the run
+In this lesson you will:
 
-Use the checkpoint's server, or your own if your lesson 21 checkpoint matched.
-Start from an empty run history so the rows are easy to find: stop the server,
-delete `reflex.db`, and start it again.
+- reproduce the mixed scenario on an empty run history
+- answer four questions from `runs list` and the trace, and write the answers
+  down
+- check them against the expected answers
+
+## 1. Reproduce the run
+
+Use the checkpoint's server, or your own if your previous checkpoint matched.
+This lesson's checkpoint is number 22. Start from an empty run history so the
+rows are easy to find: stop the server, delete `reflex.db`, and start it
+again.
 
 ```sh
 pnpm receiver --scenario mixed
@@ -40,14 +46,18 @@ pnpm checkpoint 22 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 22 cli runs list
 ```
 
+`events submit` takes about 10 seconds and prints four outcomes. `runs list`
+shows four rows.
+
 In the viewer, open the newest `reflex-server` trace that has an
-`Engine.handleEvent` span. If you need a reminder of what each part of the
-screen shows, see [the trace viewer](/learn/part-2/trace-viewer) page.
+`Engine.handleEvent` span.
+[Reading a trace in the viewer](/learn/part-2/trace-viewer) describes each
+part of the screen.
 
-## Four questions
+## 2. Answer four questions
 
-Write your answers down. For each one, name what you looked at: a span, a row,
-or a duration.
+Write your answers down. For each one, name what you looked at: a span, a
+row, or a duration.
 
 1. Which operation was slowest? How long did it take, and why that long?
 2. Which operation failed, and with what?
@@ -56,17 +66,26 @@ or a duration.
 4. Did a timeout fire? Name two places that show it.
 
 If you see four `succeeded` rows, the receiver answered `/slow` before the
-timeout. Check that `REFLEX_TIMEOUT` isn't set in the server's shell.
+timeout. Check that `REFLEX_TIMEOUT` is not set in the server's shell.
 
-## Check your answers
+## 3. Check your answers
 
 Once all four are written down, compare them with
 [the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids and
-times will differ, but the shape won't.
+times differ, but the shape does not.
 
-If one of your answers needed something you couldn't find in `runs list` or
-the viewer, make a note of what was missing. That note is a good starting
-point for one of the follow-ons at the end of the course.
+If one of your answers needed something you could not find in `runs list` or
+the viewer, note what was missing. That note is a starting point for one of
+the follow-ons in [Where to go next](/learn/part-4/what-comes-next).
+
+## What you learned
+
+- One row per run and one span per run are enough to tell a timeout from a
+  refused request, and to see which runs waited for which.
+- Span start times show what ran together. The parent span shows how long the
+  whole request took.
+- The reasons in `runs list` and the status messages in the viewer say the
+  same thing in two places.
 
 ## Checkpoint
 
@@ -75,15 +94,14 @@ timeout, the failure and its status, the two that completed without waiting,
 and the request taking about as long as the timeout. Two red spans, two Ok,
 four rows.
 
-## Reference card
+## Reference
 
-Nothing new to look up. This lesson reads what lessons 12, 16, 19, 20 and 21
-built:
+Nothing new. This lesson reads what earlier lessons built:
 
-| Where             | What it tells you                                            | Lesson |
-| ----------------- | ------------------------------------------------------------ | ------ |
-| `runs list`       | One row per run: outcome, reason and error                   | 12, 19 |
-| `Engine.execute`  | One span per run: duration, status, `rule.id`                | 12, 16 |
-| Span status Error | The run failed or crashed; the status message says with what | 20     |
-| Span start times  | Runs that started together ran together                      | 21     |
-| Parent span       | `Engine.handleEvent` lasts as long as the whole event took   | 21     |
+| Where             | What it tells you                                            | Introduced in                                                                         |
+| ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `runs list`       | One row per run: outcome, reason and error                   | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)          |
+| `Engine.execute`  | One span per run: duration, status, `rule.id`                | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)     |
+| Span status Error | The run failed or crashed. The status message says with what | [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network) |
+| Span start times  | Runs that started together ran together                      | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |
+| Parent span       | `Engine.handleEvent` lasts as long as the whole event took   | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |

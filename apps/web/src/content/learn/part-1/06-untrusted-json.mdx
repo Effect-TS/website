@@ -7,118 +7,152 @@ mode: playground
 lessonDir: 06-untrusted-json
 ---
 
-So far the alert is baked into the code: "over 500" lives in `isLarge` and in
-the message. But reflex is supposed to run _your_ rules, and nobody is going
-to write those in TypeScript. A **rule** is data. It says what to compare, the
-threshold, and what to say when it matches, and it arrives as JSON text, first
-from a file and later from an HTTP request. Here is the rule you've been
-hard-coding, written as JSON:
+The threshold and the message are still constants in the code. Reflex is
+meant to run your rules, and a **rule** is data. It says what to compare,
+the threshold, and the message to log when it matches. It arrives as JSON
+text, first from a file and later from an HTTP request. Here is the rule you
+have been hard-coding, as JSON:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="largeExpense"
 />
 
-Text from outside your program can contain anything. A rule might use an
-operator reflex doesn't know, or put a string where a number should be. This
-lesson is about letting good rules in and stopping bad ones at the door.
+Text from outside the program can contain anything. By the end of this lesson
+`evaluate` takes a rule as JSON, accepts a valid one, and fails with a clear
+error on a broken one.
 
-You will learn:
+In this lesson you will:
 
-- how to describe the shape of your data with a schema;
-- how to decode untrusted input into a type you can trust;
-- how to read the errors a schema reports.
+- describe the shape of a rule with `Schema.Struct`
+- decode JSON text into a `Rule` with `Schema.fromJsonString`
+- evaluate a decoded rule against an event
+- read the error a schema reports
 
-## Defining a schema
+## 1. Define the schema
 
-A **schema** describes a shape once. From that one description, Effect derives
-both the TypeScript type and a check that runs on real data. Here's the schema
-for a rule:
+A **schema** describes a shape once. From that description Effect derives
+both the TypeScript type and a check that runs on real data.
+
+Add the schema below the `Event` interface, and the type below it:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="Rule"
 />
 
-- `Schema.Struct({ ... })` describes an object, with `Schema.String` and
-  `Schema.Number` for its fields.
+- `Schema.Struct({ ... })` describes an object. `Schema.String` and
+  `Schema.Number` describe its fields.
 - `Schema.Literals(["gt", "lt"])` describes the operator: one of those two
   strings and nothing else.
 
-Add it to the file, and below it `type Rule = typeof Rule.Type` for the type.
-The schema and the type share the name `Rule`, and TypeScript knows which one
-you mean from where you use it.
+Then add `type Rule = typeof Rule.Type`. The schema and the type share the
+name `Rule`. TypeScript knows which one you mean from where you use it.
 
-## Decoding the JSON
+## 2. Decode the JSON
 
-Decoding takes one line:
+Add one line below the type:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="decodeRule"
 />
 
-`fromJsonString` parses the text, and then the struct checks the result.
-`decodeRule` returns an effect that either succeeds with a `Rule` or fails
-with a `SchemaError`.
+`Schema.fromJsonString(Rule)` parses the text and then checks it against the
+struct. `decodeRule` takes unknown input and returns an Effect that succeeds
+with a `Rule` or fails with a `SchemaError`.
 
-## Evaluating a rule
+## 3. Evaluate a rule
 
-Now put the rule to work:
+Replace `isLarge` with a plain function that switches on the operator:
 
-1. Replace `isLarge` with a plain function, `matches(rule, amount)`, that
-   switches on `rule.op`: `gt` means `amount > rule.value`, and `lt` means
-   `amount < rule.value`.
-2. Give `evaluate` a second parameter, so it's `evaluate(json, event)`. Its
-   first step is `const rule = yield* decodeRule(json)`. The message becomes
-   `${event.type} ${event.amount} ${rule.message}` when the rule matches, and
-   `${rule.name}: no alert` when it doesn't.
-3. Add two rules as JSON strings. `largeExpense` is the rule above. `malformed`
-   is broken on purpose:
-   `{ "name": "malformed", "op": "greater", "value": "500" }`.
-4. Make `program` evaluate `largeExpense` for the laptop, `largeExpense` for
-   the taxi, and `malformed` for the laptop.
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="matches"
+/>
 
-Notice that the `switch` in `matches` has no `default` branch. TypeScript
-knows the operator is one of two strings, so two cases cover everything.
+The `switch` has no `default` branch. TypeScript knows the operator is one
+of two strings, so two cases cover everything.
 
-The terminal shows three different outcomes:
+Give `evaluate` a second parameter, so it is `evaluate(json, event)`. Its
+first step is `const rule = yield* decodeRule(json)`. The message is
+`${event.type} ${event.amount} ${rule.message}` when the rule matches and
+`${rule.name}: no alert` when it does not:
 
-- the laptop matches `largeExpense`, and you get the alert;
-- the taxi is skipped, just as in lesson 5;
-- `malformed` fails with a `SchemaError`, and the program stops.
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="evaluate"
+/>
 
-That last one is the split from lesson 5 again. A missing amount is expected,
-so it's a skip. A broken rule is not, so it stops things loudly.
+Add the two rules as JSON strings. `largeExpense` is the rule from the top of
+this lesson. `malformed` is broken on purpose:
 
-## Reading a schema error
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="malformed"
+/>
 
-Look at the malformed rule's error in the terminal:
+Make `program` evaluate `largeExpense` for the laptop, `largeExpense` for the
+taxi, and `malformed` for the laptop:
 
-> `SchemaError: Expected "gt" | "lt"` at `["op"]`
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="program"
+/>
 
-It tells you what it expected and where it looked. Decoding stops at the first
-problem it finds, so there may be more behind it. `malformed` also has a string
-where the value should be a number, and no message at all.
+Run the file. The terminal shows three outcomes in order:
 
-Hover `evaluate`: `Effect<string | void, SchemaError, never>`. The library
-defines that failure and reports it for you.
+1. The laptop matches `largeExpense`. The message is
+   `expense 1200 over 500`.
+2. The taxi is skipped, as in the previous lesson: `skip: missing field amount`.
+3. `malformed` fails with a `SchemaError`, and the program stops.
 
-## Try it: add an operator
+A missing amount is expected, so it is handled and becomes a skip. A broken
+rule is not expected, so it stops the program.
 
-1. Add `"eq"` to the literals. TypeScript points at `matches`, because its
-   `switch` no longer covers every case. Add the `eq` case, `amount === rule.value`.
-2. Change `malformed`'s operator to `"between"` and read the error again. The
-   list of expected operators now includes `"eq"`.
+## 4. Read the schema error
 
-## Recap
+Look at the malformed rule's error in the terminal. It reads
+`SchemaError: Expected "gt" | "lt"` at `["op"]`. It says what it expected
+and where it looked.
 
-- Data from outside goes through a schema once, at the edge. The rest of the
-  program works with a type it can trust.
-- `Schema.decodeUnknownEffect(Schema.fromJsonString(...))` parses and checks
-  JSON, and fails with a `SchemaError` that says what was wrong and where.
-- The cost is a decode on every input and a schema to keep. That's worth it
-  where data is untrusted. Values you build yourself in TypeScript, like
-  `laptop`, don't need one.
-- Lesson 11 grows `Rule` into the real thing, with triggers, actions and more
-  operators, and lesson 17 decodes the same JSON from a database column.
+Decoding stops at the first problem it finds. `malformed` also has a string
+where the value should be a number, and no message at all. Fix the operator
+and the next problem is reported.
+
+Hover `evaluate`. Its return type is
+`Effect<string | void, SchemaError, never>`. `SchemaError` is defined by the
+library and reported for you.
+
+## Try it
+
+Add an operator.
+
+1. Add `"eq"` to the literals. TypeScript underlines `matches`, because its
+   `switch` no longer covers every case. Add the `eq` case,
+   `amount === rule.value`.
+2. Change the operator in `malformed` to `"between"` and run the file. The
+   error now lists `"eq"` among the expected operators.
+
+## What you learned
+
+- Data from outside the program goes through a schema once, at the edge.
+  The rest of the program works with a type it can trust.
+- `Schema.decodeUnknownEffect(Schema.fromJsonString(Rule))` parses and checks
+  JSON. It fails with a `SchemaError` that says what was wrong and where.
+- Values you build in TypeScript, such as `laptop`, do not need a schema.
+- The cost is one decode per input and one schema to maintain.
+- [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
+  grows `Rule` into the real thing, with triggers, actions and more
+  operators.
+
+## Reference
+
+| API                              | What it does                                               | Introduced in |
+| -------------------------------- | ---------------------------------------------------------- | ------------- |
+| `Schema.Struct`                  | Describes an object with typed fields                      | this lesson   |
+| `Schema.String`, `Schema.Number` | Describe a string or a number                              | this lesson   |
+| `Schema.Literals`                | Describes one of a fixed set of values                     | this lesson   |
+| `typeof Rule.Type`               | The TypeScript type a schema describes                     | this lesson   |
+| `Schema.fromJsonString`          | Parses JSON text, then checks it against a schema          | this lesson   |
+| `Schema.decodeUnknownEffect`     | Turns a schema into a decode that fails with `SchemaError` | this lesson   |

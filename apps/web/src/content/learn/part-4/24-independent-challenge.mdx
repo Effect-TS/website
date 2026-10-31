@@ -1,63 +1,72 @@
 ---
 part: 4
 order: 24
-title: "Challenge: pausing rules"
+title: "Challenge: pausing and resuming rules"
 minutes: 40
 mode: local
 ---
 
-This one is yours. Until now, each lesson told you how to build something. This
-page only says what the program should do. Every piece you need has appeared
-in an earlier lesson, so the work is in deciding which pieces to reach for.
+Until now, each lesson told you how to build something. This page only says
+what the program must do. Every piece you need appeared in an earlier lesson.
+The work is deciding which pieces to use.
 
 Budget about 40 minutes. If you get stuck,
-[the hints](/learn/part-4/challenge-hints) say where to look, but give it a
-real try without them first.
+[the hints](/learn/part-4/challenge-hints) say where to look. Try it without
+them first.
 
-## The problem
+In this lesson you will:
 
-Sometimes a rule misbehaves, or you just don't want it for a while. Today your
+- add `rules pause <id>` and `rules resume <id>` to the CLI and the API
+- write four tests on your harness before you write the code
+- show from `runs list` and the viewer that a paused rule does not run
+
+## 1. Understand the goal
+
+Sometimes a rule misbehaves, or you do not want it for a while. Today your
 only option is to remove it, and removing a rule throws its definition away.
-What you want is to pause the rule and resume it later, exactly as it was.
+The goal is to pause a rule and resume it later, exactly as it was.
 
-## What the program should do
+The program must do all of this:
 
 - The CLI gets `rules pause <id>` and `rules resume <id>`. Like every other
   command, they go through the server.
 - A paused rule stays stored. `rules list` shows it as `paused`.
 - Events skip a paused rule. It gets no row in `runs list` and no
-  `Engine.execute` span. It didn't run, so nothing is recorded.
+  `Engine.execute` span. It did not run, so nothing is recorded.
 - Pausing an interval rule stops its loop. Resuming starts it again.
-- Pausing or resuming an id the server doesn't know is a typed error. The CLI
-  prints it as one line and exits with a non-zero code, the same way it does
-  when you remove an unknown rule.
+- Pausing or resuming an id the server does not know is a typed error. The
+  CLI prints it as one line and exits with a non-zero code, the same way it
+  does when you remove an unknown rule.
 - Decide what a server restart does to a pause, and say so in a comment.
   Either answer is fine, as long as you state it.
 
-## Write the tests first
+## 2. Write the tests first
 
-Write the tests before the code, on the harness you wrote in lesson 19:
+Write the tests before the code, on the harness from
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock):
 
 1. **A paused loop stays quiet.** Use an interval rule whose poll never
    answers. Wait for its first request, pause the rule, then move the test
-   clock past one interval. There should be no new request and no new row.
+   clock past one interval. Assert no new request and no new row.
 2. **A resumed loop runs again.** Resume the rule and move the clock past one
-   interval again, staying short of the timeout. There should be exactly one
-   new request and one new row. This is your positive control. Without it,
-   test 1 would also pass against a loop that never ran at all.
+   interval again, staying short of the timeout. Assert exactly one new
+   request and one new row. This is the positive control. Without it, the
+   first test also passes against a loop that never ran at all.
 3. **Events skip a paused rule.** Pause an event rule and submit an event.
-   There should be no outcome for it and no row. Resume it, submit again, and
-   there should be one row.
-4. **Unknown ids fail.** Pausing an unknown id fails with the typed error.
+   Assert no outcome for it and no row. Resume it, submit again, and assert
+   one row.
+4. **Unknown ids fail.** Assert that pausing an unknown id fails with the
+   typed error.
 
-Run them and watch them fail for the right reason, as you did in lesson 13.
-Only then write the code that makes them pass.
+Run them. Each one fails for the right reason, as in
+[Writing tests with @effect/vitest](/learn/part-2/13-first-tests). Only then
+write the code that makes them pass.
 
-## Show it working
+## 3. Show it working
 
-Start from an empty run history and rule list, as in lesson 22. Stop your
-server, delete `reflex.db`, and start it again, so the event only matches the
-rules you add now. Then:
+Start from an empty run history and rule list. Stop your server, delete
+`reflex.db`, and start it again, so the event only matches the rules you add
+now. Then:
 
 1. Run `pnpm receiver --scenario mixed`.
 2. Add the four mixed rules to your server.
@@ -69,10 +78,18 @@ is B's.
 
 Resume B and submit again. This time you get four rows and four spans.
 
+## What you learned
+
+- A pause is state the Engine owns, next to the loops it already owns.
+- A paused rule writes nothing: no outcome, no row, no span.
+- A positive control proves a quiet test is quiet for the right reason.
+- The CLI, the API and the tests all reuse what earlier lessons built.
+
 ## Checkpoint
 
-Under the mixed scenario, the paused rule produces no row and no span. After
-you resume it, it produces one of each. Your four tests pass.
+This lesson's checkpoint is number 24. Under the mixed scenario, the paused
+rule produces no row and no span. After you resume it, it produces one of
+each. Your four tests pass.
 
 Checkpoint 24 is one reference solution, and `checkpoints/24/test/` holds its
 tests. Read them after yours pass, not before:
@@ -81,7 +98,11 @@ tests. Read them after yours pass, not before:
 pnpm checkpoint 24 test
 ```
 
-## Reference card
+## Reference
 
-Nothing new this time. The cards from lessons 13, 14, 15 and 19 cover
-everything you need.
+Nothing new. The reference tables of
+[Writing tests with @effect/vitest](/learn/part-2/13-first-tests),
+[Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it),
+[Calling the API with HttpApiClient](/learn/part-2/15-talk-to-it) and
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+cover everything you need.

@@ -8,127 +8,149 @@ mode: local
 
 curl works, but nobody wants to type
 `-H 'content-type: application/json' -d @...` for every rule. Reflex needs a
-command line.
+command line. A CLI built on hand-written `fetch` calls would drift: rename a
+field on the server and the CLI still compiles, then fails at run time. In
+this lesson you build a CLI whose client is derived from the same `Api` value
+the server implements, so it cannot drift.
 
-The obvious version calls `fetch` with hand-written URLs and bodies. It would
-drift. Rename a field or a path on the server, and the CLI still compiles, then
-fails when you run it. In this lesson you build a CLI that can't drift, because
-its client comes from the same API value the server implements.
+In this lesson you will:
 
-You will learn:
+- derive a typed client from an `HttpApi` with `HttpApiClient.make`
+- read configuration from the environment with `Config`
+- write the six command handlers of the CLI
+- handle a typed error that came back from the server
 
-- how to derive a typed client from an `HttpApi`;
-- how to read configuration from the environment with `Config`;
-- how a typed error from the server comes back as the same class;
-- how to turn an error into a clean message and a non-zero exit code.
+## 1. Create the client service
 
-## Creating a client
-
-`HttpApiClient.make(Api, { baseUrl })` derives a client from the `Api` value.
-It has one method per endpoint, grouped like the API:
+Create `src/ApiClient.ts`. `HttpApiClient.make(Api, { baseUrl })` derives a
+client from the `Api` value. It has one method per endpoint, grouped like the
+API:
 
 - `client.rules.create({ payload })`
 - `client.rules.run({ params: { id }, payload })`
 - `client.runs.list({ query })`
 
-The payload is checked against the endpoint's schema before anything is sent,
-and the response is decoded with the success schema. If you change the API,
-the CLI stops compiling until it agrees.
-
-Put the client in a service, `ApiClient`, like every other dependency. Its type
-is `HttpApiClient.ForApi<typeof Api>`, so you never write the shape by hand.
-
-The client sends requests with an `HttpClient`, which is another service.
-`FetchHttpClient.layer` provides one built on `fetch`.
-
-The server's URL comes from `Config`, in three lines.
-`Config.String("REFLEX_URL")` reads the environment variable, and
-`Config.withDefault("http://localhost:3000")` covers the usual case. When you
-`yield*` a config inside a layer, it's read when the layer is built.
+Put the client in a service, `ApiClient`, like every other dependency. Its
+type is `HttpApiClient.ForApi<typeof Api>`, so you never write the shape by
+hand:
 
 <LessonCode file="checkpoints/15/src/ApiClient.ts" />
 
-## Writing the command handlers
+- The payload is checked against the endpoint's schema before anything is
+  sent, and the response is decoded with the success schema. If you change
+  the API, the CLI stops compiling until it agrees.
+- The client sends requests through an `HttpClient`, another service.
+  `FetchHttpClient.layer` provides one built on `fetch`.
+- The server's URL comes from `Config`. `Config.String("REFLEX_URL")` reads
+  the environment variable, and `Config.withDefault("http://localhost:3000")`
+  covers the usual case. A config you `yield*` inside a layer is read when
+  the layer is built.
 
-`src/cli/main.ts` came with the starter. Every command, argument and flag is
-already declared, and every handler body is empty. You write the six bodies.
-Each one `yield*`s the `ApiClient`, makes one call, and prints the result.
+## 2. Write the command handlers
 
-- `rules add` reads the file with the same `readJson` as lesson 11, then calls
-  `client.rules.create`.
-- `rules run` and `events submit` print one outcome per line, with its reason
-  or error.
-- `runs list` has two optional flags. The supplied declarations hand them to
-  you as `string | undefined` and `number | undefined`. That's the same shape
-  the query takes, so they go straight into `client.runs.list({ query })`.
-
-Name the handlers with `Effect.fn("rules.add")` and so on. Lesson 16 shows why
-the names matter.
+Open `src/cli/main.ts`. It came with the starter. Every command, argument and
+flag is declared, and every handler body is empty. Write the six bodies. Each
+one `yield*`s the `ApiClient`, makes one call, and prints the result:
 
 <LessonCode file="checkpoints/15/src/cli/main.ts" />
+
+- `rules add` reads the file with the same `readJson` as before, then calls
+  `client.rules.create`.
+- `rules run` and `events submit` print one outcome per line, with its
+  reason or error.
+- `runs list` has two optional flags. The declarations hand them to you as
+  `string | undefined` and `number | undefined`. That is the shape the query
+  takes, so they go straight into `client.runs.list({ query })`.
+
+Name the handlers with `Effect.fn("rules.add")` and so on. The next lesson
+shows why the names matter.
 
 The run line at the bottom provides `ApiClient.layer`, its
 `FetchHttpClient.layer`, and `NodeServices.layer` for reading files.
 
-Try it with the server running in another terminal. Run `pnpm dev:server` in
-one, and `pnpm cli rules list` in the other.
+## 3. Run a command
 
-A stored rule whose action the engine doesn't have yet (`httpPost`, until
-lesson 20) runs as `skipped`, with a reason saying so. You'll see that from
-both `rules run` and `runs list`.
+Start the server with `pnpm dev:server` in one terminal. In a second:
 
-## Revisit: errors in the client
+```sh
+pnpm cli rules add fixtures/rules/expense.json
+pnpm cli rules list
+pnpm cli events submit fixtures/events/laptop.json
+pnpm cli runs list
+```
 
-The 404 from lesson 14 comes back as a `RuleNotFound`. The client knows that
-the endpoint declares that error, so it decodes the body into the same class
-the store fails with.
+`rules add` prints `Added <id>: large expense`. `events submit` prints one
+line, `<id>: succeeded`, and `runs list` shows the row.
 
-Hover the `rules remove` handler. `RuleNotFound` is in its error channel, next
-to the HTTP and schema errors that any request can have.
+An action the engine does not have yet is skipped with a reason that says so.
+Add `fixtures/rules/ntfy.json`, whose action is `httpPost`, and run it
+against an event:
 
-## Try it: RuleNotFound as one line
+```sh
+pnpm cli rules run <id> --event fixtures/events/laptop.json
+```
 
-`pnpm cli rules remove nope` prints `RuleNotFound` with a stack trace into the
-Schema internals. That's useful to you, but not to someone who just typed an id
-wrong.
+It prints one `skipped` outcome whose reason says that `httpPost` actions run
+from a later lesson, and `runs list` shows the same row.
+[Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network)
+adds the action.
+
+## 4. Read a typed error from the server
+
+```sh
+pnpm cli rules remove nope
+```
+
+The server answered 404. The client knows the endpoint declares
+`RuleNotFound`, so it decodes the body into the same class the store fails
+with. The CLI prints `RuleNotFound` with a stack trace.
+
+Hover the `rules remove` handler. `RuleNotFound` is in its error type, next to
+the HTTP and schema errors any request can have. You handle it like any other
+failure.
+
+## Try it
+
+The stack trace from step 4 is no help to someone who typed an id wrong. Make
+the CLI print one line and exit non-zero instead.
 
 1. Write one handler with `Effect.fn` that takes the `RuleNotFound`, prints
    `No rule with id <id>` with `Console.error`, and then fails with
-   `new ExitCode({ code: 1 })` from `tools/entrypoint.ts`. The command didn't
-   happen, so the shell has to see a non-zero exit. `runMain` prints nothing
-   more for an `ExitCode`.
-2. `Effect.fn` takes more arguments after the generator, and applies each one
+   `new ExitCode({ code: 1 })` from `tools/entrypoint.ts`. `runMain` exits
+   with that code and prints nothing more.
+2. `Effect.fn` takes more arguments after the generator and applies each one
    to the effect it builds. Pass `Effect.catchTag("RuleNotFound", yourHandler)`
-   to both the `rules remove` and `rules run` handlers.
+   there, in both the `rules remove` and `rules run` handlers.
 
-To check your work, run `pnpm cli rules remove nope` and
-`pnpm cli rules run nope --event fixtures/events/laptop.json`. Each should
-print one line and exit 1 (check with `echo $?`). The hint and the changed file
-are in `exercises/15/`. From lesson 16 on, the checkpoints include this change.
+Check your work with `pnpm cli rules remove nope` and
+`pnpm cli rules run nope --event fixtures/events/laptop.json`. Each prints
+one line and exits 1 (`echo $?`). The hint and the changed file are in
+`exercises/15/`. From the next checkpoint on, the reference solution includes
+this change.
 
-## Recap
+## What you learned
 
-- A client derived from the API can't drift from it, and it's a service like
-  the rest.
+- A client derived from the API cannot drift from it, and it is a service
+  like the rest.
 - `Config` reads settings from the environment, with a default for the usual
   case.
 - Errors the endpoint declares come back as the same typed classes, so you
   handle them like any other failure.
 - The cost is that the CLI imports the server's domain types, so the two ship
   together.
-- In lesson 16 you'll follow one command from the CLI into the server, as a
-  single trace.
+- In [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
+  you follow one command from the CLI into the server as a single trace.
 
 ## Checkpoint
 
-This is the lesson 14 loop, driven from the CLI. Start the server in one
-terminal:
+This lesson's checkpoint is number 15. It is the previous checkpoint's loop,
+driven from the CLI. Start the server in one terminal:
 
 ```sh
 pnpm checkpoint 15 server
 ```
 
-and in a second:
+In a second:
 
 ```sh
 pnpm checkpoint 15 cli rules add fixtures/rules/expense.json
@@ -139,20 +161,20 @@ pnpm checkpoint 15 cli rules run <id> --event fixtures/events/laptop.json
 
 Use the id that `rules add` printed. `rules run` produces one more row. Add
 `fixtures/rules/ntfy.json` and run it the same way. You get one `skipped` row
-whose reason says `httpPost` actions run from lesson 20:
+whose reason says `httpPost` actions run from a later lesson:
 
 ```text
 fd657e81-8ced-4afd-9c5e-8213677a25e9: skipped (httpPost actions run from lesson 20)
 ```
 
-## Reference card
+## Reference
 
-| API                                   | What it does                                               | Lesson |
-| ------------------------------------- | ---------------------------------------------------------- | ------ |
-| `HttpApiClient.make`                  | A typed client derived from the API                        | 15     |
-| `HttpApiClient.ForApi<typeof Api>`    | The client's type, for a service                           | 15     |
-| `FetchHttpClient.layer`               | An `HttpClient` built on `fetch`                           | 15     |
-| `Config.String`, `Config.withDefault` | Reads an environment variable, with a fallback             | 15     |
-| `Command.make`, `Argument`, `Flag`    | CLI declarations (supplied)                                | 15     |
-| `Console.log`, `Console.error`        | Print to stdout or stderr as an effect                     | 15     |
-| `HttpClient` trace headers            | How a trace crosses into the server. Unpacked in lesson 16 | 16     |
+| API                                   | What it does                                   | Introduced in                                                                     |
+| ------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------- |
+| `HttpApiClient.make`                  | A typed client derived from the API            | this lesson                                                                       |
+| `HttpApiClient.ForApi<typeof Api>`    | The client's type, for a service               | this lesson                                                                       |
+| `FetchHttpClient.layer`               | An `HttpClient` built on `fetch`               | this lesson                                                                       |
+| `Config.String`, `Config.withDefault` | Reads an environment variable, with a fallback | this lesson                                                                       |
+| `Command.make`, `Argument`, `Flag`    | CLI declarations (supplied)                    | this lesson                                                                       |
+| `Console.log`, `Console.error`        | Print to stdout or stderr as an effect         | this lesson                                                                       |
+| `HttpClient` trace headers            | How a trace crosses into the server            | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know) |

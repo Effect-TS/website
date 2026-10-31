@@ -16,18 +16,30 @@ Windows through WSL2 is untested.
 
 ## Get started
 
-```sh
-npx degit Effect-TS/website/courses/reflex reflex
-cd reflex
-pnpm install
-pnpm run doctor --viewer    # leave it running
-```
+1. Copy the starter and enter it:
 
-`pnpm run doctor --viewer` checks that your machine is ready. On first use it downloads otel-desktop-viewer, the trace viewer the course uses. It prints one line per requirement. If something is missing, it says what to install and exits with a non-zero code. Once everything passes, it starts the viewer and keeps running until you press Ctrl-C.
+   ```sh
+   npx degit Effect-TS/website/courses/reflex reflex
+   cd reflex
+   ```
 
-Make sure you type `run`. A bare `pnpm doctor` runs pnpm's own diagnostics command instead.
+2. Install the dependencies:
 
-Without the flag, `pnpm run doctor` only checks. In a later session, `pnpm viewer` starts the viewer again.
+   ```sh
+   pnpm install
+   ```
+
+3. Check your machine and start the trace viewer. Leave this terminal running:
+
+   ```sh
+   pnpm run doctor --viewer
+   ```
+
+   The doctor prints one line per requirement. On first use it downloads otel-desktop-viewer, the trace viewer the course uses. When every line passes it prints `All set.`, starts the viewer and keeps running until you press Ctrl-C. If a line is marked `✗`, it says what to install. Install it and run the command again.
+
+Type `run` in that command. A bare `pnpm doctor` runs pnpm's own diagnostics command instead.
+
+In a later session, `pnpm viewer` starts the viewer again without the checks. `pnpm run doctor` without the flag only checks.
 
 ## Commands
 
@@ -44,10 +56,10 @@ Without the flag, `pnpm run doctor` only checks. In a later session, `pnpm viewe
 | `pnpm test` | Run the tests |
 | `pnpm check` | Typecheck |
 | `pnpm test:course` | Test the Part 1 lesson files as shipped (course CI; fails once you edit them) |
-| `pnpm transcript` | Regenerate `checkpoints/24/transcript.txt`, the session lesson 1 opens with (course maintainers; needs ports 3000 and 4600) |
+| `pnpm transcript` | Regenerate `checkpoints/24/transcript.txt`, the terminal session the course shows (course maintainers; needs ports 3000 and 4600) |
 | `pnpm fmt` | Format the code |
 
-## What is here
+## Directory layout
 
 - `src/`: your application. You write it during the course.
 - `tools/`: the doctor, the viewer launcher, the receiver and the runners. You never edit these.
@@ -57,7 +69,7 @@ Without the flag, `pnpm run doctor` only checks. In a later session, `pnpm viewe
 
 ## The receiver
 
-Your rules talk to outside services. During the course, `pnpm receiver` stands in for them. It answers these endpoints:
+Your rules talk to outside services. During the course, `pnpm receiver` stands in for them on http://localhost:4600. It answers these endpoints:
 
 | Endpoint | Answer |
 | --- | --- |
@@ -68,7 +80,7 @@ Your rules talk to outside services. During the course, `pnpm receiver` stands i
 | `GET /status` | `{"status":"ok"}`, `{"status":"degraded"}`, or a 500 |
 | `POST /status/mode` | a body of `{"mode":"ok"}`, `{"mode":"degraded"}` or `{"mode":"error"}` switches what `/status` answers |
 
-For example, to make `/status` report `degraded`:
+To make `/status` report `degraded`:
 
 ```sh
 curl -X POST localhost:4600/status/mode -H 'content-type: application/json' -d '{"mode":"degraded"}'

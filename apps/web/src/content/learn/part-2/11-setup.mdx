@@ -6,15 +6,16 @@ minutes: 15
 mode: guide
 ---
 
-From here on, reflex runs on your own machine, from a starter project. This
-page gets that project running and starts the trace viewer, so the next lesson
-can begin straight away.
+This guide gets the reflex starter project running on your machine and starts
+the trace viewer. When you finish it, the first local lesson,
+[Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint),
+can start straight away.
 
-In both tracks, this page comes between lessons 10 and 11. If you'd rather take
-Part 1 on your machine instead of in the playground, you only need steps 1 and
-2 before lesson 1: get the starter and install it. Then run each lesson with
-`pnpm lesson <n>`. Part 1 never uses the trace viewer, so come back for steps 3
-and 4 after lesson 10.
+This page sits between [Part 1 review](/learn/part-1/10-checkpoint) and the
+first local lesson. If you want to take Part 1 on your machine instead of in
+the browser, do steps 1 and 2 now and run each lesson with `pnpm lesson <n>`.
+Part 1 does not use the trace viewer, so come back for steps 3 and 4 after the
+review.
 
 ## Before you start
 
@@ -36,18 +37,17 @@ npx degit Effect-TS/website/courses/reflex reflex
 cd reflex
 ```
 
-`degit` copies the directory without the website's git history, so `reflex`
-starts life as a fresh project of its own. Commit to it as you go if you like.
+`degit` copies the directory without the website's git history. `reflex` is
+now a project of its own. Commit to it as you go if you like.
 
-## 2. Install
+## 2. Install the dependencies
 
 ```sh
 pnpm install
 ```
 
-The Effect packages are pinned to exact versions. They're the same versions
-every lesson, checkpoint and test in the course was checked against, so what
-you see should match what the lessons describe.
+The Effect packages are pinned to exact versions. They are the versions every
+lesson, checkpoint and test was checked against.
 
 ## 3. Check your machine and start the viewer
 
@@ -55,11 +55,11 @@ you see should match what the lessons describe.
 pnpm run doctor --viewer
 ```
 
-Make sure you type the `run`. pnpm has a built-in `doctor` command of its own,
-and a bare `pnpm doctor` runs that one instead of the starter's.
+Type the `run`. pnpm has a built-in `doctor` command of its own, and a bare
+`pnpm doctor` runs that one instead of the starter's.
 
 The first time, the doctor downloads otel-desktop-viewer v0.6.0 into
-`.viewer/`. It prints one line per requirement and then starts the viewer:
+`.viewer/`. It prints one line per requirement, then starts the viewer:
 
 ```text
 Downloading https://github.com/CtrlSpice/otel-desktop-viewer/releases/download/v0.6.0/otel-desktop-viewer_linux_amd64.tar.gz
@@ -75,16 +75,16 @@ otel-desktop-viewer v0.6.0 (/home/you/reflex/.viewer/otel-desktop-viewer)
 Press Ctrl-C to stop.
 ```
 
-Leave this terminal running, and do everything else in a second one.
+Leave this terminal running. Do everything else in a second one.
 
-If the binary can't run on your machine (Linux older than glibc 2.39, for
-example), the viewer line says Docker instead, and the same version runs in a
-container.
+If the binary cannot run on your machine, for example on Linux older than
+glibc 2.39, the viewer line says Docker instead, and the same version runs in
+a container.
 
-A line marked `✗` tells you what's missing and what to install. Fix it, then
-run `pnpm run doctor --viewer` again.
+A line marked `✗` says what is missing and what to install. Fix it, then run
+`pnpm run doctor --viewer` again.
 
-## 4. First run
+## 4. Run the Part 1 file
 
 In a second terminal, in the same directory:
 
@@ -92,31 +92,45 @@ In a second terminal, in the same directory:
 pnpm tsx src/run-once.ts
 ```
 
-`src/run-once.ts` is the lesson 10 file. It prints the same three alert lines
-and three skips you saw in the browser.
+`src/run-once.ts` is the file from Part 1 review. It prints the same three
+alert lines and three skip lines you saw in the browser:
 
-Now open [http://localhost:8000](http://localhost:8000). The viewer is running,
-and its trace list is empty. That's expected. Nothing in the starter sends it
-traces yet, and you'll wire that up yourself in lesson 16. If the page loads and
-the three alerts printed, setup is done.
-[The trace viewer](/learn/part-2/trace-viewer) explains what you'll see there
-once traces arrive.
+```text
+expense 1200 over 500
+expense 1200 under 5000
+expense 1200 over 1000
+skip: missing field amount
+skip: missing field amount
+skip: missing field amount
+```
+
+Each line is prefixed with a timestamp and `INFO`.
+
+Now open [http://localhost:8000](http://localhost:8000). The viewer is
+running and its trace list is empty. Nothing in the starter sends it traces
+yet. You wire that up yourself in
+[Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know).
+
+If the page loads and the six lines printed, setup is done.
+[Reading a trace in the viewer](/learn/part-2/trace-viewer) describes what you
+will see there once traces arrive.
 
 ## Later sessions
 
-You only need the doctor's download once. After that:
+The download happens once. After that:
 
 - `pnpm viewer` starts the viewer again, without the checks.
 - `pnpm run doctor` runs the checks without downloading or starting anything.
   This is the form CI uses.
 
-## What this page doesn't cover
+## If the viewer will not start
 
 Troubleshooting is outside the 15 minutes. The doctor checks the Node version,
 pnpm, git, and whether the viewer can run here as a binary or through Docker.
-It doesn't install Node, pnpm or Docker for you.
+It does not install Node, pnpm or Docker for you.
 
-This course also doesn't cover proxies, firewalls, ports 8000 or 4318 already
-being in use, or running natively on Windows. If the viewer won't start at all,
-don't let that stop you. Part 1 and lessons 11 to 15 work without it, and you
-only need it from lesson 16.
+This guide does not cover proxies, firewalls, ports 8000 or 4318 already in
+use, or running natively on Windows. If the viewer will not start at all, keep
+going. Part 1 and the first five local lessons work without it. You need it
+from [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
+on.

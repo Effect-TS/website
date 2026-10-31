@@ -5,39 +5,38 @@ title: "Challenge: hints"
 mode: guide
 ---
 
-These are hints for [lesson 24](/learn/part-4/24-independent-challenge). Each
-one gives away a little more. Read one, go back and try again, and only come
-back for the next if you need it.
+These hints are for
+[Challenge: pausing and resuming rules](/learn/part-4/24-independent-challenge).
+Each one gives away a little more than the one before. Read one, go back and
+try again, and come back for the next only if you need it.
 
-## Where the state lives
+## 1. Keep the pause in the Engine
 
 The Engine already owns everything that runs a rule: the `FiberMap` of loops
-from lesson 19, and `handleEvent` from lesson 21. Whether a rule is paused can
-live right next to them, in the Engine layer, as a set of ids.
+and `handleEvent`. Keep whether a rule is paused next to them, in the Engine
+layer, as a set of ids.
 
-The run log doesn't need a new outcome. A paused rule doesn't run, so it
-writes nothing.
+The run log needs no new outcome. A paused rule does not run, so it writes
+nothing.
 
-## Pause and resume
+## 2. Pause and resume in the right order
 
 `stop` already interrupts a loop and waits for its last row. Pausing an
-interval rule is that, plus remembering the pause. Do it in that order:
-remember the pause first, then stop the loop, so no event can run the rule
-while its loop is stopping.
+interval rule is that, plus remembering the pause. Remember the pause first,
+then stop the loop, so no event can run the rule while its loop is stopping.
 
 Resuming is the reverse. Forget the pause, then call `start`.
 
-For an event rule, `handleEvent` leaves paused rules out of the rules it runs.
+For an event rule, leave paused rules out of the rules `handleEvent` runs.
 They get no `Engine.execute` span at all.
 
-## rules list
+## 3. Show the pause in rules list
 
-For interval rules, the `list` handler asks the Engine `isRunning`. It can ask
-whether a rule is paused in the same way, and say `paused` before it says
-`running` or `stopped`. `ListedRule` in `src/api/Api.ts` needs the new
-literal.
+For interval rules, the `list` handler asks the Engine `isRunning`. Ask
+whether a rule is paused the same way, and report `paused` before `running` or
+`stopped`. Add the new literal to `ListedRule` in `src/api/Api.ts`.
 
-## The endpoints
+## 4. Add the endpoints
 
 Add `pause` and `resume` to the `rules` group in `src/api/Api.ts`, next to
 `remove`:
@@ -45,40 +44,42 @@ Add `pause` and `resume` to the `rules` group in `src/api/Api.ts`, next to
 - `POST /rules/:id/pause`
 - `POST /rules/:id/resume`
 
-Each one declares `RuleNotFound` as its 404 error. Each handler looks the rule
-up with `store.get` first, so an unknown id fails with `RuleNotFound`, exactly
-as `remove` does.
+Declare `RuleNotFound` as the 404 error of each one. In each handler, look the
+rule up with `store.get` first, so an unknown id fails with `RuleNotFound`
+exactly as `remove` does.
 
-The CLI gets both endpoints from `ApiClient` with no extra code. The two new
-commands catch `RuleNotFound` the same way `rules remove` does.
+The CLI gets both endpoints from `ApiClient` with no extra code. Catch
+`RuleNotFound` in the two new commands the same way `rules remove` does.
 
-## The tests
+## 5. Write the four tests on the harness
 
-All four tests go on the lesson 19 harness.
+All four tests go on the harness from
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock).
 
-- **The interval test** is the lesson 19 core test, with pause in place of
+- **The interval test** is that lesson's core test with pause in place of
   remove. Await `remote.arrived`, pause, `TestClock.adjust` past
-  `everySeconds`, and assert that `remote.requests.length` didn't grow and the
-  run rows didn't change.
+  `everySeconds`, and assert that `remote.requests.length` did not grow and
+  the run rows did not change.
 - **The positive control** keeps the poll hanging. Resume starts the loop, and
   its first tick runs at once, so that tick is the one new request and its
-  `started` row is the one new row. Adjust past one interval, but stay short of
-  the 10 second timeout. That way the hanging tick neither times out nor makes
-  room for another, and you can assert exactly one more request and one more
+  `started` row is the one new row. Adjust past one interval but stay short of
+  the 10 second timeout. The hanging tick then neither times out nor makes
+  room for another, so you can assert exactly one more request and one more
   row. A poll that answered would let the next tick run within the same
-  adjustment, and you'd get two.
-- **The event test** uses the `HttpApiTest` client from lesson 19 and the
-  outcomes that `events.submit` returns.
+  adjustment, and you would count two.
+- **The event test** uses the `HttpApiTest` client from the same lesson and
+  the outcomes that `events.submit` returns.
 - **The unknown id test** uses `Effect.flip` on `pause` to get the
-  `RuleNotFound`, as in lesson 13.
+  `RuleNotFound`, as in
+  [Writing tests with @effect/vitest](/learn/part-2/13-first-tests).
 
-## A restart
+## 6. Decide what a restart does
 
 Keeping the pause in memory is a fair answer. A server start already restarts
 stopped loops, so a restart also resumes paused ones. Say so in a comment.
 
-If you want a pause to survive a restart, it needs a column and a migration.
-That takes longer than 40 minutes.
+A pause that survives a restart needs a column and a migration. That takes
+longer than 40 minutes.
 
 ## The reference solution
 

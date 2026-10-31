@@ -6,18 +6,21 @@ minutes: 25
 mode: local
 ---
 
-`handleEvent` is still the loop from lesson 8: a `for...of` over the rules, one
-`yield*` after another. That was fine while every action was a line in a file.
-Now an action can take up to the 10 second timeout, and every rule after it
-has to wait.
+`handleEvent` is still a `for...of` over the rules, one `yield*` after
+another. That was fine while every action was a line in a file. Now an action
+can take up to the 10 second timeout, and every rule after it waits. In this
+lesson the rules an event matches run at the same time, up to a limit, and
+the limits of the server move out of the code into `Config`.
 
-You will learn:
+In this lesson you will:
 
-- how to run independent work at the same time, up to a limit;
-- why the execution boundary makes that safe;
-- how to read limits from the environment with `Config`.
+- see the rules of one event wait for each other in the viewer
+- run them concurrently with `Effect.forEach` and a `concurrency` limit
+- read the timeout, the concurrency and two more limits from the environment
+  with `Config`
+- send an alert to your phone through ntfy.sh
 
-## Seeing the rules wait
+## 1. See the rules wait
 
 Start clean, so the event matches only the rules this lesson adds. Every
 server, yours and the checkpoints', keeps its rules in the same `reflex.db`,
@@ -31,52 +34,59 @@ pnpm receiver --scenario mixed
 
 It prints four rules for one `expense` event:
 
-- A and B post to `/ok`;
-- C posts to `/slow?ms=15000`, which is past the timeout;
+- A and B post to `/ok`.
+- C posts to `/slow?ms=15000`, which is past the timeout.
 - D posts to `/fail?status=500`.
 
-Add the four files from `fixtures/rules/mixed/` to your lesson 20 server and
-submit `fixtures/events/laptop.json`.
+Add the four files from `fixtures/rules/mixed/` to your server and submit
+`fixtures/events/laptop.json`:
 
-Now look in the viewer. D's `Engine.execute` span starts only after C's has run
-its full 10 seconds, even though D had nothing to wait for. Add a second slow
-rule and the event takes 20 seconds. The time is the sum of the rules.
+```sh
+pnpm cli rules add fixtures/rules/mixed/a-ok.json
+pnpm cli rules add fixtures/rules/mixed/b-ok.json
+pnpm cli rules add fixtures/rules/mixed/c-slow.json
+pnpm cli rules add fixtures/rules/mixed/d-fail.json
+pnpm cli events submit fixtures/events/laptop.json
+```
 
-## Running rules concurrently
+Look in the viewer. D's `Engine.execute` span starts only after C's has run
+its full 10 seconds, even though D had nothing to wait for. The time of the
+event is the sum of the rules.
 
-The rules an event matches don't depend on each other, so you can run them at
-the same time, up to a limit:
+## 2. Run the rules concurrently
+
+The rules an event matches do not depend on each other, so they can run at
+the same time, up to a limit. In `src/Engine.ts`, change `handleEvent` to
+filter the matching rules and run them with `Effect.forEach`:
 
 <LessonCode file="checkpoints/21/src/Engine.ts" />
 
-`handleEvent` filters the matching rules, then
 `Effect.forEach(rules, (rule) => execute(rule, event), { concurrency })` runs
-`execute` for each one, at most `concurrency` at a time. Each run gets a fiber
-of its own. The outcomes come back in the order of the rules, not the order in
-which they finished.
+`execute` for each rule, at most `concurrency` at a time. Each run gets a
+fiber of its own. The outcomes come back in the order of the rules, not the
+order in which they finished.
 
-### Why this is safe
+Submit the event again. `events submit` now takes about 10 seconds, the
+timeout, and the four spans start together.
 
-This works because of a decision you made in lesson 12: `execute` can't fail.
-The boundary writes each run's row and then turns every failure and crash into
-an `Outcome` value.
+This is safe because of a decision made in
+[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records):
+`execute` cannot fail. The boundary writes each run's row and then turns
+every failure and crash into an `Outcome` value. That matters because
+`Effect.forEach` stops at the first failure and interrupts the rest, which is
+right for work that only makes sense as a whole and wrong for independent
+rules. Here there is no failure to stop at. D's 500 is a value. C's timeout
+is a value. A and B finish whatever happens to the others.
 
-That matters because `Effect.forEach` stops at the first failure and
-interrupts the rest. That's the right behaviour for work that only makes sense
-as a whole, and the wrong one for independent rules. Here, there's no failure
-to stop at. D's 500 is a value. C's timeout is a value. A and B finish no matter
-what happens to the others. The boundary is what lets the concurrency be one
-line.
+The limit matters too. With 100 rules on one event, a limit of 4 means at
+most four requests leave at once, instead of 100 hitting whoever the rules
+point to.
 
-### Why the limit matters
+## 3. Read the limits from Config
 
-With 100 rules on one event, a limit of 4 means at most four requests leave at
-once, instead of 100 hitting whoever the rules point to.
-
-## Reading limits from Config
-
-The timeout, the concurrency and two other limits aren't constants any more.
-`src/Limits.ts` reads each one from the environment, with a default:
+The timeout, the concurrency and two other limits are no longer constants.
+Create `src/Limits.ts`, which reads each one from the environment with a
+default:
 
 <LessonCode file="checkpoints/21/src/Limits.ts" />
 
@@ -86,27 +96,70 @@ The timeout, the concurrency and two other limits aren't constants any more.
 - `Config.all` combines several values into one.
 
 Inside a layer, `yield* Limits` reads them all. If one is set to something it
-can't parse, the server fails to start, with a clear message.
+cannot parse, the server fails to start with a message naming it.
 
 The Engine reads `timeout` and `concurrency`. The API handlers read the other
 two:
 
 - More than `maxRules` rules (100) is `TooManyRules`, sent as a 409.
 - An event whose JSON is more than `maxPayloadBytes` (64 KiB) is
-  `PayloadTooLarge`, a 413. It's refused before any rule sees it, both from
+  `PayloadTooLarge`, a 413. It is refused before any rule sees it, both from
   `events submit` and from `rules run`.
 
-Both are typed errors on their endpoints, like `RuleNotFound` in lesson 14, so
-the CLI prints each one as a single line.
+Both are typed errors on their endpoints, like `RuleNotFound`, so the CLI
+prints each one as a single line.
 
-To see the limit at work, try `REFLEX_CONCURRENCY=1 pnpm dev:server` and
-submit the mixed event again. D waits for C, exactly as it did before this
-lesson.
+To see a limit at work, start your server with
+`REFLEX_CONCURRENCY=1 pnpm dev:server` and submit the mixed event again. D
+waits for C, as it did before this lesson.
+
+## Try it
+
+Send an alert to your phone. This is not part of the checkpoint.
+[ntfy.sh](https://ntfy.sh) delivers a POST to `https://ntfy.sh/<topic>` to
+every device subscribed to that topic, and uses the `Title` header as the
+notification's title. That is an `httpPost` action:
+
+<LessonCode file="fixtures/rules/ntfy.json" />
+
+A topic is not an account. Anyone who knows it can publish to it and read
+what was sent, so the topic is the only secret, and a short one gets guessed.
+
+1. Make a long random topic:
+
+   ```sh
+   node -e "console.log(crypto.randomUUID())"
+   ```
+
+2. Install the ntfy app on your phone and subscribe to that topic.
+3. Copy `fixtures/rules/ntfy.json` to a file of your own, and put your topic
+   in the URL.
+4. Add it to the checkpoint's server and submit `fixtures/events/laptop.json`.
+   Your phone shows "reflex", with "expense over 500" and the event under it.
+5. Submit `fixtures/events/lunch.json`. Nothing arrives, because 40 is not
+   over 500.
+
+Send fixture data only. Whatever you post there, assume anyone could read it.
+
+## What you learned
+
+- Independent work runs with `Effect.forEach` and a `concurrency` limit.
+- It is safe because each piece returns a value instead of failing.
+- Limits are `Config` values with defaults, read once when the server starts.
+- The cost is that runs of one event now overlap. Their log lines interleave,
+  and their order in `runs list` is the order they started, not the order of
+  the rules.
+- The next lesson,
+  [Diagnosing a request from its trace](/learn/part-3/22-diagnose-it),
+  reads this exact trace to answer questions about it.
 
 ## Checkpoint
 
+The checkpoint shows the four rules of the mixed scenario running together.
+This lesson's checkpoint is number 21.
+
 The four rules you added above are still in `reflex.db`, and adding them
-again would add four more, because the store doesn't deduplicate. So stop your
+again would add four more, because the store does not deduplicate. Stop your
 server and delete `reflex.db` once more. Then, with the mixed receiver
 running, start the checkpoint's server and add the four rules:
 
@@ -123,64 +176,20 @@ pnpm checkpoint 21 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 21 cli runs list
 ```
 
-`events submit` takes about 10 seconds, the timeout, not the sum. It prints two
-`succeeded`, one `failed (timeout)` and one `failed (status)`, and `runs list`
-has the same four rows. In the viewer, the `Engine.handleEvent` trace has four
-`Engine.execute` spans starting together under it. C's and D's are red, and A's
-and B's are Ok.
+`events submit` takes about 10 seconds, the timeout, not the sum. It prints
+two `succeeded`, one `failed (timeout)` and one `failed (status)`, and
+`runs list` has the same four rows. In the viewer, the `Engine.handleEvent`
+trace has four `Engine.execute` spans starting together under it. C's and D's
+are red, and A's and B's are Ok.
 
-If it matches, the lesson is done. Lesson 22 uses exactly this scenario.
+## Reference
 
-## Recap
-
-- Independent work runs with `Effect.forEach` and a `concurrency` limit.
-- It's safe because each piece returns a value instead of failing.
-- Limits are `Config` values with defaults, read once when the server starts.
-- The trade-off is that runs of one event now overlap. Their log lines
-  interleave, and their order in `runs list` is the order they started, not the
-  order of the rules.
-- In lesson 22 you read this exact trace to answer questions about it.
-
-## Sending an alert to your phone
-
-The last five minutes are for fun. They aren't part of the checkpoint; the
-receiver checkpoint above is.
-
-[ntfy.sh](https://ntfy.sh) delivers a POST to `https://ntfy.sh/<topic>` to
-every device subscribed to that topic, and uses the `Title` header as the
-notification's title. That's an `httpPost` action and nothing more:
-
-<LessonCode file="fixtures/rules/ntfy.json" />
-
-A topic isn't an account. Anyone who knows it can publish to it and read what
-was sent, so the topic is the only secret, and a short one gets guessed. Make a
-long random one:
-
-```sh
-node -e "console.log(crypto.randomUUID())"
-```
-
-Then:
-
-1. Install the ntfy app on your phone and subscribe to that topic.
-2. Copy `fixtures/rules/ntfy.json` to a file of your own, and put your topic in
-   the URL.
-3. Add it to the checkpoint's server.
-4. Submit `fixtures/events/laptop.json`.
-
-Your phone shows "reflex", with "expense over 500" and the event under it.
-`lunch.json` sends nothing, because 40 isn't over 500.
-
-Send fixture data only. Whatever you post there, assume anyone could read it.
-
-## Reference card
-
-| API                                         | What it does                                                    | Lesson |
-| ------------------------------------------- | --------------------------------------------------------------- | ------ |
-| `Effect.forEach(items, f, { concurrency })` | Runs `f` for each item, at most `concurrency` at once, in order | 21     |
-| `Config.Int(name)`, `Config.Duration(name)` | A value read from the environment and parsed                    | 21     |
-| `Config.withDefault(value)`                 | The value when the variable is not set                          | 21     |
-| `Config.all({...})`                         | Several config values as one                                    | 21     |
-| `yield* config`                             | Reads the config, failing with a clear error if it is invalid   | 21     |
-| `Effect.catchTags({...})`                   | Handles several tagged errors, one function each                | 21     |
-| `HttpApiSchema.status(409)`                 | The HTTP status an error is sent with                           | 14     |
+| API                                         | What it does                                                    | Introduced in                                                 |
+| ------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `Effect.forEach(items, f, { concurrency })` | Runs `f` for each item, at most `concurrency` at once, in order | this lesson                                                   |
+| `Config.Int(name)`, `Config.Duration(name)` | A value read from the environment and parsed                    | this lesson                                                   |
+| `Config.withDefault(value)`                 | The value when the variable is not set                          | this lesson                                                   |
+| `Config.all({...})`                         | Several config values as one                                    | this lesson                                                   |
+| `yield* config`                             | Reads the config, failing with a clear error if it is invalid   | this lesson                                                   |
+| `Effect.catchTags({...})`                   | Handles several tagged errors, one function each                | this lesson                                                   |
+| `HttpApiSchema.status(409)`                 | The HTTP status an error is sent with                           | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it) |

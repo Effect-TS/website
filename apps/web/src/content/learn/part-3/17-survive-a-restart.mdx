@@ -1,170 +1,187 @@
 ---
 part: 3
 order: 17
-title: Storing data in SQLite
+title: Storing data in SQLite with SqlClient
 minutes: 22
 mode: local
 ---
 
-Try this. Stop the server and start it again, then run `rules list`. It's
-empty. `runs list` has forgotten everything too.
+Stop the server, start it again, and run `rules list`. It prints nothing.
+`runs list` prints nothing either. Both stores are Maps, and a Map lives
+exactly as long as the process that created it. In this lesson you move both
+stores into a SQLite file, `reflex.db`, so rules and run history survive a
+restart. The Engine, the API handlers and the CLI do not change.
 
-Both stores are Maps, and a Map lives exactly as long as the process that
-created it. That was fine for learning, but it isn't how reflex should
-behave. You add a rule once and expect it to stay, and a run history is only
-useful if it's still there tomorrow. In this lesson you keep both in SQLite, in
-a file called `reflex.db`.
+In this lesson you will:
 
-You will learn:
+- add a database to the program as a layer, with `SqliteClient` and a migrator
+- write queries with the `sql` tag and decode their rows with a schema
+- swap `RuleStore` and `RunLog` to SQLite in two lines of the entrypoint
+- run the tests from the previous lessons against both kinds of store
 
-- how a database becomes one more layer;
-- how to write queries with the `sql` tag and decode their rows with a schema;
-- why swapping the storage changes nothing in the rest of the program.
-
-## Connecting to SQLite
+## 1. Add the database layers
 
 `SqliteClient.layer({ filename: "reflex.db" })` opens the file and provides
-`SqlClient`, the service every query goes through. It's built on
-`node:sqlite`, so there's no native module to compile. That's why the course
+`SqlClient`, the service every query goes through. It is built on
+`node:sqlite`, so there is no native module to compile. This is why the course
 needs Node 22.16.
 
 An empty file has no tables. The two SQL files in `migrations/` create them.
-`SqliteMigrator.layer` runs the ones this database hasn't seen yet, in the
-order of their number, and records each one it ran in a table of its own. So
-starting the server a second time changes nothing.
+`SqliteMigrator.layer` runs the ones this database has not seen yet, in the
+order of their number, and records each one it ran in a table of its own.
+Starting the server a second time runs nothing.
+
+Create `src/Migrations.ts` with this content:
 
 <LessonCode file="checkpoints/17/src/Migrations.ts" />
 
-This file is plumbing, and you don't need to study it. The migrator's own
-loader imports `.js` and `.ts` files, but the supplied migrations are plain
-SQL, so this loader reads each file and runs its statements.
+Then make one change. The loader finds `migrations/` by walking up from its
+own folder. The checkpoint's copy lives in `checkpoints/17/src/` and goes up
+three levels. Your `src/` sits directly under the project root, so in the line
+that builds `directory`, keep one `".."` and remove the other two.
 
-Copy it to `src/Migrations.ts`, then make one change. The loader finds
-`migrations/` by walking up from its own folder. The checkpoint's copy lives in
-`checkpoints/17/src/`, so it goes up three levels to reach the project root.
-Your `src/` sits directly under the root. In the line that builds `directory`,
-keep one `".."` and remove the other two.
+This file is plumbing. The migrator's own loader imports `.js` and `.ts`
+files, but the supplied migrations are plain SQL, so this loader reads each
+file and runs its statements.
 
-Now open `migrations/0002_runs.sql`. The `runs` table is the run history from
-lesson 12, with one column per field. Notice the `CHECK` on `reason`. It writes part
-of the column contract into the database: when a `failed` row has a reason, it
-must be one of `status`, `timeout` or `io`. Any other row may say anything or
-nothing.
+## 2. Read the runs table
 
-The `CHECK` can't do the whole job, though. SQLite lets a `NULL` through a
-`CHECK`, so on its own it would accept a `failed` row with no reason at all. The
-`RunResult` schema from lesson 12 covers that half. Its `failed` variant
-requires one of the three reasons, so the Engine never writes a `failed` result
-without one.
+Open `migrations/0002_runs.sql`. The `runs` table has one column per field of
+the run history, and a `CHECK` on `reason`:
 
-## Storing rules
+```text
+reason TEXT CHECK (outcome <> 'failed' OR reason IN ('status', 'timeout', 'io'))
+```
 
-`RuleStore.layerSql` sits next to `layerMemory` in the same file and implements
-the same service. The difference is that it `yield*`s `SqlClient` instead of
-building a Map. Three new tools do the work:
+When a `failed` row has a reason, it must be `status`, `timeout` or `io`. Any
+other row may say anything or nothing.
 
-- **The `sql` tag** writes a query. Values inside `${}` become parameters and
-  never part of the SQL text, so a rule name with a quote in it can't break the
-  query. `sql.insert(row)` turns an object into the column list and values of
-  an `INSERT`.
-- **`SqlSchema.findAll`** pairs a query with the schema of its rows and decodes
-  every row it returns. `SqlSchema.void` does the same for a write with no
-  result.
-- **`Schema.fromJsonString(Rule)`** handles the `definition_json` column, which
-  holds the rule as text. It's one schema for both directions. On the way in it
-  encodes a `Rule` to JSON. On the way out it parses the text and decodes it
-  with the same `Rule` schema the API uses. If someone edits a row by hand into
-  something that isn't a rule, it fails right there, with the same error a bad
-  request gets.
+The `CHECK` does half the job. SQLite lets a `NULL` through a `CHECK`, so on
+its own it would accept a `failed` row with no reason. The `RunResult` schema
+covers the other half: its `failed` variant requires one of the three reasons,
+so the Engine never writes a `failed` result without one.
+
+## 3. Store rules in SQL
+
+Add `RuleStore.layerSql` next to `layerMemory` in `src/RuleStore.ts`. It
+implements the same service, but it `yield*`s `SqlClient` instead of building
+a Map:
 
 <LessonCode file="checkpoints/17/src/RuleStore.ts" />
 
-Look at `get`. It runs `findById` and takes the first row. When there's no row,
-it does `return yield* new RuleNotFound({ id })`, exactly what the memory store
-does. Every caller keeps handling one typed error, and nobody has to learn
-about an optional result. `remove` uses `RETURNING id` to find out whether it
-deleted anything.
+Three things do the work:
 
-What about database errors? A caller can't do anything useful about a broken
-disk, so `Effect.orDie` turns those errors into **defects**. A defect is a
-failure that no caller is expected to handle, so it leaves the error slot of
-the type. That keeps the service type exactly as it was: `create` can't fail,
-and `get` and `remove` fail only with `RuleNotFound`. Lesson 20 looks at
-defects more closely.
+- The `sql` tag writes a query. Values inside `${}` become parameters, never
+  part of the SQL text, so a rule name with a quote in it cannot break the
+  query. `sql.insert(row)` turns an object into the column list and values of
+  an `INSERT`.
+- `SqlSchema.findAll` pairs a query with the schema of its rows and decodes
+  every row it returns. `SqlSchema.void` does the same for a write with no
+  result.
+- `Schema.fromJsonString(Rule)` handles the `definition_json` column, which
+  holds the rule as text. On the way in it encodes a `Rule` to JSON. On the
+  way out it parses the text and decodes it with the same `Rule` schema the
+  API uses. A row edited by hand into something that is not a rule fails
+  there, with the same error a bad request gets.
 
-## Storing runs
+Look at `get`. It runs `findById` and takes the first row. When there is no
+row, it does `return yield* new RuleNotFound({ id })`, exactly what the memory
+store does. Every caller keeps handling one typed error. `remove` uses
+`RETURNING id` to find out whether it deleted anything.
 
-`RunLog.layerSql` follows the same pattern. Times are stored as ISO 8601 text,
-which sorts in time order, and `Schema.DateTimeUtcFromString` turns them back
-into `DateTime` values on the way out. `finish` is a single `UPDATE` of the row
-that `start` inserted.
+Database errors go through `Effect.orDie`. A caller cannot do anything useful
+about a broken disk, so `orDie` turns those errors into defects, which are
+failures no caller is expected to handle and which do not appear in the error
+type. The service type stays as it was: `create` cannot fail, and `get` and
+`remove` fail only with `RuleNotFound`.
+[Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network)
+looks at defects more closely.
+
+## 4. Store runs in SQL
+
+Add `RunLog.layerSql` in `src/RunLog.ts`, following the same pattern:
 
 <LessonCode file="checkpoints/17/src/RunLog.ts" />
 
-## Revisit: swapping a layer
+Times are stored as ISO 8601 text, which sorts in time order.
+`Schema.DateTimeUtcFromString` turns them back into `DateTime` values on the
+way out. `finish` is a single `UPDATE` of the row that `start` inserted.
 
-In `src/server/main.ts`, the memory stores become the SQL stores, and the SQL
-stores get what they need underneath them:
+## 5. Swap the layers in the entrypoint
+
+In `src/server/main.ts`, replace the memory stores with the SQL stores, and
+provide what they need underneath them:
 
 <LessonCode file="checkpoints/17/src/server/main.ts" />
 
-That's the whole change to the program. The Engine, the API handlers and the
+That is the whole change to the program. The Engine, the API handlers and the
 CLI stay the same, because none of them knows which layer is behind
-`RuleStore` and `RunLog`. Lesson 9 promised this back when the store was a Map
-in the playground.
+`RuleStore` and `RunLog`.
 
-### Running the tests on both
+Start the server with `pnpm dev:server`. It creates `reflex.db` in the project
+root and runs both migrations.
 
-The tests from lesson 13 make the same point, and they don't need you to take
-it on trust. Turn each store suite into a function of a layer,
-`(name, store) => layer(store, { buildPerTest: true })(name, (it) => ...)`,
-with the lesson 13 tests inside unchanged. Then call it once per layer.
+## 6. Run the tests against both stores
 
-For SQLite, the layer is `Migrations.layer` over
-`SqliteClient.layer({ filename: ":memory:" })`. That's a database that exists
+Turn each store suite from
+[Writing tests with @effect/vitest](/learn/part-2/13-first-tests) into a
+function of a layer, with the tests inside unchanged:
+
+```ts
+(name, store) => layer(store, { buildPerTest: true })(name, (it) => ...)
+```
+
+Then call it once per layer. For SQLite, the layer is `Migrations.layer` over
+`SqliteClient.layer({ filename: ":memory:" })`. That is a database that exists
 only for one test, with the tables already created. `buildPerTest` gives every
 test a fresh one.
 
-The SQLite runs also go through the `CHECK` on `reason`, so a `failed` row
-with a made-up reason fails in the test, not in production. The reference
-tests take this form from lesson 19 on, with one more test that writes to a
-real file, rebuilds the layers on it, and reads everything back:
+Run `pnpm test`. Both suites pass. The SQLite runs also go through the `CHECK`
+on `reason`, so a `failed` row with a made-up reason fails in the test, not in
+production. The reference tests take this form from the next lesson's
+checkpoint on, with one more test that writes to a real file, rebuilds the
+layers on it, and reads everything back:
 
 <LessonCode file="checkpoints/19/test/Stores.test.ts" />
 
-## Try it: filter in the query
+## Try it
 
-`pnpm cli runs list --rule <id>` gives the right rows against SQLite, just as
-it did against the Map. But look at how. `RunLog.layerSql` reads every row of
-`runs`, then filters and slices them in TypeScript.
+`pnpm cli runs list --rule <id>` gives the right rows against SQLite. But
+`RunLog.layerSql` reads every row of `runs`, then filters and slices them in
+TypeScript. With a few interval rules, the table grows by thousands of rows a
+day, and every `runs list --rule` reads all of them to keep a handful. Make
+SQLite do the filtering and the limit, in the query.
 
-That won't hold up. With a few interval rules (lesson 19), the table grows by
-thousands of rows a day, and every `runs list --rule` reads all of them to keep
-a handful. Make SQLite do the filtering and the limit, in the query.
+1. Give the `findAll` query a request schema with the two options, `ruleId`
+   and `limit`, so `execute` receives them.
+2. Add the `WHERE` clause with `sql.and`, and `LIMIT ${limit ?? -1}`. In
+   SQLite, a negative limit means no limit.
+3. Run `pnpm test`. It stays green.
+4. With the server running, run `pnpm cli runs list --rule <id> --limit 2`. It
+   prints at most two rows, all for that rule.
 
-You're done when `pnpm test` stays green and, with the server running,
-`pnpm cli runs list --rule <id> --limit 2` prints at most two rows, all for
-that rule. The hint and the changed file are in `exercises/17/`. From lesson 18
-on, the checkpoints include this change.
+The hint and the changed file are in `exercises/17/`. From the next lesson on,
+the checkpoints include this change.
 
-## Recap
+## What you learned
 
-- A database is a layer. `SqliteClient.layer` provides `SqlClient`, and the
-  migrator creates the tables.
-- A query is the `sql` tag with a schema for its rows. Values in `${}` are
-  always parameters.
+- A database is a layer. `SqliteClient.layer` provides `SqlClient`, and
+  `SqliteMigrator.layer` creates the tables from the SQL files.
+- A query is the `sql` tag paired with a schema for its rows. Values in `${}`
+  are always parameters.
 - Swapping storage took two lines in the entrypoint, and the tests ran
   unchanged against both layers.
-- The price is a file on disk to manage, and a migration for every change to
-  the tables. The checkpoint servers and yours all use `reflex.db` in the
-  project root. Delete it whenever you want to start clean.
-- Lesson 19 deals with a run whose process ended before it could write its
-  last row.
+- The cost is a file on disk and a migration for every change to the tables.
+  The checkpoint servers and yours all use `reflex.db` in the project root.
+  Delete it whenever you want to start clean.
+- A run whose process ended before it wrote its last row is handled in
+  [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock).
 
 ## Checkpoint
 
-Start the checkpoint's server, and in a second terminal add a rule and submit
-an event:
+The checkpoint shows a rule and its run surviving a restart. This lesson's
+checkpoint is number 17. Start the checkpoint's server, and in a second
+terminal add a rule and submit an event:
 
 ```sh
 pnpm checkpoint 17 server
@@ -184,19 +201,19 @@ pnpm checkpoint 17 cli runs list
 
 The rule and its `succeeded` run are still there.
 
-## Reference card
+## Reference
 
-| API                                | What it does                                          | Lesson |
-| ---------------------------------- | ----------------------------------------------------- | ------ |
-| `SqliteClient.layer({ filename })` | Opens a SQLite file and provides `SqlClient`          | 17     |
-| `SqliteMigrator.layer({ loader })` | Runs the migrations this database has not seen yet    | 17     |
-| `SqlClient.SqlClient`              | The service every query goes through                  | 17     |
-| `` sql`...${value}` ``             | A query; each `${value}` is a parameter               | 17     |
-| `sql.insert(row)`                  | The columns and values of an `INSERT`, from an object | 17     |
-| `SqlSchema.findAll`                | A query paired with the schema that decodes its rows  | 17     |
-| `SqlSchema.void`                   | A write with no result, its input encoded by a schema | 17     |
-| `Schema.fromJsonString(S)`         | JSON text on one side, a decoded `S` on the other     | 17     |
-| `Schema.DateTimeUtcFromString`     | ISO 8601 text on one side, a `DateTime` on the other  | 17     |
-| `Effect.orDie`                     | Turns every failure into a defect                     | 17     |
-| `layer(L, { buildPerTest: true })` | A fresh layer for every test inside                   | 13     |
-| `sql.and([...])`                   | Joins clauses with `AND`; an empty list is `1=1`      | 17     |
+| API                                | What it does                                          | Introduced in                                                     |
+| ---------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| `SqliteClient.layer({ filename })` | Opens a SQLite file and provides `SqlClient`          | this lesson                                                       |
+| `SqliteMigrator.layer({ loader })` | Runs the migrations this database has not seen yet    | this lesson                                                       |
+| `SqlClient.SqlClient`              | The service every query goes through                  | this lesson                                                       |
+| `` sql`...${value}` ``             | A query. Each `${value}` is a parameter               | this lesson                                                       |
+| `sql.insert(row)`                  | The columns and values of an `INSERT`, from an object | this lesson                                                       |
+| `sql.and([...])`                   | Joins clauses with `AND`. An empty list is `1=1`      | this lesson                                                       |
+| `SqlSchema.findAll`                | A query paired with the schema that decodes its rows  | this lesson                                                       |
+| `SqlSchema.void`                   | A write with no result, its input encoded by a schema | this lesson                                                       |
+| `Schema.fromJsonString(S)`         | JSON text on one side, a decoded `S` on the other     | this lesson                                                       |
+| `Schema.DateTimeUtcFromString`     | ISO 8601 text on one side, a `DateTime` on the other  | this lesson                                                       |
+| `Effect.orDie`                     | Turns every failure into a defect                     | this lesson                                                       |
+| `layer(L, { buildPerTest: true })` | A fresh layer for every test inside                   | [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) |

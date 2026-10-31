@@ -7,85 +7,96 @@ mode: playground
 lessonDir: 03-steps-in-order
 ---
 
-A hard-coded alert isn't much use. Reflex should look at an amount, decide
-whether it's large, and only then build the message. That's a few steps in a
-row:
+The alert is hard-coded. Reflex should look at an amount, decide whether it
+is large, build the message, log it, and give the message back. Those are
+steps that run in order, and each one uses the result of the one before. By
+the end of this lesson `program` does all of them, and the terminal still
+prints `expense 1200 over 500`.
 
-1. decide whether `1200` is over `500`;
-2. build the message;
-3. log it;
-4. give it back.
+In this lesson you will:
 
-You could chain these with `Effect.andThen`, but nesting a call for every step
-quickly gets hard to read. Effect has a way to write them one per line.
+- write steps in order with `Effect.gen`
+- run an Effect inside a generator with `yield*`
+- return a value from a generator and see it in the success type
+- see what happens when you forget a `yield*`
 
-You will learn:
+## 1. Add the amount and a plain function
 
-- how to write effectful steps in order with `Effect.gen`;
-- what `yield*` does, and when you need it;
-- what happens when you forget it.
+The file starts where the previous lesson ended: `alert` and
+`Effect.andThen(alert, alert)`.
 
-## Writing steps with Effect.gen
+Above `program`, add a constant and a function:
 
-`Effect.gen` lets you write effects one after another, the way you'd write
-ordinary code:
+<LessonCode
+  file="lessons/part1/03-steps-in-order/solution/main.ts"
+  declaration="amount"
+/>
 
-```ts
-Effect.gen(function* () {
-  // one step per line
-})
-```
+<LessonCode
+  file="lessons/part1/03-steps-in-order/solution/main.ts"
+  declaration="isLarge"
+/>
 
-Inside the block, `yield*` runs an effect and hands you its result before
-moving on to the next line. Whatever you `return` becomes what the whole
-effect gives back, so it is what you'll see in the first slot of its type.
+`isLarge` is a plain function. It takes a number and returns a boolean, and
+it does nothing else. Not every step needs to be an Effect.
 
-The `function*` makes this a generator function. That's all you need to know
-about generators for this course. Read `yield*` as "run this effect here".
+## 2. Write the steps with Effect.gen
 
-## Calling plain functions
+Delete `alert` and replace `program` with an `Effect.gen` block:
 
-Not everything has to be an effect. Deciding whether an amount is large is a
-plain question with a plain answer, so write it as a plain function:
-`isLarge(amount)` returns `amount > 500`. You call it like any function,
-without `yield*`. Save `yield*` for effects.
+<LessonCode
+  file="lessons/part1/03-steps-in-order/solution/main.ts"
+  declaration="program"
+/>
 
-Now replace the file's `alert` and `program` with:
+Run the file. The terminal prints one log line with the message
+`expense 1200 over 500`.
 
-1. a constant, `const amount: number = 1200`;
-2. `isLarge`, as above;
-3. a `program` built with `Effect.gen` that builds the message from `amount`
-   (`expense 1200 over 500` when it's large, `expense 1200: no alert` when it
-   isn't), `yield*`s the log, and returns the message.
+`Effect.gen(function* () { ... })` builds one Effect from steps written one
+per line. `function*` makes the block a generator. That is all you need to
+know about generators in this course.
 
-The terminal prints the alert line once. Hover `program`. The first slot now
-says `string`, because the block returns the message.
+Inside the block, `yield*` runs an Effect and hands you its result before the
+next line runs. `isLarge(amount)` is called without `yield*` because it is a
+plain function, not an Effect. Save `yield*` for Effects.
 
-## Try it: forget a yield\*
+## 3. Read the success type
 
-Delete the `yield*` in front of `Effect.log(message)` and hover that
-expression. You're holding an `Effect<void>`, a description, not a log line,
-and nothing runs it. The line disappears from the terminal.
+Hover `program`. The type is `Effect<string, never, never>`.
 
-TypeScript doesn't complain. This is the cost of descriptions from lesson 2: an
-effect you build inside a generator and forget to `yield*` is quietly dropped.
+The success type changed from `void` to `string`. Whatever the generator
+returns is what the whole Effect gives back, and this one returns `message`.
+
+## Try it
+
+Delete the `yield*` in front of `Effect.log(message)`.
+
+1. Hover `Effect.log(message)`. It is an `Effect<void>`, a description of
+   logging.
+2. Run the file. The log line is gone. The description was built and then
+   dropped, because nothing ran it.
+3. Notice that TypeScript did not complain. A forgotten `yield*` is not a
+   type error.
+4. Put the `yield*` back and run the file again. The line is back.
+
 When a log line or a step goes missing, a missing `yield*` is the first thing
 to look for.
 
-Put the `yield*` back before you move on.
+## What you learned
 
-## Recap
+- `Effect.gen(function* () { ... })` builds one Effect from steps that run in
+  order.
+- `yield*` runs an Effect and gives you its result. What you `return` becomes
+  the success type.
+- Plain functions such as `isLarge` are called without `yield*`.
+- An Effect you build inside a generator and do not `yield*` never runs, and
+  TypeScript does not warn you.
+- In [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it) you give a
+  generator a name, so its failures say where they came from.
 
-- `Effect.gen` runs effects in order, one per line.
-- `yield*` runs an effect and hands you its result. What you `return` is what
-  the whole effect gives back.
-- Plain functions, like `isLarge`, stay plain, with no `yield*`.
-- Every effectful line needs a `yield*`, and a line without one is dropped
-  without a word.
-- In lesson 7 you'll give a generator a name, so its failures say where they
-  came from.
+## Reference
 
-## Checkpoint
-
-The message is built from `amount` and logged once. Hover `program`, and the
-first slot shows `string`.
+| API          | What it does                                                 | Introduced in |
+| ------------ | ------------------------------------------------------------ | ------------- |
+| `Effect.gen` | Builds one Effect from steps written one per line            | this lesson   |
+| `yield*`     | Inside `Effect.gen`, runs an Effect and gives you its result | this lesson   |
