@@ -123,5 +123,5 @@ const program = Effect.gen(function*() {
   yield* evaluateAll(taxi)
 }).pipe(Effect.provide(RuleStore.layerFixtures))
 
-// runMain is Part 2
+// You write this yourself in lesson 11
 NodeRuntime.runMain(program)

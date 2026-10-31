@@ -45,5 +45,5 @@ const message = matches(largeExpense, laptop)
 
 const program = Effect.as(Effect.log(message), message)
 
-// runMain is Part 2
+// You write this yourself in lesson 11
 NodeRuntime.runMain(program)

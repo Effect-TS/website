@@ -82,5 +82,5 @@ const program = Effect.gen(function*() {
   yield* evaluate(broken, laptop)
 })
 
-// runMain is Part 2
+// You write this yourself in lesson 11
 NodeRuntime.runMain(program)

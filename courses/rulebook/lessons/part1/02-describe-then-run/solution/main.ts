@@ -7,5 +7,5 @@ const alert = Effect.as(Effect.log(message), message)
 
 const program = Effect.andThen(alert, alert)
 
-// runMain is Part 2
+// You write this yourself in lesson 11
 NodeRuntime.runMain(program)
