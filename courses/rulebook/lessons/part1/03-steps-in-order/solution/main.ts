@@ -1,7 +1,7 @@
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-const amount = 1200
+const amount: number = 1200
 
 // A plain function: it answers a question and does nothing else.
 const isLarge = (amount: number): boolean => amount > 500
