@@ -1,5 +1,5 @@
 import { assert, layer } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { RunLog } from "../src/RunLog.ts"
 
@@ -41,5 +41,18 @@ layer(RunLog.layerMemory, { buildPerTest: true })("RunLog memory", (it) => {
       assert.deepStrictEqual(rows.get(skipped.id), ["skipped", "missing field amount", null])
       assert.deepStrictEqual(rows.get(failed.id), ["failed", "io", "permission denied"])
       assert.deepStrictEqual(rows.get(succeeded.id), ["succeeded", null, null])
+    }))
+
+  // Lesson 14's GET /runs passes its decoded query to `list` as it is, and a
+  // decoded optional field may be present and undefined.
+  it.effect("list takes the runs query as decoded, an undefined field meaning no filter", () =>
+    Effect.gen(function*() {
+      const runLog = yield* RunLog
+      const run = yield* runLog.start({ ruleId: "a", trigger: "event" })
+      const query = Schema.decodeUnknownSync(Schema.Struct({
+        ruleId: Schema.optional(Schema.String),
+        limit: Schema.optional(Schema.Number)
+      }))({ ruleId: undefined, limit: undefined })
+      assert.deepStrictEqual((yield* runLog.list(query)).map((row) => row.id), [run.id])
     }))
 })
