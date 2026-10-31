@@ -3,17 +3,18 @@ import { assert, describe, it } from "@effect/vitest"
 import { Effect, FileSystem, Stream } from "effect"
 import { ChildProcess } from "effect/process"
 import * as NodePath from "node:path"
+import { pathToFileURL } from "node:url"
 
-// Every Part 1 lesson file runs here the way `pnpm lesson <n>` runs it: tsx in
-// a child process, with the supplied Telemetry.ts and no viewer listening, so
-// a lesson must print its lines and exit without one. The assertions read the
-// lines a learner reads in the terminal and leave the logger's format to
-// Telemetry.ts. An alert line is a line that names the Part 1 event, as
-// lesson 2's "expense 1200 over 500" does.
+// Every Part 1 lesson file runs here the way `pnpm lesson <n>` runs it, tsx in
+// a child process, except that telemetryHooks.ts swaps the supplied
+// Telemetry.ts for TelemetryStub.ts: nothing is exported, and each log is one
+// stdout line naming its span. An alert line is a line that names the Part 1
+// event, as lesson 2's "expense 1200 over 500" does.
 
 const root = NodePath.join(import.meta.dirname, "..", "..", "..")
 const part1 = NodePath.join(root, "lessons", "part1")
 const tsc = NodePath.join(root, "node_modules", "typescript", "bin", "tsc")
+const telemetryHooks = pathToFileURL(NodePath.join(import.meta.dirname, "telemetryHooks.ts")).href
 
 const timeout = 60_000
 
@@ -36,7 +37,9 @@ const lessonFile = (lesson: number, variant: "start" | "solution") =>
 const collect = (stream: Stream.Stream<Uint8Array, unknown>) => stream.pipe(Stream.decodeText, Stream.mkString)
 
 const run = Effect.fn("run")(function*(file: string) {
-  const handle = yield* ChildProcess.make(process.execPath, ["--import", "tsx", file], { cwd: root })
+  const handle = yield* ChildProcess.make(process.execPath, ["--import", "tsx", "--import", telemetryHooks, file], {
+    cwd: root
+  })
   const [stdout, stderr, exitCode] = yield* Effect.all([
     collect(handle.stdout),
     collect(handle.stderr),
@@ -189,7 +192,9 @@ describe("Part 1 lesson files", () => {
     it.live("07 log lines carry the evaluate span name", () =>
       Effect.gen(function*() {
         const result = yield* runLesson(7, "solution")
-        assert.match(result.stdout, /\bevaluate\b/, report(result))
+        // The span field of a TelemetryStub.ts line, not `at evaluate` in a
+        // failure's stack trace.
+        assert.match(result.stdout, /^[A-Z]+ \[evaluate\] /m, report(result))
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
     it.live("08 start is the lesson 7 end state and prints the same lines as 07", () =>
