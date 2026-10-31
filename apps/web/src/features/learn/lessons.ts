@@ -37,6 +37,28 @@ export function courseFile(path: string): string {
 }
 
 /**
+ * One top-level declaration from a course file, exactly as written there: the
+ * column-0 line that declares `name`, then the indented or closing lines after
+ * it, up to the first blank or other column-0 line. This relies on the course
+ * files being dprint-formatted, which CI checks.
+ */
+export function courseDeclaration(path: string, name: string): string {
+  const lines = courseFile(path).split("\n")
+  const declares = new RegExp(
+    `^(?:export )?(?:class|const|interface|type|function) ${name}\\b`,
+  )
+  const start = lines.findIndex((line) => declares.test(line))
+  if (start === -1) {
+    throw new Error(`courses/rulebook/${path} does not declare ${name}`)
+  }
+  let end = start + 1
+  while (end < lines.length && /^(?:\s+\S|[})\]])/.test(lines[end]!)) {
+    end++
+  }
+  return lines.slice(start, end).join("\n")
+}
+
+/**
  * Lesson 1 has no exercise, only a solution, so it also starts there.
  */
 export function lessonFiles(lessonDir: string): LessonFiles {

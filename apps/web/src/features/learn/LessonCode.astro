@@ -1,6 +1,6 @@
 ---
 import { Code } from "astro-expressive-code/components"
-import { courseFile } from "./lessons"
+import { courseDeclaration, courseFile } from "./lessons"
 
 interface Props {
   /**
@@ -8,11 +8,20 @@ interface Props {
    * `lessons/part1/02-describe-then-run/solution/main.ts`.
    */
   readonly file: string
+  /**
+   * Renders only this top-level declaration from the file, for a lesson that
+   * must not show the rest of it.
+   */
+  readonly declaration?: string
   readonly title?: string
 }
 
-const { file, title = file } = Astro.props
+const { file, declaration, title = file } = Astro.props
 const lang = file.slice(file.lastIndexOf(".") + 1)
 ---
 
-<Code code={courseFile(file)} lang={lang} title={title} />
+<Code
+  code={declaration === undefined ? courseFile(file) : courseDeclaration(file, declaration)}
+  lang={lang}
+  title={title}
+/>
