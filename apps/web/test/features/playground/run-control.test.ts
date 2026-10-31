@@ -209,9 +209,15 @@ test("a still heartbeat on a live process fails the swap closed", async () => {
   assert.isFalse(files.has(pause), "the pause is released")
 })
 
-test("a liveness check that never answers is bounded by the pause timeout", async () => {
+test("liveness checks that never answer share one pause timeout", async () => {
   const { withRunnersPaused } = await load()
-  const files = frozenRegistration()
+  // Three stalled runners: their checks together get one budget, not one each.
+  const files = new Map(
+    ["123", "124", "125"].flatMap((pid) => [
+      [`.run-control/${pid}`, "watching"],
+      [`.run-control/${pid}.beat`, "7"],
+    ]) as Array<[string, string]>,
+  )
   let swapped = false
   const started = Date.now()
 
@@ -227,7 +233,8 @@ test("a liveness check that never answers is bounded by the pause timeout", asyn
     () => undefined,
   )
 
-  assert.isAtMost(Date.now() - started, 2_000, "the swap gave up in time")
+  // 500 ms of budget, plus room for polling.
+  assert.isAtMost(Date.now() - started, 1_000, "the swap gave up in time")
   assert.isTrue(exit !== undefined && Exit.isFailure(exit))
   assert.isFalse(swapped)
   assert.isFalse(files.has(pause), "the pause is released")

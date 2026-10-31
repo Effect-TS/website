@@ -54,6 +54,10 @@ test("nothing is shown before, during or after a successful action, or for an in
   for (const result of [
     AsyncResult.initial(),
     AsyncResult.initial(true),
+    // A retry after a failure: the atom keeps the old failure while it waits.
+    AsyncResult.failure(Cause.fail(new RunnersDidNotPause({ pids: ["22"] })), {
+      waiting: true,
+    }),
     AsyncResult.success(undefined),
     AsyncResult.failure(Cause.interrupt()),
   ]) {
