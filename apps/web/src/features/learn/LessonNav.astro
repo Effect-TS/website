@@ -1,0 +1,47 @@
+---
+import type { CollectionEntry } from "astro:content"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+import { learnParts } from "./course"
+import type { LessonRoute } from "./routes"
+
+interface Props {
+  readonly routes: ReadonlyArray<LessonRoute<CollectionEntry<"learn">>>
+  readonly current: string
+}
+
+const { routes, current } = Astro.props
+---
+
+<nav aria-label="Course" class="flex flex-col gap-6">
+  {
+    learnParts.map(({ part, title }) => {
+      const lessons = routes.filter((route) => route.entry.data.part === part)
+      return (
+        lessons.length > 0 && (
+          <div>
+            <Eyebrow tone="navigation" class="mb-2 px-2 text-xs">
+              Part {part} · {title}
+            </Eyebrow>
+            <ul class="flex flex-col gap-0.5">
+              {lessons.map(({ entry, slug }) => (
+                <li>
+                  <SidebarLink
+                    href={`/learn/${slug}`}
+                    active={slug === current}
+                    class="flex justify-between gap-3 px-2 py-1.5 text-sm"
+                  >
+                    <span>
+                      {entry.data.order}. {entry.data.title}
+                    </span>
+                    <span class="shrink-0 text-subtle-foreground">{entry.data.minutes} min</span>
+                  </SidebarLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      )
+    })
+  }
+</nav>

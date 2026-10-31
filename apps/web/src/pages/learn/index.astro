@@ -1,0 +1,78 @@
+---
+import { getCollection } from "astro:content"
+import { Code } from "astro-expressive-code/components"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { learnParts, starterCommands } from "@/features/learn/course"
+import { lessonRoutes } from "@/features/learn/routes"
+import PageLayout from "@/layouts/PageLayout.astro"
+
+export const prerender = true
+
+const routes = lessonRoutes(await getCollection("learn"))
+const parts = learnParts.flatMap((part) => {
+  const lessons = routes.filter((route) => route.entry.data.part === part.part)
+  const minutes = lessons.reduce((total, route) => total + route.entry.data.minutes, 0)
+  return lessons.length > 0 ? [{ ...part, lessons, minutes }] : []
+})
+---
+
+<PageLayout
+  title="Learn Effect | Build rulebook"
+  description="A beginner Effect course: build rulebook, a self-hosted automation engine, from your first Effect to a reliable server with tests and tracing."
+  themeable
+>
+  <div class="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-12 md:py-20">
+    <header>
+      <Eyebrow class="mb-3">Learn Effect</Eyebrow>
+      <h1 class="text-3xl font-semibold text-foreground md:text-4xl">Build rulebook</h1>
+      <p class="mt-4 text-lg text-muted-foreground">
+        A self-hosted engine that evaluates rules against events and runs their actions. Part 1 runs
+        in your browser; the rest runs on your machine.
+      </p>
+    </header>
+
+    <section aria-labelledby="before-you-start" class="flex flex-col gap-4">
+      <h2 id="before-you-start" class="text-2xl font-semibold text-foreground">Before you start</h2>
+      <ul class="list-disc pl-5 text-prose-foreground">
+        <li>Node 22.16 or newer</li>
+        <li>pnpm, or corepack to provide it</li>
+        <li>git and a browser</li>
+        <li>macOS, Linux with glibc 2.39 or newer, or Docker, for the trace viewer</li>
+      </ul>
+      <p class="text-prose-foreground">Part 2 starts from the starter project:</p>
+      <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
+    </section>
+
+    {
+      parts.map(({ part, title, venue, lessons, minutes }) => (
+        <section aria-labelledby={`part-${part}`} class="flex flex-col gap-4">
+          <div>
+            <Eyebrow class="mb-1 text-xs">
+              Part {part} · {venue} · {minutes} min
+            </Eyebrow>
+            <h2 id={`part-${part}`} class="text-2xl font-semibold text-foreground">
+              {title}
+            </h2>
+          </div>
+          <ol class="flex flex-col divide-y divide-border rounded-lg border border-border">
+            {lessons.map(({ entry, slug }) => (
+              <li>
+                <a
+                  href={`/learn/${slug}`}
+                  class="flex items-baseline justify-between gap-4 px-4 py-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <span>
+                    {entry.data.order}. {entry.data.title}
+                  </span>
+                  <span class="shrink-0 text-sm text-subtle-foreground">
+                    {entry.data.minutes} min
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+  </div>
+</PageLayout>

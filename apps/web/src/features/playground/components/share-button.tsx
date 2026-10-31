@@ -4,6 +4,7 @@ import { CheckIcon, CopyIcon, DownloadIcon, Loader2Icon } from "lucide-react"
 import { useCallback, useState, useRef, useEffect } from "react"
 import { copyLinkAtom, downloadAtom, shareAtom } from "../atoms/share"
 import { useWorkspaceHandle } from "../context/workspace"
+import { ToolbarButton } from "./toolbar-button"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
@@ -34,13 +35,7 @@ export function ShareButton() {
 
   return (
     <div className="relative" ref={popoverRef}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="h-7.5 cursor-pointer rounded-md border border-zinc-300 bg-zinc-50 px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-white"
-      >
-        Share
-      </button>
+      <ToolbarButton onClick={onToggle}>Share</ToolbarButton>
       {open && <ShareContent />}
     </div>
   )

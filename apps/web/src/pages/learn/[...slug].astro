@@ -1,0 +1,135 @@
+---
+import { getCollection, render } from "astro:content"
+import { Code } from "astro-expressive-code/components"
+import { ArrowLeftIcon } from "@lucide/astro"
+import Navigation from "@/components/navigation/Navigation.astro"
+import Aside from "@/components/docs/Aside.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import PrevNextNav from "@/components/ui/PrevNextNav.astro"
+import { learnParts, starterCommands } from "@/features/learn/course"
+import LessonCode from "@/features/learn/LessonCode.astro"
+import LessonNav from "@/features/learn/LessonNav.astro"
+import { LessonPlayground } from "@/features/learn/LessonPlayground"
+import { lessonFiles } from "@/features/learn/lessons"
+import { lessonRoutes } from "@/features/learn/routes"
+import { PlaygroundLoaderShell } from "@/features/playground/components/loader"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import PageLayout from "@/layouts/PageLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+
+// Playground lessons need the same cross-origin isolation as play.astro.
+export const prerender = false
+
+const routes = lessonRoutes(await getCollection("learn"))
+const route = routes.find((route) => route.slug === Astro.params.slug)
+if (route === undefined) {
+  // 404.astro is prerendered, so an on-demand route cannot rewrite to it.
+  return new Response("Not Found", { status: 404 })
+}
+
+const { entry } = route
+const { data } = entry
+const { Content } = await render(entry)
+const part = learnParts.find(({ part }) => part === data.part)!
+const neighbour = (slug: string | undefined) => {
+  const target = routes.find((route) => route.slug === slug)
+  return target === undefined
+    ? null
+    : { href: `/learn/${target.slug}`, label: target.entry.data.title }
+}
+const title = `${data.title} | Learn Effect`
+
+const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefined
+const playgroundOnly = Astro.url.searchParams.has("playground")
+if (files !== undefined) {
+  Astro.response.headers.set("Cross-Origin-Embedder-Policy", "require-corp")
+  Astro.response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
+}
+---
+
+{
+  files === undefined ? (
+    <PageLayout title={title} themeable>
+      <div class="mx-auto grid max-w-6xl gap-10 px-4 py-12 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <aside class="hidden lg:block">
+          <LessonNav routes={routes} current={route.slug} />
+        </aside>
+        <article class="max-w-3xl">
+          <Eyebrow class="mb-2 text-xs">
+            Part {part.part} · {part.title} · {data.minutes} min
+          </Eyebrow>
+          <h1 class="text-3xl font-semibold text-foreground md:text-4xl">
+            {data.order}. {data.title}
+          </h1>
+          <div class="prose prose-effect mt-8">
+            <Content components={{ LessonCode }} />
+            <Aside title="Run this locally">
+              <p>
+                This lesson runs in the starter project on your machine. If you have not set it up
+                yet:
+              </p>
+              <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
+            </Aside>
+          </div>
+          <PrevNextNav prev={neighbour(route.prev)} next={neighbour(route.next)} label="Lessons" />
+        </article>
+      </div>
+    </PageLayout>
+  ) : (
+    <BaseLayout title={title}>
+      <div class="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground antialiased">
+        <Navigation />
+        <div id={PAGE_TITLE_ID} class="flex min-h-0 flex-1">
+          {playgroundOnly ? (
+            <a
+              href={`/learn/${route.slug}`}
+              class="absolute right-4 bottom-4 z-40 flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-lg hover:text-foreground"
+            >
+              <ArrowLeftIcon class="size-4" />
+              Back to the lesson
+            </a>
+          ) : (
+            <section class="w-full shrink-0 overflow-y-auto border-r border-border px-6 py-8 lg:w-md">
+              <details class="group mb-8">
+                <summary class="cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground">
+                  <Eyebrow as="span" class="text-xs">
+                    Part {part.part} · {part.title}
+                  </Eyebrow>
+                </summary>
+                <div class="mt-4">
+                  <LessonNav routes={routes} current={route.slug} />
+                </div>
+              </details>
+              <h1 class="text-3xl font-semibold text-foreground">
+                {data.order}. {data.title}
+              </h1>
+              <p class="mt-2 text-sm text-subtle-foreground">{data.minutes} min</p>
+              <div class="prose prose-effect mt-6">
+                <aside class="rounded-md border border-border bg-card p-4 lg:hidden">
+                  The playground needs a larger screen.{" "}
+                  <a href={`/learn/${route.slug}?playground`}>Open this lesson in the playground</a>{" "}
+                  anyway.
+                </aside>
+                <Content components={{ LessonCode }} />
+                <p class="text-sm">
+                  Prefer your own editor? The starter has the same files:{" "}
+                  <code>pnpm lesson {data.order}</code>.
+                </p>
+              </div>
+              <PrevNextNav
+                prev={neighbour(route.prev)}
+                next={neighbour(route.next)}
+                label="Lessons"
+              />
+            </section>
+          )}
+          <div class:list={["h-full min-w-0 flex-1", !playgroundOnly && "hidden lg:block"]}>
+            <LessonPlayground client:only="react" files={files} always={playgroundOnly}>
+              <PlaygroundLoaderShell slot="fallback" />
+            </LessonPlayground>
+          </div>
+        </div>
+      </div>
+    </BaseLayout>
+  )
+}
