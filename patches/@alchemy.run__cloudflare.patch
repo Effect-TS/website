@@ -1,0 +1,61 @@
+diff --git a/lib/Workers/Sources/Vite.js b/lib/Workers/Sources/Vite.js
+index 8396f04..86dad96 100644
+--- a/lib/Workers/Sources/Vite.js
++++ b/lib/Workers/Sources/Vite.js
+@@ -17,6 +17,7 @@ import { findAvailablePort, initialCwd } from "alchemy/Util/Node";
+ import { makeResourceLogger } from "alchemy/Util/ResourceOutput";
+ import { sha256Object } from "alchemy/Util/sha256";
+ import * as Effect from "effect/Effect";
++import * as FileSystem from "effect/FileSystem";
+ import * as Path from "effect/Path";
+ import * as Redacted from "effect/Redacted";
+ import { readAssets } from "../Assets.js";
+@@ -299,7 +300,14 @@ export const hashViteInput = Effect.fn(function* (rootDir = initialCwd, options,
+     const [root, workspaces] = yield* Effect.all([hashRoot, additionalWorkspaces], {
+         concurrency: "unbounded",
+     });
+-    const workspaceHashes = yield* Effect.forEach(workspaces, (cwd) => hashWorkspaceDirectory(cwd), {
++    // A workspace recorded by the previous deploy may since have moved or
++    // been deleted. Hash it as missing, so the deploy rebuilds and records
++    // the workspaces the new build imports.
++    const fs = yield* FileSystem.FileSystem;
++    const hashRecordedWorkspace = (cwd) => fs
++        .exists(path.resolve(resolvedRoot, cwd))
++        .pipe(Effect.flatMap((exists) => exists ? hashWorkspaceDirectory(cwd) : Effect.succeed(`${relativeToRoot(cwd)}:missing`)));
++    const workspaceHashes = yield* Effect.forEach(workspaces, hashRecordedWorkspace, {
+         concurrency: "unbounded",
+     });
+     const hash = yield* sha256Object([root, ...workspaceHashes.sort()]);
+diff --git a/src/Workers/Sources/Vite.ts b/src/Workers/Sources/Vite.ts
+index b0f752a..368aaa5 100644
+--- a/src/Workers/Sources/Vite.ts
++++ b/src/Workers/Sources/Vite.ts
+@@ -10,6 +10,7 @@ import { makeResourceLogger } from "alchemy/Util/ResourceOutput";
+ import { sha256Object } from "alchemy/Util/sha256";
+ import type * as Context from "effect/Context";
+ import * as Effect from "effect/Effect";
++import * as FileSystem from "effect/FileSystem";
+ import * as Path from "effect/Path";
+ import * as Redacted from "effect/Redacted";
+ import type * as vite from "vite";
+@@ -368,7 +369,19 @@ export const hashViteInput = Effect.fn(function* <E, R>(
+   const [root, workspaces] = yield* Effect.all([hashRoot, additionalWorkspaces], {
+     concurrency: "unbounded",
+   });
+-  const workspaceHashes = yield* Effect.forEach(workspaces, (cwd) => hashWorkspaceDirectory(cwd), {
++  // A workspace recorded by the previous deploy may since have moved or
++  // been deleted. Hash it as missing, so the deploy rebuilds and records
++  // the workspaces the new build imports.
++  const fs = yield* FileSystem.FileSystem;
++  const hashRecordedWorkspace = (cwd: string) =>
++    fs
++      .exists(path.resolve(resolvedRoot, cwd))
++      .pipe(
++        Effect.flatMap((exists) =>
++          exists ? hashWorkspaceDirectory(cwd) : Effect.succeed(`${relativeToRoot(cwd)}:missing`),
++        ),
++      );
++  const workspaceHashes = yield* Effect.forEach(workspaces, hashRecordedWorkspace, {
+     concurrency: "unbounded",
+   });
+   const hash = yield* sha256Object([root, ...workspaceHashes.sort()]);
