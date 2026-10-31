@@ -1,7 +1,7 @@
 ---
 part: 1
 order: 7
-title: Name steps so failures say where they happened
+title: Naming steps
 minutes: 7
 mode: playground
 lessonDir: 07-name-it-see-it
@@ -19,7 +19,7 @@ You will learn:
 - what a span is;
 - how to find that name in a failure.
 
-## Naming a function with Effect.fn
+## Using Effect.fn
 
 `Effect.fn("evaluate")` is `Effect.gen` with a name. Today `evaluate` is an
 arrow function that returns `Effect.gen(function*() { ... })`. Rewrite it so
@@ -34,7 +34,7 @@ Effect.fn("evaluate")(function* (json: string, event: Event) {
 Anything you pass after the generator is applied to the result, the same way
 `.pipe` would apply it. So the `catchTag` moves there, as a second argument.
 
-## What a span is
+## Spans
 
 Every call to `evaluate` now runs inside a **span** named `evaluate`. A span is
 a record of one piece of work: its name, when it started, how long it took, and
@@ -45,7 +45,7 @@ you'll connect one in lesson 16. But the name is already useful. When an effect
 fails inside a span, the failure that `runMain` prints says which span it was
 in.
 
-## Finding the name in a failure
+## Reading the name in a failure
 
 Look at the malformed rule's failure in the terminal again. Under the
 `SchemaError` there's now a line that starts with `at evaluate (`. That's the

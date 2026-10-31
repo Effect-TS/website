@@ -1,7 +1,7 @@
 ---
 part: 3
 order: 17
-title: Swap storage behind the same service
+title: Storing data in SQLite
 minutes: 22
 mode: local
 ---
@@ -21,7 +21,7 @@ You will learn:
 - how to write queries with the `sql` tag and decode their rows with a schema;
 - why swapping the storage changes nothing in the rest of the program.
 
-## A database is a layer
+## Connecting to SQLite
 
 `SqliteClient.layer({ filename: "rulebook.db" })` opens the file and provides
 `SqlClient`, the service every query goes through. It's built on
@@ -57,7 +57,7 @@ The `CHECK` can't do the whole job, though. SQLite lets a `NULL` through a
 requires one of the three reasons, so the Engine never writes a `failed` result
 without one.
 
-## RuleStore over SQL
+## Storing rules
 
 `RuleStore.layerSql` sits next to `layerMemory` in the same file and implements
 the same service. The difference is that it `yield*`s `SqlClient` instead of
@@ -92,7 +92,7 @@ the type. That keeps the service type exactly as it was: `create` can't fail,
 and `get` and `remove` fail only with `RuleNotFound`. Lesson 20 looks at
 defects more closely.
 
-## RunLog over SQL
+## Storing runs
 
 `RunLog.layerSql` follows the same pattern. Times are stored as ISO 8601 text,
 which sorts in time order, and `Schema.DateTimeUtcFromString` turns them back
@@ -101,7 +101,7 @@ that `start` inserted.
 
 <LessonCode file="checkpoints/17/src/RunLog.ts" />
 
-## Revisit: swap a layer, and nothing else changes
+## Revisit: swapping a layer
 
 In `src/server/main.ts`, the memory stores become the SQL stores, and the SQL
 stores get what they need underneath them:
@@ -113,7 +113,7 @@ CLI stay the same, because none of them knows which layer is behind
 `RuleStore` and `RunLog`. Lesson 9 promised this back when the store was a Map
 in the playground.
 
-### The tests agree
+### Running the tests on both
 
 The tests from lesson 13 make the same point, and they don't need you to take
 it on trust. Turn each store suite into a function of a layer,

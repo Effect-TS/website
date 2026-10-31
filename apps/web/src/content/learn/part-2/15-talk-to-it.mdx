@@ -1,7 +1,7 @@
 ---
 part: 2
 order: 15
-title: Derive a typed client from the same API
+title: Calling the API
 minutes: 22
 mode: local
 ---
@@ -22,7 +22,7 @@ You will learn:
 - how a typed error from the server comes back as the same class;
 - how to turn an error into a clean message and a non-zero exit code.
 
-## Derive a client from the API
+## Creating a client
 
 `HttpApiClient.make(Api, { baseUrl })` derives a client from the `Api` value.
 It has one method per endpoint, grouped like the API:
@@ -48,7 +48,7 @@ The server's URL comes from `Config`, in three lines.
 
 <LessonCode file="checkpoints/15/src/ApiClient.ts" />
 
-## Write the six command handlers
+## Writing the command handlers
 
 `src/cli/main.ts` came with the starter. Every command, argument and flag is
 already declared, and every handler body is empty. You write the six bodies.
@@ -77,7 +77,7 @@ A stored rule whose action the engine doesn't have yet (`httpPost`, until
 lesson 20) runs as `skipped`, with a reason saying so. You'll see that from
 both `rules run` and `runs list`.
 
-## Revisit: typed errors crossing back
+## Revisit: errors in the client
 
 The 404 from lesson 14 comes back as a `RuleNotFound`. The client knows that
 the endpoint declares that error, so it decodes the body into the same class

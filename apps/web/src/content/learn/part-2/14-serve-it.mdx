@@ -1,7 +1,7 @@
 ---
 part: 2
 order: 14
-title: Describe an HTTP API as a value, then serve it
+title: Serving an HTTP API
 minutes: 22
 mode: local
 ---
@@ -21,7 +21,7 @@ You will learn:
 - how to run a server until it's stopped, with `Layer.launch`;
 - how typed errors travel over HTTP.
 
-## Describe the API as a value
+## Defining the API
 
 `HttpApi` describes the server before any of it runs. An **endpoint** is a
 method, a path, and the schemas for what goes in and comes out. For example,
@@ -74,7 +74,7 @@ does when you press Ctrl-C.
 Start yours with `pnpm dev:server`. It restarts on every file change, and
 every restart empties the memory stores. Lesson 17 fixes that.
 
-## Revisit: typed errors crossing a wire
+## Revisit: errors over HTTP
 
 `get`, `remove` and `run` declare `RuleNotFound` as their error, with
 `HttpApiSchema.status(404)`. The handler fails with the same `RuleNotFound`
@@ -91,7 +91,7 @@ without an action, or `limit=abc`, gets a 400 from the decoder.
 
 In lesson 15, the client decodes that 404 back into a `RuleNotFound`.
 
-## Try it: a limit the server can trust
+## Try it: validate the limit
 
 `GET /runs?limit=-1` comes back with every run except the oldest, because
 `RunLog.list` hands the number straight to `slice`. `limit=1.5` is accepted

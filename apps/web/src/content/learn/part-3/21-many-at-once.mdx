@@ -1,7 +1,7 @@
 ---
 part: 3
 order: 21
-title: Run independent work concurrently, with a limit
+title: Running work concurrently
 minutes: 25
 mode: local
 ---
@@ -17,7 +17,7 @@ You will learn:
 - why the execution boundary makes that safe;
 - how to read limits from the environment with `Config`.
 
-## Watch the rules wait for each other
+## Seeing the rules wait
 
 Start clean, so the event matches only the rules this lesson adds. Every
 server, yours and the checkpoints', keeps its rules in the same `rulebook.db`,
@@ -42,7 +42,7 @@ Now look in the viewer. D's `Engine.execute` span starts only after C's has run
 its full 10 seconds, even though D had nothing to wait for. Add a second slow
 rule and the event takes 20 seconds. The time is the sum of the rules.
 
-## Run them together with Effect.forEach
+## Running rules concurrently
 
 The rules an event matches don't depend on each other, so you can run them at
 the same time, up to a limit:
@@ -73,7 +73,7 @@ line.
 With 100 rules on one event, a limit of 4 means at most four requests leave at
 once, instead of 100 hitting whoever the rules point to.
 
-## Read the limits from Config
+## Reading limits from Config
 
 The timeout, the concurrency and two other limits aren't constants any more.
 `src/Limits.ts` reads each one from the environment, with a default:
@@ -141,7 +141,7 @@ If it matches, the lesson is done. Lesson 22 uses exactly this scenario.
   order of the rules.
 - In lesson 22 you read this exact trace to answer questions about it.
 
-## Send an alert to your phone
+## Sending an alert to your phone
 
 The last five minutes are for fun. They aren't part of the checkpoint; the
 receiver checkpoint above is.

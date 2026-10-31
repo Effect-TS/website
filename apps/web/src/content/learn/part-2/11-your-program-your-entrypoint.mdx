@@ -1,7 +1,7 @@
 ---
 part: 2
 order: 11
-title: Use platform services and own the entrypoint
+title: Writing the entrypoint
 minutes: 20
 mode: local
 ---
@@ -28,7 +28,7 @@ You will learn:
 - how a schema describes variants, such as different kinds of action;
 - how to turn a low-level error into one that means something to your caller.
 
-## Read a rule with a trigger and an action
+## Reading a rule
 
 This is the rule you'll run. It has a trigger, a condition and an action:
 
@@ -36,7 +36,7 @@ This is the rule you'll run. It has a trigger, a condition and an action:
 
 Ignore `message` for now. You'll use it in the exercise.
 
-## Using the FileSystem service
+## Using the file system
 
 To read those files and append to `alerts.log`, rulebook needs the file
 system. Effect ships it as a service, `FileSystem.FileSystem`, and you use it
@@ -78,7 +78,7 @@ schema in one step:
 
 <LessonCode file="checkpoints/11/src/run-once.ts" />
 
-## Revisit: a schema with variants
+## Revisit: schemas with variants
 
 The lesson 6 schema had one shape, and it only compared amounts. A real rule
 comes in variants. A trigger is
@@ -104,7 +104,7 @@ The comparison grows into a **condition**:
 `httpPost` decodes already, so rule files can use it. `run-once.ts` doesn't
 run it yet. It only logs that `httpPost` arrives in lesson 20.
 
-## Revisit: errors you can name
+## Revisit: defining errors
 
 A `PlatformError` from `writeFileString` is the file system's error, in the
 file system's vocabulary. Whoever called the rule only wants to know that the

@@ -1,7 +1,7 @@
 ---
 part: 1
 order: 5
-title: Recover from one error by its tag
+title: Recovering from errors
 minutes: 8
 mode: playground
 lessonDir: 05-handle-the-one-you-expect
@@ -21,7 +21,7 @@ You will learn:
 - how to handle one failure by its tag;
 - how to add steps after an effect with `.pipe`.
 
-## One function, two events
+## Evaluating both events
 
 Right now `program` checks `taxi` and nothing else. Turn its body into a
 function, `evaluate(event)`, that returns the `Effect.gen` block, with `taxi`
@@ -38,7 +38,7 @@ and make `program` evaluate both, laptop first:
 The terminal prints the laptop's alert, then the taxi's `MissingField` failure
 stops the program. That's progress, but the taxi still shouldn't be a failure.
 
-## Handling one failure with catchTag
+## Handling an error
 
 `Effect.catchTag` handles exactly one failure, picked out by its tag:
 
@@ -50,7 +50,7 @@ The handler receives the typed error and returns the effect to run in its
 place. Here, that's a log line: `skip: missing field ${error.field}`. Every
 other failure passes through untouched.
 
-## Adding steps with .pipe
+## Using .pipe
 
 To attach `catchTag` to an effect, you need `.pipe`. It takes a minute to
 learn. Every effect has a `.pipe` method:
