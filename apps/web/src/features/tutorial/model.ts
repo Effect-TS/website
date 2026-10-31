@@ -2,6 +2,7 @@ export interface Lesson {
   readonly id: string
   readonly slug: string
   readonly chapter: string
+  readonly chapterTitle: string
   readonly title: string
   readonly prose: string
   /** Starting file, mounted in the editor. */
@@ -30,9 +31,6 @@ export const slugForId = (id: string): string =>
     .split("/")
     .map(stripOrderPrefix)
     .join("/")
-
-export const chapterTitle = (chapter: string): string =>
-  chapter.charAt(0).toUpperCase() + chapter.slice(1).replaceAll("-", " ")
 
 /** Reads one file of a lesson from raw glob results, or fails loudly. */
 export function lessonFile(
@@ -73,7 +71,7 @@ export function llmsIndex(lessons: ReadonlyArray<Lesson>): string {
   for (const lesson of lessons) {
     if (lesson.chapter !== chapter) {
       chapter = lesson.chapter
-      lines.push(`## ${chapterTitle(chapter)}`, "")
+      lines.push(`## ${lesson.chapterTitle}`, "")
     }
     lines.push(`- [${lesson.title}](${href(lesson)}.md)`)
   }
@@ -111,7 +109,7 @@ export function buildOutline(
     if (chapter === undefined) {
       chapter = {
         slug: lesson.chapter,
-        title: chapterTitle(lesson.chapter),
+        title: lesson.chapterTitle,
         lessons: [],
       }
       chapters.push(chapter)

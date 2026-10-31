@@ -104,6 +104,14 @@ const tutorial = defineCollection({
   }),
 })
 
+const tutorialChapter = defineCollection({
+  loader: glob({ base: "./src/content/tutorial", pattern: "*/index.mdx" }),
+  schema: z.object({
+    title: z.string().min(1),
+    description: z.string().min(1),
+  }),
+})
+
 const docsSidebar = defineCollection({
   loader: file("./src/content/docs/sidebar-config.json"),
   schema: z.record(z.string(), z.number()),
@@ -152,6 +160,7 @@ export const collections = {
   apiReference,
   docs,
   tutorial,
+  tutorialChapter,
   docsSidebar,
   docsOnboarding,
   blog,

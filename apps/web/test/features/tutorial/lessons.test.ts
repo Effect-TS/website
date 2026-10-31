@@ -10,13 +10,17 @@ const contentRoot = path.join(webRoot, "src/content/tutorial")
 const testApi = path.join(webRoot, "src/features/tutorial/runner/test-api.ts")
 const scratch = path.join(webRoot, "test/.tmp-lessons")
 
-const lessonDirs = fs
-  .readdirSync(contentRoot)
-  .flatMap((chapter) =>
-    fs
-      .readdirSync(path.join(contentRoot, chapter))
-      .map((lesson) => path.join(chapter, lesson)),
-  )
+const directories = (dir: string) =>
+  fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+
+const lessonDirs = directories(contentRoot).flatMap((chapter) =>
+  directories(path.join(contentRoot, chapter)).map((lesson) =>
+    path.join(chapter, lesson),
+  ),
+)
 
 const mount = (lesson: string, variant: "start" | "solution") => {
   const dir = path.join(

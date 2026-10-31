@@ -17,6 +17,7 @@ const lesson: Lesson = {
   id: "01-errors/01-failing/index",
   slug: "errors/failing",
   chapter: "errors",
+  chapterTitle: "Errors",
   title: "Failing",
   prose: "Make it fail.\n",
   main: "start\n",
@@ -59,6 +60,7 @@ describe("tutorial model", () => {
       ...lesson,
       slug: "layers/first",
       chapter: "layers",
+      chapterTitle: "Layers",
       title: "First",
     }
     expect(buildOutline([lesson, other, third])).toEqual([
