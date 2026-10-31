@@ -12,6 +12,7 @@ import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
 import * as DevToolsSchema from "effect/devtools/DevToolsSchema"
 import * as Ndjson from "effect/encoding/Ndjson"
+import * as Clock from "effect/Clock"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import {
@@ -807,69 +808,156 @@ export class WebContainer extends Context.Service<WebContainer>()(
           Effect.forkScoped,
         )
 
+        // Every `run` in the learner's terminals registers in `.run-control/`
+        // (see `runExe`). Replacing the files under a live compiler watch
+        // leaves it compiling stale files or not at all, so the swap pauses
+        // the runners first and always lets them resume afterwards.
+        const readControlFile = (name: string) =>
+          Effect.promise(() =>
+            container.fs
+              .readFile(`${runControlDirectory}/${name}`, "utf-8")
+              .catch(() => undefined),
+          )
+
+        const removeRegistration = (pid: string) =>
+          Effect.promise(() =>
+            Promise.all([
+              container.fs.rm(`${runControlDirectory}/${pid}`, { force: true }),
+              container.fs.rm(`${runControlDirectory}/${pid}.beat`, {
+                force: true,
+              }),
+            ]),
+          )
+
+        // Waits until every registered runner reports `paused`. A registration
+        // whose heartbeat stops is left over from a runner that was killed
+        // outright, so it is removed instead of waited for. A live runner that
+        // does not pause in time only delays the swap, which then goes ahead.
+        const awaitPausedRunners = Effect.gen(function* () {
+          const heartbeats = new Map<string, { beat: string; since: number }>()
+          const deadline =
+            (yield* Clock.currentTimeMillis) + runnerPauseTimeoutMillis
+          while (true) {
+            const now = yield* Clock.currentTimeMillis
+            const entries = yield* Effect.promise(() =>
+              container.fs.readdir(runControlDirectory).catch(() => []),
+            )
+            const pending: Array<string> = []
+            for (const pid of entries.filter((entry) => /^\d+$/.test(entry))) {
+              const state = yield* readControlFile(pid)
+              if (state === undefined || state.trim() === "paused") continue
+              const beat = (yield* readControlFile(`${pid}.beat`)) ?? ""
+              const last = heartbeats.get(pid)
+              if (last === undefined || last.beat !== beat) {
+                heartbeats.set(pid, { beat, since: now })
+              } else if (now - last.since >= runnerStaleAfterMillis) {
+                yield* Effect.logWarning(
+                  `Removing the stale registration of runner ${pid}`,
+                )
+                yield* removeRegistration(pid)
+                continue
+              }
+              pending.push(pid)
+            }
+            if (pending.length === 0) return
+            if (now >= deadline) {
+              return yield* Effect.logWarning(
+                `Runner ${pending.join(", ")} did not pause; replacing the files anyway`,
+              )
+            }
+            yield* Effect.sleep("100 millis")
+          }
+        }).pipe(
+          Effect.annotateLogs({
+            service: "WebContainer",
+            method: "awaitPausedRunners",
+          }),
+        )
+
+        const withRunnersPaused = <A, E, R>(
+          effect: Effect.Effect<A, E, R>,
+        ): Effect.Effect<A, E, R> =>
+          Effect.acquireUseRelease(
+            Effect.promise(async () => {
+              await container.fs.mkdir(runControlDirectory, { recursive: true })
+              await container.fs.writeFile(`${runControlDirectory}/pause`, "")
+            }),
+            () => Effect.andThen(awaitPausedRunners, effect),
+            () =>
+              Effect.promise(() =>
+                container.fs
+                  .rm(`${runControlDirectory}/pause`, { force: true })
+                  .catch(() => {}),
+              ),
+          )
+
         const resetWorkspace = (nextWorkspace: Workspace) =>
           mutationLock.withPermit(
-            Effect.gen(function* () {
-              const current = registry.get(workspaceRef)
-              for (const sync of fileSyncs.values()) {
-                sync.invalidate()
-              }
-              const entries = yield* readDirectory(workspace.name)
-              yield* Effect.forEach(
-                entries,
-                (entry) =>
-                  isIgnoredWorkspacePath(entry.name)
-                    ? Effect.void
-                    : Effect.promise(() =>
-                        container.fs.rm(`${workspace.name}/${entry.name}`, {
-                          recursive: true,
-                          force: true,
-                        }),
-                      ),
-                { concurrency: "unbounded", discard: true },
-              )
-              yield* Effect.promise(() =>
-                container.mount(treeFromWorkspace(nextWorkspace), {
-                  mountPoint: workspace.name,
-                }),
-              )
-              const nextFiles = new Set<string>()
-              for (const [node, path] of nextWorkspace.filePaths) {
-                if (node._tag === "File") {
-                  const fullPath = nextWorkspace.relativePath(path)
-                  nextFiles.add(fullPath)
-                  yield* loadModel(
-                    fullPath,
-                    node.initialContent,
-                    node.language ?? languageFromPath(path),
-                  )
-                  const model = yield* getModel(fullPath)
-                  const snapshot = {
-                    content: model.getValue(),
-                    modelVersion: model.getVersionId(),
-                  }
-                  const sync = fileSyncs.get(fullPath)
-                  if (sync === undefined) {
-                    fileSyncs.set(fullPath, FileSync.make(snapshot))
-                  } else {
-                    sync.reset(snapshot)
-                  }
+            withRunnersPaused(
+              Effect.gen(function* () {
+                const current = registry.get(workspaceRef)
+                for (const sync of fileSyncs.values()) {
+                  sync.invalidate()
                 }
-              }
-              for (const [node, path] of current.filePaths) {
-                if (node._tag === "File") {
-                  const fullPath = current.relativePath(path)
-                  if (!nextFiles.has(fullPath)) {
-                    fileSyncs.delete(fullPath)
-                    yield* getModel(fullPath).pipe(
-                      Effect.tap((model) => Effect.sync(() => model.dispose())),
-                      Effect.catchTag("FileNotFoundError", () => Effect.void),
+                const entries = yield* readDirectory(workspace.name)
+                yield* Effect.forEach(
+                  entries,
+                  (entry) =>
+                    isIgnoredWorkspacePath(entry.name)
+                      ? Effect.void
+                      : Effect.promise(() =>
+                          container.fs.rm(`${workspace.name}/${entry.name}`, {
+                            recursive: true,
+                            force: true,
+                          }),
+                        ),
+                  { concurrency: "unbounded", discard: true },
+                )
+                yield* Effect.promise(() =>
+                  container.mount(treeFromWorkspace(nextWorkspace), {
+                    mountPoint: workspace.name,
+                  }),
+                )
+                const nextFiles = new Set<string>()
+                for (const [node, path] of nextWorkspace.filePaths) {
+                  if (node._tag === "File") {
+                    const fullPath = nextWorkspace.relativePath(path)
+                    nextFiles.add(fullPath)
+                    yield* loadModel(
+                      fullPath,
+                      node.initialContent,
+                      node.language ?? languageFromPath(path),
                     )
+                    const model = yield* getModel(fullPath)
+                    const snapshot = {
+                      content: model.getValue(),
+                      modelVersion: model.getVersionId(),
+                    }
+                    const sync = fileSyncs.get(fullPath)
+                    if (sync === undefined) {
+                      fileSyncs.set(fullPath, FileSync.make(snapshot))
+                    } else {
+                      sync.reset(snapshot)
+                    }
                   }
                 }
-              }
-              registry.set(workspaceRef, nextWorkspace)
-            }),
+                for (const [node, path] of current.filePaths) {
+                  if (node._tag === "File") {
+                    const fullPath = current.relativePath(path)
+                    if (!nextFiles.has(fullPath)) {
+                      fileSyncs.delete(fullPath)
+                      yield* getModel(fullPath).pipe(
+                        Effect.tap((model) =>
+                          Effect.sync(() => model.dispose()),
+                        ),
+                        Effect.catchTag("FileNotFoundError", () => Effect.void),
+                      )
+                    }
+                  }
+                }
+                registry.set(workspaceRef, nextWorkspace)
+              }),
+            ),
           )
 
         return {
@@ -943,6 +1031,13 @@ export class WebContainer extends Context.Service<WebContainer>()(
     Layer.provide(Loader.layer),
   )
 }
+
+// Where `run` registers itself and the page asks it to pause, beside `run` in
+// the container's home directory and outside every workspace.
+const runControlDirectory = ".run-control"
+// `run` writes its heartbeat every 500 ms.
+const runnerStaleAfterMillis = 2_000
+const runnerPauseTimeoutMillis = 5_000
 
 const ignoredWorkspacePaths = new Set([".tsc-run.json", "dist", "node_modules"])
 function isIgnoredWorkspacePath(path: string) {
@@ -1167,27 +1262,96 @@ const host = TypeScript.createWatchCompilerHost(
 )
 const afterProgramCreate = host.afterProgramCreate
 let running
+let watcher
+// Bumped whenever a compile result is superseded, so a program queued behind
+// the previous one's exit never starts once a newer compile or a pause came.
+let generation = 0
+
+// Kills the program, if any, and resolves once it has exited.
+const stopProgram = () => {
+  const child = running
+  running = undefined
+  if (child === undefined || child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    child.once("exit", () => resolve())
+    child.kill("SIGKILL")
+  })
+}
 
 host.afterProgramCreate = (builder) => {
   afterProgramCreate?.(builder)
-  running?.kill("SIGKILL")
-  running = undefined
+  const current = ++generation
   const diagnostics = TypeScript.getPreEmitDiagnostics(builder.getProgram())
-  if (diagnostics.length === 0) {
+  stopProgram().then(() => {
+    if (current !== generation || diagnostics.length > 0) return
     running = ChildProcess.spawn(process.execPath, [
       "--enable-source-maps",
       compiledProgram
     ], {
       stdio: "inherit"
     })
-  }
+  })
 }
 
-const watcher = TypeScript.createWatchProgram(host)
+// The page replaces the workspace files on Solve and Reset. It cannot reach
+// this process, which runs in the learner's shell, so the two meet in a
+// control directory beside this script. While .run-control/pause exists the
+// watch program is closed and the program stopped; .run-control/<pid> says
+// "watching" or "paused", and .run-control/<pid>.beat counts up while this
+// process lives, so the page can tell a stale registration from a live runner.
+const controlDir = Path.join(__dirname, ".run-control")
+const pauseFile = Path.join(controlDir, "pause")
+const stateFile = Path.join(controlDir, String(process.pid))
+const beatFile = stateFile + ".beat"
+Fs.mkdirSync(controlDir, { recursive: true })
+const setState = (state) => Fs.writeFileSync(stateFile, state)
+
+let beats = 0
+const beat = () => Fs.writeFileSync(beatFile, String(beats++))
+beat()
+setInterval(beat, 500)
+
+let paused = Fs.existsSync(pauseFile)
+if (paused) {
+  setState("paused")
+} else {
+  watcher = TypeScript.createWatchProgram(host)
+  setState("watching")
+}
+
+let switching = false
+setInterval(async () => {
+  if (switching) return
+  switching = true
+  try {
+    const pause = Fs.existsSync(pauseFile)
+    if (pause && !paused) {
+      paused = true
+      generation++
+      watcher.close()
+      watcher = undefined
+      await stopProgram()
+      setState("paused")
+    } else if (!pause && paused) {
+      paused = false
+      watcher = TypeScript.createWatchProgram(host)
+      setState("watching")
+    }
+  } finally {
+    switching = false
+  }
+}, 100)
+
+process.on("exit", () => {
+  Fs.rmSync(stateFile, { force: true })
+  Fs.rmSync(beatFile, { force: true })
+})
 
 function stop(exitCode) {
   running?.kill("SIGKILL")
-  watcher.close()
+  watcher?.close()
   process.exit(exitCode)
 }
 
