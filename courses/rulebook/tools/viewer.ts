@@ -75,7 +75,9 @@ export const binaryUnsupported = (): string | undefined => {
   return undefined
 }
 
-const download = Effect.fn("download")(
+// Downloads the release binary for this machine into .viewer/ and checks it
+// against the release checksum.
+export const download = Effect.fn("download")(
   function*() {
     const fs = yield* FileSystem.FileSystem
     const path = yield* Path.Path
@@ -111,12 +113,19 @@ const canRun = (command: string, args: ReadonlyArray<string>) =>
     return Number(code) === 0
   }).pipe(Effect.orElseSucceed(() => false))
 
+// Whether the binary at `path` starts on this machine.
+export const binaryRuns = (path: string) => canRun(path, ["--version"])
+
+export const binaryDoesNotRun = `${binaryPath} does not run on this machine (delete .viewer/ to download it again)`
+
 const banner = (how: string) =>
   Console.log(
     `otel-desktop-viewer v${version} (${how})\n  UI:        ${uiUrl}\n  OTLP HTTP: ${otlpHttpUrl}\nPress Ctrl-C to stop.`
   )
 
-const runDocker = Effect.fn("runDocker")(function*(reason: string) {
+// Runs the viewer image with Docker until it exits, saying why the binary is
+// not used.
+export const runDocker = Effect.fn("runDocker")(function*(reason: string) {
   yield* Console.log(`Using Docker because ${reason}.`)
   if (!(yield* canRun("docker", ["--version"]))) {
     return yield* new ViewerError({ message: `${reason}, and docker is not available. Install Docker and try again.` })
@@ -135,6 +144,12 @@ const runDocker = Effect.fn("runDocker")(function*(reason: string) {
   ])
 })
 
+// Runs the binary under .viewer/ until it exits.
+export const runBinary = Effect.gen(function*() {
+  yield* banner(binaryPath)
+  return yield* runInherited(binaryPath, [])
+})
+
 // Download the binary if needed and run it, falling back to Docker.
 export const run = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem
@@ -145,11 +160,10 @@ export const run = Effect.gen(function*() {
   if (!(yield* fs.exists(binaryPath))) {
     yield* download()
   }
-  if (!(yield* canRun(binaryPath, ["--version"]))) {
-    return yield* runDocker(`${binaryPath} does not run on this machine (delete .viewer/ to download it again)`)
+  if (!(yield* binaryRuns(binaryPath))) {
+    return yield* runDocker(binaryDoesNotRun)
   }
-  yield* banner(binaryPath)
-  return yield* runInherited(binaryPath, [])
+  return yield* runBinary
 }).pipe(Effect.withSpan("viewer.run"))
 
 if (isMain(import.meta)) {

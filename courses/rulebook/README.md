@@ -20,17 +20,19 @@ Windows through WSL2 is untested.
 npx degit Effect-TS/website/courses/rulebook rulebook
 cd rulebook
 pnpm install
-pnpm viewer        # leave it running; it downloads otel-desktop-viewer on first use
-pnpm run doctor    # in a second terminal
+pnpm run doctor --viewer    # leave it running
 ```
 
-`pnpm run doctor` prints one line per requirement and exits non-zero when something is missing, saying what to install. Type `run`: a bare `pnpm doctor` is pnpm's own diagnostics command. `pnpm run doctor --viewer` checks and then starts the viewer.
+`pnpm run doctor --viewer` downloads otel-desktop-viewer on first use, prints one line per requirement, and exits non-zero when something is missing, saying what to install. Once everything passes it starts the viewer and keeps running until you press Ctrl-C. Type `run`: a bare `pnpm doctor` is pnpm's own diagnostics command.
+
+`pnpm run doctor` without the flag only checks. In a later session, `pnpm viewer` starts the viewer again.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
 | `pnpm run doctor` | Check Node, pnpm, git and the viewer |
+| `pnpm run doctor --viewer` | Download the viewer if needed, check, then start the viewer |
 | `pnpm viewer` | Start otel-desktop-viewer v0.6.0: UI on http://localhost:8000, OTLP over HTTP on 4318 |
 | `pnpm receiver` | Start the local HTTP receiver on http://localhost:4600 (`--scenario mixed` for lesson 21) |
 | `pnpm dev:server` | Run your server from `src/server/main.ts`, restarting on change (lesson 14 on) |

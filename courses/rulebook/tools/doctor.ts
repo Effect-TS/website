@@ -1,28 +1,39 @@
 // Checks that this machine has what the course needs. You never edit it.
 //
-//   pnpm doctor           check Node, pnpm, git and the viewer
-//   pnpm doctor --viewer  check, then start the viewer
+//   pnpm run doctor           check Node, pnpm, git and the viewer
+//   pnpm run doctor --viewer  download the viewer if needed, check, then start it
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
-import { Console, Context, Effect, FileSystem, Layer, Runtime, Schema } from "effect"
+import { Console, Context, Effect, FileSystem, Layer, Path, Runtime, Schema } from "effect"
 import { Command, Flag } from "effect/cli"
+import { ChildProcessSpawner } from "effect/process"
 import * as NodePath from "node:path"
-import { isMain } from "./entrypoint.ts"
+import { type ExitCode, isMain } from "./entrypoint.ts"
 import * as Viewer from "./viewer.ts"
 
 export const minimumNode = "22.16"
 
-// Everything the doctor reads from the machine, so tests can describe a
-// machine instead of depending on the one running them.
+// Everything the doctor reads from or does to the machine, so tests can
+// describe a machine instead of depending on the one running them.
 export class Host extends Context.Service<Host, {
   readonly nodeVersion: string
   readonly glibcVersion?: string | undefined
+  // Why the viewer binary cannot run on this machine, if it cannot.
+  readonly viewerUnsupported: string | undefined
   hasCommand(name: string): Effect.Effect<boolean>
   exists(path: string): Effect.Effect<boolean>
+  canRun(path: string): Effect.Effect<boolean>
+  readonly downloadViewer: Effect.Effect<void, Viewer.ViewerError>
+  // Runs the viewer in this terminal until it exits or is interrupted.
+  startViewer(via: "binary" | "docker"): Effect.Effect<void, Viewer.ViewerError | ExitCode>
 }>()("rulebook/tools/doctor/Host") {
   static readonly layer = Layer.effect(
     Host,
     Effect.gen(function*() {
       const fs = yield* FileSystem.FileSystem
+      const context = yield* Effect.context<
+        FileSystem.FileSystem | Path.Path | ChildProcessSpawner.ChildProcessSpawner
+      >()
+      const viewerUnsupported = Viewer.binaryUnsupported()
       const isExecutable = (file: string) =>
         fs.stat(file).pipe(
           Effect.map((info) => info.type === "File" && (info.mode & 0o111) !== 0),
@@ -31,6 +42,7 @@ export class Host extends Context.Service<Host, {
       return Host.of({
         nodeVersion: process.version,
         glibcVersion: Viewer.glibcVersion(),
+        viewerUnsupported,
         // Looks the command up on PATH without running it.
         hasCommand: Effect.fn(function*(name) {
           const directories = (process.env.PATH ?? "").split(NodePath.delimiter).filter((_) => _ !== "")
@@ -39,7 +51,18 @@ export class Host extends Context.Service<Host, {
           }
           return false
         }),
-        exists: (path) => fs.exists(path).pipe(Effect.orElseSucceed(() => false))
+        exists: (path) => fs.exists(path).pipe(Effect.orElseSucceed(() => false)),
+        canRun: (path) => Viewer.binaryRuns(path).pipe(Effect.provideContext(context)),
+        downloadViewer: Viewer.download().pipe(Effect.provideContext(context)),
+        startViewer: (via) =>
+          (via === "binary" ? Viewer.runBinary : Viewer.runDocker(viewerUnsupported ?? Viewer.binaryDoesNotRun)).pipe(
+            Effect.catchTag(
+              "PlatformError",
+              (error) =>
+                Effect.fail(new Viewer.ViewerError({ message: `Could not start the viewer: ${error.message}` }))
+            ),
+            Effect.provideContext(context)
+          )
       })
     })
   ).pipe(Layer.provide(NodeServices.layer))
@@ -65,7 +88,12 @@ const nodeAtLeast = (version: string, minimum: string) => {
 }
 
 // Prints one line per requirement and fails listing every one that is missing.
-export const doctor = Effect.gen(function*() {
+// Succeeds with how the viewer runs here. `downloadFailure` is why the viewer
+// download just failed, if it did.
+const check = Effect.fn("check")(function*(options: {
+  readonly retry: string
+  readonly downloadFailure?: string | undefined
+}) {
   const host = yield* Host
   const checks: Array<Check> = []
 
@@ -85,14 +113,15 @@ export const doctor = Effect.gen(function*() {
       : { name: "git", ok: false, detail: "not on PATH; install git" }
   )
 
-  const hasBinary = yield* host.exists(Viewer.binaryPath)
-  const hasDocker = !hasBinary && (yield* host.hasCommand("docker"))
+  const hasBinary = options.downloadFailure === undefined && (yield* host.exists(Viewer.binaryPath))
+  const binaryRuns = hasBinary && (yield* host.canRun(Viewer.binaryPath))
+  const hasDocker = !binaryRuns && options.downloadFailure === undefined && (yield* host.hasCommand("docker"))
   checks.push(
-    hasBinary
+    binaryRuns
       ? { name: "viewer", ok: true, detail: `otel-desktop-viewer v${Viewer.version} in .viewer/` }
       : hasDocker
       ? { name: "viewer", ok: true, detail: `docker on PATH, runs ${Viewer.image}` }
-      : { name: "viewer", ok: false, detail: missingViewer(host.glibcVersion) }
+      : { name: "viewer", ok: false, detail: missingViewer(host.viewerUnsupported, hasBinary, options.downloadFailure) }
   )
 
   for (const check of checks) {
@@ -101,33 +130,53 @@ export const doctor = Effect.gen(function*() {
 
   const missing = checks.filter((check) => !check.ok)
   if (missing.length > 0) {
-    yield* Console.log(`\n${missing.length} missing. Fix the lines marked ✗ and run \`pnpm doctor\` again.`)
+    yield* Console.log(`\n${missing.length} missing. Fix the lines marked ✗ and run \`${options.retry}\` again.`)
     return yield* new DoctorFailed({
       message: `Missing requirements: ${missing.map((check) => `${check.name} (${check.detail})`).join("; ")}`
     })
   }
   yield* Console.log("\nAll set.")
+  return binaryRuns ? "binary" as const : "docker" as const
 })
 
-const missingViewer = (glibc: string | undefined) =>
-  glibc !== undefined && !nodeAtLeast(glibc, "2.39")
-    ? `no otel-desktop-viewer and no docker on PATH; the viewer binary needs glibc 2.39+ (found ${glibc}), install Docker`
-    : "no otel-desktop-viewer in .viewer/ and no docker on PATH; run `pnpm viewer` to download it, or install Docker"
+const missingViewer = (unsupported: string | undefined, hasBinary: boolean, downloadFailure: string | undefined) =>
+  downloadFailure !== undefined
+    ? `${downloadFailure}; run \`pnpm run doctor --viewer\` again, or install Docker`
+    : unsupported !== undefined
+    ? `no docker on PATH, and ${unsupported}; install Docker`
+    : hasBinary
+    ? "the otel-desktop-viewer in .viewer/ does not run here and there is no docker on PATH; delete .viewer/ and run `pnpm run doctor --viewer`, or install Docker"
+    : "no otel-desktop-viewer in .viewer/ and no docker on PATH; run `pnpm run doctor --viewer` to download it, or install Docker"
+
+// `pnpm run doctor`: checks only, never downloads or starts anything.
+export const doctor = check({ retry: "pnpm run doctor" }).pipe(Effect.asVoid)
+
+// `pnpm run doctor --viewer`: downloads the viewer binary when this machine can
+// run it and it is not there yet, runs every check, then starts the viewer.
+export const doctorWithViewer = Effect.gen(function*() {
+  const host = yield* Host
+  const needsDownload = host.viewerUnsupported === undefined && !(yield* host.exists(Viewer.binaryPath))
+  const downloadFailure = needsDownload
+    ? yield* host.downloadViewer.pipe(
+      Effect.match({ onFailure: (error) => error.message, onSuccess: () => undefined })
+    )
+    : undefined
+  const via = yield* check({ retry: "pnpm run doctor --viewer", downloadFailure })
+  yield* host.startViewer(via)
+})
 
 export const command = Command.make(
   "doctor",
   {
     viewer: Flag.Boolean("viewer").pipe(
-      Flag.withDescription("Start the viewer once every check passes"),
+      Flag.withDescription("Download the viewer if needed, then start it once every check passes"),
       Flag.withDefault(false)
     )
   },
-  Effect.fn(function*({ viewer }) {
-    yield* doctor.pipe(Effect.provide(Host.layer))
-    if (viewer) {
-      yield* Viewer.run.pipe(Effect.tapErrorTag("ViewerError", (error) => Console.error(error.message)))
-    }
-  })
+  ({ viewer }) =>
+    (viewer
+      ? doctorWithViewer.pipe(Effect.tapErrorTag("ViewerError", (error) => Console.error(error.message)))
+      : doctor).pipe(Effect.provide(Host.layer))
 ).pipe(Command.withDescription("Check that this machine is ready for the rulebook course"))
 
 if (isMain(import.meta)) {
