@@ -164,7 +164,7 @@ describe("limits", () => {
   it.effect("by default: an event over 64 KiB and the 101st rule are typed errors", () =>
     Effect.gen(function*() {
       const client = yield* makeClient
-      yield* client.rules.create({ payload: post("ok", "http://localhost:4600/ok") })
+      const rule = yield* client.rules.create({ payload: post("ok", "http://localhost:4600/ok") })
 
       // The limit counts the UTF-8 bytes of the event's JSON, 65,536 of them.
       // `{"type":"expense","note":""}` is 28 bytes; "é" is 2 bytes but 1 character.
@@ -173,6 +173,13 @@ describe("limits", () => {
       for (const payload of refused) {
         const tooLarge = yield* Effect.flip(client.events.submit({ payload }))
         assert.strictEqual(tooLarge._tag, "PayloadTooLarge")
+        // `rules run` takes an event too, and the same limit applies to it.
+        const manual = yield* Effect.exit(client.rules.run({ params: { id: rule.id }, payload }))
+        assert.deepStrictEqual(
+          Exit.isFailure(manual) ? Cause.squash(manual.cause) : manual.value,
+          tooLarge,
+          "rules run refuses the event as events submit does"
+        )
       }
       assert.deepStrictEqual(yield* client.runs.list({ query: {} }), [], "a refused event runs nothing")
       const accepted = yield* client.events.submit({ payload: event("x".repeat(65_508)) })
