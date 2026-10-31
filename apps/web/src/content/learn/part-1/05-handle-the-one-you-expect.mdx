@@ -7,25 +7,36 @@ mode: playground
 lessonDir: 05-handle-the-one-you-expect
 ---
 
-The two failures from lesson 4 don't mean the same thing.
+The taxi from lesson 4 stops the whole program. But an expense without an
+amount isn't a disaster. It's normal. The alert simply doesn't apply to it, so
+rulebook should note that it skipped the event and move on to the next one.
 
-- An event without an `amount` is normal. The rule simply doesn't apply to it,
-  so rulebook should skip the rule and move on.
-- An unknown operator means the rule itself is broken. That should stop things,
-  loudly.
-
-The start file moves lesson 4's steps into a function, `evaluate(rule, event)`,
-that returns an effect. `program` calls it twice: first the large expense rule
-on the taxi, then a `broken` rule, whose operator is `greater`, on the laptop.
-
-Look at the terminal. The taxi's `MissingField` stops the program before the
-broken rule is even tried. That's the wrong way round.
+To see that working, you need more than one event. In this lesson you add the
+laptop back, check both events with the same code, and turn the taxi's failure
+into a skip.
 
 You will learn:
 
+- how to reuse steps by putting them in a function that returns an effect;
 - how to handle one failure by its tag;
-- how to add steps after an effect with `.pipe`;
-- what handling a failure does to the type.
+- how to add steps after an effect with `.pipe`.
+
+## One function, two events
+
+Right now `program` checks `taxi` and nothing else. Turn its body into a
+function, `evaluate(event)`, that returns the `Effect.gen` block, with `taxi`
+replaced by `event` throughout.
+
+Then add the second event, `const laptop: Event = { type: "expense", amount: 1200 }`,
+and make `program` evaluate both, laptop first:
+
+<LessonCode
+  file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
+  declaration="program"
+/>
+
+The terminal prints the laptop's alert, then the taxi's `MissingField` failure
+stops the program. That's progress, but the taxi still shouldn't be a failure.
 
 ## Handling one failure with catchTag
 
@@ -41,8 +52,8 @@ other failure passes through untouched.
 
 ## Adding steps with .pipe
 
-To attach `catchTag` to an effect, you need `.pipe`. Every effect has a `.pipe`
-method:
+To attach `catchTag` to an effect, you need `.pipe`. It takes a minute to
+learn. Every effect has a `.pipe` method:
 
 - `effect.pipe(f)` is the same as `f(effect)`;
 - `effect.pipe(f, g)` is the same as `g(f(effect))`.
@@ -51,35 +62,37 @@ It lets you add steps after an effect and read them left to right, in the
 order they apply. Inside `evaluate`, add `.pipe(Effect.catchTag(...))` after
 the `Effect.gen(...)`.
 
-Now the terminal prints `skip: missing field amount`, and then the program
-stops on `UnknownOperator`. That's the split you wanted. Skip what you expect,
-and stop on what's broken.
+Now the terminal prints `expense 1200 over 500`, then
+`skip: missing field amount`, and the program finishes normally.
 
 ## Try it: watch the type change
 
 Hover `evaluate` before and after you add `catchTag`.
 
-- Before: `Effect<string, MissingField | UnknownOperator, never>`.
-- After: `Effect<string | void, UnknownOperator, never>`.
+- Before: `Effect<string, MissingField, never>`.
+- After: `Effect<string | void, never, never>`.
 
-`MissingField` has left the error slot, because it's handled. The success slot
-picked up `void`, because the skip branch logs a line and gives back nothing.
+`MissingField` has left the error slot, because it's handled. Nothing else can
+fail, so the slot says `never` again. The success slot picked up `void`,
+because the skip branch logs a line and gives back nothing.
 
 That type is honest, but not very useful yet. In Part 2, lesson 12 turns a skip
 into a recorded outcome with a reason.
 
 ## Recap
 
+- A function that returns an effect lets you run the same steps on different
+  inputs.
 - `catchTag` handles one failure by its tag and removes it from the second
   slot.
 - `.pipe` adds steps after an effect, read left to right.
 - Every failure is a decision: handle it here, or leave it in the type for the
   caller.
-- Later you'll handle several tags at once with `Effect.catchTags` (lesson 21),
-  and meet a third kind of failure, a thrown exception, which appears in no
-  type at all (lesson 20).
+- Not every failure is one you expect. A rule that is itself broken is the
+  next lesson. A thrown exception, which appears in no type at all, is a third
+  kind of failure, and it waits until Part 3.
 
 ## Checkpoint
 
-`MissingField` is handled and logged as a skip. Hovering `evaluate` shows only
-`UnknownOperator` in the second slot.
+The laptop alerts and the taxi is skipped. Hovering `evaluate` shows `never` in
+the second slot.

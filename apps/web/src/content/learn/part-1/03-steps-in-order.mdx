@@ -7,18 +7,17 @@ mode: playground
 lessonDir: 03-steps-in-order
 ---
 
-A hard-coded alert isn't much use. The message should come from an event and a
-rule. The start file now has both:
+A hard-coded alert isn't much use. Rulebook should look at an amount, decide
+whether it's large, and only then build the message. That's a few steps in a
+row:
 
-- an event, `laptop`, with an `amount` of 1200;
-- a rule, `largeExpense`, whose condition is `amount gt 500`;
-- `matches`, a plain function that answers whether the rule's condition holds
-  for the event.
+1. decide whether `1200` is over `500`;
+2. build the message;
+3. log it;
+4. give it back.
 
-The message is built outside `program` and handed to `Effect.as`, as you did in
-lesson 2. That works for one step. But rulebook's real work is a sequence:
-build the message, log it, give it back, and soon read rules and fail on bad
-ones. Nesting `Effect.andThen` for every step quickly gets hard to read.
+You could chain these with `Effect.andThen`, but nesting a call for every step
+quickly gets hard to read. Effect has a way to write them one per line.
 
 You will learn:
 
@@ -44,24 +43,29 @@ effect gives back, so it is what you'll see in the first slot of its type.
 The `function*` makes this a generator function. That's all you need to know
 about generators for this course. Read `yield*` as "run this effect here".
 
-Plain functions stay plain. `matches` returns a boolean straight away and does
-nothing else, so you call it like any function, without `yield*`. Save
-`yield*` for effects.
+## Plain functions stay plain
 
-Now rewrite `program` as an `Effect.gen` block:
+Not everything has to be an effect. Deciding whether an amount is large is a
+plain question with a plain answer, so write it as a plain function:
+`isLarge(amount)` returns `amount > 500`. You call it like any function,
+without `yield*`. Save `yield*` for effects.
 
-1. Build the message from `laptop` and `largeExpense`.
-2. `yield*` the log.
-3. Return the message.
+Now replace the file's `alert` and `program` with:
 
-The terminal prints the same line as before. The difference is that the steps
-now read top to bottom.
+1. a constant, `const amount = 1200`;
+2. `isLarge`, as above;
+3. a `program` built with `Effect.gen` that builds the message from `amount`
+   (`expense 1200 over 500` when it's large, `expense 1200: no alert` when it
+   isn't), `yield*`s the log, and returns the message.
+
+The terminal prints the alert line once. Hover `program`. The first slot now
+says `string`, because the block returns the message.
 
 ## Try it: forget a yield\*
 
 Delete the `yield*` in front of `Effect.log(message)` and hover that
-expression. You're holding an `Effect<void>`, a description, and nothing runs
-it. The line disappears from the terminal.
+expression. You're holding an `Effect<void>`, a description, not a log line,
+and nothing runs it. The line disappears from the terminal.
 
 TypeScript doesn't complain. This is the cost of descriptions from lesson 2: an
 effect you build inside a generator and forget to `yield*` is quietly dropped.
@@ -75,12 +79,13 @@ Put the `yield*` back before you move on.
 - `Effect.gen` runs effects in order, one per line.
 - `yield*` runs an effect and hands you its result. What you `return` is what
   the whole effect gives back.
-- Plain functions stay plain, with no `yield*`.
+- Plain functions, like `isLarge`, stay plain, with no `yield*`.
 - Every effectful line needs a `yield*`, and a line without one is dropped
   without a word.
-- In lesson 7 you'll give a generator a name, so each call shows up in a trace.
+- In lesson 7 you'll give a generator a name, so its failures say where they
+  came from.
 
 ## Checkpoint
 
-The message is built from the event and logged once. Hover `program`, and the
+The message is built from `amount` and logged once. Hover `program`, and the
 first slot shows `string`.

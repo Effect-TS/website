@@ -26,7 +26,7 @@ what it needs.
   `Effect<Rule, SchemaError, never>`. The hover spells out the rule's fields.
 - `RuleStore`: the service, with `layer` and `layerFixtures` beside it.
 - `MissingField`: the one failure you declared and still use.
-- `matches`: `(rule, event) => boolean`. Plain, with no Effect in sight.
+- `matches`: `(rule, amount) => boolean`. Plain, with no Effect in sight.
 - `evaluate`: `Effect<string | void, SchemaError, never>`. A missing field is
   handled inside, and a malformed rule is not.
 - `evaluateAll`: `Effect<void, SchemaError, RuleStore>`. It needs the store.
@@ -37,34 +37,32 @@ lesson that introduced it.
 
 ## Part 1 reference card
 
-| API                                                         | What it does                                                 | Lesson |
-| ----------------------------------------------------------- | ------------------------------------------------------------ | ------ |
-| `Effect.log`                                                | Describes writing a log line                                 | 2      |
-| `Effect.andThen`                                            | Runs one effect, then another                                | 2      |
-| `Effect.as`                                                 | Same work, gives back a fixed value                          | 2      |
-| `Effect.gen` and `yield*`                                   | Steps in order; `yield*` runs an effect and gives its result | 3      |
-| `Schema.TaggedError`                                        | Declares a named, typed failure                              | 4      |
-| `return yield* new E(...)`                                  | Fails with `E` and ends the path                             | 4      |
-| `Effect.catchTag`                                           | Handles one failure by its tag                               | 5      |
-| `.pipe`                                                     | `x.pipe(f, g)` is `g(f(x))`                                  | 5      |
-| `Schema.Struct`, `String`, `Number`, `Literals`, `optional` | Describe a shape                                             | 6      |
-| `Schema.fromJsonString`, `Schema.decodeUnknownEffect`       | Parse and check JSON, fail with `SchemaError`                | 6      |
-| `Effect.fn("name")`                                         | A named function whose calls are spans                       | 7      |
-| `Context.Service`                                           | Declares a service; `yield*` it to use it                    | 8      |
-| `Layer.effect`, `RuleStore.of`                              | Builds a service                                             | 9      |
-| `Effect.sync`                                               | Wraps synchronous code in an effect                          | 9      |
-| `Effect.provide`                                            | Supplies a layer and removes it from the third slot          | 9      |
-| `NodeRuntime.runMain`                                       | Runs the program. Unpacked in Part 2 (lesson 11)             | 11     |
+| API                                                   | What it does                                                 | Lesson |
+| ----------------------------------------------------- | ------------------------------------------------------------ | ------ |
+| `Effect.log`                                          | Describes writing a log line                                 | 2      |
+| `Effect.andThen`                                      | Runs one effect, then another                                | 2      |
+| `Effect.gen` and `yield*`                             | Steps in order; `yield*` runs an effect and gives its result | 3      |
+| `Schema.TaggedError`                                  | Declares a named, typed failure                              | 4      |
+| `return yield* new E(...)`                            | Fails with `E` and ends the path                             | 4      |
+| `Effect.catchTag`                                     | Handles one failure by its tag                               | 5      |
+| `.pipe`                                               | `x.pipe(f, g)` is `g(f(x))`                                  | 5      |
+| `Schema.Struct`, `String`, `Number`, `Literals`       | Describe a shape                                             | 6      |
+| `Schema.fromJsonString`, `Schema.decodeUnknownEffect` | Parse and check JSON, fail with `SchemaError`                | 6      |
+| `Effect.fn("name")`                                   | A named function whose calls are spans                       | 7      |
+| `Context.Service`                                     | Declares a service; `yield*` it to use it                    | 8      |
+| `Layer.effect`, `RuleStore.of`                        | Builds a service                                             | 9      |
+| `Effect.sync`                                         | Wraps synchronous code in an effect                          | 9      |
+| `Effect.provide`                                      | Supplies a layer and removes it from the third slot          | 9      |
+| `NodeRuntime.runMain`                                 | Runs the program. Unpacked in Part 2 (lesson 11)             | 11     |
 
 ## Challenges
 
 These are optional, and they aren't counted in the course time. Part 2 doesn't
 depend on them, so skip them if you'd rather keep going.
 
-1. **A `contains` operator.** Add a fifth operator that checks whether the
-   field's text contains the condition's value. Today the value is a number.
-   Decide what the schema should say about it, then see what TypeScript asks
-   of `matches`.
+1. **`eq` and `neq` operators.** Add two more operators, "equal to" and "not
+   equal to". Start with the schema, then see what TypeScript asks of
+   `matches`.
 2. **A `skipped` outcome with a reason.** Instead of logging a skip and giving
    back nothing, make `evaluate` give back a value that says the rule was
    skipped and why. Watch `string | void` disappear from the hover. Lesson 12

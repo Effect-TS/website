@@ -80,7 +80,8 @@ schema in one step:
 
 ## Revisit: a schema with variants
 
-The lesson 6 schema had one shape. A real rule comes in variants. A trigger is
+The lesson 6 schema had one shape, and it only compared amounts. A real rule
+comes in variants. A trigger is
 either an `event` or an `interval`, and an action is either `appendFile` or
 `httpPost`.
 
@@ -89,11 +90,14 @@ joins them. Because every variant has a different `type`, TypeScript can
 narrow on it. Inside `case "appendFile":`, the compiler knows that
 `rule.action.path` exists.
 
-The condition grows too:
+The comparison grows into a **condition**:
 
-- `field` is now a dotted path, such as `body.status`;
-- the fifth operator, `contains`, is in;
-- `lookup` fails with `MissingField` when a key on the path is absent.
+- it's optional, and a rule without one matches every event;
+- it names the `field` to compare, and the field can be a dotted path, such as
+  `body.status`, instead of always being `amount`;
+- the operators are now `eq`, `neq`, `gt`, `lt` and `contains`;
+- `lookup` fails with `MissingField` when a key on the path is absent, the same
+  failure you met in lesson 4.
 
 <LessonCode file="checkpoints/11/src/Rule.ts" />
 

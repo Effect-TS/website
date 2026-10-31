@@ -7,11 +7,11 @@ mode: playground
 lessonDir: 07-name-it-see-it
 ---
 
-The malformed rule fails, as it should. Now look at the terminal more closely.
-The program evaluates three rules, and the log lines from all three run
-together. The failure says _what_ went wrong, a `SchemaError`, but not which
-piece of your code it came from. With three rules you can guess. Rulebook
-allows a hundred, and then you can't.
+The malformed rule fails, as it should. Now look at the failure in the
+terminal more closely. It says _what_ went wrong, a `SchemaError` at `["op"]`,
+but not which part of your program it came from. With one function you can
+guess. A real program has dozens of steps, and a failure that doesn't say
+where it happened sends you hunting.
 
 You will learn:
 
@@ -45,19 +45,27 @@ you'll connect one in lesson 16. But the name is already useful. When an effect
 fails inside a span, the failure that `runMain` prints says which span it was
 in.
 
-## Try it
+## Finding the name in a failure
 
-1. **Find the name in the failure.** Look at the malformed rule's failure in
-   the terminal. Under the `SchemaError` there's a line that starts with
-   `at evaluate (`. That's the name you passed to `Effect.fn`, telling you the
-   failure happened inside `evaluate`, with the file and line of the call. The
-   line after it, `at evaluate (definition)`, points at where you declared the
-   function.
-2. **Say which evaluation is running.** Add a log line at the start of
-   `evaluate` that says which event it's evaluating. Now each evaluation opens
-   with its own line, so the output reads in groups: an alert for the first
-   rule, a skip for the second, and for the third, the opening line followed
-   straight away by the failure.
+Look at the malformed rule's failure in the terminal again. Under the
+`SchemaError` there's now a line that starts with `at evaluate (`. That's the
+name you passed to `Effect.fn`, telling you the failure happened inside
+`evaluate`. The line after it, `at evaluate (definition)`, points at where you
+declared the function.
+
+Before this lesson, the failure had neither line. Nothing else about the
+program changed: the laptop still alerts and the taxi is still skipped.
+
+## Try it: name the decode too
+
+The failure says it happened inside `evaluate`, but `evaluate` does several
+things. Which step failed?
+
+Give the decode its own name. Turn `decodeRule` into a function made with
+`Effect.fn("decodeRule")` that takes the JSON string and decodes it. Run the
+file again and read the failure. It now names both steps, `at decodeRule`
+first and `at evaluate` under it. That reads like a path: the decode failed,
+and it was running inside `evaluate`.
 
 ## Recap
 
@@ -65,15 +73,15 @@ in.
   that name.
 - A span records one piece of work: when it started, how long it took, and
   whether it succeeded.
-- When a call fails, the failure names the span it came from, as
+- When a call fails, the failure names the spans it was in, as
   `at evaluate (…)`.
 - Spans aren't free. Each one costs a little time and, once exported, some
-  traffic. Name the functions whose boundaries you want to see, not every
-  helper. That's why `matches` stays a plain function.
-- In lesson 16 you'll send spans to a trace viewer. The names you choose now
-  are the span names you'll read there, and all through Part 3.
+  traffic. Name the steps whose boundaries you want to see, not every helper.
+  That's why `matches` stays a plain function.
+- In lesson 16 you'll send spans to a trace viewer, and see their durations
+  and how they nest. The names you choose now are the names you'll read there.
 
 ## Checkpoint
 
-The malformed rule's failure in the terminal shows the `SchemaError` and an
-`at evaluate (…)` line naming the span it failed in.
+The laptop alerts, the taxi is skipped, and the malformed rule's failure shows
+the `SchemaError` with an `at evaluate (…)` line naming the step it failed in.

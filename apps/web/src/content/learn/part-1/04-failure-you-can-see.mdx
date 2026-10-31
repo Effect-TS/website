@@ -7,13 +7,13 @@ mode: playground
 lessonDir: 04-failure-you-can-see
 ---
 
-The start file sends a different event this time. `taxi` has a description but
-no `amount`. Look at the terminal: it says `large expense: no alert`.
+Amounts don't appear out of nowhere. In rulebook they arrive inside an
+**event**, a small object that says what happened, like
+`{ type: "expense", amount: 1200 }`. And events from the outside world aren't
+always complete. A taxi receipt might arrive with a type but no amount at all.
 
-That answer is wrong, and quietly so. The rule never decided "no". It never had
-a number to compare. `Number(undefined)` is `NaN`, and comparing `NaN` with
-`gt` is always false. Right now rulebook can't tell "the rule doesn't match"
-apart from "the rule couldn't be checked".
+What should rulebook say about an expense with no amount? Not "no alert". The
+honest answer is "I couldn't check this one", and that answer is a failure.
 
 You will learn:
 
@@ -21,13 +21,31 @@ You will learn:
 - how to fail an effect with it;
 - how failures show up in the second slot of an Effect's type.
 
-## Giving a failure a name
+## An event with an optional amount
+
+Start by describing an event. Below the imports, add an interface:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="Event"
+/>
+
+The `?` says `amount` may be missing. Then replace `const amount = 1200` with
+the event that's missing it, `const taxi: Event = { type: "expense" }`, and
+change `program` to read `taxi.amount` where it read `amount`.
+
+TypeScript underlines `isLarge(taxi.amount)` in red, and the playground won't
+run the file until that's fixed. `taxi.amount` might be `undefined`, and
+`isLarge` wants a number. TypeScript is asking the same question you are: what
+should happen when there's no amount?
+
+## Giving the failure a name
 
 The second slot of an Effect type is for exactly this: the ways the effect can
 fail. You name a failure by declaring a class for it.
 
 Add `Schema` to the `effect` import at the top of the file. Then declare
-`MissingField` below the two interfaces:
+`MissingField` below the interface:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
@@ -48,12 +66,13 @@ error carries.
 
 ## Failing with it
 
-In `program`, before matching, check whether the event has the field the
-condition asks for. If it doesn't, fail with
-`return yield* new MissingField({ field })`.
+At the top of `program`, check for the amount. If it's missing, fail with
+`return yield* new MissingField({ field: "amount" })`.
 
 `yield*` fails the effect with that error. `return` tells TypeScript that this
-path ends here, so the lines after it only run when the field exists.
+path ends here. After the check, TypeScript knows `taxi.amount` is a number, so
+the red underline goes away. Build the message from `taxi.type` and
+`taxi.amount`, as you did from `amount` before.
 
 Now the terminal reports a `MissingField` failure, and the program stops.
 Hover `program`. Its type is `Effect<string, MissingField, never>`. The failure
@@ -62,24 +81,22 @@ and how.
 
 ## Try it: a second failure
 
-A rule can also name an operator that `matches` doesn't know. When that
-happens, `matches` falls into its `default` branch and returns `false`, the
-same quiet "no" as before.
-
-1. Add a second failure, `UnknownOperator`, that carries the `op`. Declare it
-   the same way as `MissingField`.
-2. Keep a list of the four known operators.
-3. Fail with `UnknownOperator` when the condition's `op` isn't one of them.
+An event could also be something other than an expense. Add a second failure,
+`NotAnExpense`, declared the same way as `MissingField`, and fail with it when
+the event's `type` isn't `"expense"`.
 
 Hover `program` again. The second slot now reads
-`MissingField | UnknownOperator`. Every failure you can produce joins that
-union. The taxi still fails with `MissingField`, because that check comes
-first.
+`MissingField | NotAnExpense`. Every failure you can produce joins that union.
+
+This one is only for practice. The next lesson starts from the file without
+`NotAnExpense`, so don't worry about keeping it.
 
 ## Recap
 
-- Give the failures you expect a name with `Schema.TaggedError`.
-- Fail with `return yield* new MissingField(...)`.
+- An event is a small object that says what happened. Its fields can be
+  missing.
+- Give the failures you expect a name with `Schema.TaggedError`, and fail with
+  `return yield* new MissingField(...)`.
 - Failures show up in the second slot of the type, so callers can see them.
 - The cost is a class per failure. In lesson 14 these classes travel over
   HTTP, and that's where the Schema inside them earns its keep.

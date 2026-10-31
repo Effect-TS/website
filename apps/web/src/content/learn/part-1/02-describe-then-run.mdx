@@ -50,23 +50,25 @@ The other two slots wait for later lessons. The second is how the effect can
 fail (lesson 4), and the third is what it needs before it can run (lesson 8).
 Both say `never` here, which means "none".
 
-## Try it
+## Try it: run the value twice
 
-1. **Log the line twice.** Because `program` is a value, running it twice
-   means combining it with itself. `Effect.andThen(first, second)` describes
-   "run `first`, then `second`". Use it to make `program` log the line twice.
-   Two lines appear in the terminal, and they come from a single description.
-2. **Give back the message.** `Effect.as(effect, value)` describes the same
-   work as `effect`, but gives back `value` when it finishes. Make the logging
-   effect give back the message, then hover `program` again. The first slot
-   changes from `void` to `string`.
+Because `program` is a value, running it twice means combining it with itself.
 
-The solution keeps the message in a constant, so the text it logs and the text
-it gives back can't drift apart.
+1. Rename the logging effect to `alert`, so you have a name to reuse.
+2. `Effect.andThen(first, second)` describes "run `first`, then `second`". Make
+   `program` the combination `Effect.andThen(alert, alert)`.
+3. Count the lines in the terminal. There are two, and they come from a single
+   description that you built once and ran once.
+
+Hover `program` again. It still says `void`, because logging gives back
+nothing, the second time as much as the first.
 
 ## Recap
 
-- An Effect is a description of work. Something else runs it.
+- An Effect is a description of work. Something else runs it, and here that's
+  `NodeRuntime.runMain`.
+- Because descriptions are values, you can combine them, for example with
+  `Effect.andThen`.
 - The first slot of the type is what you get back when it runs.
 - There is a cost to working this way. A description that nobody runs does
   nothing, and nothing warns you. Lesson 3 shows you what that looks like.
