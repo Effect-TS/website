@@ -24,7 +24,7 @@ produces a span with that name.
 The screenshot below is the lesson 16 checkpoint. It shows `events.submit`
 from the CLI, with the expense rule stored, submitting `laptop.json`.
 
-![The events.submit trace in otel-desktop-viewer: CLI spans in green, server spans in purple, Engine.execute selected with status Ok](../_assets/viewer-trace.png "One trace from rulebook-cli into rulebook-server")
+![The events.submit trace in otel-desktop-viewer: CLI spans in green, server spans in purple, Engine.execute selected with status Ok](../_assets/viewer-trace.png "One trace from reflex-cli into reflex-server")
 
 Here's how to read it:
 
@@ -36,7 +36,7 @@ Here's how to read it:
   server's `POST`. The number in brackets is how many children a span has.
 - The bar shows when the span started and how long it took, against the
   time axis at the top. The bar's colour is the service, not the result. Green
-  is `rulebook-cli` and purple is `rulebook-server`.
+  is `reflex-cli` and purple is `reflex-server`.
 - The details panel opens on the right when you select a row. It shows the
   span's duration, its `status.code`, and attributes such as `rule.id`. Logs
   written inside a span are listed under Events, and in the Logs tab.
@@ -84,12 +84,12 @@ in the middle of a poll produces exactly this picture.
 
 ## What to look for, lesson by lesson
 
-| Lesson      | Where                    | What to look for                                                                                                                    |
-| ----------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Setup to 15 | nothing yet              | The trace list is empty. Your program creates spans, but nothing sends them to the viewer until lesson 16.                          |
-| 16          | `rulebook-cli` to server | One trace that starts in `rulebook-cli` and continues into `rulebook-server`, with `Engine.execute` under `Engine.handleEvent`.     |
-| 18          | Logs tab                 | The log line from `Effect.onInterrupt` when you press Ctrl-C.                                                                       |
-| 19          | `rulebook-server`        | One trace per interval tick. `failed (status)` ticks are red. Removing a rule during a `/slow` poll leaves one Unset span.          |
-| 20          | `rulebook-server`        | Three red `Engine.execute` spans: a 500 status, a timeout, and the planted bug.                                                     |
-| 21 and 22   | `rulebook-server`        | Four `Engine.execute` spans under one `Engine.handleEvent`, starting together: two red, two Ok. The parent takes about the timeout. |
-| 24          | `rulebook-server`        | Under the `mixed` scenario the paused rule has no `Engine.execute` span; after resume it has one.                                   |
+| Lesson      | Where                  | What to look for                                                                                                                    |
+| ----------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Setup to 15 | nothing yet            | The trace list is empty. Your program creates spans, but nothing sends them to the viewer until lesson 16.                          |
+| 16          | `reflex-cli` to server | One trace that starts in `reflex-cli` and continues into `reflex-server`, with `Engine.execute` under `Engine.handleEvent`.         |
+| 18          | Logs tab               | The log line from `Effect.onInterrupt` when you press Ctrl-C.                                                                       |
+| 19          | `reflex-server`        | One trace per interval tick. `failed (status)` ticks are red. Removing a rule during a `/slow` poll leaves one Unset span.          |
+| 20          | `reflex-server`        | Three red `Engine.execute` spans: a 500 status, a timeout, and the planted bug.                                                     |
+| 21 and 22   | `reflex-server`        | Four `Engine.execute` spans under one `Engine.handleEvent`, starting together: two red, two Ok. The parent takes about the timeout. |
+| 24          | `reflex-server`        | Under the `mixed` scenario the paused rule has no `Engine.execute` span; after resume it has one.                                   |

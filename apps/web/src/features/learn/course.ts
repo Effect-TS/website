@@ -10,8 +10,8 @@ export const learnParts = [
 ] as const
 
 export const starterCommands = [
-  "npx degit Effect-TS/website/courses/rulebook rulebook",
-  "cd rulebook",
+  "npx degit Effect-TS/website/courses/reflex reflex",
+  "cd reflex",
   "pnpm install",
   "pnpm run doctor --viewer",
 ].join("\n")

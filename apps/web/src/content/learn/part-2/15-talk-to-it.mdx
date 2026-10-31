@@ -7,7 +7,7 @@ mode: local
 ---
 
 curl works, but nobody wants to type
-`-H 'content-type: application/json' -d @...` for every rule. Rulebook needs a
+`-H 'content-type: application/json' -d @...` for every rule. Reflex needs a
 command line.
 
 The obvious version calls `fetch` with hand-written URLs and bodies. It would
@@ -42,7 +42,7 @@ The client sends requests with an `HttpClient`, which is another service.
 `FetchHttpClient.layer` provides one built on `fetch`.
 
 The server's URL comes from `Config`, in three lines.
-`Config.String("RULEBOOK_URL")` reads the environment variable, and
+`Config.String("REFLEX_URL")` reads the environment variable, and
 `Config.withDefault("http://localhost:3000")` covers the usual case. When you
 `yield*` a config inside a layer, it's read when the layer is built.
 

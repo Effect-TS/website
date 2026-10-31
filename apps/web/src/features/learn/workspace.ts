@@ -1,4 +1,4 @@
-import starter from "../../../../../courses/rulebook/package.json"
+import starter from "../../../../../courses/reflex/package.json"
 import {
   makeDirectory,
   makeFile,
@@ -13,7 +13,7 @@ export interface LessonFiles {
 
 /**
  * The versions every lesson workspace installs, read from the starter in
- * `courses/rulebook/` so the browser track cannot drift from the local one.
+ * `courses/reflex/` so the browser track cannot drift from the local one.
  * The playground's default v4 workspace follows `latest`, which would.
  */
 const lessonDependencies: Readonly<Record<string, string>> = {

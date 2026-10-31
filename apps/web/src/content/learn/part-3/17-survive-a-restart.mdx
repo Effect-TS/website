@@ -10,10 +10,10 @@ Try this. Stop the server and start it again, then run `rules list`. It's
 empty. `runs list` has forgotten everything too.
 
 Both stores are Maps, and a Map lives exactly as long as the process that
-created it. That was fine for learning, but it isn't how rulebook should
+created it. That was fine for learning, but it isn't how reflex should
 behave. You add a rule once and expect it to stay, and a run history is only
 useful if it's still there tomorrow. In this lesson you keep both in SQLite, in
-a file called `rulebook.db`.
+a file called `reflex.db`.
 
 You will learn:
 
@@ -23,7 +23,7 @@ You will learn:
 
 ## Connecting to SQLite
 
-`SqliteClient.layer({ filename: "rulebook.db" })` opens the file and provides
+`SqliteClient.layer({ filename: "reflex.db" })` opens the file and provides
 `SqlClient`, the service every query goes through. It's built on
 `node:sqlite`, so there's no native module to compile. That's why the course
 needs Node 22.16.
@@ -156,7 +156,7 @@ on, the checkpoints include this change.
 - Swapping storage took two lines in the entrypoint, and the tests ran
   unchanged against both layers.
 - The price is a file on disk to manage, and a migration for every change to
-  the tables. The checkpoint servers and yours all use `rulebook.db` in the
+  the tables. The checkpoint servers and yours all use `reflex.db` in the
   project root. Delete it whenever you want to start clean.
 - Lesson 19 deals with a run whose process ended before it could write its
   last row.

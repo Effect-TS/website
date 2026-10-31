@@ -31,7 +31,7 @@ export const LearnEntry = z.discriminatedUnion("mode", [
      */
     mode: z.literal("playground"),
     /**
-     * The lesson directory under `courses/rulebook/lessons/part1/`.
+     * The lesson directory under `courses/reflex/lessons/part1/`.
      */
     lessonDir: z.string().min(1),
   }),

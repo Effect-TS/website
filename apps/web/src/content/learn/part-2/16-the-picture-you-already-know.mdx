@@ -24,15 +24,15 @@ You will learn:
 ## Writing Telemetry.ts
 
 The starter's `src/Telemetry.ts` already exports a single `layer`, with the
-service name `rulebook-lessons`. It's a placeholder, and nothing in your program
+service name `reflex-lessons`. It's a placeholder, and nothing in your program
 imports it. Replace the whole file with two layers, one per program,
 `layerServer` and `layerCli`:
 
 - `OtlpTracer.layer` exports spans to the viewer at
   `http://localhost:4318/v1/traces`.
 - `OtlpLogger.layer` exports logs to `http://localhost:4318/v1/logs`.
-- Both take a `resource` with a `serviceName`. Use `rulebook-server` for the
-  server and `rulebook-cli` for the CLI, so the viewer can tell them apart.
+- Both take a `resource` with a `serviceName`. Use `reflex-server` for the
+  server and `reflex-cli` for the CLI, so the viewer can tell them apart.
 - They send JSON (`OtlpSerialization.layerJson`) over an `HttpClient`
   (`FetchHttpClient.layer`).
 
@@ -108,8 +108,8 @@ pnpm checkpoint 16 cli events submit fixtures/events/laptop.json
 ```
 
 Open [http://localhost:8000](http://localhost:8000) and pick the
-`events.submit` trace. It starts in `rulebook-cli` and continues into
-`rulebook-server`, with `Engine.execute` under `Engine.handleEvent`:
+`events.submit` trace. It starts in `reflex-cli` and continues into
+`reflex-server`, with `Engine.execute` under `Engine.handleEvent`:
 
 ![The events.submit trace: CLI spans, then the server's POST, Engine.handleEvent and Engine.execute nested under it](../_assets/viewer-trace.png "The lesson 16 checkpoint trace")
 

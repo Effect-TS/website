@@ -20,9 +20,9 @@ You will learn:
 ## Seeing the rules wait
 
 Start clean, so the event matches only the rules this lesson adds. Every
-server, yours and the checkpoints', keeps its rules in the same `rulebook.db`,
+server, yours and the checkpoints', keeps its rules in the same `reflex.db`,
 and the rules from earlier lessons are still in it. Stop your server, delete
-`rulebook.db`, and start it again. Then start the receiver with the mixed
+`reflex.db`, and start it again. Then start the receiver with the mixed
 scenario:
 
 ```sh
@@ -80,7 +80,7 @@ The timeout, the concurrency and two other limits aren't constants any more.
 
 <LessonCode file="checkpoints/21/src/Limits.ts" />
 
-- `Config.Int("RULEBOOK_CONCURRENCY")` describes where a value comes from and
+- `Config.Int("REFLEX_CONCURRENCY")` describes where a value comes from and
   how to parse it.
 - `Config.withDefault(4)` makes it optional.
 - `Config.all` combines several values into one.
@@ -99,15 +99,15 @@ two:
 Both are typed errors on their endpoints, like `RuleNotFound` in lesson 14, so
 the CLI prints each one as a single line.
 
-To see the limit at work, try `RULEBOOK_CONCURRENCY=1 pnpm dev:server` and
+To see the limit at work, try `REFLEX_CONCURRENCY=1 pnpm dev:server` and
 submit the mixed event again. D waits for C, exactly as it did before this
 lesson.
 
 ## Checkpoint
 
-The four rules you added above are still in `rulebook.db`, and adding them
+The four rules you added above are still in `reflex.db`, and adding them
 again would add four more, because the store doesn't deduplicate. So stop your
-server and delete `rulebook.db` once more. Then, with the mixed receiver
+server and delete `reflex.db` once more. Then, with the mixed receiver
 running, start the checkpoint's server and add the four rules:
 
 ```sh
@@ -168,7 +168,7 @@ Then:
 3. Add it to the checkpoint's server.
 4. Submit `fixtures/events/laptop.json`.
 
-Your phone shows "rulebook", with "expense over 500" and the event under it.
+Your phone shows "reflex", with "expense over 500" and the event under it.
 `lunch.json` sends nothing, because 40 isn't over 500.
 
 Send fixture data only. Whatever you post there, assume anyone could read it.

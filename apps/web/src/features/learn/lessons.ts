@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import type { LessonFiles } from "./workspace"
 
-const root = "../../../../../courses/rulebook/"
+const root = "../../../../../courses/reflex/"
 
 /**
  * The starter's lesson, checkpoint and fixture files, read at build time so
@@ -9,10 +9,10 @@ const root = "../../../../../courses/rulebook/"
  */
 const sources = import.meta.glob<string>(
   [
-    "../../../../../courses/rulebook/lessons/part1/**/*.ts",
-    "../../../../../courses/rulebook/checkpoints/**/*.{ts,sql,json,txt}",
-    "../../../../../courses/rulebook/fixtures/**/*.json",
-    "!../../../../../courses/rulebook/lessons/part1/test/**",
+    "../../../../../courses/reflex/lessons/part1/**/*.ts",
+    "../../../../../courses/reflex/checkpoints/**/*.{ts,sql,json,txt}",
+    "../../../../../courses/reflex/fixtures/**/*.json",
+    "!../../../../../courses/reflex/lessons/part1/test/**",
   ],
   { query: "?raw", import: "default", eager: true },
 )
@@ -25,13 +25,13 @@ const courseFiles = new Map(
 )
 
 /**
- * Reads a file by its path in `courses/rulebook/`, e.g.
+ * Reads a file by its path in `courses/reflex/`, e.g.
  * `lessons/part1/02-describe-then-run/solution/main.ts`.
  */
 export function courseFile(path: string): string {
   const content = courseFiles.get(path)
   if (content === undefined) {
-    throw new Error(`courses/rulebook/${path} does not exist`)
+    throw new Error(`courses/reflex/${path} does not exist`)
   }
   return content
 }
@@ -49,7 +49,7 @@ export function courseDeclaration(path: string, name: string): string {
   )
   const start = lines.findIndex((line) => declares.test(line))
   if (start === -1) {
-    throw new Error(`courses/rulebook/${path} does not declare ${name}`)
+    throw new Error(`courses/reflex/${path} does not declare ${name}`)
   }
   let end = start
   for (let line = start + 1; line < lines.length; line++) {
