@@ -41,6 +41,7 @@ pnpm run doctor --viewer    # leave it running
 | `pnpm lesson <n> [--solution]` | Run a Part 1 lesson file (1 to 10) in the local track |
 | `pnpm test` | Run the tests |
 | `pnpm check` | Typecheck |
+| `pnpm test:course` | Test the Part 1 lesson files as shipped (course CI; fails once you edit them) |
 | `pnpm fmt` | Format the code |
 
 ## What is here

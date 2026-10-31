@@ -40,6 +40,7 @@ export interface RunStart {
   readonly trigger: typeof Trigger.Type
 }
 
+// A decoded optional field can be present and undefined; either way it means no filter.
 export interface ListOptions {
   readonly ruleId?: string | undefined
   readonly limit?: number | undefined

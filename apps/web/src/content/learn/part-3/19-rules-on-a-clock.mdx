@@ -174,7 +174,10 @@ next to a `Remote` service the test reads.
 
 The core test, `remove interrupts a poll in flight` in
 `checkpoints/19/test/Interval.test.ts`, calls the API handlers through
-`HttpApiTest.groups`, a client that runs them in the test without a socket:
+`HttpApiTest.groups`, a client that runs them in the test without a socket.
+The handlers still need the services a real server gives them, such as
+`HttpPlatform` and `Etag.Generator`, so merge `HttpServer.layerServices` into
+the layer the test provides; without it the test does not typecheck. The test:
 
 1. Add an interval rule with the fake server set to `Hang`.
 2. Await `arrived`. No clock adjustment is needed, because the first tick is
@@ -291,4 +294,5 @@ harness test.
 | `Latch.make`, `.open`, `.await`  | A gate a fiber waits at until another opens it                     | 19     |
 | `TestClock.adjust`               | Moves test time forward, running what was waiting for it           | 19     |
 | `HttpApiTest.groups`             | A client that calls the handlers in a test, without a socket       | 19     |
+| `HttpServer.layerServices`       | The services a server gives its handlers, for a test without one   | 19     |
 | `Schema.isGreaterThanOrEqualTo`  | A lower bound, inclusive                                           | 19     |
