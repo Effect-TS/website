@@ -1,9 +1,10 @@
-import { useAtomSet } from "@effect/atom-react"
+import { useAtom } from "@effect/atom-react"
 import { useMemo, useState, useSyncExternalStore } from "react"
 import { CodeEditor } from "../playground"
 import { ConfirmDialog } from "../playground/components/confirm-dialog"
 import { ToolbarButton } from "../playground/components/toolbar-button"
 import { useWorkspaceHandle } from "../playground/context/workspace"
+import { LessonActionStatus } from "./LessonActionStatus"
 import { makeLessonWorkspace, type LessonFiles } from "./workspace"
 
 const wideScreen = "(min-width: 64rem)"
@@ -46,11 +47,13 @@ type Action = "solve" | "reset"
 
 function LessonActions({ files }: { readonly files: LessonFiles }) {
   const handle = useWorkspaceHandle()
-  const resetContent = useAtomSet(handle.resetContent)
+  const [result, resetContent] = useAtom(handle.resetContent)
   const [confirm, setConfirm] = useState<Action | undefined>(undefined)
+  const [lastAction, setLastAction] = useState<Action>("reset")
 
   return (
     <>
+      <LessonActionStatus action={lastAction} result={result} />
       <ToolbarButton onClick={() => setConfirm("solve")}>Solve</ToolbarButton>
       <ToolbarButton onClick={() => setConfirm("reset")}>Reset</ToolbarButton>
       <ConfirmDialog
@@ -62,11 +65,13 @@ function LessonActions({ files }: { readonly files: LessonFiles }) {
             : "This restores the lesson's starting code. Your changes will be lost."
         }
         confirmLabel={confirm === "solve" ? "Solve" : "Reset"}
-        onConfirm={() =>
+        onConfirm={() => {
+          if (confirm === undefined) return
+          setLastAction(confirm)
           resetContent(
             makeLessonWorkspace(files, { solve: confirm === "solve" }),
           )
-        }
+        }}
         onClose={() => setConfirm(undefined)}
       />
     </>

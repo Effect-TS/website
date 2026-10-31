@@ -1265,13 +1265,15 @@ const beat = () => Fs.writeFileSync(beatFile, String(beats++))
 beat()
 setInterval(beat, 500)
 
+// The page writes pause and then reads each state; this process writes its
+// state and then checks for pause. With both writing first, at least one of
+// them sees the other, so the page never reads "paused" or no registration
+// for a runner that goes on to compile.
+setState("watching")
 let paused = Fs.existsSync(pauseFile)
 if (paused) {
   setState("paused")
 } else {
-  // Registered before compiling, so the page never mistakes a compile in
-  // progress for no runner at all.
-  setState("watching")
   watcher = TypeScript.createWatchProgram(host)
 }
 
@@ -1289,10 +1291,14 @@ setInterval(async () => {
       await stopProgram()
       setState("paused")
     } else if (!pause && paused) {
-      paused = false
-      // No longer paused from here on, even while the compile below blocks.
+      // Announce the resume before the last look at pause, as at startup.
       setState("watching")
-      watcher = TypeScript.createWatchProgram(host)
+      if (Fs.existsSync(pauseFile)) {
+        setState("paused")
+      } else {
+        paused = false
+        watcher = TypeScript.createWatchProgram(host)
+      }
     }
   } finally {
     switching = false

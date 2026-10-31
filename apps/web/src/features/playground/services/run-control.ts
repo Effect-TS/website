@@ -1,6 +1,8 @@
 import * as Clock from "effect/Clock"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
+import * as Semaphore from "effect/Semaphore"
 
 /**
  * The page's side of the protocol `run` follows (see `runExe` in
@@ -47,8 +49,28 @@ export class RunnersDidNotPause extends Data.TaggedError("RunnersDidNotPause")<{
   readonly pids: ReadonlyArray<string>
 }> {
   override get message(): string {
-    return `Runner ${this.pids.join(", ")} did not pause; the workspace was left unchanged`
+    return `Runners did not pause (${this.pids.join(", ")}); the workspace was left unchanged`
   }
+}
+
+// What reading a control file found. Only ENOENT proves it is gone; any other
+// failure says nothing about the runner, so it cannot authorize a swap.
+type ControlRead = { readonly content: string } | "gone" | "unreadable"
+
+const isNotFound = (error: unknown) =>
+  Predicate.hasProperty(error, "code") && error.code === "ENOENT"
+
+// Every caller on one file system shares its pause file, so their swaps take
+// turns: a pause released by one swap must never cut short another.
+const pauseLocks = new WeakMap<RunControlFileSystem, Semaphore.Semaphore>()
+
+const pauseLock = (fs: RunControlFileSystem) => {
+  let lock = pauseLocks.get(fs)
+  if (lock === undefined) {
+    lock = Semaphore.makeUnsafe(1)
+    pauseLocks.set(fs, lock)
+  }
+  return lock
 }
 
 /**
@@ -56,6 +78,9 @@ export class RunnersDidNotPause extends Data.TaggedError("RunnersDidNotPause")<{
  * released afterwards, and only once `swap` has settled: the swap itself is
  * not interruptible, because interrupting it would not stop the file system
  * operations it started. A pause that cannot be released fails the effect.
+ * A runner that cannot be shown to have paused or exited, because it is still
+ * running, its files cannot be read or its liveness check does not answer,
+ * fails the swap once `pauseTimeoutMillis` has passed.
  */
 export const withRunnersPaused =
   (fs: RunControlFileSystem, options: RunControlOptions) =>
@@ -66,9 +91,32 @@ export const withRunnersPaused =
     const pause = `${directory}/pause`
 
     const read = (name: string) =>
-      Effect.promise(() =>
-        fs.readFile(`${directory}/${name}`, "utf-8").catch(() => undefined),
+      Effect.promise((): Promise<ControlRead> =>
+        fs.readFile(`${directory}/${name}`, "utf-8").then(
+          (content) => ({ content }),
+          (error) => (isNotFound(error) ? "gone" : "unreadable"),
+        ),
       )
+
+    const list = Effect.promise(
+      (): Promise<ReadonlyArray<string> | "unreadable"> =>
+        fs.readdir(directory).then(
+          (entries) => entries,
+          (error) => (isNotFound(error) ? [] : "unreadable"),
+        ),
+    )
+
+    // Whether `pid` still exists, given at most `remainingMillis` to answer.
+    // No answer counts as alive.
+    const stillAlive = (pid: string, remainingMillis: number) =>
+      options.isAlive === undefined
+        ? Effect.succeed(true)
+        : options.isAlive(Number(pid)).pipe(
+            Effect.timeoutOrElse({
+              duration: Math.max(0, remainingMillis),
+              orElse: () => Effect.succeed(true),
+            }),
+          )
 
     const forget = (pid: string) =>
       Effect.promise(() =>
@@ -84,21 +132,30 @@ export const withRunnersPaused =
         (yield* Clock.currentTimeMillis) + options.pauseTimeoutMillis
       while (true) {
         const now = yield* Clock.currentTimeMillis
-        const entries = yield* Effect.promise(() =>
-          fs.readdir(directory).catch((): Array<string> => []),
-        )
-        const pending: Array<string> = []
-        for (const pid of entries.filter((entry) => /^\d+$/.test(entry))) {
+        const entries = yield* list
+        const pending: Array<string> =
+          entries === "unreadable" ? [`${directory} (unreadable)`] : []
+        const pids =
+          entries === "unreadable"
+            ? []
+            : entries.filter((entry) => /^\d+$/.test(entry))
+        for (const pid of pids) {
           const state = yield* read(pid)
-          if (state === undefined || state.trim() === "paused") continue
-          const beat = (yield* read(`${pid}.beat`)) ?? ""
+          if (state === "gone") continue
+          if (state === "unreadable") {
+            pending.push(pid)
+            continue
+          }
+          if (state.content.trim() === "paused") continue
+          const beatRead = yield* read(`${pid}.beat`)
+          const beat =
+            typeof beatRead === "string" ? beatRead : beatRead.content
           const last = heartbeats.get(pid)
           if (last === undefined || last.beat !== beat) {
             heartbeats.set(pid, { beat, since: now })
           } else if (
             now - last.since >= options.staleAfterMillis &&
-            options.isAlive !== undefined &&
-            !(yield* options.isAlive(Number(pid)))
+            !(yield* stillAlive(pid, deadline - now))
           ) {
             yield* Effect.logWarning(
               `Removing the registration of runner ${pid}, which has exited`,
@@ -118,21 +175,25 @@ export const withRunnersPaused =
       }
     })
 
-    return Effect.acquireUseRelease(
-      Effect.promise(async () => {
-        await fs.mkdir(directory, { recursive: true })
-        await fs.writeFile(pause, "")
-      }),
-      () => Effect.andThen(awaitPaused, Effect.uninterruptible(swap)),
-      () =>
-        Effect.tryPromise(() => fs.rm(pause, { force: true })).pipe(
-          Effect.retry({ times: 2 }),
-          Effect.orDie,
+    return pauseLock(fs)
+      .withPermit(
+        Effect.acquireUseRelease(
+          Effect.promise(async () => {
+            await fs.mkdir(directory, { recursive: true })
+            await fs.writeFile(pause, "")
+          }),
+          () => Effect.andThen(awaitPaused, Effect.uninterruptible(swap)),
+          () =>
+            Effect.tryPromise(() => fs.rm(pause, { force: true })).pipe(
+              Effect.retry({ times: 2 }),
+              Effect.orDie,
+            ),
         ),
-    ).pipe(
-      Effect.annotateLogs({
-        service: "WebContainer",
-        method: "withRunnersPaused",
-      }),
-    )
+      )
+      .pipe(
+        Effect.annotateLogs({
+          service: "WebContainer",
+          method: "withRunnersPaused",
+        }),
+      )
   }
