@@ -1,6 +1,6 @@
 # rulebook
 
-This is the starter project for the Learn Effect course. In the course you build rulebook, a small automation engine that runs on your own machine. Its rules react to events or poll a URL, run an action, and record every run.
+This is the starter project for the Learn Effect course. In the course you build rulebook, a small automation engine. Its rules react to events or poll a URL, run an action, and record every run.
 
 ## Prerequisites
 
