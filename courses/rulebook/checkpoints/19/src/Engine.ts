@@ -142,9 +142,14 @@ export class Engine extends Context.Service<Engine, {
         return { ruleId: rule.id, runId: started.id, ...columns(result) }
       }, (effect, rule) => Effect.annotateLogs(effect, { "rule.id": rule.id }))
 
-      // Runs one rule against the given event. `rules run` uses this for any
-      // rule, so an interval rule's condition can be tried without its URL.
-      const execute = (rule: StoredRule, event: Event) => boundary(rule, Effect.succeed(event))
+      // One execution of an interval rule: the poll is its payload.
+      const interval = (rule: StoredRule, url: string) =>
+        boundary(rule, poll(url).pipe(Effect.provideService(HttpClient.HttpClient, client)))
+
+      // Runs one rule. An event rule runs against the given event. An interval
+      // rule polls its URL, as its ticks do, and the event is not used.
+      const execute = (rule: StoredRule, event: Event) =>
+        rule.trigger.type === "interval" ? interval(rule, rule.trigger.url) : boundary(rule, Effect.succeed(event))
 
       // Runs every rule whose trigger is this event, one after another.
       const handleEvent = Effect.fn("Engine.handleEvent")(function*(event: Event) {
@@ -165,7 +170,7 @@ export class Engine extends Context.Service<Engine, {
       // One tick is one execution, with the poll inside it. `failed` is an
       // answer like any other and the loop goes on; `crashed` stops it.
       const tick = (rule: StoredRule, url: string) =>
-        boundary(rule, poll(url).pipe(Effect.provideService(HttpClient.HttpClient, client))).pipe(
+        interval(rule, url).pipe(
           Effect.flatMap((outcome) =>
             outcome.outcome === "crashed"
               ? Effect.fail(new RuleStopped({ ruleId: rule.id, error: outcome.error ?? "" }))

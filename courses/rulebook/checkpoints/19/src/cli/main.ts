@@ -72,7 +72,9 @@ const rulesRun = Command.make(
   "run",
   {
     id: Argument.String("id").pipe(Argument.withDescription("Rule id")),
-    event: Flag.File("event").pipe(Flag.withDescription("Event file (JSON) to run the rule against"))
+    event: Flag.File("event").pipe(
+      Flag.withDescription("Event file (JSON) to run the rule against; an interval rule polls its URL instead")
+    )
   },
   Effect.fn("rules.run")(function*({ id, event }) {
     const client = yield* ApiClient
