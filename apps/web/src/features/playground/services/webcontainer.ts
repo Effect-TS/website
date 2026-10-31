@@ -12,7 +12,6 @@ import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
 import * as DevToolsSchema from "effect/devtools/DevToolsSchema"
 import * as Ndjson from "effect/encoding/Ndjson"
-import * as Clock from "effect/Clock"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import {
@@ -35,6 +34,7 @@ import {
   type ModelSnapshot,
 } from "./file-sync"
 import { Loader } from "./loader"
+import * as RunControl from "./run-control"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
 
@@ -107,6 +107,21 @@ export class WebContainer extends Context.Service<WebContainer>()(
           ),
           (process) => Effect.sync(() => process.kill()),
         )
+      }
+
+      /**
+       * Whether the container process `pid` still exists. Only a clear "no
+       * such process" counts as gone; anything else, including a failed
+       * check, counts as alive.
+       */
+      function isProcessAlive(pid: number) {
+        return Effect.promise(async () => {
+          const process = await container.spawn("node", [
+            "-e",
+            `try { process.kill(${pid}, 0) } catch (error) { process.exit(error.code === "ESRCH" ? 3 : 4) }`,
+          ])
+          return (await process.exit) !== 3
+        }).pipe(Effect.catchCause(() => Effect.succeed(true)))
       }
 
       /**
@@ -812,84 +827,12 @@ export class WebContainer extends Context.Service<WebContainer>()(
         // (see `runExe`). Replacing the files under a live compiler watch
         // leaves it compiling stale files or not at all, so the swap pauses
         // the runners first and always lets them resume afterwards.
-        const readControlFile = (name: string) =>
-          Effect.promise(() =>
-            container.fs
-              .readFile(`${runControlDirectory}/${name}`, "utf-8")
-              .catch(() => undefined),
-          )
-
-        const removeRegistration = (pid: string) =>
-          Effect.promise(() =>
-            Promise.all([
-              container.fs.rm(`${runControlDirectory}/${pid}`, { force: true }),
-              container.fs.rm(`${runControlDirectory}/${pid}.beat`, {
-                force: true,
-              }),
-            ]),
-          )
-
-        // Waits until every registered runner reports `paused`. A registration
-        // whose heartbeat stops is left over from a runner that was killed
-        // outright, so it is removed instead of waited for. A live runner that
-        // does not pause in time only delays the swap, which then goes ahead.
-        const awaitPausedRunners = Effect.gen(function* () {
-          const heartbeats = new Map<string, { beat: string; since: number }>()
-          const deadline =
-            (yield* Clock.currentTimeMillis) + runnerPauseTimeoutMillis
-          while (true) {
-            const now = yield* Clock.currentTimeMillis
-            const entries = yield* Effect.promise(() =>
-              container.fs.readdir(runControlDirectory).catch(() => []),
-            )
-            const pending: Array<string> = []
-            for (const pid of entries.filter((entry) => /^\d+$/.test(entry))) {
-              const state = yield* readControlFile(pid)
-              if (state === undefined || state.trim() === "paused") continue
-              const beat = (yield* readControlFile(`${pid}.beat`)) ?? ""
-              const last = heartbeats.get(pid)
-              if (last === undefined || last.beat !== beat) {
-                heartbeats.set(pid, { beat, since: now })
-              } else if (now - last.since >= runnerStaleAfterMillis) {
-                yield* Effect.logWarning(
-                  `Removing the stale registration of runner ${pid}`,
-                )
-                yield* removeRegistration(pid)
-                continue
-              }
-              pending.push(pid)
-            }
-            if (pending.length === 0) return
-            if (now >= deadline) {
-              return yield* Effect.logWarning(
-                `Runner ${pending.join(", ")} did not pause; replacing the files anyway`,
-              )
-            }
-            yield* Effect.sleep("100 millis")
-          }
-        }).pipe(
-          Effect.annotateLogs({
-            service: "WebContainer",
-            method: "awaitPausedRunners",
-          }),
-        )
-
-        const withRunnersPaused = <A, E, R>(
-          effect: Effect.Effect<A, E, R>,
-        ): Effect.Effect<A, E, R> =>
-          Effect.acquireUseRelease(
-            Effect.promise(async () => {
-              await container.fs.mkdir(runControlDirectory, { recursive: true })
-              await container.fs.writeFile(`${runControlDirectory}/pause`, "")
-            }),
-            () => Effect.andThen(awaitPausedRunners, effect),
-            () =>
-              Effect.promise(() =>
-                container.fs
-                  .rm(`${runControlDirectory}/pause`, { force: true })
-                  .catch(() => {}),
-              ),
-          )
+        const withRunnersPaused = RunControl.withRunnersPaused(container.fs, {
+          directory: runControlDirectory,
+          staleAfterMillis: runnerStaleAfterMillis,
+          pauseTimeoutMillis: runnerPauseTimeoutMillis,
+          isAlive: isProcessAlive,
+        })
 
         const resetWorkspace = (nextWorkspace: Workspace) =>
           mutationLock.withPermit(
@@ -1035,9 +978,12 @@ export class WebContainer extends Context.Service<WebContainer>()(
 // Where `run` registers itself and the page asks it to pause, beside `run` in
 // the container's home directory and outside every workspace.
 const runControlDirectory = ".run-control"
-// `run` writes its heartbeat every 500 ms.
+// `run` writes its heartbeat every 500 ms. A heartbeat still for this long
+// only prompts a check that the process exists; a compile can block it longer.
 const runnerStaleAfterMillis = 2_000
-const runnerPauseTimeoutMillis = 5_000
+// A cold compile takes a few seconds and blocks the runner until it finishes,
+// so the swap waits well past that before it fails.
+const runnerPauseTimeoutMillis = 15_000
 
 const ignoredWorkspacePaths = new Set([".tsc-run.json", "dist", "node_modules"])
 function isIgnoredWorkspacePath(path: string) {
@@ -1268,16 +1214,22 @@ let watcher
 let generation = 0
 
 // Kills the program, if any, and resolves once it has exited.
+// Settles once every program this process has stopped has exited. Kept across
+// calls, so a compile or pause that comes while an exit is still pending waits
+// for it too.
+let exiting = Promise.resolve()
+
+// Kills the program, if any, and resolves once it and every program stopped
+// before it have exited.
 const stopProgram = () => {
   const child = running
   running = undefined
-  if (child === undefined || child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve()
-  }
-  return new Promise((resolve) => {
-    child.once("exit", () => resolve())
+  if (child !== undefined && child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise((resolve) => child.once("exit", () => resolve()))
     child.kill("SIGKILL")
-  })
+    exiting = Promise.all([exiting, exited])
+  }
+  return exiting
 }
 
 host.afterProgramCreate = (builder) => {
@@ -1317,8 +1269,10 @@ let paused = Fs.existsSync(pauseFile)
 if (paused) {
   setState("paused")
 } else {
-  watcher = TypeScript.createWatchProgram(host)
+  // Registered before compiling, so the page never mistakes a compile in
+  // progress for no runner at all.
   setState("watching")
+  watcher = TypeScript.createWatchProgram(host)
 }
 
 let switching = false
@@ -1336,8 +1290,9 @@ setInterval(async () => {
       setState("paused")
     } else if (!pause && paused) {
       paused = false
-      watcher = TypeScript.createWatchProgram(host)
+      // No longer paused from here on, even while the compile below blocks.
       setState("watching")
+      watcher = TypeScript.createWatchProgram(host)
     }
   } finally {
     switching = false
