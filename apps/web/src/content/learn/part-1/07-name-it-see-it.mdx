@@ -1,0 +1,53 @@
+---
+part: 1
+order: 7
+title: Name it, see it
+minutes: 7
+mode: playground
+lessonDir: 07-name-it-see-it
+---
+
+## The problem
+
+The malformed rule fails, but the log lines from the three evaluations run
+together. Which evaluation failed? How long did each one take? With three rules
+you can guess. With the hundred rulebook allows, you can't.
+
+## Effect.fn
+
+`Effect.fn("evaluate")` is `Effect.gen` with a name. Where `evaluate` was an
+arrow function returning `Effect.gen(function*() { ... })`, write
+`Effect.fn("evaluate")(function*(json: string, event: Event) { ... })`: the
+parameters move onto the generator. Anything you pass after the generator is
+applied to the result, the way `.pipe` does, so the `catchTag` moves there.
+
+Each call now runs inside a span named `evaluate`. A span is a timed record of
+one piece of work: when it started, how long it took, and whether it
+succeeded.
+
+Open the Trace Viewer tab under the editor. Every call to `evaluate` is one
+span. If you run Part 1 on your machine, the supplied `Telemetry.ts` sends the
+same spans to otel-desktop-viewer at `http://localhost:8000`.
+
+## Exercise
+
+1. Find the red span. It is the third `evaluate`, the malformed rule. Select it
+   to see its duration and the `SchemaError`.
+2. Add a log line at the start of `evaluate` that says which event it is
+   evaluating. Select a span again: the log is listed under that span's
+   events, attached to the evaluation that wrote it. The terminal shows the
+   same line.
+
+## Now and later
+
+What you need now: `Effect.fn` names a function and gives every call a span.
+The spans are not free. Each one costs a little time and, once exported, some
+traffic, so name the functions whose boundaries you want to see, not every
+helper: `matches` stays a plain function. In lesson 16 you wire up
+`Telemetry.ts` yourself, and the names you choose now are the span names you
+will read in Parts 2 and 3.
+
+## Checkpoint
+
+The malformed rule produces a red `evaluate` span in the trace panel, and your
+log line hangs off it.

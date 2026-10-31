@@ -7,7 +7,48 @@ mode: playground
 lessonDir: 02-describe-then-run
 ---
 
-The program should log `expense 1200 over 500`. The code on the right
-describes that work, and nothing happens until it runs.
+## The problem
 
-The lesson text is written in a later step.
+The first thing rulebook does is report an alert. For now that is one line,
+`expense 1200 over 500`, and the editor already has it:
+`program` is `Effect.log("expense 1200 over 500")`, and the terminal prints the
+line.
+
+## An Effect is a description
+
+`Effect.log(...)` does not log anything when it is called. It returns a value
+that describes logging. `program` is that value. You can store it, pass it
+around and combine it with others, and nothing happens until something runs
+it.
+
+That something sits at the bottom of the file: `NodeRuntime.runMain(main)`.
+Those two run lines stay at the bottom of every Part 1 lesson, and the comment
+above them says when they are explained: `Effect.provide` in lesson 9,
+`runMain` in Part 2. Leave them alone until then.
+
+Hover `program`. Its type is `Effect<void, never, never>`. An Effect type has
+three slots, and only the first one matters today: it is what you get back
+when the effect runs. Logging gives back nothing, so it says `void`. The second
+slot is how it can fail (lesson 4) and the third is what it needs (lesson 8).
+Both say `never` here, meaning none.
+
+## Exercise
+
+1. Run the value twice. Because `program` is a value, running it twice
+   means combining it with itself. `Effect.andThen(first, second)` describes
+   "run `first`, then `second`". Use it to make `program` log the line twice.
+   Two lines appear in the terminal, from one description.
+2. Return the message. `Effect.as(effect, value)` describes the same work
+   as `effect` but gives back `value` when it finishes. Make the logging effect
+   give back the message, then hover `program` again. The first slot changes
+   from `void` to `string`.
+
+The solution keeps the message in a constant so the logged text and the
+returned text cannot drift apart.
+
+## Now and later
+
+What you need now: an Effect is a description, and something else runs it.
+The hover's first slot is what you get back. The cost of working this way is
+that a description nobody runs does nothing, silently. Lesson 3 shows what
+that looks like.

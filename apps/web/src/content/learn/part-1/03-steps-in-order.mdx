@@ -1,0 +1,50 @@
+---
+part: 1
+order: 3
+title: Steps in order
+minutes: 8
+mode: playground
+lessonDir: 03-steps-in-order
+---
+
+## The problem
+
+The message should come from an event, not be typed by hand. The start file
+has an event, `laptop`, with an `amount` of 1200, a rule, `largeExpense`, whose
+condition is `amount gt 500`, and `matches`, which answers whether the rule's
+condition holds for the event.
+
+The message is built outside `program` and handed to `Effect.as`, as in lesson 2. That works for one step. Rulebook's real work is a sequence (build the
+message, log it, return it, and soon read rules and fail on bad ones), and
+nesting `Effect.andThen` for every step gets hard to read.
+
+## Effect.gen and yield\*
+
+`Effect.gen(function*() { ... })` lets you write the steps in order, the way
+you write ordinary code. Inside it, `yield*` runs an effect and hands you its
+result before moving to the next line. Whatever you `return` is what the whole
+effect gives back, so it becomes the first slot of its type.
+
+The `function*` makes it a generator function. You don't need to know anything
+else about generators: `yield*` means "run this effect here".
+
+Plain functions stay plain. `matches` returns a boolean straight away and does
+nothing else, so you call it as usual, without `yield*`. Keep `yield*` for
+effects.
+
+Rewrite `program` as an `Effect.gen` block: build the message from `laptop`
+and `largeExpense`, `yield*` the log, then return the message. The terminal
+prints the same line as before.
+
+## Exercise
+
+Delete the `yield*` in front of `Effect.log(message)` and hover that
+expression. You are holding an `Effect<void>`, a description, and nothing runs
+it: the terminal no longer prints the line. TypeScript does not complain,
+which is the price of descriptions from lesson 2. An effect you build inside a
+generator and forget to `yield*` is quietly dropped. Put the `yield*` back.
+
+## Checkpoint
+
+The message is built from the event and logged once. Hover `program`: the
+first slot shows `string`.

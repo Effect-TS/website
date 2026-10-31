@@ -1,0 +1,75 @@
+---
+part: 1
+order: 10
+title: Checkpoint
+minutes: 5
+mode: playground
+lessonDir: 10-checkpoint
+---
+
+## The full file
+
+The editor holds all of Part 1, the same file lesson 1 opened with. There is
+nothing to write. It runs and prints the three alert lines and three skips from
+lesson 9.
+
+## Hover tour
+
+Read each name from top to bottom. Before you hover, say what you expect in
+each slot of an Effect: what it gives back, how it fails, what it needs.
+
+- `Rule`: the schema. `type Rule` is the type derived from it.
+- `decodeRule`: takes unknown input and returns
+  `Effect<Rule, SchemaError, never>` (the hover spells out the rule's fields).
+- `RuleStore`: the service, with `layer` and `layerFixtures` beside it.
+- `MissingField`: the one failure you declared and still use.
+- `matches`: `(rule, event) => boolean`. Plain, no Effect in sight.
+- `evaluate`: `Effect<string | void, SchemaError, never>`. A missing field is
+  handled inside; a malformed rule is not.
+- `evaluateAll`: `Effect<void, SchemaError, RuleStore>`. It needs the store.
+- `program`: `Effect<void, SchemaError, never>`. The store is provided.
+
+If one of them surprised you, the lesson that introduced it is listed below.
+
+## Part 1 reference card
+
+| API                                                         | What it does                                                 | Lesson |
+| ----------------------------------------------------------- | ------------------------------------------------------------ | ------ |
+| `Effect.log`                                                | Describes writing a log line                                 | 2      |
+| `Effect.andThen`                                            | Runs one effect, then another                                | 2      |
+| `Effect.as`                                                 | Same work, gives back a fixed value                          | 2      |
+| `Effect.gen` and `yield*`                                   | Steps in order; `yield*` runs an effect and gives its result | 3      |
+| `Schema.TaggedError`                                        | Declares a named, typed failure                              | 4      |
+| `return yield* new E(...)`                                  | Fails with `E` and ends the path                             | 4      |
+| `Effect.catchTag`                                           | Handles one failure by its tag                               | 5      |
+| `.pipe`                                                     | `x.pipe(f, g)` is `g(f(x))`                                  | 5      |
+| `Schema.Struct`, `String`, `Number`, `Literals`, `optional` | Describe a shape                                             | 6      |
+| `Schema.fromJsonString`, `Schema.decodeUnknownEffect`       | Parse and check JSON, fail with `SchemaError`                | 6      |
+| `Effect.fn("name")`                                         | A named function whose calls are spans                       | 7      |
+| `Context.Service`                                           | Declares a service; `yield*` it to use it                    | 8      |
+| `Layer.effect`, `RuleStore.of`                              | Builds a service                                             | 9      |
+| `Effect.sync`                                               | Wraps synchronous code in an effect                          | 9      |
+| `Effect.provide`                                            | Supplies a layer and removes it from the third slot          | 9      |
+| `NodeRuntime.runMain`                                       | Runs the program. Unpacked in Part 2 (lesson 11)             | 11     |
+| `Telemetry.layer`                                           | Sends logs and spans to the viewer. Unpacked in lesson 16    | 16     |
+
+## Challenges
+
+These are optional and not counted in the course time. Part 2 does not depend
+on them.
+
+1. `contains`. Add a fifth operator: the field's text contains the
+   condition's value. The value is a number today. Decide what the schema
+   should say about it, and see what TypeScript asks of `matches`.
+2. A `skipped` outcome with a reason. Instead of logging a skip and giving
+   back nothing, make `evaluate` give back a value that says the rule was
+   skipped and why. Watch `string | void` disappear from the hover. Lesson 12
+   does a version of this for real.
+3. A second event type. Add an event that is not an expense, such as a
+   battery level, and a rule for it. The alert message reads `event.amount`;
+   make it right for an event that has no amount.
+
+## Next
+
+Part 2 moves the same file onto your machine and turns it into a program with
+its own entrypoint. Setup takes about 15 minutes and comes first.
