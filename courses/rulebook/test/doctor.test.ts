@@ -1,6 +1,6 @@
 import { NodeServices } from "@effect/platform-node"
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Layer, Path, Stream } from "effect"
+import { Effect, Layer, Path, Result, Stream } from "effect"
 import { ChildProcess } from "effect/process"
 import * as Doctor from "../tools/doctor.ts"
 
@@ -10,11 +10,15 @@ const host = (options: {
   readonly nodeVersion: string
   readonly commands: ReadonlyArray<string>
   readonly viewerBinary: boolean
+  // Whether the binary under .viewer/ actually runs here; a present binary
+  // runs unless a test says otherwise.
+  readonly viewerRuns?: boolean
 }) =>
   Layer.succeed(Doctor.Host, {
     nodeVersion: options.nodeVersion,
     hasCommand: (name) => Effect.succeed(options.commands.includes(name)),
-    exists: (path) => Effect.succeed(options.viewerBinary && path.includes(".viewer"))
+    exists: (path) => Effect.succeed(options.viewerBinary && path.includes(".viewer")),
+    canRun: (path) => Effect.succeed((options.viewerRuns ?? options.viewerBinary) && path.includes(".viewer"))
   })
 
 describe("doctor", () => {
@@ -38,6 +42,21 @@ describe("doctor", () => {
       assert.match(error.message, /viewer/i)
     }).pipe(
       Effect.provide(host({ nodeVersion: "v22.15.1", commands: ["git"], viewerBinary: false }))
+    ))
+
+  it.effect("fails when the binary under .viewer/ does not run and there is no docker", () =>
+    Effect.gen(function*() {
+      const result = yield* Effect.result(Doctor.doctor)
+      assert.isTrue(Result.isFailure(result), "the doctor reported the machine ready")
+      if (Result.isFailure(result)) {
+        assert.strictEqual(result.failure._tag, "DoctorFailed")
+        assert.match(result.failure.message, /viewer/i)
+        assert.match(result.failure.message, /docker/i)
+      }
+    }).pipe(
+      Effect.provide(
+        host({ nodeVersion: "v22.16.0", commands: ["pnpm", "git"], viewerBinary: true, viewerRuns: false })
+      )
     ))
 
   // The command itself: with an empty PATH no host has pnpm, so `pnpm doctor`
