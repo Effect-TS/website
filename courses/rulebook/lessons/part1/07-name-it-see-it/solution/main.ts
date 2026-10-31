@@ -60,5 +60,5 @@ const program = Effect.gen(function*() {
   yield* evaluate(malformed, laptop)
 })
 
-// You write this yourself in lesson 11
+// Run the effect
 NodeRuntime.runMain(program)

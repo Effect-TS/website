@@ -36,5 +36,5 @@ const program = Effect.gen(function*() {
   yield* evaluate(taxi)
 })
 
-// You write this yourself in lesson 11
+// Run the effect
 NodeRuntime.runMain(program)
