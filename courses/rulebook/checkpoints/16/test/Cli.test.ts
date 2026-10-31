@@ -71,7 +71,7 @@ layer(layerCli, { buildPerTest: true })("CLI", (it) => {
   it.effect("events submit and rules run print outcomes; runs list sends --rule and --limit", () =>
     Effect.gen(function*() {
       const large = yield* store("rules/expense.json")
-      yield* store("rules/huge-expense.json")
+      const huge = yield* store("rules/huge-expense.json")
       const runLog = yield* RunLog
 
       const submitted = yield* run("events", "submit", fixture("events/laptop.json"))
@@ -81,15 +81,20 @@ layer(layerCli, { buildPerTest: true })("CLI", (it) => {
 
       const ran = yield* run("rules", "run", large.id, "--event", fixture("events/laptop.json"))
       assert.isTrue(ran.some((line) => line.includes("succeeded")))
+      // The newest run belongs to the other rule, so ignoring --rule or
+      // --limit each prints a row that must not be there.
+      yield* run("rules", "run", huge.id, "--event", fixture("events/laptop.json"))
       const all = yield* runLog.list()
-      assert.strictEqual(all.length, 3)
+      assert.strictEqual(all.length, 4)
+      assert.strictEqual(all[0].ruleId, huge.id)
 
       const [newest, older] = all.filter((row) => row.ruleId === large.id)
-      const other = all.find((row) => row.ruleId !== large.id)!
       const listed = (yield* run("runs", "list", "--rule", large.id, "--limit", "1")).join("\n")
       assert.include(listed, newest.id)
       assert.notInclude(listed, older.id)
-      assert.notInclude(listed, other.id)
+      for (const row of all.filter((row) => row.ruleId === huge.id)) {
+        assert.notInclude(listed, row.id)
+      }
     }))
 
   // Lesson 15: an action the engine does not have yet is skipped with a reason,
