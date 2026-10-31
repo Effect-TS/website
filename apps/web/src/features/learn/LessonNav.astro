@@ -32,9 +32,12 @@ const { routes, current } = Astro.props
                     class="flex justify-between gap-3 px-2 py-1.5 text-sm"
                   >
                     <span>
-                      {entry.data.order}. {entry.data.title}
+                      {entry.data.mode !== "guide" && `${entry.data.order}. `}
+                      {entry.data.title}
                     </span>
-                    <span class="shrink-0 text-subtle-foreground">{entry.data.minutes} min</span>
+                    {entry.data.minutes !== undefined && (
+                      <span class="shrink-0 text-subtle-foreground">{entry.data.minutes} min</span>
+                    )}
                   </SidebarLink>
                 </li>
               ))}

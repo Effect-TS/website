@@ -4,13 +4,14 @@ import type { LessonFiles } from "./workspace"
 const root = "../../../../../courses/rulebook/"
 
 /**
- * The starter's lesson and checkpoint files, read at build time so lesson
- * prose renders the same files learners run and CI checks.
+ * The starter's lesson, checkpoint and fixture files, read at build time so
+ * lesson prose renders the same files learners run and CI checks.
  */
 const sources = import.meta.glob<string>(
   [
     "../../../../../courses/rulebook/lessons/part1/**/*.ts",
     "../../../../../courses/rulebook/checkpoints/**/*.{ts,sql,json}",
+    "../../../../../courses/rulebook/fixtures/**/*.json",
     "!../../../../../courses/rulebook/lessons/part1/test/**",
   ],
   { query: "?raw", import: "default", eager: true },

@@ -11,7 +11,11 @@ export const prerender = true
 const routes = lessonRoutes(await getCollection("learn"))
 const parts = learnParts.flatMap((part) => {
   const lessons = routes.filter((route) => route.entry.data.part === part.part)
-  const minutes = lessons.reduce((total, route) => total + route.entry.data.minutes, 0)
+  // Guides such as setup are budgeted on their own, not in their part.
+  const minutes = lessons.reduce(
+    (total, { entry: { data } }) => total + (data.mode === "guide" ? 0 : data.minutes),
+    0,
+  )
   return lessons.length > 0 ? [{ ...part, lessons, minutes }] : []
 })
 ---
@@ -39,7 +43,10 @@ const parts = learnParts.flatMap((part) => {
         <li>git and a browser</li>
         <li>macOS, Linux with glibc 2.39 or newer, or Docker, for the trace viewer</li>
       </ul>
-      <p class="text-prose-foreground">Part 2 starts from the starter project:</p>
+      <p class="text-prose-foreground">
+        Part 2 starts from the starter project, and
+        <a href="/learn/part-2/setup" class="underline">Setup</a> walks through it:
+      </p>
       <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
     </section>
 
@@ -62,11 +69,14 @@ const parts = learnParts.flatMap((part) => {
                   class="flex items-baseline justify-between gap-4 px-4 py-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <span>
-                    {entry.data.order}. {entry.data.title}
+                    {entry.data.mode !== "guide" && `${entry.data.order}. `}
+                    {entry.data.title}
                   </span>
-                  <span class="shrink-0 text-sm text-subtle-foreground">
-                    {entry.data.minutes} min
-                  </span>
+                  {entry.data.minutes !== undefined && (
+                    <span class="shrink-0 text-sm text-subtle-foreground">
+                      {entry.data.minutes} min
+                    </span>
+                  )}
                 </a>
               </li>
             ))}

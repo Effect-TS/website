@@ -1,6 +1,6 @@
 import { z } from "astro/zod"
 
-const lesson = {
+const page = {
   /**
    * The course part, 1 to 4.
    */
@@ -13,6 +13,10 @@ const lesson = {
    * The lesson title.
    */
   title: z.string().min(1),
+}
+
+const lesson = {
+  ...page,
   /**
    * The lesson's share of the course time budget, in minutes.
    */
@@ -38,6 +42,18 @@ export const LearnEntry = z.discriminatedUnion("mode", [
      */
     mode: z.literal("local"),
     lessonDir: z.string().min(1).optional(),
+  }),
+  z.object({
+    ...page,
+    /**
+     * A page between lessons, such as setup, rather than a numbered lesson.
+     * It comes just before the lesson with the same `order`.
+     */
+    mode: z.literal("guide"),
+    /**
+     * Set when the page is counted in the course time budget.
+     */
+    minutes: z.int().positive().optional(),
   }),
 ])
 

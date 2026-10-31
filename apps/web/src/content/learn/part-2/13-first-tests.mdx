@@ -4,11 +4,131 @@ order: 13
 title: First tests
 minutes: 20
 mode: local
-lessonDir: "13"
 ---
 
-Stop reading `alerts.log` by hand: the engine's behaviour becomes a test suite.
+## The problem
 
-<LessonCode file="checkpoints/13/test/Engine.test.ts" />
+To check lesson 12 you ran `main.ts`, read the printed run log and opened
+`alerts.log`. That works once. It does not work after every change, and it
+writes a real file each time. The Engine's behaviour should be a test suite
+that runs in a second and touches nothing.
 
-The lesson text is written in a later step.
+## it.effect and layer
+
+The starter uses `@effect/vitest`, vitest with Effect support. Tests live in
+`test/`, next to `src/`, and `pnpm test` runs them.
+
+- `it.effect("name", () => effect)` runs an Effect as a test. The test passes
+  when the effect succeeds and fails when it fails.
+- `layer(SomeLayer)("name", (it) => { ... })` builds the layer and provides it
+  to every `it.effect` inside. With `{ buildPerTest: true }` each test gets a
+  fresh build, so one test's rules never leak into the next.
+- `assert` from the same package has the usual checks: `strictEqual`,
+  `deepStrictEqual`, `match`, `isNull`.
+
+The memory stores from lesson 12 are what makes this cheap: a test provides
+`RuleStore.layerMemory` and starts with an empty store.
+
+## One test red first
+
+Create `test/RuleStore.test.ts` with a test that stores two rules, lists,
+gets and removes them. Then the error case: getting an id that does not exist
+should fail with `RuleNotFound`. Write it the obvious way first,
+`const error = yield* store.get("missing")`, then assert on `error`.
+
+Run `pnpm test test/RuleStore.test.ts`. The test is red, and vitest prints a
+`RuleNotFound` with `id: "missing"`. The store did the right thing. The test is
+wrong: it treats the failure you expected as a failure of the test.
+
+`Effect.flip` swaps the two channels. The failure becomes the success, so
+`yield* Effect.flip(store.get("missing"))` gives you the `RuleNotFound` to
+assert on, and a store that returned a rule would fail the test instead. Wrap
+it, run again, and it is green.
+
+<LessonCode file="checkpoints/13/test/RuleStore.test.ts" />
+
+You saw the test fail before you saw it pass. Keep doing that. A test you have
+only seen green has not shown it can see anything.
+
+## Revisit: swap a layer, again
+
+The Engine needs a `FileSystem`, and a test should not write `alerts.log`.
+`FileSystem.layerNoop` builds a file system where every method does nothing
+and fails, except the ones you pass in. Keep a `writes` array in the test file
+and pass
+`writeFileString: (path) => Effect.sync(() => writes.push(path))`: every
+append the Engine makes lands in the array, and the test can assert what was
+written without a file existing.
+
+The Engine test layer is then `Engine.layer` with `RuleStore.layerMemory`,
+`RunLog.layerMemory` and the recording file system, the same three-part build
+as `main.ts` in lesson 12 with one piece swapped. `Engine.ts` does not change.
+In lesson 9 you swapped the fixture store in with one line. This is the same
+move, with tests as the reason.
+
+## Exercise
+
+A missing field is `skipped`, not `failed`. Write the test that says so, and
+assert it on the run rows, not only on what `handleEvent` returns. Rows are
+what `runs list` will show and what lesson 17 stores in SQLite.
+
+1. In `test/Engine.test.ts`, store a rule with the `amount gt 500` condition,
+   submit `{ type: "expense", description: "no amount" }`, and read the rows
+   with `RunLog.list()`. Assert one row, `skipped`, with a `reason` that
+   matches `/amount/`, an `error` that is null (a skip is not an error), and
+   no writes.
+2. Run `pnpm test test/Engine.test.ts`. Green.
+3. Plant the bug: change the `MissingField` catch in `src/Engine.ts` to
+   `reason: "no match"`. `pnpm check` still passes, the row is well-typed and
+   wrong. Run the test: red, `expected 'no match' to match /amount/`.
+4. Put `` `missing field ${error.field}` `` back. Green.
+
+The filter also matches `checkpoints/13/test/Engine.test.ts`, the reference
+tests; they test the checkpoint, not your `src/`, and stay green throughout.
+The hint and the test are in `exercises/13/`.
+
+## Now and later
+
+What you need now: an `it.effect` test is an Effect, `layer()` provides what it
+needs, and a fake service is a layer like any other. The cost is keeping fakes
+honest: the recording file system only knows the two methods you gave it.
+Unpacked later: `TestClock`, which the reference `RunLog` test uses to move
+time without waiting (lesson 19), and running these same suites against
+SQLite (lesson 17).
+
+## Checkpoint
+
+`pnpm test` is green after one deliberate red. The checkpoint's own suites run
+with:
+
+```sh
+pnpm checkpoint 13 test
+```
+
+and the run log now carries reasons. `pnpm checkpoint 13` adds the
+`no-amount.json` event to lesson 12's two:
+
+```text
+large expense: succeeded
+huge expense: skipped (condition amount gt 5000 is false)
+every expense: succeeded
+large expense: skipped (condition amount gt 500 is false)
+huge expense: skipped (condition amount gt 5000 is false)
+every expense: succeeded
+large expense: skipped (missing field amount)
+huge expense: skipped (missing field amount)
+every expense: succeeded
+```
+
+## Reference card
+
+| API                             | What it does                                                 | Lesson |
+| ------------------------------- | ------------------------------------------------------------ | ------ |
+| `it.effect`                     | A test that runs an Effect                                   | 13     |
+| `layer(L)("name", (it) => ...)` | Provides a layer to every test inside                        | 13     |
+| `{ buildPerTest: true }`        | A fresh layer for each test                                  | 13     |
+| `assert`                        | `strictEqual`, `deepStrictEqual`, `match`, `isNull` and more | 13     |
+| `Effect.flip`                   | Swaps failure and success, to assert on an expected error    | 13     |
+| `FileSystem.layerNoop`          | A file system that does only what you pass in                | 13     |
+| `Effect.sync`                   | Wraps synchronous code, here a push onto an array            | 9      |
+| `TestClock.adjust`              | Moves test time forward. Unpacked in lesson 19               | 19     |

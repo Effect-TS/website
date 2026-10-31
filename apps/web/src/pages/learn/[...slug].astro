@@ -64,20 +64,24 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
         </aside>
         <article class="max-w-3xl">
           <Eyebrow class="mb-2 text-xs">
-            Part {part.part} · {part.title} · {data.minutes} min
+            Part {part.part} · {part.title}
+            {data.minutes !== undefined && ` · ${data.minutes} min`}
           </Eyebrow>
           <h1 class="text-3xl font-semibold text-foreground md:text-4xl">
-            {data.order}. {data.title}
+            {data.mode !== "guide" && `${data.order}. `}
+            {data.title}
           </h1>
           <div class="prose prose-effect mt-8">
             <Content components={{ LessonCode }} />
-            <Aside title="Run this locally">
-              <p>
-                This lesson runs in the starter project on your machine. If you have not set it up
-                yet:
-              </p>
-              <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
-            </Aside>
+            {data.mode === "local" && (
+              <Aside title="Run this locally">
+                <p>
+                  This lesson runs in the starter project on your machine. If you have not set it up
+                  yet:
+                </p>
+                <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
+              </Aside>
+            )}
           </div>
           <PrevNextNav prev={neighbour(route.prev)} next={neighbour(route.next)} label="Lessons" />
         </article>

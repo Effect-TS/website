@@ -1,0 +1,142 @@
+---
+part: 2
+order: 12
+title: An Engine that records
+minutes: 22
+mode: local
+---
+
+## The problem
+
+`run-once.ts` runs one rule against one event and forgets it did. rulebook
+needs more: every rule whose trigger matches the event runs, and every run
+leaves a row saying what happened. Evaluating, acting and recording belong
+together, in one place every caller goes through. That place is the `Engine`.
+
+## Stores with ids
+
+`RuleStore` from lesson 9 grows into what a server will need: `create` gives a
+rule an id, and `list`, `get` and `remove` work with it. `get` and `remove`
+fail with `RuleNotFound` for an id the store does not know. `layerMemory`
+keeps the rules in a `Map`, as before:
+
+<LessonCode file="checkpoints/12/src/RuleStore.ts" />
+
+`RunLog` is the run history, built the same way. `start` opens a row with the
+outcome `started`, `finish` writes how the run ended, `list` reads rows back,
+newest first:
+
+<LessonCode file="checkpoints/12/src/RunLog.ts" />
+
+`RunResult` is the set of endings at this point: `skipped`, `succeeded`, or
+`failed` with one of three reasons. `status`, `timeout` and `io` are reasons
+on `failed` only. Nothing else uses them.
+
+## The execution boundary
+
+The `Engine` layer is a `Layer.effect` like the stores, except that it needs
+other services to build: it yields `RuleStore`, `RunLog` and `FileSystem`
+first, then builds `execute` and `handleEvent` on top of them.
+
+`execute` is the boundary every run goes through, in this order:
+
+1. Open the row: `runLog.start` writes `started` before anything else happens.
+2. Run inside a span: `run` is `Effect.fn("Engine.execute")`, annotated with
+   the rule id and trigger. It evaluates the condition, then runs the action.
+   The span ends with `run`'s result, so a failed action ends it as an error.
+3. Write the terminal row from the `Exit`: `Effect.onExit` sees how `run`
+   ended, whatever that was. A success writes its `RunResult`; an
+   `ActionFailed` writes `failed`. Any other ending leaves the row `started`
+   for now. Later lessons give crashes and interruptions their own outcomes.
+4. Turn the failure into a value: after the row is written, `Effect.catchTag`
+   turns `ActionFailed` into a `failed` result, so `execute` cannot fail and
+   one broken rule does not stop the others.
+
+A missing field means the rule does not apply to this event. `run` catches
+`MissingField` and returns `skipped`. A skip is not an error and is never shown
+as one: the span ends Ok and the row's `error` column stays null.
+
+<LessonCode file="checkpoints/12/src/Engine.ts" />
+
+Two details in it:
+
+- The service type says `execute` needs nothing. `run` uses the `FileSystem`
+  the layer got at build time, handed over with `Effect.provideService`.
+- `Effect.fn.Return<RunResult, ActionFailed | MissingField>` spells out what
+  the generator returns and how it fails, so every `return` is checked against
+  `RunResult`.
+
+`handleEvent` is a `for...of` over the stored rules, like `evaluateAll` in
+lesson 8, calling `execute` for each rule whose event trigger names the event.
+
+## Revisit: services and Effect.fn
+
+`main.ts` stores three rules, submits two events, and prints the run log.
+`Layer.provideMerge` builds the Engine from the stores and the platform layer
+and keeps all of them in the result, so the program can `yield*` the stores
+too. Every `Effect.fn` name in these files is a span, as in lesson 7. You will
+see `Engine.handleEvent` and `Engine.execute` in the viewer in lesson 16.
+
+<LessonCode file="checkpoints/12/src/main.ts" />
+
+Run yours with `pnpm tsx src/main.ts`.
+
+## Exercise
+
+`huge expense: skipped` does not say why. Give `skipped` a reason, kept in the
+run history in the same `reason` column, as free text:
+
+1. In `RunLog.ts`, give the `skipped` member of `RunResult` a
+   `reason: Schema.String`. The compiler now lists every place that writes a
+   skip without one.
+2. In `Engine.ts` there are three. The condition was false: say which
+   condition. The `MissingField` catch: use the error's `field`, as
+   `missing field amount`. The `httpPost` branch: say that the action runs
+   from lesson 20.
+3. Leave `failed` alone. Its three reasons are fixed, and the `runs` table
+   lesson 17 stores these rows in only accepts those three on a failed row.
+
+Check: `pnpm tsx src/main.ts` prints each skip with its reason in brackets. The
+hint and the changed files are in `exercises/12/`. From lesson 13 on, the
+checkpoints include this change, and lesson 13 tests it.
+
+## Now and later
+
+What you need now: one boundary opens the row, runs inside a span, writes the
+ending, and returns a value. The cost is that every run writes twice. Unpacked
+later: the `interrupted` outcome and the timeout inside the span (lesson 19),
+and `Cause`, which `onExit` reads to find the failure, with the `crashed`
+outcome (lesson 20).
+
+## Checkpoint
+
+Three rules, two events. The run log lists one row per rule per event, with
+`skipped` or `succeeded`:
+
+```sh
+pnpm checkpoint 12
+```
+
+```text
+large expense: succeeded
+huge expense: skipped
+every expense: succeeded
+large expense: skipped
+huge expense: skipped
+every expense: succeeded
+```
+
+## Reference card
+
+| API                                 | What it does                                                    | Lesson |
+| ----------------------------------- | --------------------------------------------------------------- | ------ |
+| `Layer.effect` with `yield*` inside | A layer that needs other services to build                      | 12     |
+| `Layer.provideMerge`                | Provides a layer and keeps its services in the result           | 12     |
+| `Effect.onExit`                     | Runs an effect with the `Exit`, however the effect ended        | 12     |
+| `Exit.isSuccess`                    | Tells a successful `Exit` apart                                 | 12     |
+| `Effect.annotateCurrentSpan`        | Adds attributes to the span the code runs in                    | 12     |
+| `Effect.provideService`             | Hands one service to an effect                                  | 12     |
+| `Effect.fn.Return<A, E>`            | Declares what an `Effect.fn` generator returns and how it fails | 12     |
+| `Effect.fnUntraced`                 | `Effect.fn` without a span                                      | 12     |
+| `DateTime.now`                      | The current time, from Effect's clock                           | 12     |
+| `Cause.squash`                      | The main error in a failure. Unpacked in lesson 20              | 20     |
