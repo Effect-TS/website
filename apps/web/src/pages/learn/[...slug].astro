@@ -9,6 +9,7 @@ import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import { learnParts, starterCommands } from "@/features/learn/course"
 import LessonCode from "@/features/learn/LessonCode.astro"
 import LessonNav from "@/features/learn/LessonNav.astro"
+import LessonTable from "@/features/learn/LessonTable.astro"
 import { LessonPlayground } from "@/features/learn/LessonPlayground"
 import { lessonFiles } from "@/features/learn/lessons"
 import { lessonRoutes } from "@/features/learn/routes"
@@ -62,7 +63,8 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
         <aside class="hidden lg:block">
           <LessonNav routes={routes} current={route.slug} />
         </aside>
-        <article class="max-w-3xl">
+        {/* min-w-0: as a grid item the article would otherwise grow to its widest code block. */}
+        <article class="max-w-3xl min-w-0">
           <Eyebrow class="mb-2 text-xs">
             Part {part.part} · {part.title}
             {data.minutes !== undefined && ` · ${data.minutes} min`}
@@ -72,7 +74,7 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
             {data.title}
           </h1>
           <div class="prose prose-effect mt-8">
-            <Content components={{ LessonCode }} />
+            <Content components={{ LessonCode, table: LessonTable }} />
             {data.mode === "local" && (
               <Aside title="Run this locally">
                 <p>
@@ -122,7 +124,7 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
                   <a href={`/learn/${route.slug}/playground`}>Open this lesson in the playground</a>{" "}
                   anyway.
                 </aside>
-                <Content components={{ LessonCode }} />
+                <Content components={{ LessonCode, table: LessonTable }} />
                 <p class="text-sm">
                   Prefer your own editor? The starter has the same files:{" "}
                   <code>pnpm lesson {data.order}</code>.
