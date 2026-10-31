@@ -89,3 +89,32 @@ test("Part 1 renders its class declarations from the lesson files and pastes non
     "RuleStore",
   ])
 })
+
+// Lesson 1 opens on the finished app as a terminal session captured from
+// checkpoint 24, rendered from the checked-in file like any other listing.
+const transcript = "checkpoints/24/transcript.txt"
+
+test("lesson 1 renders the checkpoint 24 transcript from its file, in place of the clip slot", () => {
+  const lesson1 = prose("01-the-finished-thing.mdx")
+  assert.notInclude(lesson1, "Slot for the finished-app clip")
+  assert.deepInclude(
+    lessonCode(lesson1).map((attributes) => attributes.get("file")),
+    transcript,
+  )
+})
+
+test("the transcript names the command that regenerates it and shows a run succeed, one skip and one fail, each with its reason", () => {
+  const text = Lessons.courseFile(transcript)
+  const scripts = JSON.parse(
+    readFileSync(
+      join(import.meta.dirname, "../../../../../courses/rulebook/package.json"),
+      "utf8",
+    ),
+  ).scripts
+  assert.include(scripts.transcript, "tools/transcript.ts")
+  assert.include(text.split("\n")[0], "pnpm transcript")
+  // `runs list` rows, as the CLI prints an outcome with its reason.
+  assert.match(text, /\bsucceeded\b/)
+  assert.match(text, /\bskipped \([^)]+\)/)
+  assert.match(text, /\bfailed \((?:status|timeout|io)\)/)
+})
