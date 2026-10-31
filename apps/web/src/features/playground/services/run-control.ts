@@ -110,7 +110,9 @@ export const withRunnersPaused =
         }
         if (pending.length === 0) return
         if (now >= deadline) {
-          return yield* new RunnersDidNotPause({ pids: pending })
+          const error = new RunnersDidNotPause({ pids: pending })
+          yield* Effect.logWarning(error.message)
+          return yield* error
         }
         yield* Effect.sleep("100 millis")
       }
