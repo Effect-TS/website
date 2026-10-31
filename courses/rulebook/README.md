@@ -42,6 +42,7 @@ pnpm run doctor --viewer    # leave it running
 | `pnpm test` | Run the tests |
 | `pnpm check` | Typecheck |
 | `pnpm test:course` | Test the Part 1 lesson files as shipped (course CI; fails once you edit them) |
+| `pnpm transcript` | Regenerate `checkpoints/24/transcript.txt`, the session lesson 1 opens with (course maintainers; needs ports 3000 and 4600) |
 | `pnpm fmt` | Format the code |
 
 ## What is here

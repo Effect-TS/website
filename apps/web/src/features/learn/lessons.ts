@@ -10,7 +10,7 @@ const root = "../../../../../courses/rulebook/"
 const sources = import.meta.glob<string>(
   [
     "../../../../../courses/rulebook/lessons/part1/**/*.ts",
-    "../../../../../courses/rulebook/checkpoints/**/*.{ts,sql,json}",
+    "../../../../../courses/rulebook/checkpoints/**/*.{ts,sql,json,txt}",
     "../../../../../courses/rulebook/fixtures/**/*.json",
     "!../../../../../courses/rulebook/lessons/part1/test/**",
   ],

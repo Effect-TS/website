@@ -1,0 +1,29 @@
+# Captured from checkpoint 24 by `pnpm transcript`; rerun it when checkpoint 24 changes.
+
+# Terminal 1
+$ pnpm receiver
+Receiver on http://localhost:4600: /ok /slow?ms= /fail?status= /flaky /status
+[hh:mm:ss.sss] INFO (#n): Listening on http://[::]:4600
+
+# Terminal 2
+$ pnpm checkpoint 24 server
+[hh:mm:ss.sss] INFO (#n): Listening on http://[::]:3000
+
+# Terminal 3
+$ pnpm checkpoint 24 cli rules add fixtures/rules/post-ok.json
+Added <rule-1>: post ok
+$ pnpm checkpoint 24 cli rules add fixtures/rules/status-check.json
+Added <rule-2>: receiver status
+$ pnpm checkpoint 24 cli rules list
+<rule-1>  post ok
+<rule-2>  receiver status  running
+$ pnpm checkpoint 24 cli events submit fixtures/events/laptop.json
+<rule-1>: succeeded
+$ curl -X POST localhost:4600/status/mode -d '{"mode":"error"}'
+{"mode":"error"}
+$ pnpm checkpoint 24 cli rules run <rule-2> --event fixtures/events/laptop.json
+<rule-2>: failed (status): GET http://localhost:4600/status answered 500
+$ pnpm checkpoint 24 cli runs list
+<run-1>  <rule-2>  failed (status): GET http://localhost:4600/status answered 500
+<run-2>  <rule-1>  succeeded
+<run-3>  <rule-2>  skipped (condition body.status eq degraded is false)
