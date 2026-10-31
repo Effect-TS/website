@@ -1,6 +1,11 @@
 import { assert, test } from "vite-plus/test"
 import { Effect, Exit, Fiber } from "effect"
 
+// File system errors as WebContainer's `fs` reports them: only ENOENT says a
+// path is gone; anything else says nothing about it.
+const fsError = (code: string, path: string) =>
+  Object.assign(new Error(`${code}: ${path}`), { code })
+
 // The page side of the runner protocol (see `run-lifecycle.test.ts`): before
 // replacing the workspace, ask every registered `run` to pause, wait for it,
 // and always release the pause. It lives in `run-control.ts` so it can run
@@ -25,6 +30,8 @@ interface RunControlOptions {
   readonly staleAfterMillis: number
   // How long to wait for live runners to pause before giving up the swap.
   readonly pauseTimeoutMillis: number
+  // Whether a process exists; only `false` lets a registration be dropped.
+  readonly isAlive?: (pid: number) => Effect.Effect<boolean>
 }
 
 interface RunControl {
@@ -58,7 +65,7 @@ const memoryFileSystem = (
   writeFile: async (path, data) => void files.set(path, data),
   readFile: async (path) => {
     const content = files.get(path)
-    if (content === undefined) throw new Error(`ENOENT ${path}`)
+    if (content === undefined) throw fsError("ENOENT", path)
     return content
   },
   readdir: async (directory) =>
@@ -79,7 +86,7 @@ test("a live runner that never pauses fails the swap without running it", async 
     readFile: async (path) => {
       if (path === `${registration}.beat`) return String(beat++)
       const content = files.get(path)
-      if (content === undefined) throw new Error(`ENOENT ${path}`)
+      if (content === undefined) throw fsError("ENOENT", path)
       return content
     },
   })
@@ -151,4 +158,161 @@ test("a pause that cannot be released is reported, not swallowed", async () => {
   )
 
   assert.isTrue(Exit.isFailure(exit))
+})
+
+// A registration whose heartbeat stands still, as a blocked compile or an
+// exited runner leaves it.
+const frozenRegistration = () =>
+  new Map([
+    [registration, "watching"],
+    [`${registration}.beat`, "7"],
+  ])
+
+test("a still heartbeat drops the registration only when its process is gone", async () => {
+  const { withRunnersPaused } = await load()
+  const files = frozenRegistration()
+  const asked: Array<number> = []
+  let swapped = false
+
+  const exit = await Effect.runPromiseExit(
+    withRunnersPaused(memoryFileSystem(files), {
+      ...options,
+      staleAfterMillis: 200,
+      isAlive: (pid) => Effect.sync(() => (asked.push(pid), false)),
+    })(Effect.sync(() => (swapped = true))),
+  )
+
+  assert.isTrue(Exit.isSuccess(exit))
+  assert.isTrue(swapped)
+  assert.include(asked, 123)
+  assert.isFalse(files.has(registration), "the exited runner is forgotten")
+  assert.isFalse(files.has(pause))
+})
+
+test("a still heartbeat on a live process fails the swap closed", async () => {
+  const { withRunnersPaused } = await load()
+  const files = frozenRegistration()
+  let swapped = false
+
+  const exit = await Effect.runPromiseExit(
+    withRunnersPaused(memoryFileSystem(files), {
+      ...options,
+      staleAfterMillis: 200,
+      pauseTimeoutMillis: 800,
+      isAlive: () => Effect.succeed(true),
+    })(Effect.sync(() => (swapped = true))),
+  )
+
+  assert.isTrue(Exit.isFailure(exit))
+  assert.isFalse(swapped)
+  assert.isTrue(files.has(registration), "a live runner keeps its registration")
+  assert.isFalse(files.has(pause), "the pause is released")
+})
+
+test("a liveness check that never answers is bounded by the pause timeout", async () => {
+  const { withRunnersPaused } = await load()
+  const files = frozenRegistration()
+  let swapped = false
+  const started = Date.now()
+
+  const exit = await Effect.runPromiseExit(
+    withRunnersPaused(memoryFileSystem(files), {
+      ...options,
+      staleAfterMillis: 100,
+      pauseTimeoutMillis: 500,
+      isAlive: () => Effect.never,
+    })(Effect.sync(() => (swapped = true))),
+  ).then(
+    (exit) => exit,
+    () => undefined,
+  )
+
+  assert.isAtMost(Date.now() - started, 2_000, "the swap gave up in time")
+  assert.isTrue(exit !== undefined && Exit.isFailure(exit))
+  assert.isFalse(swapped)
+  assert.isFalse(files.has(pause), "the pause is released")
+}, 5_000)
+
+test("an unreadable control directory fails the swap closed", async () => {
+  const { withRunnersPaused } = await load()
+  const files = new Map([[registration, "watching"]])
+  let swapped = false
+
+  const exit = await Effect.runPromiseExit(
+    withRunnersPaused(
+      memoryFileSystem(files, {
+        readdir: async (path) => {
+          throw fsError("EIO", path)
+        },
+      }),
+      { ...options, pauseTimeoutMillis: 500 },
+    )(Effect.sync(() => (swapped = true))),
+  )
+
+  assert.isTrue(Exit.isFailure(exit))
+  assert.isFalse(swapped)
+  assert.isFalse(files.has(pause), "the pause is released")
+})
+
+test("an unreadable registration fails the swap closed", async () => {
+  const { withRunnersPaused } = await load()
+  const files = new Map([[registration, "watching"]])
+  let swapped = false
+
+  const exit = await Effect.runPromiseExit(
+    withRunnersPaused(
+      memoryFileSystem(files, {
+        readFile: async (path) => {
+          if (path === registration) throw fsError("EIO", path)
+          const content = files.get(path)
+          if (content === undefined) throw fsError("ENOENT", path)
+          return content
+        },
+      }),
+      { ...options, pauseTimeoutMillis: 500 },
+    )(Effect.sync(() => (swapped = true))),
+  )
+
+  assert.isTrue(Exit.isFailure(exit))
+  assert.isFalse(swapped)
+  assert.isFalse(files.has(pause), "the pause is released")
+})
+
+// Every workspace handle swaps through the same pause file, so swaps over one
+// file system must not overlap, and the pause must stay up while one runs.
+test("swaps sharing a pause never drop it while another is still changing files", async () => {
+  const { withRunnersPaused } = await load()
+  const files = new Map<string, string>()
+  // Two workspace handles: separate callers over the one container file system.
+  const fs = memoryFileSystem(files)
+  const events: Array<string> = []
+  const finish: Array<() => void> = []
+  const swap = (name: string) =>
+    Effect.promise(async () => {
+      events.push(`${name} started`)
+      await new Promise<void>((resolve) => finish.push(resolve))
+      events.push(
+        `${name} finished, pause ${files.has(pause) ? "held" : "dropped"}`,
+      )
+    })
+
+  const first = Effect.runPromise(withRunnersPaused(fs, options)(swap("first")))
+  const second = Effect.runPromise(
+    withRunnersPaused(fs, options)(swap("second")),
+  )
+  while (finish.length === 0) await sleep(10)
+  finish.shift()!()
+  await first
+  while (finish.length === 0) await sleep(10)
+  assert.isTrue(files.has(pause), "the pause is held for the second swap")
+  finish.shift()!()
+  await second
+
+  assert.deepEqual(events, [
+    "first started",
+    "first finished, pause held",
+    "second started",
+    "second finished, pause held",
+  ])
+  assert.isFalse(files.has(pause), "released once both settled")
 })

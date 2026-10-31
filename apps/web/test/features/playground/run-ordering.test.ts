@@ -53,9 +53,15 @@ const flush = async () => {
   for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r))
 }
 
-const startRunner = () => {
+const startRunner = (
+  options: { readonly pageArrivesAtStartup?: boolean } = {},
+) => {
   const files = new Map<string, string>()
   const events: Array<string> = []
+  // When armed, the page takes the pause the moment the runner has found no
+  // pause, before the runner acts on that, and records what it reads then.
+  let arriveAfterNegativeCheck = options.pageArrivesAtStartup === true
+  let arrival: { readonly saw: string } | undefined
   const programs: Array<Program> = []
   const intervals: Array<() => unknown> = []
   const state = "/home/.run-control/42"
@@ -72,12 +78,22 @@ const startRunner = () => {
     createWatchProgram: (h: { afterProgramCreate: (b: unknown) => void }) => {
       // What the page would read if it looked while this compile runs.
       events.push(`open while ${files.get(state) ?? "unregistered"}`)
+      if (arrival !== undefined)
+        events.push(`open after the page saw ${arrival.saw}`)
       h.afterProgramCreate({ getProgram: () => ({}) })
       return { close: () => events.push("close") }
     },
   }
   const fs = {
-    existsSync: (path: string) => files.has(path),
+    existsSync: (path: string) => {
+      const exists = files.has(path)
+      if (path === pause && !exists && arriveAfterNegativeCheck) {
+        arriveAfterNegativeCheck = false
+        arrival = { saw: files.get(state) ?? "unregistered" }
+        files.set(pause, "")
+      }
+      return exists
+    },
     writeFileSync: (path: string, data: unknown) =>
       files.set(path, String(data)),
     mkdirSync: () => {},
@@ -119,6 +135,10 @@ const startRunner = () => {
     programs,
     state: () => files.get(state),
     requestPause: () => files.set(pause, ""),
+    // The page arrives right after the runner's next negative pause check.
+    arriveAfterNextNegativeCheck: () => {
+      arriveAfterNegativeCheck = true
+    },
     releasePause: () => files.delete(pause),
     // Fires every interval the runner registered, as time passing would,
     // without waiting for work they leave pending.
@@ -191,4 +211,37 @@ test("compiles in quick succession start one program, after the old one exits", 
     [100, 101],
     runner.events.join(", "),
   )
+})
+
+// The page takes a pause, then reads each registration; the runner publishes
+// its state, then checks for a pause. Done in that order on both sides, at
+// least one of them sees the other, so the page can never read "unregistered"
+// or "paused" for a runner that goes on to compile.
+test("a pause taken right after the startup check never meets a compile it cannot see", async () => {
+  const runner = startRunner({ pageArrivesAtStartup: true })
+  await flush()
+
+  const unseen = runner.events.filter((event) =>
+    /^open after the page saw (unregistered|paused)/.test(event),
+  )
+  assert.deepEqual(unseen, [], runner.events.join(", "))
+})
+
+test("a pause taken right after the resume check never meets a compile it cannot see", async () => {
+  const runner = startRunner()
+  await flush()
+  runner.requestPause()
+  await runner.tick()
+  runner.programs[0]!.finish()
+  await flush()
+  assert.equal(runner.state(), "paused")
+
+  runner.releasePause()
+  runner.arriveAfterNextNegativeCheck()
+  await runner.tick()
+
+  const unseen = runner.events.filter((event) =>
+    /^open after the page saw (unregistered|paused)/.test(event),
+  )
+  assert.deepEqual(unseen, [], runner.events.join(", "))
 })
