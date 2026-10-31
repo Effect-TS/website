@@ -18,11 +18,15 @@ and leave the answer to something else.
 ## A service
 
 `Context.Service` declares a service: a name and the shape of what it offers,
-with no implementation. Declare `RuleStore` with one member, `list`, an effect
-that gives back the stored rules as JSON strings
-(`Effect.Effect<ReadonlyArray<string>>`). The string you pass at the end,
-`"rulebook/RuleStore"`, is the service's key and must be unique in the
-program.
+with no implementation. Add `Context` to the `effect` import. `Context.Service`
+is called twice, like `Schema.TaggedError` in lesson 4:
+
+`class RuleStore extends Context.Service<RuleStore, { readonly list: Effect.Effect<ReadonlyArray<string>> }>()("rulebook/RuleStore") {}`
+
+The angle brackets take the class's own name and the shape: one member,
+`list`, an effect that gives back the stored rules as JSON strings. The string
+in the second call, `"rulebook/RuleStore"`, is the service's key and must be
+unique in the program.
 
 Inside `Effect.gen` or `Effect.fn`, `const store = yield* RuleStore` hands you
 the implementation, whatever it turns out to be. You use it like any object:

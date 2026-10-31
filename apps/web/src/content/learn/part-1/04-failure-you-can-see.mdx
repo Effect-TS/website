@@ -20,11 +20,18 @@ from "the rule could not be checked".
 ## A failure with a name
 
 The second slot of an Effect type is for this: the ways the effect can fail.
-You give a failure a name by declaring a class for it. Declare `MissingField`
-with `Schema.TaggedError`, carrying the name of the missing `field` as a
-`Schema.String`. Schema gets its own lesson in lesson 6; here it only lists
-what the error carries. The tag, `"MissingField"`, is how you pick this
-failure out later.
+You give a failure a name by declaring a class for it. Add `Schema` to the
+`effect` import at the top of the file, then declare `MissingField` below the
+two interfaces:
+
+`class MissingField extends Schema.TaggedError<MissingField>()("MissingField", { field: Schema.String }) {}`
+
+`Schema.TaggedError` is called twice. The first call is empty and takes the
+class's own name in angle brackets, so the class can refer to its own type.
+The second call takes the tag and the fields. The tag, `"MissingField"`, is how
+you pick this failure out later. The fields say what the error carries, here
+the name of the missing `field` as a `Schema.String`. Schema gets its own
+lesson in lesson 6; here it only lists what the error carries.
 
 In `program`, before matching, check whether the event has the condition's
 field. If it does not, write `return yield* new MissingField({ field })`.
@@ -39,7 +46,8 @@ type, so anything that uses `program` can see that it fails and how.
 
 A rule can also name an operator `matches` does not know. `matches` falls into
 its `default` branch and returns `false`, the same quiet "no". Add a second
-failure, `UnknownOperator`, carrying the `op`. Keep a list of the four known
+failure, `UnknownOperator`, carrying the `op`, declared the same way as
+`MissingField`. Keep a list of the four known
 operators and fail with it when the condition's `op` is not one of them.
 
 Hover `program` again. The second slot reads `MissingField | UnknownOperator`:
