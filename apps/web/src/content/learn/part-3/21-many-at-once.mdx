@@ -11,7 +11,13 @@ mode: local
 `handleEvent` is still the loop from lesson 8: a `for...of` over the rules, one
 `yield*` after another. That was fine while every action was a line in a file.
 Now an action can take up to the 10 second timeout, and every rule after it
-waits. Start the receiver with the mixed scenario:
+waits.
+
+Start clean, so the event matches only the rules this lesson adds. Every
+server, yours and the checkpoints', keeps its rules in the same `rulebook.db`,
+and the rules from earlier lessons are still in it. Stop your server, delete
+`rulebook.db`, and start it again. Then start the receiver with the mixed
+scenario:
 
 ```sh
 pnpm receiver --scenario mixed
@@ -73,8 +79,10 @@ and submit the mixed event again: D waits for C, exactly as before this lesson.
 
 ## Checkpoint
 
-With the mixed receiver running, start the checkpoint's server and add the four
-rules:
+The four rules you added above are still in `rulebook.db`, and adding them
+again would add four more; the store does not deduplicate. Stop your server and
+delete `rulebook.db` once more. Then, with the mixed receiver running, start
+the checkpoint's server and add the four rules:
 
 ```sh
 pnpm checkpoint 21 server

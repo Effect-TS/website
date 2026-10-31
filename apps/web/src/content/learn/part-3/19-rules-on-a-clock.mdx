@@ -236,22 +236,17 @@ before its GET; the third path shows one waiting.
 **19b: a bug stops the loop.** This one changes code, so it runs on your own
 server: stop the checkpoint's server and start `pnpm dev:server`, which
 restarts on every save. Leave `/status` on `degraded`. In `src/Poll.ts`, plant
-a bug in the last line:
-
-```ts
-return {
-  status: response.status,
-  body: (body as { state: string }).state.trim(),
-}
-```
+a bug in the last line. Instead of returning `body` as it is, cast it to an
+object with a `state` string and return its `state.trim()` as the body.
 
 `pnpm check` passes; the cast tells the compiler a `state` field is there. It
-is not. On save the server restarts and starts the rule. `runs list` gets one
-`crashed` row, `Cannot read properties of undefined (reading 'trim')`, the
-server logs `run crashed` and `interval rule stopped`, no further rows appear,
-and `rules list` says `stopped`. Put the line back as
-`return { status: response.status, body }` and save. The restart starts the
-rule again: one `succeeded` tick, and `rules list` says `running`.
+is not: the receiver answers with `status`. On save the server restarts and
+starts the rule. `runs list` gets one `crashed` row,
+`Cannot read properties of undefined (reading 'trim')`, the server logs
+`run crashed` and `interval rule stopped`, no further rows appear, and
+`rules list` says `stopped`. Undo the change, so the line returns `body`
+again, and save. The restart starts the rule again: one `succeeded` tick, and
+`rules list` says `running`.
 
 **19c: removal.** Back on the checkpoint's server, add the slow poll, which
 waits 8 seconds for every answer:

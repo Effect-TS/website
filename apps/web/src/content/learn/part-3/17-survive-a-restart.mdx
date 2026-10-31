@@ -29,12 +29,11 @@ starting the server a second time changes nothing.
 
 This file is plumbing: the migrator's own loader imports `.js` and `.ts` files,
 and the supplied migrations are plain SQL, so this loader reads each file and
-runs its statements. Copy it to `src/Migrations.ts` and change the directory
-line, because your `src/` sits one level below the project root, not three:
-
-```ts
-const directory = path.join(import.meta.dirname, "..", "migrations")
-```
+runs its statements. Copy it to `src/Migrations.ts`. It finds `migrations/`
+by walking up from its own folder: the checkpoint's copy goes up three levels,
+from `checkpoints/17/src/` to the project root. Your `src/` sits directly under
+the root, so in the line that builds `directory`, keep one `".."` and remove
+the other two.
 
 Open `migrations/0002_runs.sql`. The `runs` table is the run history from
 lesson 12, one column per field. The `CHECK` on `reason` is the column

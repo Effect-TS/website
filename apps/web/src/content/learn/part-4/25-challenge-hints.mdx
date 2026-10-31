@@ -19,8 +19,8 @@ new outcome. A paused rule doesn't run, so it writes nothing.
 
 `stop` already interrupts a loop and waits for its last row. Pausing an
 interval rule is that, plus remembering the pause. Remember it first, then
-stop the loop, so no event runs the rule while its loop is stopping. Resuming is forgetting the
-pause, then `start`. For an event rule, `handleEvent` leaves paused rules out
+stop the loop, so no event runs the rule while its loop is stopping. Resuming
+is forgetting the pause, then `start`. For an event rule, `handleEvent` leaves paused rules out
 of the rules it runs, so they get no `Engine.execute` at all.
 
 ## rules list
@@ -46,10 +46,13 @@ On the lesson 19 harness:
   Await `remote.arrived`, pause, `TestClock.adjust` past `everySeconds`, and
   assert `remote.requests.length` did not grow and the run rows did not
   change.
-- For the positive control the poll has to answer, or the second tick would
-  hang too. A `Respond` reply with status 200 is enough. Adjust past one
-  interval and short of the timeout, then assert one more request and one more
-  row.
+- For the positive control keep the poll hanging. Resume starts the loop, and
+  its first tick runs at once, so that tick is the one new request and its
+  `started` row the one new row. Adjust past one interval but short of the
+  10 second timeout, so the hanging tick neither times out nor makes room for
+  another, then assert exactly one more request and one more row. A poll that
+  answers would let the next tick run within the same adjustment and give you
+  two.
 - The event test uses the `HttpApiTest` client from lesson 19 and the
   outcomes `events.submit` returns.
 - For the unknown id, `Effect.flip` on `pause` gives you the `RuleNotFound`,
