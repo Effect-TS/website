@@ -40,5 +40,5 @@ export const authorizePayment = Effect.fn(function* (token: PaymentToken) {
 })
 
 export const processPayment = Effect.fn(function* (token: PaymentToken) {
-  return new Response("Not implemented", { status: 501 })
+  return new Response(`Not implemented for ${token}`, { status: 501 })
 })
