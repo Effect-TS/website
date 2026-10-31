@@ -3,16 +3,13 @@ import { Context, Effect, Layer, Schema } from "effect"
 
 interface Event {
   readonly type: string
-  readonly [field: string]: unknown
+  readonly amount?: number
 }
 
 const Rule = Schema.Struct({
   name: Schema.String,
-  condition: Schema.optional(Schema.Struct({
-    field: Schema.String,
-    op: Schema.Literals(["eq", "neq", "gt", "lt"]),
-    value: Schema.Number
-  })),
+  op: Schema.Literals(["gt", "lt"]),
+  value: Schema.Number,
   message: Schema.String
 })
 
@@ -20,28 +17,13 @@ type Rule = typeof Rule.Type
 
 const decodeRule = Schema.decodeUnknownEffect(Schema.fromJsonString(Rule))
 
-const largeExpense = `{
-  "name": "large expense",
-  "condition": { "field": "amount", "op": "gt", "value": 500 },
-  "message": "over 500"
-}`
+const largeExpense = `{ "name": "large expense", "op": "gt", "value": 500, "message": "over 500" }`
 
-const malformed = `{
-  "name": "malformed",
-  "condition": { "field": "amount", "op": "greater", "value": "500" }
-}`
+const malformed = `{ "name": "malformed", "op": "greater", "value": "500" }`
 
-const withinBudget = `{
-  "name": "within budget",
-  "condition": { "field": "amount", "op": "lt", "value": 5000 },
-  "message": "under 5000"
-}`
+const withinBudget = `{ "name": "within budget", "op": "lt", "value": 5000, "message": "under 5000" }`
 
-const notRefund = `{
-  "name": "not a refund",
-  "condition": { "field": "amount", "op": "neq", "value": 0 },
-  "message": "is not a refund"
-}`
+const veryLarge = `{ "name": "very large", "op": "gt", "value": 1000, "message": "over 1000" }`
 
 class RuleStore extends Context.Service<RuleStore, {
   readonly list: Effect.Effect<ReadonlyArray<string>>
@@ -60,7 +42,7 @@ class RuleStore extends Context.Service<RuleStore, {
       const rules = new Map([
         ["large expense", largeExpense],
         ["within budget", withinBudget],
-        ["not a refund", notRefund]
+        ["very large", veryLarge]
       ])
       return RuleStore.of({ list: Effect.sync(() => Array.from(rules.values())) })
     })
@@ -73,36 +55,25 @@ class MissingField extends Schema.TaggedError<MissingField>()("MissingField", {
 
 const laptop: Event = { type: "expense", amount: 1200 }
 
-const taxi: Event = { type: "expense", description: "taxi" }
+const taxi: Event = { type: "expense" }
 
 // A plain function: it answers a question and does nothing else.
-const matches = (rule: Rule, event: Event): boolean => {
-  if (rule.condition === undefined) return true
-  const { field, op, value } = rule.condition
-  const actual = Number(event[field])
-  switch (op) {
-    case "eq":
-      return actual === value
-    case "neq":
-      return actual !== value
+const matches = (rule: Rule, amount: number): boolean => {
+  switch (rule.op) {
     case "gt":
-      return actual > value
+      return amount > rule.value
     case "lt":
-      return actual < value
+      return amount < rule.value
   }
 }
 
 const evaluate = Effect.fn("evaluate")(
   function*(json: string, event: Event) {
-    yield* Effect.log(`evaluating a rule for ${event.type}`)
     const rule = yield* decodeRule(json)
-    if (rule.condition !== undefined) {
-      const { field } = rule.condition
-      if (event[field] === undefined) {
-        return yield* new MissingField({ field })
-      }
+    if (event.amount === undefined) {
+      return yield* new MissingField({ field: "amount" })
     }
-    const message = matches(rule, event)
+    const message = matches(rule, event.amount)
       ? `${event.type} ${event.amount} ${rule.message}`
       : `${rule.name}: no alert`
     yield* Effect.log(message)

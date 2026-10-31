@@ -1,48 +1,13 @@
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-interface Event {
-  readonly type: string
-  readonly [field: string]: unknown
-}
-
-interface Rule {
-  readonly name: string
-  readonly condition?: { readonly field: string; readonly op: string; readonly value: number }
-  readonly message: string
-}
-
-const taxi: Event = { type: "expense", description: "taxi" }
-
-const largeExpense: Rule = {
-  name: "large expense",
-  condition: { field: "amount", op: "gt", value: 500 },
-  message: "over 500"
-}
+const amount = 1200
 
 // A plain function: it answers a question and does nothing else.
-const matches = (rule: Rule, event: Event): boolean => {
-  if (rule.condition === undefined) return true
-  const { field, op, value } = rule.condition
-  const actual = Number(event[field])
-  switch (op) {
-    case "eq":
-      return actual === value
-    case "neq":
-      return actual !== value
-    case "gt":
-      return actual > value
-    case "lt":
-      return actual < value
-    default:
-      return false
-  }
-}
+const isLarge = (amount: number): boolean => amount > 500
 
 const program = Effect.gen(function*() {
-  const message = matches(largeExpense, taxi)
-    ? `${taxi.type} ${taxi.amount} ${largeExpense.message}`
-    : `${largeExpense.name}: no alert`
+  const message = isLarge(amount) ? `expense ${amount} over 500` : `expense ${amount}: no alert`
   yield* Effect.log(message)
   return message
 })
