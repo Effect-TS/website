@@ -7,67 +7,89 @@ mode: playground
 lessonDir: 06-untrusted-json
 ---
 
-## The problem
+Nobody is going to write rulebook's rules in TypeScript. They'll arrive as JSON
+text, first from a file and later from an HTTP request. The start file reflects
+that. The rules `largeExpense` and `malformed` are now JSON strings, and
+`evaluate` takes a string and reads it with
+`const rule: Rule = JSON.parse(json)`.
 
-Nobody will write rulebook's rules in TypeScript. They arrive as JSON text,
-from a file and later from an HTTP request. The start file has the rules as
-JSON strings, `largeExpense` and `malformed`, and `evaluate` now takes a string
-and reads it with `const rule: Rule = JSON.parse(json)`.
+That `: Rule` annotation is a promise TypeScript can't check. `JSON.parse`
+returns `any`, so `rule` is whatever the text happened to contain.
 
-That annotation is a claim TypeScript cannot check. `JSON.parse` returns `any`,
-so `rule` is whatever the text happened to contain. Look at `malformed`: the
-operator is `greater`, the value is the string `"500"`, and there is no
-message. Your `UnknownOperator` check catches the operator. Nothing catches the
-other two.
+Look at `malformed`. Its operator is `greater`, its value is the string
+`"500"`, and it has no message at all. Your `UnknownOperator` check catches the
+operator. Nothing catches the other two problems.
 
-## A schema
+You will learn:
 
-A schema describes a shape once. From it Effect derives the TypeScript type and
-a check that runs on real data.
+- how to describe the shape of your data with a schema;
+- how to decode untrusted input into a type you can trust;
+- how to read the errors a schema reports.
 
-- `Schema.Struct({ ... })` describes an object, with `Schema.String` and
-  `Schema.Number` for its fields.
-- `Schema.Literals(["eq", "neq", "gt", "lt"])` describes the operator: one of
-  those four strings and nothing else.
-- `Schema.optional(...)` marks the condition as optional, because a rule
-  without one always runs.
-- `type Rule = typeof Rule.Type` gives you the type. Schema and type share the
-  name `Rule`.
+## Describing a shape with a schema
 
-Decoding is one line: `Schema.decodeUnknownEffect(Schema.fromJsonString(Rule))`.
-`fromJsonString` parses the text, then the struct checks the result. Call the
-function `decodeRule`. It returns an effect that succeeds with a `Rule` or
-fails with a `SchemaError`. In `evaluate`, `const rule = yield* decodeRule(json)`
-replaces the `JSON.parse` line.
+A schema describes a shape once. From that one description, Effect derives both
+the TypeScript type and a check that runs on real data. For a rule you need:
 
-## Exercise
+- `Schema.Struct({ ... })` for the object, with `Schema.String` and
+  `Schema.Number` for its fields;
+- `Schema.Literals(["eq", "neq", "gt", "lt"])` for the operator, meaning one of
+  those four strings and nothing else;
+- `Schema.optional(...)` around the condition, because a rule without a
+  condition always runs.
 
-This is the course's first simplification: the schema makes three pieces of
-hand-written code redundant. Delete them.
+Then `type Rule = typeof Rule.Type` gives you the type. The schema and the type
+share the name `Rule`, and TypeScript knows which one you mean from where you
+use it.
 
-1. The `interface Rule`. The schema gives you the type.
-2. `UnknownOperator`, the list of operators and the check in `evaluate`. The
-   decode already rejects `greater`.
+## Decoding the JSON
+
+Decoding takes one line. Call the function `decodeRule`:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="decodeRule"
+/>
+
+`fromJsonString` parses the text, and then the struct checks the result.
+`decodeRule` returns an effect that either succeeds with a `Rule` or fails
+with a `SchemaError`.
+
+In `evaluate`, replace the `JSON.parse` line with
+`const rule = yield* decodeRule(json)`.
+
+## Try it: delete what the schema replaced
+
+This is the course's first simplification. The schema makes three pieces of
+hand-written code redundant, so delete them:
+
+1. The `interface Rule`. The schema gives you the type now.
+2. `UnknownOperator`, the list of operators, and the check in `evaluate`.
+   Decoding already rejects `greater`.
 3. The `default` branch in `matches`. TypeScript now knows the operator is one
    of four strings, so the `switch` covers every case without it.
 
-Then read the error for the malformed rule in the terminal:
+Now read the error for the malformed rule in the terminal:
 
 > `SchemaError: Expected "eq" | "neq" | "gt" | "lt"` at `["condition"]["op"]`
 
-It says what was expected and where. Decoding stops at the first problem, so
-change the operator in `malformed` to `gt` and the next run reports
-`Expected number` at `["condition"]["value"]`. Put `greater` back when you are
-done; lesson 7 needs the rule broken.
+It tells you what it expected and where it looked. Decoding stops at the first
+problem it finds. To see the next one, change the operator in `malformed` to
+`gt`. The next run reports `Expected number` at `["condition"]["value"]`.
 
-Hover `evaluate`: `Effect<string | void, SchemaError, never>`. Two of your
-failures became one that the library defines and reports for you.
+Put `greater` back when you're done. Lesson 7 needs the rule broken.
 
-## Now and later
+Finally, hover `evaluate`: `Effect<string | void, SchemaError, never>`. Two of
+your own failures became one that the library defines and reports for you.
 
-What you need now: data from outside goes through a schema once, at the edge,
-and the rest of the program works with a type it can trust. The cost is a
-decode on every input and a schema to keep next to the type. That is worth it
-where data is untrusted. Values you build yourself in TypeScript, like
-`laptop`, don't need one. Lesson 11 extends `Rule` with actions as a tagged
-union, and lesson 17 decodes the same JSON from a database column.
+## Recap
+
+- Data from outside goes through a schema once, at the edge. The rest of the
+  program works with a type it can trust.
+- `Schema.decodeUnknownEffect(Schema.fromJsonString(...))` parses and checks
+  JSON, and fails with a `SchemaError` that says what was wrong and where.
+- The cost is a decode on every input and a schema to keep. That's worth it
+  where data is untrusted. Values you build yourself in TypeScript, like
+  `laptop`, don't need one.
+- Lesson 11 extends `Rule` with actions, and lesson 17 decodes the same JSON
+  from a database column.

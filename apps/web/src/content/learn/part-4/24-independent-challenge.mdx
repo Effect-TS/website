@@ -6,62 +6,73 @@ minutes: 40
 mode: local
 ---
 
-This one is yours. The page says what the program should do, not how; every
-piece you need has appeared before. Budget about 40 minutes. If you get stuck,
-[the hints](/learn/part-4/challenge-hints) say where to look, but try without
-them first.
+This one is yours. Until now, each lesson told you how to build something. This
+page only says what the program should do. Every piece you need has appeared
+in an earlier lesson, so the work is in deciding which pieces to reach for.
+
+Budget about 40 minutes. If you get stuck,
+[the hints](/learn/part-4/challenge-hints) say where to look, but give it a
+real try without them first.
 
 ## The problem
 
-A rule that misbehaves, or one you just don't want for a while, can only be
-removed, and removing it throws away the rule and its definition. You want to
-pause it and resume it later, as it was.
+Sometimes a rule misbehaves, or you just don't want it for a while. Today your
+only option is to remove it, and removing a rule throws its definition away.
+What you want is to pause the rule and resume it later, exactly as it was.
 
-## The behaviour
+## What the program should do
 
-- `rules pause <id>` and `rules resume <id>` in the CLI, going through the
-  server like every other command.
+- The CLI gets `rules pause <id>` and `rules resume <id>`. Like every other
+  command, they go through the server.
 - A paused rule stays stored. `rules list` shows it as `paused`.
-- A paused rule is skipped by events: it gets no row in `runs list` and no
-  `Engine.execute` span. It did not run, so nothing is recorded.
+- Events skip a paused rule. It gets no row in `runs list` and no
+  `Engine.execute` span. It didn't run, so nothing is recorded.
 - Pausing an interval rule stops its loop. Resuming starts it again.
-- Pausing or resuming an id the server does not know is a typed error, printed
-  by the CLI as one line with a non-zero exit, the same way removing an unknown
-  rule is.
-- Decide what a server restart does to a pause, and say so in a comment. Either
-  answer is fine if it is stated.
+- Pausing or resuming an id the server doesn't know is a typed error. The CLI
+  prints it as one line and exits with a non-zero code, the same way it does
+  when you remove an unknown rule.
+- Decide what a server restart does to a pause, and say so in a comment.
+  Either answer is fine, as long as you state it.
 
-## Tests first
+## Write the tests first
 
 Write the tests before the code, on the harness you wrote in lesson 19:
 
-1. An interval rule whose poll never answers. Wait for its first request,
-   pause the rule, then move the test clock past one interval: no new request
-   and no new row.
-2. Resume it and move the clock past one interval again, staying short of the
-   timeout: exactly one new request and one new row. This is the positive
-   control. Without it, test 1 would also pass against a loop that never ran.
-3. An event rule. Pause it and submit an event: no outcome for it and no row.
-   Resume it and submit again: one row.
-4. Pausing an unknown id fails with the typed error.
+1. **A paused loop stays quiet.** Use an interval rule whose poll never
+   answers. Wait for its first request, pause the rule, then move the test
+   clock past one interval. There should be no new request and no new row.
+2. **A resumed loop runs again.** Resume the rule and move the clock past one
+   interval again, staying short of the timeout. There should be exactly one
+   new request and one new row. This is your positive control. Without it,
+   test 1 would also pass against a loop that never ran at all.
+3. **Events skip a paused rule.** Pause an event rule and submit an event.
+   There should be no outcome for it and no row. Resume it, submit again, and
+   there should be one row.
+4. **Unknown ids fail.** Pausing an unknown id fails with the typed error.
 
-Run them and watch them fail for the right reason, as in lesson 13, before you
-write the code that makes them pass.
+Run them and watch them fail for the right reason, as you did in lesson 13.
+Only then write the code that makes them pass.
 
-## Show it
+## Show it working
 
-Start from an empty run history and rule list, as in lesson 22: stop your
-server, delete `rulebook.db`, and start it again, so the event matches only the
-rules you add now. With `pnpm receiver --scenario mixed` running, add the four
-mixed rules to your server, pause B, and submit `fixtures/events/laptop.json`. `runs list` shows
-three new rows, not four, and the newest `Engine.handleEvent` trace in the
-viewer has three `Engine.execute` spans, none of them B's. Resume B and submit
-again: four rows, four spans.
+Start from an empty run history and rule list, as in lesson 22. Stop your
+server, delete `rulebook.db`, and start it again, so the event only matches the
+rules you add now. Then:
+
+1. Run `pnpm receiver --scenario mixed`.
+2. Add the four mixed rules to your server.
+3. Pause B and submit `fixtures/events/laptop.json`.
+
+`runs list` shows three new rows, not four. In the viewer, the newest
+`Engine.handleEvent` trace has three `Engine.execute` spans, and none of them
+is B's.
+
+Resume B and submit again. This time you get four rows and four spans.
 
 ## Checkpoint
 
-The paused rule produces no row and no span under the mixed scenario; after
-resume it produces one of each. Your four tests pass.
+Under the mixed scenario, the paused rule produces no row and no span. After
+you resume it, it produces one of each. Your four tests pass.
 
 Checkpoint 24 is one reference solution, and `checkpoints/24/test/` holds its
 tests. Read them after yours pass, not before:
@@ -72,4 +83,5 @@ pnpm checkpoint 24 test
 
 ## Reference card
 
-Nothing new. The card for this lesson is the cards of lessons 13, 14, 15 and 19.
+Nothing new this time. The cards from lessons 13, 14, 15 and 19 cover
+everything you need.

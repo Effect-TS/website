@@ -6,20 +6,22 @@ minutes: 15
 mode: local
 ---
 
-## The problem
+Imagine something went wrong on one event while you weren't watching. All you
+have is what the program recorded: the run history and the traces. Is that
+enough to work out what happened?
 
-Something went wrong on one event and you were not watching. All you have is
-what the program recorded: the run history and the traces. This lesson writes
-no code. You run the mixed scenario from lesson 21 once more and answer four
-questions about it, using only `runs list` and the viewer. Don't read the code
-or the fixture files while you answer; the point is to find out whether what
-you built tells you enough on its own.
+This lesson finds out. You won't write any code. Instead, you run the mixed
+scenario from lesson 21 once more and answer four questions about it, using
+only `runs list` and the viewer.
+
+Don't read the code or the fixture files while you answer. The point is to
+learn whether what you built tells you enough on its own.
 
 ## Run it
 
 Use the checkpoint's server, or your own if your lesson 21 checkpoint matched.
 Start from an empty run history so the rows are easy to find: stop the server,
-delete `rulebook.db`, start it again.
+delete `rulebook.db`, and start it again.
 
 ```sh
 pnpm receiver --scenario mixed
@@ -38,14 +40,14 @@ pnpm checkpoint 22 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 22 cli runs list
 ```
 
-In the viewer, open the newest `rulebook-server` trace with an
-`Engine.handleEvent` span. [The trace viewer](/learn/part-2/trace-viewer)
-page explains each part of the screen if you need it.
+In the viewer, open the newest `rulebook-server` trace that has an
+`Engine.handleEvent` span. If you need a reminder of what each part of the
+screen shows, see [the trace viewer](/learn/part-2/trace-viewer) page.
 
 ## The questions
 
-Write your answers down. Each answer should name what you looked at: a span, a
-row, a duration.
+Write your answers down. For each one, name what you looked at: a span, a row,
+or a duration.
 
 1. Which operation was slowest? How long did it take, and why that long?
 2. Which operation failed, and with what?
@@ -54,21 +56,24 @@ row, a duration.
 4. Did a timeout fire? Name two places that show it.
 
 If you see four `succeeded` rows, the receiver answered `/slow` before the
-timeout. Check that `RULEBOOK_TIMEOUT` is not set in the server's shell.
+timeout. Check that `RULEBOOK_TIMEOUT` isn't set in the server's shell.
 
 ## Check your answers
 
-When all four are written, compare them with
+Once all four are written down, compare them with
 [the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids and
-times differ; the shape does not. If one of your answers needed something you
-could not find in `runs list` or the viewer, write down what was missing. That
-note is a good start for one of the follow-ons at the end of the course.
+times will differ, but the shape won't.
+
+If one of your answers needed something you couldn't find in `runs list` or
+the viewer, make a note of what was missing. That note is a good starting
+point for one of the follow-ons at the end of the course.
 
 ## Checkpoint
 
 Your written answers match the expected ones: the slowest operation and the
 timeout, the failure and its status, the two that completed without waiting,
-and the request taking about the timeout. Two red spans, two Ok, four rows.
+and the request taking about as long as the timeout. Two red spans, two Ok,
+four rows.
 
 ## Reference card
 

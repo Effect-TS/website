@@ -1,16 +1,16 @@
 # Exercise 15: RuleNotFound as one line
 
-Remove a rule that does not exist:
+Try removing a rule that doesn't exist:
 
 ```sh
 pnpm cli rules remove nope
 ```
 
-You get `RuleNotFound` with a stack trace into the Schema internals. The server sent a 404, and the client turned it back into the same `RuleNotFound` the store fails with, because the endpoint declares that error. That is the useful part: on the CLI side it is an ordinary typed error, and you can handle it like any other. The stack trace is not useful to someone who typed an id wrong.
+You get `RuleNotFound` with a stack trace into the Schema internals. Here's what happened. The server sent a 404, and because the endpoint declares that error, the client turned it back into the same `RuleNotFound` the store fails with. That's the useful part: on the CLI side it's an ordinary typed error, and you can handle it like any other. The stack trace, though, is no help to someone who typed an id wrong.
 
-- Two commands send an id the server may not know: `rules remove` and `rules run`. Hover the handler of either and `RuleNotFound` is in the error channel.
-- `Effect.fn` takes more arguments after the generator; each is applied to the effect it builds. Pass `Effect.catchTag("RuleNotFound", ...)` there and print `No rule with id <id>` with `Console.error`.
-- Printing the line is not enough: the command still did not happen, so the shell has to see a non-zero exit. After the line, fail with `new ExitCode({ code: 1 })` from `tools/entrypoint.ts`. `runMain` exits with its code and prints nothing more; failing with the `RuleNotFound` again would print it a second time.
+- Two commands send an id the server may not know, `rules remove` and `rules run`. Hover the handler of either one, and you'll see `RuleNotFound` in the error channel.
+- `Effect.fn` takes more arguments after the generator, and applies each one to the effect it builds. Pass `Effect.catchTag("RuleNotFound", ...)` there, and print `No rule with id <id>` with `Console.error`.
+- Printing the line isn't enough on its own. The command still didn't happen, so the shell has to see a non-zero exit. After the line, fail with `new ExitCode({ code: 1 })` from `tools/entrypoint.ts`. `runMain` exits with its code and prints nothing more. Failing with the `RuleNotFound` again would print it a second time.
 - Write the handler once, with `Effect.fn`, and use it in both commands.
 
 Check: `pnpm cli rules remove nope` and `pnpm cli rules run nope --event fixtures/events/laptop.json` each print exactly one line and exit 1 (`echo $?`). `pnpm checkpoint 15 cli rules remove nope` shows the state before the exercise.

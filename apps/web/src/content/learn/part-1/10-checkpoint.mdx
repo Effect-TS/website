@@ -7,29 +7,33 @@ mode: playground
 lessonDir: 10-checkpoint
 ---
 
-## The full file
+You've reached the end of Part 1. The editor holds the whole file, the same
+one lesson 1 opened with, and this time you know what every line is for.
+There's nothing new to write here. It runs and prints the three alert lines and
+three skips from lesson 9.
 
-The editor holds all of Part 1, the same file lesson 1 opened with. There is
-nothing to write. It runs and prints the three alert lines and three skips from
-lesson 9.
+Use this page to check that the pieces fit together in your head before you
+move to your own machine.
 
 ## Hover tour
 
-Read each name from top to bottom. Before you hover, say what you expect in
-each slot of an Effect: what it gives back, how it fails, what it needs.
+Hover each name below, from top to bottom. Before you hover, say out loud what
+you expect in each slot of the Effect: what it gives back, how it can fail, and
+what it needs.
 
 - `Rule`: the schema. `type Rule` is the type derived from it.
 - `decodeRule`: takes unknown input and returns
-  `Effect<Rule, SchemaError, never>` (the hover spells out the rule's fields).
+  `Effect<Rule, SchemaError, never>`. The hover spells out the rule's fields.
 - `RuleStore`: the service, with `layer` and `layerFixtures` beside it.
 - `MissingField`: the one failure you declared and still use.
-- `matches`: `(rule, event) => boolean`. Plain, no Effect in sight.
+- `matches`: `(rule, event) => boolean`. Plain, with no Effect in sight.
 - `evaluate`: `Effect<string | void, SchemaError, never>`. A missing field is
-  handled inside; a malformed rule is not.
+  handled inside, and a malformed rule is not.
 - `evaluateAll`: `Effect<void, SchemaError, RuleStore>`. It needs the store.
 - `program`: `Effect<void, SchemaError, never>`. The store is provided.
 
-If one of them surprised you, the lesson that introduced it is listed below.
+If one of them surprised you, look it up in the table below and revisit the
+lesson that introduced it.
 
 ## Part 1 reference card
 
@@ -51,25 +55,25 @@ If one of them surprised you, the lesson that introduced it is listed below.
 | `Effect.sync`                                               | Wraps synchronous code in an effect                          | 9      |
 | `Effect.provide`                                            | Supplies a layer and removes it from the third slot          | 9      |
 | `NodeRuntime.runMain`                                       | Runs the program. Unpacked in Part 2 (lesson 11)             | 11     |
-| `Telemetry.layer`                                           | Sends logs and spans to the viewer. Unpacked in lesson 16    | 16     |
 
 ## Challenges
 
-These are optional and not counted in the course time. Part 2 does not depend
-on them.
+These are optional, and they aren't counted in the course time. Part 2 doesn't
+depend on them, so skip them if you'd rather keep going.
 
-1. `contains`. Add a fifth operator: the field's text contains the
-   condition's value. The value is a number today. Decide what the schema
-   should say about it, and see what TypeScript asks of `matches`.
-2. A `skipped` outcome with a reason. Instead of logging a skip and giving
+1. **A `contains` operator.** Add a fifth operator that checks whether the
+   field's text contains the condition's value. Today the value is a number.
+   Decide what the schema should say about it, then see what TypeScript asks
+   of `matches`.
+2. **A `skipped` outcome with a reason.** Instead of logging a skip and giving
    back nothing, make `evaluate` give back a value that says the rule was
    skipped and why. Watch `string | void` disappear from the hover. Lesson 12
    does a version of this for real.
-3. A second event type. Add an event that is not an expense, such as a
-   battery level, and a rule for it. The alert message reads `event.amount`;
-   make it right for an event that has no amount.
+3. **A second kind of event.** Add an event that isn't an expense, such as a
+   battery level, and a rule for it. The alert message reads `event.amount`.
+   Make it right for an event that has no amount.
 
 ## Next
 
-Part 2 moves the same file onto your machine and turns it into a program with
-its own entrypoint. Setup takes about 15 minutes and comes first.
+Part 2 moves this same file onto your machine and turns it into a program with
+its own entrypoint. Setup comes first and takes about 15 minutes.

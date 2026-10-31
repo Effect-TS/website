@@ -5,51 +5,54 @@ title: The trace viewer
 mode: guide
 ---
 
-otel-desktop-viewer is the local version of the trace panel you used in the
-playground. Your programs send it spans and logs over OTLP on port 4318, and
-it shows them at [http://localhost:8000](http://localhost:8000).
-`pnpm run doctor --viewer` starts it the first time, `pnpm viewer` after that.
-It keeps what it receives until you stop it.
+otel-desktop-viewer is a trace viewer that runs on your machine. From lesson 16
+on, your programs send it spans and logs over OTLP on port 4318, and it shows
+them at [http://localhost:8000](http://localhost:8000).
+`pnpm run doctor --viewer` starts it the first time, and `pnpm viewer` starts
+it after that. It keeps everything it receives until you stop it.
 
-This page is a reference. Read it once now, and come back when a lesson says
-to look at a span.
+This page is a reference. Read it once now, then come back whenever a lesson
+asks you to look at a span.
 
-## A trace
+## Reading a trace
 
-A trace is one piece of work from start to end: one CLI command, one HTTP
-request, one interval tick. It is a tree of spans. Each span is a named,
-timed step, and every `Effect.fn("name")` you write is a span with that name.
+A **trace** is one piece of work from start to finish: one CLI command, one
+HTTP request, or one interval tick. It's made of spans arranged in a tree.
+Each span is a named, timed step, and every `Effect.fn("name")` you write
+produces a span with that name.
 
-The screenshot shows the lesson 16 checkpoint: `events.submit` from the CLI,
-with the expense rule stored, submitting `laptop.json`.
+The screenshot below is the lesson 16 checkpoint. It shows `events.submit`
+from the CLI, with the expense rule stored, submitting `laptop.json`.
 
 ![The events.submit trace in otel-desktop-viewer: CLI spans in green, server spans in purple, Engine.execute selected with status Ok](../_assets/viewer-trace.png "One trace from rulebook-cli into rulebook-server")
+
+Here's how to read it:
 
 - The Traces tab lists traces by their root span, newest first. Pick one to
   open it. The sidebar toggle at the top left hides the list and gives the
   waterfall more room.
-- The waterfall has one row per span. Indentation is nesting: `Engine.execute`
-  ran inside `Engine.handleEvent`, which ran inside the server's `POST`. The
-  number in brackets is how many children a span has.
-- The bar shows when the span started and how long it took, against the time
-  axis at the top. Bar colour is the service, not the result: green is
-  `rulebook-cli`, purple is `rulebook-server`.
-- Select a row to see the span on the right: its duration, `status.code`, and
-  attributes such as `rule.id`. Logs written inside a span are listed under
-  Events and in the Logs tab.
+- The waterfall has one row per span. Indentation shows nesting.
+  `Engine.execute` ran inside `Engine.handleEvent`, which ran inside the
+  server's `POST`. The number in brackets is how many children a span has.
+- The bar shows when the span started and how long it took, against the
+  time axis at the top. The bar's colour is the service, not the result. Green
+  is `rulebook-cli` and purple is `rulebook-server`.
+- The details panel opens on the right when you select a row. It shows the
+  span's duration, its `status.code`, and attributes such as `rule.id`. Logs
+  written inside a span are listed under Events, and in the Logs tab.
 
-## An Error span
+## A span that failed
 
 A span ends with the result of the effect it wraps. When that effect fails, or
 dies with a defect, the span's status is Error.
 
 ![A rules.run trace with Engine.execute in red, status.code 2 (Error) and an exception event BadResource: FileSystem.writeFile (fixtures)](../_assets/viewer-error-span.png "An Engine.execute span that failed")
 
-This is `rules run` against a rule whose `appendFile` path is `fixtures`, a
-directory, so the write fails.
+This trace comes from `rules run` against a rule whose `appendFile` path is
+`fixtures`. That's a directory, so the write fails. Notice:
 
-- The failed span and the span it failed inside are red, and the trace header
-  counts the errors (`1/2 err`). The arrows next to the count step through
+- The failed span, and the span it failed inside, are red. The trace header
+  counts the errors (`1/2 err`), and the arrows next to the count step through
   them.
 - `status.code` is `2 (Error)`. `status.message` and the `exception` event
   carry the error's message.
@@ -57,38 +60,36 @@ directory, so the write fails.
   outcome, so the request itself succeeded. The run row says the same thing in
   its own words: `failed (io)`.
 
-## An Unset span: interrupted
+## A span that was interrupted
 
-An interrupted effect did not fail and did not finish. It was stopped. Its span
-ends with status Unset, which the viewer does not colour.
+An interrupted effect didn't fail, and it didn't finish either. It was stopped.
+Its span ends with status Unset, which the viewer doesn't colour at all.
 
 ![A rules.run trace that took 1.24 s, Engine.execute selected with status.code 0 (Unset) and effect.fiber.interrupted true](../_assets/viewer-unset-span.png "An Engine.execute span that was interrupted")
 
-This one was made by pressing Ctrl-C on the CLI while `rules run` was waiting
-on an append that could not finish. The server noticed the client was gone and
+This one comes from pressing Ctrl-C on the CLI while `rules run` was waiting
+on an append that couldn't finish. The server noticed the client had gone and
 interrupted the handler, and with it `Engine.execute` and `appendLine`.
 
-- `status.code` is `0 (Unset)`, the same code an ordinary span would have
-  before anything set it. Do not read Unset as success.
+- `status.code` is `0 (Unset)`. That's the same code an ordinary span has
+  before anything sets it, so don't read Unset as success.
 - `effect.fiber.interrupted` is `true`. This attribute is how you tell an
-  interruption apart.
+  interruption apart from everything else.
 - The bar ends at the moment of interruption, so the duration tells you how
   long the work ran before it was stopped.
 
-Until lesson 19 nothing writes a terminal row for an interrupted run, so its
-row stays `started`. Lesson 19 adds the `interrupted` outcome, and removing a
-rule mid-poll produces exactly this picture.
+Until lesson 19, nothing writes a final row for an interrupted run, so its row
+stays `started`. Lesson 19 adds the `interrupted` outcome, and removing a rule
+in the middle of a poll produces exactly this picture.
 
 ## What to look for, lesson by lesson
 
-| Lesson           | Where                    | What to look for                                                                                                                    |
-| ---------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Setup            | `rulebook-lessons`       | Two `evaluateAll` traces from `pnpm tsx src/run-once.ts`, one per event.                                                            |
-| 7 (local Part 1) | `rulebook-lessons`       | The malformed rule's `evaluate` span is red with the `SchemaError`; the log you added is listed under its Events.                   |
-| 11 to 15         | nothing new              | Your Part 2 program does not export yet. The spans exist; nothing sends them until lesson 16.                                       |
-| 16               | `rulebook-cli` to server | One trace that starts in `rulebook-cli` and continues into `rulebook-server`, with `Engine.execute` under `Engine.handleEvent`.     |
-| 18               | Logs tab                 | The log line from `Effect.onInterrupt` when you press Ctrl-C.                                                                       |
-| 19               | `rulebook-server`        | One trace per interval tick. `failed (status)` ticks are red. Removing a rule during a `/slow` poll leaves one Unset span.          |
-| 20               | `rulebook-server`        | Three red `Engine.execute` spans: a 500 status, a timeout, and the planted bug.                                                     |
-| 21 and 22        | `rulebook-server`        | Four `Engine.execute` spans under one `Engine.handleEvent`, starting together: two red, two Ok. The parent takes about the timeout. |
-| 24               | `rulebook-server`        | Under the `mixed` scenario the paused rule has no `Engine.execute` span; after resume it has one.                                   |
+| Lesson      | Where                    | What to look for                                                                                                                    |
+| ----------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Setup to 15 | nothing yet              | The trace list is empty. Your program creates spans, but nothing sends them to the viewer until lesson 16.                          |
+| 16          | `rulebook-cli` to server | One trace that starts in `rulebook-cli` and continues into `rulebook-server`, with `Engine.execute` under `Engine.handleEvent`.     |
+| 18          | Logs tab                 | The log line from `Effect.onInterrupt` when you press Ctrl-C.                                                                       |
+| 19          | `rulebook-server`        | One trace per interval tick. `failed (status)` ticks are red. Removing a rule during a `/slow` poll leaves one Unset span.          |
+| 20          | `rulebook-server`        | Three red `Engine.execute` spans: a 500 status, a timeout, and the planted bug.                                                     |
+| 21 and 22   | `rulebook-server`        | Four `Engine.execute` spans under one `Engine.handleEvent`, starting together: two red, two Ok. The parent takes about the timeout. |
+| 24          | `rulebook-server`        | Under the `mixed` scenario the paused rule has no `Engine.execute` span; after resume it has one.                                   |

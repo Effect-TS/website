@@ -6,12 +6,18 @@ minutes: 25
 mode: local
 ---
 
-## The problem
-
 `handleEvent` is still the loop from lesson 8: a `for...of` over the rules, one
 `yield*` after another. That was fine while every action was a line in a file.
 Now an action can take up to the 10 second timeout, and every rule after it
-waits.
+has to wait.
+
+You will learn:
+
+- how to run independent work at the same time, up to a limit;
+- why the execution boundary makes that safe;
+- how to read limits from the environment with `Config`.
+
+## See the problem
 
 Start clean, so the event matches only the rules this lesson adds. Every
 server, yours and the checkpoints', keeps its rules in the same `rulebook.db`,
@@ -23,66 +29,86 @@ scenario:
 pnpm receiver --scenario mixed
 ```
 
-It prints four rules on one `expense` event. A and B post to `/ok`, C posts to
-`/slow?ms=15000`, past the timeout, and D posts to `/fail?status=500`. Add the
-four files from `fixtures/rules/mixed/` to your lesson 20 server and submit
-`fixtures/events/laptop.json`. In the viewer, D's `Engine.execute` span starts
-only after C's has run its full 10 seconds. D had nothing to wait for. Add a
-second slow rule and the event takes 20 seconds; the time is the sum of the
-rules.
+It prints four rules for one `expense` event:
 
-## Run them together
+- A and B post to `/ok`;
+- C posts to `/slow?ms=15000`, which is past the timeout;
+- D posts to `/fail?status=500`.
 
-The rules an event matches are independent, so run them at the same time, up
-to a limit:
+Add the four files from `fixtures/rules/mixed/` to your lesson 20 server and
+submit `fixtures/events/laptop.json`.
+
+Now look in the viewer. D's `Engine.execute` span starts only after C's has run
+its full 10 seconds, even though D had nothing to wait for. Add a second slow
+rule and the event takes 20 seconds. The time is the sum of the rules.
+
+## Running them together
+
+The rules an event matches don't depend on each other, so you can run them at
+the same time, up to a limit:
 
 <LessonCode file="checkpoints/21/src/Engine.ts" />
 
 `handleEvent` filters the matching rules, then
 `Effect.forEach(rules, (rule) => execute(rule, event), { concurrency })` runs
-`execute` for each, at most `concurrency` at a time. Each run gets a fiber of
-its own, and the outcomes come back in the order of the rules, not the order
-they finished.
+`execute` for each one, at most `concurrency` at a time. Each run gets a fiber
+of its own. The outcomes come back in the order of the rules, not the order in
+which they finished.
 
-This is safe because of a decision made in lesson 12. `execute` cannot fail:
-the boundary turns every failure and crash into an `Outcome` value after
-writing its row. `Effect.forEach` stops at the first failure and interrupts
-the rest, which is right for work that only makes sense as a whole and wrong
-for independent rules. Here there is no failure to stop at. D's 500 is a
-value, C's timeout is a value, and A and B finish no matter what happens to
-the others. The boundary is what makes the concurrency one line.
+### Why this is safe
 
-The limit matters too. With 100 rules on one event, a limit of 4 means at most
-four requests leave at once, instead of 100 at whoever the rules point to.
+This works because of a decision you made in lesson 12: `execute` can't fail.
+The boundary writes each run's row and then turns every failure and crash into
+an `Outcome` value.
+
+That matters because `Effect.forEach` stops at the first failure and
+interrupts the rest. That's the right behaviour for work that only makes sense
+as a whole, and the wrong one for independent rules. Here, there's no failure
+to stop at. D's 500 is a value. C's timeout is a value. A and B finish no matter
+what happens to the others. The boundary is what lets the concurrency be one
+line.
+
+### Why the limit matters
+
+With 100 rules on one event, a limit of 4 means at most four requests leave at
+once, instead of 100 hitting whoever the rules point to.
 
 ## Limits as Config
 
-The timeout, the concurrency and two more limits are not constants any more.
-`src/Limits.ts` reads each from the environment, with a default:
+The timeout, the concurrency and two other limits aren't constants any more.
+`src/Limits.ts` reads each one from the environment, with a default:
 
 <LessonCode file="checkpoints/21/src/Limits.ts" />
 
-`Config.Int("RULEBOOK_CONCURRENCY")` describes where a value comes from and how
-to parse it. `Config.withDefault(4)` makes it optional. `Config.all` combines
-them, and `yield* Limits` inside a layer reads them all, failing the server's
-start with a clear message if one is set to something it cannot parse. The
-Engine reads `timeout` and `concurrency`. The API handlers read the other two:
+- `Config.Int("RULEBOOK_CONCURRENCY")` describes where a value comes from and
+  how to parse it.
+- `Config.withDefault(4)` makes it optional.
+- `Config.all` combines several values into one.
+
+Inside a layer, `yield* Limits` reads them all. If one is set to something it
+can't parse, the server fails to start, with a clear message.
+
+The Engine reads `timeout` and `concurrency`. The API handlers read the other
+two:
 
 - More than `maxRules` rules (100) is `TooManyRules`, sent as a 409.
 - An event whose JSON is more than `maxPayloadBytes` (64 KiB) is
-  `PayloadTooLarge`, a 413, refused before any rule sees it, from
+  `PayloadTooLarge`, a 413. It's refused before any rule sees it, both from
   `events submit` and from `rules run`.
 
 Both are typed errors on their endpoints, like `RuleNotFound` in lesson 14, so
-the CLI prints each one as one line. Try `RULEBOOK_CONCURRENCY=1 pnpm dev:server`
-and submit the mixed event again: D waits for C, exactly as before this lesson.
+the CLI prints each one as a single line.
+
+To see the limit at work, try `RULEBOOK_CONCURRENCY=1 pnpm dev:server` and
+submit the mixed event again. D waits for C, exactly as it did before this
+lesson.
 
 ## Checkpoint
 
 The four rules you added above are still in `rulebook.db`, and adding them
-again would add four more; the store does not deduplicate. Stop your server and
-delete `rulebook.db` once more. Then, with the mixed receiver running, start
-the checkpoint's server and add the four rules:
+again would add four more, because the store doesn't deduplicate. So stop your
+server and delete `rulebook.db` once more. Then, with the mixed receiver
+running, start the checkpoint's server and add the four rules:
 
 ```sh
 pnpm checkpoint 21 server
@@ -97,37 +123,36 @@ pnpm checkpoint 21 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 21 cli runs list
 ```
 
-`events submit` takes about 10 seconds, the timeout, not the sum. It prints
-two `succeeded`, one `failed (timeout)` and one `failed (status)`, and
-`runs list` has the same four rows. In the viewer the `Engine.handleEvent`
-trace has four `Engine.execute` spans starting together under it: C's and D's
-are red, A's and B's are Ok.
+`events submit` takes about 10 seconds, the timeout, not the sum. It prints two
+`succeeded`, one `failed (timeout)` and one `failed (status)`, and `runs list`
+has the same four rows. In the viewer, the `Engine.handleEvent` trace has four
+`Engine.execute` spans starting together under it. C's and D's are red, and A's
+and B's are Ok.
 
-This is the checkpoint. If it matches, the lesson is done, and lesson 22 uses
-exactly this scenario.
+If it matches, the lesson is done. Lesson 22 uses exactly this scenario.
 
-## Now and later
+## Recap
 
-What you need now: independent work runs with `Effect.forEach` and a
-`concurrency` limit, and it is safe because each piece returns a value instead
-of failing. Limits are `Config` with defaults, read once when the server
-starts. The cost is that runs of one event now overlap, so their log lines
-interleave and their order in `runs list` is the order they started, not the
-order of the rules. Unpacked later: reading this exact trace to answer
-questions about it (lesson 22).
+- Independent work runs with `Effect.forEach` and a `concurrency` limit.
+- It's safe because each piece returns a value instead of failing.
+- Limits are `Config` values with defaults, read once when the server starts.
+- The trade-off is that runs of one event now overlap. Their log lines
+  interleave, and their order in `runs list` is the order they started, not the
+  order of the rules.
+- In lesson 22 you read this exact trace to answer questions about it.
 
 ## The payoff: your phone
 
-The last five minutes are for fun, and they are not the gate. The receiver
-checkpoint above is.
+The last five minutes are for fun. They aren't part of the checkpoint; the
+receiver checkpoint above is.
 
 [ntfy.sh](https://ntfy.sh) delivers a POST to `https://ntfy.sh/<topic>` to
 every device subscribed to that topic, and uses the `Title` header as the
-notification's title. That is an `httpPost` action and nothing else:
+notification's title. That's an `httpPost` action and nothing more:
 
 <LessonCode file="fixtures/rules/ntfy.json" />
 
-A topic is not an account. Anyone who knows it can publish to it and read what
+A topic isn't an account. Anyone who knows it can publish to it and read what
 was sent, so the topic is the only secret, and a short one gets guessed. Make a
 long random one:
 
@@ -135,12 +160,18 @@ long random one:
 node -e "console.log(crypto.randomUUID())"
 ```
 
-Install the ntfy app on your phone and subscribe to that topic. Copy
-`fixtures/rules/ntfy.json` to a file of your own, put your topic in the URL,
-and add it to the checkpoint's server. Submit `fixtures/events/laptop.json`:
-your phone shows "rulebook", with "expense over 500" and the event under it.
-`lunch.json` sends nothing, because 40 is not over 500. Send fixture data only;
-whatever you post there, assume anyone could read it.
+Then:
+
+1. Install the ntfy app on your phone and subscribe to that topic.
+2. Copy `fixtures/rules/ntfy.json` to a file of your own, and put your topic in
+   the URL.
+3. Add it to the checkpoint's server.
+4. Submit `fixtures/events/laptop.json`.
+
+Your phone shows "rulebook", with "expense over 500" and the event under it.
+`lunch.json` sends nothing, because 40 isn't over 500.
+
+Send fixture data only. Whatever you post there, assume anyone could read it.
 
 ## Reference card
 

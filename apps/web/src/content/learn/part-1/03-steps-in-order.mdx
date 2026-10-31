@@ -7,52 +7,80 @@ mode: playground
 lessonDir: 03-steps-in-order
 ---
 
-## The problem
+A hard-coded alert isn't much use. The message should come from an event and a
+rule. The start file now has both:
 
-The message should come from an event, not be typed by hand. The start file
-has an event, `laptop`, with an `amount` of 1200, a rule, `largeExpense`, whose
-condition is `amount gt 500`, and `matches`, which answers whether the rule's
-condition holds for the event.
+- an event, `laptop`, with an `amount` of 1200;
+- a rule, `largeExpense`, whose condition is `amount gt 500`;
+- `matches`, a plain function that answers whether the rule's condition holds
+  for the event.
 
-The message is built outside `program` and handed to `Effect.as`, as in lesson 2. That works for one step. Rulebook's real work is a sequence (build the
-message, log it, return it, and soon read rules and fail on bad ones), and
-nesting `Effect.andThen` for every step gets hard to read.
+The message is built outside `program` and handed to `Effect.as`, as you did in
+lesson 2. That works for one step. But rulebook's real work is a sequence:
+build the message, log it, give it back, and soon read rules and fail on bad
+ones. Nesting `Effect.andThen` for every step quickly gets hard to read.
 
-## Effect.gen and yield\*
+You will learn:
 
-`Effect.gen(function*() { ... })` lets you write the steps in order, the way
-you write ordinary code. Inside it, `yield*` runs an effect and hands you its
-result before moving to the next line. Whatever you `return` is what the whole
-effect gives back, so it becomes the first slot of its type.
+- how to write effectful steps in order with `Effect.gen`;
+- what `yield*` does, and when you need it;
+- what happens when you forget it.
 
-The `function*` makes it a generator function. You don't need to know anything
-else about generators: `yield*` means "run this effect here".
+## Writing steps with Effect.gen
+
+`Effect.gen` lets you write effects one after another, the way you'd write
+ordinary code:
+
+```ts
+Effect.gen(function* () {
+  // one step per line
+})
+```
+
+Inside the block, `yield*` runs an effect and hands you its result before
+moving on to the next line. Whatever you `return` becomes what the whole
+effect gives back, so it is what you'll see in the first slot of its type.
+
+The `function*` makes this a generator function. That's all you need to know
+about generators for this course. Read `yield*` as "run this effect here".
 
 Plain functions stay plain. `matches` returns a boolean straight away and does
-nothing else, so you call it as usual, without `yield*`. Keep `yield*` for
-effects.
+nothing else, so you call it like any function, without `yield*`. Save
+`yield*` for effects.
 
-Rewrite `program` as an `Effect.gen` block: build the message from `laptop`
-and `largeExpense`, `yield*` the log, then return the message. The terminal
-prints the same line as before.
+Now rewrite `program` as an `Effect.gen` block:
 
-## Exercise
+1. Build the message from `laptop` and `largeExpense`.
+2. `yield*` the log.
+3. Return the message.
+
+The terminal prints the same line as before. The difference is that the steps
+now read top to bottom.
+
+## Try it: forget a yield\*
 
 Delete the `yield*` in front of `Effect.log(message)` and hover that
-expression. You are holding an `Effect<void>`, a description, and nothing runs
-it: the terminal no longer prints the line. TypeScript does not complain,
-which is the price of descriptions from lesson 2. An effect you build inside a
-generator and forget to `yield*` is quietly dropped. Put the `yield*` back.
+expression. You're holding an `Effect<void>`, a description, and nothing runs
+it. The line disappears from the terminal.
 
-## Now and later
+TypeScript doesn't complain. This is the cost of descriptions from lesson 2: an
+effect you build inside a generator and forget to `yield*` is quietly dropped.
+When a log line or a step goes missing, a missing `yield*` is the first thing
+to look for.
 
-What you need now: `Effect.gen` runs effects in order, `yield*` runs one and
-hands you its result, and what you `return` is what the whole effect gives
-back. Plain functions stay plain. The cost is a `yield*` on every effectful
-line, and a line without one is dropped without a word. Unpacked later: a
-generator with a name, so each call shows up in a trace (lesson 7).
+Put the `yield*` back before you move on.
+
+## Recap
+
+- `Effect.gen` runs effects in order, one per line.
+- `yield*` runs an effect and hands you its result. What you `return` is what
+  the whole effect gives back.
+- Plain functions stay plain, with no `yield*`.
+- Every effectful line needs a `yield*`, and a line without one is dropped
+  without a word.
+- In lesson 7 you'll give a generator a name, so each call shows up in a trace.
 
 ## Checkpoint
 
-The message is built from the event and logged once. Hover `program`: the
+The message is built from the event and logged once. Hover `program`, and the
 first slot shows `string`.

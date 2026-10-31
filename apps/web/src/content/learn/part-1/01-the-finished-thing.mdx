@@ -7,33 +7,44 @@ mode: playground
 lessonDir: 01-the-finished-thing
 ---
 
-By the end of this course you will have built rulebook, a small engine that runs
-on your own machine. You give it rules as JSON. It receives events over HTTP,
-polls URLs on a timer, runs the actions of the rules that match, writes every
-run to SQLite, and shows each step as a trace. The last action you add sends a
-notification to your phone.
+In this course you will build rulebook, a small automation engine that runs on
+your own machine. You write rules as JSON, like "when an expense is over 500,
+send me an alert". Rulebook receives events over HTTP, polls URLs on a timer,
+and runs the actions of every rule that matches. It writes each run to SQLite
+and records every step as a trace you can open and inspect. By the last lesson,
+one of those actions sends a notification to your phone.
 
-Here is a session with the finished app, captured from the course's reference
-solution. The local receiver on port 4600 stands in for the services your rules
-talk to: one rule posts to it on every expense, another polls its `/status`.
+Before you write any code, here is where you are headed.
+
+## A session with the finished app
+
+This is a real terminal session with the finished app, captured from the
+course's reference solution. A small local receiver on port 4600 plays the part
+of the outside services your rules talk to. One rule posts to it on every
+expense, and another polls its `/status` page.
 
 <LessonCode file="checkpoints/24/transcript.txt" />
 
-The `events submit` and `rules run` commands also each leave a trace, from
-the CLI into the server and down to the rule's run; Part 2 sets up the viewer
-that shows them.
+Notice the `runs list` output. Every run has an outcome, and the ones that
+didn't succeed say why.
 
-Part 1 builds the core of that in one file: a rule, an event, and an alert line
-when the rule matches. The editor holds the file Part 1 ends with, and it is
-already running. Open the Terminal tab under the editor:
+You can't see it here, but the `events submit` and `rules run` commands also
+leave a trace that follows the work from the CLI, into the server, and down to
+the rule that ran. You'll set up the viewer that shows those traces in Part 2.
+
+## What Part 1 builds
+
+Part 1 builds the core of rulebook in a single file: a rule, an event, and an
+alert line when the rule matches. It runs entirely in your browser.
+
+The editor already holds the file you will have at the end of Part 1, and it is
+running. Open the Terminal tab under the editor. You should see:
 
 - three alert lines for the laptop expense of 1200, one for each rule in the
   store;
 - three skip lines for the taxi expense, which has no amount to compare.
 
-The Trace Viewer tab next to it shows each rule evaluation as a timed span.
-
-Don't try to read the file yet. Every line arrives in a lesson of its own,
-together with the problem it solves. If you want to poke at it, change the
-laptop's `amount` from `1200` to `300` and watch the alerts change when the
-terminal reruns the file.
+Don't try to read the file yet. Each line in it arrives in a lesson of its own,
+together with the problem it solves. If you'd like to poke at it anyway, change
+the laptop's `amount` from `1200` to `300`. The terminal reruns the file, and
+the alerts change.

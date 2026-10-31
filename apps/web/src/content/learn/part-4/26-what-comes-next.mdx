@@ -5,52 +5,54 @@ title: What comes next
 mode: guide
 ---
 
-That is the course: one program, from a description of an Effect in the
-browser to a server that persists its rules, polls on a clock, runs actions
-over the network, survives a restart and stops cleanly. Every checkpoint ran.
+You did it. You started with a single description of an Effect in the browser,
+and you finished with a server that stores its rules, polls on a clock, runs
+actions over the network, survives a restart, and stops cleanly. It was one
+program the whole way through, and every checkpoint ran.
 
-## Follow-ons
+## Where to go from here
 
-Each of these takes 15 to 30 minutes and is outside the course budget. They
-are listed roughly in the order they build on what you have.
+If you want more practice, each of these takes 15 to 30 minutes and sits
+outside the course budget. They're listed roughly in the order they build on
+what you have.
 
-- **Notify only on transition.** The `degraded` rule alerts on every tick
-  while the receiver is degraded. Alert only when it goes from ok to
-  degraded. This is where a `Ref`, and a persisted last-match state per rule,
+- **Notify only on a change.** The `degraded` rule alerts on every tick while
+  the receiver is degraded. Make it alert only when the status goes from ok to
+  degraded. This is where a `Ref`, and a stored last-match state per rule,
   finally earn a place.
 - **`{{field}}` substitution.** Let a message say `expense of {{amount}}` and
-  fill it from the payload, with a missing field handled the way conditions
-  handle one.
-- **Retry with backoff.** Wrap the POST in `HttpClient.retryTransient` so a
-  500 or a dropped connection is tried again a few times before the run is
-  `failed`. Decide what the timeout covers once retries exist.
-- **`HttpApiTest` for the whole API.** Lesson 19 used it for the harness. Write
-  the lesson 14 checks, the 404s and the 400s, as tests against the handlers
-  instead of with curl.
+  fill it in from the payload. Handle a missing field the way conditions
+  already handle one.
+- **Retry with backoff.** Wrap the POST in `HttpClient.retryTransient`, so a
+  500 or a dropped connection is tried a few more times before the run is
+  `failed`. Once retries exist, decide what the timeout should cover.
+- **`HttpApiTest` for the whole API.** Lesson 19 used it for the harness.
+  Write the lesson 14 checks, the 404s and the 400s, as tests against the
+  handlers instead of running them with curl.
 - **A metric per outcome.** A `Metric` counter tagged with the outcome, shown
-  in the viewer next to the traces, answers "how many crashed today" without
-  reading `runs list`.
+  in the viewer next to the traces, answers "how many runs crashed today?"
+  without reading `runs list`.
 - **Queued execution.** Put events on a `Queue` and answer the request at once,
   with the runs happening behind it. Think about what `events submit` should
-  print now.
-- **`rules add` over several files.** Accept more than one file, add them in
+  print then.
+- **`rules add` with several files.** Accept more than one file, add them in
   one request, and decide what happens when the third one is invalid.
 
-## Left out on purpose
+## What the course left out, and why
 
-These were kept out so the course could stay one evolving program with one
-main idea per lesson. None of them is a gap in rulebook that you are meant to
-notice later; each is a different course.
+Some things were kept out on purpose, so the course could stay one growing
+program with one main idea per lesson. None of them is a gap in rulebook you
+were meant to notice later. Each one is a course of its own.
 
 - Authentication, deployment, and a browser UI.
-- Distributed workers and exactly-once delivery. rulebook runs one process,
-  and a run can be `abandoned` or `interrupted` after its request was
-  accepted; lesson 19 says why that is the honest answer.
+- Distributed workers and exactly-once delivery. Rulebook runs as one process,
+  and a run can end up `abandoned` or `interrupted` after its request was
+  accepted. Lesson 19 explains why that's the honest answer.
 - A plugin system, user code in rules, an expression language, rule graphs,
   and scheduling beyond a fixed interval.
 - `Deferred`, `Semaphore`, and `Stream`. `Effect.forEach` with a concurrency
-  limit and `FiberMap` covered every concurrency need the course had.
+  limit, plus `FiberMap`, covered every concurrency need the course had.
 - `Ref` and `Option` in the core path. Every store method fails with
   `RuleNotFound` instead of returning an optional value, and no state is kept
-  between runs. Dedupe and the false-to-true transition state that needs it
-  are the first follow-on above.
+  between runs. Deduplication, and the false-to-true transition state it
+  needs, is the first follow-on above.

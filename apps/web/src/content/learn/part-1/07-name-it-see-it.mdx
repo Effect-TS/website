@@ -7,47 +7,73 @@ mode: playground
 lessonDir: 07-name-it-see-it
 ---
 
-## The problem
+The malformed rule fails, as it should. Now look at the terminal more closely.
+The program evaluates three rules, and the log lines from all three run
+together. The failure says _what_ went wrong, a `SchemaError`, but not which
+piece of your code it came from. With three rules you can guess. Rulebook
+allows a hundred, and then you can't.
 
-The malformed rule fails, but the log lines from the three evaluations run
-together. Which evaluation failed? How long did each one take? With three rules
-you can guess. With the hundred rulebook allows, you can't.
+You will learn:
 
-## Effect.fn
+- how to give an effectful function a name with `Effect.fn`;
+- what a span is;
+- how to find that name in a failure.
 
-`Effect.fn("evaluate")` is `Effect.gen` with a name. Where `evaluate` was an
-arrow function returning `Effect.gen(function*() { ... })`, write
-`Effect.fn("evaluate")(function*(json: string, event: Event) { ... })`: the
-parameters move onto the generator. Anything you pass after the generator is
-applied to the result, the way `.pipe` does, so the `catchTag` moves there.
+## Naming a function with Effect.fn
 
-Each call now runs inside a span named `evaluate`. A span is a timed record of
-one piece of work: when it started, how long it took, and whether it
-succeeded.
+`Effect.fn("evaluate")` is `Effect.gen` with a name. Today `evaluate` is an
+arrow function that returns `Effect.gen(function*() { ... })`. Rewrite it so
+the parameters move onto the generator:
 
-Open the Trace Viewer tab under the editor. Every call to `evaluate` is one
-span. If you run Part 1 on your machine, the supplied `Telemetry.ts` sends the
-same spans to otel-desktop-viewer at `http://localhost:8000`.
+```ts
+Effect.fn("evaluate")(function* (json: string, event: Event) {
+  // the same steps as before
+})
+```
 
-## Exercise
+Anything you pass after the generator is applied to the result, the same way
+`.pipe` would apply it. So the `catchTag` moves there, as a second argument.
 
-1. Find the red span. It is the third `evaluate`, the malformed rule. Select it
-   to see its duration and the `SchemaError`.
-2. Add a log line at the start of `evaluate` that says which event it is
-   evaluating. Select a span again: the log is listed under that span's
-   events, attached to the evaluation that wrote it. The terminal shows the
-   same line.
+## What a span is
 
-## Now and later
+Every call to `evaluate` now runs inside a **span** named `evaluate`. A span is
+a record of one piece of work: its name, when it started, how long it took, and
+whether it succeeded.
 
-What you need now: `Effect.fn` names a function and gives every call a span.
-The spans are not free. Each one costs a little time and, once exported, some
-traffic, so name the functions whose boundaries you want to see, not every
-helper: `matches` stays a plain function. In lesson 16 you wire up
-`Telemetry.ts` yourself, and the names you choose now are the span names you
-will read in Parts 2 and 3.
+You won't see spans drawn as a timeline yet. That needs a trace viewer, and
+you'll connect one in lesson 16. But the name is already useful. When an effect
+fails inside a span, the failure that `runMain` prints says which span it was
+in.
+
+## Try it
+
+1. **Find the name in the failure.** Look at the malformed rule's failure in
+   the terminal. Under the `SchemaError` there's a line that starts with
+   `at evaluate (`. That's the name you passed to `Effect.fn`, telling you the
+   failure happened inside `evaluate`, with the file and line of the call. The
+   line after it, `at evaluate (definition)`, points at where you declared the
+   function.
+2. **Say which evaluation is running.** Add a log line at the start of
+   `evaluate` that says which event it's evaluating. Now each evaluation opens
+   with its own line, so the output reads in groups: an alert for the first
+   rule, a skip for the second, and for the third, the opening line followed
+   straight away by the failure.
+
+## Recap
+
+- `Effect.fn("name")` names a function and runs every call inside a span with
+  that name.
+- A span records one piece of work: when it started, how long it took, and
+  whether it succeeded.
+- When a call fails, the failure names the span it came from, as
+  `at evaluate (…)`.
+- Spans aren't free. Each one costs a little time and, once exported, some
+  traffic. Name the functions whose boundaries you want to see, not every
+  helper. That's why `matches` stays a plain function.
+- In lesson 16 you'll send spans to a trace viewer. The names you choose now
+  are the span names you'll read there, and all through Part 3.
 
 ## Checkpoint
 
-The malformed rule produces a red `evaluate` span in the trace panel, and your
-log line hangs off it.
+The malformed rule's failure in the terminal shows the `SchemaError` and an
+`at evaluate (…)` line naming the span it failed in.

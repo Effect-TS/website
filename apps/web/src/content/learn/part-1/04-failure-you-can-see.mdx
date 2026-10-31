@@ -7,59 +7,79 @@ mode: playground
 lessonDir: 04-failure-you-can-see
 ---
 
-## The problem
+The start file sends a different event this time. `taxi` has a description but
+no `amount`. Look at the terminal: it says `large expense: no alert`.
 
-The start file sends a different event, `taxi`, which has a description but no
-`amount`. The terminal says `large expense: no alert`.
+That answer is wrong, and quietly so. The rule never decided "no". It never had
+a number to compare. `Number(undefined)` is `NaN`, and comparing `NaN` with
+`gt` is always false. Right now rulebook can't tell "the rule doesn't match"
+apart from "the rule couldn't be checked".
 
-That answer is wrong in a quiet way. The rule did not decide "no". It never
-had a number to compare: `Number(undefined)` is `NaN`, and the rule's `gt`
-comparison with `NaN` is false. Rulebook cannot tell "the rule does not match"
-from "the rule could not be checked".
+You will learn:
 
-## A failure with a name
+- how to give a failure a name;
+- how to fail an effect with it;
+- how failures show up in the second slot of an Effect's type.
 
-The second slot of an Effect type is for this: the ways the effect can fail.
-You give a failure a name by declaring a class for it. Add `Schema` to the
-`effect` import at the top of the file, then declare `MissingField` below the
-two interfaces:
+## Giving a failure a name
+
+The second slot of an Effect type is for exactly this: the ways the effect can
+fail. You name a failure by declaring a class for it.
+
+Add `Schema` to the `effect` import at the top of the file. Then declare
+`MissingField` below the two interfaces:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
   declaration="MissingField"
 />
 
-`Schema.TaggedError` is called twice. The first call is empty and takes the
-class's own name in angle brackets, so the class can refer to its own type.
-The second call takes the tag and the fields. The tag, `"MissingField"`, is how
-you pick this failure out later. The fields say what the error carries, here
-the name of the missing `field` as a `Schema.String`. Schema gets its own
-lesson in lesson 6; here it only lists what the error carries.
+There's a lot of punctuation here, so take it one piece at a time.
+`Schema.TaggedError` is called twice:
 
-In `program`, before matching, check whether the event has the condition's
-field. If it does not, write `return yield* new MissingField({ field })`.
-`yield*` fails the effect with that error. `return` tells TypeScript the path
-ends there, so the lines after it only run when the field exists.
+- The first call, `<MissingField>()`, is empty. It takes the class's own name
+  in angle brackets, so the class can refer to its own type.
+- The second call takes a **tag** and the **fields**. The tag, `"MissingField"`,
+  is how you'll pick this failure out later. The fields say what the error
+  carries, here the name of the missing `field` as a `Schema.String`.
 
-The terminal now reports a `MissingField` failure and the program stops. Hover
-`program`: `Effect<string, MissingField, never>`. The failure is part of the
-type, so anything that uses `program` can see that it fails and how.
+Schema gets a lesson of its own in lesson 6. For now it only lists what the
+error carries.
 
-## Exercise
+## Failing with it
 
-A rule can also name an operator `matches` does not know. `matches` falls into
-its `default` branch and returns `false`, the same quiet "no". Add a second
-failure, `UnknownOperator`, carrying the `op`, declared the same way as
-`MissingField`. Keep a list of the four known
-operators and fail with it when the condition's `op` is not one of them.
+In `program`, before matching, check whether the event has the field the
+condition asks for. If it doesn't, fail with
+`return yield* new MissingField({ field })`.
 
-Hover `program` again. The second slot reads `MissingField | UnknownOperator`:
-every failure you can produce joins the union. The taxi still fails with
-`MissingField`, because that check comes first.
+`yield*` fails the effect with that error. `return` tells TypeScript that this
+path ends here, so the lines after it only run when the field exists.
 
-## Now and later
+Now the terminal reports a `MissingField` failure, and the program stops.
+Hover `program`. Its type is `Effect<string, MissingField, never>`. The failure
+is part of the type, so any code that uses `program` can see that it can fail,
+and how.
 
-What you need now: failures you expect get a name, fail with `return yield*`,
-and show up in the type. The cost is a class per failure. In lesson 14 the same
-classes travel over HTTP, which is where the Schema inside them earns its
-keep.
+## Try it: a second failure
+
+A rule can also name an operator that `matches` doesn't know. When that
+happens, `matches` falls into its `default` branch and returns `false`, the
+same quiet "no" as before.
+
+1. Add a second failure, `UnknownOperator`, that carries the `op`. Declare it
+   the same way as `MissingField`.
+2. Keep a list of the four known operators.
+3. Fail with `UnknownOperator` when the condition's `op` isn't one of them.
+
+Hover `program` again. The second slot now reads
+`MissingField | UnknownOperator`. Every failure you can produce joins that
+union. The taxi still fails with `MissingField`, because that check comes
+first.
+
+## Recap
+
+- Give the failures you expect a name with `Schema.TaggedError`.
+- Fail with `return yield* new MissingField(...)`.
+- Failures show up in the second slot of the type, so callers can see them.
+- The cost is a class per failure. In lesson 14 these classes travel over
+  HTTP, and that's where the Schema inside them earns its keep.

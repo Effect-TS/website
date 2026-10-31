@@ -6,54 +6,68 @@ minutes: 22
 mode: local
 ---
 
-## The problem
-
 `main.ts` builds an Engine, runs it once and exits, and the memory stores go
-with it. Rules have to be added once and stay. Events have to arrive whenever
-they happen, from a script, a cron job or a phone. The engine must outlive one
-command, so it becomes a server: one process holding one Engine and its stores,
-answering HTTP.
+with it. That isn't how rulebook should behave. You want to add a rule once and
+have it stay. Events should arrive whenever they happen, from a script, a cron
+job or a phone.
+
+So the engine has to outlive any one command. In this lesson it becomes a
+server: one process holding one Engine and its stores, answering HTTP.
+
+You will learn:
+
+- how to describe an HTTP API as a value with `HttpApi`;
+- how to implement that API with handlers;
+- how to run a server until it's stopped, with `Layer.launch`;
+- how typed errors travel over HTTP.
 
 ## The API is a value
 
-`HttpApi` describes the server before any of it runs. An endpoint is a method,
-a path and the schemas of what goes in and out:
-`HttpApiEndpoint.post("create", "/", { payload: Rule, success: StoredRule })`.
-Endpoints are grouped, and the groups make the API:
+`HttpApi` describes the server before any of it runs. An **endpoint** is a
+method, a path, and the schemas for what goes in and comes out. For example,
+`HttpApiEndpoint.post("create", "/", { payload: Rule, success: StoredRule })`
+creates a rule.
+
+Endpoints are grouped, and the groups make up the API:
 
 - `rules`: create, list, get, remove, and `POST /rules/:id/run` to run one
   rule against an event;
 - `events`: `POST /events` submits an event to every matching rule;
 - `runs`: `GET /runs?ruleId=&limit=` lists the run history.
 
-Every schema here already exists in the domain. The API adds no types of its
-own.
+Every schema here already exists in the domain. The API doesn't add any types
+of its own.
 
 <LessonCode file="checkpoints/14/src/api/Api.ts" />
 
-## Handlers
+## Writing the handlers
 
 `HttpApiBuilder.group(Api, "rules", ...)` implements one group. Inside an
-`Effect.fn` you `yield*` the services you need, then `handlers.handleAll({...})`
-takes one function per endpoint. Each gets the decoded `params`, `query` and
-`payload`, and the compiler checks the result against the endpoint's success
-schema and the failure against its declared errors. The handlers are thin: one
-call into the services from lessons 12 and 13.
+`Effect.fn`, you `yield*` the services you need. Then `handlers.handleAll({...})`
+takes one function per endpoint.
+
+Each handler gets the decoded `params`, `query` and `payload`. The compiler
+checks what it returns against the endpoint's success schema, and how it fails
+against the endpoint's declared errors. The handlers stay thin, each one a
+single call into the services from lessons 12 and 13.
 
 <LessonCode file="checkpoints/14/src/server/Api.ts" />
 
-## Launch it
+## Launching the server
 
-The server program is layers all the way down. `HttpApiBuilder.layer(Api)`
-turns the handlers into routes, `HttpApiScalar.layer` adds documentation at
-`/docs`, `HttpRouter.serve` serves both, and `NodeHttpServer.layer` listens on
-port 3000. The Engine, the memory stores and `NodeServices.layer` are provided
-underneath.
+The server program is layers all the way down:
 
-A layer normally builds, hands over its services and is done. A server has
-nothing to hand over; it should just run. `Layer.launch` builds the layer and
-keeps it running until the program is interrupted, which `runMain` does on
-Ctrl-C.
+- `HttpApiBuilder.layer(Api)` turns the handlers into routes;
+- `HttpApiScalar.layer` adds documentation at `/docs`;
+- `HttpRouter.serve` serves both;
+- `NodeHttpServer.layer` listens on port 3000.
+
+The Engine, the memory stores and `NodeServices.layer` are provided underneath.
+
+A layer normally builds, hands over its services, and is done. A server has
+nothing to hand over. It should just keep running. `Layer.launch` builds the
+layer and keeps it running until the program is interrupted, which `runMain`
+does when you press Ctrl-C.
 
 <LessonCode file="checkpoints/14/src/server/main.ts" />
 
@@ -64,44 +78,48 @@ every restart empties the memory stores. Lesson 17 fixes that.
 
 `get`, `remove` and `run` declare `RuleNotFound` as their error, with
 `HttpApiSchema.status(404)`. The handler fails with the same `RuleNotFound`
-the store fails with, and the server sends it as a 404 with the error as the
-body. `curl -i localhost:3000/rules/nope` answers `404 Not Found` with:
+that the store fails with, and the server sends it as a 404 with the error as
+the body. Try `curl -i localhost:3000/rules/nope`. It answers `404 Not Found`
+with:
 
 ```text
 {"_tag":"RuleNotFound","id":"nope"}
 ```
 
-A request that does not match a schema never reaches a handler. A rule without
-an action, or `limit=abc`, gets a 400 from the decoder. In lesson 15 the client
-decodes that 404 back into a `RuleNotFound`.
+A request that doesn't match a schema never reaches a handler at all. A rule
+without an action, or `limit=abc`, gets a 400 from the decoder.
 
-## Exercise
+In lesson 15, the client decodes that 404 back into a `RuleNotFound`.
+
+## Try it: a limit the server can trust
 
 `GET /runs?limit=-1` comes back with every run except the oldest, because
-`RunLog.list` hands the number to `slice`. `limit=1.5` is accepted too. The
-schema lets through numbers that are not a count.
+`RunLog.list` hands the number straight to `slice`. `limit=1.5` is accepted
+too. The schema lets through numbers that aren't a count.
 
-Make `limit` a whole number greater than 0 in the `runs` query:
-`Schema.Int.check(Schema.isGreaterThan(0))`. Nothing in the handlers or the
-`RunLog` changes.
+Make `limit` a whole number greater than 0 in the `runs` query, with
+`Schema.Int.check(Schema.isGreaterThan(0))`. Notice that nothing in the
+handlers or in `RunLog` has to change.
 
-Check, with `pnpm dev:server` running: `curl -i 'localhost:3000/runs?limit=-1'`
-and `limit=1.5` answer 400, `limit=2` answers 200. The hint and the changed
-file are in `exercises/14/`. From lesson 15 on, the checkpoints include this
-change.
+To check your work, start `pnpm dev:server`. Then
+`curl -i 'localhost:3000/runs?limit=-1'` and `limit=1.5` should answer 400,
+and `limit=2` should answer 200. The hint and the changed file are in
+`exercises/14/`. From lesson 15 on, the checkpoints include this change.
 
-## Now and later
+## Recap
 
-What you need now: the API is one value, handlers implement it group by group,
-and `Layer.launch` runs a server until it is interrupted. The cost is a second
-process to keep running, and a memory store that resets with it. Unpacked
-later: the client derived from the same value (lesson 15), and stores that
-survive a restart (lesson 17).
+- The API is one value. Handlers implement it group by group.
+- Typed errors declared on an endpoint travel over HTTP with a status code.
+- Input that doesn't match a schema is rejected before any handler runs.
+- `Layer.launch` runs a server until it's interrupted.
+- The cost is a second process to keep running, and a memory store that resets
+  with it. Lesson 15 derives a client from the same value, and lesson 17 adds
+  stores that survive a restart.
 
 ## Checkpoint
 
-Start the checkpoint's server, then in a second terminal create a rule, submit
-an event, and read the run:
+Start the checkpoint's server. Then, in a second terminal, create a rule,
+submit an event, and read the run:
 
 ```sh
 pnpm checkpoint 14

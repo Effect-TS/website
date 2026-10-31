@@ -6,128 +6,153 @@ minutes: 22
 mode: local
 ---
 
-## The problem
+Try this. Stop the server and start it again, then run `rules list`. It's
+empty. `runs list` has forgotten everything too.
 
-Stop the server and start it again. `rules list` is empty and `runs list` has
-forgotten everything. Both stores are Maps, and a Map lives exactly as long as
-the process. Rules have to be added once and stay, and the run history is only
-useful if it is still there tomorrow. This lesson keeps both in SQLite, in a
-file called `rulebook.db`.
+Both stores are Maps, and a Map lives exactly as long as the process that
+created it. That was fine for learning, but it isn't how rulebook should
+behave. You add a rule once and expect it to stay, and a run history is only
+useful if it's still there tomorrow. In this lesson you keep both in SQLite, in
+a file called `rulebook.db`.
+
+You will learn:
+
+- how a database becomes one more layer;
+- how to write queries with the `sql` tag and decode their rows with a schema;
+- why swapping the storage changes nothing in the rest of the program.
 
 ## A database is a layer
 
 `SqliteClient.layer({ filename: "rulebook.db" })` opens the file and provides
-`SqlClient`, the service every query goes through. It uses `node:sqlite`, which
-is why the course needs Node 22.16: there is no native module to build.
+`SqlClient`, the service every query goes through. It's built on
+`node:sqlite`, so there's no native module to compile. That's why the course
+needs Node 22.16.
 
-An empty file has no tables. The two SQL files in `migrations/` create them,
-and `SqliteMigrator.layer` runs the ones this database has not seen yet, in the
-order of their number. It records each one it ran in a table of its own, so
+An empty file has no tables. The two SQL files in `migrations/` create them.
+`SqliteMigrator.layer` runs the ones this database hasn't seen yet, in the
+order of their number, and records each one it ran in a table of its own. So
 starting the server a second time changes nothing.
 
 <LessonCode file="checkpoints/17/src/Migrations.ts" />
 
-This file is plumbing: the migrator's own loader imports `.js` and `.ts` files,
-and the supplied migrations are plain SQL, so this loader reads each file and
-runs its statements. Copy it to `src/Migrations.ts`. It finds `migrations/`
-by walking up from its own folder: the checkpoint's copy goes up three levels,
-from `checkpoints/17/src/` to the project root. Your `src/` sits directly under
-the root, so in the line that builds `directory`, keep one `".."` and remove
-the other two.
+This file is plumbing, and you don't need to study it. The migrator's own
+loader imports `.js` and `.ts` files, but the supplied migrations are plain
+SQL, so this loader reads each file and runs its statements.
 
-Open `migrations/0002_runs.sql`. The `runs` table is the run history from
-lesson 12, one column per field. The `CHECK` on `reason` is the column
-contract: a `failed` row names one of `status`, `timeout` or `io`, and any
-other row may say anything or nothing.
+Copy it to `src/Migrations.ts`, then make one change. The loader finds
+`migrations/` by walking up from its own folder. The checkpoint's copy lives in
+`checkpoints/17/src/`, so it goes up three levels to reach the project root.
+Your `src/` sits directly under the root. In the line that builds `directory`,
+keep one `".."` and remove the other two.
+
+Now open `migrations/0002_runs.sql`. The `runs` table is the run history from
+lesson 12, with one column per field. Notice the `CHECK` on `reason`. It's the
+column contract written into the database: a `failed` row must name one of
+`status`, `timeout` or `io`, and any other row may say anything or nothing.
 
 ## RuleStore over SQL
 
 `RuleStore.layerSql` sits next to `layerMemory` in the same file and implements
-the same service. It `yield*`s `SqlClient` instead of building a Map.
+the same service. The difference is that it `yield*`s `SqlClient` instead of
+building a Map. Three new tools do the work:
 
-- The `sql` tag writes a query. Values inside `${}` become parameters, never
-  part of the SQL text, so a rule name with a quote in it cannot break the
+- **The `sql` tag** writes a query. Values inside `${}` become parameters and
+  never part of the SQL text, so a rule name with a quote in it can't break the
   query. `sql.insert(row)` turns an object into the column list and values of
   an `INSERT`.
-- `SqlSchema.findAll` pairs a query with the schema of its rows, and decodes
+- **`SqlSchema.findAll`** pairs a query with the schema of its rows and decodes
   every row it returns. `SqlSchema.void` does the same for a write with no
   result.
-- `definition_json` holds the rule as text. `Schema.fromJsonString(Rule)` is
-  one schema for both directions: it encodes a `Rule` to JSON on the way in,
-  and on the way out it parses the text and decodes it with the same `Rule`
-  schema the API uses. A row that someone edited by hand into something that is
-  not a rule fails right there, with the same error a bad request gets.
+- **`Schema.fromJsonString(Rule)`** handles the `definition_json` column, which
+  holds the rule as text. It's one schema for both directions. On the way in it
+  encodes a `Rule` to JSON. On the way out it parses the text and decodes it
+  with the same `Rule` schema the API uses. If someone edits a row by hand into
+  something that isn't a rule, it fails right there, with the same error a bad
+  request gets.
 
 <LessonCode file="checkpoints/17/src/RuleStore.ts" />
 
-`get` runs `findById` and takes the first row. No row means
-`return yield* new RuleNotFound({ id })`, exactly what the memory store does,
-so every caller keeps handling one typed error and nothing has to learn about
-an optional result. `remove` uses `RETURNING id` to learn whether it deleted
-anything.
+Look at `get`. It runs `findById` and takes the first row. When there's no row,
+it does `return yield* new RuleNotFound({ id })`, exactly what the memory store
+does. Every caller keeps handling one typed error, and nobody has to learn
+about an optional result. `remove` uses `RETURNING id` to find out whether it
+deleted anything.
 
-A database error is not something a caller can act on. `Effect.orDie` turns it
-into a defect, so the service type stays what it was: `create` cannot fail,
-`get` and `remove` fail only with `RuleNotFound`.
+What about database errors? A caller can't do anything useful about a broken
+disk, so `Effect.orDie` turns those errors into **defects**. A defect is a
+failure that no caller is expected to handle, so it leaves the error slot of
+the type. That keeps the service type exactly as it was: `create` can't fail,
+and `get` and `remove` fail only with `RuleNotFound`. Lesson 20 looks at
+defects more closely.
 
 ## RunLog over SQL
 
 `RunLog.layerSql` follows the same pattern. Times are stored as ISO 8601 text,
 which sorts in time order, and `Schema.DateTimeUtcFromString` turns them back
-into `DateTime` values on the way out. `finish` is one `UPDATE` of the row
-`start` inserted.
+into `DateTime` values on the way out. `finish` is a single `UPDATE` of the row
+that `start` inserted.
 
 <LessonCode file="checkpoints/17/src/RunLog.ts" />
 
-## Revisit: swap a layer, with nothing else changing
+## Revisit: swap a layer, and nothing else changes
 
-In `src/server/main.ts` the memory stores become the SQL stores, and the SQL
+In `src/server/main.ts`, the memory stores become the SQL stores, and the SQL
 stores get what they need underneath them:
 
 <LessonCode file="checkpoints/17/src/server/main.ts" />
 
-That is the whole change to the program. The Engine, the API handlers and the
-CLI do not change, because none of them knows which layer is behind
-`RuleStore` and `RunLog`. Lesson 9 promised this when the store was still a
-Map in the playground.
+That's the whole change to the program. The Engine, the API handlers and the
+CLI stay the same, because none of them knows which layer is behind
+`RuleStore` and `RunLog`. Lesson 9 promised this back when the store was a Map
+in the playground.
 
-The tests from lesson 13 make the same point without trusting you. Turn each
-store suite into a function of a layer, `(name, store) => layer(store, {
-buildPerTest: true })(name, (it) => ...)` with the lesson 13 tests inside
-unchanged, and call it once per layer. For SQLite the layer is
-`Migrations.layer` over `SqliteClient.layer({ filename: ":memory:" })`: a
-database that exists only for one test, with the tables already created.
-`buildPerTest` gives every test a fresh one.
+### The tests agree
 
-The SQLite runs also pass the `CHECK` on `reason`, so a `failed` row with a
-made-up reason fails here, not in production. This is the form the reference
-tests take from lesson 19 on, with one more test that writes to a real file,
-rebuilds the layers on it and reads everything back:
+The tests from lesson 13 make the same point, and they don't need you to take
+it on trust. Turn each store suite into a function of a layer,
+`(name, store) => layer(store, { buildPerTest: true })(name, (it) => ...)`,
+with the lesson 13 tests inside unchanged. Then call it once per layer.
+
+For SQLite, the layer is `Migrations.layer` over
+`SqliteClient.layer({ filename: ":memory:" })`. That's a database that exists
+only for one test, with the tables already created. `buildPerTest` gives every
+test a fresh one.
+
+The SQLite runs also go through the `CHECK` on `reason`, so a `failed` row
+with a made-up reason fails in the test, not in production. The reference
+tests take this form from lesson 19 on, with one more test that writes to a
+real file, rebuilds the layers on it, and reads everything back:
 
 <LessonCode file="checkpoints/19/test/Stores.test.ts" />
 
-## Exercise
+## Try it: filter in the query
 
-`pnpm cli runs list --rule <id>` gives the right rows against SQLite, as it did
-against the Map. But `RunLog.layerSql` reads every row of `runs` and then
-filters and slices them in TypeScript. With a few interval rules (lesson 19)
-that table grows by thousands of rows a day, and every `runs list --rule`
-reads all of them to keep a handful. Make SQLite do the filtering and the
-limit, in the query.
+`pnpm cli runs list --rule <id>` gives the right rows against SQLite, just as
+it did against the Map. But look at how. `RunLog.layerSql` reads every row of
+`runs`, then filters and slices them in TypeScript.
 
-Check: `pnpm test` stays green, and with the server running,
-`pnpm cli runs list --rule <id> --limit 2` prints at most two rows, all of that
-rule. The hint and the changed file are in `exercises/17/`. From lesson 18 on,
-the checkpoints include this change.
+That won't hold up. With a few interval rules (lesson 19), the table grows by
+thousands of rows a day, and every `runs list --rule` reads all of them to keep
+a handful. Make SQLite do the filtering and the limit, in the query.
 
-## Now and later
+You're done when `pnpm test` stays green and, with the server running,
+`pnpm cli runs list --rule <id> --limit 2` prints at most two rows, all for
+that rule. The hint and the changed file are in `exercises/17/`. From lesson 18
+on, the checkpoints include this change.
 
-What you need now: a database is a layer, a query is the `sql` tag with a
-schema for its rows, and swapping storage is two lines in the entrypoint. The
-cost is a file on disk to manage and a migration for every change to the
-tables. The checkpoint servers and yours all use `rulebook.db` in the project
-root; delete it when you want to start clean. Unpacked later: a run whose
-process ended before it could write its last row (lesson 19).
+## Recap
+
+- A database is a layer. `SqliteClient.layer` provides `SqlClient`, and the
+  migrator creates the tables.
+- A query is the `sql` tag with a schema for its rows. Values in `${}` are
+  always parameters.
+- Swapping storage took two lines in the entrypoint, and the tests ran
+  unchanged against both layers.
+- The price is a file on disk to manage, and a migration for every change to
+  the tables. The checkpoint servers and yours all use `rulebook.db` in the
+  project root. Delete it whenever you want to start clean.
+- Lesson 19 deals with a run whose process ended before it could write its
+  last row.
 
 ## Checkpoint
 

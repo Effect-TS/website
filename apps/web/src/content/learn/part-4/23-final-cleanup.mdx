@@ -6,37 +6,42 @@ minutes: 5
 mode: local
 ---
 
-## The problem
+Since lesson 11, every lesson has added a layer exactly where it was needed.
+The server's stack grew in `src/server/main.ts`, one `Layer.provide` at a time.
+The CLI's stack grew inline, in its run line. Both work. But if someone asked
+you "what does this program run on?", neither is a place you'd think to look.
 
-Each lesson since 11 added a layer where it was needed. The server's stack
-grew in `src/server/main.ts`, one `Layer.provide` at a time, and the CLI's
-grew inline in its run line. Both work. Neither is a place you would look to
-answer "what does this program run on?". Before the challenge, put both stacks
-in one file.
+Before the challenge, you'll put both stacks in one file. It's a short lesson,
+and nothing changes about what the program does.
 
-## One Layers.ts
+## Moving the stacks into Layers.ts
 
-Move the two stacks to `src/Layers.ts`, as two exported values, `server` and
+Move the two stacks into `src/Layers.ts`, as two exported values, `server` and
 `cli`:
 
 <LessonCode file="checkpoints/23/src/Layers.ts" />
 
-Nothing in them changed, only where they live. The order is the one you built
-up: each `Layer.provide` supplies what the layers above it need, so the Engine
-is built after the stores and SQLite, and closed before them.
+The layers themselves haven't changed, only where they live. The order is the
+one you built up over the course. Each `Layer.provide` supplies what the layers
+above it need, so the Engine is built after the stores and SQLite, and closed
+before them.
 
-The entrypoints shrink to what an entrypoint is for. The server launches its
-layer:
+## Smaller entrypoints
+
+With the stacks gone, each entrypoint shrinks to what an entrypoint is for.
+The server launches its layer:
 
 <LessonCode file="checkpoints/23/src/server/main.ts" />
 
-and the CLI's run line becomes `Effect.provide(Layers.cli)`, its one
-provide. The `Effect.provideService` calls inside the Engine stay: they hand
-one call a service the Engine already holds, which is not the same as building
-the program's layers.
+The CLI's run line becomes `Effect.provide(Layers.cli)`, its only provide.
 
-Check: `pnpm check` and `pnpm test` pass, and the lesson 22 run, from an
-empty `rulebook.db`, gives the same four rows on your server.
+You'll still see `Effect.provideService` calls inside the Engine. Leave them
+where they are. They hand a single call a service the Engine already holds,
+which is a different job from building the program's layers.
+
+To check your work, make sure `pnpm check` and `pnpm test` pass. Then repeat
+the lesson 22 run from an empty `rulebook.db`. Your server should give the same
+four rows.
 
 ## Checkpoint
 
@@ -45,9 +50,9 @@ pnpm checkpoint 23 server
 ```
 
 It serves exactly what checkpoint 22 served. Neither entrypoint contains a
-`Layer.provide` any more, and each has at most one `Effect.provide`;
-`checkpoints/24/test/Layers.test.ts` checks exactly that, so you can run it
-against your own `src/` by copying it to `test/`.
+`Layer.provide` any more, and each has at most one `Effect.provide`.
+`checkpoints/24/test/Layers.test.ts` checks exactly that. To run it against
+your own `src/`, copy it into `test/`.
 
 ## Reference card
 

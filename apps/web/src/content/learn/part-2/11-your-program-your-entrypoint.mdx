@@ -6,124 +6,145 @@ minutes: 20
 mode: local
 ---
 
-## The problem
-
-The lesson 10 file is already in `src/run-once.ts`. Run it:
+The lesson 10 file is already in your starter, as `src/run-once.ts`. Run it:
 
 ```sh
 pnpm tsx src/run-once.ts
 ```
 
-Same alert lines as in the browser. Then the process exits and the alerts are
-gone, because they only ever went to the terminal. A rule that fires should
-leave something behind. The simplest thing is a line in a file.
+You get the same alert lines as in the browser. Then the process exits, and
+the alerts are gone, because they only ever went to the terminal. A rule that
+fires should leave something behind. The simplest thing it can leave is a line
+in a file.
 
-Two more things change on the way. The rules and events move out of the code
-into JSON files under `fixtures/`, and the run line at the bottom becomes
-yours.
+Two more things change along the way. The rules and events move out of the
+code into JSON files under `fixtures/`, and the run line at the bottom of the
+file becomes yours to write.
+
+You will learn:
+
+- how to use a service that Effect ships, `FileSystem`;
+- how to write your own run line with `NodeRuntime.runMain`;
+- how a schema describes variants, such as different kinds of action;
+- how to turn a low-level error into one that means something to your caller.
 
 ## A rule file
 
-This is the rule you will run. It has a trigger, a condition and an action:
+This is the rule you'll run. It has a trigger, a condition and an action:
 
 <LessonCode file="fixtures/rules/expense.json" />
 
-Ignore `message` for now; the exercise uses it.
+Ignore `message` for now. You'll use it in the exercise.
 
-## The FileSystem service
+## Using the FileSystem service
 
-Reading those files and appending to `alerts.log` needs the file system. Effect
-ships it as a service, `FileSystem.FileSystem`, and you use it exactly like
-`RuleStore` in lesson 8:
+To read those files and append to `alerts.log`, rulebook needs the file
+system. Effect ships it as a service, `FileSystem.FileSystem`, and you use it
+exactly like your own `RuleStore` from lesson 8:
 
-- `const fs = yield* FileSystem.FileSystem` puts it in the third slot of
-  whatever uses it.
+- `const fs = yield* FileSystem.FileSystem` gets it, and puts it in the third
+  slot of whatever uses it.
 - `fs.readFileString(path)` reads a file.
-- `fs.writeFileString(path, text, { flag: "a" })` appends, creating the file
-  when it is missing.
+- `fs.writeFileString(path, text, { flag: "a" })` appends to a file, creating
+  it if it's missing.
 
 Both fail with a `PlatformError` when the disk says no.
 
-Something has to provide the service. `NodeServices.layer` from
-`@effect/platform-node` is a layer with Node's implementation of `FileSystem`
-and the other services the platform ships. Lesson 13 replaces it with a fake
-file system for tests, without changing the code that uses it.
+Something has to provide the service. `NodeServices.layer`, from
+`@effect/platform-node`, is a layer with Node's implementation of `FileSystem`
+and the other services the platform ships. In lesson 13 you'll replace it with
+a fake file system for tests, without changing any code that uses it.
 
-## Your own run line
+## Writing your own run line
 
-In Part 1 the two run lines were supplied, with a note that `runMain` is
-Part 2. This is Part 2. `NodeRuntime.runMain` runs the program, keeps the
-process alive until it is done, and sets the exit code: 0 on success, 1 on
-failure. It also turns Ctrl-C into an interruption, which lesson 18 relies on.
+In Part 1 the run line was supplied, with a comment saying you'd write it
+yourself in lesson 11. This is lesson 11.
 
-The run line has three steps:
+`NodeRuntime.runMain` runs the program and keeps the process alive until it's
+done. It sets the exit code, 0 on success and 1 on failure. It also turns
+Ctrl-C into an interruption, which lesson 18 relies on.
 
-1. Print a typed error as one line with `Effect.tapError`. It runs an effect on
-   the failure and passes the failure on unchanged.
-2. `Effect.provide(NodeServices.layer)`, so the program has its `FileSystem`.
-3. `NodeRuntime.runMain({ disableErrorReporting: true })`, because the error
-   was already printed.
+Your run line has three steps:
 
-The lesson 10 run line also provided `Telemetry.layer`. That is the part Part 1
-hid from you: the wiring that sent spans and logs to the trace panel. Leave it
-out of the new run line. Your spans still exist, but nothing exports them until
-lesson 16, where you write `Telemetry.ts` yourself.
+1. Print a typed error as one line with `Effect.tapError`. It runs an effect
+   on the failure, then passes the failure on unchanged.
+2. Add `Effect.provide(NodeServices.layer)`, so the program has its
+   `FileSystem`.
+3. Call `NodeRuntime.runMain({ disableErrorReporting: true })`. Error reporting
+   is off because step 1 already printed the error.
 
-Here is the checkpoint's program. `readJson` reads a file and decodes it with a
+Here's the checkpoint's program. `readJson` reads a file and decodes it with a
 schema in one step:
 
 <LessonCode file="checkpoints/11/src/run-once.ts" />
 
 ## Revisit: a schema with variants
 
-The lesson 6 schema had one shape. A real rule has variants: a trigger is an
-`event` or an `interval`, and an action is `appendFile` or `httpPost`. Each
-variant is a `Schema.Struct` with a `type` literal, and `Schema.Union` joins
-them. Because every variant has a different `type`, TypeScript narrows on it,
-so in `case "appendFile":` the compiler knows `rule.action.path` exists.
+The lesson 6 schema had one shape. A real rule comes in variants. A trigger is
+either an `event` or an `interval`, and an action is either `appendFile` or
+`httpPost`.
 
-The condition grows too. `field` is now a dotted path such as `body.status`,
-the fifth operator `contains` is in, and `lookup` fails with `MissingField`
-when a key on the path is absent.
+Each variant is a `Schema.Struct` with a `type` literal, and `Schema.Union`
+joins them. Because every variant has a different `type`, TypeScript can
+narrow on it. Inside `case "appendFile":`, the compiler knows that
+`rule.action.path` exists.
+
+The condition grows too:
+
+- `field` is now a dotted path, such as `body.status`;
+- the fifth operator, `contains`, is in;
+- `lookup` fails with `MissingField` when a key on the path is absent.
 
 <LessonCode file="checkpoints/11/src/Rule.ts" />
 
-`httpPost` decodes now so rule files can use it, but `run-once.ts` only logs
-that it arrives in lesson 20.
+`httpPost` decodes already, so rule files can use it. `run-once.ts` doesn't
+run it yet. It only logs that `httpPost` arrives in lesson 20.
 
 ## Revisit: errors you can name
 
-A `PlatformError` from `writeFileString` is the file system's error, with the
-file system's vocabulary. The rule's caller wants to know that the action did
-not happen. `Effect.mapError` turns one into the other: an `ActionFailed` with
-the reason `io` and the original message. `io` is one of three reasons a failed
-action can have; `status` and `timeout` arrive with `httpPost` in lesson 20.
+A `PlatformError` from `writeFileString` is the file system's error, in the
+file system's vocabulary. Whoever called the rule only wants to know that the
+action didn't happen.
+
+`Effect.mapError` turns one failure into another. Here it turns the
+`PlatformError` into an `ActionFailed`, with the reason `io` and the original
+message. `io` is one of three reasons a failed action can have. The other two,
+`status` and `timeout`, arrive with `httpPost` in lesson 20.
 
 <LessonCode file="checkpoints/11/src/Action.ts" />
 
-## Exercise
+## Try it: write the rule's message
 
 Every alert line reads like `expense 1200 over 500`, because `alertLine`
-builds it from the event. The rule files already say what they want written:
-`"message": "expense over 500"`. Make the action write the rule's message:
+builds it from the event. But the rule files already say what they want
+written: `"message": "expense over 500"`. Make the action write the rule's
+message instead:
 
 1. Add `message: Schema.String` to the `AppendFile` struct.
-2. In the `appendFile` case, hover `rule.action.message`: it is a `string`.
+2. In the `appendFile` case, hover `rule.action.message`. It's a `string`.
    Write it instead of the built line.
-3. Delete `alertLine`, which has no caller left, and `words` with it.
+3. Delete `alertLine`, which has no caller left, and `words` along with it.
 4. Remove `message` from a copy of the rule file, run it, and read the error.
-   It names the missing key and its path.
+   Notice that it names the missing key and its path.
 
-Check: `pnpm tsx src/run-once.ts fixtures/rules/expense.json fixtures/events/laptop.json`
-appends `expense over 500` to `alerts.log`. The hint and the changed files are
-in `exercises/11/`. From lesson 12 on, the checkpoints include this change.
+To check your work, run
+`pnpm tsx src/run-once.ts fixtures/rules/expense.json fixtures/events/laptop.json`.
+It should append `expense over 500` to `alerts.log`. The hint and the changed
+files are in `exercises/11/`. From lesson 12 on, the checkpoints include this
+change.
 
-## Now and later
+## Recap
 
-What you need now: a service Effect ships is used like one you wrote, and a
-layer supplies its real implementation. The cost is one more `provide` at the
-edge of the program. Unpacked later: the fake `FileSystem` in tests (lesson
-13), and the telemetry layer you left out (lesson 16).
+- A service Effect ships is used exactly like one you wrote, and a layer
+  supplies its real implementation.
+- `NodeRuntime.runMain` is your run line now. It sets the exit code and turns
+  Ctrl-C into an interruption.
+- `Schema.Union` of structs with a `type` literal describes variants that
+  TypeScript can narrow.
+- `Effect.mapError` turns a low-level error into one your caller understands.
+- The cost of all this is one more `provide` at the edge of the program. In
+  lesson 13 you'll swap in a fake `FileSystem` for tests, and in lesson 16
+  you'll add a telemetry layer that sends your spans to the trace viewer.
 
 ## Checkpoint
 
@@ -131,9 +152,9 @@ edge of the program. Unpacked later: the fake `FileSystem` in tests (lesson
 pnpm checkpoint 11 fixtures/rules/expense.json fixtures/events/laptop.json
 ```
 
-appends one line to `alerts.log`. With `fixtures/events/lunch.json` instead,
-the 40 is under 500 and nothing is appended. With
-`fixtures/rules/malformed.json` it prints a typed error and no stack:
+This appends one line to `alerts.log`. With `fixtures/events/lunch.json`
+instead, the amount of 40 is under 500, and nothing is appended. With
+`fixtures/rules/malformed.json`, it prints a typed error and no stack:
 
 ```text
 SchemaError: Expected "eq" | "neq" | "gt" | "lt" | "contains"
@@ -142,16 +163,15 @@ SchemaError: Expected "eq" | "neq" | "gt" | "lt" | "contains"
 
 ## Reference card
 
-| API                                                             | What it does                                              | Lesson |
-| --------------------------------------------------------------- | --------------------------------------------------------- | ------ |
-| `FileSystem.FileSystem`                                         | The file system service; `yield*` it to use it            | 11     |
-| `fs.readFileString`, `fs.writeFileString(path, text, { flag })` | Read a file; write one, `flag: "a"` to append             | 11     |
-| `NodeServices.layer`                                            | Node's `FileSystem` and the other platform services       | 11     |
-| `NodeRuntime.runMain`                                           | Runs the program, sets the exit code, Ctrl-C interrupts   | 11     |
-| `Schema.Union`, `Schema.Literal`                                | Variants told apart by a literal field                    | 11     |
-| `Schema.optionalKey`                                            | A key that may be absent                                  | 11     |
-| `Schema.StructWithRest`                                         | Known fields plus any others, for event payloads          | 11     |
-| `Effect.mapError`                                               | Turns one failure into another                            | 11     |
-| `Effect.tapError`                                               | Runs an effect on failure and keeps the failure           | 11     |
-| `Telemetry.layer`                                               | Sends spans and logs to the viewer. Unpacked in lesson 16 | 16     |
-| `FileSystem.layerNoop`                                          | A file system that does nothing. Unpacked in lesson 13    | 13     |
+| API                                                             | What it does                                            | Lesson |
+| --------------------------------------------------------------- | ------------------------------------------------------- | ------ |
+| `FileSystem.FileSystem`                                         | The file system service; `yield*` it to use it          | 11     |
+| `fs.readFileString`, `fs.writeFileString(path, text, { flag })` | Read a file; write one, `flag: "a"` to append           | 11     |
+| `NodeServices.layer`                                            | Node's `FileSystem` and the other platform services     | 11     |
+| `NodeRuntime.runMain`                                           | Runs the program, sets the exit code, Ctrl-C interrupts | 11     |
+| `Schema.Union`, `Schema.Literal`                                | Variants told apart by a literal field                  | 11     |
+| `Schema.optionalKey`                                            | A key that may be absent                                | 11     |
+| `Schema.StructWithRest`                                         | Known fields plus any others, for event payloads        | 11     |
+| `Effect.mapError`                                               | Turns one failure into another                          | 11     |
+| `Effect.tapError`                                               | Runs an effect on failure and keeps the failure         | 11     |
+| `FileSystem.layerNoop`                                          | A file system that does nothing. Unpacked in lesson 13  | 13     |

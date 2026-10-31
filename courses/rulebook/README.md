@@ -1,10 +1,10 @@
 # rulebook
 
-The starter project for the Effect course in which you build rulebook, a small self-hosted automation engine: rules that react to events or poll a URL, run an action, and record every run.
+This is the starter project for the Learn Effect course. In the course you build rulebook, a small automation engine that runs on your own machine. Its rules react to events or poll a URL, run an action, and record every run.
 
 ## Prerequisites
 
-Have these ready before you start; the setup time in the course assumes them.
+Have these ready before you start. The setup time in the course assumes you already have them.
 
 - Node.js 22.16 or newer
 - pnpm, installed directly or through `corepack enable`
@@ -23,9 +23,11 @@ pnpm install
 pnpm run doctor --viewer    # leave it running
 ```
 
-`pnpm run doctor --viewer` downloads otel-desktop-viewer on first use, prints one line per requirement, and exits non-zero when something is missing, saying what to install. Once everything passes it starts the viewer and keeps running until you press Ctrl-C. Type `run`: a bare `pnpm doctor` is pnpm's own diagnostics command.
+`pnpm run doctor --viewer` checks that your machine is ready. On first use it downloads otel-desktop-viewer, the trace viewer the course uses. It prints one line per requirement. If something is missing, it says what to install and exits with a non-zero code. Once everything passes, it starts the viewer and keeps running until you press Ctrl-C.
 
-`pnpm run doctor` without the flag only checks. In a later session, `pnpm viewer` starts the viewer again.
+Make sure you type `run`. A bare `pnpm doctor` runs pnpm's own diagnostics command instead.
+
+Without the flag, `pnpm run doctor` only checks. In a later session, `pnpm viewer` starts the viewer again.
 
 ## Commands
 
@@ -55,7 +57,7 @@ pnpm run doctor --viewer    # leave it running
 
 ## The receiver
 
-`pnpm receiver` stands in for the services your rules talk to:
+Your rules talk to outside services. During the course, `pnpm receiver` stands in for them. It answers these endpoints:
 
 | Endpoint | Answer |
 | --- | --- |
@@ -64,7 +66,9 @@ pnpm run doctor --viewer    # leave it running
 | `/fail?status=500` | the requested status (400 to 599) |
 | `/flaky` | 500 and 200 in turn, starting with 500 |
 | `GET /status` | `{"status":"ok"}`, `{"status":"degraded"}`, or a 500 |
-| `POST /status/mode` | body `{"mode":"ok"}`, `{"mode":"degraded"}` or `{"mode":"error"}` switches `/status` |
+| `POST /status/mode` | a body of `{"mode":"ok"}`, `{"mode":"degraded"}` or `{"mode":"error"}` switches what `/status` answers |
+
+For example, to make `/status` report `degraded`:
 
 ```sh
 curl -X POST localhost:4600/status/mode -H 'content-type: application/json' -d '{"mode":"degraded"}'

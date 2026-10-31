@@ -6,68 +6,84 @@ minutes: 15
 mode: local
 ---
 
-## The problem
+So far, everything the server does is an answer to a request. Lesson 19 adds
+work that nobody asks for in the moment: an interval rule polls a URL every few
+seconds, for as long as the server runs.
 
-Everything the server does so far answers a request. Lesson 19 adds work
-nobody asked for in the moment: an interval rule polls a URL every few seconds
-for as long as the server runs. Before that loop does anything real, it has to
-get the one thing right that is easy to get wrong: when the server stops, the
-loop stops with it, cleanly, and says so. This lesson builds a loop that does
-nothing useful, so you can watch only that part.
+Before that loop does anything real, it has to get one thing right that's easy
+to get wrong. When the server stops, the loop must stop with it, cleanly, and
+say so. This lesson builds a loop that does nothing useful, so that stopping is
+the only thing you have to watch.
+
+You will learn:
+
+- how to repeat an effect on a schedule;
+- how to run a loop in the background, tied to a layer's lifetime;
+- where cleanup goes when a loop is stopped.
 
 ## A heartbeat
 
-Every 30 seconds the heartbeat logs how many rules are stored. In
-`src/Heartbeat.ts`:
+The heartbeat logs how many rules are stored, once at startup and then every
+30 seconds. Here's `src/Heartbeat.ts`:
 
 <LessonCode file="checkpoints/18/src/Heartbeat.ts" />
 
-Read it from the inside out.
+Read it from the inside out:
 
-- The `Effect.gen` block is one beat: list the rules, log the count.
-- `Effect.repeat(Schedule.spaced("30 seconds"))` runs the beat, then again 30
-  seconds after each run ends, forever. The first run is immediate. A
-  `Schedule` is a value describing when to go again; `spaced` is the simplest
-  one.
+- The inner `Effect.gen` block is one beat: list the rules, log the count.
+- `Effect.repeat(Schedule.spaced("30 seconds"))` runs the beat, then runs it
+  again 30 seconds after each run ends, forever. The first run happens at
+  once. A `Schedule` is a value that describes when to go again, and `spaced`
+  is the simplest one.
 - `Effect.onInterrupt` runs its effect when the loop is interrupted, and only
-  then. A loop that never ends on its own has exactly one way to stop, so that
-  is where the log goes.
+  then. A loop that never ends on its own has exactly one way to stop, so
+  that's where the log goes.
 - `Effect.forkScoped` starts the loop on a fiber of its own and ties that fiber
-  to the current scope. The layer's build finishes straight away, and the loop
-  keeps going in the background.
+  to the current scope. A **fiber** is a piece of work that runs alongside the
+  rest of the program. Because the loop runs on its own fiber, building the
+  layer finishes straight away and the loop carries on in the background.
 
-## Whose scope
+## Whose scope?
 
-`Layer.effectDiscard` builds a layer from an effect and provides no service.
-A layer has a scope: it opens when the layer is built and closes when the
-program that built it ends. `forkScoped` puts the loop in that scope. When the
-scope closes, the loop is interrupted, `onInterrupt` logs, and only then does
-the layer finish closing.
+`Layer.effectDiscard` builds a layer from an effect without providing any
+service. Like every layer, it has a **scope**. The scope opens when the layer
+is built and closes when the program that built it ends.
 
-So you never stop the loop yourself. You stop the program, and the program
-closes its layers. In `src/server/main.ts` the heartbeat sits next to the
-served API:
+`forkScoped` puts the loop in that scope. So when the scope closes, the loop is
+interrupted, `onInterrupt` logs, and only then does the layer finish closing.
+
+That means you never stop the loop yourself. You stop the program, and the
+program closes its layers. In `src/server/main.ts`, the heartbeat sits next to
+the served API:
 
 <LessonCode file="checkpoints/18/src/server/main.ts" />
 
-The heartbeat needs `RuleStore`, so it is built after the store and closed
-before it. That order is what makes the shutdown safe: the last thing the loop
-does is never a query against a database that has already closed.
+The heartbeat needs `RuleStore`, so it's built after the store and closed
+before it. That order is what makes shutdown safe. The loop's last action can
+never be a query against a database that has already closed.
 
-## Ctrl-C
+## What Ctrl-C does
 
-`runMain`, from lesson 11, turns Ctrl-C into an interruption of the main
-fiber. `Layer.launch` was holding the server open; interrupted, it closes the
-layer. That closes the scope, which interrupts the heartbeat, which logs. You
-did not write a signal handler and you do not need one.
+You didn't write a signal handler, and you don't need one. Here's the chain of
+events when you press Ctrl-C:
 
-## Now and later
+1. `runMain`, from lesson 11, turns Ctrl-C into an interruption of the main
+   fiber.
+2. `Layer.launch` was holding the server open. Interrupted, it closes the
+   layer.
+3. Closing the layer closes its scope, which interrupts the heartbeat.
+4. The heartbeat's `onInterrupt` logs.
 
-What you need now: a loop is an effect with `Effect.repeat` and a `Schedule`,
-a scoped fork ties it to whoever started it, and `Effect.onInterrupt` is where
-cleanup goes. The cost is a fiber that does nothing most of the time. Lesson
-19 replaces the heartbeat with one loop per interval rule, each of which has to
-stop on its own when its rule is removed, not only when the server stops.
+## Recap
+
+- A loop is an effect with `Effect.repeat` and a `Schedule`.
+- `Effect.forkScoped` ties a loop to whoever started it, so it stops when they
+  do.
+- `Effect.onInterrupt` is where cleanup goes.
+- The trade-off is a fiber that does nothing most of the time.
+- Lesson 19 replaces the heartbeat with one loop per interval rule. Each of
+  those has to stop on its own when its rule is removed, not only when the
+  server stops.
 
 ## Checkpoint
 
@@ -77,14 +93,13 @@ pnpm checkpoint 18 server
 
 The server logs `rules stored:` with the number of rules in `rulebook.db`
 (1, the expense rule, if you kept lesson 17's) at once and again every 30
-seconds. Press
-Ctrl-C. The last log line before the process exits is:
+seconds. Press Ctrl-C. The last log line before the process exits is:
 
 ```text
 heartbeat stopped
 ```
 
-With the viewer running it is also in the Logs tab, from `rulebook-server`.
+With the viewer running, it's also in the Logs tab, from `rulebook-server`.
 
 ## Reference card
 

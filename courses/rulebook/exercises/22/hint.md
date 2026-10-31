@@ -1,6 +1,6 @@
 # Exercise 22: diagnose the mixed scenario
 
-Run the mixed scenario from lesson 21 once more, then answer four questions using only `runs list` and the viewer. Don't read the code or the fixture files while you answer.
+Run the mixed scenario from lesson 21 once more, then answer four questions using only `runs list` and the viewer. Don't read the code or the fixture files while you answer. The point is to find out whether what you built tells you enough on its own.
 
 ```sh
 pnpm receiver --scenario mixed                         # terminal 1
@@ -10,7 +10,7 @@ pnpm cli events submit fixtures/events/laptop.json
 pnpm cli runs list
 ```
 
-In the viewer, open the newest `rulebook-server` trace with an `Engine.handleEvent` span.
+In the viewer, open the newest `rulebook-server` trace that has an `Engine.handleEvent` span.
 
 1. Which operation was slowest? How long did it take, and why that long?
 2. Which operation failed, and with what?
@@ -19,4 +19,4 @@ In the viewer, open the newest `rulebook-server` trace with an `Engine.handleEve
 
 Write your answers down before you open `solution.md`.
 
-If you see four `succeeded` rows, the receiver answered `/slow` before the timeout: check that `c-slow.json` asks for `ms=15000` and that `RULEBOOK_TIMEOUT` is not set in the server's shell.
+If you see four `succeeded` rows, the receiver answered `/slow` before the timeout. Check that `c-slow.json` asks for `ms=15000` and that `RULEBOOK_TIMEOUT` isn't set in the server's shell.

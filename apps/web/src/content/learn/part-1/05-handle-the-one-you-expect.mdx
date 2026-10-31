@@ -7,55 +7,77 @@ mode: playground
 lessonDir: 05-handle-the-one-you-expect
 ---
 
-## The problem
+The two failures from lesson 4 don't mean the same thing.
 
-The two failures from lesson 4 do not mean the same thing. An event without an
-`amount` is normal: the rule does not apply to it, so rulebook should skip the
-rule and move on. An unknown operator means the rule itself is broken, and
-that should stop things loudly.
+- An event without an `amount` is normal. The rule simply doesn't apply to it,
+  so rulebook should skip the rule and move on.
+- An unknown operator means the rule itself is broken. That should stop things,
+  loudly.
 
-The start file moves lesson 4's steps into `evaluate(rule, event)`, a function
-that returns an effect, and runs it twice: the large expense rule on the taxi,
-then a `broken` rule with the operator `greater` on the laptop. Right now the
-taxi's `MissingField` stops the program before the broken rule is even tried.
+The start file moves lesson 4's steps into a function, `evaluate(rule, event)`,
+that returns an effect. `program` calls it twice: first the large expense rule
+on the taxi, then a `broken` rule, whose operator is `greater`, on the laptop.
 
-## Effect.catchTag
+Look at the terminal. The taxi's `MissingField` stops the program before the
+broken rule is even tried. That's the wrong way round.
 
-`Effect.catchTag("MissingField", (error) => ...)` handles exactly one failure,
-picked by its tag. The handler receives the typed error and returns the effect
-to run in its place. Here that is a log line:
-`skip: missing field ${error.field}`. Every other failure passes through
-untouched.
+You will learn:
 
-To attach it you need `.pipe`, which takes a minute to learn. Every effect has
-a `.pipe` method: `effect.pipe(f)` is `f(effect)`, and `effect.pipe(f, g)` is
-`g(f(effect))`. It lets you add steps after an effect, read left to right.
-Inside `evaluate`, add `.pipe(Effect.catchTag(...))` after the `Effect.gen(...)`.
+- how to handle one failure by its tag;
+- how to add steps after an effect with `.pipe`;
+- what handling a failure does to the type.
 
-The terminal prints `skip: missing field amount`, and then the program stops on
-`UnknownOperator`. That is the split you want: skip what you expect, stop on
-what is broken.
+## Handling one failure with catchTag
 
-## Exercise
+`Effect.catchTag` handles exactly one failure, picked out by its tag:
 
-Hover `evaluate` before and after adding `catchTag`.
+```ts
+Effect.catchTag("MissingField", (error) => ...)
+```
+
+The handler receives the typed error and returns the effect to run in its
+place. Here, that's a log line: `skip: missing field ${error.field}`. Every
+other failure passes through untouched.
+
+## Adding steps with .pipe
+
+To attach `catchTag` to an effect, you need `.pipe`. Every effect has a `.pipe`
+method:
+
+- `effect.pipe(f)` is the same as `f(effect)`;
+- `effect.pipe(f, g)` is the same as `g(f(effect))`.
+
+It lets you add steps after an effect and read them left to right, in the
+order they apply. Inside `evaluate`, add `.pipe(Effect.catchTag(...))` after
+the `Effect.gen(...)`.
+
+Now the terminal prints `skip: missing field amount`, and then the program
+stops on `UnknownOperator`. That's the split you wanted. Skip what you expect,
+and stop on what's broken.
+
+## Try it: watch the type change
+
+Hover `evaluate` before and after you add `catchTag`.
 
 - Before: `Effect<string, MissingField | UnknownOperator, never>`.
 - After: `Effect<string | void, UnknownOperator, never>`.
 
-`MissingField` left the error slot because it is handled. The success slot
-picked up `void`, because the skip branch logs and gives back nothing. That is
-honest but not very useful yet; in Part 2, lesson 12 turns a skip into a
-recorded outcome with a reason.
+`MissingField` has left the error slot, because it's handled. The success slot
+picked up `void`, because the skip branch logs a line and gives back nothing.
 
-## Now and later
+That type is honest, but not very useful yet. In Part 2, lesson 12 turns a skip
+into a recorded outcome with a reason.
 
-What you need now: `catchTag` handles one failure by its tag and takes it out
-of the second slot; `.pipe` is how you add steps after an effect. The cost is
-a decision per failure: handle it here, or leave it in the type for the
-caller. Unpacked later: several tags handled at once with `Effect.catchTags`
-(lesson 21), and a third kind of failure, a thrown exception, which appears in
-no type at all (lesson 20).
+## Recap
+
+- `catchTag` handles one failure by its tag and removes it from the second
+  slot.
+- `.pipe` adds steps after an effect, read left to right.
+- Every failure is a decision: handle it here, or leave it in the type for the
+  caller.
+- Later you'll handle several tags at once with `Effect.catchTags` (lesson 21),
+  and meet a third kind of failure, a thrown exception, which appears in no
+  type at all (lesson 20).
 
 ## Checkpoint
 

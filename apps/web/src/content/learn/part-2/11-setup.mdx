@@ -6,14 +6,17 @@ minutes: 15
 mode: guide
 ---
 
-From here on rulebook runs on your machine, from a starter project. This page
-gets it running. In the browser track it comes after lesson 10. If you are
-taking Part 1 locally instead of in the playground, do it first, then go back
-to lesson 1 and run each lesson with `pnpm lesson <n>`.
+From here on, rulebook runs on your own machine, from a starter project. This
+page gets that project running and starts the trace viewer, so the next lesson
+can begin straight away.
+
+In the browser track, you do this after lesson 10. If you'd rather take Part 1
+locally instead of in the playground, do this setup first. Then go back to
+lesson 1 and run each lesson with `pnpm lesson <n>`.
 
 ## Before the clock starts
 
-The 15 minutes assume these are already installed:
+The 15 minutes assume you already have these installed:
 
 - Node 22.16 or newer
 - pnpm, or corepack to provide it (`corepack enable`)
@@ -32,7 +35,7 @@ cd rulebook
 ```
 
 `degit` copies the directory without the website's git history, so `rulebook`
-is a fresh project of its own. Commit to it as you go if you like.
+starts life as a fresh project of its own. Commit to it as you go if you like.
 
 ## 2. Install
 
@@ -40,20 +43,21 @@ is a fresh project of its own. Commit to it as you go if you like.
 pnpm install
 ```
 
-The Effect packages are pinned to exact versions, the same ones every lesson,
-checkpoint and test in the course was checked against.
+The Effect packages are pinned to exact versions. They're the same versions
+every lesson, checkpoint and test in the course was checked against, so what
+you see should match what the lessons describe.
 
-## 3. Check the machine and start the viewer
+## 3. Check your machine and start the viewer
 
 ```sh
 pnpm run doctor --viewer
 ```
 
-Type the `run`. pnpm has a built-in `doctor` command, and a bare `pnpm doctor`
-runs that one instead of the starter's.
+Make sure you type the `run`. pnpm has a built-in `doctor` command of its own,
+and a bare `pnpm doctor` runs that one instead of the starter's.
 
-The doctor downloads otel-desktop-viewer v0.6.0 into `.viewer/` the first time,
-prints one line per requirement, and then starts the viewer:
+The first time, the doctor downloads otel-desktop-viewer v0.6.0 into
+`.viewer/`. It prints one line per requirement and then starts the viewer:
 
 ```text
 Downloading https://github.com/CtrlSpice/otel-desktop-viewer/releases/download/v0.6.0/otel-desktop-viewer_linux_amd64.tar.gz
@@ -69,12 +73,14 @@ otel-desktop-viewer v0.6.0 (/home/you/rulebook/.viewer/otel-desktop-viewer)
 Press Ctrl-C to stop.
 ```
 
-Leave this terminal running. Everything else happens in a second one. When the
-binary cannot run on your machine (Linux older than glibc 2.39, for example),
-the viewer line says Docker instead and the same version runs in a container.
+Leave this terminal running, and do everything else in a second one.
 
-A line marked `✗` says what is missing and what to install. Fix it and run
-`pnpm run doctor --viewer` again.
+If the binary can't run on your machine (Linux older than glibc 2.39, for
+example), the viewer line says Docker instead, and the same version runs in a
+container.
+
+A line marked `✗` tells you what's missing and what to install. Fix it, then
+run `pnpm run doctor --viewer` again.
 
 ## 4. First run
 
@@ -85,23 +91,30 @@ pnpm tsx src/run-once.ts
 ```
 
 `src/run-once.ts` is the lesson 10 file. It prints the same three alert lines
-and three skips it printed in the browser. Open
-[http://localhost:8000](http://localhost:8000): the trace list has two
-`evaluateAll` traces from the service `rulebook-lessons`. That is setup done.
-[The trace viewer](/learn/part-2/trace-viewer) explains what you are looking
-at.
+and three skips you saw in the browser.
+
+Now open [http://localhost:8000](http://localhost:8000). The viewer is running,
+and its trace list is empty. That's expected. Nothing in the starter sends it
+traces yet, and you'll wire that up yourself in lesson 16. If the page loads and
+the three alerts printed, setup is done.
+[The trace viewer](/learn/part-2/trace-viewer) explains what you'll see there
+once traces arrive.
 
 ## Later sessions
 
+You only need the doctor's download once. After that:
+
 - `pnpm viewer` starts the viewer again, without the checks.
-- `pnpm run doctor` checks without downloading or starting anything. CI uses
-  this form.
+- `pnpm run doctor` runs the checks without downloading or starting anything.
+  This is the form CI uses.
 
-## What is not covered
+## What this page doesn't cover
 
-Troubleshooting is outside the 15 minutes. The doctor covers what it checks:
-the Node version, pnpm, git, and whether the viewer can run here as a binary or
-through Docker. It does not install Node, pnpm or Docker for you, and this
-course does not cover proxies, firewalls, ports 8000 or 4318 already being in
-use, or running natively on Windows. If the viewer will not start at all, lessons 11
-to 15 still work without it; you need it from lesson 16.
+Troubleshooting is outside the 15 minutes. The doctor checks the Node version,
+pnpm, git, and whether the viewer can run here as a binary or through Docker.
+It doesn't install Node, pnpm or Docker for you.
+
+This course also doesn't cover proxies, firewalls, ports 8000 or 4318 already
+being in use, or running natively on Windows. If the viewer won't start at all,
+don't let that stop you. Part 1 and lessons 11 to 15 work without it, and you
+only need it from lesson 16.
