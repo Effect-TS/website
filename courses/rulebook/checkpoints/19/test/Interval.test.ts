@@ -179,6 +179,24 @@ describe("interval rules", () => {
     }).pipe(Effect.provide(layerApp({ _tag: "Hang" })), Effect.withTracer(tracer))
   })
 
+  it.effect("rules run on an interval rule polls its URL inside the run, apart from the loop's ticks", () =>
+    Effect.gen(function*() {
+      const remote = yield* Harness.Remote
+      const client = yield* makeClient
+      const rule = yield* client.rules.create({ payload: poll })
+      const rows = client.runs.list({ query: { ruleId: rule.id } }).pipe(
+        Effect.map((runs) => runs.map((run) => [run.outcome, run.reason]))
+      )
+      yield* Harness.eventually(Effect.map(rows, (rows) => assert.deepStrictEqual(rows, [["failed", "status"]])))
+
+      // The event is not the payload of an interval rule: the run GETs the URL,
+      // so the 500 fails it with reason status.
+      const outcome = yield* client.rules.run({ params: { id: rule.id }, payload: { type: "expense", amount: 1200 } })
+      assert.deepStrictEqual([outcome.outcome, outcome.reason], ["failed", "status"])
+      assert.strictEqual(remote.requests.length, 2, "the manual run made its own request")
+      assert.deepStrictEqual(yield* rows, [["failed", "status"], ["failed", "status"]])
+    }).pipe(Effect.provide(layerApp({ _tag: "Respond", status: 500, body: { status: "error" } }))))
+
   it.effect("a defect in a tick is one crashed row and stops the loop; removing the stopped rule only deletes", () =>
     Effect.gen(function*() {
       const remote = yield* Harness.Remote
