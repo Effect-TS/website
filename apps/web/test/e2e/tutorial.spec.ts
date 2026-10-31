@@ -123,14 +123,78 @@ test("the server-rendered page already has the prose and a loader", async ({
 
 test("shows where the learner is", async ({ page }) => {
   await expect(page.getByLabel("Breadcrumb")).toContainText(
-    "Tutorial/Errors/Tag your errors",
+    "Tutorial/Modeling Errors with Effect/Tag your errors",
   )
   await expect(page.getByTestId("tutorial-menu")).toHaveText("Lesson 1 of 8")
-  await expect(page).toHaveTitle(/Tag your errors · Errors · Effect Tutorial/)
+  await expect(page).toHaveTitle(
+    /Tag your errors · Modeling Errors with Effect · Effect Tutorial/,
+  )
   await expect(page.getByRole("progressbar")).toHaveAttribute(
     "aria-valuenow",
     "0",
   )
+})
+
+test("backlinks to the chapter article", async ({ page }) => {
+  await expect(page.getByTestId("tutorial-article")).toHaveAttribute(
+    "href",
+    "/tutorial/errors",
+  )
+})
+
+test("the chapter article renders and links to the first lesson", async ({
+  page,
+}) => {
+  await page.goto("/tutorial/errors")
+  await expect(page.locator("h1")).toHaveText("Modeling Errors with Effect")
+  await expect(page.getByTestId("tutorial-practice")).toHaveAttribute(
+    "href",
+    "/tutorial/errors/tagging",
+  )
+})
+
+test("clearing one lesson forgets its completion", async ({ page }) => {
+  await page.getByTestId("tutorial-solve").click()
+  await settled(page, "Passed")
+  await page.getByTestId("tutorial-clear").click()
+  await page.getByTestId("tutorial-clear-lesson").click()
+  await settled(page, "TestsFailed")
+  await expect(page.getByTestId("tutorial-next")).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  )
+})
+
+test("clearing a lesson also forgets the lessons after it", async ({
+  page,
+}) => {
+  await page.getByTestId("tutorial-solve").click()
+  await settled(page, "Passed")
+  await page.getByTestId("tutorial-next-cta").click()
+  await page.getByTestId("tutorial-solve").click()
+  await settled(page, "Passed")
+  await page.getByTestId("tutorial-prev").click()
+  await expect(page).toHaveURL(/\/tutorial\/errors\/tagging$/)
+  await page.getByTestId("tutorial-clear").click()
+  await page.getByTestId("tutorial-clear-lesson").click()
+  await page.getByTestId("tutorial-menu").click()
+  await expect(page.getByTestId("tutorial-menu-panel")).toContainText(
+    "0 of 8 lessons complete",
+  )
+})
+
+test("clearing all progress returns to the first lesson", async ({ page }) => {
+  await page.getByTestId("tutorial-solve").click()
+  await settled(page, "Passed")
+  await page.getByTestId("tutorial-next-cta").click()
+  await expect(page).toHaveURL(/\/tutorial\/errors\/failing$/)
+  page.once("dialog", (dialog) => dialog.accept())
+  await page.getByTestId("tutorial-clear").click()
+  await page.getByTestId("tutorial-clear-all").click()
+  await expect(page).toHaveURL(/\/tutorial\/errors\/tagging$/)
+  await settled(page, "TestsFailed")
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await settled(page, "TestsFailed")
 })
 
 test("lesson prose has no line numbers", async ({ page }) => {

@@ -1,4 +1,10 @@
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Tooltip,
   TooltipContent,
@@ -18,6 +24,8 @@ interface Props {
   readonly onOpen: (slug: string) => void
   readonly onReset: () => void
   readonly onSolve: () => void
+  readonly onClearFrom: () => void
+  readonly onClearAll: () => void
   readonly editable: boolean
 }
 
@@ -90,6 +98,8 @@ export function LessonHeader({
   onOpen,
   onReset,
   onSolve,
+  onClearFrom,
+  onClearAll,
   editable,
 }: Props) {
   const index = order.indexOf(slug)
@@ -161,6 +171,40 @@ export function LessonHeader({
         >
           Solve
         </ToolbarButton>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <ToolbarButton
+                data-testid="tutorial-clear"
+                disabled={!editable}
+                aria-label="Clear progress"
+                className="flex items-center gap-1"
+              />
+            }
+          >
+            Clear
+            <ChevronDown className="size-3.5" aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto min-w-44">
+            <DropdownMenuItem
+              data-testid="tutorial-clear-lesson"
+              onClick={onClearFrom}
+            >
+              Clear from this lesson on
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="tutorial-clear-all"
+              variant="destructive"
+              onClick={() => {
+                if (window.confirm("Clear all tutorial progress and code?")) {
+                  onClearAll()
+                }
+              }}
+            >
+              Clear all progress
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div

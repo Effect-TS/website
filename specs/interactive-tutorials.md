@@ -50,7 +50,9 @@ Test API (`runner/test-api.ts`): `it(name, fn)` and `assert.ok` / `assert.strict
 
 ## Routing
 
-- One React island (`TutorialApp`) owns the page. Lesson changes use the History API: no reload, Monaco and its worker stay alive.
+- The lesson text is static HTML from Astro, outside any island. Only two islands hydrate: `TutorialHeader` (menu, arrows, Reset, Solve, progress) and `TutorialWorkbench` (editor, goals, footer). Both start as server-rendered twins.
+- The islands share state through atoms (`state.ts`): current lesson, check status, boot steps, editor actions. Lesson changes use the History API: no reload, Monaco and its worker stay alive.
+- On a lesson change the workbench swaps the HTML inside the static prose element.
 - Each lesson page is still prerendered, so a direct URL works. Other lessons load on demand from `/tutorial/data/<slug>.json` (code) and `/tutorial/prose/<slug>` (HTML fragment, Astro `partial`). Neighbours prefetch.
 - Astro's `<ClientRouter />` was not used: it swaps whole pages and would remount the editor.
 
@@ -60,7 +62,7 @@ Test API (`runner/test-api.ts`): `it(name, fn)` and `assert.ok` / `assert.strict
 - Results panel lists the goals (the test's `it` names) with pass/fail and type errors. A footer under it holds Next, disabled with the reason until the goals pass.
 - Lesson code blocks have no line numbers (`remark-lesson-code`).
 - `DocsNavigation`, docs prose (`prose prose-effect`), playground editor chrome and themes.
-- `ResizablePanelGroup`: reading panel and editor column. The results box fits its content. Layout persists in localStorage.
+- Reading panel and editor column split with a small separator (`split.ts`: pointer and arrow keys, width saved in localStorage, applied before first paint). The results box fits its content.
 
 ## Later
 

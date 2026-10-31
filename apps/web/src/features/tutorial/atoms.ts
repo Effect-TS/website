@@ -27,6 +27,31 @@ export const codeAtom = Atom.family((slug: string) =>
   }),
 )
 
+/**
+ * Forgets a lesson and every lesson after it. Progress is sequential: a
+ * completed lesson behind an unfinished one could never be opened.
+ */
+export const clearFromAtom = Atom.fnSync<{
+  readonly order: ReadonlyArray<string>
+  readonly slug: string
+}>()(({ order, slug }, get) => {
+  const forgotten = order.slice(order.indexOf(slug))
+  get.set(
+    completedAtom,
+    get(completedAtom).filter((completed) => !forgotten.includes(completed)),
+  )
+  for (const lesson of forgotten) get.set(codeAtom(lesson), "")
+})
+
+/** Forgets every lesson in `slugs`. */
+export const clearAllAtom = Atom.fnSync<ReadonlyArray<string>>()((
+  slugs,
+  get,
+) => {
+  get.set(completedAtom, [])
+  for (const slug of slugs) get.set(codeAtom(slug), "")
+})
+
 /** First lesson in `order` that is not completed, or `undefined`. */
 export const firstUnfinished = (
   order: ReadonlyArray<string>,
