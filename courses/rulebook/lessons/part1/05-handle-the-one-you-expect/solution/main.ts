@@ -1,6 +1,5 @@
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect, Schema } from "effect"
-import * as Telemetry from "../../Telemetry.ts"
 
 interface Event {
   readonly type: string
@@ -83,6 +82,5 @@ const program = Effect.gen(function*() {
   yield* evaluate(broken, laptop)
 })
 
-// provide is lesson 9, runMain is Part 2
-const main = Effect.provide(program, Telemetry.layer)
-NodeRuntime.runMain(main)
+// runMain is Part 2
+NodeRuntime.runMain(program)
