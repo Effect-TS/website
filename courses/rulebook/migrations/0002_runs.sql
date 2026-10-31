@@ -7,7 +7,8 @@ CREATE TABLE runs (
   outcome TEXT NOT NULL CHECK (
     outcome IN ('started', 'skipped', 'succeeded', 'failed', 'crashed', 'interrupted', 'abandoned')
   ),
-  reason TEXT CHECK (reason IN ('status', 'timeout', 'io')),
+  -- Failed rows name one of three reasons; skipped rows say why in plain words.
+  reason TEXT CHECK (outcome <> 'failed' OR reason IN ('status', 'timeout', 'io')),
   error TEXT
 );
 
