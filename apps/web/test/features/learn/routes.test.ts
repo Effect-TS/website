@@ -9,7 +9,7 @@ const lesson = (id: string, part: number, order: number) => ({
 const entries = [
   lesson("first-tests", 2, 13),
   lesson("provide-it", 1, 9),
-  lesson("your-program", 2, 11),
+  lesson("your-program", 2, 1),
   lesson("a-place-for-rules", 1, 8),
 ]
 
@@ -19,7 +19,7 @@ test("orders lessons by part then order with part-N/NN-slug slugs", () => {
     [
       "part-1/08-a-place-for-rules",
       "part-1/09-provide-it",
-      "part-2/11-your-program",
+      "part-2/01-your-program",
       "part-2/13-first-tests",
     ],
   )
@@ -28,6 +28,6 @@ test("orders lessons by part then order with part-N/NN-slug slugs", () => {
 test("prev and next cross part boundaries", () => {
   const [, endOfPart1, startOfPart2] = lessonRoutes(entries)
 
-  assert.equal(endOfPart1.next, "part-2/11-your-program")
+  assert.equal(endOfPart1.next, "part-2/01-your-program")
   assert.equal(startOfPart2.prev, "part-1/09-provide-it")
 })
