@@ -31,7 +31,7 @@ describe("httpPost", () => {
       const store = yield* RuleStore
       const engine = yield* Engine
       const ok = yield* store.create({
-        ...post("ok", "http://localhost:4600/ok", "ok"),
+        ...post("expense over 500", "http://localhost:4600/ok", "ok"),
         condition: { field: "amount", op: "gt", value: 500 }
       })
       const fail = yield* store.create(post("fail", "http://localhost:4600/fail?status=500", "fail"))
@@ -41,6 +41,9 @@ describe("httpPost", () => {
       const [failOutcome] = yield* engine.handleEvent({ type: "fail" })
       const [bugOutcome] = yield* engine.handleEvent({ type: "bug" })
       assert.deepStrictEqual([okOutcome.outcome, okOutcome.reason], ["succeeded", null])
+      const [sent] = (yield* Harness.Remote).requests
+      assert.deepStrictEqual([sent.method, sent.url], ["POST", "http://localhost:4600/ok"])
+      assert.include(sent.body, "expense over 500", "the rule's message is the body")
       assert.deepStrictEqual([failOutcome.outcome, failOutcome.reason], ["failed", "status"])
       assert.match(String(failOutcome.error), /500/, "the status is recorded")
       assert.strictEqual(bugOutcome.outcome, "crashed")
@@ -158,17 +161,21 @@ const settlesAt = (count: () => number, expected: number) =>
   })
 
 describe("limits", () => {
-  it.effect("by default: a payload over 64 KiB and the 101st rule are typed errors", () =>
+  it.effect("by default: an event over 64 KiB and the 101st rule are typed errors", () =>
     Effect.gen(function*() {
       const client = yield* makeClient
       yield* client.rules.create({ payload: post("ok", "http://localhost:4600/ok") })
 
-      const tooLarge = yield* Effect.flip(
-        client.events.submit({ payload: { type: "expense", note: "x".repeat(70_000) } })
-      )
-      assert.strictEqual(tooLarge._tag, "PayloadTooLarge")
+      // The limit counts the UTF-8 bytes of the event's JSON, 65,536 of them.
+      // `{"type":"expense","note":""}` is 28 bytes; "é" is 2 bytes but 1 character.
+      const event = (note: string) => ({ type: "expense", note })
+      const refused = [event("x".repeat(65_509)), event("é".repeat(33_000))]
+      for (const payload of refused) {
+        const tooLarge = yield* Effect.flip(client.events.submit({ payload }))
+        assert.strictEqual(tooLarge._tag, "PayloadTooLarge")
+      }
       assert.deepStrictEqual(yield* client.runs.list({ query: {} }), [], "a refused event runs nothing")
-      const accepted = yield* client.events.submit({ payload: { type: "expense", note: "x".repeat(60_000) } })
+      const accepted = yield* client.events.submit({ payload: event("x".repeat(65_508)) })
       assert.deepStrictEqual(accepted.map((outcome) => outcome.outcome), ["succeeded"])
 
       for (let i = 2; i <= 100; i++) {

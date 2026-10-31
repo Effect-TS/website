@@ -26,13 +26,14 @@ export const receiver = (url: string): Reply => {
 }
 
 // What a test can see of the fake server. `arrived` opens when a request
-// arrives, `requests` holds the URL of each request in order, and `released`
+// arrives, `requests` holds each request in order (method, URL and body as
+// text), and `released`
 // becomes true when a hanging request is interrupted. Answers wait for
 // `answering`, which is open unless the server was made `held`.
 export class Remote extends Context.Service<Remote, {
   readonly arrived: Latch.Latch
   readonly answering: Latch.Latch
-  readonly requests: Array<string>
+  readonly requests: Array<{ readonly method: string; readonly url: string; readonly body: string }>
   released: boolean
 }>()("test/Remote") {}
 
@@ -48,7 +49,11 @@ export const layer = (reply: (url: string) => Reply = receiver, options?: { read
     })
     const client = HttpClient.make((request) =>
       Effect.gen(function*() {
-        remote.requests.push(request.url)
+        remote.requests.push({
+          method: request.method,
+          url: request.url,
+          body: request.body._tag === "Uint8Array" ? new TextDecoder().decode(request.body.body) : ""
+        })
         yield* remote.arrived.open
         const answer = reply(request.url)
         switch (answer._tag) {

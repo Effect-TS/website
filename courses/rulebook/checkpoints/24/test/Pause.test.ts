@@ -9,9 +9,11 @@ import type { Rule } from "../src/Rule.ts"
 import * as Harness from "./harness.ts"
 import { captureSpans, layerApp, layerServer, makeClient, post } from "./support.ts"
 
+// Each tick's request hangs until the timeout, so after an adjust shorter
+// than that a running loop has made exactly one request, whenever it ticked.
 const poll: Rule = {
   name: "receiver status",
-  trigger: { type: "interval", everySeconds: 5, url: "http://localhost:4600/status" },
+  trigger: { type: "interval", everySeconds: 5, url: "http://localhost:4600/slow" },
   action: { type: "appendFile", path: "alerts.log", message: "polled" }
 }
 
@@ -66,7 +68,7 @@ describe("pause and resume", () => {
 
       // The positive control: the same harness sees the resumed loop.
       yield* client.rules.resume({ params: { id: rule.id } })
-      yield* TestClock.adjust("1 second")
+      yield* TestClock.adjust("6 seconds")
       yield* Harness.eventually(Effect.map(rows, (rows) => assert.strictEqual(rows, 2)))
       assert.strictEqual(remote.requests.length, 2)
       assert.strictEqual(yield* status, "running")
