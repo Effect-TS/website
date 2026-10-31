@@ -18,10 +18,10 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { createServer } from "node:http"
 import { isMain } from "./entrypoint.ts"
 
-export const defaultPort = 4600
+const defaultPort = 4600
 
-export const StatusMode = Schema.Literals(["ok", "degraded", "error"])
-export type StatusMode = typeof StatusMode.Type
+const StatusMode = Schema.Literals(["ok", "degraded", "error"])
+type StatusMode = typeof StatusMode.Type
 
 const SlowParams = Schema.Struct({
   ms: Schema.optionalKey(

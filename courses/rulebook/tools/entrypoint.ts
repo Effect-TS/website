@@ -42,6 +42,10 @@ export const runInherited = Effect.fn("runInherited")(function*(command: string,
   }
 }, Effect.scoped)
 
+// The arguments that run a TypeScript file with tsx in a child process:
+// `node --import tsx <file> ...args`.
+export const tsxArgs = (file: string, args: ReadonlyArray<string> = []) => ["--import", "tsx", file, ...args]
+
 // Runs a TypeScript file with tsx in a child process, as `runInherited` does.
 export const runFile = (file: string, args: ReadonlyArray<string>) =>
-  runInherited(process.execPath, ["--import", "tsx", file, ...args])
+  runInherited(process.execPath, tsxArgs(file, args))

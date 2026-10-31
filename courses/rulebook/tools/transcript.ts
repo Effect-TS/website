@@ -13,7 +13,7 @@ import { Console, Effect, FileSystem, Layer, Path, Schedule, Schema, Stream } fr
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { ChildProcess } from "effect/process"
 import * as NodePath from "node:path"
-import { isMain } from "./entrypoint.ts"
+import { isMain, tsxArgs } from "./entrypoint.ts"
 
 export class TranscriptError extends Schema.TaggedError<TranscriptError>()("TranscriptError", {
   message: Schema.String
@@ -35,7 +35,7 @@ const Runs = Schema.Array(Schema.Struct({ ruleId: Schema.String, outcome: Schema
 // has printed `Listening on`, with what it printed up to that line.
 const start = Effect.fn("start")(function*(cwd: string, file: string) {
   let output = ""
-  const handle = yield* ChildProcess.make(process.execPath, ["--import", "tsx", file], { cwd })
+  const handle = yield* ChildProcess.make(process.execPath, tsxArgs(file), { cwd })
   yield* handle.all.pipe(
     Stream.decodeText,
     Stream.runForEach((text) => Effect.sync(() => (output += text))),
@@ -67,7 +67,7 @@ const start = Effect.fn("start")(function*(cwd: string, file: string) {
 const cli = Effect.fn("cli")(function*(cwd: string, args: ReadonlyArray<string>) {
   const handle = yield* ChildProcess.make(
     process.execPath,
-    ["--import", "tsx", NodePath.join(root, "checkpoints/24/src/cli/main.ts"), ...args],
+    tsxArgs(NodePath.join(root, "checkpoints/24/src/cli/main.ts"), args),
     { cwd }
   )
   const [output, code] = yield* Effect.all([

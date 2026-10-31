@@ -39,8 +39,8 @@ export function courseFile(path: string): string {
 /**
  * One top-level declaration from a course file, exactly as written there: the
  * column-0 line that declares `name`, then the indented or closing lines after
- * it, up to the first blank or other column-0 line. This relies on the course
- * files being dprint-formatted, which CI checks.
+ * it, blank lines between them included, up to the next column-0 statement.
+ * This relies on the course files being dprint-formatted, which CI checks.
  */
 export function courseDeclaration(path: string, name: string): string {
   const lines = courseFile(path).split("\n")
@@ -51,11 +51,14 @@ export function courseDeclaration(path: string, name: string): string {
   if (start === -1) {
     throw new Error(`courses/rulebook/${path} does not declare ${name}`)
   }
-  let end = start + 1
-  while (end < lines.length && /^(?:\s+\S|[})\]])/.test(lines[end]!)) {
-    end++
+  let end = start
+  for (let line = start + 1; line < lines.length; line++) {
+    const text = lines[line]!
+    if (text.trim() === "") continue
+    if (!/^(?:\s+\S|[})\]])/.test(text)) break
+    end = line
   }
-  return lines.slice(start, end).join("\n")
+  return lines.slice(start, end + 1).join("\n")
 }
 
 /**

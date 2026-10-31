@@ -36,7 +36,7 @@ export const command = Command.make(
     const part1 = path.join(import.meta.dirname, "..", "lessons", "part1")
     const prefix = String(lesson).padStart(2, "0")
     const entries = yield* fs.readDirectory(part1).pipe(Effect.orElseSucceed((): Array<string> => []))
-    const directory = entries.find((entry) => entry === prefix || entry.startsWith(`${prefix}-`))
+    const directory = entries.find((entry) => entry.startsWith(`${prefix}-`))
     if (directory === undefined) {
       return yield* new LessonError({ message: `No lesson ${lesson} in lessons/part1/` })
     }

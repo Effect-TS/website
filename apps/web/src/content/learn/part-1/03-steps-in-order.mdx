@@ -44,6 +44,14 @@ it: the terminal no longer prints the line. TypeScript does not complain,
 which is the price of descriptions from lesson 2. An effect you build inside a
 generator and forget to `yield*` is quietly dropped. Put the `yield*` back.
 
+## Now and later
+
+What you need now: `Effect.gen` runs effects in order, `yield*` runs one and
+hands you its result, and what you `return` is what the whole effect gives
+back. Plain functions stay plain. The cost is a `yield*` on every effectful
+line, and a line without one is dropped without a word. Unpacked later: a
+generator with a name, so each call shows up in a trace (lesson 7).
+
 ## Checkpoint
 
 The message is built from the event and logged once. Hover `program`: the

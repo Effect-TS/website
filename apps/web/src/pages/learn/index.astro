@@ -18,6 +18,10 @@ const parts = learnParts.flatMap((part) => {
   )
   return lessons.length > 0 ? [{ ...part, lessons, minutes }] : []
 })
+// The course budget: every lesson, plus the guides that are budgeted, such as
+// setup. Best case, with nothing optional.
+const total = routes.reduce((sum, { entry: { data } }) => sum + (data.minutes ?? 0), 0)
+const hours = Math.floor(total / 60)
 ---
 
 <PageLayout
@@ -32,6 +36,10 @@ const parts = learnParts.flatMap((part) => {
       <p class="mt-4 text-lg text-muted-foreground">
         A self-hosted engine that evaluates rules against events and runs their actions. Part 1 runs
         in your browser; the rest runs on your machine.
+      </p>
+      <p class="mt-2 text-sm text-subtle-foreground">
+        {total} minutes in all, about {hours} h {total - hours * 60} min, setup included. That is the
+        best case, with nothing optional.
       </p>
     </header>
 

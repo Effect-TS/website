@@ -1,4 +1,5 @@
 import * as Option from "effect/Option"
+import starter from "../../../../../courses/rulebook/package.json"
 import {
   makeDefaultWorkspace,
   makeDirectory,
@@ -13,15 +14,15 @@ export interface LessonFiles {
 }
 
 /**
- * The versions every lesson workspace installs, the same ones the starter in
- * `courses/rulebook/` pins. The playground's default v4 workspace follows
- * `latest`, which would drift away from the course.
+ * The versions every lesson workspace installs, read from the starter in
+ * `courses/rulebook/` so the browser track cannot drift from the local one.
+ * The playground's default v4 workspace follows `latest`, which would.
  */
-export const lessonDependencies: Readonly<Record<string, string>> = {
-  "@effect/platform-node": "4.1.1",
-  "@types/node": "22.20.5",
-  effect: "4.1.1",
-  typescript: "6.0.3",
+const lessonDependencies: Readonly<Record<string, string>> = {
+  "@effect/platform-node": starter.dependencies["@effect/platform-node"],
+  "@types/node": starter.devDependencies["@types/node"],
+  effect: starter.dependencies.effect,
+  typescript: starter.devDependencies.typescript,
 }
 
 const [devTools] = makeDefaultWorkspace("v4")

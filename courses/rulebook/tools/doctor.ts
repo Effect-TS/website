@@ -81,12 +81,6 @@ interface Check {
   readonly detail: string
 }
 
-const nodeAtLeast = (version: string, minimum: string) => {
-  const [major = 0, minor = 0] = version.replace(/^v/, "").split(".").map(Number)
-  const [minMajor = 0, minMinor = 0] = minimum.split(".").map(Number)
-  return major > minMajor || (major === minMajor && minor >= minMinor)
-}
-
 // Prints one line per requirement and fails listing every one that is missing.
 // Succeeds with how the viewer runs here. `downloadFailure` is why the viewer
 // download just failed, if it did.
@@ -95,34 +89,32 @@ const check = Effect.fn("check")(function*(options: {
   readonly downloadFailure?: string | undefined
 }) {
   const host = yield* Host
-  const checks: Array<Check> = []
 
-  checks.push(
-    nodeAtLeast(host.nodeVersion, minimumNode)
-      ? { name: "node", ok: true, detail: host.nodeVersion }
-      : { name: "node", ok: false, detail: `found ${host.nodeVersion}, need ${minimumNode} or newer` }
-  )
-  checks.push(
-    (yield* host.hasCommand("pnpm"))
-      ? { name: "pnpm", ok: true, detail: "on PATH" }
-      : { name: "pnpm", ok: false, detail: "not on PATH; install pnpm or run `corepack enable`" }
-  )
-  checks.push(
-    (yield* host.hasCommand("git"))
-      ? { name: "git", ok: true, detail: "on PATH" }
-      : { name: "git", ok: false, detail: "not on PATH; install git" }
-  )
-
+  const hasNode = Viewer.isAtLeast(host.nodeVersion.replace(/^v/, ""), minimumNode)
+  const hasPnpm = yield* host.hasCommand("pnpm")
+  const hasGit = yield* host.hasCommand("git")
   const hasBinary = options.downloadFailure === undefined && (yield* host.exists(Viewer.binaryPath))
   const binaryRuns = hasBinary && (yield* host.canRun(Viewer.binaryPath))
   const hasDocker = !binaryRuns && options.downloadFailure === undefined && (yield* host.hasCommand("docker"))
-  checks.push(
-    binaryRuns
-      ? { name: "viewer", ok: true, detail: `otel-desktop-viewer v${Viewer.version} in .viewer/` }
-      : hasDocker
-      ? { name: "viewer", ok: true, detail: `docker on PATH, runs ${Viewer.image}` }
-      : { name: "viewer", ok: false, detail: missingViewer(host.viewerUnsupported, hasBinary, options.downloadFailure) }
-  )
+
+  const checks: Array<Check> = [
+    {
+      name: "node",
+      ok: hasNode,
+      detail: hasNode ? host.nodeVersion : `found ${host.nodeVersion}, need ${minimumNode} or newer`
+    },
+    { name: "pnpm", ok: hasPnpm, detail: hasPnpm ? "on PATH" : "not on PATH; install pnpm or run `corepack enable`" },
+    { name: "git", ok: hasGit, detail: hasGit ? "on PATH" : "not on PATH; install git" },
+    {
+      name: "viewer",
+      ok: binaryRuns || hasDocker,
+      detail: binaryRuns
+        ? `otel-desktop-viewer v${Viewer.version} in .viewer/`
+        : hasDocker
+        ? `docker on PATH, runs ${Viewer.image}`
+        : missingViewer(host.viewerUnsupported, hasBinary, options.downloadFailure)
+    }
+  ]
 
   for (const check of checks) {
     yield* Console.log(`${check.ok ? "✓" : "✗"} ${check.name.padEnd(7)} ${check.detail}`)

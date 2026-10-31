@@ -41,7 +41,6 @@ export const LearnEntry = z.discriminatedUnion("mode", [
      * Runs on the learner's machine from the starter.
      */
     mode: z.literal("local"),
-    lessonDir: z.string().min(1).optional(),
   }),
   z.object({
     ...page,

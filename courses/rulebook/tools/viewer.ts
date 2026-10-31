@@ -16,10 +16,10 @@ import { isMain, runInherited } from "./entrypoint.ts"
 
 export const version = "0.6.0"
 export const image = `ghcr.io/ctrlspice/otel-desktop-viewer:v${version}`
-export const uiUrl = "http://localhost:8000"
-export const otlpHttpUrl = "http://localhost:4318"
+const uiUrl = "http://localhost:8000"
+const otlpHttpUrl = "http://localhost:4318"
 
-export const directory = NodePath.join(import.meta.dirname, "..", ".viewer")
+const directory = NodePath.join(import.meta.dirname, "..", ".viewer")
 export const binaryPath = NodePath.join(directory, "otel-desktop-viewer")
 
 // SHA-256 of each release archive, from the v0.6.0 checksums.txt.
@@ -56,7 +56,8 @@ export const glibcVersion = (): string | undefined => {
   return report.header?.glibcVersionRuntime
 }
 
-const isAtLeast = (version: string, minimum: string) => {
+// Compares major.minor versions, such as "2.39" or "22.16".
+export const isAtLeast = (version: string, minimum: string) => {
   const [major = 0, minor = 0] = version.split(".").map(Number)
   const [minMajor = 0, minMinor = 0] = minimum.split(".").map(Number)
   return major > minMajor || (major === minMajor && minor >= minMinor)
