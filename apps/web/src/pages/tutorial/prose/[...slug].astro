@@ -1,0 +1,25 @@
+---
+import { getEntry, render } from "astro:content"
+import { getLessons } from "@/features/tutorial/lessons"
+import { cacheKey, digest } from "@/lib/cache-key"
+
+export const prerender = true
+export const partial = true
+
+export async function getStaticPaths() {
+  const lessons = await getLessons()
+  return lessons.map((lesson) => ({
+    params: { slug: lesson.slug },
+    props: { id: lesson.id.replace(/\/index$/, ""), title: lesson.title },
+    cacheKey: cacheKey(digest(lesson)),
+  }))
+}
+
+const { id, title } = Astro.props
+const entry = await getEntry("tutorial", id)
+if (entry === undefined) throw new Error(`Missing tutorial entry ${id}`)
+const { Content } = await render(entry)
+---
+
+<h1 class="mt-0!">{title}</h1>
+<Content />
