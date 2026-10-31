@@ -230,10 +230,10 @@ describe("limits", () => {
       ])
     }).pipe(Effect.provide(layerApp({
       env: {
-        RULEBOOK_MAX_RULES: "3",
-        RULEBOOK_MAX_PAYLOAD_BYTES: "1024",
-        RULEBOOK_TIMEOUT: "2 seconds",
-        RULEBOOK_CONCURRENCY: "2"
+        REFLEX_MAX_RULES: "3",
+        REFLEX_MAX_PAYLOAD_BYTES: "1024",
+        REFLEX_TIMEOUT: "2 seconds",
+        REFLEX_CONCURRENCY: "2"
       }
     }))))
 })

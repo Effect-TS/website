@@ -229,7 +229,7 @@ describe("interval rules", () => {
     Effect.gen(function*() {
       const fs = yield* FileSystem.FileSystem
       const path = yield* Path.Path
-      const filename = path.join(yield* fs.makeTempDirectoryScoped(), "rulebook.db")
+      const filename = path.join(yield* fs.makeTempDirectoryScoped(), "reflex.db")
       const stores = Layer.merge(RuleStore.layerSql, RunLog.layerSql).pipe(
         Layer.provide(Migrations.layer.pipe(Layer.provideMerge(SqliteClient.layer({ filename })))),
         Layer.provide(NodeServices.layer)

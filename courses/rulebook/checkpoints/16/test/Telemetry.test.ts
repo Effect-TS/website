@@ -37,14 +37,14 @@ describe("Telemetry", () => {
     )
   })
 
-  it.effect("the server and CLI layers export as rulebook-server and rulebook-cli", () =>
+  it.effect("the server and CLI layers export as reflex-server and reflex-cli", () =>
     Effect.gen(function*() {
       const server = yield* exported(Telemetry.layerServer)
       const cli = yield* exported(Telemetry.layerCli)
       assert.isNotEmpty(server)
       assert.isNotEmpty(cli)
-      for (const body of server) assert.include(body, "rulebook-server")
-      for (const body of cli) assert.include(body, "rulebook-cli")
+      for (const body of server) assert.include(body, "reflex-server")
+      for (const body of cli) assert.include(body, "reflex-cli")
     }))
 })
 

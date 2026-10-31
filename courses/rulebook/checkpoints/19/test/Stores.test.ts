@@ -31,7 +31,7 @@ const poll = Schema.decodeUnknownSync(Rule)({
     type: "httpPost",
     url: "https://ntfy.sh/topic",
     message: "receiver is degraded",
-    headers: { Title: "rulebook" },
+    headers: { Title: "reflex" },
     includePayload: true
   }
 })
@@ -136,7 +136,7 @@ it.effect("rules and runs survive rebuilding the SQLite layers on the same file"
     const fs = yield* FileSystem.FileSystem
     const path = yield* Path.Path
     const stores = Layer.merge(RuleStore.layerSql, RunLog.layerSql).pipe(
-      Layer.provide(sqlite(path.join(yield* fs.makeTempDirectoryScoped(), "rulebook.db")))
+      Layer.provide(sqlite(path.join(yield* fs.makeTempDirectoryScoped(), "reflex.db")))
     )
 
     const before = yield* Effect.gen(function*() {

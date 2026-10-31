@@ -33,7 +33,7 @@ test("a declaration is read from the file by name, exactly as written there and 
     [
       "class RuleStore extends Context.Service<RuleStore, {",
       "  readonly list: Effect.Effect<ReadonlyArray<string>>",
-      `}>()("rulebook/RuleStore") {}`,
+      `}>()("reflex/RuleStore") {}`,
     ].join("\n"),
   )
 })
@@ -107,7 +107,7 @@ test("the transcript names the command that regenerates it and shows a run succe
   const text = Lessons.courseFile(transcript)
   const scripts = JSON.parse(
     readFileSync(
-      join(import.meta.dirname, "../../../../../courses/rulebook/package.json"),
+      join(import.meta.dirname, "../../../../../courses/reflex/package.json"),
       "utf8",
     ),
   ).scripts

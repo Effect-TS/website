@@ -36,7 +36,7 @@ const script = Effect.fn("script")(function*(cwd: string, name: string) {
 // file replaced by its solution: Part 1 as a learner leaves it.
 const finishedPart1 = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem
-  const copy = yield* fs.makeTempDirectoryScoped({ prefix: "rulebook-learner-" })
+  const copy = yield* fs.makeTempDirectoryScoped({ prefix: "reflex-learner-" })
   for (const entry of yield* fs.readDirectory(root)) {
     if (skipped.has(entry) || entry.endsWith(".db") || entry.startsWith(".tsc-")) continue
     yield* fs.copy(NodePath.join(root, entry), NodePath.join(copy, entry))
