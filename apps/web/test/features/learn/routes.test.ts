@@ -31,3 +31,28 @@ test("prev and next cross part boundaries", () => {
   assert.equal(endOfPart1.next, "part-2/01-your-program")
   assert.equal(startOfPart2.prev, "part-1/09-provide-it")
 })
+
+test("guides come before the lesson of the same order, by id, with unnumbered slugs", () => {
+  const guide = (id: string) => ({
+    id,
+    data: { part: 2, order: 11, title: id, mode: "guide" as const },
+  })
+  const routes = lessonRoutes([
+    lesson("first-tests", 2, 13),
+    lesson("entrypoint", 2, 11),
+    guide("trace-viewer"),
+    guide("setup"),
+    lesson("checkpoint", 1, 10),
+  ])
+
+  assert.deepEqual(
+    routes.map((route) => route.slug),
+    [
+      "part-1/10-checkpoint",
+      "part-2/setup",
+      "part-2/trace-viewer",
+      "part-2/11-entrypoint",
+      "part-2/13-first-tests",
+    ],
+  )
+})

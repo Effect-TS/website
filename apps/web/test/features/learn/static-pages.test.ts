@@ -86,8 +86,9 @@ const lessons = () =>
       const data = {
         part: Number(field("part")),
         order: Number(field("order")),
+        mode: field("mode") ?? "",
       }
-      return { slug: lessonSlug({ id, data }), mode: field("mode") }
+      return { slug: lessonSlug({ id, data }), mode: data.mode }
     })
 
 test("playground lessons and their playground-only view are cross-origin isolated", () => {
@@ -111,11 +112,19 @@ test("playground lessons and their playground-only view are cross-origin isolate
   }
 })
 
-test("the course landing and local lessons are not cross-origin isolated", () => {
+test("the course landing, local lessons and guides are not cross-origin isolated", () => {
   const local = lessons().filter(({ mode }) => mode === "local")
+  const guides = lessons().filter(({ mode }) => mode === "guide")
   assert.isNotEmpty(local)
+  assert.includeMembers(
+    guides.map(({ slug }) => slug),
+    ["part-2/setup", "part-2/trace-viewer"],
+  )
 
-  for (const path of ["/learn", ...local.map(({ slug }) => `/learn/${slug}`)]) {
+  for (const path of [
+    "/learn",
+    ...[...local, ...guides].map(({ slug }) => `/learn/${slug}`),
+  ]) {
     assert.isFalse(headersFor(path).has("cross-origin-embedder-policy"), path)
   }
 })
