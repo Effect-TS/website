@@ -6,4 +6,4 @@ Alchemy `2.0.0-beta.80` and its Distilled dependencies support stable Effect 4 w
 
 The existing `astro-tweet` patch is independent of the Effect upgrade.
 
-The `@alchemy.run/cloudflare` patch applies to the pinned preview build. With `workspaces: "auto"`, a deploy re-hashes the workspaces the previous build recorded and fails when one has since moved or been deleted. The patch hashes a missing workspace as changed, so the deploy rebuilds and records the workspaces the new build imports.
+The `@alchemy.run/frontend-frameworks` patch applies to the pinned preview build of the Astro source provider. With `workspaces: "auto"`, a deploy re-hashes the workspaces the previous build recorded and fails when one has since moved or been deleted. The patch hashes a missing workspace as changed, so the deploy rebuilds and records the workspaces the new build imports.
