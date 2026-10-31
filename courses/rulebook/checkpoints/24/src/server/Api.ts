@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "effect/http-api"
 import { Api, type ListedRule } from "../api/Api.ts"
 import { Engine } from "../Engine.ts"
 import { Limits, PayloadTooLarge, TooManyRules } from "../Limits.ts"
+import type { Event } from "../Rule.ts"
 import { RuleStore } from "../RuleStore.ts"
 import { RunLog } from "../RunLog.ts"
 
@@ -10,13 +11,22 @@ import { RunLog } from "../RunLog.ts"
 // and 13. A handler can fail only with the errors its endpoint declares, so
 // the compiler checks that RuleNotFound is the one error that crosses the wire.
 
+// An event's size is the UTF-8 length of its JSON. One that is too large is
+// refused before any rule sees it, whether it is submitted or run by hand.
+const checkSize = Effect.fn(function*(event: Event, max: number) {
+  const bytes = new TextEncoder().encode(JSON.stringify(event)).length
+  if (bytes > max) {
+    return yield* new PayloadTooLarge({ bytes, max })
+  }
+})
+
 const RulesHandlers = HttpApiBuilder.group(
   Api,
   "rules",
   Effect.fn(function*(handlers) {
     const store = yield* RuleStore
     const engine = yield* Engine
-    const { maxRules } = yield* Limits
+    const { maxPayloadBytes, maxRules } = yield* Limits
     return handlers.handleAll({
       // An interval rule starts polling as soon as it is stored.
       create: Effect.fn(function*({ payload }) {
@@ -59,6 +69,7 @@ const RulesHandlers = HttpApiBuilder.group(
         yield* engine.resume(yield* store.get(params.id))
       }),
       run: Effect.fn(function*({ params, payload }) {
+        yield* checkSize(payload, maxPayloadBytes)
         const rule = yield* store.get(params.id)
         return yield* engine.execute(rule, payload)
       })
@@ -73,13 +84,8 @@ const EventsHandlers = HttpApiBuilder.group(
     const engine = yield* Engine
     const { maxPayloadBytes } = yield* Limits
     return handlers.handleAll({
-      // The event's size is the UTF-8 length of its JSON. One that is too
-      // large is refused before any rule sees it.
       submit: Effect.fn(function*({ payload }) {
-        const bytes = new TextEncoder().encode(JSON.stringify(payload)).length
-        if (bytes > maxPayloadBytes) {
-          return yield* new PayloadTooLarge({ bytes, max: maxPayloadBytes })
-        }
+        yield* checkSize(payload, maxPayloadBytes)
         return yield* engine.handleEvent(payload)
       })
     })

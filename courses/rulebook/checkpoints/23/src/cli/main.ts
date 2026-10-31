@@ -14,6 +14,7 @@ import { ExitCode, isMain } from "../../../../tools/entrypoint.ts"
 import { ApiClient } from "../ApiClient.ts"
 import type { Outcome } from "../Engine.ts"
 import * as Layers from "../Layers.ts"
+import type { PayloadTooLarge } from "../Limits.ts"
 import { Event, Rule } from "../Rule.ts"
 import type { RuleNotFound } from "../RuleStore.ts"
 
@@ -36,6 +37,8 @@ const refuse = Effect.fn("refuse")(function*(line: string) {
 })
 
 const notFound = (error: RuleNotFound) => refuse(`No rule with id ${error.id}`)
+
+const tooLarge = (error: PayloadTooLarge) => refuse(`The event is ${error.bytes} bytes, over ${error.max}`)
 
 const rulesAdd = Command.make(
   "add",
@@ -80,7 +83,7 @@ const rulesRun = Command.make(
   Effect.fn("rules.run")(function*({ id, event }) {
     const client = yield* ApiClient
     yield* printOutcome(yield* client.rules.run({ params: { id }, payload: yield* readJson(Event, event) }))
-  }, Effect.catchTag("RuleNotFound", notFound))
+  }, Effect.catchTags({ RuleNotFound: notFound, PayloadTooLarge: tooLarge }))
 ).pipe(Command.withDescription("Run one rule against an event"))
 
 const rules = Command.make("rules").pipe(
@@ -96,7 +99,7 @@ const eventsSubmit = Command.make(
     for (const outcome of yield* client.events.submit({ payload: yield* readJson(Event, file) })) {
       yield* printOutcome(outcome)
     }
-  }, Effect.catchTag("PayloadTooLarge", (error) => refuse(`The event is ${error.bytes} bytes, over ${error.max}`)))
+  }, Effect.catchTag("PayloadTooLarge", tooLarge))
 ).pipe(Command.withDescription("Submit an event to every matching rule"))
 
 const events = Command.make("events").pipe(

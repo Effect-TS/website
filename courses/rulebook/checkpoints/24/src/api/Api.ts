@@ -37,7 +37,7 @@ export class RulesApi extends HttpApiGroup.make("rules")
       params: { id: Schema.String },
       payload: Event,
       success: Outcome,
-      error: NotFound
+      error: [NotFound, TooLarge]
     })
   )
   .prefix("/rules")

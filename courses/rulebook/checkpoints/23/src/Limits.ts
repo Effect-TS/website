@@ -3,7 +3,7 @@ import { Config, Duration, Schema } from "effect"
 // The limits of one server, each read from the environment with a default:
 //
 //   RULEBOOK_MAX_RULES=100                 rules stored at once
-//   RULEBOOK_MAX_PAYLOAD_BYTES=65536       UTF-8 bytes of a submitted event's JSON
+//   RULEBOOK_MAX_PAYLOAD_BYTES=65536       UTF-8 bytes of an event's JSON
 //   RULEBOOK_TIMEOUT="10 seconds"          the longest one run may take
 //   RULEBOOK_CONCURRENCY=4                 executions of one event at a time
 export const Limits = Config.all({
