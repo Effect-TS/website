@@ -5,7 +5,8 @@ import { RunnersDidNotPause } from "../playground/services/run-control"
 
 /**
  * Says when the last Solve or Reset failed. A newer click interrupting an
- * older one is not a failure, and nothing is shown while one is running.
+ * older one is not a failure, and nothing is shown while one is running,
+ * including a retry, which keeps the previous failure until it settles.
  */
 export function LessonActionStatus({
   action,
@@ -14,7 +15,11 @@ export function LessonActionStatus({
   readonly action: "solve" | "reset"
   readonly result: AsyncResult.AsyncResult<unknown, unknown>
 }) {
-  if (!AsyncResult.isFailure(result) || Cause.hasInterruptsOnly(result.cause)) {
+  if (
+    result.waiting ||
+    !AsyncResult.isFailure(result) ||
+    Cause.hasInterruptsOnly(result.cause)
+  ) {
     return null
   }
   const name = action === "solve" ? "Solve" : "Reset"

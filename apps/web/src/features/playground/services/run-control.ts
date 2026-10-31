@@ -155,7 +155,11 @@ export const withRunnersPaused =
             heartbeats.set(pid, { beat, since: now })
           } else if (
             now - last.since >= options.staleAfterMillis &&
-            !(yield* stillAlive(pid, deadline - now))
+            // Earlier checks in this poll may have used up the budget.
+            !(yield* stillAlive(
+              pid,
+              deadline - (yield* Clock.currentTimeMillis),
+            ))
           ) {
             yield* Effect.logWarning(
               `Removing the registration of runner ${pid}, which has exited`,
@@ -166,7 +170,7 @@ export const withRunnersPaused =
           pending.push(pid)
         }
         if (pending.length === 0) return
-        if (now >= deadline) {
+        if ((yield* Clock.currentTimeMillis) >= deadline) {
           const error = new RunnersDidNotPause({ pids: pending })
           yield* Effect.logWarning(error.message)
           return yield* error
