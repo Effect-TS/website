@@ -118,6 +118,30 @@ describe("Part 1 lesson files", () => {
       )
     }).pipe(Effect.provide(NodeServices.layer)))
 
+  it.effect("lesson 11 opens with the lesson 10 file in src/run-once.ts", () =>
+    Effect.gen(function*() {
+      const fs = yield* FileSystem.FileSystem
+      assert.strictEqual(
+        yield* fs.readFileString(NodePath.join(root, "src", "run-once.ts")),
+        yield* fs.readFileString(yield* lessonFile(10, "solution"))
+      )
+    }).pipe(Effect.provide(NodeServices.layer)))
+
+  // The field path, the optional condition and the other operators arrive with
+  // the real Rule in lesson 11.
+  it.effect("Part 1 rules are about amount only", () =>
+    Effect.gen(function*() {
+      const fs = yield* FileSystem.FileSystem
+      for (let lesson = 2; lesson <= 10; lesson++) {
+        for (const variant of ["start", "solution"] as const) {
+          const file = yield* lessonFile(lesson, variant)
+          const source = yield* fs.readFileString(file)
+          assert.notMatch(source, /\bcondition\b/, NodePath.relative(root, file))
+          assert.notMatch(source, /\bUnknownOperator\b/, NodePath.relative(root, file))
+        }
+      }
+    }).pipe(Effect.provide(NodeServices.layer)))
+
   it.effect("no lesson file, nor the lesson 10 file that opens Part 2, uses a telemetry layer", () =>
     Effect.gen(function*() {
       const fs = yield* FileSystem.FileSystem
@@ -180,15 +204,21 @@ describe("Part 1 lesson files", () => {
         assert.strictEqual(count(result.stdout, "expense 1200 over 500"), 2, report(result))
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
-    it.live("03 builds the message in Effect.gen and logs it", () =>
-      Effect.gen(function*() {
-        const fs = yield* FileSystem.FileSystem
-        const file = yield* lessonFile(3, "solution")
-        assert.include(yield* fs.readFileString(file), "Effect.gen")
-        const result = yield* run(file)
-        assert.strictEqual(result.exitCode, 0, report(result))
-        assert.strictEqual(count(result.stdout, "expense 1200 over 500"), 1, report(result))
-      }).pipe(Effect.provide(NodeServices.layer)), timeout)
+    it.live(
+      "03 builds the message from an amount in Effect.gen and logs it, with no event or rule",
+      () =>
+        Effect.gen(function*() {
+          const fs = yield* FileSystem.FileSystem
+          const file = yield* lessonFile(3, "solution")
+          const source = yield* fs.readFileString(file)
+          assert.include(source, "Effect.gen")
+          for (const later of [/\bEvent\b/, /\bRule\b/, /\bSchema\b/]) assert.notMatch(source, later)
+          const result = yield* run(file)
+          assert.strictEqual(result.exitCode, 0, report(result))
+          assert.strictEqual(count(result.stdout, "expense 1200 over 500"), 1, report(result))
+        }).pipe(Effect.provide(NodeServices.layer)),
+      timeout
+    )
 
     it.live("04 fails with MissingField when amount is absent", () =>
       Effect.gen(function*() {
@@ -197,28 +227,39 @@ describe("Part 1 lesson files", () => {
         assert.match(result.stdout, /\bMissingField\b/, report(result))
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
-    it.live("05 skips on MissingField and still fails with UnknownOperator", () =>
+    it.live("05 alerts for laptop, skips taxi on MissingField and succeeds", () =>
       Effect.gen(function*() {
         const result = yield* runLesson(5, "solution")
-        assert.notStrictEqual(result.exitCode, 0, report(result))
-        assert.match(result.stdout, /\bskip/i, report(result))
-        assert.match(result.stdout, /\bUnknownOperator\b/, report(result))
+        assert.strictEqual(result.exitCode, 0, report(result))
+        assert.lengthOf(alertLines(result.stdout), 1, report(result))
+        assert.strictEqual(count(result.stdout, "skip"), 1, report(result))
+        assert.notMatch(result.stdout, /\bUnknownOperator\b/, report(result))
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
     it.live(
       "06 prints a schema error for the malformed rule and still alerts for the valid one",
       () =>
         Effect.gen(function*() {
-          const result = yield* runLesson(6, "solution")
+          const fs = yield* FileSystem.FileSystem
+          const file = yield* lessonFile(6, "solution")
+          assert.include(yield* fs.readFileString(file), "Schema.Struct")
+          const result = yield* run(file)
           assert.match(result.stdout, /SchemaError|\bExpected\b/, report(result))
           assert.isAtLeast(count(result.stdout, "expense 1200 over 500"), 1, report(result))
+          assert.isAtLeast(count(result.stdout, "skip"), 1, report(result))
         }).pipe(Effect.provide(NodeServices.layer)),
       timeout
     )
 
     it.live("07 the malformed rule's failure names the evaluate span", () =>
       Effect.gen(function*() {
-        const result = yield* runLesson(7, "solution")
+        const fs = yield* FileSystem.FileSystem
+        const file = yield* lessonFile(7, "solution")
+        assert.include(yield* fs.readFileString(file), `Effect.fn("evaluate")`)
+        const result = yield* run(file)
+        assert.notStrictEqual(result.exitCode, 0, report(result))
+        assert.isAtLeast(count(result.stdout, "expense 1200 over 500"), 1, report(result))
+        assert.isAtLeast(count(result.stdout, "skip"), 1, report(result))
         assert.match(result.stdout, /SchemaError/, report(result))
         // The name given to Effect.fn, in the trace runMain prints with the
         // failure.
