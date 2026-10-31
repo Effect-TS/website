@@ -1,7 +1,19 @@
 import { NodeServices } from "@effect/platform-node"
 import { SqliteClient } from "@effect/sql-sqlite-node"
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Exit, FileSystem, Layer, Logger, type LogLevel, Path, Schema } from "effect"
+import {
+  Cause,
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  Logger,
+  type LogLevel,
+  Path,
+  PlatformError,
+  Schema,
+  Tracer
+} from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
@@ -16,9 +28,21 @@ import * as Harness from "./harness.ts"
 
 const makeClient = HttpApiTest.groups(Api, ["rules", "events", "runs"])
 
+// Accepts every write and keeps nothing, except that a write under /denied/
+// fails as a file the process may not write.
+const write = (path: string) =>
+  path.startsWith("/denied/")
+    ? Effect.fail(PlatformError.systemError({
+      _tag: "PermissionDenied",
+      module: "FileSystem",
+      method: "writeFile",
+      pathOrDescriptor: path
+    }))
+    : Effect.void
+
 const fileSystem = FileSystem.layerNoop({
-  writeFileString: () => Effect.void,
-  writeFile: () => Effect.void
+  writeFileString: (path) => write(path),
+  writeFile: (path) => write(path)
 })
 
 // The Engine over the given stores, polling through the fake server.
@@ -97,8 +121,17 @@ describe("interval rules", () => {
       assert.strictEqual(remote.requests.length, 2)
     }).pipe(Effect.provide(layerApp({ _tag: "Respond", status: 500, body: { status: "error" } }))))
 
-  it.effect("a poll past the per-run timeout is failed with reason timeout and its request is released", () =>
-    Effect.gen(function*() {
+  it.effect("a poll past the per-run timeout is failed with reason timeout inside the span and released", () => {
+    const spans: Array<Tracer.NativeSpan> = []
+    const tracer = Tracer.make({
+      span: (options) => {
+        const span = new Tracer.NativeSpan(options)
+        spans.push(span)
+        return span
+      }
+    })
+
+    return Effect.gen(function*() {
       const remote = yield* Harness.Remote
       const client = yield* makeClient
       const rule = yield* client.rules.create({ payload: poll })
@@ -109,7 +142,18 @@ describe("interval rules", () => {
         assert.deepStrictEqual(runs.map((run) => [run.outcome, run.reason]), [["failed", "timeout"]])
       }))
       assert.isTrue(remote.released)
-    }).pipe(Effect.provide(layerApp({ _tag: "Hang" }))))
+
+      // The timeout runs inside Engine.execute, so the span ends with the
+      // TimeoutError (an Error in the viewer), not with an interruption.
+      const [execution, ...others] = spans.filter((span) => span.name === "Engine.execute")
+      assert.deepStrictEqual(others, [])
+      const status = execution.status
+      assert.isTrue(
+        status._tag === "Ended" && Exit.isFailure(status.exit) && Cause.isTimeoutError(Cause.squash(status.exit.cause)),
+        "the Engine.execute span ends with the TimeoutError"
+      )
+    }).pipe(Effect.provide(layerApp({ _tag: "Hang" })), Effect.withTracer(tracer))
+  })
 
   it.effect("a defect in a tick is one crashed row and stops the loop; removing the stopped rule only deletes", () =>
     Effect.gen(function*() {
@@ -189,19 +233,31 @@ describe("interval rules", () => {
     ).pipe(Layer.provide(RunLog.layerMemory))
 
     return Effect.gen(function*() {
-      yield* (yield* RuleStore).create({
-        name: "every expense",
-        trigger: { type: "event", event: "expense" },
-        action: { type: "appendFile", path: "alerts.log", message: "expense" }
-      })
-      const [outcome] = yield* (yield* Engine).handleEvent({ type: "expense", amount: 1200 })
-      assert.strictEqual(outcome.outcome, "succeeded")
-      const runs = yield* (yield* RunLog).list()
-      assert.deepStrictEqual(runs.map((run) => [run.id, run.outcome]), [[outcome.runId, "started"]])
-      assert.isTrue(
-        logs.lines.some((line) => line.level === "Error" && line.text.includes(outcome.runId)),
-        "the failed write is logged at error level with the run id"
+      const store = yield* RuleStore
+      for (const path of ["alerts.log", "/denied/alerts.log"]) {
+        yield* store.create({
+          name: path,
+          trigger: { type: "event", event: "expense" },
+          action: { type: "appendFile", path, message: "expense" }
+        })
+      }
+      const outcomes = yield* (yield* Engine).handleEvent({ type: "expense", amount: 1200 })
+      assert.deepStrictEqual(
+        outcomes.map((outcome) => [outcome.outcome, outcome.reason]).toSorted(),
+        [["failed", "io"], ["succeeded", null]],
+        "each run returns its own result, success or failure, despite the failed write"
       )
+      const runs = yield* (yield* RunLog).list()
+      assert.deepStrictEqual(
+        runs.map((run) => [run.id, run.outcome]).toSorted(),
+        outcomes.map((outcome) => [outcome.runId, "started"]).toSorted()
+      )
+      for (const outcome of outcomes) {
+        assert.isTrue(
+          logs.lines.some((line) => line.level === "Error" && line.text.includes(outcome.runId)),
+          `the failed write of the ${outcome.outcome} run is logged at error level with its run id`
+        )
+      }
     }).pipe(
       Effect.provide(layerEngine(Layer.merge(RuleStore.layerMemory, runLog), { _tag: "Hang" })),
       Effect.provide(logs.layer)
