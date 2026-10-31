@@ -7,8 +7,9 @@ import * as Viewer from "../tools/viewer.ts"
 
 // The doctor reads and changes the host only through Doctor.Host, so these
 // tests never depend on, download to, or start anything on the machine
-// running them. `events` records what the doctor did, in order: "download",
-// "start binary" or "start docker", and "print <line>" for every printed line.
+// running them. `events` records what the doctor did, in order: "command <name>"
+// for every PATH lookup, "download", "start binary" or "start docker", and
+// "print <line>" for every printed line.
 const host = (options: {
   readonly nodeVersion: string
   readonly commands: ReadonlyArray<string>
@@ -34,7 +35,11 @@ const host = (options: {
       nodeVersion: options.nodeVersion,
       glibcVersion: options.glibcVersion,
       viewerUnsupported: options.viewerUnsupported,
-      hasCommand: (name) => Effect.succeed(options.commands.includes(name)),
+      hasCommand: (name) =>
+        Effect.sync(() => {
+          events.push(`command ${name}`)
+          return options.commands.includes(name)
+        }),
       exists: (path) => Effect.sync(() => present() && path.includes(".viewer")),
       canRun: (path) => Effect.sync(() => (options.viewerRuns ?? present()) && path.includes(".viewer")),
       downloadViewer: Effect.suspend(() => {
@@ -53,6 +58,17 @@ const host = (options: {
 
 const starts = (events: ReadonlyArray<string>) => events.filter((event) => event.startsWith("start "))
 const viewerLine = (events: ReadonlyArray<string>) => events.find((event) => /^print [✓✗] viewer/.test(event))
+
+// Positions of the pnpm and git lookups and of every printed check line, so a
+// test can place all of the checks relative to the download and the start.
+const checkPositions = (events: ReadonlyArray<string>) => {
+  const positions = new Map<string, number>()
+  for (const probe of ["command pnpm", "command git"]) positions.set(probe, events.indexOf(probe))
+  for (const name of ["node", "pnpm", "git", "viewer"]) {
+    positions.set(`${name} line`, events.findIndex((event) => new RegExp(`^print [✓✗] ${name} `).test(event)))
+  }
+  return positions
+}
 
 // A bare `pnpm doctor` runs pnpm's own diagnostics, never tools/doctor.ts.
 const bareDoctor = /\bpnpm doctor\b/
@@ -124,12 +140,14 @@ describe("doctor", () => {
       return Effect.gen(function*() {
         yield* Doctor.doctorWithViewer
         const download = events.indexOf("download")
-        const check = events.findIndex((event) => event.startsWith("print ✓ viewer"))
         const start = events.indexOf("start binary")
         assert.deepStrictEqual(starts(events), ["start binary"])
         assert.isAtLeast(download, 0, "the binary was not downloaded")
-        assert.isAbove(check, download, "the viewer check ran before the download")
-        assert.isAbove(start, check, "the viewer started before the checks")
+        assert.match(viewerLine(events) ?? "", /^print ✓ viewer/)
+        for (const [check, position] of checkPositions(events)) {
+          assert.isAbove(position, download, `${check} before the download`)
+          assert.isBelow(position, start, `${check} after the viewer started`)
+        }
       }).pipe(
         Effect.provide(host({ nodeVersion: "v22.16.0", commands: ["pnpm", "git"], viewerBinary: false, events }))
       )
@@ -144,7 +162,11 @@ describe("doctor", () => {
         if (Result.isFailure(result)) {
           assert.strictEqual(result.failure._tag, "DoctorFailed")
         }
-        assert.include(events, "download")
+        const download = events.indexOf("download")
+        assert.isAtLeast(download, 0, "no download was attempted")
+        for (const [check, position] of checkPositions(events)) {
+          assert.isAbove(position, download, `${check} missing or before the download`)
+        }
         assert.match(viewerLine(events) ?? "", /^print ✗ viewer/)
         assert.include(viewerLine(events), message)
         assert.deepStrictEqual(starts(events), [])
