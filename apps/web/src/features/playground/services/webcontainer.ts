@@ -128,7 +128,10 @@ export class WebContainer extends Context.Service<WebContainer>()(
       function installExe(name: string, script: string) {
         return Effect.promise(async () => {
           await container.fs.writeFile(name, script)
-          await container.spawn("chmod", ["+x", name])
+          // `spawn` resolves once the process starts, so wait for `chmod` to
+          // exit before anything tries to execute the file
+          const chmod = await container.spawn("chmod", ["+x", name])
+          await chmod.exit
         })
       }
 
