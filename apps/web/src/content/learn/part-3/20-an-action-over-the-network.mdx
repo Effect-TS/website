@@ -1,7 +1,7 @@
 ---
 part: 3
 order: 20
-title: An action over the network
+title: Send an HTTP request as an action
 minutes: 20
 mode: local
 ---
@@ -20,7 +20,7 @@ You will learn:
 - how `failed` and `crashed` differ, and why it matters;
 - what a `Cause` holds, including the failures no type shows.
 
-## Sending the request
+## Send the request with HttpClient
 
 `postMessage` in `src/Action.ts` POSTs the action's message as plain text. When
 the action sets `includePayload`, the payload follows as JSON on the next line.
@@ -47,7 +47,7 @@ You don't need any new code for the timeout. `Effect.timeout` already wraps
 `run` inside the span, so a receiver that takes too long to answer is cut off
 after 10 seconds, interrupted, and recorded as `failed (timeout)`.
 
-## Three endings, side by side
+## Compare a 500, a timeout and a success
 
 Run three rules against the receiver, one at a time, and read what each one
 leaves behind. With `pnpm receiver` and your server running:
