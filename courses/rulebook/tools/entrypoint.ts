@@ -23,8 +23,8 @@ const realpath = (path: string) => {
   }
 }
 
-// Fails `runMain` with the child's exit code, without printing anything more:
-// the child has already said what went wrong.
+// Fails `runMain` with an exit code, without printing anything more: whatever
+// failed, a child process or a CLI command, has already said what went wrong.
 export class ExitCode extends Schema.TaggedError<ExitCode>()("ExitCode", {
   code: Schema.Number
 }) {

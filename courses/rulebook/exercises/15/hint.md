@@ -10,8 +10,9 @@ You get `RuleNotFound` with a stack trace into the Schema internals. The server 
 
 - Two commands send an id the server may not know: `rules remove` and `rules run`. Hover the handler of either and `RuleNotFound` is in the error channel.
 - `Effect.fn` takes more arguments after the generator; each is applied to the effect it builds. Pass `Effect.catchTag("RuleNotFound", ...)` there and print `No rule with id <id>` with `Console.error`.
-- Write the printing function once and use it in both commands.
+- Printing the line is not enough: the command still did not happen, so the shell has to see a non-zero exit. After the line, fail with `new ExitCode({ code: 1 })` from `tools/entrypoint.ts`. `runMain` exits with its code and prints nothing more; failing with the `RuleNotFound` again would print it a second time.
+- Write the handler once, with `Effect.fn`, and use it in both commands.
 
-Check: `pnpm cli rules remove nope` and `pnpm cli rules run nope --event fixtures/events/laptop.json` each print exactly one line. `pnpm checkpoint 15 cli rules remove nope` shows the state before the exercise.
+Check: `pnpm cli rules remove nope` and `pnpm cli rules run nope --event fixtures/events/laptop.json` each print exactly one line and exit 1 (`echo $?`). `pnpm checkpoint 15 cli rules remove nope` shows the state before the exercise.
 
 The changed file is in `solution/`. From lesson 16 on, the checkpoints include this change.

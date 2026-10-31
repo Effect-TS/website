@@ -11,7 +11,7 @@ import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import { Console, Effect, FileSystem, Layer, Option, Schema } from "effect"
 import { Argument, Command, Flag } from "effect/cli"
 import { FetchHttpClient } from "effect/http"
-import { isMain } from "../../../../tools/entrypoint.ts"
+import { ExitCode, isMain } from "../../../../tools/entrypoint.ts"
 import { ApiClient } from "../ApiClient.ts"
 import type { Outcome } from "../Engine.ts"
 import { Event, Rule } from "../Rule.ts"
@@ -30,12 +30,16 @@ const describe = (row: { readonly outcome: string; readonly reason: string | nul
 
 const printOutcome = (outcome: Outcome) => Console.log(`${outcome.ruleId}: ${describe(outcome)}`)
 
-const notFound = (error: RuleNotFound) => Console.error(`No rule with id ${error.id}`)
+// Prints one line and still fails, quietly, so the shell sees a non-zero exit.
+const notFound = Effect.fn("notFound")(function*(error: RuleNotFound) {
+  yield* Console.error(`No rule with id ${error.id}`)
+  return yield* new ExitCode({ code: 1 })
+})
 
 const rulesAdd = Command.make(
   "add",
   { file: Argument.File("file").pipe(Argument.withDescription("Rule file (JSON)")) },
-  Effect.fn(function*({ file }) {
+  Effect.fn("rules.add")(function*({ file }) {
     const client = yield* ApiClient
     const rule = yield* client.rules.create({ payload: yield* readJson(Rule, file) })
     yield* Console.log(`Added ${rule.id}: ${rule.name}`)
@@ -45,7 +49,7 @@ const rulesAdd = Command.make(
 const rulesList = Command.make(
   "list",
   {},
-  Effect.fn(function*() {
+  Effect.fn("rules.list")(function*() {
     const client = yield* ApiClient
     for (const rule of yield* client.rules.list()) {
       yield* Console.log(`${rule.id}  ${rule.name}`)
@@ -56,7 +60,7 @@ const rulesList = Command.make(
 const rulesRemove = Command.make(
   "remove",
   { id: Argument.String("id").pipe(Argument.withDescription("Rule id")) },
-  Effect.fn(function*({ id }) {
+  Effect.fn("rules.remove")(function*({ id }) {
     const client = yield* ApiClient
     yield* client.rules.remove({ params: { id } })
     yield* Console.log(`Removed ${id}`)
@@ -69,7 +73,7 @@ const rulesRun = Command.make(
     id: Argument.String("id").pipe(Argument.withDescription("Rule id")),
     event: Flag.File("event").pipe(Flag.withDescription("Event file (JSON) to run the rule against"))
   },
-  Effect.fn(function*({ id, event }) {
+  Effect.fn("rules.run")(function*({ id, event }) {
     const client = yield* ApiClient
     yield* printOutcome(yield* client.rules.run({ params: { id }, payload: yield* readJson(Event, event) }))
   }, Effect.catchTag("RuleNotFound", notFound))
@@ -83,7 +87,7 @@ const rules = Command.make("rules").pipe(
 const eventsSubmit = Command.make(
   "submit",
   { file: Argument.File("file").pipe(Argument.withDescription("Event file (JSON)")) },
-  Effect.fn(function*({ file }) {
+  Effect.fn("events.submit")(function*({ file }) {
     const client = yield* ApiClient
     for (const outcome of yield* client.events.submit({ payload: yield* readJson(Event, file) })) {
       yield* printOutcome(outcome)
@@ -102,7 +106,7 @@ const runsList = Command.make(
     rule: Flag.String("rule").pipe(Flag.withDescription("Only runs of this rule id"), Flag.optional),
     limit: Flag.Int("limit").pipe(Flag.withDescription("At most this many runs"), Flag.optional)
   },
-  Effect.fn(function*({ rule, limit }) {
+  Effect.fn("runs.list")(function*({ rule, limit }) {
     const client = yield* ApiClient
     const runs = yield* client.runs.list({
       query: { ruleId: Option.getOrUndefined(rule), limit: Option.getOrUndefined(limit) }
