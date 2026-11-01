@@ -73,13 +73,11 @@ const evaluate = Effect.fn("evaluate")(
     if (event.amount === undefined) {
       return yield* new MissingField({ field: "amount" })
     }
-    const message = matches(rule, event.amount)
-      ? `${event.type} ${event.amount} ${rule.message}`
-      : `${rule.name}: no alert`
-    yield* Effect.log(message)
-    return message
+    const flagged = matches(rule, event.amount)
+    yield* Effect.log(flagged ? `${event.type} ${event.amount} ${rule.message}` : `${rule.name}: no alert`)
+    return flagged
   },
-  Effect.catchTag("MissingField", (error) => Effect.log(`skip: missing field ${error.field}`))
+  Effect.catchTag("MissingField", (error) => Effect.as(Effect.log(`skip: missing field ${error.field}`), false))
 )
 
 const evaluateAll = Effect.fn("evaluateAll")(function*(event: Event) {

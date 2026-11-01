@@ -10,20 +10,31 @@ class MissingField extends Schema.TaggedError<MissingField>()("MissingField", {
   field: Schema.String
 }) {}
 
+const laptop: Event = { type: "expense", amount: 1200 }
+
 const taxi: Event = { type: "expense" }
 
 // A plain function: it answers a question and does nothing else.
 const isLarge = (amount: number): boolean => amount > 500
 
+// Logs the verdict for one expense and reports whether it was flagged.
+const evaluate = (event: Event) =>
+  Effect.gen(function*() {
+    if (event.amount === undefined) {
+      return yield* new MissingField({ field: "amount" })
+    }
+    const flagged = isLarge(event.amount)
+    yield* Effect.log(
+      flagged ? `${event.type} ${event.amount} over 500` : `${event.type} ${event.amount}: no alert`
+    )
+    return flagged
+  })
+
 const program = Effect.gen(function*() {
-  if (taxi.amount === undefined) {
-    return yield* new MissingField({ field: "amount" })
-  }
-  const message = isLarge(taxi.amount)
-    ? `${taxi.type} ${taxi.amount} over 500`
-    : `${taxi.type} ${taxi.amount}: no alert`
-  yield* Effect.log(message)
-  return message
+  const laptopFlagged = yield* evaluate(laptop)
+  const taxiFlagged = yield* evaluate(taxi)
+  const flagged = [laptopFlagged, taxiFlagged].filter(Boolean).length
+  yield* Effect.log(`${flagged} of 2 expenses flagged`)
 })
 
 // Run the effect
