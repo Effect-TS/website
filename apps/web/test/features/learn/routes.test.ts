@@ -1,5 +1,9 @@
 import { assert, test } from "vite-plus/test"
-import { lessonRoutes } from "../../../src/features/learn/routes.ts"
+import {
+  // @ts-expect-error lessonLabel lands with the implementation; remove this line then.
+  lessonLabel,
+  lessonRoutes,
+} from "../../../src/features/learn/routes.ts"
 
 const lesson = (id: string, part: number, order: number) => ({
   id,
@@ -54,5 +58,24 @@ test("guides come before the lesson of the same order, by id, with unnumbered sl
       "part-2/11-entrypoint",
       "part-2/13-first-tests",
     ],
+  )
+})
+
+// Navigation shows titles only: `order` stays the sort key and the slug
+// component, but no visible label starts with a lesson number.
+test("lessonLabel is the title alone, for lessons and guides", () => {
+  assert.equal(
+    lessonLabel({
+      id: "describe-then-run",
+      data: { part: 1, order: 2, title: "Running your first Effect" },
+    }),
+    "Running your first Effect",
+  )
+  assert.equal(
+    lessonLabel({
+      id: "setup",
+      data: { part: 2, order: 11, title: "Setting up", mode: "guide" as const },
+    }),
+    "Setting up",
   )
 })

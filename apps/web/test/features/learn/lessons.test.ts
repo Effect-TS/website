@@ -90,16 +90,37 @@ test("Part 1 renders its class declarations from the lesson files and pastes non
   ])
 })
 
-// Lesson 1 opens on the finished app as a terminal session captured from
-// checkpoint 24, rendered from the checked-in file like any other listing.
+// The course opens on the /learn landing page, which shows the finished app as
+// a terminal session captured from checkpoint 24, rendered from the checked-in
+// file like any other listing. There is no introductory lesson.
 const transcript = "checkpoints/24/transcript.txt"
 
-test("lesson 1 renders the checkpoint 24 transcript from its file, in place of the clip slot", () => {
-  const lesson1 = prose("01-the-finished-thing.mdx")
-  assert.notInclude(lesson1, "Slot for the finished-app clip")
+const landing = join(
+  import.meta.dirname,
+  "..",
+  "..",
+  "..",
+  "src",
+  "pages",
+  "learn",
+  "index.astro",
+)
+
+test("the landing page renders the checkpoint 24 transcript", () => {
   assert.deepInclude(
-    lessonCode(lesson1).map((attributes) => attributes.get("file")),
+    lessonCode(readFileSync(landing, "utf8")).map((attributes) =>
+      attributes.get("file"),
+    ),
     transcript,
+  )
+})
+
+test("Part 1 has no 01-*.mdx lesson", () => {
+  assert.deepEqual(
+    readdirSync(part1).filter(
+      (name) => name.startsWith("01-") && name.endsWith(".mdx"),
+    ),
+    [],
   )
 })
 

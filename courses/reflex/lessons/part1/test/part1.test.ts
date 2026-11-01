@@ -116,22 +116,17 @@ const report = (result: { readonly stdout: string; readonly stderr: string }) =>
   `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`
 
 describe("Part 1 lesson files", () => {
-  it.effect("lessons 2 to 10 have a start and a solution; lesson 1 is the lesson 10 file", () =>
+  // The course opens on the /learn landing page; Part 1's first lesson is 2.
+  it.effect("lessons 2 to 10 have a start and a solution, and no 01-* directory exists", () =>
     Effect.gen(function*() {
       const fs = yield* FileSystem.FileSystem
-      for (let lesson = 1; lesson <= 10; lesson++) {
+      for (let lesson = 2; lesson <= 10; lesson++) {
         const directory = yield* lessonDirectory(lesson)
         assert.isTrue(yield* fs.exists(NodePath.join(directory, "solution", "main.ts")), `${directory}/solution`)
-        assert.strictEqual(
-          yield* fs.exists(NodePath.join(directory, "start", "main.ts")),
-          lesson !== 1,
-          `${directory}/start`
-        )
+        assert.isTrue(yield* fs.exists(NodePath.join(directory, "start", "main.ts")), `${directory}/start`)
       }
-      assert.strictEqual(
-        yield* fs.readFileString(yield* lessonFile(1, "solution")),
-        yield* fs.readFileString(yield* lessonFile(10, "solution"))
-      )
+      const entries = yield* fs.readDirectory(part1)
+      assert.deepStrictEqual(entries.filter((entry) => entry.startsWith("01-")), [], "lessons/part1/01-*/")
     }).pipe(Effect.provide(NodeServices.layer)))
 
   it.effect("lesson 11 opens with the lesson 10 file in src/run-once.ts", () =>
@@ -163,9 +158,8 @@ describe("Part 1 lesson files", () => {
       const fs = yield* FileSystem.FileSystem
       assert.isFalse(yield* fs.exists(NodePath.join(part1, "Telemetry.ts")), "lessons/part1/Telemetry.ts")
       const files = [NodePath.join(root, "src", "run-once.ts")]
-      for (let lesson = 1; lesson <= 10; lesson++) {
-        files.push(yield* lessonFile(lesson, "solution"))
-        if (lesson !== 1) files.push(yield* lessonFile(lesson, "start"))
+      for (let lesson = 2; lesson <= 10; lesson++) {
+        files.push(yield* lessonFile(lesson, "start"), yield* lessonFile(lesson, "solution"))
       }
       for (const file of files) {
         assert.notMatch(yield* fs.readFileString(file), /Telemetry/, NodePath.relative(root, file))
@@ -184,7 +178,7 @@ describe("Part 1 lesson files", () => {
   describe.concurrent("typecheck", () => {
     it.live("every file except the lesson 8 end state typechecks", () =>
       Effect.gen(function*() {
-        for (let lesson = 1; lesson <= 10; lesson++) yield* lessonDirectory(lesson)
+        for (let lesson = 2; lesson <= 10; lesson++) yield* lessonDirectory(lesson)
         const result = yield* typecheck({ include: ["**/*.ts"], exclude: lesson8End })
         assert.strictEqual(result.exitCode, 0, result.output)
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
