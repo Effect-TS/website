@@ -7,24 +7,24 @@ mode: playground
 lessonDir: 10-checkpoint
 ---
 
-We started with a message about a laptop purchase. Reflex can now read a
-set of rules, check an expense against each one, and explain why it skipped
-an incomplete receipt. The rules are separate from the checking code, and
-we can change the store without rewriting that code. That is enough of an
-application to take out of the browser.
+We started with a single message about a laptop. Reflex can now read a set
+of rules, check an expense against each one, and explain why it skipped an
+incomplete receipt. The rules are separate from the checking code, and we
+can change where they come from without rewriting that code. That is enough
+of an application to take out of the browser.
 
-Before we do, take a break from adding things. The editor contains the
+Before we do, let's pause and read what we have. The editor contains the
 completed file from the previous lesson. Run it once more and look for the
-three alert lines and three skips. Then read through it at your own pace.
-There's no new code to write here unless you'd like to try one of the
-optional challenges.
+three alert lines and the three skips, then read through it at your own
+pace. There is no new code in this lesson, apart from the optional
+challenges at the end.
 
 ## The types in the file
 
-When you first hovered over `program`, most of its type was unfamiliar.
-You now have an example for each part of `Effect<Success, Error, Requirements>`.
-Try reading the file from top to bottom and predicting those three types
-before hovering over each function that returns an Effect. Follow `RuleStore` in particular: where
+When you first hovered over `program`, most of its type was unfamiliar. You
+have now seen each part of `Effect<Success, Error, Requirements>` in use.
+Read the file from top to bottom and predict the three types of each
+function before you hover over it. Follow `RuleStore` in particular: where
 does the program start needing it, and where do we supply it?
 
 | Name           | Type                                                                 | Notes                                                         |
@@ -38,11 +38,10 @@ does the program start needing it, and where do we supply it?
 | `evaluateAll`  | Returns `Effect<void, SchemaError, RuleStore>`                       | Requires a provided `RuleStore`                               |
 | `program`      | `Effect<void, SchemaError, never>`                                   | Provides the store, leaving no service requirements           |
 
-If one of the types surprises you, that's a useful place to stop and look
-back. The reference below links to the lesson where we introduced it. You
-don't need to remember every API name, but being able to explain what the
-expense check returns, how it can fail, and where its rules come from will
-help with the next part.
+If one of the types surprises you, the reference below links to the lesson
+that introduced it. You don't need to remember every API name. What matters
+for the next part is being able to say what the expense check returns, how
+it can fail, and where its rules come from.
 
 ## Part 1 reference
 
@@ -67,30 +66,28 @@ help with the next part.
 
 ## Optional challenges
 
-If you'd like to make the program a little more your own before Part 2,
-choose one of these changes. They take extra time, and you can skip them
-without missing anything the later lessons need.
+If you'd like more practice before Part 2, try one of these. They aren't
+counted in the course time, and nothing later depends on them.
 
 1. Add `eq` and `neq` operators for "equal to" and "not equal to". Start
    with the schema, then update `matches` to handle the cases TypeScript
    reports as missing.
-2. Make a skipped check distinguishable from a check that did not match.
-   Instead of logging the skip and returning `false`, have `evaluate`
-   return a `skipped` result containing a reason. Hover to confirm that
-   the success type includes this new result alongside `boolean`, since
-   a completed check still returns `flagged`.
+2. Make a skipped check distinguishable from one that didn't match. Instead
+   of logging the skip and returning `false`, have `evaluate` return a
+   `skipped` result with a reason. Hover to confirm that the success type
+   now includes this result alongside `boolean`, since a completed check
+   still returns `flagged`.
    [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)
-   does a version of this.
+   does a version of this for real.
 3. Add another kind of event, such as a battery level, and a rule for it.
    The current alert message reads `event.amount`, which will not suit
    every event. Adapt the message for an event that has no amount.
 
 ## Next
 
-The browser has let us concentrate on the expense check without dealing
-with project setup. Next we'll give reflex real files to read and somewhere
-to save its alerts. From there, we'll turn it into a server that another
-program can use.
+The browser let us concentrate on the expense check without any project
+setup. Next we'll give Reflex real files to read and somewhere to save its
+alerts, and from there turn it into a server that other programs can use.
 
 When you're ready, [set up the starter on your machine](/learn/part-2/setup).
 Allow about 15 minutes if the required tools are already installed. The

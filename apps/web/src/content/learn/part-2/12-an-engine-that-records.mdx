@@ -7,32 +7,32 @@ mode: local
 ---
 
 Suppose you submit an expense and no alert appears. Perhaps it was below
-the threshold. Perhaps the event had no amount, or reflex couldn't write
-the file. Our current program doesn't keep enough history to tell us
-afterwards, and that will get harder to follow as we add more rules.
+the threshold, perhaps the event had no amount, or perhaps Reflex could not
+write the file. Our program keeps no history, so there is no way to tell
+afterwards, and the question only gets harder as we add more rules.
 
-A run history will let us check what happened, including runs that didn't
-produce an alert. We'll put the work of finding and running matching rules
-in a service called `Engine`, and save their results in a `RunLog`. If one
-action fails, the Engine should record that failure and still give the
-remaining rules a chance to run.
+Reflex needs a run history: a record of every run, including the ones that
+produced no alert. In this lesson we put the work of finding and running
+matching rules in a service called `Engine`, and save each result in a
+`RunLog`. If one action fails, the Engine records the failure and still
+gives the remaining rules their turn.
 
 ## Give rules an id
 
-First, we need to tell our rules apart. Each row in the history will refer
-to a rule by its id, so create `src/RuleStore.ts` with the store below. Its
-`create` method assigns the id, and `list`, `get` and `remove` let you work
-with stored rules. If `get` or `remove` receives an unknown id, it fails
-with `RuleNotFound`. The storage should feel familiar: `layerMemory` still
-keeps the rules in a `Map`.
+Each row in the history refers to a rule, so first we need to tell our
+rules apart. Create `src/RuleStore.ts` with the store below. Its `create`
+method assigns an id, and `list`, `get` and `remove` work with stored rules
+by that id. If `get` or `remove` receives an id the store does not know, it
+fails with `RuleNotFound`. The storage itself is the one you know:
+`layerMemory` keeps the rules in a `Map`.
 
 <LessonCode file="checkpoints/12/src/RuleStore.ts" />
 
 ## Keep a run history
 
-Now give those rules somewhere to leave a history. Create `src/RunLog.ts`.
-Like `RuleStore`, it has a service definition and a memory layer. We'll
-record when a run starts as well as how it ends:
+Now the rules need somewhere to leave their history. Create `src/RunLog.ts`.
+Like `RuleStore`, it has a service definition and a memory layer, and it
+records when a run starts as well as how it ends:
 
 - `start` opens a row with the outcome `started`.
 - `finish` writes how the run ended.
@@ -41,54 +41,53 @@ record when a run starts as well as how it ends:
 <LessonCode file="checkpoints/12/src/RunLog.ts" />
 
 `RunResult` describes a completed run as `skipped`, `succeeded` or `failed`.
-For a failure, it also requires a reason: `status`, `timeout` or `io`.
-Only `io` can occur with the current file-writing action; the other two
-are for the network action you will add later. At this checkpoint, skipped
-runs do not yet have a reason.
+A failure also carries a reason: `status`, `timeout` or `io`. Only `io` can
+happen with our file-writing action; the other two are for the network
+action we add later. At this checkpoint, skipped runs have no reason yet.
 
 ## Build the Engine from its dependencies
 
-With both stores ready, we can bring them together with the file system.
-Create `src/Engine.ts` using `Layer.effect`, as you did for the stores.
-Inside the layer, retrieve `RuleStore`, `RunLog` and `FileSystem` with
-`yield*` before defining `execute` and `handleEvent`:
+With both stores ready, the Engine can bring them together with the file
+system. Create `src/Engine.ts` using `Layer.effect`, as you did for the
+stores. Inside the layer, `yield*` `RuleStore`, `RunLog` and `FileSystem`
+before defining `execute` and `handleEvent`:
 
 <LessonCode file="checkpoints/12/src/Engine.ts" />
 
-There's more code here than in our earlier services. For a first reading,
+There is more code here than in our earlier services, so on a first read
 follow the laptop expense through it. `handleEvent` finds each rule whose
 event trigger matches, and `execute` starts a row in the history before
 checking the condition. If the large-expense rule's action succeeds, that
 row changes from `started` to `succeeded`. A rule whose condition is false
 gets a `skipped` result instead.
 
-Let's run this version and see those rows before looking more closely at
-how it records them.
+We run this version first, and then come back to how it records each
+result.
 
 ## Run three rules against two events
 
-Create `src/main.ts` to store three
-rules, submit two events and print the run log:
+Create `src/main.ts` to store three rules, submit two events and print the
+run log:
 
 <LessonCode file="checkpoints/12/src/main.ts" />
 
-The program needs the stores to create rules and read the history, as well
-as the Engine to run them. `Layer.provideMerge` supplies the Engine's
-dependencies while keeping those services available in the resulting layer.
-Using `Layer.provide` alone would supply the dependencies without retaining
-them for the rest of the program.
+The program needs the stores to create rules and read the history, and it
+needs the Engine to run them. `Layer.provideMerge` supplies the Engine's
+dependencies and keeps those services in the resulting layer. `Layer.provide`
+alone would supply the dependencies without keeping them for the rest of the
+program.
 
-We've kept the named `Effect.fn` functions from
-[Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it). Their spans
-aren't visible in the viewer yet; for this run, use the printed history
-to see what happened:
+The named `Effect.fn` functions from
+[Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it) are still
+here. Their spans are not visible in the viewer yet, so for this run the
+printed history is what tells us what happened:
 
 ```sh
 pnpm tsx src/main.ts
 ```
 
-The terminal prints one row per rule per event. Notice that the skipped
-rules have a place in the history too:
+The terminal prints one row per rule per event, and the skipped rules have
+their place in the history too:
 
 ```text
 large expense: succeeded
@@ -102,56 +101,56 @@ every expense: succeeded
 ## How the result reaches the history
 
 The rows show what happened for each expense, even when no alert was
-written. Now return to `execute` in the Engine to follow how a result
-gets recorded. It starts with `runLog.start`, so a row exists before the
-condition or action runs.
+written. Now return to `execute` in the Engine to follow how a result gets
+recorded. It starts with `runLog.start`, so a row exists before the
+condition or the action runs.
 
-The inner `run` function evaluates the condition and performs the
-action. Its `Effect.fn("Engine.execute")` creates a span, with the rule id
-and trigger attached as attributes. If an action fails, that span ends
-with an error. But a missing field is something we already know how to
-handle: `run` catches `MissingField` and returns `skipped`. We successfully
-decided not to run the action, so the span ends Ok and the row's `error`
-column remains null.
+The inner `run` function evaluates the condition and performs the action.
+Its `Effect.fn("Engine.execute")` creates a span, with the rule id and
+trigger attached as attributes. If the action fails, that span ends with an
+error. A missing field is different, because we already know how to handle
+it: `run` catches `MissingField` and returns `skipped`. Deciding not to run
+the action is a success, so the span ends Ok and the row's `error` column
+stays null.
 
 After `run` ends, `Effect.onExit` receives its `Exit`, a value describing
 how the effect ended. The callback writes a successful `RunResult` to the
-row, or records `failed` for an `ActionFailed`. Other endings leave the row
-as `started` for now.
+row, or records `failed` for an `ActionFailed`. Any other ending leaves the
+row as `started` for now.
 
-This means each completed run costs two run-log writes, one for `started`
-and one for the result. We keep both so that a run that began but didn't
-finish looks different from a run that never started.
+Each completed run therefore costs two run-log writes, one for `started`
+and one for the result. We keep both so that a run which began but never
+finished looks different from a run that never started.
 
-Only after recording the result does `Effect.catchTag` convert
-`ActionFailed` into a `failed` value for the caller. This order matters:
-the span and run log record the failure, while `handleEvent` receives an
-outcome it can collect before continuing to the next rule. The effect
-returned by `execute` has no typed failures; defects and interruption
-are still possible.
+Only after the result is recorded does `Effect.catchTag` convert
+`ActionFailed` into a `failed` value for the caller. The order matters: the
+span and the run log record the failure, and `handleEvent` receives an
+outcome it can collect before moving on to the next rule. The effect
+returned by `execute` has no typed failures, although defects and
+interruption are still possible.
 
-For now, a defect or interruption can leave a row at `started`. We'll
-handle those unfinished rows when we add scheduled work in
+A defect or an interruption can still leave a row at `started`. We deal
+with those unfinished rows when we add scheduled work in
 [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock),
 with `interrupted` and `crashed` outcomes and a timeout inside the span.
 
-Although executing an action requires a file system, callers of `execute`
-do not have to provide one. The layer retrieved it when it was built, and
-`Effect.provideService` supplies that same instance to `appendLine`. The
+Executing an action needs a file system, but callers of `execute` do not
+have to provide one. The layer retrieved it when it was built, and
+`Effect.provideService` hands that same instance to `appendLine`. The
 annotation `Effect.fn.Return<RunResult, ActionFailed | MissingField>` checks
-the generator's return values and typed failures, so an invalid result is
-caught by TypeScript.
+the generator's return values and typed failures, so TypeScript catches an
+invalid result.
 
 Finally, `handleEvent` loops through the stored rules, much like
-`evaluateAll` in Part 1. For each event trigger matching the event's type,
-it calls `execute` and collects the outcome.
+`evaluateAll` in Part 1. For each event trigger that matches the event's
+type, it calls `execute` and collects the outcome.
 
 ## Try it
 
-We can now see that `huge expense` was skipped, but the row doesn't say
-why. A false condition, a missing field and an unsupported action would
-each need a different response from us. Give each skip a reason and store
-it as free text in the run history's `reason` column:
+The history shows that `huge expense` was skipped, but the row does not say
+why. A false condition, a missing field and an unsupported action each call
+for a different response from us, so give each skip a reason, stored as
+free text in the run history's `reason` column:
 
 1. In `src/RunLog.ts`, give the `skipped` member of `RunResult` a
    `reason: Schema.String`. The compiler now lists every place that writes a
@@ -163,7 +162,7 @@ it as free text in the run history's `reason` column:
    - In the `httpPost` branch, explain that the action is introduced in the
      lesson on network actions.
 3. Leave the `failed` result unchanged. Its reasons stay restricted to
-   `status`, `timeout` and `io`, rather than the free text we're adding
+   `status`, `timeout` and `io`, rather than the free text we are adding
    for skipped runs.
 
 Check your work with `pnpm tsx src/main.ts`. It prints each skip with its
@@ -191,8 +190,8 @@ every expense: succeeded
 ```
 
 You no longer have to infer every decision from `alerts.log`. Reflex keeps
-the results, and your exercise adds the reasons behind its skips. Next,
-we'll turn the checks we just made by hand into tests.
+the results, and your exercise adds the reasons behind its skips. Next, we
+turn the checks we just made by hand into tests.
 
 ## Reference
 

@@ -6,75 +6,76 @@ minutes: 5
 mode: local
 ---
 
-We can now follow an expense all the way through reflex, from the CLI to a
+We can now follow an expense all the way through Reflex, from the CLI to a
 recorded run and a trace. Before adding one last feature, let's make the
 startup code easier to come back to.
 
-We've added layers whenever the program needed another service, starting
-with [FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint). The server's
-layers live in `src/server/main.ts`, while the CLI's are composed in its run
-line. That worked well while we were building each piece. Now, finding out
-which services the application uses means reading both entrypoints.
+We've added a layer each time the program needed another service, starting
+with [FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint).
+The server's layers live in `src/server/main.ts`, and the CLI's are composed
+in its run line. That was convenient while we were building each piece, but
+now the only way to find out which services the application uses is to read
+both entrypoints.
 
-We'll collect those layers in `src/Layers.ts`, so there's one place to look.
-Nothing about how reflex handles a rule needs to change. This is a
-refactoring, and we'll check that it leaves the behaviour alone.
+So we'll collect them in `src/Layers.ts`, where there is one place to look.
+Nothing about how Reflex handles a rule changes. This is a refactoring, and
+at the end we'll check that the application behaves exactly as before.
 
 ## Collect the layers in Layers.ts
 
-Create `src/Layers.ts`. Move the server's layer composition there as an
-exported value named `server`, and the CLI's as an exported value named
-`cli`. You should end up with these familiar layers:
+Create `src/Layers.ts` and move the server's layer composition there as an
+exported value named `server`, then the CLI's as an exported value named
+`cli`. You end up with the layers you already know:
 
 <LessonCode file="checkpoints/23/src/Layers.ts" />
 
 Keep their order as you move them. Each `Layer.provide` supplies the
-dependencies of the layer above it, which also determines their lifetime.
-The Engine is built after the stores and SQLite, and closes before them.
-It still needs that order in its new home.
+dependencies of the layer above it, and that order also decides their
+lifetimes: the Engine is built after the stores and SQLite, and closes
+before them. Moving the layers to a new file doesn't change what they need
+from each other.
 
 ## Simplify the entrypoints
 
-Back in the server entrypoint, replace the layer composition with the
-exported layer. There's very little left here now:
+Back in the server entrypoint, replace the layer composition with
+`Layers.server`. Very little is left:
 
 <LessonCode file="checkpoints/23/src/server/main.ts" />
 
-In `src/cli/main.ts`, replace the CLI's stack with `Effect.provide(Layers.cli)`.
-That leaves the CLI with just one `provide`, too.
+Do the same in `src/cli/main.ts`, replacing the CLI's stack with
+`Effect.provide(Layers.cli)`, so that each entrypoint has a single `provide`.
 
-There's no need to move the `Effect.provideService` calls inside the Engine.
-They supply individual effects with services the Engine has already
-acquired; they do not build the application's dependencies.
+The `Effect.provideService` calls inside the Engine stay where they are.
+They hand services the Engine already holds to individual effects, which is
+a different job from building the application's dependencies.
 
 ## Check that nothing changed
 
-Run `pnpm check` and `pnpm test`. Both should still pass. Then let's check
-the application itself, using the request you traced in the last lesson.
+Run `pnpm check` and `pnpm test`. Both still pass. Then check the
+application itself with the request you traced in the previous lesson.
 
 Repeat the run from
 [Diagnosing a request from its trace](/learn/part-3/22-diagnose-it)
-from an empty `reflex.db`. Your server should produce the same four rows.
-That's the result we want here: a simpler way to assemble the application,
-with no change to what it does.
+from an empty `reflex.db`. Your server produces the same four rows as
+before, which is exactly the result we want: a simpler way to assemble the
+application, and no change to what it does.
 
 ## Checkpoint
 
-If you want to compare the entrypoints, checkpoint 23 has the refactored
-server. Run it with:
+Checkpoint 23 has the refactored entrypoints if you want to compare them
+with yours. Run its server with:
 
 ```sh
 pnpm checkpoint 23 server
 ```
 
-Neither entrypoint should contain a `Layer.provide`, and each should have at
-most one `Effect.provide`. The test in
-`checkpoints/24/test/Layers.test.ts` checks these constraints. Copy it into
-`test/` to check your own `src/`.
+Neither entrypoint contains a `Layer.provide`, and each has at most one
+`Effect.provide`. The test in `checkpoints/24/test/Layers.test.ts` checks
+exactly that, so copy it into `test/` to check your own `src/`.
 
-The application is ready for a feature you'll design yourself. In the
-[final challenge](/learn/part-4/24-independent-challenge), we'll add a way to
-pause a rule without throwing away its definition.
+The application is now ready for a feature you design yourself. In the
+[final challenge](/learn/part-4/24-independent-challenge), you'll add a way
+to pause a rule without throwing away its definition.
 
 ## Reference
 

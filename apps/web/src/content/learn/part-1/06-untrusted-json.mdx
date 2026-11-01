@@ -7,36 +7,36 @@ mode: playground
 lessonDir: 06-untrusted-json
 ---
 
-Suppose 500 is no longer the amount you care about. You want an alert for
-anything over 1000 instead, with a different message. At the moment, you'd
-have to edit both `isLarge` and `evaluate`. That's inconvenient for us,
-and it wouldn't work well for someone using reflex without touching its
-source code.
+Suppose 500 is no longer the limit you care about. You want an alert for
+anything over 1000, with a different message. At the moment that means
+editing both `isLarge` and `evaluate`. That is inconvenient for us, and
+impossible for someone who uses Reflex without touching its source code.
 
-Let's make those choices into data. A **rule** will contain the comparison,
-the threshold and the message. Eventually we'll read rules from files and
-accept them through an API. For now, a string of JSON gives us something
-to work with right here in the browser. Here's our familiar expense rule
-in that form:
+So let's turn those choices into data. A **rule** will hold the comparison,
+the threshold and the message. Eventually Reflex will read rules from files
+and accept them through an API. For now, a JSON string is enough to work
+with in the browser. Here is our expense rule in that form:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="largeExpense"
 />
 
-You can probably read what it means without running it: "greater than
-500," with the message "over 500." We'll move that existing rule into data
-first; after that, changing 500 to 1000 won't require editing the evaluator.
-But someone could misspell the operator
-or put text where the amount belongs. TypeScript can't check arbitrary JSON
-before our program receives it, so we need to check it while the program
-runs. We'll use Schema to describe what a valid rule looks like.
+It reads much as you'd expect: greater than 500, with the message
+"over 500". Once the rule is data, changing 500 to 1000 won't touch the
+checking code.
+
+There is a catch. Someone could misspell the operator or put text where
+the number belongs, and TypeScript can't check JSON that arrives while the
+program is running. We have to check it ourselves, at runtime. We'll use
+Schema to describe what a valid rule looks like, and let it reject anything
+else.
 
 ## Decide what a rule can contain
 
-We used `Schema.String` to describe the missing-field error. Now we'll
-combine a few schemas to describe the whole rule. Add this one below the
-`Event` interface:
+We used `Schema.String` to describe the `field` of our error. Now we'll
+combine a few schemas to describe a whole rule. Add this below the `Event`
+interface:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -48,16 +48,15 @@ combine a few schemas to describe the whole rule. Add this one below the
 `Schema.Literals(["gt", "lt"])` restricts `op` to those two strings, so a
 rule with any other operator will fail validation.
 
-Below it, add `type Rule = typeof Rule.Type`. This gives us a TypeScript
-type derived from the same description we'll use to validate the JSON.
-We don't have to maintain a separate interface with the same fields.
-The schema and type can both be named `Rule`; TypeScript distinguishes
-them by how we use the name.
+Below it, add `type Rule = typeof Rule.Type`. This derives a TypeScript
+type from the schema, so we don't maintain a separate interface with the
+same fields. The schema and the type can share the name `Rule`, because
+TypeScript tells them apart by how we use it.
 
 ## Turn the text into a checked rule
 
-Next we need a function to accept the JSON text and either return a rule
-or explain what's wrong with it. Add this line below the type:
+Next we need a function that takes the JSON text and either returns a rule
+or explains what is wrong with it. Add this line below the type:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -70,10 +69,10 @@ description into a decoding function. The resulting `decodeRule` accepts
 unknown input and returns an Effect that succeeds with a `Rule` or fails
 with a `SchemaError`.
 
-We'll see the error in a moment. Once decoding succeeds, though, the rest
-of the program can use the rule without checking those fields again.
-Validation does take runtime work, and we'll need to update the schema
-whenever we change the rule format.
+We'll see that error shortly. The payoff is that once decoding succeeds,
+the rest of the program can use the rule without checking its fields again.
+The cost is some work at runtime, and a schema to update whenever the rule
+format changes.
 
 ## Let the rule choose the comparison
 
@@ -85,14 +84,13 @@ Our old `isLarge` always checked for an amount over 500. Replace it with
   declaration="matches"
 />
 
-There are only two cases to handle because the schema accepts only
-`"gt"` or `"lt"`. That's the benefit of checking the input first:
-`matches` can concentrate on the comparison, with no `default` branch
-for an operator it doesn't understand.
+There are only two cases because the schema accepts only `"gt"` and `"lt"`.
+That is the benefit of checking the input first: `matches` needs no
+`default` branch for an operator it doesn't understand.
 
-Add a `json: string` parameter before `event` in `evaluate`, so callers use
-`evaluate(json, event)`. Its first step is
-`const rule = yield* decodeRule(json)`. The message is
+Now `evaluate` needs the rule. Add a `json: string` parameter before
+`event`, so callers write `evaluate(json, event)`, and make decoding the
+first step: `const rule = yield* decodeRule(json)`. The message becomes
 `${event.type} ${event.amount} ${rule.message}` when the rule matches and
 `${rule.name}: no alert` when it does not:
 
@@ -101,8 +99,9 @@ Add a `json: string` parameter before `event` in `evaluate`, so callers use
   declaration="evaluate"
 />
 
-Let's give it both a valid rule and a broken one. Add `largeExpense` from
-the top of this lesson, followed by this deliberately malformed rule:
+To see both outcomes, we'll give it a valid rule and a broken one. Add
+`largeExpense` from the top of this lesson, then this deliberately
+malformed rule:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -124,21 +123,21 @@ Run the file. The terminal shows three outcomes in order:
 2. The taxi is skipped, as in the previous lesson: `skip: missing field amount`.
 3. `malformed` fails with a `SchemaError`, and the program stops.
 
-The taxi still gets the recovery we chose for it. The broken rule does
-not, because our `catchTag` handles only `MissingField`. We haven't
-accidentally hidden a rule error by allowing incomplete receipts.
+The taxi still gets the recovery we chose for it. The broken rule does not,
+because `catchTag` handles only `MissingField`. Allowing incomplete
+receipts hasn't hidden a broken rule.
 
-We've also set the summary aside for now. `evaluate` still returns a
-boolean when it succeeds, but a broken rule can stop the program before
-we've checked everything. Later we'll keep a run history that includes
-failed checks as well as successful ones.
+The summary is gone for now. `evaluate` still returns a boolean, but a
+broken rule can stop the program before every expense has been checked, so
+a count at the end would be misleading. In Part 2, a run history takes over
+the job of recording what happened.
 
 ## Finding the invalid field
 
-Take a closer look at the failure in the terminal. It reads
-`SchemaError: Expected "gt" | "lt"` at `["op"]`. That's enough to find
-the mistake without stepping through the decoder: `op` is the offending
-field, and the message tells us which values it accepts.
+Look at the failure in the terminal. It reads
+`SchemaError: Expected "gt" | "lt"` at `["op"]`. That is enough to find the
+mistake: `op` is the offending field, and the message says which values it
+accepts.
 
 Decoding stops at the first problem it finds. `malformed` also has a string
 where the value should be a number, and no message at all. Fix the operator
@@ -146,13 +145,13 @@ and the next problem is reported.
 
 Hover `evaluate`. Its return type is
 `Effect<boolean, SchemaError, never>`. Unlike `MissingField`, this error
-comes from the decoder rather than a class you defined. It remains in the
-type because you have not handled it.
+comes from the decoder rather than from a class we defined, and it stays in
+the type because we haven't handled it.
 
 ## Try it
 
-Try adding a rule that matches an exact amount rather than a range.
-Start with the schema and let TypeScript show you what else needs to change:
+Let's add an operator for an exact amount. Start with the schema and let
+TypeScript show you what else has to change:
 
 1. Add `"eq"` to the literals. TypeScript underlines `matches`, because its
    `switch` no longer covers every case. Add the `eq` case,
@@ -160,15 +159,15 @@ Start with the schema and let TypeScript show you what else needs to change:
 2. Change the operator in `malformed` to `"between"` and run the file. The
    error now lists `"eq"` among the expected operators.
 
-In this program, the JSON rule needs runtime validation because it arrives
-as text. The `laptop` object is constructed in TypeScript and checked
-against the `Event` interface, so it does not need a decoder here. Keep
-that distinction in mind when you move to external input.
+Notice which values need a decoder. The rule arrives as text, so it needs
+validating at runtime. The `laptop` object is written in TypeScript and
+checked against the `Event` interface, so it doesn't. Only input from
+outside the program needs a schema.
 
-Reflex now has a rule someone could edit without changing the checking
-code, and a useful response when that rule is wrong. Before we add more
-rules, let's make failures easier to locate. The error tells us which
-field was invalid; next we'll add the name of the operation that found it.
+Reflex now reads its rule from data, and it has a useful response when that
+rule is wrong. Before we add more rules, let's make failures easier to
+locate. The error says which field was invalid. Next we'll add the name of
+the operation that found it.
 
 ## Reference
 

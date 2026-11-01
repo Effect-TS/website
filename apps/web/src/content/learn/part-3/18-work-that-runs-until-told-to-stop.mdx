@@ -7,78 +7,75 @@ mode: local
 ---
 
 Our expense alert waits for someone to submit an event. A service-status
-alert will need to do something different: check a URL regularly, even
-when nobody is using the CLI. That work should keep going while reflex is
-running and stop when we shut it down. We don't want a last check trying
-to use a database that has already closed.
+alert needs to work the other way round: it has to check a URL on its own,
+regularly, even when nobody is using the CLI. That checking should run for
+as long as Reflex runs and stop when we shut it down, cleanly enough that a
+last check never tries to use a database that has already closed.
 
-Let's get comfortable with that start-and-stop behavior before adding
-network requests. We'll make a heartbeat, a small task that periodically
-logs how many rules are stored. It gives us something easy to watch while
-we learn how to run work in the background. By the end, pressing Ctrl-C
-will give us a final message confirming that the heartbeat stopped.
+Starting and stopping is the hard part, so let's learn it before we add any
+network requests. We'll build a heartbeat: a small task that logs how many
+rules are stored, over and over. It is easy to watch, which makes it a good
+first piece of background work. By the end of the lesson, pressing Ctrl-C
+prints one final line confirming that the heartbeat stopped.
 
 ## Create a repeating effect
 
-Create `src/Heartbeat.ts` to read and log the rule count at startup and then
-every 30 seconds:
+The heartbeat reads the rule count and logs it, once at startup and then
+every 30 seconds. Create `src/Heartbeat.ts`:
 
 <LessonCode file="checkpoints/18/src/Heartbeat.ts" />
 
-You already know how to list rules and log a value. The inner `Effect.gen`
-block does just that, once. To keep it going, `Effect.repeat` repeats that
-effect according to a
-`Schedule`, a value describing when subsequent iterations should run. With
-`Schedule.spaced("30 seconds")`, the first iteration runs immediately, then
-each subsequent iteration starts 30 seconds after the previous one ends.
+The inner `Effect.gen` block lists the rules and logs the count, once.
+`Effect.repeat` keeps it going, running it again according to a `Schedule`,
+a value that says when each repetition should happen. With
+`Schedule.spaced("30 seconds")`, the first run happens immediately and every
+later one starts 30 seconds after the previous one ends.
 
-There's a catch with a loop that never finishes. If we wait for it while
-building the layer, the server will never finish starting.
-`Effect.forkScoped` starts it on
-a separate fiber instead. A fiber is an independently running computation;
-the server can continue starting while this one logs and waits between
-iterations.
+A loop that never finishes brings a problem: if the layer waited for it,
+the server would never finish starting. So `Effect.forkScoped` starts the
+loop on a separate fiber instead. A fiber is an independently running
+computation, which means the server can carry on starting while this one
+logs and waits between iterations.
 
-We still need someone to stop that fiber. It belongs to the current scope,
-so it will be interrupted when that scope closes. `Effect.onInterrupt`
-adds the log we'll use to observe that
-shutdown. It runs on interruption, not when an effect succeeds or fails for
-another reason.
+Something still has to stop that fiber. It belongs to the current scope, so
+it is interrupted when the scope closes. `Effect.onInterrupt` adds the log
+line we'll use to watch that happen. The handler runs only on interruption,
+not when the effect succeeds or fails on its own.
 
 ## Tie the heartbeat to the server lifecycle
 
-Unlike `RuleStore`, the heartbeat has no methods for other code to call.
-It just needs to start with the server. That is why we use
-`Layer.effectDiscard`, which builds a layer without providing a service.
-Its effect runs
-when the layer is built, and `forkScoped` uses the scope available during
-that construction. When the server closes the scope, it interrupts the
-heartbeat and waits for its interruption handler before shutdown completes.
+Unlike `RuleStore`, the heartbeat offers no methods for other code to
+call. It only needs to start when the server starts, which is what
+`Layer.effectDiscard` is for: it builds a layer from an effect without
+providing a service. The effect runs while the layer is being built, and
+`forkScoped` attaches the fiber to the scope of that build. When the server
+closes the scope, it interrupts the heartbeat and waits for the
+interruption handler to finish before shutdown completes.
 
 In `src/server/main.ts`, merge the heartbeat layer with the served API:
 
 <LessonCode file="checkpoints/18/src/server/main.ts" />
 
-Before starting it, notice the dependency on `RuleStore`. It determines
-the shutdown order. The store is
-built before the heartbeat, and the heartbeat stops before the store
-closes. This keeps the database available until the loop has finished using
-it. We don't need a separate shutdown routine to coordinate the two.
+The heartbeat depends on `RuleStore`, and that dependency decides the
+shutdown order. The store is built before the heartbeat, so the heartbeat
+is stopped before the store closes, and the database stays available until
+the loop has finished using it. There is no separate shutdown routine to
+write.
 
 Run `pnpm dev:server`. The heartbeat logs `rules stored:` followed by the
 number of rules in `reflex.db`, then repeats every 30 seconds.
 
 ## Observe shutdown with Ctrl-C
 
-Once you've seen the count, press Ctrl-C. Look for this last log line
-before the process exits:
+Once the count has appeared, press Ctrl-C. The last log line before the
+process exits is:
 
 ```text
 heartbeat stopped
 ```
 
-The heartbeat has stopped, and we didn't write a signal handler. That
-message came from `onInterrupt`. Here is how Ctrl-C reached our loop:
+That line comes from `onInterrupt`, and we never wrote a signal handler.
+Ctrl-C reached the loop like this:
 
 1. `runMain` interrupts the main fiber when it receives Ctrl-C.
 2. That interruption ends `Layer.launch`, which has been keeping the server
@@ -86,17 +83,17 @@ message came from `onInterrupt`. Here is how Ctrl-C reached our loop:
 3. The scope interrupts the heartbeat fiber and waits for it to stop.
 4. The heartbeat runs its `onInterrupt` handler before it finishes.
 
-We now have background work that starts and stops with reflex. The
-heartbeat keeps one fiber alive for the server's lifetime, although it
-spends most of that time waiting between iterations. In
-[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock),
-we'll use the same idea for interval rules, with one loop per rule. Then
-we can work on stopping an individual rule without stopping the others.
+We now have background work that starts and stops with Reflex. The
+heartbeat keeps one fiber alive for the server's lifetime, most of it spent
+waiting between iterations. In
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+we'll use the same idea for interval rules, one loop per rule, and then
+face the harder question of stopping one rule without stopping the others.
 
 ## Checkpoint
 
-If you'd like to compare the startup and shutdown with the reference
-version, run checkpoint 18:
+To compare your startup and shutdown with the reference version, run
+checkpoint 18:
 
 ```sh
 pnpm checkpoint 18 server
@@ -111,9 +108,8 @@ Ctrl-C and look for the final line before the process exits:
 heartbeat stopped
 ```
 
-With the viewer running, the same line is in the Logs tab, from
-`reflex-server`. That gives you a record of shutdown as well as the messages
-you saw in the terminal.
+With the viewer running, the same line appears in its Logs tab, from
+`reflex-server`, so the shutdown is on record as well as in the terminal.
 
 ## Reference
 

@@ -1,12 +1,12 @@
 # reflex
 
-Build reflex, a small automation engine, as you work through the Learn Effect course. Rules respond to events or poll a URL, check a condition, and run an action when it matches. A run history records what happened.
+This is the starter project for the Learn Effect course, in which you build Reflex, a small automation engine. Its rules respond to events or poll a URL, check a condition, and run an action when the condition matches, and a run history records what happened.
 
-This starter provides the tooling and fixtures. You write the application in `src/`, with reference solutions available at each checkpoint.
+The starter provides the tooling and fixtures. You write the application yourself in `src/`, and a reference solution is available at every checkpoint.
 
 ## Prerequisites
 
-Install these before starting. The course's setup estimate assumes they are already available.
+Install these before you start. The course's setup time assumes they are already in place.
 
 - Node.js 22.16 or newer
 - pnpm, installed directly or through `corepack enable`
@@ -37,11 +37,11 @@ Windows through WSL2 is untested.
    pnpm run doctor --viewer
    ```
 
-   This command checks your tools and downloads otel-desktop-viewer on first use, if your machine supports its binary. It can use Docker instead on other supported systems. When all checks pass, it prints `All set.` and starts the viewer. Leave it running until you finish using the viewer, then press Ctrl-C to stop it.
+   The doctor checks your tools and, on first use, downloads otel-desktop-viewer if your machine can run its binary. Where it cannot, Docker is used instead. When every check passes, it prints `All set.`, starts the viewer, and keeps running until you press Ctrl-C.
 
    If a check is marked `✗`, follow the installation hint on that line and run the command again.
 
-Keep `run` in `pnpm run doctor`: without it, `pnpm doctor` invokes pnpm's built-in diagnostics instead of the starter's script.
+Keep the `run` in `pnpm run doctor`. Without it, `pnpm doctor` runs pnpm's own built-in diagnostics instead of the starter's script.
 
 In later sessions, use `pnpm viewer` to start the viewer without repeating the checks. To check your tools without starting the viewer, use `pnpm run doctor`.
 
@@ -66,14 +66,14 @@ In later sessions, use `pnpm viewer` to start the viewer without repeating the c
 ## Directory layout
 
 - `src/`: your application. You write it during the course.
-- `tools/`: the doctor, viewer launcher, receiver and runners. The course does not require changes to these files.
+- `tools/`: the doctor, viewer launcher, receiver and runners. You never need to change these.
 - `fixtures/`: rule files and sample events used by the lessons.
 - `migrations/`: the SQL schema for lesson 17.
 - `lessons/part1/`, `checkpoints/`, `exercises/`: lesson files, reference solutions and exercises.
 
 ## The receiver
 
-Use `pnpm receiver` to test rules that call outside services. It starts a local HTTP server on http://localhost:4600 with endpoints for successful responses, errors, and delays:
+Rules that call outside services are tested against `pnpm receiver`, a local HTTP server on http://localhost:4600 whose endpoints answer with successes, errors and delays:
 
 | Endpoint | Response |
 | --- | --- |

@@ -18,12 +18,12 @@ After exercise 12, your Engine already handles this case correctly. Test the run
    (error) => Effect.succeed<RunResult>({ outcome: "skipped", reason: "no match" })
    ```
 
-   `pnpm check` still passes because the incorrect reason is still a valid string. The test must catch what the type check cannot.
+   `pnpm check` still passes, because a wrong reason is still a valid string. Only the test can catch this.
 
-3. Run `pnpm test test/Engine.test.ts` again. It should fail on the reason with `expected 'no match' to match /amount/`. This failure confirms that your test catches the bug.
+3. Run `pnpm test test/Engine.test.ts` again. It fails on the reason with `expected 'no match' to match /amount/`, which confirms that the test can see the bug.
 
 4. Put the original line back: `` reason: `missing field ${error.field}` ``.
 
-After restoring the line, confirm that `pnpm test test/Engine.test.ts` and `pnpm check` both pass.
+With the line restored, `pnpm test test/Engine.test.ts` and `pnpm check` both pass again.
 
 The test is in `solution/test/`.

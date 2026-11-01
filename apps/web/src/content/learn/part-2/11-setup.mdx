@@ -6,16 +6,16 @@ minutes: 15
 mode: guide
 ---
 
-So far, reflex has lived in the browser editor. It can check expenses, but
-we want to give it files to read and somewhere to save its alerts. That
+So far, Reflex has lived in the browser editor. It can check expenses, but
+we want to give it files to read and somewhere to save its alerts, which
 means moving onto your machine. The starter includes the program from the
 [Part 1 review](/learn/part-1/10-checkpoint), so we can pick up where we left
 off rather than rebuild it.
 
-Let's get that program running locally before starting
+This guide gets that program running locally before
 [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint).
-We'll also start a trace viewer, a separate application that will help us
-see what reflex is doing once it has a server and a command-line client.
+It also starts a trace viewer, a separate application that will show us what
+Reflex is doing once it has a server and a command-line client.
 
 If you prefer to work through Part 1 locally, complete steps 1 and 2 now
 and run each lesson with `pnpm lesson <n>`. Part 1 does not use the viewer,
@@ -43,9 +43,9 @@ npx degit Effect-TS/website/courses/reflex reflex
 cd reflex
 ```
 
-`degit` copies the starter directory without the website's git history.
-The resulting `reflex` directory is yours to work in. You can initialize a
-git repository there if you want to save your changes as you go.
+`degit` copies the starter directory without the website's git history, so
+the `reflex` directory is a project of your own. You can initialize a git
+repository there if you want to save your changes as you go.
 
 ## 2. Install the dependencies
 
@@ -55,20 +55,20 @@ From inside `reflex`, install the packages the lessons use:
 pnpm install
 ```
 
-The Effect packages are pinned to the exact versions used to check the
-lessons, checkpoints and tests. Keep those versions while working through
-the course so the examples match your installed APIs.
+The Effect packages are pinned to the exact versions the lessons,
+checkpoints and tests were checked against. Keep those versions while you
+work through the course, so the examples match the APIs you have installed.
 
 ## 3. Check your machine and start the viewer
 
-The starter has a check for the tools we need. Run it now and let it start
-the viewer as well:
+The starter has a script that checks for the tools we need. Run it now and
+let it start the viewer as well:
 
 ```sh
 pnpm run doctor --viewer
 ```
 
-Include `run` in this command. pnpm has its own built-in `doctor`, so
+Include `run` in this command. pnpm has a built-in `doctor` of its own, so
 `pnpm doctor` would run pnpm's checks rather than the starter's script.
 
 On the first run, the doctor downloads otel-desktop-viewer v0.6.0 into
@@ -88,28 +88,28 @@ otel-desktop-viewer v0.6.0 (/home/you/reflex/.viewer/otel-desktop-viewer)
 Press Ctrl-C to stop.
 ```
 
-When you see the two localhost addresses, leave this terminal running.
-Stopping it also stops the viewer. Open a second terminal for the
+Once the two localhost addresses appear, leave this terminal running,
+because stopping it also stops the viewer. Open a second terminal for the
 remaining commands.
 
 If your machine cannot run the binary, for example because its Linux glibc
-version is older than 2.39, the script uses Docker to run the same viewer
-version in a container. The viewer check reports Docker in that case.
+version is older than 2.39, the script runs the same viewer version in a
+Docker container instead, and the viewer check line says so.
 
 A line marked `✗` identifies a missing requirement and explains what to
-install. Address it, then run `pnpm run doctor --viewer` again.
+install. Install it, then run `pnpm run doctor --viewer` again.
 
 ## 4. Run the Part 1 file
 
-In a second terminal, in the same directory:
+In the second terminal, in the same directory:
 
 ```sh
 pnpm tsx src/run-once.ts
 ```
 
-This should look familiar. `src/run-once.ts` is the file from the Part 1
-review, and it prints the same three alert lines and three skip lines you
-saw in the browser:
+`src/run-once.ts` is the file from the Part 1 review, so the output is the
+one you saw in the browser: three alert lines and three skip lines, each
+prefixed with a timestamp and `INFO`:
 
 ```text
 expense 1200 over 500
@@ -120,18 +120,16 @@ skip: missing field amount
 skip: missing field amount
 ```
 
-Each line is prefixed with a timestamp and `INFO`.
-
-Now open [http://localhost:8000](http://localhost:8000). You should see an
-empty trace list. Nothing is missing. The viewer is ready, but we haven't
-connected reflex to it yet. We'll do that in
+Now open [http://localhost:8000](http://localhost:8000). The trace list is
+empty, and that is expected: the viewer is ready, but Reflex does not send
+it anything until
 [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know).
 
-If the page loads and the program printed all six lines, you're ready to
-continue. In [the next lesson](/learn/part-2/11-your-program-your-entrypoint),
-we'll give this program its first files to read. Keep
-[Reading a trace in the viewer](/learn/part-2/trace-viewer) handy for when
-traces start arriving; there's no need to learn the viewer yet.
+If the page loads and the program printed all six lines, setup is done. In
+[the next lesson](/learn/part-2/11-your-program-your-entrypoint), we give
+this program its first files to read. When traces start arriving,
+[Reading a trace in the viewer](/learn/part-2/trace-viewer) explains what you
+are looking at.
 
 ## Later sessions
 
@@ -145,12 +143,12 @@ You only need to download the viewer once. For later sessions:
 
 Troubleshooting may take longer than the estimated 15 minutes. The doctor
 checks the Node version, pnpm, git, and whether the viewer can run as a
-binary or through Docker. You need to install Node, pnpm and Docker yourself
-if they are missing.
+binary or through Docker. If Node, pnpm or Docker are missing, you install
+them yourself.
 
 This guide does not cover proxy or firewall configuration, conflicts on
-ports 8000 and 4318, or running natively on Windows. Don't let a viewer
-problem hold up the earlier lessons, though. You can still work through
-Part 1 and the first five local lessons without it. You'll need it from
+ports 8000 and 4318, or running natively on Windows. A viewer problem does
+not have to hold up the lessons, though. Part 1 and the first five local
+lessons work without it, and you need it from
 [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
 on.

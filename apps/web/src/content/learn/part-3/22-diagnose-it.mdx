@@ -6,25 +6,26 @@ minutes: 15
 mode: local
 ---
 
-So far, we've usually known what would go wrong before sending a request.
-We chose the slow receiver or introduced the bug ourselves. When reflex
-runs without us watching, we won't have that advantage. We'll need to
-work backwards from the history and traces it leaves behind.
+So far we have known what would go wrong before sending a request,
+because we chose the slow receiver or planted the bug ourselves. When
+Reflex runs without anyone watching, we lose that advantage. All we will
+have is the history and the traces it leaves behind, and we'll have to
+work backwards from those.
 
-Let's try that with the mixed scenario from the last lesson. There's no
-new code to write this time. Run it again, then use only `runs list` and
-the viewer to explain what happened. Keep the code and fixture files
-closed while you investigate. We're checking whether our application
-leaves enough evidence to understand a request after it has finished.
+Let's practise that with the mixed scenario from the last lesson. There is
+no code to write this time. Run the scenario again, then explain what
+happened using nothing but `runs list` and the viewer. Keep the code and
+the fixture files closed while you investigate. The question is whether
+our application leaves enough evidence to understand a request after it
+has finished.
 
 ## Reproduce the mixed scenario
 
 Use checkpoint 22, or your own server if it matched the previous
-checkpoint. To avoid sorting through older runs, start with an empty
-database so there is only one event's results to inspect. Stop the server
-and delete `reflex.db`; this removes
-the stored rules as well as the run history. Then start the mixed receiver
-and server and run the commands below.
+checkpoint. Start from an empty database, so the only results to inspect
+belong to this one event: stop the server and delete `reflex.db`, which
+removes the stored rules as well as the run history. Then start the mixed
+receiver and the server and run the commands below.
 
 ```sh
 pnpm receiver --scenario mixed
@@ -43,18 +44,18 @@ pnpm checkpoint 22 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 22 cli runs list
 ```
 
-After about 10 seconds, `events submit` prints four outcomes. `runs list`
-should contain four rows. Those are our starting point. Open the newest
-`reflex-server` trace containing an `Engine.handleEvent` span in the viewer.
+After about 10 seconds, `events submit` prints four outcomes and
+`runs list` shows four rows. That is our evidence. In the viewer, open the
+newest `reflex-server` trace that contains an `Engine.handleEvent` span.
 [Reading a trace in the viewer](/learn/part-2/trace-viewer) describes each
-part of the screen.
+part of the screen if you need a reminder.
 
 ## Answer from the recorded evidence
 
-Take your time with the trace. Write down an answer to each question and
-the evidence that led you there. A span name, the fields in a run row or a
-measured duration will make your explanation more useful than remembering
-what the fixture was supposed to do.
+Take your time with the trace. For each question, write down your answer
+and the evidence behind it: a span name, a field in a run row, a measured
+duration. Evidence makes a better explanation than remembering what the
+fixture was supposed to do.
 
 1. Which operation was slowest? How long did it take, and why that long?
 2. Which operation failed, and with what?
@@ -62,35 +63,36 @@ what the fixture was supposed to do.
    whole request take?
 4. Did a timeout fire? Name two places that show it.
 
-If you see the slow request succeed rather than time out, don't try to
-force your answer to match the question. Check whether
-`REFLEX_TIMEOUT` is set in the server's shell. This exercise assumes the
-default 10 second timeout, shorter than the receiver's 15 second response.
+If the slow request succeeds instead of timing out, don't bend your answer
+to fit the question. Check whether `REFLEX_TIMEOUT` is set in the server's
+shell. The exercise assumes the default 10 second timeout, which is shorter
+than the receiver's 15 second response.
 
 ## Compare your answers
 
 Once you have an explanation for each question, compare your notes with
 [the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids
-and exact timings will differ, but the outcomes and their relationships
-should match.
+and exact timings will differ, but the outcomes and how they relate should
+match.
 
-If you needed information that wasn't in `runs list` or the viewer, note
-what was missing. That isn't necessarily a gap in your understanding. A
-trace can only explain what the program recorded. Your observation can
-become a follow-on improvement in
+If you needed information that was not in `runs list` or the viewer, note
+what was missing. That is not a gap in your understanding. A trace can
+only explain what the program recorded, and your note is the start of one
+of the follow-on improvements in
 [Where to go next](/learn/part-4/what-comes-next).
 
 ## Checkpoint
 
-Before moving on, read your explanation as if you were handing it to
-someone who hadn't watched the request. It should identify the slowest
-operation, distinguish its timeout from the 500 response, and show that
-the two successful runs didn't wait for it. Use the `Engine.handleEvent`
-span to explain the whole request's duration. You should have four run
-rows and four execution spans to support your account: two red and two Ok.
+Read your explanation as if you were handing it to someone who did not
+watch the request. It should name the slowest operation, tell its timeout
+apart from the 500 response, and show that the two successful runs did not
+wait for it, using the `Engine.handleEvent` span to explain how long the
+whole request took. Four run rows and four execution spans, two red and two
+Ok, back it all up.
 
-That is a useful capability to have built into reflex. You can explain a
-request without adding temporary log lines and hoping to catch it again.
+That is a useful thing to have built into Reflex. You can explain a request
+after the fact, without adding temporary log lines and hoping to catch it
+again.
 
 ## Reference
 

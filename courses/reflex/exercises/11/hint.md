@@ -9,6 +9,6 @@ Currently, `alertLine` builds each alert from the event, producing lines such as
 3. Delete `alertLine` and `words`, which are no longer used.
 4. Copy a rule file, remove the message from the copy, and try running it. Read the error to find the missing key and its path.
 
-Run `pnpm tsx src/run-once.ts fixtures/rules/expense.json fixtures/events/laptop.json` to check your change. It should append `expense over 500` to `alerts.log`. To compare with the state before the exercise, run `pnpm checkpoint 11`.
+Run `pnpm tsx src/run-once.ts fixtures/rules/expense.json fixtures/events/laptop.json` to check your change. It appends `expense over 500` to `alerts.log`. To compare with the state before the exercise, run `pnpm checkpoint 11`.
 
 The changed files are in `solution/`. From checkpoint 12 on, the checkpoints include this change.

@@ -2,9 +2,9 @@
 
 Use only `runs list` and the viewer to answer four questions about one event.
 
-Run the mixed scenario from lesson 21 again, without consulting the code or fixture files while you answer. This will help you check whether the run history and traces provide enough information to diagnose the results.
+Run the mixed scenario from lesson 21 again, and don't look at the code or the fixture files while you answer. The point is to find out whether the run history and the traces tell you enough on their own.
 
-Start with an empty database so the event matches only these four rules. Stop the server and delete `reflex.db` before restarting it below. This deletes the existing rules and run history. Keep the trace viewer running.
+Start with an empty database, so the event matches only these four rules: stop the server and delete `reflex.db` before restarting it below. Keep the trace viewer running.
 
 1. Start the receiver and server in separate terminals, then add the four rules with the CLI:
 

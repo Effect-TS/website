@@ -6,15 +6,16 @@ minutes: 20
 mode: local
 ---
 
-Our expense checker works, but using it for a new purchase still means
-editing TypeScript. And once you close the terminal, its alerts are gone.
-Let's give it a more useful way to work: read a rule and an expense from
-JSON files, then save any alert in `alerts.log`.
+Our expense checker works, but checking a new purchase still means editing
+TypeScript, and once you close the terminal its alerts are gone. Reflex
+needs to take its instructions from outside the program and leave something
+behind. In this lesson it reads a rule and an expense from JSON files, then
+saves any alert in `alerts.log`.
 
-The program from the Part 1 review is waiting in `src/run-once.ts`. We'll
-replace it a piece at a time. Reading and writing files will need a new
-service, but getting hold of that service works just like the `RuleStore`
-you already used.
+The program from the Part 1 review is waiting in `src/run-once.ts`, and we
+replace it a piece at a time. Reading and writing files needs a new
+service, but getting hold of that service works exactly like the
+`RuleStore` you already used.
 
 ## Run the starter file
 
@@ -24,28 +25,28 @@ First, run the version you have now:
 pnpm tsx src/run-once.ts
 ```
 
-You should see the three alert lines and three skip lines from Part 1.
-They still only appear in the terminal. By the end of this lesson, we'll
-be able to open a file and find an alert there too.
+The three alert lines and three skip lines from Part 1 appear, and they
+still only appear in the terminal. By the end of this lesson, an alert will
+also be waiting in a file.
 
 ## Read the rule you will run
 
 Open `fixtures/rules/expense.json`. This is how someone will describe what
-they want reflex to do, without editing the program. Read its trigger,
-condition and action:
+they want Reflex to do without editing the program. It has a trigger, a
+condition and an action:
 
 <LessonCode file="fixtures/rules/expense.json" />
 
-Notice the action's `message` field. For our first run, we'll keep building
-the alert text from the event as we did in Part 1. Then you'll make that
-message configurable in the exercise.
+The action has a `message` field. For our first run we keep building the
+alert text from the event, as we did in Part 1, and in the exercise you make
+the message configurable.
 
 ## A schema for triggers, conditions and actions
 
 In Part 1, a rule only needed enough information to compare an amount
 against a threshold. The file we just opened also says when to check that
-condition and where to write the alert. Create `src/Rule.ts` with a schema
-for those three parts:
+condition and where to write the alert, so our schema needs all three parts.
+Create `src/Rule.ts` with a schema where:
 
 - A trigger is an `event` or an `interval`.
 - A condition is optional. It compares a `field` against a `value` using an
@@ -53,61 +54,60 @@ for those three parts:
   such as `body.status`. Without a condition, evaluation returns `true`.
 - An action is `appendFile` or `httpPost`.
 
-On your first read, follow the rule we just opened: an `event` trigger,
-the condition `amount gt 500`, and an `appendFile` action. The schema also
-contains the interval and HTTP variants we'll use later. You don't need to
-understand how those will run yet; keep your attention on getting this
-expense alert into a file.
+On a first read, follow the rule we just opened through the schema: an
+`event` trigger, the condition `amount gt 500`, and an `appendFile` action.
+The interval and HTTP variants are there because later lessons use them.
+For now, the goal is getting this expense alert into a file.
 
 <LessonCode file="checkpoints/11/src/Rule.ts" />
 
-If you've used discriminated unions in TypeScript, the `type` fields here
-will be familiar. Each trigger or action variant is a `Schema.Struct`
-with a distinct `type` literal. `Schema.Union` combines them and preserves
+If you have used discriminated unions in TypeScript, the `type` fields will
+be familiar. Each trigger or action variant is a `Schema.Struct` with a
+distinct `type` literal, and `Schema.Union` combines them while preserving
 the information TypeScript needs to narrow the type. Inside
-`case "appendFile":`, for example, you can access `rule.action.path` because
-that property belongs to the `appendFile` variant.
+`case "appendFile":`, for example, you can access `rule.action.path`
+because that property belongs to the `appendFile` variant.
 
 `lookup` reads the dotted path from the event. When a key on the path is
-absent it fails with `MissingField`, the error you defined in
+absent, it fails with `MissingField`, the error you defined in
 [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see).
 
 ## Append a line to a file
 
-Now we need the part that actually saves the alert. Create `src/Action.ts`
-for the file-writing action. Effect provides the `FileSystem.FileSystem`
-service, which you access in the same way as your own `RuleStore` from
-[Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules).
-Use `yield*` to get the service, then call its methods.
+Now we need the part that saves the alert. Effect provides a
+`FileSystem.FileSystem` service, and you access it the same way as your own
+`RuleStore` from
+[Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules):
+`yield*` the service, then call its methods. Create `src/Action.ts` for the
+file-writing action:
 
 <LessonCode file="checkpoints/11/src/Action.ts" />
 
 We want to keep previous alerts, so `flag: "a"` makes `fs.writeFileString`
-append rather than overwrite. If the file doesn't exist yet, the operation
+append rather than overwrite. If the file does not exist yet, the write
 creates it.
 
 A write can fail, for example because the process lacks permission.
-`FileSystem` represents that failure as a `PlatformError`, but callers of
-`appendLine` need an error about the action they attempted. `Effect.mapError`
-converts it to `ActionFailed`, preserving the original message and adding
-the reason `io`.
-
-For now, `io` is the only reason in `ActionFailed`. That's enough to
-describe the file-writing failures we can encounter here.
+`FileSystem` reports that failure as a `PlatformError`, but callers of
+`appendLine` want an error about the action they attempted, so
+`Effect.mapError` converts it to `ActionFailed`, keeping the original
+message and adding the reason `io`. That is the only reason `ActionFailed`
+has so far, because a file write is the only action we can run.
 
 ## Connect the program to Node
 
-We have a rule we can decode and an action we can run. Let's connect them.
-Replace `src/run-once.ts` with the program below. Its `readJson` helper reads
-a file and decodes its contents with a schema. We use it for both the rule
-and the event, then check the condition and append an alert if it matches:
+We have a rule we can decode and an action we can run, so the program can
+now connect them. Replace `src/run-once.ts` with the program below. Its
+`readJson` helper reads a file and decodes its contents with a schema. We
+use it for both the rule and the event, then check the condition and append
+an alert if it matches:
 
 <LessonCode file="checkpoints/11/src/run-once.ts" />
 
-Take a look at the bottom of the file. You'll recognize `NodeRuntime.runMain`
-from Part 1. We left that run line alone in the browser; here we're adding
-real Node services and choosing how errors and exit codes are reported.
-The pipeline prepares the effect and runs it in this order:
+The bottom of the file is the `NodeRuntime.runMain` line from Part 1, which
+we left alone in the browser. Here we add real Node services to it and
+decide how errors and exit codes are reported. The pipeline prepares the
+effect and runs it in this order:
 
 1. `Effect.tapError` prints a typed error as one line, then passes the
    failure on unchanged.
@@ -118,8 +118,7 @@ The pipeline prepares the effect and runs it in this order:
    is off because step 1 already printed the error.
 
 The schema accepts an `httpPost` action, but the program does not execute
-it yet. That branch logs a message explaining that the action is introduced
-later.
+it yet. That branch logs a message saying the action is introduced later.
 
 ## Check the file output
 
@@ -129,20 +128,20 @@ Try the laptop purchase first:
 pnpm tsx src/run-once.ts fixtures/rules/expense.json fixtures/events/laptop.json
 ```
 
-The terminal prints the following log line, prefixed by a timestamp and
-`INFO`. The program also creates `alerts.log` and appends the alert text to it:
+The terminal prints the log line below, prefixed by a timestamp and `INFO`,
+and the program creates `alerts.log` with the alert text in it:
 
 ```text
 large expense: appended "expense 1200 over 500" to alerts.log
 ```
 
 Open `alerts.log` to check that the message is there. Then run the program
-again with `fixtures/events/lunch.json`. Its amount, 40, is below
-the threshold of 500, so the terminal prints `large expense: no match`
-and the file is unchanged.
+again with `fixtures/events/lunch.json`. Its amount, 40, is below the
+threshold of 500, so the terminal prints `large expense: no match` and the
+file is unchanged.
 
-Run it with `fixtures/rules/malformed.json`. It prints a typed error with no
-stack trace and exits with code 1:
+Finally, run it with `fixtures/rules/malformed.json`. It prints a typed
+error with no stack trace and exits with code 1:
 
 ```text
 SchemaError: Expected "eq" | "neq" | "gt" | "lt" | "contains"
@@ -151,12 +150,12 @@ SchemaError: Expected "eq" | "neq" | "gt" | "lt" | "contains"
 
 ## Try it
 
-We can now change the expense without touching TypeScript. Let's make the
-alert text just as easy to change. The `alertLine` function still builds
-text such as `expense 1200 over 500` from the event and condition, even
-though the rule file has its own `"message": "expense over 500"`. Make the
-action write that message instead, so the person defining the rule can
-choose what the alert says.
+We can now change the expense without touching TypeScript, so the alert
+text should be just as easy to change. The `alertLine` function still
+builds text such as `expense 1200 over 500` from the event and condition,
+even though the rule file has its own `"message": "expense over 500"`. Make
+the action write that message instead, so the person defining the rule
+chooses what the alert says.
 
 1. Add `message: Schema.String` to the `AppendFile` struct in `src/Rule.ts`.
 2. In the `appendFile` case of `src/run-once.ts`, hover over
@@ -185,9 +184,8 @@ With `fixtures/events/lunch.json` instead, nothing is appended. With
 stack trace.
 
 Reflex now reads its instructions from files and leaves an alert behind.
-What it doesn't leave is a record of why a rule didn't write anything.
-Next, we'll add a run history so a quiet `alerts.log` doesn't leave us
-guessing.
+What it does not leave is a record of why a rule wrote nothing. Next, we
+add a run history, so a quiet `alerts.log` no longer leaves us guessing.
 
 ## Reference
 

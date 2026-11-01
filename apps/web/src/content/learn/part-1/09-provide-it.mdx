@@ -7,25 +7,24 @@ mode: playground
 lessonDir: 09-provide-it
 ---
 
-Let's get our alerts back. The program knows how to ask for rules and
-check them, but the red underline at `NodeRuntime.runMain(program)`
-reminds us that we haven't given it a store to ask.
+Let's get our alerts back. The program knows how to ask for rules and check
+them, but the red underline at `NodeRuntime.runMain(program)` reminds us
+that we haven't given it a store to ask.
 
-We'll start with something small: a Map containing the same rule strings
-we've already used. Once the program runs again, we'll try a different
-set of rules. The interesting part is how little of the program needs to
-change when we swap the store.
+We'll start small, with a Map holding the same rule strings we've been
+using. Once the program runs again, we'll swap in a different set of rules
+and see how little of the program has to change.
 
 ## Build our first store
 
-We need to create the Map and implement the `list` operation we promised
-in `RuleStore`. We'll describe that construction with a **layer**.
-`Layer.effect(RuleStore, effect)` associates the service with an Effect
-that builds its implementation.
+The store needs a Map and an implementation of the `list` operation we
+promised in `RuleStore`. In Effect, the code that builds a service is a
+**layer**. `Layer.effect(RuleStore, effect)` pairs the service with an
+Effect that constructs its implementation.
 
 Add `Layer` to the `effect` import and put the `largeExpense` and
-`malformed` constants back above the class. You can copy the original
-JSON strings from [Validating JSON with Schema](/learn/part-1/06-untrusted-json).
+`malformed` constants back above the class. You can copy the original JSON
+strings from [Validating JSON with Schema](/learn/part-1/06-untrusted-json).
 Then add this static member to `RuleStore`, so the implementation lives
 next to the interface:
 
@@ -39,35 +38,33 @@ static readonly layer = Layer.effect(
 )
 ```
 
-Inside the layer is a familiar Map and an object with a `list` member.
-`RuleStore.of` lets TypeScript check that the object matches the
-interface we declared. When `list` runs, it reads the Map's values into
-an array.
+Inside the layer is an ordinary Map and an object with a `list` member.
+`RuleStore.of` makes TypeScript check that the object matches the interface
+we declared. When `list` runs, it reads the Map's values into an array.
 
-The surrounding `Effect.sync` turns the synchronous callback into an
-Effect. Like our logging Effect, it describes work to do later. This means
-the Map is created when the layer is built, not as soon as the file loads.
+The surrounding `Effect.sync` turns a synchronous callback into an Effect.
+Like our logging Effect, it describes work to do later, so the Map is
+created when the layer is built rather than when the file loads.
 
 ## Connect the store to the program
 
-Attach `Effect.provide(RuleStore.layer)` to `program` with `.pipe`.
-The red underline at the run line should disappear. We now have both the
-code that asks for a store and the layer that supplies one.
+Attach `Effect.provide(RuleStore.layer)` to `program` with `.pipe`. The red
+underline at the run line disappears: the program now has both the code
+that asks for a store and a layer that supplies one.
 
 Run the file. The laptop gets its alert, followed by the malformed rule's
-`SchemaError`. We've deliberately kept that rule in the store, so this
-is the expected result. The program is running again and reading its
-rules through `list`.
+`SchemaError`. That is expected, because we kept the broken rule in the
+store. The program is running again, and it reads its rules through `list`.
 
-Hover over `program` to see what happened to the requirement. Its type
-is now `Effect<void, SchemaError, never>`. Providing the layer satisfied
-`RuleStore`, leaving no outstanding requirements. The possible schema
-error remains, because supplying a store doesn't make all its rules valid.
+Hover over `program`. Its type is now `Effect<void, SchemaError, never>`.
+Providing the layer satisfied the `RuleStore` requirement. The schema error
+remains, because supplying a store doesn't make its rules valid.
 
 ## Try it
 
-Let's replace the broken rule with two useful ones. One will check that
-an expense is within a budget of 5000; another will flag amounts over 1000. Add these constants above the class:
+Let's replace the broken rule with two useful ones: a budget rule for
+expenses under 5000, and a rule for amounts over 1000. Add these constants
+above the class:
 
 <LessonCode
   file="lessons/part1/09-provide-it/solution/main.ts"
@@ -95,21 +92,20 @@ The final `program` provides the fixture layer:
   declaration="program"
 />
 
-Notice what you didn't have to edit: `evaluateAll`, `evaluate`, and the
+Look at what you didn't have to edit: `evaluateAll`, `evaluate` and the
 rest of `program`. The same checking code read a different set of rules
-because we changed the layer supplied to it. In Part 2, we'll use this
-separation to supply test stores; later, we'll replace the memory store
+because we changed the layer, and nothing else. In Part 2 we'll use the
+same trick to supply test stores, and later to replace the memory store
 with SQLite.
 
-There is a little extra indirection to keep in mind. When you see
-`yield* RuleStore`, you know which service is needed, but you'll have to
-find the provided layer to see which implementation runs. Keeping the
-layer next to the service declaration helps us follow that connection.
+The cost is a little indirection. `yield* RuleStore` tells you which
+service is needed, but you have to find the provided layer to know which
+implementation runs. Keeping the layer next to the service declaration
+makes that connection easy to follow.
 
-Reflex can now check every stored rule, and none of our valid rules stops
-the run. That completes the browser part of the application. Before we
-move to local files and a server, we'll take a short pause to review what
-we've built.
+Reflex now checks every stored rule, and the program runs to the end. That
+completes the browser part of the course. Before we move on to local files
+and a server, we'll take a short pause to review what we've built.
 
 ## Reference
 

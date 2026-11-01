@@ -7,174 +7,174 @@ mode: local
 ---
 
 Reflex can now accept an expense over HTTP, apply a rule and show you a
-trace of what happened. That is useful progress, but try restarting the
-server and running `rules list`. Your rules are gone, and `runs list` is
-empty too. Setting up the same expense alert every time we restart would
-get old quickly.
+trace of what happened. Restart the server, though, and run `rules list`:
+the rules are gone, and `runs list` is empty too. Nobody wants to set up
+the same expense alert again after every restart.
 
-Both stores currently use Maps, which lose their data when the process
-ends. Let's give reflex somewhere lasting to keep its rules and history:
-a SQLite file named `reflex.db`. We'll add SQL implementations of
-`RuleStore` and `RunLog` and keep the memory versions for tests. The Engine,
-API handlers and CLI already use those services, so they won't need to
-know where the data lives.
+Both stores keep their data in a Map, and a Map dies with the process.
+Reflex needs somewhere lasting for its rules and history, so in this lesson
+we'll store them in a SQLite file named `reflex.db`. We'll write SQL
+implementations of `RuleStore` and `RunLog` and keep the memory versions
+for tests. The Engine, the API handlers and the CLI only know those two
+services, so none of them has to change when the data moves.
 
 ## Open the database and create its tables
 
-We need to open the file before either store can use it.
-`SqliteClient.layer({ filename: "reflex.db" })` does that and
-provides `SqlClient`, the service we'll use to run queries. This client
-uses `node:sqlite`, so there is no native module to compile. It is also why
+Before either store can read or write, something has to open the file.
+`SqliteClient.layer({ filename: "reflex.db" })` opens it and provides
+`SqlClient`, the service we'll run our queries through. The client is built
+on `node:sqlite`, so there is no native module to compile. That is also why
 the course requires Node 22.16.
 
-An empty file doesn't yet have anywhere to put a rule. The two SQL files in
-`migrations/` define the tables. These are migrations: changes to the
-database structure that we apply in order. `SqliteMigrator.layer` runs
-them in numeric order and records which migrations have completed in its own
-table. On the next startup, it runs only migrations that have not completed
-yet. If you have not added any, there is nothing to run.
+A freshly opened file has no tables, so there is nowhere to put a rule yet.
+The two SQL files in `migrations/` create them. They are migrations: changes
+to the database structure, applied in order. `SqliteMigrator.layer` runs
+them in numeric order and records each completed migration in a table of
+its own, so on the next startup it only runs the ones that are still
+missing. If nothing has changed, it has nothing to do.
 
-Create `src/Migrations.ts` with this content:
+We need a layer that runs those files. Create `src/Migrations.ts`:
 
 <LessonCode file="checkpoints/17/src/Migrations.ts" />
 
-Before running this, adjust the line that builds `directory`. The loader locates
-`migrations/` relative to its own folder. In the checkpoint, that folder is
-`checkpoints/17/src/`, three levels below the project root. Your `src/` is
-only one level below it, so keep one `".."` and remove the other two.
+One line needs adjusting before you run it: the one that builds
+`directory`. The loader finds `migrations/` relative to its own folder. In
+the checkpoint that folder is `checkpoints/17/src/`, three levels below the
+project root, but your `src/` is only one level below, so keep one `".."`
+and remove the other two.
 
-The custom loader is needed because the migrator's file loader imports
-`.js` and `.ts` files, while this project supplies plain SQL. Here, loading a
-migration means reading its file and running the statements inside it.
+The loader is our own because the migrator's built-in file loader imports
+`.js` and `.ts` files, and this project ships plain SQL. For us, loading a
+migration means reading the file and running the statements inside it.
 
 ## Check what the runs table accepts
 
-Let's look at one of those tables before writing to it. Open
-`migrations/0002_runs.sql`. You'll recognize the fields from the run history.
-There is also a `CHECK` on `reason`:
+Before we write to the `runs` table, it is worth knowing what it accepts.
+Open `migrations/0002_runs.sql`. The columns match the run history you
+already know, and there is a `CHECK` on `reason`:
 
 ```text
 reason TEXT CHECK (outcome <> 'failed' OR reason IN ('status', 'timeout', 'io'))
 ```
 
-For a `failed` row, a non-null reason must be `status`, `timeout` or `io`.
-For other outcomes, this constraint places no restriction on the reason.
+On a `failed` row, a non-null reason must be `status`, `timeout` or `io`.
+On any other outcome the constraint says nothing about the reason.
 
-It is tempting to read this as the same guarantee our schema gives us, but
-there is a small difference. SQLite
-accepts `NULL` as the result of a `CHECK`, so this expression also permits a
-`failed` row with no reason. The `RunResult` schema is stricter: its `failed`
-variant requires one of the three reasons. The Engine supplies that reason
-when it writes a failed result; the database constraint alone would not
-guarantee it.
+That looks like the same guarantee our `RunResult` schema gives, but it is
+weaker in one way. SQLite treats a `CHECK` that evaluates to `NULL` as
+passing, so this expression also lets through a `failed` row with no reason
+at all. The schema is stricter: its `failed` variant requires one of the
+three reasons. So it is the Engine, writing through the schema, that
+guarantees every failed run has a reason. The database constraint alone
+would not.
 
 ## Implement RuleStore with SQL
 
-Now we can give the rule store its new implementation. Keep `layerMemory`
-for tests and add `RuleStore.layerSql` beside it in `src/RuleStore.ts`.
-The new layer implements the same service, but obtains
-`SqlClient` with `yield*` instead of creating a Map:
+With the tables in place, the rule store can get its SQL implementation.
+In `src/RuleStore.ts`, keep `layerMemory` for the tests and add
+`RuleStore.layerSql` beside it. The new layer implements the same service,
+but instead of creating a Map it asks for `SqlClient` with `yield*`:
 
 <LessonCode file="checkpoints/17/src/RuleStore.ts" />
 
-Start by looking at a query. The `sql` template tag may look like ordinary
-string interpolation, but interpolated values become query
-parameters rather than SQL text, so a quote in a value cannot change the
-query. For inserts, `sql.insert(row)` generates the column list and
-parameterized values from an object.
+Look at one of the queries first. The `sql` template tag reads like
+ordinary string interpolation, but each interpolated value becomes a query
+parameter rather than SQL text, so a quote inside a value cannot change the
+query. For inserts, `sql.insert(row)` builds the column list and the
+parameters from an object.
 
-A row from SQLite isn't automatically a value we can trust as a `Rule`.
-We still need to convert between database values and the types the service
-uses. `SqlSchema.findAll` encodes the request with its request
-schema, runs the query, and decodes each returned row with its result schema.
-`SqlSchema.void` encodes a request for a write that has no result to decode.
+A row that comes back from SQLite is not yet a `Rule` we can trust, so we
+still have to convert between database values and the types the service
+uses. `SqlSchema.findAll` does both directions: it encodes the request with
+a request schema, runs the query, and decodes each returned row with a
+result schema. `SqlSchema.void` does the same for a write that returns
+nothing.
 
-The rules table keeps each definition in a `definition_json` text column.
-`Schema.fromJsonString(Rule)` encodes a `Rule` as JSON for that column and
-parses and validates the text when reading it back. This uses the same
-`Rule` schema as the API. If someone edits the database into an invalid rule,
-decoding fails rather than returning an unchecked value to the Engine.
+The rules table keeps each definition as text in a `definition_json`
+column. `Schema.fromJsonString(Rule)` turns a `Rule` into JSON on the way in
+and parses and validates the text on the way out, using the same `Rule`
+schema as the API. If someone edits the database into an invalid rule,
+decoding fails instead of handing the Engine a value nobody checked.
 
-Compare `get` with the memory implementation. It takes the first row from
-`findById` and, if there is none, returns
-`yield* new RuleNotFound({ id })`. Callers still handle the same typed error.
-Likewise, `remove` uses `RETURNING id` to distinguish a deleted rule from a
-missing one.
+Compare `get` with the memory version. It takes the first row from
+`findById`, and when there is none it fails with
+`yield* new RuleNotFound({ id })`, so callers handle the same typed error as
+before. `remove` uses `RETURNING id` for a similar reason: to tell a deleted
+rule from one that was never there.
 
-Notice that database and decoding errors go through `Effect.orDie`. We're
-making a choice about the service interface here. Callers handle a missing
-rule, but are not
-expected to recover from storage failures here. `orDie` converts those
-failures to defects, which do not appear in the typed error channel. Thus
-`create` still has no typed error, and the only typed error of `get` and
-`remove` is `RuleNotFound`. A disk failure can still stop the operation.
+Database and decoding errors go through `Effect.orDie`, and that is a
+deliberate choice about the service's interface. A caller can do something
+about a missing rule. It cannot do anything about a broken disk, so we do
+not ask it to. `orDie` turns those failures into defects, which stay out of
+the typed error channel. `create` still has no typed error, and `get` and
+`remove` still fail only with `RuleNotFound`. A disk failure can still stop
+the operation, just not as something callers are asked to handle.
 [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network)
 looks at defects more closely.
 
 ## Implement RunLog with SQL
 
-The run history needs to survive too. Add `RunLog.layerSql` in
-`src/RunLog.ts`, using the same pattern:
+The run history has to survive a restart too. Add `RunLog.layerSql` to
+`src/RunLog.ts`, following the same pattern:
 
 <LessonCode file="checkpoints/17/src/RunLog.ts" />
 
-The run log uses the same query-and-schema approach. It stores UTC times as
-ISO 8601 text, so ordering by that text also orders the runs by time.
-`Schema.DateTimeUtcFromString` decodes those strings into `DateTime` values
-when reading them. As in the memory store, `start` creates a run and
-`finish` updates it; in SQL, that is an `INSERT` followed by an `UPDATE` of
-the same row.
+Two details are new here. Times are stored as ISO 8601 text in UTC, which
+sorts in time order, and `Schema.DateTimeUtcFromString` turns that text back
+into `DateTime` values on the way out. Otherwise the shape is the one you
+know from the memory store: `start` creates a run and `finish` updates it,
+which in SQL is an `INSERT` followed by an `UPDATE` of the same row.
 
 ## Use the SQL stores in the server
 
-In `src/server/main.ts`, replace the memory stores with the SQL stores, and
-provide what they need underneath them:
+Now the server can use them. In `src/server/main.ts`, swap the memory
+stores for the SQL stores and provide the database layers underneath:
 
 <LessonCode file="checkpoints/17/src/server/main.ts" />
 
-This is where the service separation pays off. Those two store selections
-are the only changes their callers need. The
-Engine and API handlers depend on `RuleStore` and `RunLog`, not on either
-storage implementation, and the CLI still calls the same API.
+This is where keeping the stores behind services pays off. Choosing the
+two layers is the only change. The Engine and the API handlers depend on
+`RuleStore` and `RunLog`, not on how either is implemented, and the CLI
+still talks to the same API.
 
 Start the server with `pnpm dev:server`. It creates `reflex.db` in the project
 root and runs both migrations.
 
 ## Run the same tests against both stores
 
-Before we rely on the new stores, let's check that they behave like the old
-ones. Turn each store suite from
+Before relying on the new stores, we should check that they behave exactly
+like the old ones, and we already have tests that say what a store must do.
+Turn each store suite from
 [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) into a
-function of a layer, with the tests inside unchanged:
+function of a layer, leaving the tests inside unchanged:
 
 ```ts
 (name, store) => layer(store, { buildPerTest: true })(name, (it) => ...)
 ```
 
-Then call the function once for each store implementation. For SQLite,
-provide `Migrations.layer` with
-`SqliteClient.layer({ filename: ":memory:" })` so the database has its tables
-before the tests use it. `buildPerTest` builds a fresh in-memory database for
-each test, preventing one test's writes from affecting another.
+Then call that function once per implementation. For SQLite, provide
+`Migrations.layer` together with
+`SqliteClient.layer({ filename: ":memory:" })`, so the database has its
+tables before the first test runs. `buildPerTest` gives each test a fresh
+in-memory database, so one test's writes cannot leak into another.
 
-Run `pnpm test`. The same assertions should pass for both implementations.
-We've changed where the data lives without changing what callers can expect.
-The SQL tests also exercise writes against the database constraints,
-including the `CHECK` on `reason`. From the next lesson's checkpoint on, the
-reference tests use this arrangement. They also test persistence separately
-by writing to a real file, rebuilding the layers, and reading the data back:
+Run `pnpm test`. The same assertions pass against both implementations: we
+changed where the data lives without changing anything callers can observe.
+The SQL run also exercises the database constraints, including the `CHECK`
+on `reason`. From the next lesson's checkpoint on, the reference tests are
+arranged this way. They add one more suite that tests persistence itself,
+by writing to a real file, rebuilding the layers and reading the data back:
 
 <LessonCode file="checkpoints/19/test/Stores.test.ts" />
 
 ## Try it
 
-There's one query we can make less wasteful.
-`pnpm cli runs list --rule <id>` returns the right rows, but look at how
-`RunLog.layerSql` produces them. It reads the whole `runs` table, then
-filters and slices the results in TypeScript. Once interval rules are
-running, that table can grow by thousands of rows a day. A request for two
-runs should not need to read all of them. Move the filter and limit into
-the SQL query:
+One query is more wasteful than it looks. `pnpm cli runs list --rule <id>`
+returns the right rows, but `RunLog.layerSql` gets them by reading the whole
+`runs` table and then filtering and slicing in TypeScript. Once interval
+rules are running, that table can grow by thousands of rows a day, and a
+request for two runs should not have to read all of them. Move the filter
+and the limit into the SQL query:
 
 1. Give the `findAll` query a request schema with the two options, `ruleId`
    and `limit`, so `execute` receives them.
@@ -187,22 +187,22 @@ the SQL query:
 The hint and the changed file are in `exercises/17/`. From the next lesson on,
 the checkpoints include this change.
 
-You no longer need to re-create an expense rule after every restart. There
-is a little more to look after now, though. Changes to the table
-structure will need new migrations, and the database file needs to be kept
-if you want to retain the rules and history. Your server and the checkpoint
-servers all use `reflex.db` in the project root. Delete that file only when
-you want to start clean.
+You no longer have to recreate the expense rule after every restart. In
+exchange there is a little more to look after. A change to a table now
+needs a new migration, and the rules and history live in `reflex.db` in the
+project root, a file your server and every checkpoint server share. Delete
+it only when you want to start clean.
 
-Persistence also makes an unfinished run visible after a restart.
+Persistence also has a side effect. A run that was still going when the
+process stopped now leaves its row behind, with no result recorded.
 [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
-will handle rows left by a process that stopped before recording a result.
+deals with those rows.
 
 ## Checkpoint
 
-Let's finish by repeating the restart that lost our data at the beginning.
-Use checkpoint 17 to verify persistence. Start its server, then add a rule
-and submit an event in a second terminal:
+To finish, repeat the restart that lost our data at the start of the
+lesson, this time against checkpoint 17. Start its server, then add a rule
+and submit an event from a second terminal:
 
 ```sh
 pnpm checkpoint 17 server
@@ -221,7 +221,7 @@ pnpm checkpoint 17 cli runs list
 ```
 
 The rule and its `succeeded` run are still there. You can stop the server
-for the day without losing the setup or the record of what it did.
+for the day without losing your setup or the record of what it did.
 
 ## Reference
 

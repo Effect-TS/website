@@ -7,78 +7,80 @@ mode: guide
 
 If you're stuck on
 [pausing and resuming rules](/learn/part-4/24-independent-challenge),
-start with the first hint below. Each one reveals a little more of one
-possible solution. Stop when you have enough to try something in your own
-code; the rest will still be here if you need it.
+start with the first hint below. Each hint reveals a little more of one
+possible solution, so stop as soon as you have enough to try something in
+your own code. The rest will still be here if you need it.
 
 ## 1. Keep the pause in the Engine
 
-A pause needs to affect both interval loops and incoming events. You've
-already brought those two kinds of work together in the Engine, with its
-`FiberMap` and `handleEvent`. Store a set of paused rule ids in the Engine
-layer, where both can check it.
+A pause has to affect both interval loops and incoming events, and the
+Engine is already where those two kinds of work meet, in its `FiberMap` and
+`handleEvent`. So store a set of paused rule ids in the Engine layer, where
+both can check it.
 
-There's no new run outcome to invent here. Event dispatch and interval loops
-do not execute paused rules, so they create no run-log rows for them.
-Explicit `rules run` calls are outside this pause check.
+No new run outcome is needed. A paused rule is never executed by event
+dispatch or by an interval loop, so it gets no run-log row at all. An
+explicit `rules run` is a different case and is not affected by the pause.
 
 ## 2. Pause and resume in the right order
 
-Look at `stop` before writing the pause method. It already shows how to
-interrupt a loop and wait for its final run-log update. To pause an interval
-rule, add its id to the paused set, then interrupt its loop in the same way.
-The paused state is then visible while you wait for interruption to complete.
+Read `stop` before writing the pause method. It already shows how to
+interrupt a loop and wait for its final run-log update. To pause an
+interval rule, add its id to the paused set first, then interrupt its loop
+the same way, so the rule already reads as paused while the interruption
+completes.
 
 To resume it, remove its id from the paused set, then call `start`.
 
-For event rules, filter out paused ids in `handleEvent`, before calling
-`execute`. This also prevents an `Engine.execute` span from being created.
+For event rules, filter out paused ids in `handleEvent` before it calls
+`execute`. Because `execute` is never reached, no `Engine.execute` span is
+created either.
 
 ## 3. Show the pause in rules list
 
-Someone checking `rules list` needs to know that a rule is deliberately
-paused, rather than just stopped. The `list` handler already uses the
-Engine's `isRunning` method to report interval-rule status. Add a similar
-method for checking whether a rule is paused. Check it first, so `paused`
-takes precedence over `running` or `stopped`, and add the new literal to
-`ListedRule` in `src/api/Api.ts`.
+Someone reading `rules list` needs to see that a rule was paused on
+purpose, not that it stopped. The `list` handler already asks the Engine's
+`isRunning` for an interval rule's status, so add a similar method that
+says whether a rule is paused. Check it first, so that `paused` wins over
+`running` and `stopped`, and add the new literal to `ListedRule` in
+`src/api/Api.ts`.
 
 ## 4. Add the endpoints
 
-For the HTTP and CLI pieces, follow the path you already have for removing
-a rule. Add `pause` and `resume` to the `rules` group in `src/api/Api.ts`,
+For the HTTP and CLI pieces, follow the path that removing a rule already
+takes. Add `pause` and `resume` to the `rules` group in `src/api/Api.ts`,
 next to `remove`:
 
 - `POST /rules/:id/pause`
 - `POST /rules/:id/resume`
 
-Declare `RuleNotFound` as the 404 error of each one. In each handler, look the
-rule up with `store.get` first, so an unknown id fails with `RuleNotFound`
-exactly as `remove` does.
+Declare `RuleNotFound` as the 404 error of each one. In each handler, look
+the rule up with `store.get` first, so an unknown id fails with
+`RuleNotFound` exactly as `remove` does.
 
-`ApiClient` derives client methods for both endpoints automatically. Use
-these methods in the two new CLI commands, and handle `RuleNotFound` as
+`ApiClient` derives client methods for both endpoints automatically. Call
+them from the two new CLI commands, and handle `RuleNotFound` the way
 `rules remove` does.
 
 ## 5. Use the existing test harness
 
-You don't need a new harness for this feature. All four tests fit on the
-one from
-[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock).
+All four tests fit on the harness from
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock),
+so there is no new harness to write.
 
 For the interval test, adapt that lesson's core test, replacing remove with
 pause. Await `remote.arrived`, pause the rule, then use `TestClock.adjust`
 to advance past `everySeconds`. Assert that `remote.requests.length` has
 not grown and the run rows have not changed.
 
-The resume check has one detail that's easy to miss. Keep the poll pending
-for this positive control too. Resuming starts the loop, whose first tick
-runs immediately. That tick creates one request and one `started` row.
-Advance past one interval, but stay below the 10 second
-timeout: because the request is still pending, the loop cannot begin a
-second tick. You can then assert exactly one additional request and row.
-If the poll completed, the clock adjustment could allow a second tick,
-which would make the count two instead.
+The resume check has one detail that is easy to miss: keep the poll pending
+for this positive control too. Resuming starts the loop, and its first tick
+runs immediately, creating one request and one `started` row. Advance past
+one interval but stay below the 10 second timeout. Because the request is
+still pending, the loop cannot begin a second tick, so you can assert
+exactly one additional request and one additional row. If the poll had
+completed, the clock adjustment could allow a second tick and the count
+would be two.
 
 For the event test, use the `HttpApiTest` client from the same lesson and
 assert on the outcomes returned by `events.submit`.
@@ -89,13 +91,13 @@ For the unknown-id test, use `Effect.flip` on `pause` to inspect the
 
 ## 6. Decide what a restart does
 
-It's fine to keep pauses in memory for this challenge. Starting the server
-already restarts stopped loops, so with this choice it also resumes paused
-ones. Leave a comment explaining that behaviour, so someone reading the
-code knows it's a deliberate choice.
+Keeping pauses in memory is fine for this challenge. Starting the server
+already restarts stopped loops, so with this choice a restart resumes
+paused rules too. Leave a comment saying so, so that someone reading the
+code knows the behaviour is deliberate.
 
-To preserve pauses across restarts, you would need a database column and a
-migration. That is beyond the challenge's 40-minute budget.
+Preserving pauses across restarts would need a database column and a
+migration, which is more than the challenge's 40 minutes allow.
 
 ## The reference solution
 
@@ -105,6 +107,6 @@ reference implementation is in checkpoint 24, with its tests in
 
 When you're ready, return to
 [Show it working](/learn/part-4/24-independent-challenge#show-it-working)
-and try pausing B through your CLI. Seeing it disappear from the next
-event's runs, then return after you resume it, is the check that ties these
+and pause B through your CLI. Watching it disappear from the next event's
+runs, then return after you resume it, is the check that ties all of these
 pieces together.

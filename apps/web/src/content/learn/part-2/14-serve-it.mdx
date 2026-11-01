@@ -6,29 +6,29 @@ minutes: 22
 mode: local
 ---
 
-Until now, we've given reflex all its work at startup. `main.ts` creates
-the rules, checks the example expenses and exits, taking its memory
-stores with it. To submit a new expense while reflex is running, we need
-a way to talk to it from another program.
+Until now, we have given Reflex all its work at startup. `main.ts` creates
+the rules, checks the example expenses and exits, taking its memory stores
+with it. To submit a new expense while Reflex is running, another program
+needs a way to talk to it.
 
-Let's keep one Engine and its stores running in an HTTP server on port 3000. We can reuse quite a bit of what we've built: the schemas describe
+In this lesson we keep one Engine and its stores running in an HTTP server
+on port 3000. Much of what we have built carries over: the schemas describe
 what a request can contain, and the services already know how to store
-rules and run them. By the end of this lesson, you'll be able to submit
-the laptop expense from a separate terminal and ask the server what
-happened.
+rules and run them. By the end of the lesson, you can submit the laptop
+expense from a separate terminal and ask the server what happened.
 
 ## Define the API
 
-Start with the requests we want to accept. Create `src/api/Api.ts` to
-describe the API with `HttpApi`. Each endpoint definition specifies an
-HTTP method, a path, and schemas for its input and output. For example,
+Start with the requests we want to accept. Create `src/api/Api.ts` and
+describe the API with `HttpApi`. Each endpoint definition gives an HTTP
+method, a path, and schemas for its input and output. For example,
 `HttpApiEndpoint.post("create", "/", { payload: Rule, success: StoredRule })`
 declares a POST endpoint that accepts a `Rule` and returns a `StoredRule`.
-This says what creating a rule looks like over HTTP. It doesn't create
-the rule yet; we'll connect it to the store in a handler.
+It says what creating a rule looks like over HTTP, and nothing more. The
+rule gets created in a handler, which we write next.
 
-We'll group the endpoints around the things our application already
-works with:
+The endpoints are grouped around the things the application already works
+with:
 
 - `rules`: create, list, get, remove, and `POST /rules/:id/run` to run one
   rule against an event
@@ -37,33 +37,33 @@ works with:
 
 <LessonCode file="checkpoints/14/src/api/Api.ts" />
 
-Notice that the API reuses our existing schemas for payloads, results and
-errors. Asking for a missing rule should still fail with `RuleNotFound`,
-so the `get`, `remove` and `run` endpoints declare it too.
-`HttpApiSchema.status(404)` gives that error an HTTP status. A caller will
-get a 404 when the rule doesn't exist.
+The API reuses our existing schemas for payloads, results and errors.
+Asking for a missing rule should still fail with `RuleNotFound`, so the
+`get`, `remove` and `run` endpoints declare it, and `HttpApiSchema.status(404)`
+gives that error an HTTP status. A caller gets a 404 when the rule does not
+exist.
 
 ## Implement the endpoints
 
-Now let's connect those requests to the services. Create
-`src/server/Api.ts` for the handlers.
-`HttpApiBuilder.group(Api, "rules", ...)` implements the `rules` group.
-Inside its `Effect.fn` callback, retrieve the services with `yield*`, then
-pass a function for each endpoint to `handlers.handleAll({...})`:
+Now the requests need connecting to the services. Create `src/server/Api.ts`
+for the handlers. `HttpApiBuilder.group(Api, "rules", ...)` implements the
+`rules` group. Inside its `Effect.fn` callback, retrieve the services with
+`yield*`, then pass a function for each endpoint to
+`handlers.handleAll({...})`:
 
 <LessonCode file="checkpoints/14/src/server/Api.ts" />
 
-Each handler receives the input its endpoint declares: decoded `params`,
-`query` or `payload`. TypeScript checks its success and error types against
-the API definition. Since the services already implement the behavior,
-the handlers only need to coordinate their calls. We don't have to repeat the
-Engine's work here, or write JSON parsing and response construction by
-hand.
+Each handler receives the input its endpoint declares, as decoded `params`,
+`query` or `payload`, and TypeScript checks its success and error types
+against the API definition. The services already implement the behavior, so
+the handlers only coordinate their calls. There is no JSON parsing or
+response construction to write by hand, and the Engine's work is not
+repeated here.
 
 ## Launch the server
 
-The handlers are ready; they need a server to listen for requests. Create
-`src/server/main.ts` to assemble it from layers:
+The handlers are ready, and they need a server to listen for requests.
+Create `src/server/main.ts` to assemble one from layers:
 
 - `HttpApiBuilder.layer(Api)` turns the handlers into routes.
 - `HttpApiScalar.layer` adds documentation at `/docs`.
@@ -75,27 +75,27 @@ the handlers' dependencies.
 
 <LessonCode file="checkpoints/14/src/server/main.ts" />
 
-Unlike `main.ts`, this program shouldn't exit after one batch of events.
-It needs to keep resources such as its listening socket open. `Layer.launch`
-builds the layer and keeps those resources alive until interruption.
-`NodeRuntime.runMain` runs that effect and interrupts it when you press
-Ctrl-C, so the server can shut down and release its resources. Start it now:
+Unlike `main.ts`, this program must not exit after one batch of events. It
+has to keep resources such as its listening socket open, and that is what
+`Layer.launch` does: it builds the layer and keeps those resources alive
+until interruption. `NodeRuntime.runMain` runs that effect and interrupts
+it when you press Ctrl-C, so the server shuts down and releases its
+resources. Start it now:
 
 ```sh
 pnpm dev:server
 ```
 
-This command watches for file changes and restarts the server. Remember
-that the stores are still in memory: each restart loses the rules and run
-history, so you'll need to add your rule again after an edit. We'll make
-them persistent in
+This command watches for file changes and restarts the server. The stores
+are still in memory, so each restart loses the rules and run history, and
+you need to add your rule again after an edit. They become persistent in
 [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart).
 
 ## Call the API
 
 Leave the server running and open a second terminal. These three requests
-do the same work that used to happen inside `main.ts`: create a rule,
-submit an event, and read the run history.
+do the work that used to happen inside `main.ts`: create a rule, submit an
+event, and read the run history.
 
 ```sh
 curl -X POST localhost:3000/rules -H 'content-type: application/json' -d @fixtures/rules/expense.json
@@ -103,10 +103,10 @@ curl -X POST localhost:3000/events -H 'content-type: application/json' -d @fixtu
 curl localhost:3000/runs
 ```
 
-Look for the assigned `id` in the first response. The second should contain
-one `succeeded` outcome, and the third should list that recorded run. You've
-just used the Engine without calling it from TypeScript. Keep the server
-running between requests so they use the same stores.
+The first response contains the assigned `id`, the second contains one
+`succeeded` outcome, and the third lists that recorded run. You have just
+used the Engine without calling it from TypeScript. Keep the server running
+between requests so they share the same stores.
 
 Now ask for a rule that does not exist:
 
@@ -120,26 +120,26 @@ It answers `404 Not Found` with the error as the body:
 {"_tag":"RuleNotFound","id":"nope"}
 ```
 
-The store's `RuleNotFound` passes through the handler to the HTTP response.
-The endpoint's error declaration determines its status and encoded body.
+The store's `RuleNotFound` passes through the handler to the HTTP response,
+and the endpoint's error declaration decides its status and encoded body.
 
 Invalid input is handled earlier. A request whose input does not match the
 endpoint schema is rejected before the handler runs. Try a rule without an
-action, or a query with `limit=abc`: the decoder returns a 400 response.
+action, or a query with `limit=abc`: the decoder answers with a 400.
 
 Before leaving the server, open
-[http://localhost:3000/docs](http://localhost:3000/docs). You can browse the
-requests and responses we just used in documentation generated from the
-same API definition.
+[http://localhost:3000/docs](http://localhost:3000/docs). The requests and
+responses we just used are documented there, generated from the same API
+definition.
 
 ## Try it
 
-There's one input our schema is still too generous about. The `limit`
-query parameter currently accepts any number. For example,
-`GET /runs?limit=-1` returns every run except the oldest because
-`RunLog.list` passes the number to `slice`. A fractional value such as
-`limit=1.5` is accepted too. Neither value makes sense as a requested count.
-Let's reject them in the API schema, before they reach the service.
+There is one input our schema is still too generous about. The `limit`
+query parameter accepts any number. `GET /runs?limit=-1` returns every run
+except the oldest, because `RunLog.list` passes the number to `slice`, and
+a fractional value such as `limit=1.5` is accepted too. Neither makes sense
+as a requested count, so reject them in the API schema, before they reach
+the service.
 
 1. In the `runs` query, make `limit` a whole number greater than 0 with
    `Schema.Int.check(Schema.isGreaterThan(0))`.
@@ -154,10 +154,10 @@ curl -i 'localhost:3000/runs?limit=1.5'
 curl -i 'localhost:3000/runs?limit=2'
 ```
 
-The first two should answer 400 and the last should answer 200. You've
-tightened what the server accepts without changing how the run log works.
-The hint and the changed file are in `exercises/14/`. From the next
-checkpoint on, the reference solution includes this change.
+The first two answer 400 and the last answers 200. You have tightened what
+the server accepts without changing how the run log works. The hint and the
+changed file are in `exercises/14/`. From the next checkpoint on, the
+reference solution includes this change.
 
 ## Checkpoint
 
@@ -173,9 +173,9 @@ row, and
 [http://localhost:3000/docs](http://localhost:3000/docs) renders the API
 documentation.
 
-Reflex can now wait for new expenses and answer requests about its history.
-The curl commands work, but they're a lot to type for everyday use. Next,
-we'll give ourselves a CLI that makes those same requests.
+Reflex can now wait for new expenses and answer questions about its history.
+The curl commands work, but they are a lot to type for everyday use, so next
+we give ourselves a CLI that makes the same requests.
 
 ## Reference
 

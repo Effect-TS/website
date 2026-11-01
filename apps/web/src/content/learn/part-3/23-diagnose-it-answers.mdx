@@ -5,86 +5,81 @@ title: "Diagnosing a request: answers"
 mode: guide
 ---
 
-Keep your notes and trace open as you compare these answers with the ones
-you wrote in
-[Diagnosing a request from its trace](/learn/part-3/22-diagnose-it).
-If you haven't tried the exercise yet, return to it first. You'll get more
-from this comparison once you've had a chance to form your own explanation.
+Keep your notes and your trace open while you compare these answers with
+the ones you wrote in
+[Diagnosing a request from its trace](/learn/part-3/22-diagnose-it). If
+you have not tried the exercise yet, go back and do it first. The
+comparison is worth far more once you have formed your own explanation.
 
-To orient ourselves, the mixed scenario runs four rules on one `expense` event:
+As a reminder, the mixed scenario runs four rules on one `expense` event:
 
 - A and B post to `/ok`.
 - C posts to `/slow?ms=15000`, past the 10 second run timeout.
 - D posts to `/fail?status=500`.
 
-Don't worry if your trace ids or exact timings differ. We're looking for
-the same outcomes, relative durations and overlapping spans, rather than
-an exact match down to the millisecond.
+Your trace ids and exact timings will differ from these. What should match
+are the outcomes, the relative durations and the way the spans overlap.
 
 ## The slowest operation
 
-Start with the longest `Engine.execute` span. It belongs to rule C and
-lasts about 10 seconds.
-The receiver was set to respond after 15 seconds, but the run's timeout
-interrupts the POST before that response arrives. Because the timeout is
-inside the execution span, the span includes the full wait and ends with
-`TimeoutError`.
+The longest `Engine.execute` span belongs to rule C and lasts about 10
+seconds. The receiver was set to answer after 15 seconds, but the run's
+timeout interrupts the POST before that answer arrives. Because the
+timeout sits inside the execution span, the span covers the whole wait and
+ends with `TimeoutError`.
 
-Now check that duration against the recorded result. C's span has status
-Error, and its row in `runs list` is
-`failed (timeout): timed out after 10s`. The duration and recorded reason
-explain why the run ended at about 10 seconds rather than waiting all 15.
+The recorded result agrees. C's span has status Error, and its row in
+`runs list` reads `failed (timeout): timed out after 10s`. Together, the
+duration and the reason explain why the run ended after about 10 seconds
+instead of waiting the full 15.
 
 ## The failed operation
 
-For D, the error details tell a different story. It received a 500
-response. Its `Engine.execute` span has status
-Error with the message
-`POST http://localhost:4600/fail?status=500 answered 500`. Its run row
-shows `failed (status)`, with the 500 in the error details.
+D failed differently: it received a 500 response. Its `Engine.execute`
+span has status Error with the message
+`POST http://localhost:4600/fail?status=500 answered 500`, and its run row
+reads `failed (status)`, with the 500 in the error details.
 
-C also failed. If you named both C and D and distinguished their reasons,
-your answer is correct. D received a response outside the accepted
-2xx range; C did not receive a response before its timeout.
+C failed as well, so naming both C and D is also correct, as long as you
+separated their reasons. D got a response outside the 2xx range. C got no
+response before its timeout.
 
 ## The work that completed
 
-A and B are the successful runs. You can confirm that in both places:
-their run rows show `succeeded`, and their execution spans have status Ok.
+A and B are the successful runs, and both records say so: their run rows
+show `succeeded` and their execution spans have status Ok.
 
 To see whether they waited, compare the start times. All four
-`Engine.execute` spans start close together
-under the same `Engine.handleEvent` parent. With concurrency set to 4,
-these four rules can all start without waiting for another to finish. A,
-B and D finish long before C, so C's slow request does not delay their
-individual outcomes.
+`Engine.execute` spans start within moments of each other under the same
+`Engine.handleEvent` parent. With concurrency set to 4, none of the four
+rules had to wait for another to finish. A, B and D are done long before
+C, so C's slow request delays none of their outcomes.
 
-This doesn't mean the CLI returns as soon as A and B finish. The event
-request still waits for all four results before returning. It
-takes about 10 seconds, determined by C's timeout rather than by the sum of
-the run durations. You can confirm this in the `Engine.handleEvent`
-duration and in the elapsed time of `events submit`.
+The CLI does not return as soon as A and B finish, though. The event
+request waits for all four results, so it takes about 10 seconds, the
+length of C's timeout rather than the sum of the four runs. The
+`Engine.handleEvent` duration and the elapsed time of `events submit` both
+show that.
 
 ## Evidence of the timeout
 
-There are two places to confirm that C reached the timeout. Its execution
-span lasts about 10 seconds and
-ends with `TimeoutError`, while its run row records the reason `timeout`.
-These are two separate records of the same outcome. If you relied only
-on the duration, add the error or reason to your notes. A request could
-finish in about 10 seconds without timing out; the recorded error and
-reason tell us why this one stopped.
+Two places confirm that C hit the timeout. Its execution span lasts about
+10 seconds and ends with `TimeoutError`, and its run row records the
+reason `timeout`. Those are two independent records of the same ending. If
+you relied on the duration alone, add the error or the reason to your
+notes: a request can take about 10 seconds without timing out, and it is
+the recorded error and reason that say why this one stopped.
 
 ## Check the complete result
 
-Bring those observations together. You should find four run rows and four
+Put the observations together and you have four run rows and four
 execution spans, matching the previous lesson's checkpoint. Two spans are
-red: C for the timeout and D
-for the 500 response. The other two have status Ok. Together, the rows
-explain the outcomes and the overlapping spans show that the rules ran
-concurrently.
+red, C for the timeout and D for the 500 response, and the other two have
+status Ok. The rows explain the outcomes, and the overlapping spans show
+that the rules ran concurrently.
 
-You've followed an expense through several independent actions and
+You have followed one expense through four independent actions and
 explained both the results and the time spent waiting. The history tells
-us what reflex recorded; the trace shows how the work overlapped. Keeping
-both is what lets us make that explanation after the request has ended.
+us what Reflex recorded, and the trace shows how the work overlapped.
+Keeping both is what makes that explanation possible after the request has
+ended.

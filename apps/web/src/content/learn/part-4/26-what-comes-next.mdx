@@ -5,29 +5,29 @@ title: Where to go next
 mode: guide
 ---
 
-The first alert we wrote was just a message about a laptop, printed by a
-single Effect in the browser. Now you can submit that expense to your own
-server and let a stored rule decide what to do. Reflex keeps a history of
-the result, can poll a service on a schedule, and can send a notification
-instead of only logging a line.
+The first alert we wrote was a single message about a laptop, printed by
+one Effect in the browser. Now you can submit that expense to your own
+server and let a stored rule decide what to do about it. Reflex keeps a
+history of every decision, polls services on a schedule, and can send a
+notification instead of only logging a line.
 
 You've also worked through what happens when those actions don't go to
-plan. You can follow a failed request in a trace, test a loop without
-waiting for real time to pass, and stop the server without leaving its work
-running. If you completed the pause challenge, you've taken a feature all
-the way from a requirement to a working command without a lesson's
-implementation to follow.
+plan. You can follow a failed request through a trace, test a loop without
+waiting for real time to pass, and stop the server without leaving work
+running behind it. If you completed the pause challenge, you've also taken
+a feature from a requirement to a working command with no implementation
+to copy.
 
 This is a good place to stop and keep the application as a reference. If
-there's something you'd like reflex to do differently, the projects below
-give you a few places to start. Before using it beyond your own machine,
-read the limits at the end of this page too.
+there's something you'd like Reflex to do differently, the projects below
+are good places to start. And before you use it beyond your own machine,
+read the limits at the end of this page.
 
 ## Follow-on projects
 
-Pick one that would make reflex more useful to you; there's no need to
-complete the list. Allow about 15 to 30 minutes for each project. The
-earlier ones stay closest to what we've already built.
+Pick whichever project would make Reflex more useful to you. Each takes
+about 15 to 30 minutes, and the earlier ones stay closest to what we've
+already built.
 
 - Make the `degraded` rule notify only when the status changes from ok to
   degraded, rather than on every tick. A `Ref` can hold the previous match
@@ -44,9 +44,9 @@ earlier ones stay closest to what we've already built.
   the 404s and 400s, into handler tests with `HttpApiTest`. The harness in
   [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
   already uses it.
-- Count runs with a `Metric` counter tagged with the outcome. Show it in the viewer
-  alongside the traces, so you can see how many runs crashed today without
-  reading individual rows in `runs list`.
+- Count runs with a `Metric` counter tagged with the outcome. Show it in the
+  viewer alongside the traces, so you can see how many runs crashed today
+  without reading individual rows in `runs list`.
 - Use a `Queue` to accept events without waiting for their rules to
   finish. Decide what `events submit` should print when the outcomes are
   not available yet.
@@ -56,9 +56,9 @@ earlier ones stay closest to what we've already built.
 
 ## What the course leaves out
 
-We've kept the application small enough to build and understand together.
-That leaves some decisions for you if you want to use it for more than
-local experiments.
+We kept the application small enough to build and understand in one
+course, which leaves some decisions to you if you want to use it for more
+than local experiments.
 
 Reflex has no authentication, deployment setup, or browser UI. It runs as a
 single process, without distributed workers or an exactly-once delivery
@@ -68,21 +68,21 @@ rows that become `abandoned` on restart.
 [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
 explains these outcomes.
 
-Rules also have a fixed format. There is no plugin system, user-supplied
-code, expression language, rule graph, or scheduling beyond a fixed interval.
-Adding any of these would require decisions about validation and execution
-that the current rule model does not address.
+Rules also have a fixed shape. There is no plugin system, no user-supplied
+code, no expression language, no rule graph, and no scheduling beyond a
+fixed interval. Each of those would need decisions about validation and
+execution that the current rule model doesn't make.
 
-There are more Effect APIs to learn, but you haven't needed all of them to
-get this far. `Effect.forEach` with a concurrency limit and `FiberMap` cover
-reflex's concurrency needs, so we haven't introduced `Deferred`,
-`Semaphore`, or `Stream`. Store lookups fail with `RuleNotFound` rather than
+There are more Effect APIs than the ones you've used, but you haven't
+needed them to get this far. `Effect.forEach` with a concurrency limit and
+`FiberMap` cover Reflex's concurrency needs, so `Deferred`, `Semaphore` and
+`Stream` never came up. Store lookups fail with `RuleNotFound` rather than
 returning an `Option`, and conditions don't remember whether they matched
-on the previous run. If you take on the first follow-on project, that last
+on the previous run. The first follow-on project is where that last
 limitation gives you a reason to try `Ref`.
 
-Keep your working reflex nearby as you build something else with Effect.
-You have examples you've run and changed yourself: accepting input, storing
+Keep your working Reflex nearby when you build something else with Effect.
+It holds examples you've run and changed yourself: accepting input, storing
 a rule, doing work that can fail, and finding out why it failed. Start
-with a need you recognize, as we did with that first expense, and use the
-pieces that help you meet it.
+with a need you recognize, as we did with that first expense, and reach for
+the pieces that meet it.
