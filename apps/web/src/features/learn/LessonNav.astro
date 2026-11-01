@@ -3,7 +3,7 @@ import type { CollectionEntry } from "astro:content"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
 import { learnParts } from "./course"
-import type { LessonRoute } from "./routes"
+import { lessonLabel, type LessonRoute } from "./routes"
 
 interface Props {
   readonly routes: ReadonlyArray<LessonRoute<CollectionEntry<"learn">>>
@@ -31,10 +31,7 @@ const { routes, current } = Astro.props
                     active={slug === current}
                     class="flex justify-between gap-3 px-2 py-1.5 text-sm"
                   >
-                    <span>
-                      {entry.data.mode !== "guide" && `${entry.data.order}. `}
-                      {entry.data.title}
-                    </span>
+                    <span>{lessonLabel(entry)}</span>
                     {entry.data.minutes !== undefined && (
                       <span class="shrink-0 text-subtle-foreground">{entry.data.minutes} min</span>
                     )}

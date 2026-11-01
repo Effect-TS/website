@@ -3,7 +3,8 @@ import { getCollection } from "astro:content"
 import { Code } from "astro-expressive-code/components"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import { learnParts, starterCommands } from "@/features/learn/course"
-import { lessonRoutes } from "@/features/learn/routes"
+import LessonCode from "@/features/learn/LessonCode.astro"
+import { lessonLabel, lessonRoutes } from "@/features/learn/routes"
 import PageLayout from "@/layouts/PageLayout.astro"
 
 export const prerender = true
@@ -45,6 +46,26 @@ const hours = Math.floor(total / 60)
       </p>
     </header>
 
+    <section aria-labelledby="finished-app" class="flex flex-col gap-4">
+      <h2 id="finished-app" class="text-2xl font-semibold text-foreground">
+        A session with the finished app
+      </h2>
+      <p class="text-prose-foreground">
+        This is a real terminal session with the finished app, captured from the course's reference
+        solution. A small local receiver on port 4600 plays the part of the outside services your
+        rules talk to. One rule posts to it on every expense, and another polls its
+        <code>/status</code> page.
+      </p>
+      <LessonCode file="checkpoints/24/transcript.txt" />
+      <p class="text-prose-foreground">
+        Every run in the <code>runs list</code> output has an outcome, and the ones that didn't succeed
+        say why. You can't see it here, but the <code>events submit</code> and
+        <code>rules run</code> commands also leave a trace that follows the work from the CLI, into the
+        server, and down to the rule that ran. You'll set up the viewer that shows those traces in Part
+        2.
+      </p>
+    </section>
+
     <section aria-labelledby="before-you-start" class="flex flex-col gap-4">
       <h2 id="before-you-start" class="text-2xl font-semibold text-foreground">Before you start</h2>
       <ul class="list-disc pl-5 text-prose-foreground">
@@ -79,10 +100,7 @@ const hours = Math.floor(total / 60)
                   href={`/learn/${slug}`}
                   class="flex items-baseline justify-between gap-4 px-4 py-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  <span>
-                    {entry.data.mode !== "guide" && `${entry.data.order}. `}
-                    {entry.data.title}
-                  </span>
+                  <span>{lessonLabel(entry)}</span>
                   {entry.data.minutes !== undefined && (
                     <span class="shrink-0 text-sm text-subtle-foreground">
                       {entry.data.minutes} min

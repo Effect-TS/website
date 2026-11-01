@@ -12,7 +12,7 @@ import LessonNav from "@/features/learn/LessonNav.astro"
 import LessonTable from "@/features/learn/LessonTable.astro"
 import { LessonPlayground } from "@/features/learn/LessonPlayground"
 import { lessonFiles } from "@/features/learn/lessons"
-import { lessonRoutes } from "@/features/learn/routes"
+import { lessonLabel, lessonRoutes } from "@/features/learn/routes"
 import { PlaygroundLoaderShell } from "@/features/playground/components/loader"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
@@ -49,7 +49,7 @@ const neighbour = (slug: string | undefined) => {
   const target = routes.find((route) => route.slug === slug)
   return target === undefined
     ? null
-    : { href: `/learn/${target.slug}`, label: target.entry.data.title }
+    : { href: `/learn/${target.slug}`, label: lessonLabel(target.entry) }
 }
 const title = `${data.title} | Learn Effect`
 
@@ -69,10 +69,7 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
             Part {part.part} · {part.title}
             {data.minutes !== undefined && ` · ${data.minutes} min`}
           </Eyebrow>
-          <h1 class="text-3xl font-semibold text-foreground md:text-4xl">
-            {data.mode !== "guide" && `${data.order}. `}
-            {data.title}
-          </h1>
+          <h1 class="text-3xl font-semibold text-foreground md:text-4xl">{lessonLabel(entry)}</h1>
           <div class="prose prose-effect mt-8">
             <Content components={{ LessonCode, table: LessonTable }} />
             {data.mode === "local" && (
@@ -114,9 +111,7 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
                   <LessonNav routes={routes} current={route.slug} />
                 </div>
               </details>
-              <h1 class="text-3xl font-semibold text-foreground">
-                {data.order}. {data.title}
-              </h1>
+              <h1 class="text-3xl font-semibold text-foreground">{lessonLabel(entry)}</h1>
               <p class="mt-2 text-sm text-subtle-foreground">{data.minutes} min</p>
               <div class="prose prose-effect mt-6">
                 <aside class="rounded-md border border-border bg-card p-4 lg:hidden">

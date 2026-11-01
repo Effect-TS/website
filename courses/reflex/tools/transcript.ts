@@ -1,5 +1,5 @@
-// Captures the terminal session lesson 1 opens with into
-// checkpoints/24/transcript.txt. Rerun it whenever checkpoint 24 changes.
+// Captures the terminal session of the finished app that the /learn page shows
+// into checkpoints/24/transcript.txt. Rerun it whenever checkpoint 24 changes.
 //
 //   pnpm transcript
 //

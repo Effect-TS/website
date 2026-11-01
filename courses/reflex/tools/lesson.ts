@@ -19,13 +19,18 @@ export class LessonError extends Schema.TaggedError<LessonError>()("LessonError"
 export const command = Command.make(
   "lesson",
   {
-    lesson: Argument.Int("lesson").pipe(Argument.withDescription("Lesson number, 1 to 10")),
+    lesson: Argument.Int("lesson").pipe(Argument.withDescription("Lesson number, 2 to 10")),
     solution: Flag.Boolean("solution").pipe(
       Flag.withDescription("Run the solution instead of the start file"),
       Flag.withDefault(false)
     )
   },
   Effect.fn(function*({ lesson, solution }) {
+    if (lesson < 2) {
+      return yield* new LessonError({
+        message: `There is no lesson ${lesson}. The course opens on the /learn page, and Part 1 starts at lesson 2.`
+      })
+    }
     if (lesson > 10) {
       return yield* new LessonError({
         message: `Lesson ${lesson} is written in src/. Its reference solution runs with \`pnpm checkpoint ${lesson}\`.`
@@ -40,8 +45,7 @@ export const command = Command.make(
     if (directory === undefined) {
       return yield* new LessonError({ message: `No lesson ${lesson} in lessons/part1/` })
     }
-    const start = path.join(part1, directory, "start", "main.ts")
-    const file = solution || !(yield* fs.exists(start)) ? path.join(part1, directory, "solution", "main.ts") : start
+    const file = path.join(part1, directory, solution ? "solution" : "start", "main.ts")
     yield* Console.log(`Running ${path.relative(process.cwd(), file)}`)
     return yield* runFile(file, [])
   })

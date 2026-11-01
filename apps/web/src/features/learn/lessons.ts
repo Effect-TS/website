@@ -62,10 +62,12 @@ export function courseDeclaration(path: string, name: string): string {
 }
 
 /**
- * Lesson 1 has no exercise, only a solution, so it also starts there.
+ * A playground lesson's start and solution files. Every Part 1 lesson has
+ * both, so a missing one fails the build, naming the file.
  */
 export function lessonFiles(lessonDir: string): LessonFiles {
-  const solution = courseFile(`lessons/part1/${lessonDir}/solution/main.ts`)
-  const start = courseFiles.get(`lessons/part1/${lessonDir}/start/main.ts`)
-  return { start: start ?? solution, solution }
+  return {
+    start: courseFile(`lessons/part1/${lessonDir}/start/main.ts`),
+    solution: courseFile(`lessons/part1/${lessonDir}/solution/main.ts`),
+  }
 }

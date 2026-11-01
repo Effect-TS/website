@@ -23,6 +23,20 @@ export function lessonSlug({ id, data }: LessonRouteEntry): string {
     : `part-${data.part}/${String(data.order).padStart(2, "0")}-${id}`
 }
 
+export interface LessonLabelEntry extends LessonRouteEntry {
+  readonly data: LessonRouteEntry["data"] & {
+    readonly title: string
+  }
+}
+
+/**
+ * The label navigation shows for a lesson or guide: its title alone. `order`
+ * is the sort key and a slug component, never a visible number.
+ */
+export function lessonLabel({ data }: LessonLabelEntry): string {
+  return data.title
+}
+
 const isGuide = (entry: LessonRouteEntry) => entry.data.mode === "guide"
 
 /**

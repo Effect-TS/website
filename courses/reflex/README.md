@@ -52,7 +52,7 @@ In a later session, `pnpm viewer` starts the viewer again without the checks. `p
 | `pnpm dev:server` | Run your server from `src/server/main.ts`, restarting on change (lesson 14 on) |
 | `pnpm cli <command>` | Run your CLI from `src/cli/main.ts` (lesson 15 on) |
 | `pnpm checkpoint <n> [...args]` | Run the reference solution for lesson `n` (11 to 24) |
-| `pnpm lesson <n> [--solution]` | Run a Part 1 lesson file (1 to 10) in the local track |
+| `pnpm lesson <n> [--solution]` | Run a Part 1 lesson file (2 to 10) in the local track |
 | `pnpm test` | Run the tests |
 | `pnpm check` | Typecheck |
 | `pnpm test:course` | Test the Part 1 lesson files as shipped (course CI; fails once you edit them) |

@@ -1,6 +1,5 @@
 import { assert, test } from "vite-plus/test"
 import {
-  // @ts-expect-error lessonLabel lands with the implementation; remove this line then.
   lessonLabel,
   lessonRoutes,
 } from "../../../src/features/learn/routes.ts"
