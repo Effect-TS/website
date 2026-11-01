@@ -1,13 +1,13 @@
-# Exercise 16: the condition result on the span
+# Exercise 16: record the condition result on the span
 
-Goal: make every `Engine.execute` span say what its condition decided.
+Record the condition result on each `Engine.execute` span that evaluates a condition.
 
-With the expense rule stored, submit `fixtures/events/lunch.json` and `fixtures/events/laptop.json`, and open both traces in the viewer. One run is `skipped` and one `succeeded`. The `Engine.execute` spans carry `rule.id` and `rule.trigger`, but neither says what the condition decided. You can work it out from the outcome. A span should say it directly, because later you read many of them side by side.
+With the expense rule stored, submit `fixtures/events/lunch.json` and `fixtures/events/laptop.json`, then open both traces in the viewer. One run is `skipped` and the other `succeeded`. Their `Engine.execute` spans have `rule.id` and `rule.trigger` attributes, but neither records the condition result. You can infer it from the outcome for now. Recording it directly will make it easier to compare several spans later.
 
-1. In `src/Engine.ts`, find where `Engine.execute` evaluates the condition, in the expression `!(yield* evaluate(rule, event))`. Give the result a name first.
-2. Add `Effect.annotateCurrentSpan("rule.condition", matched)`. It adds the attribute to the span the code is running in, which here is `Engine.execute`.
-3. Leave the other paths alone. A rule without a condition has nothing to record. A missing field fails `evaluate` before there is a result, so that span has no attribute either. Its row already says `missing field amount`.
+1. In `src/Engine.ts`, find the expression `!(yield* evaluate(rule, event))` in `Engine.execute`. Store the result of `evaluate` in a variable named `matched` before checking it.
+2. Add `Effect.annotateCurrentSpan("rule.condition", matched)`. This adds the attribute to the current span, which here is `Engine.execute`.
+3. Leave the other paths unchanged. A rule without a condition has no condition result to record. A missing field causes `evaluate` to fail before returning a result, so that span has no attribute either. Its row already says `missing field amount`.
 
-Check: with `pnpm dev:server` and the viewer running, `pnpm cli events submit fixtures/events/lunch.json` gives an `Engine.execute` span with `rule.condition` set to `false`, and `laptop.json` gives one with `true`.
+With `pnpm dev:server` and the viewer running, run `pnpm cli events submit fixtures/events/lunch.json` and look for `rule.condition` set to `false` on the `Engine.execute` span. Submitting `laptop.json` should produce a span with the attribute set to `true`.
 
 The changed file is in `solution/`. The checkpoints do not include it, because nothing later depends on it.

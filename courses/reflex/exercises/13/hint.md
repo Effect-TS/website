@@ -1,29 +1,29 @@
 # Exercise 13: a missing field is skipped, not failed
 
-Goal: write a test that proves an event without `amount` produces a `skipped` row, not a `failed` one, then prove the test can fail.
+Write a test that verifies an event without `amount` produces a `skipped` row, not a `failed` one. Then introduce a bug to check that the test catches it.
 
-After exercise 12, your Engine already gets this right. The test asserts it on the run rows, not only on what `handleEvent` returns. The rows are what `runs list` shows and what checkpoint 17 stores in SQLite.
+After exercise 12, your Engine already handles this case correctly. Test the run rows, rather than only the return value of `handleEvent`, because those rows are what `runs list` shows and what checkpoint 17 stores in SQLite.
 
-1. Write the test in `test/Engine.test.ts`, next to `src/`. Build the layer from `Engine.layer`, `RuleStore.layerMemory`, `RunLog.layerMemory` and a `FileSystem.makeNoop` whose `writeFileString` and `writeFile` record the path they get. Hand it to `layer` from `@effect/vitest`. Store a rule with the `amount gt 500` condition, submit `{ type: "expense", description: "no amount" }`, and read the rows back with `RunLog.list()`. Assert:
-   - exactly one row, for that rule, with outcome `skipped`;
-   - a `reason` that matches `/amount/`;
-   - an `error` that is null, because a skip is not an error;
-   - nothing written.
+1. Write the test in `test/Engine.test.ts`, in a `test/` directory alongside `src/`. Build the layer from `Engine.layer`, `RuleStore.layerMemory`, `RunLog.layerMemory` and a `FileSystem.makeNoop` whose `writeFileString` and `writeFile` record the paths they receive. Pass this layer to `layer` from `@effect/vitest`. Store a rule with the `amount gt 500` condition, submit `{ type: "expense", description: "no amount" }`, and read the rows back with `RunLog.list()`. Assert that:
+   - there is exactly one row, for that rule, with outcome `skipped`;
+   - its `reason` matches `/amount/`;
+   - its `error` is null, because a skip is not an error;
+   - nothing was written.
 
-   Run `pnpm test test/Engine.test.ts`. It passes. The filter also matches `checkpoints/13/test/Engine.test.ts`, the reference tests. They run against the checkpoint, not your `src/`, so they stay green through every step below.
+   Run `pnpm test test/Engine.test.ts` and confirm that it passes. The filter also matches the reference tests in `checkpoints/13/test/Engine.test.ts`. Those tests run against the checkpoint, not your `src/`, so they will keep passing throughout the steps below.
 
-2. Plant a bug. In `src/Engine.ts`, change the `MissingField` catch so it drops the field from the reason:
+2. Introduce a bug in `src/Engine.ts` by changing the `MissingField` catch to omit the field from the reason:
 
    ```ts
    (error) => Effect.succeed<RunResult>({ outcome: "skipped", reason: "no match" })
    ```
 
-   `pnpm check` still passes. The row is well typed and says the wrong thing. Only a test can catch this.
+   `pnpm check` still passes because the incorrect reason is still a valid string. The test must catch what the type check cannot.
 
-3. Run `pnpm test test/Engine.test.ts` again. It fails on the reason, and the message shows the reason it got: `expected 'no match' to match /amount/`. That failure proves the test can see the bug.
+3. Run `pnpm test test/Engine.test.ts` again. It should fail on the reason with `expected 'no match' to match /amount/`. This failure confirms that your test catches the bug.
 
 4. Put the original line back: `` reason: `missing field ${error.field}` ``.
 
-Check: `pnpm test test/Engine.test.ts` is green again, and `pnpm check` passes.
+After restoring the line, confirm that `pnpm test test/Engine.test.ts` and `pnpm check` both pass.
 
 The test is in `solution/test/`.

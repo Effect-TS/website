@@ -7,21 +7,16 @@ mode: playground
 lessonDir: 02-describe-then-run
 ---
 
-Part 1 builds the core of reflex in a single file that runs in your browser,
-one Effect idea per lesson, starting here.
+Reflex checks expenses and raises alerts. For now, an alert is just a log
+line: `expense 1200 over 500`. The editor contains a program that prints it.
+Throughout Part 1, you will build on this single file in your browser,
+adding one Effect concept at a time.
 
-Reflex raises alerts. The first version of an alert is one log line,
-`expense 1200 over 500`. The editor already holds a file that prints it, and
-by the end of this lesson you will have printed it twice from one value.
+Start by running the program, then change it to print the same alert twice.
+That small change introduces a distinction you will use throughout the
+course: describing work is separate from running it.
 
-In this lesson you will:
-
-- read a file that creates an Effect and runs it
-- learn that an Effect describes work, and that running it is a separate step
-- read the success type of an Effect in the editor
-- combine two Effects into one with `Effect.andThen`
-
-## 1. Read the file
+## A value that describes logging
 
 Look at `program` in the editor:
 
@@ -33,67 +28,60 @@ Look at `program` in the editor:
 Run the file. The terminal prints one log line with the message
 `expense 1200 over 500`.
 
-`Effect.log(...)` does not log anything when it is called. It returns a value
-that describes logging. That value is an **Effect**. `program` holds it, and
-nothing happens until something runs it.
+Calling `Effect.log(...)` creates a value that describes logging. That value
+is an **Effect**, and `program` refers to it. The call itself does not print
+the message; the logging happens only when the Effect runs.
 
-## 2. Find the run line
+## Where the work runs
 
 Look at the last line of the file, `NodeRuntime.runMain(program)`. This is
-what runs the Effect. `runMain` takes a description and performs the work it
-describes.
+what runs the Effect stored in `program` and produces the log line you saw.
 
 Every Part 1 lesson ends with this line. Leave it as it is. You write it
 yourself in
 [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint).
 
-## 3. Read the type
+## Reading an Effect type
 
 Hover `program`. The type is `Effect<void, never, never>`.
 
 An Effect type has three type parameters: `Effect<Success, Error, Requirements>`.
 
-- The **success type** is what you get back when the Effect runs. Logging
-  gives back nothing, so it is `void`.
-- The **error type** says how the Effect can fail. `never` means it cannot.
-- The **requirements type** says what the Effect needs before it can run.
-  `never` means nothing.
+- The **success type** is the result of a successful run. Logging has no
+  useful result, so this type is `void`.
+- The **error type** lists the errors an Effect can fail with. Here it is
+  `never`, meaning there are no typed failures.
+- The **requirements type** lists the services an Effect needs. Here it is
+  also `never`, because logging needs no services supplied by your program.
 
-Only the success type matters in this lesson. The error type is the subject of
+For now, focus on the success type. The error type is the subject of
 [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see),
 and the requirements type is the subject of
 [Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules).
 
 ## Try it
 
-Run the same description twice.
+Because an Effect is a value, you can reuse it when building a larger
+program. Combine two uses of the same logging Effect:
 
-1. Rename the logging Effect to `alert`, so you have a value to reuse.
-2. Replace `program` with `Effect.andThen(alert, alert)`.
+1. Rename the existing `program` constant to `alert`.
+2. Add a new `program` constant set to `Effect.andThen(alert, alert)`.
    `Effect.andThen(first, second)` describes running `first`, then `second`.
-3. Run the file. The terminal prints the message twice. You built one
-   description and ran it once, and it logged two lines.
+3. Run the file. The terminal prints the message twice. The combined
+   `program` runs once and performs the logging Effect twice.
 4. Hover `program`. The type is still `Effect<void, never, never>`, because
-   the second log gives back nothing, like the first.
+   the second logging Effect also has a `void` result.
 
-## What you learned
-
-- `Effect.log(message)` returns an Effect, a value that describes logging.
-  Nothing is logged until the Effect runs.
-- `NodeRuntime.runMain(program)` runs an Effect.
-- An Effect type reads `Effect<Success, Error, Requirements>`. The success
-  type is what the Effect gives back when it runs.
-- Effects are values, so you can combine them. `Effect.andThen(a, b)` is one
-  Effect that runs `a`, then `b`.
-- A description that nothing runs does nothing, and TypeScript does not warn
-  you. The next lesson,
-  [Using Effect.gen to write programs](/learn/part-1/03-steps-in-order), shows
-  what that looks like.
+It is also possible to create an Effect and never run it. TypeScript will
+not warn you about this. In
+[Using Effect.gen to write programs](/learn/part-1/03-steps-in-order), you
+will run several Effects in order and see what happens if you accidentally
+leave one out.
 
 ## Reference
 
 | API                   | What it does                                      | Introduced in                                                                             |
 | --------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `Effect.log`          | Describes writing a log line                      | this lesson                                                                               |
-| `Effect.andThen`      | Describes running one Effect, then another        | this lesson                                                                               |
+| `Effect.log`          | Creates an Effect that writes a log line when run | this lesson                                                                               |
+| `Effect.andThen`      | Combines two Effects to run in sequence           | this lesson                                                                               |
 | `NodeRuntime.runMain` | Runs an Effect and exits the process when it ends | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |

@@ -6,51 +6,52 @@ minutes: 22
 mode: local
 ---
 
-curl works, but nobody wants to type
-`-H 'content-type: application/json' -d @...` for every rule. Reflex needs a
-command line. A CLI built on hand-written `fetch` calls would drift: rename a
-field on the server and the CLI still compiles, then fails at run time. In
-this lesson you build a CLI whose client is derived from the same `Api` value
-the server implements, so it cannot drift.
+The curl commands let you check the API, but adding rules and submitting
+events would be easier through a CLI. The existing `Api` definition has
+everything you need to derive a typed client for those commands. When you
+change that definition, TypeScript will check the CLI against the updated
+request and response types.
 
-In this lesson you will:
+You will put the client in a service, use it in six command handlers, then
+handle a `RuleNotFound` returned by the server.
 
-- derive a typed client from an `HttpApi` with `HttpApiClient.make`
-- read configuration from the environment with `Config`
-- write the six command handlers of the CLI
-- handle a typed error that came back from the server
+## Create the client service
 
-## 1. Create the client service
-
-Create `src/ApiClient.ts`. `HttpApiClient.make(Api, { baseUrl })` derives a
-client from the `Api` value. It has one method per endpoint, grouped like the
-API:
+Create `src/ApiClient.ts`. The call
+`HttpApiClient.make(Api, { baseUrl })` derives one client method per endpoint,
+organized into the groups you defined in the API. For example:
 
 - `client.rules.create({ payload })`
 - `client.rules.run({ params: { id }, payload })`
 - `client.runs.list({ query })`
 
-Put the client in a service, `ApiClient`, like every other dependency. Its
-type is `HttpApiClient.ForApi<typeof Api>`, so you never write the shape by
-hand:
+Wrap the client in an `ApiClient` service so command handlers can access it
+with `yield*`. The type `HttpApiClient.ForApi<typeof Api>` derives its
+interface from the API too:
 
 <LessonCode file="checkpoints/15/src/ApiClient.ts" />
 
-- The payload is checked against the endpoint's schema before anything is
-  sent, and the response is decoded with the success schema. If you change
-  the API, the CLI stops compiling until it agrees.
-- The client sends requests through an `HttpClient`, another service.
-  `FetchHttpClient.layer` provides one built on `fetch`.
-- The server's URL comes from `Config`. `Config.String("REFLEX_URL")` reads
-  the environment variable, and `Config.withDefault("http://localhost:3000")`
-  covers the usual case. A config you `yield*` inside a layer is read when
-  the layer is built.
+The client checks and encodes request payloads using the endpoint schemas,
+and decodes responses using the declared success and error schemas. It
+sends requests through an `HttpClient` service; the CLI will provide
+`FetchHttpClient.layer` for a client built on `fetch`.
 
-## 2. Write the command handlers
+The base URL comes from `Config.String("REFLEX_URL")`, which reads the
+environment variable. `Config.withDefault("http://localhost:3000")` lets you
+run against the local server without setting it. Because this configuration
+is read inside the layer's effect, the URL is resolved when the layer is
+built.
 
-Open `src/cli/main.ts`. It came with the starter. Every command, argument and
-flag is declared, and every handler body is empty. Write the six bodies. Each
-one `yield*`s the `ApiClient`, makes one call, and prints the result:
+The CLI imports `Api` and its domain schemas, so it is checked against that
+version of the API. A separately deployed server could use a different
+version; keep the CLI and server versions compatible.
+
+## Write the command handlers
+
+Open the starter's `src/cli/main.ts`. The commands, arguments and flags are
+already declared, but the six handler bodies are empty. Fill them in using
+the client service. Each handler retrieves `ApiClient`, calls an endpoint
+and prints the result:
 
 <LessonCode file="checkpoints/15/src/cli/main.ts" />
 
@@ -58,17 +59,19 @@ one `yield*`s the `ApiClient`, makes one call, and prints the result:
   `client.rules.create`.
 - `rules run` and `events submit` print one outcome per line, with its
   reason or error.
-- `runs list` has two optional flags. The declarations hand them to you as
-  `string | undefined` and `number | undefined`. That is the shape the query
-  takes, so they go straight into `client.runs.list({ query })`.
+- `runs list` has two optional flags, with types `string | undefined` and
+  `number | undefined`. These match the optional query parameters. Pass
+  `rule` as `ruleId` and `limit` as `limit` in `client.runs.list({ query })`.
 
-Name the handlers with `Effect.fn("rules.add")` and so on. The next lesson
-shows why the names matter.
+Name the handlers with `Effect.fn("rules.add")` and the corresponding name
+for each command. Those names will identify the command spans when you
+export traces in the next lesson.
 
-The run line at the bottom provides `ApiClient.layer`, its
-`FetchHttpClient.layer`, and `NodeServices.layer` for reading files.
+At the entrypoint, provide `ApiClient.layer` with `FetchHttpClient.layer`
+for requests. Also provide `NodeServices.layer` so the handlers can read
+rule and event files.
 
-## 3. Run a command
+## Run the CLI against the server
 
 Start the server with `pnpm dev:server` in one terminal. In a second:
 
@@ -82,9 +85,9 @@ pnpm cli runs list
 `rules add` prints `Added <id>: large expense`. `events submit` prints one
 line, `<id>: succeeded`, and `runs list` shows the row.
 
-An action the engine does not have yet is skipped with a reason that says so.
-Add `fixtures/rules/ntfy.json`, whose action is `httpPost`, and run it
-against an event:
+The Engine still skips actions it cannot execute yet. To check that the CLI
+shows this outcome, add `fixtures/rules/ntfy.json`, whose action is
+`httpPost`, then use its id to run it against an event:
 
 ```sh
 pnpm cli rules run <id> --event fixtures/events/laptop.json
@@ -95,24 +98,27 @@ from a later lesson, and `runs list` shows the same row.
 [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network)
 adds the action.
 
-## 4. Read a typed error from the server
+## Inspect an error returned by the server
 
 ```sh
 pnpm cli rules remove nope
 ```
 
-The server answered 404. The client knows the endpoint declares
-`RuleNotFound`, so it decodes the body into the same class the store fails
-with. The CLI prints `RuleNotFound` with a stack trace.
+The server returns a 404 response. Because the endpoint declares
+`RuleNotFound`, the client decodes the response body into an instance of
+that class. It becomes a typed failure of the client call, just as it was
+a typed failure of the store. With no handler for it yet, the CLI prints
+`RuleNotFound` with a stack trace.
 
-Hover the `rules remove` handler. `RuleNotFound` is in its error type, next to
-the HTTP and schema errors any request can have. You handle it like any other
-failure.
+Hover over the `rules remove` handler to inspect its error type. It includes
+`RuleNotFound` alongside HTTP and schema errors. You can handle it with
+`Effect.catchTag`, even though the failure originated in another process.
 
 ## Try it
 
-The stack trace from step 4 is no help to someone who typed an id wrong. Make
-the CLI print one line and exit non-zero instead.
+An unknown id is an expected input mistake, so a stack trace is not a useful
+CLI response. Print a short message instead, while keeping a non-zero exit
+code so scripts can detect the failure.
 
 1. Write one handler with `Effect.fn` that takes the `RuleNotFound`, prints
    `No rule with id <id>` with `Console.error`, and then fails with
@@ -128,23 +134,10 @@ one line and exits 1 (`echo $?`). The hint and the changed file are in
 `exercises/15/`. From the next checkpoint on, the reference solution includes
 this change.
 
-## What you learned
-
-- A client derived from the API cannot drift from it, and it is a service
-  like the rest.
-- `Config` reads settings from the environment, with a default for the usual
-  case.
-- Errors the endpoint declares come back as the same typed classes, so you
-  handle them like any other failure.
-- The cost is that the CLI imports the server's domain types, so the two ship
-  together.
-- In [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
-  you follow one command from the CLI into the server as a single trace.
-
 ## Checkpoint
 
-This lesson's checkpoint is number 15. It is the previous checkpoint's loop,
-driven from the CLI. Start the server in one terminal:
+Checkpoint 15 repeats the API checks from the previous lesson through the
+CLI. Start the server in one terminal:
 
 ```sh
 pnpm checkpoint 15 server
@@ -169,12 +162,12 @@ fd657e81-8ced-4afd-9c5e-8213677a25e9: skipped (httpPost actions run from lesson 
 
 ## Reference
 
-| API                                   | What it does                                   | Introduced in                                                                     |
-| ------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------- |
-| `HttpApiClient.make`                  | A typed client derived from the API            | this lesson                                                                       |
-| `HttpApiClient.ForApi<typeof Api>`    | The client's type, for a service               | this lesson                                                                       |
-| `FetchHttpClient.layer`               | An `HttpClient` built on `fetch`               | this lesson                                                                       |
-| `Config.String`, `Config.withDefault` | Reads an environment variable, with a fallback | this lesson                                                                       |
-| `Command.make`, `Argument`, `Flag`    | CLI declarations (supplied)                    | this lesson                                                                       |
-| `Console.log`, `Console.error`        | Print to stdout or stderr as an effect         | this lesson                                                                       |
-| `HttpClient` trace headers            | How a trace crosses into the server            | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know) |
+| API                                   | What it does                                                    | Introduced in                                                                     |
+| ------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `HttpApiClient.make`                  | Derives a typed HTTP client from the API definition             | this lesson                                                                       |
+| `HttpApiClient.ForApi<typeof Api>`    | Derives the client type used in the service definition          | this lesson                                                                       |
+| `FetchHttpClient.layer`               | Provides an `HttpClient` implemented with `fetch`               | this lesson                                                                       |
+| `Config.String`, `Config.withDefault` | Reads a string setting with a default when it is absent         | this lesson                                                                       |
+| `Command.make`, `Argument`, `Flag`    | Declares commands, arguments and flags, supplied in the starter | this lesson                                                                       |
+| `Console.log`, `Console.error`        | Writes to stdout or stderr when the effect runs                 | this lesson                                                                       |
+| `HttpClient` trace headers            | Propagate trace context from the client to the server           | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know) |

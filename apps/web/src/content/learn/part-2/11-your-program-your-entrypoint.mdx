@@ -6,89 +6,96 @@ minutes: 20
 mode: local
 ---
 
-The file from Part 1 review is in your starter as `src/run-once.ts`. It
-prints its alert lines and exits, and the alerts are gone with it. In this
-lesson you turn it into a program that reads a rule and an event from JSON
-files and appends an alert line to `alerts.log`.
+The program from the Part 1 review is in your starter as `src/run-once.ts`.
+So far, its rules and events have been written directly in the source, and
+its alerts appear only in the terminal. To use it with other data, you need
+a way to read rules and events from files and save the alerts.
 
-In this lesson you will:
+You will replace that program with one that reads two JSON files, checks
+whether the rule matches the event, and appends an alert to `alerts.log`.
+The file system is another Effect service, so you can use the same approach
+you used for `RuleStore`.
 
-- read and write files with the `FileSystem` service
-- describe the real `Rule` schema, with triggers, conditions and actions
-- turn a file system error into an `ActionFailed`
-- write the run line yourself with `NodeRuntime.runMain`
-
-## 1. Run the starter file
+## Run the starter file
 
 ```sh
 pnpm tsx src/run-once.ts
 ```
 
 The terminal prints the three alert lines and three skip lines from Part 1.
-Nothing is left behind when the process exits. The rest of this lesson
-replaces this file.
+It does not save them to a file. Keep this output in mind as you replace
+the program during the lesson.
 
-## 2. Read the rule you will run
+## Read the rule you will run
 
 Open `fixtures/rules/expense.json`. It has a trigger, a condition and an
 action:
 
 <LessonCode file="fixtures/rules/expense.json" />
 
-Ignore `message` for now. You use it in the exercise.
+The action already has a `message` field. For now, the program will build
+its alert text from the event as it did in Part 1. You will use `message`
+in the exercise.
 
-## 3. Describe the real rule
+## A schema for triggers, conditions and actions
 
-Create `src/Rule.ts`. The rule schema from Part 1 compared one amount. A real
-rule has three parts, and two of them come in variants:
+The Part 1 schema was enough to compare an amount against a threshold. The
+fixture needs a fuller description of when a rule runs and what it does.
+Create `src/Rule.ts` with a schema for these three parts:
 
 - A trigger is an `event` or an `interval`.
-- A condition is optional. It names a `field`, which can be a dotted path such
-  as `body.status`, an `op` out of `eq`, `neq`, `gt`, `lt` and `contains`, and
-  a `value`. A rule without a condition matches every event.
+- A condition is optional. It compares a `field` against a `value` using an
+  `op`: `eq`, `neq`, `gt`, `lt` or `contains`. The field can be a dotted path
+  such as `body.status`. Without a condition, evaluation returns `true`.
 - An action is `appendFile` or `httpPost`.
 
 <LessonCode file="checkpoints/11/src/Rule.ts" />
 
-Each variant is a `Schema.Struct` with a `type` literal, and `Schema.Union`
-joins the variants. Because every variant has a different `type`, TypeScript
-narrows on it. Inside `case "appendFile":` the compiler knows that
-`rule.action.path` exists.
+Each trigger or action variant is a `Schema.Struct` with a distinct `type`
+literal. `Schema.Union` combines them while preserving the information
+TypeScript needs to narrow the type. Inside `case "appendFile":`, for
+example, you can access `rule.action.path` because that property belongs to
+the `appendFile` variant.
 
 `lookup` reads the dotted path from the event. When a key on the path is
 absent it fails with `MissingField`, the error you defined in
 [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see).
 
-## 4. Append a line to a file
+## Append a line to a file
 
-Create `src/Action.ts`. Effect ships the file system as a service,
-`FileSystem.FileSystem`. You use it like your own `RuleStore` from
-[Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules):
-`yield*` it, then call its methods.
+Create `src/Action.ts` for the file-writing action. Effect provides the
+`FileSystem.FileSystem` service, which you access in the same way as your
+own `RuleStore` from
+[Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules).
+Use `yield*` to get the service, then call its methods.
 
 <LessonCode file="checkpoints/11/src/Action.ts" />
 
-- `fs.writeFileString(path, text, { flag: "a" })` appends to the file and
-  creates it when it is missing.
-- It fails with a `PlatformError` when the disk says no. That error belongs to
-  the file system. The caller only needs to know that the action did not
-  happen, so `Effect.mapError` turns it into an `ActionFailed` with the reason
-  `io` and the original message.
+The `flag: "a"` option makes `fs.writeFileString` append rather than
+overwrite. If the file does not exist, the operation creates it.
 
-`io` is one of three reasons a failed action can have. The other two,
-`status` and `timeout`, arrive with `httpPost` in
+A write can fail, for example because the process lacks permission.
+`FileSystem` represents that failure as a `PlatformError`, but callers of
+`appendLine` need an error about the action they attempted. `Effect.mapError`
+converts it to `ActionFailed`, preserving the original message and adding
+the reason `io`.
+
+For now, `io` is the only reason in `ActionFailed`. The reasons `status`
+and `timeout` arrive with `httpPost` in
 [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network).
 
-## 5. Write the program and its run line
+## Connect the program to Node
 
-Replace `src/run-once.ts` with this program. `readJson` reads a file and
-decodes it with a schema in one step. The program reads the rule and the
-event, evaluates the condition, and appends the alert line when the rule
-matches:
+With the schema and action in place, replace `src/run-once.ts` with the
+program below. Its `readJson` helper reads a file and decodes its contents
+with a schema. The program uses that helper for the rule and event, then
+evaluates the condition and appends an alert if it matches:
 
 <LessonCode file="checkpoints/11/src/run-once.ts" />
 
-The run line at the bottom is yours now. It does three things, in order:
+In Part 1, the lesson runner executed your effects. This local program
+needs its own entrypoint. The pipeline at the bottom prepares the effect
+and runs it in this order:
 
 1. `Effect.tapError` prints a typed error as one line, then passes the
    failure on unchanged.
@@ -98,24 +105,26 @@ The run line at the bottom is yours now. It does three things, in order:
    sets the exit code, and turns Ctrl-C into an interruption. Error reporting
    is off because step 1 already printed the error.
 
-`httpPost` decodes, so rule files can use it. This program does not run it
-yet. It only logs that the action arrives later.
+The schema accepts an `httpPost` action, but the program does not execute
+it yet. That branch logs a message explaining that the action is introduced
+later.
 
-## 6. Run it
+## Check the file output
 
 ```sh
 pnpm tsx src/run-once.ts fixtures/rules/expense.json fixtures/events/laptop.json
 ```
 
-The terminal prints one log line, with a timestamp and `INFO` in front of
-it, and `alerts.log` now exists with one line:
+The terminal prints the following log line, prefixed by a timestamp and
+`INFO`. The program also creates `alerts.log` and appends the alert text to it:
 
 ```text
 large expense: appended "expense 1200 over 500" to alerts.log
 ```
 
-Run it again with `fixtures/events/lunch.json`. The amount of 40 is under
-500, the terminal prints `large expense: no match`, and nothing is appended.
+Run it again with `fixtures/events/lunch.json`. Its amount, 40, is below
+the threshold of 500, so the terminal prints `large expense: no match`
+and the file is unchanged.
 
 Run it with `fixtures/rules/malformed.json`. It prints a typed error with no
 stack trace and exits with code 1:
@@ -127,16 +136,16 @@ SchemaError: Expected "eq" | "neq" | "gt" | "lt" | "contains"
 
 ## Try it
 
-Every alert line reads like `expense 1200 over 500`, because `alertLine`
-builds it from the event. The rule file already says what it wants written:
-`"message": "expense over 500"`. Make the action write the rule's message
-instead.
+The `alertLine` function still builds text such as `expense 1200 over 500`
+from the event and condition. The rule file contains a message of its own,
+`"message": "expense over 500"`. Make the action write that message instead,
+so the person defining the rule can choose the alert text.
 
 1. Add `message: Schema.String` to the `AppendFile` struct in `src/Rule.ts`.
-2. In the `appendFile` case of `src/run-once.ts`, hover
-   `rule.action.message`. It is a `string`. Write it instead of the built
-   line.
-3. Delete `alertLine`, which has no caller left, and `words` with it.
+2. In the `appendFile` case of `src/run-once.ts`, hover over
+   `rule.action.message` to confirm that its type is `string`. Pass it to
+   `appendLine` instead of the generated line.
+3. Delete the unused `alertLine` function and its `words` lookup.
 4. Copy the rule file, remove `message` from the copy, and run it. The error
    names the missing key and its path.
 
@@ -146,23 +155,9 @@ It appends `expense over 500` to `alerts.log`. The hint and the changed files
 are in `exercises/11/`. From the next checkpoint on, the reference solution
 includes this change.
 
-## What you learned
-
-- `FileSystem.FileSystem` is a service Effect ships. You `yield*` it like a
-  service you wrote, and `NodeServices.layer` provides the real one.
-- `Schema.Union` of structs with a `type` literal describes variants that
-  TypeScript narrows with a `switch`.
-- `Effect.mapError` turns a low-level error into one that means something to
-  the caller.
-- `NodeRuntime.runMain` is your run line now. It sets the exit code and turns
-  Ctrl-C into an interruption.
-- The cost is one more `provide` at the edge of the program. In
-  [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) you swap
-  in a fake `FileSystem` for tests without changing this code.
-
 ## Checkpoint
 
-This lesson's checkpoint is number 11. It appends one line to `alerts.log`:
+Run checkpoint 11 to append one alert line to `alerts.log`:
 
 ```sh
 pnpm checkpoint 11 fixtures/rules/expense.json fixtures/events/laptop.json
@@ -174,15 +169,15 @@ stack trace.
 
 ## Reference
 
-| API                                                             | What it does                                            | Introduced in                                                     |
-| --------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
-| `FileSystem.FileSystem`                                         | The file system service. `yield*` it to use it          | this lesson                                                       |
-| `fs.readFileString`, `fs.writeFileString(path, text, { flag })` | Read a file. Write one, with `flag: "a"` to append      | this lesson                                                       |
-| `NodeServices.layer`                                            | Node's `FileSystem` and the other platform services     | this lesson                                                       |
-| `NodeRuntime.runMain`                                           | Runs the program, sets the exit code, Ctrl-C interrupts | this lesson                                                       |
-| `Schema.Union`, `Schema.Literal`                                | Variants told apart by a literal field                  | this lesson                                                       |
-| `Schema.optionalKey`                                            | A key that may be absent                                | this lesson                                                       |
-| `Schema.StructWithRest`                                         | Known fields plus any others, for event payloads        | this lesson                                                       |
-| `Effect.mapError`                                               | Turns one failure into another                          | this lesson                                                       |
-| `Effect.tapError`                                               | Runs an effect on failure and keeps the failure         | this lesson                                                       |
-| `FileSystem.layerNoop`                                          | A file system that does nothing                         | [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) |
+| API                                                             | What it does                                                                | Introduced in                                                     |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `FileSystem.FileSystem`                                         | Provides file operations through a service accessed with `yield*`           | this lesson                                                       |
+| `fs.readFileString`, `fs.writeFileString(path, text, { flag })` | Read or write text files; use `flag: "a"` to append                         | this lesson                                                       |
+| `NodeServices.layer`                                            | Provides Node's file system and other platform services                     | this lesson                                                       |
+| `NodeRuntime.runMain`                                           | Runs the effect, sets the exit code and handles Ctrl-C                      | this lesson                                                       |
+| `Schema.Union`, `Schema.Literal`                                | Combines schemas into a union, using literal fields to distinguish variants | this lesson                                                       |
+| `Schema.optionalKey`                                            | Allows a property to be absent from an object                               | this lesson                                                       |
+| `Schema.StructWithRest`                                         | Defines known fields while allowing additional event payload fields         | this lesson                                                       |
+| `Effect.mapError`                                               | Transforms the typed error of an effect                                     | this lesson                                                       |
+| `Effect.tapError`                                               | Runs an effect on a typed failure without recovering from it                | this lesson                                                       |
+| `FileSystem.layerNoop`                                          | Provides a file system with overridable methods and no real file operations | [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) |

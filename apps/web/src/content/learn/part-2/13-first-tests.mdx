@@ -6,24 +6,22 @@ minutes: 20
 mode: local
 ---
 
-To check the last lesson you ran `main.ts`, read the printed run log, and
-opened `alerts.log`. That works once. It does not work after every change,
-and it writes a real file each time. In this lesson you write the first tests
-for the stores and the Engine. They run in a second and touch nothing on
-disk.
+In the last lesson, you checked the Engine by running `main.ts`, reading
+the printed run log and opening `alerts.log`. Repeating those checks after
+every change would be tedious, and each run would append more data to a
+real file. Tests can check the same behavior automatically without writing
+alerts to disk.
 
-In this lesson you will:
+You already separated the Engine from its dependencies by using services.
+Now you can provide fresh memory stores and a recording file system for
+tests, leaving the Engine itself unchanged. Start with the rule store, then
+test the run history produced by the Engine.
 
-- write a test that runs an Effect with `it.effect`
-- give every test a fresh set of services with `layer()`
-- assert on a failure you expect with `Effect.flip`
-- swap in a fake file system
+## Write the first test
 
-## 1. Write the first test
-
-The starter uses `@effect/vitest`, which is vitest with Effect support. Tests
-live in `test/`, next to `src/`, and `pnpm test` runs them. Three pieces from
-that package do most of the work:
+The starter uses `@effect/vitest` to run effects in Vitest tests. Test files
+live in `test/`, next to `src/`, and you run them with `pnpm test`. The
+package provides a test function, a way to supply services, and assertions:
 
 - `it.effect("name", () => effect)` runs an Effect as a test. The test passes
   when the effect succeeds and fails when it fails.
@@ -42,87 +40,89 @@ test that stores two rules, then lists, gets and removes them:
 pnpm test test/RuleStore.test.ts
 ```
 
-The first test is green. The memory store starts empty for every test, which
-is what makes this cheap.
+The test should pass. With `buildPerTest: true`, each test starts with an
+empty memory store, so it can create and remove rules without affecting
+another test.
 
-## 2. Assert on a failure you expect
+## Test an expected failure
 
-Getting an id that does not exist should fail with `RuleNotFound`. Write that
-test the direct way first: `const error = yield* store.get("missing")`, then
-assert on `error`.
+The store should fail with `RuleNotFound` when you request an unknown id.
+To see how the test runner treats that failure, first try writing
+`const error = yield* store.get("missing")`, followed by an assertion on
+`error`.
 
-Run `pnpm test test/RuleStore.test.ts`. The test is red, and vitest prints a
+Run `pnpm test test/RuleStore.test.ts`. The test fails, and Vitest prints a
 `RuleNotFound` with `id: "missing"`.
 
-The store did the right thing. The test is wrong: it treats the failure you
-expected as a failure of the test.
+The store behaved correctly, but the assertion was never reached. A failed
+effect stops the generator, and `it.effect` reports that failure as a failed
+test. You need to make the error available as a value you can inspect.
 
-`Effect.flip` swaps the success type and the error type. The failure becomes
-the success, so `yield* Effect.flip(store.get("missing"))` gives you the
-`RuleNotFound` to assert on. If the store returned a rule instead, the test
-would fail. Wrap the call, run the test again, and it is green. The second
-and third tests in the file above do this.
+`Effect.flip` swaps success and failure. With
+`yield* Effect.flip(store.get("missing"))`, a `RuleNotFound` becomes the
+success value you can assert on. If the store unexpectedly returned a rule,
+the flipped effect would fail instead. Wrap the call and run the test
+again. It should now pass, as the second and third tests in the example do.
 
-You saw the test fail before you saw it pass. A test you have only seen green
-has not shown that it can see anything.
+Keep checking that a test fails when the behavior is wrong. Passing
+assertions are useful only if they can detect the mistake you care about.
 
-## 3. Swap in a fake file system
+## Record file writes without using the disk
 
-The Engine needs a `FileSystem`, and a test should not write `alerts.log`.
+To test an action, you need to check that the Engine attempted the right
+write without creating `alerts.log`. Provide a file system that records
+those attempts in an array instead.
 
-`FileSystem.layerNoop` builds a file system where every method does nothing
-and fails, except the ones you pass in. Keep a `writes` array in the test
-file and pass `writeFileString: (path) => Effect.sync(() => writes.push(path))`,
-and the same for `writeFile`. Every append the Engine makes lands in the
-array, and the test asserts what was written without a file ever existing.
+`FileSystem.layerNoop` lets you replace selected file system methods without
+performing real file operations. Keep a `writes` array in the test file and
+override `writeFileString` with
+`writeFileString: (path) => Effect.sync(() => writes.push(path))`. Override
+`writeFile` in the same way. You can then assert on the recorded paths.
+Only the methods you replace have the behavior your test needs; do not
+assume that other file operations will succeed.
 
-The Engine's test layer is `Engine.layer` with `RuleStore.layerMemory`,
-`RunLog.layerMemory` and the recording file system. It is the same three-part
-build as `main.ts`, with one piece swapped, and `Engine.ts` does not change.
-You made this move in
-[Providing a service with a layer](/learn/part-1/09-provide-it) by changing
-one line. This time the reason is tests.
+Build the test layer from `Engine.layer`, `RuleStore.layerMemory`,
+`RunLog.layerMemory` and this recording file system. This is the same
+composition as `main.ts`, with the real file system replaced. As in
+[Providing a service with a layer](/learn/part-1/09-provide-it), the code
+using the service does not need to change.
 
-The reference solution uses `FileSystem.makeNoop`, which gives you the same
-file system as a plain value that you wrap in `Layer.succeed` yourself.
+The reference solution uses `FileSystem.makeNoop` to construct the service
+value inside a layer rather than using `FileSystem.layerNoop` directly.
+For a simpler fake, you can wrap that value in `Layer.succeed`.
+
+This separation also lets you reuse service tests with other implementations.
+In [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart),
+you will run the store suites against SQLite.
 
 ## Try it
 
-A missing field is `skipped`, not `failed`. Write the test that says so.
-Assert it on the run rows, not only on what `handleEvent` returns. The rows
-are what `runs list` will show and what a later lesson stores in SQLite.
+A missing field should produce a `skipped` run, with the field named in its
+reason. Test the stored run rows as well as the result of `handleEvent`: the
+rows will later be displayed by `runs list` and stored in SQLite. A correct
+return value alone would not prove that the history is correct.
 
-1. In `test/Engine.test.ts`, build the test layer from step 3. Store a rule
+1. In `test/Engine.test.ts`, build the test layer described above. Store a rule
    with the `amount gt 500` condition, submit
    `{ type: "expense", description: "no amount" }`, and read the rows with
    `RunLog.list()`. Assert exactly one row, `skipped`, with a `reason` that
    matches `/amount/`, an `error` that is null, and no writes.
-2. Run `pnpm test test/Engine.test.ts`. It is green.
-3. Plant a bug. Change the `MissingField` catch in `src/Engine.ts` to
+2. Run `pnpm test test/Engine.test.ts` and confirm that the test passes.
+3. Introduce a deliberate mistake. Change the `MissingField` catch in `src/Engine.ts` to
    `reason: "no match"`. `pnpm check` still passes, because the row is
-   well-typed. Run the test. It is red:
+   well-typed. Run the test again and check that it fails with:
    `expected 'no match' to match /amount/`.
-4. Put `` `missing field ${error.field}` `` back. Green again.
+4. Restore `` `missing field ${error.field}` `` and confirm that the test
+   passes again.
 
 The test filter also matches `checkpoints/13/test/Engine.test.ts`, the
 reference tests. They test the checkpoint, not your `src/`, so they stay
 green throughout. The hint and the test are in `exercises/13/`.
 
-## What you learned
-
-- An `it.effect` test is an Effect, and `layer()` provides what it needs.
-- `Effect.flip` lets you assert on a failure you expect.
-- A fake service is a layer like any other. Swapping it in does not change the
-  code under test.
-- The cost is keeping fakes accurate. The recording file system only knows the
-  two methods you gave it.
-- In [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart)
-  these same suites run against SQLite.
-
 ## Checkpoint
 
-This lesson's checkpoint is number 13. `pnpm test` is green after one
-deliberate red. The checkpoint's own suites run with:
+After restoring the correct skip reason, run `pnpm test` to check that the
+tests pass again. To run the reference suites for checkpoint 13, use:
 
 ```sh
 pnpm checkpoint 13 test
@@ -149,13 +149,13 @@ every expense: succeeded
 
 ## Reference
 
-| API                             | What it does                                                 | Introduced in                                                                  |
-| ------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `it.effect`                     | A test that runs an Effect                                   | this lesson                                                                    |
-| `layer(L)("name", (it) => ...)` | Provides a layer to every test inside                        | this lesson                                                                    |
-| `{ buildPerTest: true }`        | A fresh layer for each test                                  | this lesson                                                                    |
-| `assert`                        | `strictEqual`, `deepStrictEqual`, `match`, `isNull` and more | this lesson                                                                    |
-| `Effect.flip`                   | Swaps failure and success, to assert on an expected error    | this lesson                                                                    |
-| `FileSystem.layerNoop`          | A file system that does only what you pass in                | this lesson                                                                    |
-| `Effect.sync`                   | Wraps synchronous code, here a push onto an array            | [Providing a service with a layer](/learn/part-1/09-provide-it)                |
-| `TestClock.adjust`              | Moves test time forward                                      | [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock) |
+| API                             | What it does                                                                       | Introduced in                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `it.effect`                     | Runs an effect as a test                                                           | this lesson                                                                    |
+| `layer(L)("name", (it) => ...)` | Builds a layer and provides its services to the tests in a group                   | this lesson                                                                    |
+| `{ buildPerTest: true }`        | Builds a fresh layer for each test                                                 | this lesson                                                                    |
+| `assert`                        | Provides assertions such as `strictEqual`, `deepStrictEqual`, `match` and `isNull` | this lesson                                                                    |
+| `Effect.flip`                   | Swaps success and failure so a test can inspect an expected error                  | this lesson                                                                    |
+| `FileSystem.layerNoop`          | Provides a file system whose methods can be replaced with test implementations     | this lesson                                                                    |
+| `Effect.sync`                   | Defers synchronous code, such as an array write, until the effect runs             | [Providing a service with a layer](/learn/part-1/09-provide-it)                |
+| `TestClock.adjust`              | Advances the test clock by a specified duration                                    | [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock) |

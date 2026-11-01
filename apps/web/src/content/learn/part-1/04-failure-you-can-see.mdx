@@ -7,39 +7,29 @@ mode: playground
 lessonDir: 04-failure-you-can-see
 ---
 
-Every expense so far came with an amount. Real ones don't always. Here is a
-taxi receipt exactly as it arrived: `{ type: "expense" }`. No `amount`.
+Every expense so far has included an amount, but an incoming receipt might
+be incomplete. Consider this taxi receipt: `{ type: "expense" }`. Without
+an `amount`, `evaluate` cannot determine whether it exceeds 500. Returning
+`false` would treat an unchecked expense as one that passed the check.
 
-Ask `isLarge` about it and there is no honest answer: it isn't over 500, and
-it isn't under 500 either. Nobody has checked this expense, and the summary
-you wrote in the previous lesson should not count it as if someone had.
+Instead, make `evaluate` fail with an error that identifies the missing
+field. That possibility will appear in its Effect type, separate from its
+successful boolean result. For now, an unhandled failure will stop the
+program before the summary. The next lesson adds recovery.
 
-So `evaluate` needs a way to say "I couldn't do this one", and that way should
-show up in its type, so the rest of the program has to deal with it. In Effect
-that is a failure. In this lesson you will make `evaluate` fail on a missing
-field, watch the failure appear in the type of `evaluate`, and see what it
-does to the program when it runs: the taxi stops it, and the summary never
-prints. In the next lesson you decide what to do about that.
+## Expenses as events
 
-In this lesson you will:
-
-- describe an expense as an event with an optional field
-- define an error class with `Schema.TaggedError`
-- fail an Effect with that error
-- read the error type of an Effect
-
-## 1. Describe the expenses
-
-The file starts where the previous lesson ended. Reflex will receive expenses
-as **events**, small objects that say what happened. Below the imports, add
-an interface for them:
+The file starts where the previous lesson ended. To represent a receipt
+with or without an amount, change the input from a number to an **event**
+object. Below the imports, add an interface for these events:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
   declaration="Event"
 />
 
-The `?` on `amount` says it may be missing.
+The `?` makes `amount` optional, so TypeScript requires you to account for
+its absence when reading it.
 
 Below the interface, add the two expenses. The laptop has an amount:
 
@@ -55,7 +45,7 @@ The taxi does not:
   declaration="taxi"
 />
 
-## 2. Check the events
+## Adapting evaluate to events
 
 Change `evaluate` so it takes an event instead of a number:
 
@@ -77,10 +67,10 @@ The results are called `laptopFlagged` and `taxiFlagged`, because `laptop` and
 TypeScript underlines `event.amount` in `isLarge(event.amount)` in red, and
 the playground does not run the file. The message reads
 `Argument of type 'number | undefined' is not assignable to parameter of type 'number'`.
-TypeScript has found the taxi's problem before anything ran: there may be no
-amount to check.
+The interface allows an event without an amount, but `isLarge` requires a
+number. You need to handle the missing value before calling it.
 
-## 3. Defining an error
+## Defining the missing-field error
 
 Add `Schema` to the `effect` import. Then declare `MissingField` between the
 interface and the two expenses:
@@ -90,19 +80,17 @@ interface and the two expenses:
   declaration="MissingField"
 />
 
-`Schema.TaggedError` is called twice:
+The declaration uses two calls to `Schema.TaggedError`. The first,
+`<MissingField>()`, supplies the class's own type. The second supplies the
+**tag** `"MissingField"` and the fields stored on the error. The tag will
+let you select this error in a handler; the `field` property will tell the
+handler which value was missing.
 
-- The first call, `<MissingField>()`, takes the class's own name, so the
-  class can refer to its own type.
-- The second call takes a **tag** and the **fields**. The tag,
-  `"MissingField"`, is how you pick this error out later. The fields say what
-  the error carries. This one carries the name of the missing `field`.
+Here, `Schema.String` describes the type of that property. You will use
+schemas more extensively in
+[Validating JSON with Schema](/learn/part-1/06-untrusted-json).
 
-`Schema` gets its own lesson,
-[Validating JSON with Schema](/learn/part-1/06-untrusted-json). Here it only
-lists what the error carries.
-
-## 4. Fail when the amount is missing
+## Failing before the check
 
 At the top of the `Effect.gen` block in `evaluate`, check for the amount. If
 it is missing, fail:
@@ -112,22 +100,25 @@ it is missing, fail:
   declaration="evaluate"
 />
 
-`return yield* new MissingField({ field: "amount" })` fails the Effect with
-that error. `return` tells TypeScript that this path ends here, so after the
-check `event.amount` is a number and the red underline is gone.
+You can yield a `Schema.TaggedError` directly to fail the Effect. Here,
+`return yield* new MissingField({ field: "amount" })` fails with the error
+you just defined. The `return` also makes the end of this path explicit to
+TypeScript. After the check, it can narrow `event.amount` to `number`, and
+the red underline disappears.
 
 Hover `evaluate`. Its type is
 `(event: Event) => Effect<boolean, MissingField, never>`. The error type was
-`never`. Now it names `MissingField`, so anything that runs `evaluate` can see
-that it may fail, and with what.
+`never`; now it is `MissingField`. A caller can see both possible outcomes
+in the type: success with a boolean or failure with a missing-field error.
 
-## 5. Run it
+## Following the failure through program
 
 Run the file. The terminal prints `expense 1200 over 500` for the laptop.
 Then it reports a `MissingField` failure for the taxi, and the program stops.
-`1 of 2 expenses flagged` never appears. A failure ends the `Effect.gen`
-block it happens in, and every block that ran it with `yield*`, so the line
-after `yield* evaluate(taxi)` never runs.
+`1 of 2 expenses flagged` never appears. With no handler to recover from
+the failure, `evaluate` cannot produce a boolean for the taxi. The failure
+propagates through `yield* evaluate(taxi)` into `program`, which stops
+without running the summary.
 
 Hover `program`. The type is `Effect<void, MissingField, never>`. `program`
 does not create the error, but it runs `evaluate`, so the failure is part of
@@ -135,36 +126,27 @@ its type too.
 
 ## Try it
 
-An event can also be something other than an expense.
+The error type can include more than one possible failure. Add a check for
+events that are not expenses:
 
 1. Declare a second error, `NotAnExpense`, the same way as `MissingField`.
    Give it a `type` field.
 2. At the top of the `Effect.gen` block in `evaluate`, fail with it when
    `event.type` is not `"expense"`.
 3. Hover `evaluate`. The error type now lists both errors, as a union such
-   as `NotAnExpense | MissingField`. Every failure an Effect can produce
-   joins that union, and `program` shows the same union.
+   as `NotAnExpense | MissingField`. Both typed failures are included, and
+   `program` shows the same union.
 
 This is practice only. The next lesson starts from the file without
 `NotAnExpense`.
 
-## What you learned
-
-- An event is a small object that says what happened. Its fields can be
-  missing.
-- `Schema.TaggedError` defines an error class with a tag and typed fields.
-- `return yield* new MissingField(...)` fails an Effect with that error and
-  ends the current path.
-- The error type of an Effect lists the failures it can produce, including
-  the failures of the Effects it runs.
-- A failure stops the program at the step that failed. Nothing after it runs.
-- Each failure is one class. In
-  [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it) these classes
-  travel over HTTP, which is why they are built from `Schema`.
+Using a schema for the error will also be useful beyond this file. In
+[Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it), these error
+classes become part of the HTTP API.
 
 ## Reference
 
-| API                        | What it does                                        | Introduced in |
-| -------------------------- | --------------------------------------------------- | ------------- |
-| `Schema.TaggedError`       | Defines an error class with a tag and typed fields  | this lesson   |
-| `return yield* new E(...)` | Fails the Effect with `E` and ends the current path | this lesson   |
+| API                        | What it does                                                      | Introduced in |
+| -------------------------- | ----------------------------------------------------------------- | ------------- |
+| `Schema.TaggedError`       | Defines an error class with a tag and fields described by schemas | this lesson   |
+| `return yield* new E(...)` | Fails the Effect with an instance of the tagged error class `E`   | this lesson   |

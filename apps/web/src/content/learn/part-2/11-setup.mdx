@@ -6,20 +6,19 @@ minutes: 15
 mode: guide
 ---
 
-This guide gets the reflex starter project running on your machine and starts
-the trace viewer. When you finish it, the first local lesson,
+Part 2 runs on your machine rather than in the browser. Before starting
 [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint),
-can start straight away.
+download the reflex starter, install its dependencies and check that you can
+run the program from the [Part 1 review](/learn/part-1/10-checkpoint).
+You will also start the trace viewer, ready for the later lessons.
 
-This page sits between [Part 1 review](/learn/part-1/10-checkpoint) and the
-first local lesson. If you want to take Part 1 on your machine instead of in
-the browser, do steps 1 and 2 now and run each lesson with `pnpm lesson <n>`.
-Part 1 does not use the trace viewer, so come back for steps 3 and 4 after the
-review.
+If you prefer to work through Part 1 locally, complete steps 1 and 2 now
+and run each lesson with `pnpm lesson <n>`. Part 1 does not use the viewer,
+so return for steps 3 and 4 after the review.
 
 ## Before you start
 
-The 15 minutes assume you already have these installed:
+Allow about 15 minutes if you already have the following installed:
 
 - Node 22.16 or newer
 - pnpm, or corepack to provide it (`corepack enable`)
@@ -37,8 +36,9 @@ npx degit Effect-TS/website/courses/reflex reflex
 cd reflex
 ```
 
-`degit` copies the directory without the website's git history. `reflex` is
-now a project of its own. Commit to it as you go if you like.
+`degit` copies the starter directory without the website's git history.
+The resulting `reflex` directory is your own project; you can initialize a
+git repository there if you want to commit your work as you go.
 
 ## 2. Install the dependencies
 
@@ -46,8 +46,9 @@ now a project of its own. Commit to it as you go if you like.
 pnpm install
 ```
 
-The Effect packages are pinned to exact versions. They are the versions every
-lesson, checkpoint and test was checked against.
+The Effect packages are pinned to the exact versions used to check the
+lessons, checkpoints and tests. Keep those versions while working through
+the course so the examples match your installed APIs.
 
 ## 3. Check your machine and start the viewer
 
@@ -55,11 +56,11 @@ lesson, checkpoint and test was checked against.
 pnpm run doctor --viewer
 ```
 
-Type the `run`. pnpm has a built-in `doctor` command of its own, and a bare
-`pnpm doctor` runs that one instead of the starter's.
+Include `run` in this command. pnpm has its own built-in `doctor`, so
+`pnpm doctor` would run pnpm's checks rather than the starter's script.
 
-The first time, the doctor downloads otel-desktop-viewer v0.6.0 into
-`.viewer/`. It prints one line per requirement, then starts the viewer:
+On the first run, the doctor downloads otel-desktop-viewer v0.6.0 into
+`.viewer/`. It reports the result of each check, then starts the viewer:
 
 ```text
 Downloading https://github.com/CtrlSpice/otel-desktop-viewer/releases/download/v0.6.0/otel-desktop-viewer_linux_amd64.tar.gz
@@ -75,14 +76,15 @@ otel-desktop-viewer v0.6.0 (/home/you/reflex/.viewer/otel-desktop-viewer)
 Press Ctrl-C to stop.
 ```
 
-Leave this terminal running. Do everything else in a second one.
+Leave this terminal running to keep the viewer available. Use a second
+terminal for the remaining commands.
 
-If the binary cannot run on your machine, for example on Linux older than
-glibc 2.39, the viewer line says Docker instead, and the same version runs in
-a container.
+If your machine cannot run the binary, for example because its Linux glibc
+version is older than 2.39, the script uses Docker to run the same viewer
+version in a container. The viewer check reports Docker in that case.
 
-A line marked `✗` says what is missing and what to install. Fix it, then run
-`pnpm run doctor --viewer` again.
+A line marked `✗` identifies a missing requirement and explains what to
+install. Address it, then run `pnpm run doctor --viewer` again.
 
 ## 4. Run the Part 1 file
 
@@ -106,18 +108,18 @@ skip: missing field amount
 
 Each line is prefixed with a timestamp and `INFO`.
 
-Now open [http://localhost:8000](http://localhost:8000). The viewer is
-running and its trace list is empty. Nothing in the starter sends it traces
-yet. You wire that up yourself in
+Now open [http://localhost:8000](http://localhost:8000). You should see an
+empty trace list. This is expected: the viewer is running, but the starter
+does not yet export traces. You will configure that in
 [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know).
 
-If the page loads and the six lines printed, setup is done.
+If the page loads and the program printed all six lines, setup is complete.
 [Reading a trace in the viewer](/learn/part-2/trace-viewer) describes what you
 will see there once traces arrive.
 
 ## Later sessions
 
-The download happens once. After that:
+You only need to download the viewer once. For later sessions:
 
 - `pnpm viewer` starts the viewer again, without the checks.
 - `pnpm run doctor` runs the checks without downloading or starting anything.
@@ -125,12 +127,14 @@ The download happens once. After that:
 
 ## If the viewer will not start
 
-Troubleshooting is outside the 15 minutes. The doctor checks the Node version,
-pnpm, git, and whether the viewer can run here as a binary or through Docker.
-It does not install Node, pnpm or Docker for you.
+Troubleshooting may take longer than the estimated 15 minutes. The doctor
+checks the Node version, pnpm, git, and whether the viewer can run as a
+binary or through Docker. You need to install Node, pnpm and Docker yourself
+if they are missing.
 
-This guide does not cover proxies, firewalls, ports 8000 or 4318 already in
-use, or running natively on Windows. If the viewer will not start at all, keep
-going. Part 1 and the first five local lessons work without it. You need it
-from [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
+This guide does not cover proxy or firewall configuration, conflicts on
+ports 8000 and 4318, or running natively on Windows. If you cannot start the
+viewer yet, you can still work through Part 1 and the first five local
+lessons. You will need the viewer from
+[Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
 on.

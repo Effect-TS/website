@@ -1,10 +1,12 @@
 # reflex
 
-This is the starter project for the Learn Effect course. In the course you build reflex, a small automation engine. Its rules react to events or poll a URL, run an action, and record every run.
+Build reflex, a small automation engine, as you work through the Learn Effect course. Rules respond to events or poll a URL, check a condition, and run an action when it matches. A run history records what happened.
+
+This starter provides the tooling and fixtures. You write the application in `src/`, with reference solutions available at each checkpoint.
 
 ## Prerequisites
 
-Have these ready before you start. The setup time in the course assumes you already have them.
+Install these before starting. The course's setup estimate assumes they are already available.
 
 - Node.js 22.16 or newer
 - pnpm, installed directly or through `corepack enable`
@@ -35,11 +37,13 @@ Windows through WSL2 is untested.
    pnpm run doctor --viewer
    ```
 
-   The doctor prints one line per requirement. On first use it downloads otel-desktop-viewer, the trace viewer the course uses. When every line passes it prints `All set.`, starts the viewer and keeps running until you press Ctrl-C. If a line is marked `✗`, it says what to install. Install it and run the command again.
+   This command checks your tools and downloads otel-desktop-viewer on first use, if your machine supports its binary. It can use Docker instead on other supported systems. When all checks pass, it prints `All set.` and starts the viewer. Leave it running until you finish using the viewer, then press Ctrl-C to stop it.
 
-Type `run` in that command. A bare `pnpm doctor` runs pnpm's own diagnostics command instead.
+   If a check is marked `✗`, follow the installation hint on that line and run the command again.
 
-In a later session, `pnpm viewer` starts the viewer again without the checks. `pnpm run doctor` without the flag only checks.
+Keep `run` in `pnpm run doctor`: without it, `pnpm doctor` invokes pnpm's built-in diagnostics instead of the starter's script.
+
+In later sessions, use `pnpm viewer` to start the viewer without repeating the checks. To check your tools without starting the viewer, use `pnpm run doctor`.
 
 ## Commands
 
@@ -62,23 +66,23 @@ In a later session, `pnpm viewer` starts the viewer again without the checks. `p
 ## Directory layout
 
 - `src/`: your application. You write it during the course.
-- `tools/`: the doctor, the viewer launcher, the receiver and the runners. You never edit these.
+- `tools/`: the doctor, viewer launcher, receiver and runners. The course does not require changes to these files.
 - `fixtures/`: rule files and sample events used by the lessons.
 - `migrations/`: the SQL schema for lesson 17.
 - `lessons/part1/`, `checkpoints/`, `exercises/`: lesson files, reference solutions and exercises.
 
 ## The receiver
 
-Your rules talk to outside services. During the course, `pnpm receiver` stands in for them on http://localhost:4600. It answers these endpoints:
+Use `pnpm receiver` to test rules that call outside services. It starts a local HTTP server on http://localhost:4600 with endpoints for successful responses, errors, and delays:
 
-| Endpoint | Answer |
+| Endpoint | Response |
 | --- | --- |
 | `/ok` | 200 |
 | `/slow?ms=2000` | 200 after the delay |
 | `/fail?status=500` | the requested status (400 to 599) |
 | `/flaky` | 500 and 200 in turn, starting with 500 |
 | `GET /status` | `{"status":"ok"}`, `{"status":"degraded"}`, or a 500 |
-| `POST /status/mode` | a body of `{"mode":"ok"}`, `{"mode":"degraded"}` or `{"mode":"error"}` switches what `/status` answers |
+| `POST /status/mode` | A body of `{"mode":"ok"}`, `{"mode":"degraded"}` or `{"mode":"error"}` changes the response from `/status` |
 
 To make `/status` report `degraded`:
 

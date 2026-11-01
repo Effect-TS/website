@@ -7,71 +7,74 @@ mode: playground
 lessonDir: 10-checkpoint
 ---
 
-This page is a reference for Part 1. The editor holds the whole file from
-the previous lesson. There is nothing new to write. The file runs and prints
-the three alert lines and three skips from
-[Providing a service with a layer](/learn/part-1/09-provide-it).
-
-Use it to check that you can read every name in the file before you move to
-your own machine.
+Before moving reflex to your own machine, take a few minutes to read
+through the program you have built. The editor contains the completed
+file from [Providing a service with a layer](/learn/part-1/09-provide-it).
+Run it to confirm the three alert lines and three skips, then use the
+types to check your understanding. There is no new code to write here
+unless you choose one of the optional challenges below.
 
 ## The types in the file
 
-Hover each name, from top to bottom. Before you hover, say what you expect
-in each type parameter: the success type, the error type and the
-requirements type.
+Work through the names from top to bottom. For each function returning an
+Effect, predict its success, error and requirements types before you
+hover. In particular, check where `RuleStore` becomes a requirement and
+where that requirement is satisfied.
 
-| Name           | Type                                                            | Notes                                                      |
-| -------------- | --------------------------------------------------------------- | ---------------------------------------------------------- |
-| `Rule`         | a schema; `type Rule` is the type derived from it               | the hover lists the rule's fields                          |
-| `decodeRule`   | takes unknown input, returns `Effect<Rule, SchemaError, never>` | parses JSON text and checks it                             |
-| `RuleStore`    | a service, with `layer` and `layerFixtures` as static members   | key `reflex/RuleStore`                                     |
-| `MissingField` | an error class with one field, `field`                          | the one error you declared and still use                   |
-| `matches`      | `(rule: Rule, amount: number) => boolean`                       | a plain function, no Effect                                |
-| `evaluate`     | returns `Effect<boolean, SchemaError, never>`                   | a missing field is handled inside, a malformed rule is not |
-| `evaluateAll`  | returns `Effect<void, SchemaError, RuleStore>`                  | needs the store                                            |
-| `program`      | `Effect<void, SchemaError, never>`                              | the store is provided                                      |
+| Name           | Type                                                                 | Notes                                                         |
+| -------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `Rule`         | A schema, with `type Rule` derived from it                           | The hover shows the rule's fields                             |
+| `decodeRule`   | Accepts unknown input and returns `Effect<Rule, SchemaError, never>` | Parses JSON text and validates the parsed rule                |
+| `RuleStore`    | A service with static `layer` and `layerFixtures` members            | The service key is `reflex/RuleStore`                         |
+| `MissingField` | An error class with a string property named `field`                  | Identifies the field missing from an event                    |
+| `matches`      | `(rule: Rule, amount: number) => boolean`                            | Calculates the result without an Effect                       |
+| `evaluate`     | Returns `Effect<boolean, SchemaError, never>`                        | Handles a missing amount but leaves an invalid rule unhandled |
+| `evaluateAll`  | Returns `Effect<void, SchemaError, RuleStore>`                       | Requires a provided `RuleStore`                               |
+| `program`      | `Effect<void, SchemaError, never>`                                   | Provides the store, leaving no service requirements           |
 
-If one of them surprises you, look it up in the table below and reread the
-lesson that introduced it.
+If a type surprises you, use the reference below to return to the lesson
+that introduced it, then trace how it is used in this file.
 
 ## Part 1 reference
 
-| API                                                   | What it does                                                 | Introduced in                                                                             |
-| ----------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `Effect.log`                                          | Describes writing a log line                                 | [Running your first Effect](/learn/part-1/02-describe-then-run)                           |
-| `Effect.andThen`                                      | Describes running one Effect, then another                   | [Running your first Effect](/learn/part-1/02-describe-then-run)                           |
-| `Effect.gen` and `yield*`                             | Steps in order; `yield*` runs an Effect and gives its result | [Using Effect.gen to write programs](/learn/part-1/03-steps-in-order)                     |
-| `Schema.TaggedError`                                  | Defines an error class with a tag and typed fields           | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
-| `return yield* new E(...)`                            | Fails with `E` and ends the current path                     | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
-| `Effect.catchTag`                                     | Handles one error by its tag                                 | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
-| `.pipe`                                               | `x.pipe(f, g)` is `g(f(x))`                                  | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
-| `Effect.as`                                           | Runs an Effect, then succeeds with a value you give it       | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
-| `Schema.Struct`, `String`, `Number`, `Literals`       | Describe a shape                                             | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
-| `Schema.fromJsonString`, `Schema.decodeUnknownEffect` | Parse and check JSON, fail with `SchemaError`                | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
-| `Effect.fn("name")`                                   | A named function whose calls are spans                       | [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it)                            |
-| `Context.Service`                                     | Defines a service; `yield*` it to use it                     | [Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules)             |
-| `Layer.effect`, `RuleStore.of`                        | Builds a service                                             | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
-| `Effect.sync`                                         | Turns synchronous code into an Effect                        | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
-| `Effect.provide`                                      | Supplies a layer and removes it from the requirements type   | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
-| `NodeRuntime.runMain`                                 | Runs the program                                             | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |
+| API                                                   | What it does                                                                       | Introduced in                                                                             |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Effect.log`                                          | Creates an Effect that writes a log line when run                                  | [Running your first Effect](/learn/part-1/02-describe-then-run)                           |
+| `Effect.andThen`                                      | Combines two Effects to run in sequence                                            | [Running your first Effect](/learn/part-1/02-describe-then-run)                           |
+| `Effect.gen` and `yield*`                             | Build a sequential program, using `yield*` to run Effects and access their results | [Using Effect.gen to write programs](/learn/part-1/03-steps-in-order)                     |
+| `Schema.TaggedError`                                  | Defines an error class with a tag and fields described by schemas                  | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
+| `return yield* new E(...)`                            | Fails the Effect with an instance of the tagged error class `E`                    | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
+| `Effect.catchTag`                                     | Recovers from an error selected by its tag                                         | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `.pipe`                                               | Applies transformations in order: `x.pipe(f, g)` is `g(f(x))`                      | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `Effect.as`                                           | Replaces an Effect's successful result with a specified value                      | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `Schema.Struct`, `String`, `Number`, `Literals`       | Define the object fields and allowed values in a schema                            | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
+| `Schema.fromJsonString`, `Schema.decodeUnknownEffect` | Create a JSON decoder that reports invalid input as `SchemaError`                  | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
+| `Effect.fn("name")`                                   | Defines an Effect function whose calls run inside a named span                     | [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it)                            |
+| `Context.Service`                                     | Declares a service's key and interface; `yield*` retrieves its implementation      | [Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules)             |
+| `Layer.effect`, `RuleStore.of`                        | Define a layer that constructs a typechecked service implementation                | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| `Effect.sync`                                         | Creates an Effect that runs a synchronous callback when executed                   | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| `Effect.provide`                                      | Uses a layer to supply the services an Effect requires                             | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| `NodeRuntime.runMain`                                 | Runs the program as a Node.js entrypoint                                           | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |
 
 ## Optional challenges
 
-These are not counted in the course time, and Part 2 does not depend on
+If you want more practice before Part 2, try one of these changes. They
+are not included in the course time, and later lessons do not depend on
 them.
 
-1. **`eq` and `neq` operators.** Add "equal to" and "not equal to". Start
-   with the schema, then follow what TypeScript asks of `matches`.
-2. **A `skipped` result with a reason.** Instead of logging a skip and giving
-   back `false`, make `evaluate` give back a value that says the rule was
-   skipped and why. The hover then shows that value's type alongside
-   `boolean`, because a checked expense still gives back `flagged`.
+1. Add `eq` and `neq` operators for "equal to" and "not equal to". Start
+   with the schema, then update `matches` to handle the cases TypeScript
+   reports as missing.
+2. Make a skipped check distinguishable from a check that did not match.
+   Instead of logging the skip and returning `false`, have `evaluate`
+   return a `skipped` result containing a reason. Hover to confirm that
+   the success type includes this new result alongside `boolean`, since
+   a completed check still returns `flagged`.
    [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)
    does a version of this.
-3. **A second kind of event.** Add an event that is not an expense, such as a
-   battery level, and a rule for it. The alert message reads `event.amount`.
-   Make it right for an event that has no amount.
+3. Add another kind of event, such as a battery level, and a rule for it.
+   The current alert message reads `event.amount`, which will not suit
+   every event. Adapt the message for an event that has no amount.
 
 ## Next
 

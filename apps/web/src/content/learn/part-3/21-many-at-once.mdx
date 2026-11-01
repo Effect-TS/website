@@ -6,27 +6,24 @@ minutes: 25
 mode: local
 ---
 
-`handleEvent` is still a `for...of` over the rules, one `yield*` after
-another. That was fine while every action was a line in a file. Now an action
-can take up to the 10 second timeout, and every rule after it waits. In this
-lesson the rules an event matches run at the same time, up to a limit, and
-the limits of the server move out of the code into `Config`.
+`handleEvent` still uses a `for...of` loop with one `yield*` after another.
+Each rule waits for the previous rule to finish. That delay was barely
+noticeable when actions only appended local files, but an HTTP action can
+now take the full 10 second timeout before the next rule starts.
 
-In this lesson you will:
+The rules matched by an event do not depend on one another, so they can run
+concurrently. You will first observe the sequential behavior, then replace
+the loop with `Effect.forEach` and a concurrency limit. The timeout and
+other server limits will also become configuration values, so you can
+adjust them without editing the implementation.
 
-- see the rules of one event wait for each other in the viewer
-- run them concurrently with `Effect.forEach` and a `concurrency` limit
-- read the timeout, the concurrency and two more limits from the environment
-  with `Config`
-- send an alert to your phone through ntfy.sh
+## Observe the sequential runs
 
-## 1. See the rules wait
-
-Start clean, so the event matches only the rules this lesson adds. Every
-server, yours and the checkpoints', keeps its rules in the same `reflex.db`,
-and the rules from earlier lessons are still in it. Stop your server, delete
-`reflex.db`, and start it again. Then start the receiver with the mixed
-scenario:
+Use a clean database so earlier rules do not obscure the result. Your
+server and the checkpoint servers share `reflex.db`, so it still contains
+rules from previous lessons. Stop the server, delete `reflex.db`, and start
+it again. This discards the stored rules and history. In another terminal,
+start the receiver with the mixed scenario:
 
 ```sh
 pnpm receiver --scenario mixed
@@ -49,81 +46,97 @@ pnpm cli rules add fixtures/rules/mixed/d-fail.json
 pnpm cli events submit fixtures/events/laptop.json
 ```
 
-Look in the viewer. D's `Engine.execute` span starts only after C's has run
-its full 10 seconds, even though D had nothing to wait for. The time of the
-event is the sum of the rules.
+Open the event's trace in the viewer. D's `Engine.execute` span starts
+only after C has used its full 10 seconds. D does not need C's result, but
+the sequential loop makes it wait anyway. The event request takes roughly
+the sum of the individual run durations.
 
-## 2. Run the rules concurrently
+## Run independent rules concurrently
 
-The rules an event matches do not depend on each other, so they can run at
-the same time, up to a limit. In `src/Engine.ts`, change `handleEvent` to
-filter the matching rules and run them with `Effect.forEach`:
+In `src/Engine.ts`, change `handleEvent` to select the matching rules and
+execute them with `Effect.forEach`. It can run several effects at once
+while limiting how many are active:
 
 <LessonCode file="checkpoints/21/src/Engine.ts" />
 
-`Effect.forEach(rules, (rule) => execute(rule, event), { concurrency })` runs
-`execute` for each rule, at most `concurrency` at a time. Each run gets a
-fiber of its own. The outcomes come back in the order of the rules, not the
-order in which they finished.
+`Effect.forEach(rules, (rule) => execute(rule, event), { concurrency })`
+starts each execution on a fiber, with at most `concurrency` executions
+active for this event. Its returned outcomes remain in the input rule
+order, regardless of completion order.
 
-Submit the event again. `events submit` now takes about 10 seconds, the
-timeout, and the four spans start together.
+There is an important dependency on the execution boundary introduced in
+[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records).
+`Effect.forEach` normally fails when one of its effects fails and interrupts
+the remaining work. That is useful when all results are required for one
+operation, but these rules should not cancel one another.
 
-This is safe because of a decision made in
-[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records):
-`execute` cannot fail. The boundary writes each run's row and then turns
-every failure and crash into an `Outcome` value. That matters because
-`Effect.forEach` stops at the first failure and interrupts the rest, which is
-right for work that only makes sense as a whole and wrong for independent
-rules. Here there is no failure to stop at. D's 500 is a value. C's timeout
-is a value. A and B finish whatever happens to the others.
+The boundary records each run, then converts its typed failure or defect
+into an `Outcome` value. D's 500 and C's timeout are therefore successful
+returns from `execute`, each containing a failed outcome. They do not cause
+`Effect.forEach` to fail, so A and B can complete independently.
+Interruption still cancels work; this conversion does not make the event
+immune to server shutdown or request cancellation.
 
-The limit matters too. With 100 rules on one event, a limit of 4 means at
-most four requests leave at once, instead of 100 hitting whoever the rules
-point to.
+The concurrency limit prevents one event from starting every matching rule
+at once. For 100 rules and a limit of 4, at most four of that event's runs
+are active at a time. This is a per-event limit, not a server-wide cap:
+other events and interval loops can also be running.
 
-## 3. Read the limits from Config
+## Configure the server limits
 
-The timeout, the concurrency and two other limits are no longer constants.
-Create `src/Limits.ts`, which reads each one from the environment with a
-default:
+The concurrency level that suits a local receiver might not suit a remote
+service. Rather than changing code to try another value, describe the
+limits with `Config`. Create `src/Limits.ts` to read the timeout,
+concurrency and two API limits from environment variables, using defaults
+when they are absent:
 
 <LessonCode file="checkpoints/21/src/Limits.ts" />
 
-- `Config.Int("REFLEX_CONCURRENCY")` describes where a value comes from and
-  how to parse it.
-- `Config.withDefault(4)` makes it optional.
-- `Config.all` combines several values into one.
+`Config.Int("REFLEX_CONCURRENCY")` describes an integer configuration
+value. `Config.withDefault(4)` supplies 4 when the variable is unset, and
+`Config.all` combines the individual descriptions into one config object.
+Inside a layer, `yield* Limits` reads and parses those values during server
+startup. A value that cannot be parsed stops startup with an error naming
+the variable, rather than failing later during a request.
 
-Inside a layer, `yield* Limits` reads them all. If one is set to something it
-cannot parse, the server fails to start with a message naming it.
+The Engine uses `timeout` and `concurrency`. The API handlers use
+`maxRules`, which defaults to 100, and `maxPayloadBytes`, which defaults
+to 64 KiB. Adding a rule when the store already has `maxRules` rules fails
+with `TooManyRules`, sent as HTTP 409. If an event's JSON exceeds
+`maxPayloadBytes` in UTF-8 bytes, the API rejects it with
+`PayloadTooLarge`, sent as HTTP 413, before executing any rule. That check
+applies to both `events submit` and `rules run`.
 
-The Engine reads `timeout` and `concurrency`. The API handlers read the other
-two:
+Add the errors to the endpoint declarations in `src/api/Api.ts`, then read
+`Limits` in `src/server/Api.ts` and check the rule count and payload size
+before calling the services. Handle the new typed errors in
+`src/cli/main.ts` as you did `RuleNotFound`, so each prints as a single line.
+The corresponding files in `checkpoints/21/src/` show these changes.
 
-- More than `maxRules` rules (100) is `TooManyRules`, sent as a 409.
-- An event whose JSON is more than `maxPayloadBytes` (64 KiB) is
-  `PayloadTooLarge`, a 413. It is refused before any rule sees it, both from
-  `events submit` and from `rules run`.
+With `Limits` in place and the server running again, submit the event.
+With the default concurrency of 4, all four spans start together and
+`events submit` takes about 10 seconds, determined by the slowest run.
+A and B finish promptly, and D can report its 500 while C is still waiting.
 
-Both are typed errors on their endpoints, like `RuleNotFound`, so the CLI
-prints each one as a single line.
-
-To see a limit at work, start your server with
-`REFLEX_CONCURRENCY=1 pnpm dev:server` and submit the mixed event again. D
-waits for C, as it did before this lesson.
+To check the configuration, restart the server with
+`REFLEX_CONCURRENCY=1 pnpm dev:server` and submit the mixed event again.
+D waits for C, reproducing the sequential behavior without a code change.
 
 ## Try it
 
-Send an alert to your phone. This is not part of the checkpoint.
-[ntfy.sh](https://ntfy.sh) delivers a POST to `https://ntfy.sh/<topic>` to
-every device subscribed to that topic, and uses the `Title` header as the
-notification's title. That is an `httpPost` action:
+You can use the same HTTP action to send a notification to your phone.
+This optional exercise is not part of the checkpoint.
+[ntfy.sh](https://ntfy.sh) delivers messages posted to
+`https://ntfy.sh/<topic>` to devices subscribed to that topic, using the
+`Title` header as the notification title. The fixture already describes
+that request as an `httpPost` action:
 
 <LessonCode file="fixtures/rules/ntfy.json" />
 
-A topic is not an account. Anyone who knows it can publish to it and read
-what was sent, so the topic is the only secret, and a short one gets guessed.
+This example uses a public topic without authentication. Anyone who knows
+the topic can publish to it or read its messages, so choose a long random
+name to make it harder to guess. That does not make it suitable for
+sensitive data.
 
 1. Make a long random topic:
 
@@ -134,34 +147,30 @@ what was sent, so the topic is the only secret, and a short one gets guessed.
 2. Install the ntfy app on your phone and subscribe to that topic.
 3. Copy `fixtures/rules/ntfy.json` to a file of your own, and put your topic
    in the URL.
-4. Add it to the checkpoint's server and submit `fixtures/events/laptop.json`.
+4. Add it to your running server and submit `fixtures/events/laptop.json`.
    Your phone shows "reflex", with "expense over 500" and the event under it.
 5. Submit `fixtures/events/lunch.json`. Nothing arrives, because 40 is not
    over 500.
 
-Send fixture data only. Whatever you post there, assume anyone could read it.
+Use fixture data only, and assume anything you post could be read by
+someone else.
 
-## What you learned
-
-- Independent work runs with `Effect.forEach` and a `concurrency` limit.
-- It is safe because each piece returns a value instead of failing.
-- Limits are `Config` values with defaults, read once when the server starts.
-- The cost is that runs of one event now overlap. Their log lines interleave,
-  and their order in `runs list` is the order they started, not the order of
-  the rules.
-- The next lesson,
-  [Diagnosing a request from its trace](/learn/part-3/22-diagnose-it),
-  reads this exact trace to answer questions about it.
+Concurrent execution changes how you read the output. Log lines from
+different runs can interleave, and `runs list` orders rows by start time
+(newest first), not by the input rule order. Use rule ids and spans to
+identify individual runs rather than assuming adjacent lines belong
+together. In
+[Diagnosing a request from its trace](/learn/part-3/22-diagnose-it),
+you will use this mixed scenario to work out what happened from the
+recorded data alone.
 
 ## Checkpoint
 
-The checkpoint shows the four rules of the mixed scenario running together.
-This lesson's checkpoint is number 21.
-
-The four rules you added above are still in `reflex.db`, and adding them
-again would add four more, because the store does not deduplicate. Stop your
-server and delete `reflex.db` once more. Then, with the mixed receiver
-running, start the checkpoint's server and add the four rules:
+To compare your result with checkpoint 21, first stop your server and
+delete `reflex.db` again. Otherwise, adding the four rules below would
+duplicate the ones already stored; the store does not deduplicate rules.
+With the mixed receiver still running, start the checkpoint server and add
+the rules:
 
 ```sh
 pnpm checkpoint 21 server
@@ -176,20 +185,20 @@ pnpm checkpoint 21 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 21 cli runs list
 ```
 
-`events submit` takes about 10 seconds, the timeout, not the sum. It prints
-two `succeeded`, one `failed (timeout)` and one `failed (status)`, and
-`runs list` has the same four rows. In the viewer, the `Engine.handleEvent`
-trace has four `Engine.execute` spans starting together under it. C's and D's
-are red, and A's and B's are Ok.
+`events submit` takes about 10 seconds rather than the sum of the four
+run durations. It prints two `succeeded`, one `failed (timeout)` and one
+`failed (status)`, and `runs list` contains the same four outcomes. In the
+viewer, look under `Engine.handleEvent` for four `Engine.execute` spans
+starting together. C and D are red; A and B have status Ok.
 
 ## Reference
 
-| API                                         | What it does                                                    | Introduced in                                                 |
-| ------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
-| `Effect.forEach(items, f, { concurrency })` | Runs `f` for each item, at most `concurrency` at once, in order | this lesson                                                   |
-| `Config.Int(name)`, `Config.Duration(name)` | A value read from the environment and parsed                    | this lesson                                                   |
-| `Config.withDefault(value)`                 | The value when the variable is not set                          | this lesson                                                   |
-| `Config.all({...})`                         | Several config values as one                                    | this lesson                                                   |
-| `yield* config`                             | Reads the config, failing with a clear error if it is invalid   | this lesson                                                   |
-| `Effect.catchTags({...})`                   | Handles several tagged errors, one function each                | this lesson                                                   |
-| `HttpApiSchema.status(409)`                 | The HTTP status an error is sent with                           | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it) |
+| API                                         | What it does                                                         | Introduced in                                                 |
+| ------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `Effect.forEach(items, f, { concurrency })` | Runs `f` with bounded concurrency and returns results in input order | this lesson                                                   |
+| `Config.Int(name)`, `Config.Duration(name)` | Describes an integer or duration value to read from configuration    | this lesson                                                   |
+| `Config.withDefault(value)`                 | Uses a default when the configuration value is missing               | this lesson                                                   |
+| `Config.all({...})`                         | Combines config descriptions into one object-shaped config           | this lesson                                                   |
+| `yield* config`                             | Reads and parses configuration, failing if it is invalid             | this lesson                                                   |
+| `Effect.catchTags({...})`                   | Handles tagged failures with one handler for each specified tag      | this lesson                                                   |
+| `HttpApiSchema.status(409)`                 | Associates an API schema with HTTP status 409                        | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it) |

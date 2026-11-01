@@ -7,23 +7,19 @@ mode: playground
 lessonDir: 09-provide-it
 ---
 
-The file starts where the previous lesson ended, red at the run line.
-`program` needs a `RuleStore`, `runMain` only runs Effects that need
-nothing, and nothing in the file says which rules the store holds.
+The service declaration let you write evaluation code without choosing
+where to store the rules. That choice is still missing, which is why
+`NodeRuntime.runMain(program)` has a type error. To run the program, you
+need to construct a `RuleStore` and provide it to the Effect that uses it.
 
-By the end of this lesson `RuleStore` has an implementation, `program` runs
-again, and you swap one implementation for another by changing one line.
+Start with an in-memory store. Once it works, replace it with a second
+store containing different rules, without changing the evaluation code.
 
-In this lesson you will:
+## Building the store with a layer
 
-- build a service with `Layer.effect`
-- provide a layer with `Effect.provide`
-- swap implementations without touching the code that uses the service
-
-## 1. Build a layer
-
-A **layer** builds a service. `Layer.effect(RuleStore, effect)` reads as "to
-get a `RuleStore`, run this Effect and use what it gives back".
+A **layer** describes how to build a service. With
+`Layer.effect(RuleStore, effect)`, the supplied Effect constructs the
+implementation to use for `RuleStore`.
 
 Add `Layer` to the `effect` import. Put the `largeExpense` and `malformed`
 constants back, above the class. Then add the layer to the class as a static
@@ -39,17 +35,20 @@ static readonly layer = Layer.effect(
 )
 ```
 
-- `Effect.sync` turns synchronous code into an Effect. The `Map` is created
-  when the layer is built, not when the file loads.
-- `RuleStore.of({ list: ... })` checks that the object has the service's
-  shape.
+`Effect.sync` delays the synchronous code in its callback until the
+Effect runs. Here, the `Map` is created when the layer is built, rather
+than when the file loads. `RuleStore.of({ list: ... })` lets TypeScript
+check that the object implements the service's interface. Its `list`
+Effect reads the map's values into an array when it runs.
 
-## 2. Provide the layer
+## Providing the store to program
 
 Attach `Effect.provide(RuleStore.layer)` to `program` with `.pipe`.
 
 Hover `program`. The type is `Effect<void, SchemaError, never>`. The
-requirements type is back to `never` and the red line is gone.
+requirements type is back to `never`: the layer supplies the `RuleStore`
+that `evaluateAll` needs. There are no remaining service requirements, so
+the run line no longer has a type error.
 
 Run the file. The laptop gets its alert from the large expense rule, then the
 malformed rule stops the run with its `SchemaError`, as it did two lessons
@@ -57,7 +56,8 @@ ago.
 
 ## Try it
 
-Swap the implementation. Start by adding two more rule constants above the
+Use a different set of rules to check that evaluation is independent of
+this implementation. Start by adding two more rule constants above the
 class:
 
 <LessonCode
@@ -79,7 +79,7 @@ class:
    `expense 1200 over 1000`. Then three `skip: missing field amount` lines
    print for the taxi, and the program finishes normally.
 
-This is `program` at the end:
+The final `program` provides the fixture layer:
 
 <LessonCode
   file="lessons/part1/09-provide-it/solution/main.ts"
@@ -87,27 +87,23 @@ This is `program` at the end:
 />
 
 `evaluateAll`, `evaluate` and the rest of `program` did not change. They
-know the service, not how it was built.
+use the service's interface; only the layer chooses the implementation.
+You will use this separation again in
+[Writing tests with @effect/vitest](/learn/part-2/13-first-tests) to supply
+a test store, and in
+[Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart)
+to replace the in-memory store with SQLite.
 
-## What you learned
-
-- A service is defined once, used with `yield*`, and built by a layer.
-- `Effect.provide(layer)` supplies the service and removes it from the
-  requirements type.
-- Swapping a layer changes the implementation without changing the code
-  that uses it.
-  [Writing tests with @effect/vitest](/learn/part-2/13-first-tests) swaps in
-  a test layer this way, and
-  [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart)
-  swaps in SQLite.
-- The cost is one level of indirection. From `yield* RuleStore` you cannot
-  jump straight to the code that runs.
+This separation does mean you need to check the provided layer when
+following the code. `yield* RuleStore` identifies the service being used,
+but the layer passed to `Effect.provide` determines which implementation
+runs.
 
 ## Reference
 
-| API              | What it does                                                   | Introduced in |
-| ---------------- | -------------------------------------------------------------- | ------------- |
-| `Layer.effect`   | Builds a service by running an Effect                          | this lesson   |
-| `RuleStore.of`   | Checks that an object has the service's shape                  | this lesson   |
-| `Effect.sync`    | Turns synchronous code into an Effect                          | this lesson   |
-| `Effect.provide` | Supplies a layer and removes its service from the requirements | this lesson   |
+| API              | What it does                                                              | Introduced in |
+| ---------------- | ------------------------------------------------------------------------- | ------------- |
+| `Layer.effect`   | Defines a layer that runs an Effect to construct a service implementation | this lesson   |
+| `RuleStore.of`   | Lets TypeScript check an object against the service's interface           | this lesson   |
+| `Effect.sync`    | Creates an Effect that runs a synchronous callback when executed          | this lesson   |
+| `Effect.provide` | Uses a layer to supply the services an Effect requires                    | this lesson   |

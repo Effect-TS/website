@@ -6,28 +6,24 @@ minutes: 15
 mode: local
 ---
 
-Something went wrong on one event while you were not watching. All you have
-is what the program recorded: the run history and the traces. In this lesson
-you find out whether that is enough. You write no code. You run the mixed
-scenario from the previous lesson once more and answer four questions about
-it, using only `runs list` and the viewer.
+When a request fails while you are not watching, you need to reconstruct
+what happened from the records it left. You have added run history and
+traces throughout the course. Now check whether they contain enough detail
+to explain the mixed scenario without reading the implementation.
 
-Do not read the code or the fixture files while you answer. The point is to
-learn whether what you built tells you enough on its own.
+There is no new code in this lesson. Run the previous lesson's scenario
+again, then use only `runs list` and the viewer to answer four questions.
+Leave the code and fixture files closed while you investigate. That makes
+it easier to notice where the recorded evidence is useful and where
+something is missing.
 
-In this lesson you will:
+## Reproduce the mixed scenario
 
-- reproduce the mixed scenario on an empty run history
-- answer four questions from `runs list` and the trace, and write the answers
-  down
-- check them against the expected answers
-
-## 1. Reproduce the run
-
-Use the checkpoint's server, or your own if your previous checkpoint matched.
-This lesson's checkpoint is number 22. Start from an empty run history so the
-rows are easy to find: stop the server, delete `reflex.db`, and start it
-again.
+Use checkpoint 22, or your own server if it matched the previous
+checkpoint. Start with an empty database so there is only one event's
+results to inspect. Stop the server and delete `reflex.db`; this removes
+the stored rules as well as the run history. Then start the mixed receiver
+and server and run the commands below.
 
 ```sh
 pnpm receiver --scenario mixed
@@ -46,18 +42,17 @@ pnpm checkpoint 22 cli events submit fixtures/events/laptop.json
 pnpm checkpoint 22 cli runs list
 ```
 
-`events submit` takes about 10 seconds and prints four outcomes. `runs list`
-shows four rows.
-
-In the viewer, open the newest `reflex-server` trace that has an
-`Engine.handleEvent` span.
+After about 10 seconds, `events submit` prints four outcomes. `runs list`
+should contain four rows. Open the newest `reflex-server` trace containing
+an `Engine.handleEvent` span in the viewer.
 [Reading a trace in the viewer](/learn/part-2/trace-viewer) describes each
 part of the screen.
 
-## 2. Answer four questions
+## Answer from the recorded evidence
 
-Write your answers down. For each one, name what you looked at: a span, a
-row, or a duration.
+Write down an answer to each question, including the evidence that supports
+it. For example, identify the span you inspected, the fields in a run row,
+or the duration you measured.
 
 1. Which operation was slowest? How long did it take, and why that long?
 2. Which operation failed, and with what?
@@ -65,43 +60,38 @@ row, or a duration.
    whole request take?
 4. Did a timeout fire? Name two places that show it.
 
-If you see four `succeeded` rows, the receiver answered `/slow` before the
-timeout. Check that `REFLEX_TIMEOUT` is not set in the server's shell.
+If the slow request succeeds rather than timing out, check whether
+`REFLEX_TIMEOUT` is set in the server's shell. This exercise assumes the
+default 10 second timeout, shorter than the receiver's 15 second response.
 
-## 3. Check your answers
+## Compare your answers
 
-Once all four are written down, compare them with
-[the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids and
-times differ, but the shape does not.
+Once you have written all four answers, compare them with
+[the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids
+and exact timings will differ, but the outcomes and their relationships
+should match.
 
-If one of your answers needed something you could not find in `runs list` or
-the viewer, note what was missing. That note is a starting point for one of
-the follow-ons in [Where to go next](/learn/part-4/what-comes-next).
-
-## What you learned
-
-- One row per run and one span per run are enough to tell a timeout from a
-  refused request, and to see which runs waited for which.
-- Span start times show what ran together. The parent span shows how long the
-  whole request took.
-- The reasons in `runs list` and the status messages in the viewer say the
-  same thing in two places.
+If a question required information you could not find in `runs list` or
+the viewer, note what was missing. A trace can only explain what the
+program recorded. That observation can become a follow-on improvement in
+[Where to go next](/learn/part-4/what-comes-next).
 
 ## Checkpoint
 
-Your written answers match the expected ones: the slowest operation and the
-timeout, the failure and its status, the two that completed without waiting,
-and the request taking about as long as the timeout. Two red spans, two Ok,
-four rows.
+You should be able to identify the slowest operation, distinguish its
+timeout from the 500 response, and show that the two successful runs did
+not wait for it. Support your explanation of the request duration with
+the `Engine.handleEvent` span. Your evidence should include four run rows
+and four execution spans: two red and two Ok.
 
 ## Reference
 
-Nothing new. This lesson reads what earlier lessons built:
+Use these existing records to support your answers:
 
-| Where             | What it tells you                                            | Introduced in                                                                         |
-| ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `runs list`       | One row per run: outcome, reason and error                   | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)          |
-| `Engine.execute`  | One span per run: duration, status, `rule.id`                | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)     |
-| Span status Error | The run failed or crashed. The status message says with what | [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network) |
-| Span start times  | Runs that started together ran together                      | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |
-| Parent span       | `Engine.handleEvent` lasts as long as the whole event took   | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |
+| Where             | What it tells you                                                       | Introduced in                                                                         |
+| ----------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `runs list`       | Shows each run's outcome, reason and error details                      | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)          |
+| `Engine.execute`  | Records one run's duration and status, annotated with `rule.id`         | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)     |
+| Span status Error | Identifies a failed or crashed run, with details in the status message  | [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network) |
+| Span start times  | Show which runs started together and whether their execution overlapped | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |
+| Parent span       | Shows the duration of event handling in `Engine.handleEvent`            | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |

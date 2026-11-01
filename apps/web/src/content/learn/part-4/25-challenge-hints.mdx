@@ -7,34 +7,37 @@ mode: guide
 
 These hints are for
 [Challenge: pausing and resuming rules](/learn/part-4/24-independent-challenge).
-Each one gives away a little more than the one before. Read one, go back and
-try again, and come back for the next only if you need it.
+They reveal progressively more of the solution. Start with the first hint,
+then return to your implementation before reading further.
 
 ## 1. Keep the pause in the Engine
 
-The Engine already owns everything that runs a rule: the `FiberMap` of loops
-and `handleEvent`. Keep whether a rule is paused next to them, in the Engine
-layer, as a set of ids.
+The Engine controls both ways a rule can run: interval loops in the
+`FiberMap`, and event rules in `handleEvent`. Store a set of paused rule ids
+in the Engine layer, where both can check it.
 
-The run log needs no new outcome. A paused rule does not run, so it writes
-nothing.
+You do not need a new run outcome. Event dispatch and interval loops do not
+execute paused rules, so they create no run-log rows for them. Explicit
+`rules run` calls are outside this pause check.
 
 ## 2. Pause and resume in the right order
 
-`stop` already interrupts a loop and waits for its last row. Pausing an
-interval rule is that, plus remembering the pause. Remember the pause first,
-then stop the loop, so no event can run the rule while its loop is stopping.
+`stop` already shows how to interrupt a loop and wait for its final
+run-log update. To pause an interval rule, add its id to the paused set,
+then interrupt its loop in the same way. The paused state is then visible
+while you wait for interruption to complete.
 
-Resuming is the reverse. Forget the pause, then call `start`.
+To resume it, remove its id from the paused set, then call `start`.
 
-For an event rule, leave paused rules out of the rules `handleEvent` runs.
-They get no `Engine.execute` span at all.
+For event rules, filter out paused ids in `handleEvent`, before calling
+`execute`. This also prevents an `Engine.execute` span from being created.
 
 ## 3. Show the pause in rules list
 
-For interval rules, the `list` handler asks the Engine `isRunning`. Ask
-whether a rule is paused the same way, and report `paused` before `running` or
-`stopped`. Add the new literal to `ListedRule` in `src/api/Api.ts`.
+The `list` handler already uses the Engine's `isRunning` method to report
+interval-rule status. Add a similar method for checking whether a rule is
+paused. Check it first, so `paused` takes precedence over `running` or
+`stopped`, and add the new literal to `ListedRule` in `src/api/Api.ts`.
 
 ## 4. Add the endpoints
 
@@ -48,40 +51,46 @@ Declare `RuleNotFound` as the 404 error of each one. In each handler, look the
 rule up with `store.get` first, so an unknown id fails with `RuleNotFound`
 exactly as `remove` does.
 
-The CLI gets both endpoints from `ApiClient` with no extra code. Catch
-`RuleNotFound` in the two new commands the same way `rules remove` does.
+`ApiClient` derives client methods for both endpoints automatically. Use
+these methods in the two new CLI commands, and handle `RuleNotFound` as
+`rules remove` does.
 
-## 5. Write the four tests on the harness
+## 5. Use the existing test harness
 
 All four tests go on the harness from
 [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock).
 
-- **The interval test** is that lesson's core test with pause in place of
-  remove. Await `remote.arrived`, pause, `TestClock.adjust` past
-  `everySeconds`, and assert that `remote.requests.length` did not grow and
-  the run rows did not change.
-- **The positive control** keeps the poll hanging. Resume starts the loop, and
-  its first tick runs at once, so that tick is the one new request and its
-  `started` row is the one new row. Adjust past one interval but stay short of
-  the 10 second timeout. The hanging tick then neither times out nor makes
-  room for another, so you can assert exactly one more request and one more
-  row. A poll that answered would let the next tick run within the same
-  adjustment, and you would count two.
-- **The event test** uses the `HttpApiTest` client from the same lesson and
-  the outcomes that `events.submit` returns.
-- **The unknown id test** uses `Effect.flip` on `pause` to get the
-  `RuleNotFound`, as in
-  [Writing tests with @effect/vitest](/learn/part-2/13-first-tests).
+For the interval test, adapt that lesson's core test, replacing remove with
+pause. Await `remote.arrived`, pause the rule, then use `TestClock.adjust`
+to advance past `everySeconds`. Assert that `remote.requests.length` has
+not grown and the run rows have not changed.
+
+Keep the poll pending for the positive control too. Resuming starts the
+loop, whose first tick runs immediately. That tick creates one request and
+one `started` row. Advance past one interval, but stay below the 10 second
+timeout: because the request is still pending, the loop cannot begin a
+second tick. You can then assert exactly one additional request and row.
+If the poll completed, the clock adjustment could allow a second tick,
+which would make the count two instead.
+
+For the event test, use the `HttpApiTest` client from the same lesson and
+assert on the outcomes returned by `events.submit`.
+
+For the unknown-id test, use `Effect.flip` on `pause` to inspect the
+`RuleNotFound` error, as in
+[Writing tests with @effect/vitest](/learn/part-2/13-first-tests).
 
 ## 6. Decide what a restart does
 
-Keeping the pause in memory is a fair answer. A server start already restarts
-stopped loops, so a restart also resumes paused ones. Say so in a comment.
+Keeping pauses in memory is enough for this challenge. Starting the server
+already restarts stopped loops, so with this choice it also resumes paused
+ones. Document that behaviour in a comment.
 
-A pause that survives a restart needs a column and a migration. That takes
-longer than 40 minutes.
+To preserve pauses across restarts, you would need a database column and a
+migration. That is beyond the challenge's 40-minute budget.
 
 ## The reference solution
 
-`exercises/24/hint.md` has these hints as one file. Checkpoint 24 is the
-reference solution, and `checkpoints/24/test/Pause.test.ts` holds its tests.
+These hints are also available locally in `exercises/24/hint.md`. The
+reference implementation is in checkpoint 24, with its tests in
+`checkpoints/24/test/Pause.test.ts`.

@@ -7,32 +7,25 @@ mode: playground
 lessonDir: 06-untrusted-json
 ---
 
-The threshold and the message are still constants in the code. Reflex is
-meant to run your rules, and a **rule** is data. It says what to compare,
-the threshold, and the message to log when it matches. It arrives as JSON
-text, first from a file and later from an HTTP request. Here is the rule you
-have been hard-coding, as JSON:
+Changing the expense threshold currently means editing `isLarge`, and
+changing the alert text means editing `evaluate`. Reflex should let you
+change those choices without changing the evaluation code. Represent them
+as a **rule** containing an operator, a threshold and a message.
+
+Later, rules will arrive as JSON text from a file or an HTTP request. For
+now, put the JSON in a string. This is the rule you have been using:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="largeExpense"
 />
 
-Text from outside the program can contain anything. By the end of this lesson
-`evaluate` takes a rule as JSON, accepts a valid one, and fails with a clear
-error on a broken one.
+TypeScript cannot guarantee that text from outside the program contains a
+valid rule. Before evaluating it, you need to parse the JSON and check its
+fields. A **schema** defines both the runtime validation and the TypeScript
+type of the validated value, so you do not have to maintain them separately.
 
-In this lesson you will:
-
-- describe the shape of a rule with `Schema.Struct`
-- decode JSON text into a `Rule` with `Schema.fromJsonString`
-- evaluate a decoded rule against an event
-- read the error a schema reports
-
-## 1. Define the schema
-
-A **schema** describes a shape once. From that description Effect derives
-both the TypeScript type and a check that runs on real data.
+## Describing a valid rule
 
 Add the schema below the `Event` interface, and the type below it:
 
@@ -41,15 +34,15 @@ Add the schema below the `Event` interface, and the type below it:
   declaration="Rule"
 />
 
-- `Schema.Struct({ ... })` describes an object. `Schema.String` and
-  `Schema.Number` describe its fields.
-- `Schema.Literals(["gt", "lt"])` describes the operator: one of those two
-  strings and nothing else.
+`Schema.Struct({ ... })` describes an object with the listed fields. Its
+`name` and `message` must be strings, and its `value` must be a number.
+`Schema.Literals(["gt", "lt"])` restricts `op` to those two strings, so a
+rule with any other operator will fail validation.
 
 Then add `type Rule = typeof Rule.Type`. The schema and the type share the
 name `Rule`. TypeScript knows which one you mean from where you use it.
 
-## 2. Decode the JSON
+## Parsing and validating the JSON
 
 Add one line below the type:
 
@@ -58,11 +51,17 @@ Add one line below the type:
   declaration="decodeRule"
 />
 
-`Schema.fromJsonString(Rule)` parses the text and then checks it against the
-struct. `decodeRule` takes unknown input and returns an Effect that succeeds
-with a `Rule` or fails with a `SchemaError`.
+`Schema.fromJsonString(Rule)` describes parsing JSON text and checking the
+parsed value against `Rule`. `Schema.decodeUnknownEffect` turns that
+description into a decoding function. The resulting `decodeRule` accepts
+unknown input and returns an Effect that succeeds with a `Rule` or fails
+with a `SchemaError`.
 
-## 3. Evaluate a rule
+Decoding adds runtime work, and the schema needs to be maintained as the
+rule format changes. Once validation succeeds, the rest of the check can
+use the resulting `Rule` without repeating those checks.
+
+## Evaluating the validated rule
 
 Replace `isLarge` with a plain function that switches on the operator:
 
@@ -71,11 +70,14 @@ Replace `isLarge` with a plain function that switches on the operator:
   declaration="matches"
 />
 
-The `switch` has no `default` branch. TypeScript knows the operator is one
-of two strings, so two cases cover everything.
+The `switch` needs no `default` branch because the `Rule` type restricts
+the operator to `"gt"` or `"lt"`. Validation establishes that restriction
+at runtime, so `matches` can work with a `Rule` rather than checking the
+raw input again.
 
-Give `evaluate` a second parameter, so it is `evaluate(json, event)`. Its
-first step is `const rule = yield* decodeRule(json)`. The message is
+Add a `json: string` parameter before `event` in `evaluate`, so callers use
+`evaluate(json, event)`. Its first step is
+`const rule = yield* decodeRule(json)`. The message is
 `${event.type} ${event.amount} ${rule.message}` when the rule matches and
 `${rule.name}: no alert` when it does not:
 
@@ -107,32 +109,36 @@ Run the file. The terminal shows three outcomes in order:
 2. The taxi is skipped, as in the previous lesson: `skip: missing field amount`.
 3. `malformed` fails with a `SchemaError`, and the program stops.
 
-A missing amount is expected, so it is handled and becomes a skip. A broken
-rule is not expected, so it stops the program.
+The existing `catchTag` handles only `MissingField`. An incomplete expense
+still becomes a skip, while an invalid rule fails with `SchemaError` and
+stops the program. This is why selecting a specific error mattered in the
+previous lesson.
 
-That is why the summary is gone. A broken rule stops the program before a
-summary could print, and from
-[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)
-on, a run log records how every run ended instead. `evaluate` still gives
-back whether the rule matched.
+You have removed the summary because a run can now stop at an invalid
+rule before reaching it. `evaluate` still returns whether the rule matched,
+but `program` no longer counts those results. In
+[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records),
+you will record how each run ended, including failed runs.
 
-## 4. Read the schema error
+## Finding the invalid field
 
 Look at the malformed rule's error in the terminal. It reads
-`SchemaError: Expected "gt" | "lt"` at `["op"]`. It says what it expected
-and where it looked.
+`SchemaError: Expected "gt" | "lt"` at `["op"]`. The path identifies the
+invalid field, and the message lists its allowed values.
 
 Decoding stops at the first problem it finds. `malformed` also has a string
 where the value should be a number, and no message at all. Fix the operator
 and the next problem is reported.
 
 Hover `evaluate`. Its return type is
-`Effect<boolean, SchemaError, never>`. `SchemaError` is defined by the
-library and reported for you.
+`Effect<boolean, SchemaError, never>`. Unlike `MissingField`, this error
+comes from the decoder rather than a class you defined. It remains in the
+type because you have not handled it.
 
 ## Try it
 
-Add an operator.
+Extend the rule format with an equality operator. The schema change will
+also change the TypeScript type used by `matches`:
 
 1. Add `"eq"` to the literals. TypeScript underlines `matches`, because its
    `switch` no longer covers every case. Add the `eq` case,
@@ -140,25 +146,23 @@ Add an operator.
 2. Change the operator in `malformed` to `"between"` and run the file. The
    error now lists `"eq"` among the expected operators.
 
-## What you learned
+In this program, the JSON rule needs runtime validation because it arrives
+as text. The `laptop` object is constructed in TypeScript and checked
+against the `Event` interface, so it does not need a decoder here. Keep
+that distinction in mind when you move to external input.
 
-- Data from outside the program goes through a schema once, at the edge.
-  The rest of the program works with a type it can trust.
-- `Schema.decodeUnknownEffect(Schema.fromJsonString(Rule))` parses and checks
-  JSON. It fails with a `SchemaError` that says what was wrong and where.
-- Values you build in TypeScript, such as `laptop`, do not need a schema.
-- The cost is one decode per input and one schema to maintain.
-- [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
-  grows `Rule` into the real thing, with triggers, actions and more
-  operators.
+[Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
+will expand `Rule` with triggers, actions and more operators. The same
+approach will apply: validate incoming data, then use its inferred type
+in the evaluation code.
 
 ## Reference
 
-| API                              | What it does                                               | Introduced in |
-| -------------------------------- | ---------------------------------------------------------- | ------------- |
-| `Schema.Struct`                  | Describes an object with typed fields                      | this lesson   |
-| `Schema.String`, `Schema.Number` | Describe a string or a number                              | this lesson   |
-| `Schema.Literals`                | Describes one of a fixed set of values                     | this lesson   |
-| `typeof Rule.Type`               | The TypeScript type a schema describes                     | this lesson   |
-| `Schema.fromJsonString`          | Parses JSON text, then checks it against a schema          | this lesson   |
-| `Schema.decodeUnknownEffect`     | Turns a schema into a decode that fails with `SchemaError` | this lesson   |
+| API                              | What it does                                                                | Introduced in |
+| -------------------------------- | --------------------------------------------------------------------------- | ------------- |
+| `Schema.Struct`                  | Defines an object schema with the specified fields                          | this lesson   |
+| `Schema.String`, `Schema.Number` | Validate string and number values                                           | this lesson   |
+| `Schema.Literals`                | Restricts a value to one of the specified literals                          | this lesson   |
+| `typeof Rule.Type`               | Derives the validated value's TypeScript type from `Rule`                   | this lesson   |
+| `Schema.fromJsonString`          | Defines JSON parsing followed by validation against a schema                | this lesson   |
+| `Schema.decodeUnknownEffect`     | Creates an Effect-based decoder that reports invalid input as `SchemaError` | this lesson   |

@@ -7,47 +7,44 @@ mode: playground
 lessonDir: 07-name-it-see-it
 ---
 
-The malformed rule fails, as it should. The failure in the terminal says what
-went wrong, a `SchemaError` at `["op"]`, but not which part of the program it
-came from. With one function you can guess. A real program has dozens of
-steps. By the end of this lesson the same failure names the step it happened
-in.
+The schema error identifies the invalid `op` field, but it does not yet
+identify the application function that was running when decoding failed.
+In this small file, you can find the call easily. As reflex grows, a name
+in the failure report will make it easier to locate the relevant code.
 
-In this lesson you will:
+Use `Effect.fn` to define a named Effect function. You will keep the same
+checks and error handling in `evaluate`; only its definition changes.
 
-- give an Effect function a name with `Effect.fn`
-- learn what a span is
-- find the name in a failure
+## Giving evaluate a name
 
-## 1. Rewrite evaluate with Effect.fn
-
-`Effect.fn("evaluate")` is `Effect.gen` with a name. Today `evaluate` is an
-arrow function that returns `Effect.gen(function*() { ... })`. Rewrite it so
-the parameters move onto the generator, and the `catchTag` becomes a second
-argument after the generator:
+Currently, `evaluate` is an arrow function returning an `Effect.gen` block.
+With `Effect.fn("evaluate")`, the generator itself takes the parameters.
+The `catchTag` transformation becomes a second argument after the
+generator, rather than a separate `.pipe` call:
 
 <LessonCode
   file="lessons/part1/07-name-it-see-it/solution/main.ts"
   declaration="evaluate"
 />
 
-Anything you pass after the generator is applied to its result, the same way
-`.pipe` applies it.
+The transformation after the generator is applied to the Effect it
+produces, just as it was with `.pipe`. The `MissingField` handler therefore
+continues to recover in the same way.
 
 Run the file. The laptop still gets its alert, the taxi is still skipped, and
 the malformed rule still fails.
 
-## 2. Read the name in the failure
+## Locating the failed call
 
 Look at the malformed rule's failure in the terminal. Under the
 `SchemaError` there is now a line that starts with `at evaluate (`. That is
 the name you passed to `Effect.fn`. The line after it,
 `at evaluate (definition)`, points at where you declared the function.
 
-Every call to `evaluate` now runs inside a **span** named `evaluate`. A span
-is a record of one piece of work: its name, when it started, how long it
-took, and whether it succeeded. When an Effect fails inside a span, the
-failure that `runMain` prints names the span.
+Each call to the named function runs inside a **span** named `evaluate`.
+A span records an operation's name, start time, duration and outcome. The
+failure printed by `runMain` includes the name, which connects the schema
+error to the call that failed.
 
 You do not see spans drawn as a timeline yet. That needs a trace viewer,
 which you connect in
@@ -55,8 +52,9 @@ which you connect in
 
 ## Try it
 
-The failure says it happened inside `evaluate`, but `evaluate` does several
-things. Name the decode as well.
+The failure now identifies `evaluate`, but that function both decodes and
+checks an expense. Give decoding its own name to see how nested calls
+appear in the report:
 
 1. Turn `decodeRule` into a function made with `Effect.fn("decodeRule")`
    that takes the JSON string and decodes it.
@@ -64,22 +62,13 @@ things. Name the decode as well.
    first, then `at evaluate` under it. The decode failed, and it was running
    inside `evaluate`.
 
-## What you learned
-
-- `Effect.fn("name")` defines a function whose every call runs inside a span
-  with that name.
-- A span records one piece of work: its name, its start, its duration and
-  its result.
-- When a call fails, the failure lists the spans it was in, as
-  `at evaluate (...)`.
-- Spans cost a little time, and once exported, some traffic. Name the steps
-  whose boundaries you want to see, not every helper. `matches` stays a plain
-  function.
-- The names you choose now are the names you read in the trace viewer in
-  [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know).
+Use names for operations you want to identify when investigating a failure
+or reading a trace. There is no need to wrap every helper: `matches` can
+remain a plain function. Recording spans has a runtime cost, and exporting
+them later adds network traffic.
 
 ## Reference
 
-| API                 | What it does                                                 | Introduced in |
-| ------------------- | ------------------------------------------------------------ | ------------- |
-| `Effect.fn("name")` | Defines a generator function whose calls run in a named span | this lesson   |
+| API                 | What it does                                                                 | Introduced in |
+| ------------------- | ---------------------------------------------------------------------------- | ------------- |
+| `Effect.fn("name")` | Defines an Effect function whose calls run inside a span with the given name | this lesson   |

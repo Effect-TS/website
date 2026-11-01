@@ -1,10 +1,12 @@
 # Exercise 22: diagnose the mixed scenario
 
-Goal: answer four questions about one event using only `runs list` and the viewer.
+Use only `runs list` and the viewer to answer four questions about one event.
 
-Run the mixed scenario from lesson 21 once more. Do not read the code or the fixture files while you answer. The point is to find out whether what you built tells you enough on its own.
+Run the mixed scenario from lesson 21 again, without consulting the code or fixture files while you answer. This will help you check whether the run history and traces provide enough information to diagnose the results.
 
-1. Start the three processes and add the four rules:
+Start with an empty database so the event matches only these four rules. Stop the server and delete `reflex.db` before restarting it below. This deletes the existing rules and run history. Keep the trace viewer running.
+
+1. Start the receiver and server in separate terminals, then add the four rules with the CLI:
 
    ```sh
    pnpm receiver --scenario mixed                         # terminal 1
@@ -16,12 +18,12 @@ Run the mixed scenario from lesson 21 once more. Do not read the code or the fix
 
 2. In the viewer, open the newest `reflex-server` trace that has an `Engine.handleEvent` span.
 
-3. Write down your answers to these questions. For each one, name what you looked at: a span, a row, or a duration.
+3. Write down your answers to the following questions. Support each answer with the span, row, or duration you used.
    1. Which operation was slowest? How long did it take, and why that long?
-   2. Which operation failed, and with what?
-   3. Which work finished, and did it wait for the slow one? How long did the whole request take?
-   4. Did a timeout fire? Name two places that show it.
+   2. Which operation failed, and what was the error?
+   3. Which work finished? Did it wait for the slow operation? How long did the whole request take?
+   4. Did a timeout occur? Name two places that show it.
 
-4. Compare your answers with `solution.md`, after you have written them down.
+4. Once you have written down your answers, compare them with `solution.md`.
 
 If you see four `succeeded` rows, the receiver answered `/slow` before the timeout. Check that `c-slow.json` asks for `ms=15000` and that `REFLEX_TIMEOUT` is not set in the server's shell.

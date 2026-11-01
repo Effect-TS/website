@@ -8,32 +8,28 @@ mode: local
 
 Each lesson since
 [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
-added a layer where it was needed. The server's stack grew in
-`src/server/main.ts`, one `Layer.provide` at a time. The CLI's stack grew in
-its run line. Both work, but neither file shows at a glance what the program
-runs on.
+has added layers as the program needed them. The server's layers are
+composed in `src/server/main.ts`, while the CLI's are composed in its run
+line. Both entrypoints work, but finding out which services each program
+uses now means reading through its startup code.
 
-In this lesson you move both stacks into one file, `src/Layers.ts`. The
-program's behaviour does not change.
+Move both compositions into `src/Layers.ts`, so you can see the dependencies
+in one place. This is a refactoring: the program should behave exactly as it
+did before.
 
-In this lesson you will:
-
-- move the server's and the CLI's layers into `src/Layers.ts`
-- reduce each entrypoint to one `provide` or one `launch`
-- confirm that the program still produces the same rows
-
-## 1. Move both stacks into Layers.ts
+## Collect the layers in Layers.ts
 
 Create `src/Layers.ts`. Move the server's stack there as an exported value
 named `server`, and the CLI's stack as an exported value named `cli`:
 
 <LessonCode file="checkpoints/23/src/Layers.ts" />
 
-The layers are the same ones you built during the course. Only their location
-changes. Each `Layer.provide` supplies what the layers above it need, so the
-Engine is built after the stores and SQLite, and closed before them.
+These are the same layers you built during the course. Each `Layer.provide`
+supplies the dependencies of the layer above it, which also determines their
+lifetime. The Engine is built after the stores and SQLite, and closes before
+them. Moving this composition into a separate file preserves that order.
 
-## 2. Shrink the entrypoints
+## Simplify the entrypoints
 
 Replace the server's stack with the exported layer. The server entrypoint now
 only launches it:
@@ -44,44 +40,36 @@ In `src/cli/main.ts`, replace the CLI's stack with `Effect.provide(Layers.cli)`.
 That is the CLI's only `provide`.
 
 Leave the `Effect.provideService` calls inside the Engine where they are. They
-hand one call a service the Engine already holds, which is a different job
-from building the program's layers.
+supply individual effects with services the Engine has already acquired;
+they do not build the application's dependencies.
 
-## 3. Check that nothing changed
+## Check that nothing changed
 
-Run `pnpm check` and `pnpm test`. Both pass.
+Run `pnpm check` and `pnpm test`. Both should still pass.
 
 Then repeat the run from
 [Diagnosing a request from its trace](/learn/part-3/22-diagnose-it)
 from an empty `reflex.db`. Your server produces the same four rows.
 
-## What you learned
-
-- One file, `src/Layers.ts`, now says what each program runs on.
-- An entrypoint does one thing: `Layer.launch` for the server, one
-  `Effect.provide` for the CLI.
-- `Effect.provideService` inside a service is not a layer stack. It stays
-  where it is.
-
 ## Checkpoint
 
-This lesson's checkpoint is number 23. It serves exactly what checkpoint 22
-served:
+Checkpoint 23 runs the refactored server with the same behaviour as before:
 
 ```sh
 pnpm checkpoint 23 server
 ```
 
-Neither entrypoint contains a `Layer.provide`, and each has at most one
-`Effect.provide`. The test `checkpoints/24/test/Layers.test.ts` checks exactly
-that. To run it against your own `src/`, copy it into `test/`.
+Neither entrypoint should contain a `Layer.provide`, and each should have at
+most one `Effect.provide`. The test in
+`checkpoints/24/test/Layers.test.ts` checks these constraints. Copy it into
+`test/` to check your own `src/`.
 
 ## Reference
 
-| API                       | What it does                                      | Introduced in                                                                             |
-| ------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `Layer.provide`           | Supplies what the layer above needs               | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |
-| `Layer.provideMerge`      | Supplies it and keeps it in the result            | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)              |
-| `Layer.merge`, `mergeAll` | Layers side by side                               | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
-| `Layer.launch`            | Builds a layer and runs it until interrupted      | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
-| `Effect.provide(layer)`   | Supplies a layer to one effect, once, at the edge | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| API                       | What it does                                             | Introduced in                                                                             |
+| ------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Layer.provide`           | Supplies dependencies to another layer                   | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |
+| `Layer.provideMerge`      | Supplies dependencies and keeps their services available | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)              |
+| `Layer.merge`, `mergeAll` | Combines layers without supplying one to another         | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
+| `Layer.launch`            | Builds a layer and runs it until interrupted             | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
+| `Effect.provide(layer)`   | Supplies an effect with the services built by a layer    | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |

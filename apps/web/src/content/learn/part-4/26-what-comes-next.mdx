@@ -5,60 +5,67 @@ title: Where to go next
 mode: guide
 ---
 
-You started with a single Effect in the browser. You finished with a server
-that stores its rules, polls on a clock, runs actions over the network,
-survives a restart, and stops cleanly. It was one program the whole way
-through, and every checkpoint ran.
+Reflex began as a single logging Effect in the browser. It now has a server,
+persistent rules and run history, scheduled polling, and network actions.
+You can inspect a failed request in a trace, test a loop without waiting
+for real time to pass, and stop the server without leaving its work running.
 
-This page explains what you can build on top of reflex now, and what the
-course left out on purpose.
+There is still plenty you could add. The projects below extend behaviour
+you have already built, while the final section describes the limits of the
+application as it stands.
 
 ## Follow-on projects
 
-Each of these takes 15 to 30 minutes. They are listed roughly in the order
-they build on what you have.
+Allow about 15 to 30 minutes for each project. They are listed roughly in
+order of how closely they follow the course.
 
-- **Notify only on a change.** The `degraded` rule alerts on every tick while
-  the receiver is degraded. Make it alert only when the status goes from ok to
-  degraded. This is where a `Ref`, and a stored last-match state per rule,
-  finally have a job.
-- **`{{field}}` substitution.** Let a message say `expense of {{amount}}` and
-  fill it in from the payload. Handle a missing field the way conditions
-  already handle one.
-- **Retry with backoff.** Wrap the POST in `HttpClient.retryTransient`, so a
-  500 or a dropped connection is tried a few more times before the run is
-  `failed`. Once retries exist, decide what the timeout should cover.
-- **`HttpApiTest` for the whole API.** The harness in
+- Make the `degraded` rule notify only when the status changes from ok to
+  degraded, rather than on every tick. A `Ref` can hold the previous match
+  state for each rule; persist that state if it needs to survive a restart.
+- Support `{{field}}` substitution in messages, so a rule can write
+  `expense of {{amount}}` using a value from the payload. Handle a missing
+  field as conditions already do.
+- Add retries with backoff using `HttpClient.retryTransient`. Try a 500
+  response or a dropped connection a few more times before recording the
+  run as `failed`. Decide whether the timeout covers each attempt or the
+  whole run, including retries.
+- Turn the curl checks from
+  [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it), including
+  the 404s and 400s, into handler tests with `HttpApiTest`. The harness in
   [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
-  already uses it. Write the checks from
-  [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it), the 404s and
-  the 400s, as tests against the handlers instead of curl commands.
-- **A metric per outcome.** A `Metric` counter tagged with the outcome, shown
-  in the viewer next to the traces, answers "how many runs crashed today?"
-  without reading `runs list`.
-- **Queued execution.** Put events on a `Queue` and answer the request at
-  once, with the runs happening behind it. Decide what `events submit` should
-  print then.
-- **`rules add` with several files.** Accept more than one file, add them in
-  one request, and decide what happens when the third one is invalid.
+  already uses it.
+- Count runs with a `Metric` counter tagged with the outcome. Show it in the viewer
+  alongside the traces, so you can see how many runs crashed today without
+  reading individual rows in `runs list`.
+- Use a `Queue` to accept events without waiting for their rules to
+  finish. Decide what `events submit` should print when the outcomes are
+  not available yet.
+- Let `rules add` accept several files in one request. Decide whether
+  valid rules should be stored if another file in the same request is
+  invalid.
 
-## What the course left out, and why
+## What the course leaves out
 
-Some things were kept out so that reflex could stay one growing program with
-one main idea per lesson. None of them is a gap you were meant to notice
-later. Each one is a course of its own.
+The course keeps one main idea per lesson. Some features would need more
+space than that allows, and some would change the application's design.
 
-- Authentication, deployment, and a browser UI.
-- Distributed workers and exactly-once delivery. Reflex runs as one process,
-  and a run can end `abandoned` or `interrupted` after its request was
-  accepted.
-  [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
-  explains why that is the accurate answer.
-- A plugin system, user code in rules, an expression language, rule graphs,
-  and scheduling beyond a fixed interval.
-- `Deferred`, `Semaphore`, and `Stream`. `Effect.forEach` with a concurrency
-  limit, plus `FiberMap`, covered every concurrency need the course had.
-- `Ref` and `Option` in the core path. Every store method fails with
-  `RuleNotFound` instead of returning an optional value, and no state is kept
-  between runs. Deduplication, and the false-to-true transition state it
-  needs, is the first follow-on above.
+Reflex has no authentication, deployment setup, or browser UI. It runs as a
+single process, without distributed workers or an exactly-once delivery
+guarantee. Accepting a request does not guarantee that every run completes:
+a shutdown can leave runs `interrupted`, and a process crash can leave
+rows that become `abandoned` on restart.
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+explains these outcomes.
+
+Rules also have a fixed format. There is no plugin system, user-supplied
+code, expression language, rule graph, or scheduling beyond a fixed interval.
+Adding any of these would require decisions about validation and execution
+that the current rule model does not address.
+
+You have not needed every Effect API to build this application.
+`Effect.forEach` with a concurrency limit and `FiberMap` cover its
+concurrency needs, so the course does not introduce `Deferred`,
+`Semaphore`, or `Stream`. Store lookups fail with `RuleNotFound`
+rather than returning an `Option`, and conditions do not remember whether
+they matched on the previous run. The first follow-on project gives you a
+reason to add that state with `Ref`.

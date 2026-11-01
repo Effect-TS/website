@@ -6,45 +6,48 @@ minutes: 10
 mode: local
 ---
 
-Every function you named with `Effect.fn` runs inside a span,
-`Engine.execute` included. You have seen those names in failures, but never
-the spans themselves, because nothing sends them anywhere. Now one command
-crosses two programs, a CLI and a server. In this lesson you export spans and
-logs to the trace viewer and watch one command travel from one process into
-the other.
+The named `Effect.fn` functions already create spans, including
+`Engine.execute` and the CLI command handlers. You have seen their names
+in failure reports, but have not yet exported the spans to the viewer.
+Now that a command involves both the CLI and the server, a trace can help
+you see which work happened in each process.
 
-In this lesson you will:
+You will configure both programs to export spans and logs, then inspect
+an `events.submit` trace in the local viewer. The Engine and handlers
+already contain the instrumentation this needs; the change is in the
+layers you provide at each entrypoint.
 
-- export spans and logs with `OtlpTracer.layer` and `OtlpLogger.layer`
-- provide one telemetry layer per program
-- open a trace that crosses from the CLI into the server
-- add your own attribute to a span
+## Configure telemetry for each program
 
-## 1. Write Telemetry.ts
-
-The starter's `src/Telemetry.ts` exports a single `layer` with the service
-name `reflex-lessons`. It is a placeholder, and nothing imports it. Replace
-the whole file with two layers, one per program, `layerServer` and
-`layerCli`:
+The starter's `src/Telemetry.ts` exports an unused placeholder `layer`
+with the service name `reflex-lessons`. The viewer needs distinct service
+names to distinguish server work from CLI work. Replace the file with
+`layerServer` and `layerCli`, built by a shared helper:
 
 <LessonCode file="checkpoints/16/src/Telemetry.ts" />
 
-- `OtlpTracer.layer` exports spans to the viewer at
-  `http://localhost:4318/v1/traces`.
-- `OtlpLogger.layer` exports logs to `http://localhost:4318/v1/logs`.
-- Both take a `resource` with a `serviceName`. The server is `reflex-server`
-  and the CLI is `reflex-cli`, so the viewer can tell them apart.
-- Both send JSON (`OtlpSerialization.layerJson`) over an `HttpClient`
-  (`FetchHttpClient.layer`).
+`OtlpTracer.layer` exports spans to
+`http://localhost:4318/v1/traces`, while `OtlpLogger.layer` exports logs to
+`http://localhost:4318/v1/logs`. Both attach a `resource` with a
+`serviceName`: `reflex-server` for the server and `reflex-cli` for the CLI.
 
-## 2. Provide it in both programs
+The helper provides their shared dependencies. `OtlpSerialization.layerJson`
+encodes the OTLP data as JSON, and `FetchHttpClient.layer` supplies the HTTP
+client used to send it.
 
-Provide `Telemetry.layerServer` at the bottom of the server's layer stack in
-`src/server/main.ts`, and `Telemetry.layerCli` in the CLI's run line in
-`src/cli/main.ts`. Nothing in the Engine, the stores or the handlers
-changes.
+Exporting telemetry adds some work to each run, and you need to keep the
+viewer running to receive it. The earlier lessons still work without a
+viewer because they do not provide these export layers.
 
-## 3. Open the trace
+## Provide the telemetry layers
+
+In `src/server/main.ts`, provide `Telemetry.layerServer` at the bottom of
+the server's layer stack. In `src/cli/main.ts`, provide `Telemetry.layerCli`
+in the CLI's entrypoint pipeline. These layers configure telemetry for the
+effects running in each program, so you do not need to change the Engine,
+stores or handlers.
+
+## Follow a command through both processes
 
 Start the viewer with `pnpm viewer` if it is not running, and the server with
 `pnpm dev:server`. In a second terminal:
@@ -60,13 +63,14 @@ Open [http://localhost:8000](http://localhost:8000) and pick the
 
 ![The events.submit trace: CLI spans, then the server's POST, Engine.handleEvent and Engine.execute nested under it](../_assets/viewer-trace.png "The checkpoint trace")
 
-The CLI and the server are separate processes, and one trace crosses between
-them. The CLI's `HttpClient` adds a `traceparent` header to every request,
-carrying the current trace and span ids. The server starts its request span
-as a child of that span. This is called **propagation**. You wrote none of
-it. Both sides already speak the header.
+The CLI's `HttpClient` includes a `traceparent` header in the request with
+the current trace and span ids. The server reads that header and starts its
+request span as a child of the client span. This propagation allows the
+viewer to show work from two processes in one trace. The HTTP client and
+server provide it without additional code in your handlers.
 
-Every row in the waterfall is a name you wrote:
+Alongside the HTTP spans, the waterfall contains the functions you named
+throughout the course:
 
 - `Engine.handleEvent` and `Engine.execute` are the `Effect.fn` names from
   [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records).
@@ -79,11 +83,12 @@ part of this screen.
 
 ## Try it
 
-The `Engine.execute` spans carry `rule.id` and `rule.trigger`, but nothing
-says what the condition decided.
+An `Engine.execute` span already includes `rule.id` and `rule.trigger`.
+Adding the condition result would help you distinguish a non-matching
+event from a rule whose action ran, without opening the run history.
 
 1. In `src/Engine.ts`, find where `Engine.execute` evaluates the condition.
-   Give the result a name.
+   Store the result in a variable named `matched`.
 2. Add `Effect.annotateCurrentSpan("rule.condition", matched)`. It adds the
    attribute to the span the code is running in.
 3. Leave the other paths alone. A rule without a condition has nothing to
@@ -95,22 +100,9 @@ Check your work with the server and the viewer running. Submitting
 hint and the changed file are in `exercises/16/`. The checkpoints do not
 include this change, because nothing later depends on it.
 
-## What you learned
-
-- Telemetry is one layer per program, provided at the edge.
-- Traces cross processes on their own, carried by the `traceparent` header.
-- `Effect.annotateCurrentSpan` adds your own facts to the span you are in.
-- The cost is a little time per span, and a second program to keep running,
-  the viewer.
-- [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
-  and [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network)
-  show what the viewer looks like when a run fails, times out, or is
-  interrupted.
-
 ## Checkpoint
 
-This lesson's checkpoint is number 16. With the viewer running, start the
-checkpoint's server:
+With the viewer running, start the reference server for checkpoint 16:
 
 ```sh
 pnpm checkpoint 16 server
@@ -129,11 +121,11 @@ continues into `reflex-server`, with `Engine.execute` under
 
 ## Reference
 
-| API                                      | What it does                                              | Introduced in                                                                |
-| ---------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `OtlpTracer.layer`                       | Exports spans over OTLP                                   | this lesson                                                                  |
-| `OtlpLogger.layer`                       | Exports logs over OTLP                                    | this lesson                                                                  |
-| `OtlpSerialization.layerJson`            | Sends OTLP as JSON                                        | this lesson                                                                  |
-| `resource: { serviceName }`              | Names the program in the viewer                           | this lesson                                                                  |
-| `traceparent`                            | The header `HttpClient` uses to carry a trace to a server | this lesson                                                                  |
-| `Effect.annotateCurrentSpan(key, value)` | Adds one attribute to the current span                    | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records) |
+| API                                      | What it does                                       | Introduced in                                                                |
+| ---------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `OtlpTracer.layer`                       | Exports spans over OTLP                            | this lesson                                                                  |
+| `OtlpLogger.layer`                       | Exports logs over OTLP                             | this lesson                                                                  |
+| `OtlpSerialization.layerJson`            | Encodes OTLP data as JSON                          | this lesson                                                                  |
+| `resource: { serviceName }`              | Identifies the program that produced the telemetry | this lesson                                                                  |
+| `traceparent`                            | Carries trace and span ids in an HTTP request      | this lesson                                                                  |
+| `Effect.annotateCurrentSpan(key, value)` | Adds an attribute to the current span              | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records) |

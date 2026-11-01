@@ -6,26 +6,25 @@ minutes: 22
 mode: local
 ---
 
-`main.ts` builds an Engine, runs it once and exits, and the memory stores go
-with it. Reflex should hold its rules and accept events whenever they
-happen, from a script, a cron job or a phone. In this lesson the engine
-becomes a server: one process holding one Engine and its stores, answering
-HTTP on port 3000.
+Each time you run `main.ts`, it builds an Engine, processes the example
+events and exits. Its memory stores disappear when the process stops.
+To submit events from another program, Reflex needs to keep running and
+accept requests.
 
-In this lesson you will:
+You will run one Engine and its stores in an HTTP server on port 3000.
+The rules, events and run history already have schemas, so those same
+schemas can define the API's requests and responses. The handlers will
+call the services you have already written.
 
-- describe an HTTP API as a value with `HttpApi`
-- implement that API with handlers
-- run a server until it is stopped, with `Layer.launch`
-- send a typed error over HTTP as a status code
+## Define the API
 
-## 1. Define the API
-
-Create `src/api/Api.ts`. `HttpApi` describes the server before any of it
-runs. An **endpoint** is a method, a path, and the schemas for what goes in
-and comes out. For example,
+Create `src/api/Api.ts` to describe the API with `HttpApi`. An endpoint
+definition specifies an HTTP method, a path, and schemas for its input and
+output. For example,
 `HttpApiEndpoint.post("create", "/", { payload: Rule, success: StoredRule })`
-creates a rule.
+declares a POST endpoint that accepts a `Rule` and returns a `StoredRule`.
+The definition does not create a rule by itself; you will implement that
+behavior in a handler.
 
 Endpoints are grouped, and the groups make up the API:
 
@@ -36,51 +35,56 @@ Endpoints are grouped, and the groups make up the API:
 
 <LessonCode file="checkpoints/14/src/api/Api.ts" />
 
-Every schema here already exists in the domain. The API adds no types of its
-own. `get`, `remove` and `run` declare `RuleNotFound` as their error, with
-`HttpApiSchema.status(404)`.
+The API reuses the domain schemas for its payloads, results and errors.
+The `get`, `remove` and `run` endpoints can fail with `RuleNotFound`, just
+like the store. `HttpApiSchema.status(404)` associates that error with an
+HTTP status, so the server can return a 404 when a rule does not exist.
 
-## 2. Write the handlers
+## Implement the endpoints
 
-Create `src/server/Api.ts`. `HttpApiBuilder.group(Api, "rules", ...)`
-implements one group. Inside an `Effect.fn`, you `yield*` the services you
-need. Then `handlers.handleAll({...})` takes one function per endpoint:
+Create `src/server/Api.ts` for the handlers.
+`HttpApiBuilder.group(Api, "rules", ...)` implements the `rules` group.
+Inside its `Effect.fn` callback, retrieve the services with `yield*`, then
+pass a function for each endpoint to `handlers.handleAll({...})`:
 
 <LessonCode file="checkpoints/14/src/server/Api.ts" />
 
-Each handler gets the decoded `params`, `query` and `payload`. The compiler
-checks what it returns against the endpoint's success schema, and how it
-fails against the endpoint's declared errors. Each handler is a single call
-into the services from the last two lessons.
+Each handler receives the input its endpoint declares: decoded `params`,
+`query` or `payload`. TypeScript checks its success and error types against
+the API definition. Since the services already implement the behavior,
+each handler needs only one service call. There is no JSON parsing or
+manual response construction in these handlers.
 
-## 3. Launch the server
+## Launch the server
 
-Create `src/server/main.ts`. The server program is layers all the way down:
+Create `src/server/main.ts` to assemble the server from layers:
 
 - `HttpApiBuilder.layer(Api)` turns the handlers into routes.
 - `HttpApiScalar.layer` adds documentation at `/docs`.
 - `HttpRouter.serve` serves both.
 - `NodeHttpServer.layer` listens on port 3000.
 
-The Engine, the memory stores and `NodeServices.layer` are provided
-underneath.
+Provide the Engine, the memory stores and `NodeServices.layer` to satisfy
+the handlers' dependencies.
 
 <LessonCode file="checkpoints/14/src/server/main.ts" />
 
-A layer normally builds, hands over its services, and is done. A server has
-nothing to hand over. It should keep running. `Layer.launch` builds the layer
-and keeps it running until the program is interrupted, which `runMain` does
-when you press Ctrl-C.
+The server layer acquires resources, including a listening socket, that
+must remain available while the program runs. `Layer.launch` builds the
+layer and keeps its resources alive until interruption. `NodeRuntime.runMain`
+runs that effect and interrupts it when you press Ctrl-C, allowing the
+server to shut down and release its resources.
 
 ```sh
 pnpm dev:server
 ```
 
-The server starts and restarts on every file change. Every restart empties
-the memory stores. [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart)
-fixes that.
+This command watches for file changes and restarts the server. The stores
+remain in memory, so each restart loses the rules and run history. You will
+make them persistent in
+[Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart).
 
-## 4. Call it
+## Call the API
 
 In a second terminal, create a rule, submit an event, and read the run:
 
@@ -90,8 +94,9 @@ curl -X POST localhost:3000/events -H 'content-type: application/json' -d @fixtu
 curl localhost:3000/runs
 ```
 
-The first call answers with the stored rule and its `id`. The second answers
-with one `succeeded` outcome. The third lists the run row.
+The first response contains the stored rule and its assigned `id`. The
+second contains one `succeeded` outcome, and the third lists the recorded
+run. Keep the server running between requests so they use the same stores.
 
 Now ask for a rule that does not exist:
 
@@ -105,23 +110,29 @@ It answers `404 Not Found` with the error as the body:
 {"_tag":"RuleNotFound","id":"nope"}
 ```
 
-The handler failed with the same `RuleNotFound` the store fails with. Because
-the endpoint declares that error with a 404, the server sends it with that
-status. A request that does not match a schema never reaches a handler at
-all. A rule without an action, or `limit=abc`, gets a 400 from the decoder.
+The store's `RuleNotFound` passes through the handler to the HTTP response.
+The endpoint's error declaration determines its status and encoded body.
 
-Open [http://localhost:3000/docs](http://localhost:3000/docs). The API
-documentation is generated from the same value.
+Invalid input is handled earlier. A request whose input does not match the
+endpoint schema is rejected before the handler runs. Try a rule without an
+action, or a query with `limit=abc`: the decoder returns a 400 response.
+
+Open [http://localhost:3000/docs](http://localhost:3000/docs) to see the API
+documentation generated from the same definition. The next lesson will
+also use that definition to build a client.
 
 ## Try it
 
-`GET /runs?limit=-1` comes back with every run except the oldest, because
-`RunLog.list` hands the number straight to `slice`. `limit=1.5` is accepted
-too. The schema lets through numbers that are not a count.
+The `limit` query parameter currently accepts any number. For example,
+`GET /runs?limit=-1` returns every run except the oldest because
+`RunLog.list` passes the number to `slice`. A fractional value such as
+`limit=1.5` is accepted too. Neither value makes sense as a requested count.
+Reject them in the API schema, before they reach the service.
 
 1. In the `runs` query, make `limit` a whole number greater than 0 with
    `Schema.Int.check(Schema.isGreaterThan(0))`.
-2. Notice that nothing in the handlers or in `RunLog` has to change.
+2. Keep the handlers and `RunLog` unchanged. The query schema should reject
+   these values before they reach either one.
 
 Check your work with `pnpm dev:server` running:
 
@@ -135,43 +146,33 @@ The first two answer 400 and the last answers 200. The hint and the changed
 file are in `exercises/14/`. From the next checkpoint on, the reference
 solution includes this change.
 
-## What you learned
-
-- The API is one value. Handlers implement it group by group.
-- A typed error declared on an endpoint travels over HTTP with a status
-  code.
-- Input that does not match a schema is rejected before any handler runs.
-- `Layer.launch` runs a server until it is interrupted.
-- The cost is a second process to keep running, and a memory store that
-  resets with it. [Calling the API with HttpApiClient](/learn/part-2/15-talk-to-it)
-  derives a client from the same value.
-
 ## Checkpoint
 
-This lesson's checkpoint is number 14. Start the checkpoint's server:
+Start the reference server for checkpoint 14:
 
 ```sh
 pnpm checkpoint 14
 ```
 
-In a second terminal, run the three `curl` commands from step 4. The event
-answers with one `succeeded` outcome, `GET /runs` shows the row, and
+In a second terminal, run the three `curl` commands under "Call the API".
+Submitting the event returns one `succeeded` outcome, `GET /runs` shows the
+row, and
 [http://localhost:3000/docs](http://localhost:3000/docs) renders the API
 documentation.
 
 ## Reference
 
-| API                                            | What it does                                         | Introduced in                                                     |
-| ---------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------- |
-| `HttpApi.make`, `.add`                         | The API: a value made of groups                      | this lesson                                                       |
-| `HttpApiGroup.make`, `.add`, `.prefix`         | A group of endpoints under one path                  | this lesson                                                       |
-| `HttpApiEndpoint.get`, `.post`, `.delete`      | One endpoint: params, query, payload, success, error | this lesson                                                       |
-| `HttpApiSchema.status`                         | The HTTP status an error is sent with                | this lesson                                                       |
-| `HttpApiBuilder.group`, `handlers.handleAll`   | Implements a group, one handler per endpoint         | this lesson                                                       |
-| `HttpApiBuilder.layer`                         | Routes for every endpoint of the API                 | this lesson                                                       |
-| `HttpApiScalar.layer`                          | API documentation at a path                          | this lesson                                                       |
-| `HttpRouter.serve`, `NodeHttpServer.layer`     | Serves routes on a Node HTTP server                  | this lesson                                                       |
-| `Layer.launch`                                 | Builds a layer and runs it until interrupted         | this lesson                                                       |
-| `Layer.mergeAll`                               | Combines layers side by side                         | this lesson                                                       |
-| `Schema.Int`, `.check`, `Schema.isGreaterThan` | A number refined by checks                           | this lesson                                                       |
-| `HttpApiClient.make`                           | A client derived from the API                        | [Calling the API with HttpApiClient](/learn/part-2/15-talk-to-it) |
+| API                                            | What it does                                                       | Introduced in                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `HttpApi.make`, `.add`                         | Defines an API by combining endpoint groups                        | this lesson                                                       |
+| `HttpApiGroup.make`, `.add`, `.prefix`         | Defines a group of endpoints with a shared path prefix             | this lesson                                                       |
+| `HttpApiEndpoint.get`, `.post`, `.delete`      | Defines an endpoint with schemas for its input, success and errors | this lesson                                                       |
+| `HttpApiSchema.status`                         | Associates a schema with an HTTP response status                   | this lesson                                                       |
+| `HttpApiBuilder.group`, `handlers.handleAll`   | Implements an endpoint group with one handler per endpoint         | this lesson                                                       |
+| `HttpApiBuilder.layer`                         | Builds routes for the API endpoints                                | this lesson                                                       |
+| `HttpApiScalar.layer`                          | Serves generated API documentation at a specified path             | this lesson                                                       |
+| `HttpRouter.serve`, `NodeHttpServer.layer`     | Serves the routes using a Node HTTP server                         | this lesson                                                       |
+| `Layer.launch`                                 | Builds a layer and keeps its resources alive until interruption    | this lesson                                                       |
+| `Layer.mergeAll`                               | Combines the services provided by multiple layers                  | this lesson                                                       |
+| `Schema.Int`, `.check`, `Schema.isGreaterThan` | Validates integers with additional constraints                     | this lesson                                                       |
+| `HttpApiClient.make`                           | Derives a typed HTTP client from the API definition                | [Calling the API with HttpApiClient](/learn/part-2/15-talk-to-it) |

@@ -35,14 +35,15 @@ const hours = Math.floor(total / 60)
       <Eyebrow class="mb-3">Learn Effect</Eyebrow>
       <h1 class="text-3xl font-semibold text-foreground md:text-4xl">Build reflex</h1>
       <p class="mt-4 text-lg text-muted-foreground">
-        Learn Effect by building one program from start to finish. Reflex is a small automation
-        engine: you give it rules, it watches for events, and it runs the actions of the rules that
-        match. Each lesson adds one piece and ends with something you can run. Part 1 runs in your
-        browser, and the rest runs on your machine.
+        Learn Effect by building reflex, a small automation engine. Give it a rule to log large
+        expenses or send an alert when a service is down, then follow that rule through the program
+        as it grows. Each lesson adds working code to the same application. Start in your browser
+        with a single Effect, then move to your machine to build the server, CLI, tests, and
+        tracing.
       </p>
       <p class="mt-2 text-sm text-subtle-foreground">
-        {total} minutes in all, about {hours} h {total - hours * 60} min, setup included. That is the
-        time for the lessons alone, with everything marked optional skipped.
+        Best-case lesson time is {hours} h {total - hours * 60} min ({total} minutes), including setup.
+        Allow extra time for optional exercises and troubleshooting.
       </p>
     </header>
 
@@ -51,18 +52,17 @@ const hours = Math.floor(total / 60)
         A session with the finished app
       </h2>
       <p class="text-prose-foreground">
-        This is a real terminal session with the finished app, captured from the course's reference
-        solution. A small local receiver on port 4600 plays the part of the outside services your
-        rules talk to. One rule posts to it on every expense, and another polls its
+        Here is a terminal session from the finished reference solution. A local HTTP receiver on
+        port 4600 lets you test rules without calling outside services. One rule posts to it for
+        every expense event, while another polls its
         <code>/status</code> page.
       </p>
       <LessonCode file="checkpoints/24/transcript.txt" />
       <p class="text-prose-foreground">
-        Every run in the <code>runs list</code> output has an outcome, and the ones that didn't succeed
-        say why. You can't see it here, but the <code>events submit</code> and
-        <code>rules run</code> commands also leave a trace that follows the work from the CLI, into the
-        server, and down to the rule that ran. You'll set up the viewer that shows those traces in Part
-        2.
+        The <code>runs list</code> output records the outcome of each run, with a reason when it does
+        not succeed. To see more than the terminal output, you can inspect a trace of
+        <code>events submit</code> or <code>rules run</code>, following the request from the CLI
+        through the server to each rule. You will set up the trace viewer in Part 2.
       </p>
     </section>
 
