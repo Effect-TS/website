@@ -63,8 +63,10 @@ const files = data.mode === "playground" ? lessonFiles(data.lessonDir) : undefin
         <aside class="hidden lg:block">
           <LessonNav routes={routes} current={route.slug} />
         </aside>
-        {/* min-w-0: as a grid item the article would otherwise grow to its widest code block. */}
-        <article class="max-w-3xl min-w-0">
+        {/* min-w-0: as a grid item the article would otherwise grow to its widest code block.
+            wrap-break-word: long headings and inline code break at the edge; code blocks and
+            tables keep their own scrolling. */}
+        <article class="max-w-3xl min-w-0 wrap-break-word">
           <Eyebrow class="mb-2 text-xs">
             Part {part.part} · {part.title}
             {data.minutes !== undefined && ` · ${data.minutes} min`}
