@@ -6,22 +6,23 @@ minutes: 15
 mode: local
 ---
 
-When a request fails while you are not watching, you need to reconstruct
-what happened from the records it left. You have added run history and
-traces throughout the course. Now check whether they contain enough detail
-to explain the mixed scenario without reading the implementation.
+So far, we've usually known what would go wrong before sending a request.
+We chose the slow receiver or introduced the bug ourselves. When reflex
+runs without us watching, we won't have that advantage. We'll need to
+work backwards from the history and traces it leaves behind.
 
-There is no new code in this lesson. Run the previous lesson's scenario
-again, then use only `runs list` and the viewer to answer four questions.
-Leave the code and fixture files closed while you investigate. That makes
-it easier to notice where the recorded evidence is useful and where
-something is missing.
+Let's try that with the mixed scenario from the last lesson. There's no
+new code to write this time. Run it again, then use only `runs list` and
+the viewer to explain what happened. Keep the code and fixture files
+closed while you investigate. We're checking whether our application
+leaves enough evidence to understand a request after it has finished.
 
 ## Reproduce the mixed scenario
 
 Use checkpoint 22, or your own server if it matched the previous
-checkpoint. Start with an empty database so there is only one event's
-results to inspect. Stop the server and delete `reflex.db`; this removes
+checkpoint. To avoid sorting through older runs, start with an empty
+database so there is only one event's results to inspect. Stop the server
+and delete `reflex.db`; this removes
 the stored rules as well as the run history. Then start the mixed receiver
 and server and run the commands below.
 
@@ -43,16 +44,17 @@ pnpm checkpoint 22 cli runs list
 ```
 
 After about 10 seconds, `events submit` prints four outcomes. `runs list`
-should contain four rows. Open the newest `reflex-server` trace containing
-an `Engine.handleEvent` span in the viewer.
+should contain four rows. Those are our starting point. Open the newest
+`reflex-server` trace containing an `Engine.handleEvent` span in the viewer.
 [Reading a trace in the viewer](/learn/part-2/trace-viewer) describes each
 part of the screen.
 
 ## Answer from the recorded evidence
 
-Write down an answer to each question, including the evidence that supports
-it. For example, identify the span you inspected, the fields in a run row,
-or the duration you measured.
+Take your time with the trace. Write down an answer to each question and
+the evidence that led you there. A span name, the fields in a run row or a
+measured duration will make your explanation more useful than remembering
+what the fixture was supposed to do.
 
 1. Which operation was slowest? How long did it take, and why that long?
 2. Which operation failed, and with what?
@@ -60,29 +62,35 @@ or the duration you measured.
    whole request take?
 4. Did a timeout fire? Name two places that show it.
 
-If the slow request succeeds rather than timing out, check whether
+If you see the slow request succeed rather than time out, don't try to
+force your answer to match the question. Check whether
 `REFLEX_TIMEOUT` is set in the server's shell. This exercise assumes the
 default 10 second timeout, shorter than the receiver's 15 second response.
 
 ## Compare your answers
 
-Once you have written all four answers, compare them with
+Once you have an explanation for each question, compare your notes with
 [the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids
 and exact timings will differ, but the outcomes and their relationships
 should match.
 
-If a question required information you could not find in `runs list` or
-the viewer, note what was missing. A trace can only explain what the
-program recorded. That observation can become a follow-on improvement in
+If you needed information that wasn't in `runs list` or the viewer, note
+what was missing. That isn't necessarily a gap in your understanding. A
+trace can only explain what the program recorded. Your observation can
+become a follow-on improvement in
 [Where to go next](/learn/part-4/what-comes-next).
 
 ## Checkpoint
 
-You should be able to identify the slowest operation, distinguish its
-timeout from the 500 response, and show that the two successful runs did
-not wait for it. Support your explanation of the request duration with
-the `Engine.handleEvent` span. Your evidence should include four run rows
-and four execution spans: two red and two Ok.
+Before moving on, read your explanation as if you were handing it to
+someone who hadn't watched the request. It should identify the slowest
+operation, distinguish its timeout from the 500 response, and show that
+the two successful runs didn't wait for it. Use the `Engine.handleEvent`
+span to explain the whole request's duration. You should have four run
+rows and four execution spans to support your account: two red and two Ok.
+
+That is a useful capability to have built into reflex. You can explain a
+request without adding temporary log lines and hoping to catch it again.
 
 ## Reference
 

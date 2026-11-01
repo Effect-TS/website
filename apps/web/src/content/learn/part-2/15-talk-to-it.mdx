@@ -6,18 +6,20 @@ minutes: 22
 mode: local
 ---
 
-The curl commands let you check the API, but adding rules and submitting
-events would be easier through a CLI. The existing `Api` definition has
-everything you need to derive a typed client for those commands. When you
-change that definition, TypeScript will check the CLI against the updated
-request and response types.
+We can now send an expense to reflex from another terminal. But the curl
+commands make us remember paths, headers and request bodies every time.
+For regular use, a command such as `events submit laptop.json` would be
+much more comfortable. Let's build that CLI.
 
-You will put the client in a service, use it in six command handlers, then
-handle a `RuleNotFound` returned by the server.
+We don't have to describe every request again. The `Api` definition from
+the last lesson can give us a typed client, which we'll use in the CLI's
+command handlers. If we change an endpoint later, TypeScript will check
+those calls against the new request and response types.
 
 ## Create the client service
 
-Create `src/ApiClient.ts`. The call
+First, give the commands a way to reach the server. Create
+`src/ApiClient.ts`. The call
 `HttpApiClient.make(Api, { baseUrl })` derives one client method per endpoint,
 organized into the groups you defined in the API. For example:
 
@@ -25,9 +27,10 @@ organized into the groups you defined in the API. For example:
 - `client.rules.run({ params: { id }, payload })`
 - `client.runs.list({ query })`
 
-Wrap the client in an `ApiClient` service so command handlers can access it
-with `yield*`. The type `HttpApiClient.ForApi<typeof Api>` derives its
-interface from the API too:
+These methods belong to the same groups we defined on the server. Wrap
+the client in an `ApiClient` service so command handlers can access it
+with the familiar `yield*`. The type `HttpApiClient.ForApi<typeof Api>`
+derives its interface from the API too:
 
 <LessonCode file="checkpoints/15/src/ApiClient.ts" />
 
@@ -36,11 +39,11 @@ and decodes responses using the declared success and error schemas. It
 sends requests through an `HttpClient` service; the CLI will provide
 `FetchHttpClient.layer` for a client built on `fetch`.
 
-The base URL comes from `Config.String("REFLEX_URL")`, which reads the
-environment variable. `Config.withDefault("http://localhost:3000")` lets you
-run against the local server without setting it. Because this configuration
-is read inside the layer's effect, the URL is resolved when the layer is
-built.
+For now, we want the CLI to talk to our local server.
+`Config.withDefault("http://localhost:3000")` supplies that address unless
+you set `REFLEX_URL`, which `Config.String("REFLEX_URL")` reads from the
+environment. The configuration is read inside the layer's effect, so the
+URL is resolved when the layer is built.
 
 The CLI imports `Api` and its domain schemas, so it is checked against that
 version of the API. A separately deployed server could use a different
@@ -48,10 +51,10 @@ version; keep the CLI and server versions compatible.
 
 ## Write the command handlers
 
-Open the starter's `src/cli/main.ts`. The commands, arguments and flags are
-already declared, but the six handler bodies are empty. Fill them in using
-the client service. Each handler retrieves `ApiClient`, calls an endpoint
-and prints the result:
+Open the starter's `src/cli/main.ts`. The command names, arguments and
+flags are already declared; we'll focus on what happens when someone runs
+them. Fill in the six empty handler bodies using the client service. Each
+retrieves `ApiClient`, calls an endpoint and prints the result:
 
 <LessonCode file="checkpoints/15/src/cli/main.ts" />
 
@@ -63,9 +66,9 @@ and prints the result:
   `number | undefined`. These match the optional query parameters. Pass
   `rule` as `ruleId` and `limit` as `limit` in `client.runs.list({ query })`.
 
-Name the handlers with `Effect.fn("rules.add")` and the corresponding name
-for each command. Those names will identify the command spans when you
-export traces in the next lesson.
+Keep naming the work as you did in the Engine. Use `Effect.fn("rules.add")`
+and the corresponding name for each command. Those names will identify
+the command spans when we look at traces next.
 
 At the entrypoint, provide `ApiClient.layer` with `FetchHttpClient.layer`
 for requests. Also provide `NodeServices.layer` so the handlers can read
@@ -73,7 +76,8 @@ rule and event files.
 
 ## Run the CLI against the server
 
-Start the server with `pnpm dev:server` in one terminal. In a second:
+Let's repeat the expense check without curl. Start the server with
+`pnpm dev:server` in one terminal. In a second, run:
 
 ```sh
 pnpm cli rules add fixtures/rules/expense.json
@@ -82,12 +86,15 @@ pnpm cli events submit fixtures/events/laptop.json
 pnpm cli runs list
 ```
 
-`rules add` prints `Added <id>: large expense`. `events submit` prints one
-line, `<id>: succeeded`, and `runs list` shows the row.
+`rules add` should print `Added <id>: large expense`. Then `events submit`
+prints `<id>: succeeded`, and `runs list` shows the row. It's the same
+stored rule and Engine behavior we checked through HTTP, with commands
+we can use without remembering the request format.
 
-The Engine still skips actions it cannot execute yet. To check that the CLI
-shows this outcome, add `fixtures/rules/ntfy.json`, whose action is
-`httpPost`, then use its id to run it against an event:
+A useful CLI needs to show more than successful alerts. The Engine still
+skips actions it cannot execute yet, so let's check that we can see that
+outcome too. Add `fixtures/rules/ntfy.json`, whose action is `httpPost`,
+then use its id to run it against an event:
 
 ```sh
 pnpm cli rules run <id> --event fixtures/events/laptop.json
@@ -100,15 +107,17 @@ adds the action.
 
 ## Inspect an error returned by the server
 
+Now try removing a rule that doesn't exist:
+
 ```sh
 pnpm cli rules remove nope
 ```
 
-The server returns a 404 response. Because the endpoint declares
-`RuleNotFound`, the client decodes the response body into an instance of
-that class. It becomes a typed failure of the client call, just as it was
-a typed failure of the store. With no handler for it yet, the CLI prints
-`RuleNotFound` with a stack trace.
+You'll see `RuleNotFound` with a stack trace this time. The server returns
+a 404 response, and because the endpoint declares `RuleNotFound`, the
+client decodes the response body into an instance of that class. It
+becomes a typed failure of the client call, just as it was a typed failure
+of the store. We haven't given the CLI a handler for it yet.
 
 Hover over the `rules remove` handler to inspect its error type. It includes
 `RuleNotFound` alongside HTTP and schema errors. You can handle it with
@@ -116,9 +125,10 @@ Hover over the `rules remove` handler to inspect its error type. It includes
 
 ## Try it
 
-An unknown id is an expected input mistake, so a stack trace is not a useful
-CLI response. Print a short message instead, while keeping a non-zero exit
-code so scripts can detect the failure.
+We know what went wrong in that last command, but someone using the CLI
+shouldn't need to read a stack trace to find out. An unknown id is an
+ordinary input mistake. Print a short message instead, while keeping a
+non-zero exit code so scripts can still detect the failure.
 
 1. Write one handler with `Effect.fn` that takes the `RuleNotFound`, prints
    `No rule with id <id>` with `Console.error`, and then fails with
@@ -128,11 +138,12 @@ code so scripts can detect the failure.
    to the effect it builds. Pass `Effect.catchTag("RuleNotFound", yourHandler)`
    there, in both the `rules remove` and `rules run` handlers.
 
-Check your work with `pnpm cli rules remove nope` and
-`pnpm cli rules run nope --event fixtures/events/laptop.json`. Each prints
-one line and exits 1 (`echo $?`). The hint and the changed file are in
-`exercises/15/`. From the next checkpoint on, the reference solution includes
-this change.
+Try the missing id again with `pnpm cli rules remove nope` and
+`pnpm cli rules run nope --event fixtures/events/laptop.json`. Each should
+now print one line and exit 1 (check with `echo $?`). The failure hasn't
+been hidden; it's just easier to understand. The hint and the changed file
+are in `exercises/15/`. From the next checkpoint on, the reference solution
+includes this change.
 
 ## Checkpoint
 
@@ -159,6 +170,10 @@ whose reason says `httpPost` actions run from a later lesson:
 ```text
 fd657e81-8ced-4afd-9c5e-8213677a25e9: skipped (httpPost actions run from lesson 20)
 ```
+
+You can now add a rule, submit an expense and read the history entirely
+through the CLI. Those commands involve two running programs. Next, we'll
+follow one expense through both of them in the trace viewer.
 
 ## Reference
 

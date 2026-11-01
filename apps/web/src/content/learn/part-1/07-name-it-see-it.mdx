@@ -7,20 +7,26 @@ mode: playground
 lessonDir: 07-name-it-see-it
 ---
 
-The schema error identifies the invalid `op` field, but it does not yet
-identify the application function that was running when decoding failed.
-In this small file, you can find the call easily. As reflex grows, a name
-in the failure report will make it easier to locate the relevant code.
+We'll keep working with the broken rule a little longer. This lesson starts
+with the original malformed rule, before the previous lesson's practice
+changes. It gives us a useful error to follow while we make it easier to
+find our way around the program.
 
-Use `Effect.fn` to define a named Effect function. You will keep the same
-checks and error handling in `evaluate`; only its definition changes.
+Right now, we know `op` was invalid because we just wrote the bad rule.
+Imagine coming back to the error after adding several more operations.
+We'd want to know which part of reflex was using that rule when it failed.
+Let's put the name `evaluate` into the failure report, so it points back
+to code we recognize.
+
+This is a small change. The expense check and its recovery will stay the
+same; we'll change how the function is defined.
 
 ## Giving evaluate a name
 
-Currently, `evaluate` is an arrow function returning an `Effect.gen` block.
-With `Effect.fn("evaluate")`, the generator itself takes the parameters.
-The `catchTag` transformation becomes a second argument after the
-generator, rather than a separate `.pipe` call:
+Replace the arrow function around `Effect.gen` with
+`Effect.fn("evaluate")`. The generator now takes the function's
+parameters directly, and our existing `catchTag` becomes the next
+argument after it. Here's the whole function so you can compare:
 
 <LessonCode
   file="lessons/part1/07-name-it-see-it/solution/main.ts"
@@ -31,30 +37,32 @@ The transformation after the generator is applied to the Effect it
 produces, just as it was with `.pipe`. The `MissingField` handler therefore
 continues to recover in the same way.
 
-Run the file. The laptop still gets its alert, the taxi is still skipped, and
-the malformed rule still fails.
+Run the file. You should get the same laptop alert, taxi skip and
+malformed-rule failure. We haven't fixed or changed those outcomes.
+The difference is in the detail of the failure report.
 
 ## Locating the failed call
 
-Look at the malformed rule's failure in the terminal. Under the
-`SchemaError` there is now a line that starts with `at evaluate (`. That is
-the name you passed to `Effect.fn`. The line after it,
-`at evaluate (definition)`, points at where you declared the function.
+Under the `SchemaError` in the terminal, look for a line beginning
+`at evaluate (`. There's the name we supplied. The next line,
+`at evaluate (definition)`, points to the function's declaration.
+The error now connects the bad field to a particular call in our program.
 
 Each call to the named function runs inside a **span** named `evaluate`.
 A span records an operation's name, start time, duration and outcome. The
 failure printed by `runMain` includes the name, which connects the schema
 error to the call that failed.
 
-You do not see spans drawn as a timeline yet. That needs a trace viewer,
-which you connect in
-[Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know).
+For now, we're using the name in a text report. Later we'll connect a
+[trace viewer](/learn/part-2/16-the-picture-you-already-know) to see those
+spans on a timeline. The names we add here will help us recognize the same
+operations there.
 
 ## Try it
 
-The failure now identifies `evaluate`, but that function both decodes and
-checks an expense. Give decoding its own name to see how nested calls
-appear in the report:
+We can make the location more specific. `evaluate` both decodes the rule
+and checks an expense, and this failure happened during decoding. Try
+giving that step its own name:
 
 1. Turn `decodeRule` into a function made with `Effect.fn("decodeRule")`
    that takes the JSON string and decodes it.
@@ -62,10 +70,15 @@ appear in the report:
    first, then `at evaluate` under it. The decode failed, and it was running
    inside `evaluate`.
 
-Use names for operations you want to identify when investigating a failure
-or reading a trace. There is no need to wrap every helper: `matches` can
-remain a plain function. Recording spans has a runtime cost, and exporting
-them later adds network traffic.
+Two recognizable names now tell us where the failure happened and what
+called that operation. Use names where that information will help you;
+there's no need to wrap every helper. Our `matches` function can stay
+plain TypeScript. Recording spans has a runtime cost, and exporting them
+later adds network traffic.
+
+Next we'll stop passing each rule to `evaluate` by hand. Reflex needs a
+way to find all its rules, whether we keep them in memory for now or move
+them to a database later.
 
 ## Reference
 

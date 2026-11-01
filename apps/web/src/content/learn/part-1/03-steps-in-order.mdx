@@ -7,88 +7,87 @@ mode: playground
 lessonDir: 03-steps-in-order
 ---
 
-Printing the same alert twice proves that you can reuse an Effect. Now give
-reflex two expenses to check: a laptop at 1200 and a lunch at 40. It should
-log whether each expense is over 500, then report how many were flagged.
+Our alert appears in the terminal, but reflex hasn't made a decision yet.
+It prints the same message whatever we give it. Let's put our expense rule
+to work with two purchases: a laptop costing 1200 and a lunch costing 40.
+We want to hear about the laptop, while the lunch can pass without an alert.
 
-The summary depends on the results of both checks, so those results must be
-available before it runs. `Effect.gen` lets you write that sequence in a
-form that resembles ordinary TypeScript, using the result of each Effect
-in the lines that follow.
+Once both expenses have been checked, it would also be useful to see a
+summary: `1 of 2 expenses flagged`. To get that right, we'll need to keep
+the result of each check and count the ones that matched. This is where
+we'll begin writing a sequence of steps, rather than repeating one alert.
 
-The completed program will print `expense 1200 over 500`,
-`expense 40: no alert` and `1 of 2 expenses flagged`, in that order.
+## Start with the decision
 
-## Deciding which expenses are large
-
-The file starts where the previous lesson ended, with `alert` and
-`Effect.andThen(alert, alert)`.
-
-Above `program`, add a function that decides whether an amount is large:
+The editor has the program from the end of the previous lesson. Keep it
+for a moment while we write the check itself. Above `program`, add this
+function:
 
 <LessonCode
   file="lessons/part1/03-steps-in-order/solution/main.ts"
   declaration="isLarge"
 />
 
-`isLarge` takes a number and returns a boolean without performing any side
-effects. Keep it as a plain function; a calculation like this does not need
-an Effect.
+This is ordinary TypeScript: an amount over 500 gives us `true`, and
+anything else gives us `false`. That's all this function needs to do.
+Using Effect doesn't mean wrapping every calculation in an Effect.
 
-## Checking one expense with Effect.gen
+## Check an expense and log the result
 
-Below `isLarge`, add `evaluate`. It checks one amount, logs the verdict and
-reports whether the amount was flagged:
+Now we need to do something with that decision. Add `evaluate` below
+`isLarge`. It will check the amount, write the appropriate message, and
+return the decision so we can use it in the summary:
 
 <LessonCode
   file="lessons/part1/03-steps-in-order/solution/main.ts"
   declaration="evaluate"
 />
 
-`Effect.gen(function*() { ... })` builds an Effect from a generator function.
-You do not need to study generators separately to use this pattern. Inside
-the function, write ordinary calculations as usual and use `yield*` when
-you need to run an Effect.
+The `function*` and `yield*` syntax may be new to you. Together with
+`Effect.gen`, they let us write an Effect program as a sequence of steps.
+You can read the body from top to bottom. Ordinary calculations stay as
+they are; `yield*` is how we run an Effect and wait for its result inside
+this function. You don't need a separate lesson on generators to follow
+this pattern.
 
-When this Effect runs, it first calls `isLarge(amount)` and stores the
-boolean in `flagged`. Then `yield* Effect.log(...)` runs the logging Effect
-and waits for it to finish. Finally, `return flagged` makes that boolean
-the result of the whole Effect.
+Here, `yield* Effect.log(...)` runs the log before `return flagged` makes
+the boolean our result. Calling `evaluate(1200)` still only creates an
+Effect; we'll run it in `program` next.
 
-Hover `evaluate`. Its type is
-`(amount: number) => Effect<boolean, never, never>`. Calling `evaluate(1200)`
-does not log anything yet. It returns an Effect whose success type is
-`boolean`, inferred from the value returned by the generator. The
-generator body runs only when that Effect runs.
+## Put the two checks together
 
-## Using the results in the summary
-
-Delete `alert` and replace `program` with a second `Effect.gen` block:
+We can now replace the repeated alert with our two purchases. Delete
+`alert` and replace `program` with this second `Effect.gen` block:
 
 <LessonCode
   file="lessons/part1/03-steps-in-order/solution/main.ts"
   declaration="program"
 />
 
-Inside this generator, `yield* evaluate(1200)` runs the laptop check and
-assigns its result to `laptop`. Hover `laptop` to confirm that it is a
-`boolean`, not an Effect. The lunch check runs next, using the same pattern.
+Run the file. You should see `expense 1200 over 500` for the laptop,
+`expense 40: no alert` for lunch, and finally `1 of 2 expenses flagged`.
+Reflex is making its first decision. The summary comes last because each
+`yield*` finishes before the next line starts, so both decisions are
+available by the time we count them.
 
-Both results are now ordinary booleans, so the third line can count them
-with plain TypeScript. `filter(Boolean)` keeps the `true` values, and
-`length` counts them.
+Look back at `yield* evaluate(1200)`. It runs the laptop check and assigns
+the result to `laptop`; the lunch check follows the same pattern. Hover
+over either result to see that it's a `boolean`, not an Effect. The last
+line uses ordinary TypeScript to count them: `filter(Boolean)` keeps the
+`true` values, and `length` counts them.
 
-Run the file. The terminal prints the laptop's verdict, then the lunch's,
-then `1 of 2 expenses flagged`. The summary comes last because each `yield*`
-finishes before the next line starts.
+Hover over `evaluate` itself and you'll see
+`(amount: number) => Effect<boolean, never, never>`. The `boolean` success
+type comes from `return flagged` in its generator.
 
 Hover `program`. The type is `Effect<void, never, never>`. Its generator
 has no return value, so the success type is `void`.
 
 ## Try it
 
-Omitting `yield*` is an easy mistake to make. Try it deliberately so you
-can recognize the symptoms:
+There's a small mistake worth trying while the program is still short.
+What happens if we call `evaluate` but forget to run the Effect it returns?
+Remove one `yield*` and follow the result:
 
 1. Delete the `yield*` in front of `evaluate(40)`.
 2. Look for a red underline. There is none, and the playground reports no
@@ -102,12 +101,13 @@ can recognize the symptoms:
    an object, and `filter(Boolean)` keeps every object.
 5. Put the `yield*` back and run the file again. The three lines return.
 
-When a log line goes missing or a result looks wrong, check for a missing
-`yield*` first.
+If you make this mistake later, the missing log line and unexpected Effect
+type are useful clues. Creating a description of the check wasn't enough;
+we needed `yield*` to run it and get the boolean.
 
-Later, in [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it),
-you will turn `evaluate` into a named Effect function so you can identify
-it in failure reports. For now, keep the `Effect.gen` version.
+With that restored, both purchases are accounted for. But we've assumed
+every expense has an amount. Next we'll try a receipt where that
+information is missing and decide how reflex should respond.
 
 ## Reference
 

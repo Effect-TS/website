@@ -27,7 +27,7 @@ const hours = Math.floor(total / 60)
 
 <PageLayout
   title="Learn Effect | Build reflex"
-  description="A beginner Effect course: build reflex, an automation engine that turns events into actions, from your first Effect to a reliable server with tests and tracing."
+  description="Learn Effect by building reflex, a small application that checks expenses, watches services, and sends alerts. Start in your browser with no Effect experience needed."
   themeable
 >
   <div class="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-12 md:py-20">
@@ -35,15 +35,16 @@ const hours = Math.floor(total / 60)
       <Eyebrow class="mb-3">Learn Effect</Eyebrow>
       <h1 class="text-3xl font-semibold text-foreground md:text-4xl">Build reflex</h1>
       <p class="mt-4 text-lg text-muted-foreground">
-        Learn Effect by building reflex, a small automation engine. Give it a rule to log large
-        expenses or send an alert when a service is down, then follow that rule through the program
-        as it grows. Each lesson adds working code to the same application. Start in your browser
-        with a single Effect, then move to your machine to build the server, CLI, tests, and
-        tracing.
+        Some things are worth keeping an eye on, but not checking by hand all day. An unusually
+        large expense, perhaps, or a service that's gone down. In this course, we'll build reflex, a
+        small application that watches for those situations and acts on rules you give it. We'll
+        start with a single alert in your browser and grow it into a server you can use from the
+        command line, learning Effect as we need it. If you're comfortable with TypeScript, you're
+        ready to begin. No prior Effect experience needed.
       </p>
       <p class="mt-2 text-sm text-subtle-foreground">
-        Best-case lesson time is {hours} h {total - hours * 60} min ({total} minutes), including setup.
-        Allow extra time for optional exercises and troubleshooting.
+        Plan for at least {hours} h {total - hours * 60} min ({total} minutes), including setup. That's
+        the best-case lesson time; leave room for optional exercises and troubleshooting.
       </p>
     </header>
 
@@ -52,22 +53,28 @@ const hours = Math.floor(total / 60)
         A session with the finished app
       </h2>
       <p class="text-prose-foreground">
-        Here is a terminal session from the finished reference solution. A local HTTP receiver on
-        port 4600 lets you test rules without calling outside services. One rule posts to it for
-        every expense event, while another polls its
+        Here's where we're headed. In this session from the finished reference solution, reflex
+        handles expenses and checks a service's status. We use a local HTTP receiver, a small server
+        on port 4600 that lets us try rules without calling outside services. One rule sends it a
+        request for every expense event, while another repeatedly checks its
         <code>/status</code> page.
       </p>
       <LessonCode file="checkpoints/24/transcript.txt" />
       <p class="text-prose-foreground">
-        The <code>runs list</code> output records the outcome of each run, with a reason when it does
-        not succeed. To see more than the terminal output, you can inspect a trace of
-        <code>events submit</code> or <code>rules run</code>, following the request from the CLI
-        through the server to each rule. You will set up the trace viewer in Part 2.
+        You don't need to understand every command yet. Notice the <code>runs list</code> output: reflex
+        records what happened, including a reason when a run doesn't succeed. Later, we'll also look at
+        a trace, a view of the work behind an <code>events submit</code> or
+        <code>rules run</code> command. It lets us follow the request from the CLI through the server
+        to each rule. We'll set up that viewer together in Part 2.
       </p>
     </section>
 
     <section aria-labelledby="before-you-start" class="flex flex-col gap-4">
       <h2 id="before-you-start" class="text-2xl font-semibold text-foreground">Before you start</h2>
+      <p class="text-prose-foreground">
+        Part 1 runs in your browser, so there's nothing to install before the first lesson. When we
+        move to your machine in Part 2, you'll need:
+      </p>
       <ul class="list-disc pl-5 text-prose-foreground">
         <li>Node 22.16 or newer</li>
         <li>pnpm, or corepack to provide it</li>
@@ -75,9 +82,9 @@ const hours = Math.floor(total / 60)
         <li>macOS, Linux with glibc 2.39 or newer, or Docker, for the trace viewer</li>
       </ul>
       <p class="text-prose-foreground">
-        From Part 2 on, you work in a starter project on your machine.
-        <a href="/learn/part-2/setup" class="underline">Setting up your machine</a> walks you through
-        these commands:
+        We'll use a starter project for the rest of the course. You can leave these commands until
+        Part 2; <a href="/learn/part-2/setup" class="underline">Setting up your machine</a>
+        will walk you through them when you get there.
       </p>
       <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
     </section>

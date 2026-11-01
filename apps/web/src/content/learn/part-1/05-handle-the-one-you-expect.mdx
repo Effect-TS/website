@@ -7,73 +7,82 @@ mode: playground
 lessonDir: 05-handle-the-one-you-expect
 ---
 
-The missing amount stopped the program because you had not yet defined
-how to recover. Now make that decision explicit: skip the incomplete
-expense, log the reason, and continue to the summary.
+One incomplete taxi receipt has stopped our whole expense check. That's
+better than silently treating it as a small purchase, but it would be
+frustrating if every missing amount prevented us from seeing the rest.
+We already know exactly what went wrong. Let's use that information to
+keep going.
 
-The recovery belongs in `evaluate`, where you know what `MissingField`
-means for an expense check. Once that error is handled, callers will receive
-a boolean instead of a failure for this case, and `MissingField` will no
-longer appear in the function's error type.
+For reflex, we'll choose a simple policy: explain that the expense was
+skipped, leave it out of the flagged count, and continue to the summary.
+We still won't know what the taxi cost. Recovery here means choosing what
+to do about that gap, not filling it with a guess.
 
-## Handling MissingField with catchTag
+## Give the missing amount a handler
 
-The file starts where the previous lesson ended: `evaluate` fails with
-`MissingField` when an event has no amount.
+The editor still contains the failing version from the previous lesson.
+We'll put the recovery in `evaluate`, next to the check that can fail.
+That keeps `program` concerned with running checks and counting results.
 
-`Effect.catchTag` selects an error by its tag. The handler receives the
-typed error and returns an Effect to run in place of the failed computation.
-Errors with other tags remain unhandled, so choosing to skip an incomplete
-expense will not hide unrelated failures.
-
-Attach it to `evaluate` with `.pipe`, after the `Effect.gen(...)` block:
+`Effect.catchTag` lets us select the `MissingField` error by its tag and
+provide a handler. Attach it with `.pipe`, after the `Effect.gen(...)`
+block, as shown below:
 
 <LessonCode
   file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
   declaration="evaluate"
 />
 
-The handler logs why the taxi was skipped, using `error.field` from
-`MissingField`. It also needs to produce a boolean so that `program` can
-continue counting flagged expenses. `Effect.as(effect, value)` runs an
-Effect and replaces its successful result with `value`. Here it runs the
-log and succeeds with `false`, keeping the skipped expense out of the count.
+The handler receives our error, including its `field` property, so it
+can explain why the taxi was skipped. It returns an Effect that logs the
+reason and then succeeds with `false`. That replacement result is what
+lets the caller continue counting expenses.
 
-Every Effect has a `.pipe` method. `effect.pipe(f)` is the same as
-`f(effect)`, and `effect.pipe(f, g)` is the same as `g(f(effect))`. It lets
-you apply transformations to an Effect in the order you read them. In this
-case, the transformation adds error handling to the generator's Effect.
+The `Effect.as` call supplies the `false`: it runs the logging Effect
+and replaces its successful result with the value we give it. We're
+recovering only from `MissingField`. Any other tagged error would still
+be unhandled.
 
-## Checking that the summary returns
+## Run both receipts again
 
-Run the file. The terminal prints three log lines:
+Run the file without changing `program`. The summary should be back,
+with a new line explaining the taxi receipt:
 
 1. `expense 1200 over 500` for the laptop.
 2. `skip: missing field amount` for the taxi.
 3. `1 of 2 expenses flagged`.
 
-You did not need to change `program`. The taxi check now succeeds with
-`false` after logging the skip, so execution continues to the summary.
+We still get the laptop alert, and we haven't lost sight of the incomplete
+receipt. The taxi check now finishes successfully with `false`, so the
+summary can run. The skip message is important: without it, someone
+reading the output couldn't tell this case from an expense below the limit.
 
-## The error type after recovery
+Before moving on, take another look at how we attached the handler.
+Every Effect has a `.pipe` method. `effect.pipe(f)` means `f(effect)`,
+and `effect.pipe(f, g)` means `g(f(effect))`. It lets us write
+transformations in the order we apply them. Here there's just one,
+adding error handling to the generator's Effect. You'll see this style
+again as we add more behaviour.
+
+## Check what changed in the type
 
 Hover `evaluate`. Its type is
 `(event: Event) => Effect<boolean, never, never>`.
 
-In the previous lesson it was
-`(event: Event) => Effect<boolean, MissingField, never>`. `MissingField` has
-left the error type because the handler recovers from it. There are no
-other typed failures in `evaluate`, so the error type is `never`. The
-success type remains `boolean`: both the normal check and the recovery
-produce a boolean result.
+Compare that with the previous lesson's
+`(event: Event) => Effect<boolean, MissingField, never>`.
+`MissingField` is no longer in the error type because we've handled it.
+With no other typed failures here, that parameter is back to `never`.
+The success type is still `boolean`, whether we reach it through a
+completed check or through the recovery handler.
 
 Hover `program`. The type is `Effect<void, never, never>`. The failure is
 gone from `program` too.
 
 ## Try it
 
-The replacement result and the error handler serve different purposes.
-Remove each in turn to see the difference:
+It's worth separating the two choices we made: handling the error and
+choosing a replacement result. Try removing each one in turn:
 
 1. In the handler, keep only the `Effect.log(...)` call and remove the
    `Effect.as` around it. Hover `evaluate`. The success type is now
@@ -84,10 +93,14 @@ Remove each in turn to see the difference:
    error type is `MissingField` again. Run the file. The taxi stops the
    program and the summary is gone. Put the `catchTag` back.
 
-You have chosen to recover from one specific failure, not to ignore errors
-in general. In [Validating JSON with Schema](/learn/part-1/06-untrusted-json),
-you will introduce a broken rule and leave that failure unhandled so that
-it still stops the program.
+With the handler restored, reflex can carry on past an incomplete receipt
+without hiding what happened. We made that decision for one error, not
+for every possible failure.
+
+Next we'll let someone choose a rule without editing the check itself.
+That introduces another kind of problem: a rule may be invalid. We'll
+keep that failure separate from a missing amount, because the right
+response needn't be the same.
 
 ## Reference
 

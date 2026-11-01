@@ -5,19 +5,29 @@ title: Where to go next
 mode: guide
 ---
 
-Reflex began as a single logging Effect in the browser. It now has a server,
-persistent rules and run history, scheduled polling, and network actions.
-You can inspect a failed request in a trace, test a loop without waiting
-for real time to pass, and stop the server without leaving its work running.
+The first alert we wrote was just a message about a laptop, printed by a
+single Effect in the browser. Now you can submit that expense to your own
+server and let a stored rule decide what to do. Reflex keeps a history of
+the result, can poll a service on a schedule, and can send a notification
+instead of only logging a line.
 
-There is still plenty you could add. The projects below extend behaviour
-you have already built, while the final section describes the limits of the
-application as it stands.
+You've also worked through what happens when those actions don't go to
+plan. You can follow a failed request in a trace, test a loop without
+waiting for real time to pass, and stop the server without leaving its work
+running. If you completed the pause challenge, you've taken a feature all
+the way from a requirement to a working command without a lesson's
+implementation to follow.
+
+This is a good place to stop and keep the application as a reference. If
+there's something you'd like reflex to do differently, the projects below
+give you a few places to start. Before using it beyond your own machine,
+read the limits at the end of this page too.
 
 ## Follow-on projects
 
-Allow about 15 to 30 minutes for each project. They are listed roughly in
-order of how closely they follow the course.
+Pick one that would make reflex more useful to you; there's no need to
+complete the list. Allow about 15 to 30 minutes for each project. The
+earlier ones stay closest to what we've already built.
 
 - Make the `degraded` rule notify only when the status changes from ok to
   degraded, rather than on every tick. A `Ref` can hold the previous match
@@ -46,8 +56,9 @@ order of how closely they follow the course.
 
 ## What the course leaves out
 
-The course keeps one main idea per lesson. Some features would need more
-space than that allows, and some would change the application's design.
+We've kept the application small enough to build and understand together.
+That leaves some decisions for you if you want to use it for more than
+local experiments.
 
 Reflex has no authentication, deployment setup, or browser UI. It runs as a
 single process, without distributed workers or an exactly-once delivery
@@ -62,10 +73,16 @@ code, expression language, rule graph, or scheduling beyond a fixed interval.
 Adding any of these would require decisions about validation and execution
 that the current rule model does not address.
 
-You have not needed every Effect API to build this application.
-`Effect.forEach` with a concurrency limit and `FiberMap` cover its
-concurrency needs, so the course does not introduce `Deferred`,
-`Semaphore`, or `Stream`. Store lookups fail with `RuleNotFound`
-rather than returning an `Option`, and conditions do not remember whether
-they matched on the previous run. The first follow-on project gives you a
-reason to add that state with `Ref`.
+There are more Effect APIs to learn, but you haven't needed all of them to
+get this far. `Effect.forEach` with a concurrency limit and `FiberMap` cover
+reflex's concurrency needs, so we haven't introduced `Deferred`,
+`Semaphore`, or `Stream`. Store lookups fail with `RuleNotFound` rather than
+returning an `Option`, and conditions don't remember whether they matched
+on the previous run. If you take on the first follow-on project, that last
+limitation gives you a reason to try `Ref`.
+
+Keep your working reflex nearby as you build something else with Effect.
+You have examples you've run and changed yourself: accepting input, storing
+a rule, doing work that can fail, and finding out why it failed. Start
+with a need you recognize, as we did with that first expense, and use the
+pieces that help you meet it.

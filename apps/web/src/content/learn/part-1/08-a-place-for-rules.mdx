@@ -7,45 +7,52 @@ mode: playground
 lessonDir: 08-a-place-for-rules
 ---
 
-The rules are still constants passed directly to `evaluate`. In Part 2,
-you will load them from a file and manage them through an HTTP API; in
-Part 3, you will store them in SQLite. The evaluation code should not need
-to change along with the storage code.
+We've spent a few lessons deciding what a rule means and what to do when
+something goes wrong. Now imagine having a dozen rules. We wouldn't want
+to add another `evaluate` call to the program every time someone creates
+one. We'd want reflex to get the current list and check them all.
 
-Separate those concerns with a `RuleStore` service. Its interface will let
-evaluation code list the rules without choosing how they are stored.
-This lesson deliberately ends before that choice is made,
-with a type error at the run line. The next lesson supplies an
-implementation and makes the program runnable again.
+For now, that list can live in memory. Later we'll store rules in SQLite
+so they're still there after a restart. The expense check shouldn't need
+to know which of those we're using; it just needs to ask for the rules.
 
-## Declaring the RuleStore service
+We'll build that separation in two steps. Here we'll describe what the
+program needs from a rule store and write code that uses it. In the next
+lesson we'll actually supply the store. That means this lesson ends with
+a type error, even in the solution. It's intentional: we'll see how Effect
+keeps track of a dependency we haven't provided yet.
 
-`Context.Service` defines a **service** with a key and an interface. It
-does not implement the operations in that interface. Add `Context` to the
-`effect` import, then declare `RuleStore` below `decodeRule`:
+## Say what we need from a store
+
+Our first store needs just one operation, `list`, to return all the rule
+strings. In Effect we can describe this as a **service**: an interface for
+something our program needs, identified by a key. Declaring it won't
+choose where the rules live or how we read them.
+
+Add `Context` to the `effect` import, then declare `RuleStore` below
+`decodeRule`:
 
 <LessonCode
   file="lessons/part1/08-a-place-for-rules/solution/main.ts"
   declaration="RuleStore"
 />
 
-The declaration follows a pattern similar to `Schema.TaggedError`. The
-type arguments include the class's own type and the interface of the
-service. Here that interface has one member, `list`, an Effect whose
-successful result is a readonly array of JSON strings.
+The two-call pattern should look familiar from `Schema.TaggedError`.
+This time the type arguments describe the class and the service's
+interface. `list` is an Effect that succeeds with a readonly array of
+JSON strings. That's enough information to write code that uses the
+store, even though we haven't built one.
 
 The string `"reflex/RuleStore"` in the second call is the service's key.
 Keep it unique within the program so that it identifies this service
 unambiguously.
 
-## Reading rules through the service
+## Ask for the rules when we need them
 
-Inside `Effect.gen` or `Effect.fn`, `const store = yield* RuleStore`
-retrieves the implementation provided for `RuleStore`. Its interface lets
-you use `yield* store.list` to obtain the rules without knowing how they
-were stored.
-
-Add `evaluateAll` below `evaluate`:
+Let's write a function to check every rule against one event. Inside
+`Effect.gen` or `Effect.fn`, `const store = yield* RuleStore` retrieves
+the store provided to the program. Then `yield* store.list` reads its
+rules. Add `evaluateAll` below `evaluate`:
 
 <LessonCode
   file="lessons/part1/08-a-place-for-rules/solution/main.ts"
@@ -64,45 +71,46 @@ place of the three `evaluate` calls:
   declaration="program"
 />
 
-Delete the `largeExpense` and `malformed` constants. Evaluation now uses
-the store's `list` operation rather than referring to those constants.
+Delete the `largeExpense` and `malformed` constants for now. The
+checking code no longer refers to them. It asks the store for its rules
+instead, which leaves us with one important piece still missing.
 
-## The new requirement
+## Find the missing dependency
 
-Hover `evaluateAll`. Its return type is
-`Effect<void, SchemaError, RuleStore>`.
+Look at the last line, `NodeRuntime.runMain(program)`. It should be
+underlined in red. If you try to run the file, the terminal reports the
+type error rather than running the program. This is the stopping point
+we planned, not a mistake to work around.
 
-The third type parameter lists the services that still need to be
-provided. Until now it has been `never`. Retrieving `RuleStore` inside
-`evaluateAll` adds that requirement. Calling `evaluateAll` from `program`
-means `program` also requires the store. Hover `program` to confirm it.
+To find out why, hover over `evaluateAll`. Its return type is
+`Effect<void, SchemaError, RuleStore>`. The third type parameter, which
+has been `never` until now, is the **requirements type**. It lists the
+services we still need to provide. By retrieving `RuleStore`, this
+function has added a requirement for it.
 
-## Why the program cannot run yet
+Hover over `program` and you'll find the same requirement. It calls
+`evaluateAll`, so it needs a store too. Now read the last line of the
+error at `runMain`:
+`Type 'RuleStore' is not assignable to type 'never'.`
+`runMain` needs an Effect with no outstanding requirements, while this
+one still needs its `RuleStore`.
 
-Look at the last line, `NodeRuntime.runMain(program)`. It is underlined in
-red, the terminal shows the same type error, and the program does not run.
-The playground only runs a file that typechecks.
+We've described the store's operations but never supplied their
+implementation. Even the Solve button leaves this error in place. In the
+next lesson we'll make it disappear by providing a store, rather than by
+changing the checking code.
 
-The error is long. The part that matters is its last line:
-`Type 'RuleStore' is not assignable to type 'never'.` `runMain` only runs an
-Effect whose requirements type is `never`, and `program` still needs a
-`RuleStore`.
+## Before moving on
 
-The declaration tells TypeScript what operations a `RuleStore` must
-provide, but no implementation exists in this file yet. The error is
-therefore expected, including when you use the Solve button.
+Try explaining the error in your own words: what have we promised about
+`RuleStore`, and what do we still need to build? If the difference isn't
+clear yet, compare the declaration of `list` with the call that uses it.
+There's a type for the operation, but no code choosing which rules to return.
 
-## Try it
-
-Before moving on, trace the missing requirement through the file:
-
-1. Hover `evaluateAll`, then `program`. Find where `RuleStore` enters the
-   requirements type and why it stays there up to `program`.
-2. Look for code that implements `list` and chooses which rules it returns.
-   There is none yet; the service declaration only specifies its type.
-
-Continue to [Providing a service with a layer](/learn/part-1/09-provide-it)
-to implement the store and satisfy the requirement.
+We've written a check that can use a store without committing to how the
+rules are kept. Continue to
+[Providing a service with a layer](/learn/part-1/09-provide-it), where we'll
+build the first implementation and get our alerts back.
 
 ## Reference
 

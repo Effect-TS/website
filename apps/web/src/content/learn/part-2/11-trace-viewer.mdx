@@ -5,18 +5,25 @@ title: Reading a trace in the viewer
 mode: guide
 ---
 
-The course uses otel-desktop-viewer to inspect traces and logs locally.
-Open its interface at [http://localhost:8000](http://localhost:8000). From
+Once an expense travels from the CLI to the server, a terminal message
+only tells part of its story. The trace viewer lets us follow that same
+expense through the command, the request and the rule it runs. Come back
+to this page when a lesson asks you to inspect a trace; you don't need to
+learn every part of the screen during setup.
+
+We use otel-desktop-viewer, running locally at
+[http://localhost:8000](http://localhost:8000). From
 [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
-on, your programs send it spans and logs over OTLP on port 4318.
+on, your programs send it spans and logs on port 4318 using OTLP, the
+OpenTelemetry protocol for sending this data.
 
 - `pnpm run doctor --viewer` downloads and starts it the first time.
 - `pnpm viewer` starts it in later sessions.
 - It keeps everything it receives until you stop it.
 
-Use this page as a reference when a lesson asks you to inspect a span. The
-screenshots show both a successful run and runs that failed or were
-interrupted.
+The screenshots below give you examples to compare with your own runs,
+including a successful request, a failed action and work that was stopped
+before it finished.
 
 ## Parts of a trace
 
@@ -27,7 +34,8 @@ which operations ran inside others.
 A span records the name and duration of an operation. Each call to a
 function defined with `Effect.fn("name")` creates a span with that name.
 
-The screenshot below shows the checkpoint from
+Let's start with a successful expense alert. The screenshot below shows
+the checkpoint from
 [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know).
 The expense rule has been stored, and the CLI is submitting `laptop.json`
 with `events.submit`.
@@ -35,6 +43,10 @@ with `events.submit`.
 ![The events.submit trace in otel-desktop-viewer: CLI spans in pink, server spans in orange, Engine.execute selected with status Ok](../_assets/viewer-trace.png "One trace from reflex-cli into reflex-server")
 
 ## Parts of the screen
+
+Select `events.submit` in the trace list. Start with the nested rows in the
+middle; they show the calls that led to the alert. Here's how to read the
+rest of the screen:
 
 - The Traces tab lists traces by their root span, newest first. Select a
   trace to open it. You can hide this list with the sidebar toggle at the
@@ -51,8 +63,9 @@ with `events.submit`.
 
 ## Span status
 
-A span created by Effect ends with the result of the effect it wraps. In
-these course examples, you will see the following statuses:
+A span created by Effect ends with the result of the effect it wraps.
+When a run doesn't do what you expected, select its span and check
+`status.code` in the details panel:
 
 | Result | `status.code` | Colour | Meaning                                                   |
 | ------ | ------------- | ------ | --------------------------------------------------------- |
@@ -64,8 +77,9 @@ these course examples, you will see the following statuses:
 
 ![A rules.run trace with Engine.execute in red, status.code 2 (Error) and an exception event BadResource: FileSystem.writeFile (fixtures)](../_assets/viewer-error-span.png "An Engine.execute span that failed")
 
-Here, `rules run` executes a rule whose `appendFile` path is `fixtures`.
-Because that path is a directory rather than a file, the write fails.
+In this example, the rule tried to write an alert to `fixtures`. That path
+is a directory, not a file, so the write failed. Follow the red spans to
+see where the failure happened:
 
 - The failed action's span and its enclosing execution span are red. The
   trace header counts the errors (`1/2 err`); use the arrows next to the
@@ -80,10 +94,11 @@ Because that path is a directory rather than a file, the write fails.
 
 ![A rules.run trace that took 1.61 s, Engine.execute selected with status.code 0 (Unset) and effect.fiber.interrupted true](../_assets/viewer-unset-span.png "An Engine.execute span that was interrupted")
 
-This trace was recorded after pressing Ctrl-C in the CLI while `rules run`
-was waiting for an append that could not finish. When the client
-disconnected, the server interrupted the request handler, including its
-`Engine.execute` and `appendLine` effects.
+Stopping work looks different from a failed write. This trace was recorded
+after pressing Ctrl-C in the CLI while `rules run` was waiting for an
+append that could not finish. When the client disconnected, the server
+interrupted the request handler, including its `Engine.execute` and
+`appendLine` effects. Look at both the status and the attributes here:
 
 - `status.code` is `0 (Unset)`. This is also the default code for a span
   whose status has not been set, so Unset alone does not identify an
@@ -99,6 +114,10 @@ a poll then produces an interrupted span like this one and a corresponding
 `interrupted` row.
 
 ## What each lesson shows
+
+If your viewer looks different from a screenshot, check where you are in
+the course. We add more information as reflex grows. This table lists
+what to expect at each stage.
 
 | Lesson                                                                                               | Where                  | What to look for                                                                                                                    |
 | ---------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |

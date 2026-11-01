@@ -6,22 +6,24 @@ minutes: 20
 mode: local
 ---
 
-In the last lesson, you checked the Engine by running `main.ts`, reading
-the printed run log and opening `alerts.log`. Repeating those checks after
-every change would be tedious, and each run would append more data to a
-real file. Tests can check the same behavior automatically without writing
-alerts to disk.
+We just checked reflex by running `main.ts`, reading the history and
+opening `alerts.log`. That was useful while we were building it. Doing it
+again after every change would soon get old, though, and every check would
+add more alerts to a real file. Let's turn those observations into tests
+we can rerun whenever we need them.
 
-You already separated the Engine from its dependencies by using services.
-Now you can provide fresh memory stores and a recording file system for
-tests, leaving the Engine itself unchanged. Start with the rule store, then
-test the run history produced by the Engine.
+The services you've already written make this possible without changing
+the Engine. We can give it fresh memory stores and a file system that
+records attempted writes instead of touching the disk. We'll start with
+the rule store, where there are fewer moving parts, then test the history
+that tells us what the Engine did.
 
 ## Write the first test
 
 The starter uses `@effect/vitest` to run effects in Vitest tests. Test files
-live in `test/`, next to `src/`, and you run them with `pnpm test`. The
-package provides a test function, a way to supply services, and assertions:
+live in `test/`, next to `src/`, and you run them with `pnpm test`. If you've
+used Vitest before, most of this will look familiar. Here are the pieces
+we need for a test that uses a service:
 
 - `it.effect("name", () => effect)` runs an Effect as a test. The test passes
   when the effect succeeds and fails when it fails.
@@ -31,7 +33,8 @@ package provides a test function, a way to supply services, and assertions:
 - `assert` has the usual checks: `strictEqual`, `deepStrictEqual`, `match`,
   `isNull`.
 
-Create `test/RuleStore.test.ts`. Provide `RuleStore.layerMemory` and write a
+Create `test/RuleStore.test.ts`. We want to know that a rule we store can
+be retrieved and removed, so provide `RuleStore.layerMemory` and write a
 test that stores two rules, then lists, gets and removes them:
 
 <LessonCode file="checkpoints/13/test/RuleStore.test.ts" />
@@ -40,23 +43,25 @@ test that stores two rules, then lists, gets and removes them:
 pnpm test test/RuleStore.test.ts
 ```
 
-The test should pass. With `buildPerTest: true`, each test starts with an
-empty memory store, so it can create and remove rules without affecting
-another test.
+The test should pass. You've checked the store through the same methods
+the application uses. And with `buildPerTest: true`, each test starts
+with an empty store, so removing a rule here won't affect another test.
 
 ## Test an expected failure
 
-The store should fail with `RuleNotFound` when you request an unknown id.
-To see how the test runner treats that failure, first try writing
+Now let's check a failure we actually want. The store should fail with
+`RuleNotFound` when you request an unknown id. To see how the test runner
+treats that failure, first try writing
 `const error = yield* store.get("missing")`, followed by an assertion on
 `error`.
 
 Run `pnpm test test/RuleStore.test.ts`. The test fails, and Vitest prints a
 `RuleNotFound` with `id: "missing"`.
 
-The store behaved correctly, but the assertion was never reached. A failed
-effect stops the generator, and `it.effect` reports that failure as a failed
-test. You need to make the error available as a value you can inspect.
+That failure can look surprising: the store did exactly what we asked it
+to do. But the assertion was never reached. A failed effect stops the
+generator, and `it.effect` reports it as a failed test. To check the error,
+we need to make it a value the rest of the test can inspect.
 
 `Effect.flip` swaps success and failure. With
 `yield* Effect.flip(store.get("missing"))`, a `RuleNotFound` becomes the
@@ -64,20 +69,24 @@ success value you can assert on. If the store unexpectedly returned a rule,
 the flipped effect would fail instead. Wrap the call and run the test
 again. It should now pass, as the second and third tests in the example do.
 
-Keep checking that a test fails when the behavior is wrong. Passing
-assertions are useful only if they can detect the mistake you care about.
+Keep this habit as you add tests: check that they fail when the behavior
+is wrong, too. A green test is reassuring only if it can catch the mistake
+you care about. We'll try that deliberately in the exercise.
 
 ## Record file writes without using the disk
 
-To test an action, you need to check that the Engine attempted the right
-write without creating `alerts.log`. Provide a file system that records
-those attempts in an array instead.
+The Engine needs a little more setup. We want to know whether it tried to
+write an alert, but we don't want a test creating `alerts.log`. Let's give
+it a file system that records those attempts in an array instead.
 
 `FileSystem.layerNoop` lets you replace selected file system methods without
-performing real file operations. Keep a `writes` array in the test file and
-override `writeFileString` with
-`writeFileString: (path) => Effect.sync(() => writes.push(path))`. Override
+performing real file operations. Keep a `writes` array in the test file,
+clearing it before each test so earlier writes can't affect later assertions.
+Override `writeFileString` with
+`writeFileString: (path) => Effect.sync(() => { writes.push(path) })`. Override
 `writeFile` in the same way. You can then assert on the recorded paths.
+The block callback records the path without returning `push`'s numeric
+result, so the Effect succeeds with `void`, as a file write should.
 Only the methods you replace have the behavior your test needs; do not
 assume that other file operations will succeed.
 
@@ -91,16 +100,19 @@ The reference solution uses `FileSystem.makeNoop` to construct the service
 value inside a layer rather than using `FileSystem.layerNoop` directly.
 For a simpler fake, you can wrap that value in `Layer.succeed`.
 
-This separation also lets you reuse service tests with other implementations.
-In [Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart),
-you will run the store suites against SQLite.
+Keep these tests focused on what the services promise, rather than how
+their `Map`s work. We'll be able to reuse the store suites when we replace
+memory storage with SQLite in
+[Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart).
 
 ## Try it
 
-A missing field should produce a `skipped` run, with the field named in its
-reason. Test the stored run rows as well as the result of `handleEvent`: the
-rows will later be displayed by `runs list` and stored in SQLite. A correct
-return value alone would not prove that the history is correct.
+Let's protect the behavior you added in the last exercise. An event without
+an amount should produce a `skipped` run whose reason names the missing
+field. Check the stored rows as well as the result of `handleEvent`. The
+history is what someone will read later through `runs list`, and eventually
+what we'll store in SQLite. Returning the right result isn't enough if we
+save the wrong explanation.
 
 1. In `test/Engine.test.ts`, build the test layer described above. Store a rule
    with the `amount gt 500` condition, submit
@@ -115,14 +127,17 @@ return value alone would not prove that the history is correct.
 4. Restore `` `missing field ${error.field}` `` and confirm that the test
    passes again.
 
-The test filter also matches `checkpoints/13/test/Engine.test.ts`, the
-reference tests. They test the checkpoint, not your `src/`, so they stay
-green throughout. The hint and the test are in `exercises/13/`.
+If you see other tests staying green while yours fails, check their paths.
+The filter also matches `checkpoints/13/test/Engine.test.ts`. Those tests
+check the reference checkpoint, not your `src/`, so they stay green
+throughout. The hint and the test are in `exercises/13/`.
 
 ## Checkpoint
 
-After restoring the correct skip reason, run `pnpm test` to check that the
-tests pass again. To run the reference suites for checkpoint 13, use:
+Before moving on, make sure you've restored the correct skip reason, then
+run `pnpm test`. We want to leave the application working, with a test
+that will catch this mistake if it returns. To run the reference suites
+for checkpoint 13, use:
 
 ```sh
 pnpm checkpoint 13 test
@@ -146,6 +161,10 @@ large expense: skipped (missing field amount)
 huge expense: skipped (missing field amount)
 every expense: succeeded
 ```
+
+You've now checked both the result and the history of a skipped run,
+without writing an alert to disk. Keep those tests nearby as we put an
+HTTP server around the same services next.
 
 ## Reference
 

@@ -6,42 +6,43 @@ minutes: 30
 mode: local
 ---
 
-Event rules run when someone submits an event. An `interval` rule has to
-obtain its own input on a schedule. In
-`fixtures/rules/status-degraded.json`, that means polling the receiver's
-`/status` endpoint and appending an alert line when the response contains
-`degraded`:
+The heartbeat showed us that reflex can keep working between requests.
+Let's put that work to use. Suppose a service we rely on starts reporting
+degraded performance. We'd like reflex to notice, rather than having to
+check its status ourselves.
+
+Open `fixtures/rules/status-degraded.json`. This `interval` rule checks
+the receiver's `/status` endpoint regularly, a practice called polling.
+When the response contains `degraded`, it appends an alert line:
 
 <LessonCode file="fixtures/rules/status-degraded.json" />
 
 The server has accepted rules like this since
 [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records),
-but has not executed them. You will now give each interval rule a loop like
+but hasn't executed them yet. We'll give each interval rule a loop like
 the heartbeat, with a poll and an action in each iteration, or tick. This
 rule starts polling as soon as it is added, then waits 5 seconds after each
 run before polling again.
 
-There is more to this than repeating a GET. Removing a rule must stop its
-loop even during a request. A temporary failure should be recorded without
-stopping future polls, whereas a programming bug should stop the loop
-instead of producing the same crash repeatedly. You also need a record of
-runs that were interrupted or left unfinished by a previous process.
-
-Start by making the poll part of a recorded run. Then add the loop controls
-and test what happens when a rule is removed during a request. The
-checkpoint at the end checks failure, crash and removal separately.
+Starting the checks is only part of the job. If we remove the rule, its
+loop needs to stop too, even if it is waiting for a response. And a service
+that is temporarily unavailable shouldn't stop us checking it later.
+We'll build up that behavior using the run history and the scoped fibers
+we already have. Start with the response we want the rule to inspect.
 
 ## Use the poll response as the payload
 
-An interval rule has no submitted event to evaluate. Instead, its payload
-is the GET response, represented as `{ status, body }`. A valid JSON body
+With expenses, someone handed us an event to evaluate. Here, we have to
+fetch the data ourselves. The rule's payload is the GET response,
+represented as `{ status, body }`. A valid JSON body
 is parsed; any other body is kept as text. The condition can then read
 `body.status` using a dotted field path, just as an expense condition reads
 `amount`. Create `src/Poll.ts`:
 
 <LessonCode file="checkpoints/19/src/Poll.ts" />
 
-A response outside the 2xx range becomes `ActionFailed` with reason
+The receiver won't always give us a usable response. A response outside
+the 2xx range becomes `ActionFailed` with reason
 `status`. A failure to make the request or read the response body becomes
 `ActionFailed` with reason `io`.
 
@@ -51,9 +52,10 @@ evaluator can work with both a submitted event and a poll response.
 
 ## Record the poll as part of the run
 
-If you poll first and pass the response to the execution boundary, a failed
-or hanging poll will never reach the code that records runs. The boundary
-needs to start recording before it obtains the payload.
+It might seem natural to fetch the response first, then pass it to the
+Engine. But if that request fails or hangs, we'd have no run record to
+explain what happened. Our execution boundary, the code that records and
+limits each run, needs to start recording before it fetches the payload.
 
 Change it to accept a payload effect rather than a payload value. For an
 event rule, use `Effect.succeed(event)`; for an interval rule, use
@@ -70,15 +72,16 @@ effect. An interval run follows this order:
    for the caller. Interruption remains an interruption; it is not converted
    into a return value.
 
-This order gives a failed, timed-out or interrupted poll the same record
-as a completed action: one run row and one execution span.
+Now even a poll that never returns will leave evidence. Whether it fails,
+times out or is interrupted, we'll have one run row and one execution span,
+just as we do for a completed action.
 
 ## Distinguish crashes from interruptions
 
-The existing outcomes cover success, skipped conditions and expected
-failures. Two more are needed now that a run can be stopped during a poll
-or encounter a bug. `Effect.onExit` receives the `Exit` for all of these
-cases:
+Removing a rule during a poll isn't the same as the receiver rejecting
+it. Nor is a bug in our own code. Let's give those results their own names
+in the history: `interrupted` and `crashed`. Alongside the outcomes we
+already record, `Effect.onExit` receives the `Exit` for all of these cases:
 
 | How `run` ended                           | Row                         | Span  |
 | ----------------------------------------- | --------------------------- | ----- |
@@ -89,31 +92,34 @@ cases:
 | A defect: a thrown exception, a bug       | `crashed` with the message  | Error |
 | Interrupted                               | `interrupted`               | Unset |
 
-The new `terminal` function classifies an unsuccessful `Exit` by inspecting
-its `Cause`. `Cause.hasInterruptsOnly` checks for interruption without a
+To tell these cases apart, the new `terminal` function inspects the
+unsuccessful `Exit`'s `Cause`, a record of why execution stopped.
+`Cause.hasInterruptsOnly` checks for interruption without a
 failure or defect, which becomes `interrupted`. Otherwise, `Cause.squash`
 extracts a main error. The Engine recognizes `ActionFailed` and
 `TimeoutError` as expected failures and records anything else as `crashed`.
 A crash also produces an error-level log containing the cause.
 
-Recording the result can itself fail, for example if the database cannot be
+There is a limit to what our history can promise. Recording the result
+can itself fail, for example if the database cannot be
 written. In that case, the Engine logs the write failure with the run id
 and leaves the row as `started`. It preserves the original execution
 result rather than replacing a success or an interruption with a logging
 failure.
 
-Replace `src/Engine.ts` with this implementation. It includes the boundary
-changes as well as the loop management and startup behavior explained
-below:
+Replace `src/Engine.ts` with this implementation. It is a larger change
+than the heartbeat, so don't try to take it all in at once. Look for the
+boundary changes we just discussed first; we'll walk through the loop
+management and startup behavior next:
 
 <LessonCode file="checkpoints/19/src/Engine.ts" />
 
 ## Manage each rule's loop with FiberMap
 
-The heartbeat had one fiber that lived until server shutdown. Interval
-rules need separate fibers so removing one rule can stop its work without
-affecting another. `FiberMap` keeps running fibers indexed by a key, which
-here is the rule id:
+Imagine adding a second status rule, then removing the first. We need to
+stop just that first rule's work. The heartbeat's single fiber isn't
+enough now; each rule needs its own. `FiberMap` keeps running fibers
+indexed by a key, so we can find the one to stop using its rule id:
 
 - `FiberMap.run(loops, id, effect)` starts the effect on a fiber and stores
   it under the rule id.
@@ -130,37 +136,40 @@ later ticks start `everySeconds` after the previous tick ends. Each tick
 has its own trace rather than remaining a child of the request that
 created the rule.
 
-The repetition policy depends on the outcome. A `failed` result allows
-another tick, since a receiver that is unavailable now might recover. A
+Next, look at what happens after a tick. A `failed` result allows another
+tick, since a receiver that is unavailable now might recover. A
 `crashed` result indicates a defect, so the tick converts it to a
 `RuleStopped` failure to end `Effect.repeat`. The loop logs
 `interval rule stopped` with the rule id and error, then its fiber finishes
 and is removed from the map.
 
-There is no separate stored flag to keep in sync. The Engine implements
+We can also use the map to answer whether a rule is running, without a
+separate stored flag to keep in sync. The Engine implements
 `isRunning(id)` with `FiberMap.has`, and `rules list` uses that answer to
 show an interval rule as `running` or `stopped`. A stopped rule remains in
 the store and will be started again on the next server startup.
 
 ## Start stored rules and wait for removed rules to stop
 
-Rules in SQLite survive a restart, but their fibers do not. When the
-Engine layer is built, it prepares the stored state before serving requests:
+We made rules survive a restart in SQLite, but their fibers don't survive
+with them. To resume checking our service after a restart, the Engine
+layer prepares the stored state before serving requests:
 
 1. `runLog.abandonStarted` changes any remaining `started` rows to
    `abandoned`. This process has not begun executing rules yet, so those
    rows are unfinished records from a previous process.
 2. The Engine starts a loop for every stored interval rule.
 
-The API also needs to coordinate stored rules with running loops. In
+Adding and removing rules through the CLI must keep the store and the
+loops in agreement too. In
 `src/server/Api.ts`, `create` stores the rule before starting it. `remove`
 first stops the loop and waits for it to finish, then deletes the rule and
 sends the response:
 
 <LessonCode file="checkpoints/19/src/server/Api.ts" />
 
-What gets recorded depends on what the loop was doing when removal
-started. If a run was active, interruption reaches it inside its span and
+Now follow a removal through the code. If a run was active when removal
+started, interruption reaches it inside its span and
 `onExit` records `interrupted`. Because `FiberMap.remove` waits for the
 fiber, that update completes before the response, provided the write
 succeeds. If the loop was waiting between ticks, there is no active run to
@@ -188,9 +197,10 @@ means the final result is unknown, not that the action necessarily failed.
 
 ## Test removal during an active poll
 
-The important removal case depends on timing: the request must have
-started, but not yet finished. Rather than trying to catch a live request
-at that point, use an `HttpClient` that deliberately never responds.
+Let's check the case that is hardest to catch by hand: removing a rule
+while its request is still waiting. A test shouldn't depend on us getting
+the timing lucky. Instead, we'll use an `HttpClient` that deliberately
+never responds.
 
 Create `test/harness.ts`. It uses `HttpClient.make` to handle requests
 without a network and provides a `Remote` service so the test can inspect
@@ -198,7 +208,8 @@ what happened:
 
 <LessonCode file="checkpoints/19/test/harness.ts" />
 
-With the `Hang` reply, the client waits indefinitely and sets `released`
+The `Hang` reply gives us that waiting request. The client waits
+indefinitely and sets `released`
 when its `Effect.onInterrupt` handler runs. The `arrived` latch lets the
 test wait until a request has actually reached the client:
 `yield* remote.arrived.await` resumes when the client opens that latch.
@@ -213,7 +224,8 @@ server, including `HttpPlatform` and `Etag.Generator`. Merge
 `HttpServer.layerServices` into the provided layer to satisfy those
 requirements; without it, the test will not typecheck.
 
-Write a test that checks the full sequence:
+With that harness in place, write a test that follows a rule from its
+first poll through removal:
 
 1. Add an interval rule with the fake server set to `Hang`.
 2. Await `arrived`. No clock adjustment is needed, because the first tick
@@ -232,13 +244,15 @@ is merely waiting for its next tick.
 
 ## Try it
 
-The loop can now run repeatedly, but the schema still accepts intervals
-that are too short. Copy `status-degraded.json`, set `everySeconds` to 0
+Our status check works, but we shouldn't let a rule hammer the receiver
+without a pause. The schema still accepts intervals that are too short.
+Copy `status-degraded.json`, set `everySeconds` to 0
 and add the copy. The server accepts it and polls as fast as the receiver
 can respond. Remove this test rule before changing the schema. Otherwise,
 it will remain in SQLite with an interval that the updated schema rejects.
 
-Now require at least 5 seconds in the `Rule` schema. Start with a test:
+Let's catch that mistake before a rule reaches the server. Require at
+least 5 seconds in the `Rule` schema, starting with a test:
 
 1. In `test/Rule.test.ts`, decode an interval rule at `everySeconds` 4 and at
    5, and expect one failure and one success. Run `pnpm test test/Rule.test.ts`.
@@ -252,17 +266,19 @@ Now require at least 5 seconds in the `Rule` schema. Start with a test:
 The hint and the changed files are in `exercises/19/`. Checkpoint 19 already
 includes the check.
 
-Each interval rule now has a fiber and creates a run row on every tick,
-so adding more rules also increases the amount of history you store. The
-next lesson,
+Reflex can now keep checking a service while we leave it alone, and we
+can remove that check without restarting the server. Each interval rule
+has a fiber and creates a run row on every tick, so adding more rules also
+increases the amount of history we store. In
 [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network),
-adds HTTP actions and uses the recorded outcomes to compare a failed
-request with a defect.
+we'll send alerts over HTTP and use these records to distinguish a failed
+request from a bug in our code.
 
 ## Checkpoint
 
-Checkpoint 19 has three cases to verify: a failed poll that repeats, a
-crash that stops its loop, and removal during a poll. Start the receiver
+Let's watch the behavior we've been building. Checkpoint 19 covers a failed
+poll that repeats, a crash that stops its loop, and removal during a poll.
+Start the receiver
 and the checkpoint server in separate terminals:
 
 ```sh
@@ -293,7 +309,8 @@ before its GET, which you will observe during the removal check below.
 This path changes code, so it runs on your own server. Stop the checkpoint's
 server and start `pnpm dev:server`, which restarts on every save.
 
-The previous check left `/status` returning 500. That response would fail
+Before introducing a bug, remember that the previous check left `/status`
+returning 500. That response would fail
 the poll before it reached the code you are about to change, so switch it
 back to `degraded` first:
 
@@ -338,7 +355,7 @@ rule while the request is still waiting, then immediately list its runs:
 pnpm checkpoint 19 cli rules remove <id> && pnpm checkpoint 19 cli runs list --rule <id>
 ```
 
-The newest row should now be `interrupted`. The update completed before
+Look for `interrupted` in the newest row. The update completed before
 the CLI printed `Removed`. If it shows `succeeded`, the 8 second request
 finished before removal reached it. Add the rule again and remove it
 sooner.
@@ -349,8 +366,9 @@ delivered, and without a viewer each command takes seconds longer.
 Wait 10 seconds and list again. Nothing came after the `interrupted` row. In
 the viewer, that run is one Unset `Engine.execute` span.
 
-Finally, remove the `status-degraded` rule while it is idle between ticks. No
-new row is written, and `rules list` no longer shows it.
+Finally, remove the `status-degraded` rule while it is idle between ticks.
+This time there is no active run to interrupt, so no new row is written,
+and `rules list` no longer shows it.
 `pnpm checkpoint 19 test` includes the harness test.
 
 ## Reference

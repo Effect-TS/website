@@ -7,78 +7,92 @@ mode: playground
 lessonDir: 02-describe-then-run
 ---
 
-Reflex checks expenses and raises alerts. For now, an alert is just a log
-line: `expense 1200 over 500`. The editor contains a program that prints it.
-Throughout Part 1, you will build on this single file in your browser,
-adding one Effect concept at a time.
+Welcome to Learn Effect. In this tutorial, we'll build reflex, a small
+application for automating things you'd otherwise have to check yourself.
+Perhaps you want to notice an unusually large expense, or get a notification
+when a service you rely on goes down. Reflex will let you describe a rule
+for each of those situations and choose what should happen when it matches.
 
-Start by running the program, then change it to print the same alert twice.
-That small change introduces a distinction you will use throughout the
-course: describing work is separate from running it.
+We'll start with expenses. Imagine keeping a record of your purchases and
+wanting an alert whenever one costs more than 500. A laptop would be worth
+a look; lunch probably wouldn't. By the end of the course, you'll be able
+to submit those expenses to a running server, inspect a history of its
+decisions, and even send an alert to your phone.
 
-## A value that describes logging
+There are quite a few things to learn along the way, but you don't need to
+build all of that at once. We'll grow the same application a little at a
+time, introducing Effect as we need it. If you're comfortable reading
+TypeScript, you have enough background to begin. You don't need any prior
+Effect experience, and there's nothing to install for this first part:
+the editor on this page runs the program in your browser.
 
-Look at `program` in the editor:
+For our first step, let's make an alert appear. We won't check an expense
+or send a notification yet. Writing a message to the terminal is enough to
+see how an Effect program runs.
+
+## Your first alert
+
+Find `program` in the editor. It contains the message for our example
+laptop purchase:
 
 <LessonCode
   file="lessons/part1/02-describe-then-run/start/main.ts"
   declaration="program"
 />
 
-Run the file. The terminal prints one log line with the message
-`expense 1200 over 500`.
+Run the file. You should see a log line containing
+`expense 1200 over 500` in the terminal. That means the laptop cost 1200,
+which is over our limit of 500. For now, the message is written directly
+in the code; in the next lesson we'll work it out from the amount.
 
-Calling `Effect.log(...)` creates a value that describes logging. That value
-is an **Effect**, and `program` refers to it. The call itself does not print
-the message; the logging happens only when the Effect runs.
+There are two lines involved in producing this output. The
+`Effect.log(...)` call creates a value that describes writing the message.
+We call that value an **Effect**, and store it in `program`. The last line,
+`NodeRuntime.runMain(program)`, runs it.
 
-## Where the work runs
+That separation is the first thing to get used to. Calling `Effect.log`
+doesn't print anything on its own. It gives us something we can run later,
+or combine with other work before running it. Let's try that now.
 
-Look at the last line of the file, `NodeRuntime.runMain(program)`. This is
-what runs the Effect stored in `program` and produces the log line you saw.
+## Try running the alert twice
 
-Every Part 1 lesson ends with this line. Leave it as it is. You write it
-yourself in
-[Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint).
-
-## Reading an Effect type
-
-Hover `program`. The type is `Effect<void, never, never>`.
-
-An Effect type has three type parameters: `Effect<Success, Error, Requirements>`.
-
-- The **success type** is the result of a successful run. Logging has no
-  useful result, so this type is `void`.
-- The **error type** lists the errors an Effect can fail with. Here it is
-  `never`, meaning there are no typed failures.
-- The **requirements type** lists the services an Effect needs. Here it is
-  also `never`, because logging needs no services supplied by your program.
-
-For now, focus on the success type. The error type is the subject of
-[Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see),
-and the requirements type is the subject of
-[Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules).
-
-## Try it
-
-Because an Effect is a value, you can reuse it when building a larger
-program. Combine two uses of the same logging Effect:
+We'll reuse the alert to make a program that logs the same message twice.
+Leave the `NodeRuntime.runMain(program)` line as it is and change the code
+above it:
 
 1. Rename the existing `program` constant to `alert`.
 2. Add a new `program` constant set to `Effect.andThen(alert, alert)`.
-   `Effect.andThen(first, second)` describes running `first`, then `second`.
-3. Run the file. The terminal prints the message twice. The combined
-   `program` runs once and performs the logging Effect twice.
-4. Hover `program`. The type is still `Effect<void, never, never>`, because
-   the second logging Effect also has a `void` result.
+   `Effect.andThen(first, second)` runs `first`, then `second` when the
+   combined Effect runs.
+3. Run the file again. This time, the terminal should contain two copies
+   of the message.
 
-It is also possible to create an Effect and never run it. TypeScript will
-not warn you about this. In
-[Using Effect.gen to write programs](/learn/part-1/03-steps-in-order), you
-will run several Effects in order and see what happens if you accidentally
-leave one out.
+The alert itself hasn't changed. You've used it twice in a larger
+program, and the same run line still runs the whole thing. As reflex grows,
+we'll use this approach to put together work such as reading a file,
+checking an expense and writing the result.
+
+## A first look at the type
+
+Before moving on, hover over `program`. The editor shows
+`Effect<void, never, never>`. You don't need to learn all of that notation
+yet. Start with `void`: logging writes a message, but it doesn't produce a
+result for the next step to use. We call this the Effect's **success type**.
+Running the alert twice still leaves us with `void`.
+
+You can leave the two `never` parameters alone for now. They describe
+errors and requirements, which we'll introduce when the program needs
+them. There's no need to understand the whole type to run this alert.
+
+You now have an alert you can reuse and a program that runs it. Next,
+[we'll give reflex two expenses to check](/learn/part-1/03-steps-in-order)
+so it can decide which one deserves an alert, rather than printing the
+same message every time.
 
 ## Reference
+
+You can return to these tables when you need to look up an API. There's
+no need to memorize them before continuing.
 
 | API                   | What it does                                      | Introduced in                                                                             |
 | --------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |

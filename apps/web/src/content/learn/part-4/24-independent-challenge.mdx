@@ -6,20 +6,24 @@ minutes: 40
 mode: local
 ---
 
-A rule may send too many alerts, or you may need to disable it while an
-outside service is down. So far, the only way to stop a rule is to remove
-it, which also deletes its definition. Add a way to pause a rule and resume
-it later without recreating it.
+Imagine a rule that keeps sending alerts about a service you already know
+is down. You want some quiet while you deal with it, but you'll want those
+alerts back afterwards. So far, stopping an event rule means removing it
+and losing its definition. Let's give reflex a way to pause a rule and
+resume it later without recreating it.
 
-This time, you have the requirements but no implementation to follow. You
-have used all the APIs you need in earlier lessons; the challenge is to
-choose how they fit together. Allow about 40 minutes, and try it before
-opening [the hints](/learn/part-4/challenge-hints).
+This time, the implementation is yours. You've already worked with all the
+APIs you need, including the tests that let us check a running loop without
+waiting for real time to pass. The new work is deciding how those pieces
+fit together. Allow about 40 minutes. Try an approach before opening
+[the hints](/learn/part-4/challenge-hints), but use them if you get stuck;
+you don't need to remember every earlier lesson to do this.
 
 ## Requirements
 
-Add `rules pause <id>` and `rules resume <id>` to the CLI and API, with the
-following behaviour:
+Someone using reflex should be able to pause a rule, see that it's paused,
+and trust that it won't run in response to the next event or interval. Add
+pause and resume support to the CLI and API with these requirements:
 
 - The CLI gets `rules pause <id>` and `rules resume <id>`. Like every other
   command, they go through the server.
@@ -35,8 +39,11 @@ following behaviour:
 
 ## Write the tests first
 
-Write the tests before the code, on the harness from
-[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock):
+Start with the tests. A rule that doesn't run can look correct even when
+its loop is simply broken, so we need to see it resume as well as pause.
+Use the harness from
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+to check these cases before writing the implementation:
 
 1. Use an interval rule whose poll never completes. Wait for its first
    request, pause the rule, then move the test clock past one interval.
@@ -50,31 +57,42 @@ Write the tests before the code, on the harness from
    for that rule and no row. Resume it, submit again, and assert one row.
 4. Assert that pausing an unknown id fails with the typed error.
 
-Run the tests and check that each fails for the behaviour it is meant to
-verify, as in
+Run the tests and check that each fails for the behaviour you meant to
+verify, just as we did in
 [Writing tests with @effect/vitest](/learn/part-2/13-first-tests). Only then
-write the code that makes them pass.
+start making them pass. You can work through one case at a time; there's
+no need to finish the whole feature before getting feedback.
 
 ## Show it working
 
-Use a fresh database so that existing rules and runs do not affect the
-result. Stop your server, delete `reflex.db`, and start it again. Then:
+Once the tests pass, try the feature as someone using the CLI would. We'll
+use the mixed scenario again so you can compare the result with the four
+rules you already know.
+
+Start with a fresh database so existing rules and runs don't affect the
+result. Stop your server, delete `reflex.db`, and start it again. This
+removes the rules and history in that database. Then:
 
 1. Run `pnpm receiver --scenario mixed`.
 2. Add the four mixed rules to your server.
 3. Pause B and submit `fixtures/events/laptop.json`.
 
-`runs list` shows three new rows, not four. In the viewer, the newest
-`Engine.handleEvent` trace has three `Engine.execute` spans, and none of them
-is B's.
+Look at `runs list`. It should show three new rows, not four. In the viewer,
+the newest `Engine.handleEvent` trace has three `Engine.execute` spans, and
+none of them is B's.
 
-Resume B and submit again. This time you get four new rows and four spans.
+Resume B and submit again. This time you should get four new rows and four
+spans. B is back at work, with the same definition it had before you paused
+it. You've checked the feature through both the command someone types and
+the work the server actually does.
 
 ## Checkpoint
 
 When your four tests pass and the mixed scenario produces the expected rows
 and spans, compare your implementation with checkpoint 24. It is one
-possible solution, with tests in `checkpoints/24/test/`:
+possible solution, with tests in `checkpoints/24/test/`. Your code doesn't
+need to look the same; compare how each version meets the requirements.
+You can run the reference tests with:
 
 ```sh
 pnpm checkpoint 24 test
@@ -82,7 +100,8 @@ pnpm checkpoint 24 test
 
 ## Useful references
 
-If you need to revisit an API, the reference tables in
+Looking something up is part of working on an application. If you need to
+revisit an API, the reference tables in
 [Writing tests with @effect/vitest](/learn/part-2/13-first-tests),
 [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it),
 [Calling the API with HttpApiClient](/learn/part-2/15-talk-to-it) and

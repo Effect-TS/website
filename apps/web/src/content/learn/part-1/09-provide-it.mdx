@@ -7,23 +7,27 @@ mode: playground
 lessonDir: 09-provide-it
 ---
 
-The service declaration let you write evaluation code without choosing
-where to store the rules. That choice is still missing, which is why
-`NodeRuntime.runMain(program)` has a type error. To run the program, you
-need to construct a `RuleStore` and provide it to the Effect that uses it.
+Let's get our alerts back. The program knows how to ask for rules and
+check them, but the red underline at `NodeRuntime.runMain(program)`
+reminds us that we haven't given it a store to ask.
 
-Start with an in-memory store. Once it works, replace it with a second
-store containing different rules, without changing the evaluation code.
+We'll start with something small: a Map containing the same rule strings
+we've already used. Once the program runs again, we'll try a different
+set of rules. The interesting part is how little of the program needs to
+change when we swap the store.
 
-## Building the store with a layer
+## Build our first store
 
-A **layer** describes how to build a service. With
-`Layer.effect(RuleStore, effect)`, the supplied Effect constructs the
-implementation to use for `RuleStore`.
+We need to create the Map and implement the `list` operation we promised
+in `RuleStore`. We'll describe that construction with a **layer**.
+`Layer.effect(RuleStore, effect)` associates the service with an Effect
+that builds its implementation.
 
-Add `Layer` to the `effect` import. Put the `largeExpense` and `malformed`
-constants back, above the class. Then add the layer to the class as a static
-member, so `RuleStore.layer` sits next to the declaration:
+Add `Layer` to the `effect` import and put the `largeExpense` and
+`malformed` constants back above the class. You can copy the original
+JSON strings from [Validating JSON with Schema](/learn/part-1/06-untrusted-json).
+Then add this static member to `RuleStore`, so the implementation lives
+next to the interface:
 
 ```ts
 static readonly layer = Layer.effect(
@@ -35,30 +39,35 @@ static readonly layer = Layer.effect(
 )
 ```
 
-`Effect.sync` delays the synchronous code in its callback until the
-Effect runs. Here, the `Map` is created when the layer is built, rather
-than when the file loads. `RuleStore.of({ list: ... })` lets TypeScript
-check that the object implements the service's interface. Its `list`
-Effect reads the map's values into an array when it runs.
+Inside the layer is a familiar Map and an object with a `list` member.
+`RuleStore.of` lets TypeScript check that the object matches the
+interface we declared. When `list` runs, it reads the Map's values into
+an array.
 
-## Providing the store to program
+The surrounding `Effect.sync` turns the synchronous callback into an
+Effect. Like our logging Effect, it describes work to do later. This means
+the Map is created when the layer is built, not as soon as the file loads.
+
+## Connect the store to the program
 
 Attach `Effect.provide(RuleStore.layer)` to `program` with `.pipe`.
+The red underline at the run line should disappear. We now have both the
+code that asks for a store and the layer that supplies one.
 
-Hover `program`. The type is `Effect<void, SchemaError, never>`. The
-requirements type is back to `never`: the layer supplies the `RuleStore`
-that `evaluateAll` needs. There are no remaining service requirements, so
-the run line no longer has a type error.
+Run the file. The laptop gets its alert, followed by the malformed rule's
+`SchemaError`. We've deliberately kept that rule in the store, so this
+is the expected result. The program is running again and reading its
+rules through `list`.
 
-Run the file. The laptop gets its alert from the large expense rule, then the
-malformed rule stops the run with its `SchemaError`, as it did two lessons
-ago.
+Hover over `program` to see what happened to the requirement. Its type
+is now `Effect<void, SchemaError, never>`. Providing the layer satisfied
+`RuleStore`, leaving no outstanding requirements. The possible schema
+error remains, because supplying a store doesn't make all its rules valid.
 
 ## Try it
 
-Use a different set of rules to check that evaluation is independent of
-this implementation. Start by adding two more rule constants above the
-class:
+Let's replace the broken rule with two useful ones. One will check that
+an expense is within a budget of 5000; another will flag amounts over 1000. Add these constants above the class:
 
 <LessonCode
   file="lessons/part1/09-provide-it/solution/main.ts"
@@ -86,18 +95,21 @@ The final `program` provides the fixture layer:
   declaration="program"
 />
 
-`evaluateAll`, `evaluate` and the rest of `program` did not change. They
-use the service's interface; only the layer chooses the implementation.
-You will use this separation again in
-[Writing tests with @effect/vitest](/learn/part-2/13-first-tests) to supply
-a test store, and in
-[Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart)
-to replace the in-memory store with SQLite.
+Notice what you didn't have to edit: `evaluateAll`, `evaluate`, and the
+rest of `program`. The same checking code read a different set of rules
+because we changed the layer supplied to it. In Part 2, we'll use this
+separation to supply test stores; later, we'll replace the memory store
+with SQLite.
 
-This separation does mean you need to check the provided layer when
-following the code. `yield* RuleStore` identifies the service being used,
-but the layer passed to `Effect.provide` determines which implementation
-runs.
+There is a little extra indirection to keep in mind. When you see
+`yield* RuleStore`, you know which service is needed, but you'll have to
+find the provided layer to see which implementation runs. Keeping the
+layer next to the service declaration helps us follow that connection.
+
+Reflex can now check every stored rule, and none of our valid rules stops
+the run. That completes the browser part of the application. Before we
+move to local files and a server, we'll take a short pause to review what
+we've built.
 
 ## Reference
 

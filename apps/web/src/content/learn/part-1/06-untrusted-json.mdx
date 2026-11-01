@@ -7,27 +7,36 @@ mode: playground
 lessonDir: 06-untrusted-json
 ---
 
-Changing the expense threshold currently means editing `isLarge`, and
-changing the alert text means editing `evaluate`. Reflex should let you
-change those choices without changing the evaluation code. Represent them
-as a **rule** containing an operator, a threshold and a message.
+Suppose 500 is no longer the amount you care about. You want an alert for
+anything over 1000 instead, with a different message. At the moment, you'd
+have to edit both `isLarge` and `evaluate`. That's inconvenient for us,
+and it wouldn't work well for someone using reflex without touching its
+source code.
 
-Later, rules will arrive as JSON text from a file or an HTTP request. For
-now, put the JSON in a string. This is the rule you have been using:
+Let's make those choices into data. A **rule** will contain the comparison,
+the threshold and the message. Eventually we'll read rules from files and
+accept them through an API. For now, a string of JSON gives us something
+to work with right here in the browser. Here's our familiar expense rule
+in that form:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="largeExpense"
 />
 
-TypeScript cannot guarantee that text from outside the program contains a
-valid rule. Before evaluating it, you need to parse the JSON and check its
-fields. A **schema** defines both the runtime validation and the TypeScript
-type of the validated value, so you do not have to maintain them separately.
+You can probably read what it means without running it: "greater than
+500," with the message "over 500." We'll move that existing rule into data
+first; after that, changing 500 to 1000 won't require editing the evaluator.
+But someone could misspell the operator
+or put text where the amount belongs. TypeScript can't check arbitrary JSON
+before our program receives it, so we need to check it while the program
+runs. We'll use Schema to describe what a valid rule looks like.
 
-## Describing a valid rule
+## Decide what a rule can contain
 
-Add the schema below the `Event` interface, and the type below it:
+We used `Schema.String` to describe the missing-field error. Now we'll
+combine a few schemas to describe the whole rule. Add this one below the
+`Event` interface:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -39,12 +48,16 @@ Add the schema below the `Event` interface, and the type below it:
 `Schema.Literals(["gt", "lt"])` restricts `op` to those two strings, so a
 rule with any other operator will fail validation.
 
-Then add `type Rule = typeof Rule.Type`. The schema and the type share the
-name `Rule`. TypeScript knows which one you mean from where you use it.
+Below it, add `type Rule = typeof Rule.Type`. This gives us a TypeScript
+type derived from the same description we'll use to validate the JSON.
+We don't have to maintain a separate interface with the same fields.
+The schema and type can both be named `Rule`; TypeScript distinguishes
+them by how we use the name.
 
-## Parsing and validating the JSON
+## Turn the text into a checked rule
 
-Add one line below the type:
+Next we need a function to accept the JSON text and either return a rule
+or explain what's wrong with it. Add this line below the type:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -57,23 +70,25 @@ description into a decoding function. The resulting `decodeRule` accepts
 unknown input and returns an Effect that succeeds with a `Rule` or fails
 with a `SchemaError`.
 
-Decoding adds runtime work, and the schema needs to be maintained as the
-rule format changes. Once validation succeeds, the rest of the check can
-use the resulting `Rule` without repeating those checks.
+We'll see the error in a moment. Once decoding succeeds, though, the rest
+of the program can use the rule without checking those fields again.
+Validation does take runtime work, and we'll need to update the schema
+whenever we change the rule format.
 
-## Evaluating the validated rule
+## Let the rule choose the comparison
 
-Replace `isLarge` with a plain function that switches on the operator:
+Our old `isLarge` always checked for an amount over 500. Replace it with
+`matches`, which uses the operator and value from the rule:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
   declaration="matches"
 />
 
-The `switch` needs no `default` branch because the `Rule` type restricts
-the operator to `"gt"` or `"lt"`. Validation establishes that restriction
-at runtime, so `matches` can work with a `Rule` rather than checking the
-raw input again.
+There are only two cases to handle because the schema accepts only
+`"gt"` or `"lt"`. That's the benefit of checking the input first:
+`matches` can concentrate on the comparison, with no `default` branch
+for an operator it doesn't understand.
 
 Add a `json: string` parameter before `event` in `evaluate`, so callers use
 `evaluate(json, event)`. Its first step is
@@ -86,8 +101,8 @@ Add a `json: string` parameter before `event` in `evaluate`, so callers use
   declaration="evaluate"
 />
 
-Add the two rules as JSON strings. `largeExpense` is the rule from the top of
-this lesson. `malformed` is broken on purpose:
+Let's give it both a valid rule and a broken one. Add `largeExpense` from
+the top of this lesson, followed by this deliberately malformed rule:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -109,22 +124,21 @@ Run the file. The terminal shows three outcomes in order:
 2. The taxi is skipped, as in the previous lesson: `skip: missing field amount`.
 3. `malformed` fails with a `SchemaError`, and the program stops.
 
-The existing `catchTag` handles only `MissingField`. An incomplete expense
-still becomes a skip, while an invalid rule fails with `SchemaError` and
-stops the program. This is why selecting a specific error mattered in the
-previous lesson.
+The taxi still gets the recovery we chose for it. The broken rule does
+not, because our `catchTag` handles only `MissingField`. We haven't
+accidentally hidden a rule error by allowing incomplete receipts.
 
-You have removed the summary because a run can now stop at an invalid
-rule before reaching it. `evaluate` still returns whether the rule matched,
-but `program` no longer counts those results. In
-[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records),
-you will record how each run ended, including failed runs.
+We've also set the summary aside for now. `evaluate` still returns a
+boolean when it succeeds, but a broken rule can stop the program before
+we've checked everything. Later we'll keep a run history that includes
+failed checks as well as successful ones.
 
 ## Finding the invalid field
 
-Look at the malformed rule's error in the terminal. It reads
-`SchemaError: Expected "gt" | "lt"` at `["op"]`. The path identifies the
-invalid field, and the message lists its allowed values.
+Take a closer look at the failure in the terminal. It reads
+`SchemaError: Expected "gt" | "lt"` at `["op"]`. That's enough to find
+the mistake without stepping through the decoder: `op` is the offending
+field, and the message tells us which values it accepts.
 
 Decoding stops at the first problem it finds. `malformed` also has a string
 where the value should be a number, and no message at all. Fix the operator
@@ -137,8 +151,8 @@ type because you have not handled it.
 
 ## Try it
 
-Extend the rule format with an equality operator. The schema change will
-also change the TypeScript type used by `matches`:
+Try adding a rule that matches an exact amount rather than a range.
+Start with the schema and let TypeScript show you what else needs to change:
 
 1. Add `"eq"` to the literals. TypeScript underlines `matches`, because its
    `switch` no longer covers every case. Add the `eq` case,
@@ -151,10 +165,10 @@ as text. The `laptop` object is constructed in TypeScript and checked
 against the `Event` interface, so it does not need a decoder here. Keep
 that distinction in mind when you move to external input.
 
-[Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
-will expand `Rule` with triggers, actions and more operators. The same
-approach will apply: validate incoming data, then use its inferred type
-in the evaluation code.
+Reflex now has a rule someone could edit without changing the checking
+code, and a useful response when that rule is wrong. Before we add more
+rules, let's make failures easier to locate. The error tells us which
+field was invalid; next we'll add the name of the operation that found it.
 
 ## Reference
 

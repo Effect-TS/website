@@ -6,54 +6,62 @@ minutes: 5
 mode: local
 ---
 
-Each lesson since
-[Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint)
-has added layers as the program needed them. The server's layers are
-composed in `src/server/main.ts`, while the CLI's are composed in its run
-line. Both entrypoints work, but finding out which services each program
-uses now means reading through its startup code.
+We can now follow an expense all the way through reflex, from the CLI to a
+recorded run and a trace. Before adding one last feature, let's make the
+startup code easier to come back to.
 
-Move both compositions into `src/Layers.ts`, so you can see the dependencies
-in one place. This is a refactoring: the program should behave exactly as it
-did before.
+We've added layers whenever the program needed another service, starting
+with [FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint). The server's
+layers live in `src/server/main.ts`, while the CLI's are composed in its run
+line. That worked well while we were building each piece. Now, finding out
+which services the application uses means reading both entrypoints.
+
+We'll collect those layers in `src/Layers.ts`, so there's one place to look.
+Nothing about how reflex handles a rule needs to change. This is a
+refactoring, and we'll check that it leaves the behaviour alone.
 
 ## Collect the layers in Layers.ts
 
-Create `src/Layers.ts`. Move the server's stack there as an exported value
-named `server`, and the CLI's stack as an exported value named `cli`:
+Create `src/Layers.ts`. Move the server's layer composition there as an
+exported value named `server`, and the CLI's as an exported value named
+`cli`. You should end up with these familiar layers:
 
 <LessonCode file="checkpoints/23/src/Layers.ts" />
 
-These are the same layers you built during the course. Each `Layer.provide`
-supplies the dependencies of the layer above it, which also determines their
-lifetime. The Engine is built after the stores and SQLite, and closes before
-them. Moving this composition into a separate file preserves that order.
+Keep their order as you move them. Each `Layer.provide` supplies the
+dependencies of the layer above it, which also determines their lifetime.
+The Engine is built after the stores and SQLite, and closes before them.
+It still needs that order in its new home.
 
 ## Simplify the entrypoints
 
-Replace the server's stack with the exported layer. The server entrypoint now
-only launches it:
+Back in the server entrypoint, replace the layer composition with the
+exported layer. There's very little left here now:
 
 <LessonCode file="checkpoints/23/src/server/main.ts" />
 
 In `src/cli/main.ts`, replace the CLI's stack with `Effect.provide(Layers.cli)`.
-That is the CLI's only `provide`.
+That leaves the CLI with just one `provide`, too.
 
-Leave the `Effect.provideService` calls inside the Engine where they are. They
-supply individual effects with services the Engine has already acquired;
-they do not build the application's dependencies.
+There's no need to move the `Effect.provideService` calls inside the Engine.
+They supply individual effects with services the Engine has already
+acquired; they do not build the application's dependencies.
 
 ## Check that nothing changed
 
-Run `pnpm check` and `pnpm test`. Both should still pass.
+Run `pnpm check` and `pnpm test`. Both should still pass. Then let's check
+the application itself, using the request you traced in the last lesson.
 
-Then repeat the run from
+Repeat the run from
 [Diagnosing a request from its trace](/learn/part-3/22-diagnose-it)
-from an empty `reflex.db`. Your server produces the same four rows.
+from an empty `reflex.db`. Your server should produce the same four rows.
+That's the result we want here: a simpler way to assemble the application,
+with no change to what it does.
 
 ## Checkpoint
 
-Checkpoint 23 runs the refactored server with the same behaviour as before:
+If you want to compare the entrypoints, checkpoint 23 has the refactored
+server. Run it with:
 
 ```sh
 pnpm checkpoint 23 server
@@ -63,6 +71,10 @@ Neither entrypoint should contain a `Layer.provide`, and each should have at
 most one `Effect.provide`. The test in
 `checkpoints/24/test/Layers.test.ts` checks these constraints. Copy it into
 `test/` to check your own `src/`.
+
+The application is ready for a feature you'll design yourself. In the
+[final challenge](/learn/part-4/24-independent-challenge), we'll add a way to
+pause a rule without throwing away its definition.
 
 ## Reference
 

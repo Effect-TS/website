@@ -6,20 +6,22 @@ minutes: 25
 mode: local
 ---
 
-`handleEvent` still uses a `for...of` loop with one `yield*` after another.
-Each rule waits for the previous rule to finish. That delay was barely
-noticeable when actions only appended local files, but an HTTP action can
-now take the full 10 second timeout before the next rule starts.
+Suppose the same expense should notify two services. If one service is
+slow, there is no reason to delay the alert to the other. Yet that is what
+reflex currently does. In `handleEvent`, our `for...of` loop waits for
+each rule before starting the next. That was hard to notice with local
+file writes; an HTTP request can now keep the next rule waiting for the
+full 10 second timeout.
 
-The rules matched by an event do not depend on one another, so they can run
-concurrently. You will first observe the sequential behavior, then replace
-the loop with `Effect.forEach` and a concurrency limit. The timeout and
-other server limits will also become configuration values, so you can
-adjust them without editing the implementation.
+Let's watch that delay in a trace, then let independent rules run
+concurrently, meaning their work can overlap. We'll still limit how many
+can run at once. A server that starts every possible request immediately
+could create a different problem for the services receiving them.
 
 ## Observe the sequential runs
 
-Use a clean database so earlier rules do not obscure the result. Your
+For this comparison, we want a small set of rules we can recognize. Use a
+clean database so earlier rules do not obscure the result. Your
 server and the checkpoint servers share `reflex.db`, so it still contains
 rules from previous lessons. Stop the server, delete `reflex.db`, and start
 it again. This discards the stored rules and history. In another terminal,
@@ -46,16 +48,17 @@ pnpm cli rules add fixtures/rules/mixed/d-fail.json
 pnpm cli events submit fixtures/events/laptop.json
 ```
 
-Open the event's trace in the viewer. D's `Engine.execute` span starts
+Now open the event's trace in the viewer and look at D. Its `Engine.execute` span starts
 only after C has used its full 10 seconds. D does not need C's result, but
 the sequential loop makes it wait anyway. The event request takes roughly
 the sum of the individual run durations.
 
 ## Run independent rules concurrently
 
-In `src/Engine.ts`, change `handleEvent` to select the matching rules and
-execute them with `Effect.forEach`. It can run several effects at once
-while limiting how many are active:
+We can remove that unnecessary wait without changing what any individual
+rule does. In `src/Engine.ts`, change `handleEvent` to select the matching
+rules and execute them with `Effect.forEach`. It can run several effects
+at once while limiting how many are active:
 
 <LessonCode file="checkpoints/21/src/Engine.ts" />
 
@@ -64,29 +67,32 @@ starts each execution on a fiber, with at most `concurrency` executions
 active for this event. Its returned outcomes remain in the input rule
 order, regardless of completion order.
 
-There is an important dependency on the execution boundary introduced in
+Before trying it, consider what should happen to A and B when D receives
+its 500. We want them to finish their own work. This relies on the
+execution boundary introduced in
 [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records).
 `Effect.forEach` normally fails when one of its effects fails and interrupts
 the remaining work. That is useful when all results are required for one
 operation, but these rules should not cancel one another.
 
-The boundary records each run, then converts its typed failure or defect
+Our boundary records each run, then converts its typed failure or defect
 into an `Outcome` value. D's 500 and C's timeout are therefore successful
 returns from `execute`, each containing a failed outcome. They do not cause
 `Effect.forEach` to fail, so A and B can complete independently.
 Interruption still cancels work; this conversion does not make the event
 immune to server shutdown or request cancellation.
 
-The concurrency limit prevents one event from starting every matching rule
-at once. For 100 rules and a limit of 4, at most four of that event's runs
+Keeping a limit matters even though our example has only four rules.
+For 100 matching rules and a limit of 4, at most four of that event's runs
 are active at a time. This is a per-event limit, not a server-wide cap:
 other events and interval loops can also be running.
 
 ## Configure the server limits
 
+We'll want to try different limits without editing the Engine each time.
 The concurrency level that suits a local receiver might not suit a remote
-service. Rather than changing code to try another value, describe the
-limits with `Config`. Create `src/Limits.ts` to read the timeout,
+service. `Config` lets us describe settings that the server reads when it
+starts. Create `src/Limits.ts` to read the timeout,
 concurrency and two API limits from environment variables, using defaults
 when they are absent:
 
@@ -99,7 +105,8 @@ Inside a layer, `yield* Limits` reads and parses those values during server
 startup. A value that cannot be parsed stops startup with an error naming
 the variable, rather than failing later during a request.
 
-The Engine uses `timeout` and `concurrency`. The API handlers use
+The Engine uses `timeout` and `concurrency`. While we're making the limits
+configurable, we'll also put bounds on what the API accepts. Its handlers use
 `maxRules`, which defaults to 100, and `maxPayloadBytes`, which defaults
 to 64 KiB. Adding a rule when the store already has `maxRules` rules fails
 with `TooManyRules`, sent as HTTP 409. If an event's JSON exceeds
@@ -113,19 +120,21 @@ before calling the services. Handle the new typed errors in
 `src/cli/main.ts` as you did `RuleNotFound`, so each prints as a single line.
 The corresponding files in `checkpoints/21/src/` show these changes.
 
-With `Limits` in place and the server running again, submit the event.
-With the default concurrency of 4, all four spans start together and
+With `Limits` in place and the server running again, submit the same event
+and return to the viewer. With the default concurrency of 4, all four spans start together and
 `events submit` takes about 10 seconds, determined by the slowest run.
 A and B finish promptly, and D can report its 500 while C is still waiting.
 
-To check the configuration, restart the server with
+For a direct comparison, restart the server with
 `REFLEX_CONCURRENCY=1 pnpm dev:server` and submit the mixed event again.
 D waits for C, reproducing the sequential behavior without a code change.
 
 ## Try it
 
-You can use the same HTTP action to send a notification to your phone.
-This optional exercise is not part of the checkpoint.
+We've spent a while making the receiver fail on purpose. If you'd like to
+see an alert somewhere more useful than the terminal, the same HTTP action
+can send a notification to your phone. This exercise is optional and isn't
+part of the checkpoint.
 [ntfy.sh](https://ntfy.sh) delivers messages posted to
 `https://ntfy.sh/<topic>` to devices subscribed to that topic, using the
 `Title` header as the notification title. The fixture already describes
@@ -153,16 +162,20 @@ sensitive data.
    over 500.
 
 Use fixture data only, and assume anything you post could be read by
-someone else.
+someone else. If the laptop notification arrived and lunch stayed quiet,
+you've seen the original expense rule make a decision and deliver its
+result beyond your machine.
 
-Concurrent execution changes how you read the output. Log lines from
+Back in the mixed scenario, there is one adjustment to make when reading
+the output. Log lines from
 different runs can interleave, and `runs list` orders rows by start time
 (newest first), not by the input rule order. Use rule ids and spans to
 identify individual runs rather than assuming adjacent lines belong
-together. In
+together. We now have several things happening at once, but we also have
+records that let us follow each one. In
 [Diagnosing a request from its trace](/learn/part-3/22-diagnose-it),
-you will use this mixed scenario to work out what happened from the
-recorded data alone.
+we'll use this mixed scenario to work out what happened from those
+records alone.
 
 ## Checkpoint
 
@@ -190,6 +203,8 @@ run durations. It prints two `succeeded`, one `failed (timeout)` and one
 `failed (status)`, and `runs list` contains the same four outcomes. In the
 viewer, look under `Engine.handleEvent` for four `Engine.execute` spans
 starting together. C and D are red; A and B have status Ok.
+The failed and slow requests still have their own results, but they no
+longer hold up the start of unrelated work.
 
 ## Reference
 

@@ -7,19 +7,25 @@ mode: playground
 lessonDir: 10-checkpoint
 ---
 
-Before moving reflex to your own machine, take a few minutes to read
-through the program you have built. The editor contains the completed
-file from [Providing a service with a layer](/learn/part-1/09-provide-it).
-Run it to confirm the three alert lines and three skips, then use the
-types to check your understanding. There is no new code to write here
-unless you choose one of the optional challenges below.
+We started with a message about a laptop purchase. Reflex can now read a
+set of rules, check an expense against each one, and explain why it skipped
+an incomplete receipt. The rules are separate from the checking code, and
+we can change the store without rewriting that code. That is enough of an
+application to take out of the browser.
+
+Before we do, take a break from adding things. The editor contains the
+completed file from the previous lesson. Run it once more and look for the
+three alert lines and three skips. Then read through it at your own pace.
+There's no new code to write here unless you'd like to try one of the
+optional challenges.
 
 ## The types in the file
 
-Work through the names from top to bottom. For each function returning an
-Effect, predict its success, error and requirements types before you
-hover. In particular, check where `RuleStore` becomes a requirement and
-where that requirement is satisfied.
+When you first hovered over `program`, most of its type was unfamiliar.
+You now have an example for each part of `Effect<Success, Error, Requirements>`.
+Try reading the file from top to bottom and predicting those three types
+before hovering over each function that returns an Effect. Follow `RuleStore` in particular: where
+does the program start needing it, and where do we supply it?
 
 | Name           | Type                                                                 | Notes                                                         |
 | -------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -32,8 +38,11 @@ where that requirement is satisfied.
 | `evaluateAll`  | Returns `Effect<void, SchemaError, RuleStore>`                       | Requires a provided `RuleStore`                               |
 | `program`      | `Effect<void, SchemaError, never>`                                   | Provides the store, leaving no service requirements           |
 
-If a type surprises you, use the reference below to return to the lesson
-that introduced it, then trace how it is used in this file.
+If one of the types surprises you, that's a useful place to stop and look
+back. The reference below links to the lesson where we introduced it. You
+don't need to remember every API name, but being able to explain what the
+expense check returns, how it can fail, and where its rules come from will
+help with the next part.
 
 ## Part 1 reference
 
@@ -58,9 +67,9 @@ that introduced it, then trace how it is used in this file.
 
 ## Optional challenges
 
-If you want more practice before Part 2, try one of these changes. They
-are not included in the course time, and later lessons do not depend on
-them.
+If you'd like to make the program a little more your own before Part 2,
+choose one of these changes. They take extra time, and you can skip them
+without missing anything the later lessons need.
 
 1. Add `eq` and `neq` operators for "equal to" and "not equal to". Start
    with the schema, then update `matches` to handle the cases TypeScript
@@ -78,6 +87,12 @@ them.
 
 ## Next
 
-Part 2 moves this file onto your machine and turns it into a program with
-its own entrypoint. [Setting up your machine](/learn/part-2/setup) comes
-first and takes about 15 minutes.
+The browser has let us concentrate on the expense check without dealing
+with project setup. Next we'll give reflex real files to read and somewhere
+to save its alerts. From there, we'll turn it into a server that another
+program can use.
+
+When you're ready, [set up the starter on your machine](/learn/part-2/setup).
+Allow about 15 minutes if the required tools are already installed. The
+starter includes this completed program, so you won't need to copy it out
+of the editor.

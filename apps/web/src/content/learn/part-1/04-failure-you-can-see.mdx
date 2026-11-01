@@ -7,29 +7,33 @@ mode: playground
 lessonDir: 04-failure-you-can-see
 ---
 
-Every expense so far has included an amount, but an incoming receipt might
-be incomplete. Consider this taxi receipt: `{ type: "expense" }`. Without
-an `amount`, `evaluate` cannot determine whether it exceeds 500. Returning
-`false` would treat an unchecked expense as one that passed the check.
+The laptop and lunch were straightforward to check because we knew what
+each one cost. Let's try a less tidy receipt. This time it's a taxi ride,
+and the amount is missing.
 
-Instead, make `evaluate` fail with an error that identifies the missing
-field. That possibility will appear in its Effect type, separate from its
-successful boolean result. For now, an unhandled failure will stop the
-program before the summary. The next lesson adds recovery.
+Reflex can't honestly say whether that ride was over our limit. Treating
+it as `false` would make "we couldn't check" look the same as "we checked
+and it was fine." We need to keep those two situations separate.
 
-## Expenses as events
+In this lesson we'll have the check fail with an error that tells us what
+was missing. Seeing the program stop is part of the exercise, so don't
+worry when we lose the summary. Once we can recognize this failure, we'll
+be able to decide how to recover from it in the next lesson.
 
-The file starts where the previous lesson ended. To represent a receipt
-with or without an amount, change the input from a number to an **event**
-object. Below the imports, add an interface for these events:
+## Give the receipt a little more detail
+
+Until now, we've passed just a number to the check. An object lets us say
+that an expense happened even when we don't know its amount. We'll call
+that object an **event**. Below the imports in the existing file, add this
+interface:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
   declaration="Event"
 />
 
-The `?` makes `amount` optional, so TypeScript requires you to account for
-its absence when reading it.
+Notice the `?` on `amount`. It allows us to leave the amount out, but it
+also means we'll have to account for that possibility when reading it.
 
 Below the interface, add the two expenses. The laptop has an amount:
 
@@ -45,7 +49,7 @@ The taxi does not:
   declaration="taxi"
 />
 
-## Adapting evaluate to events
+## Try the new receipts
 
 Change `evaluate` so it takes an event instead of a number:
 
@@ -61,36 +65,38 @@ Then replace `program` so it checks the laptop, then the taxi:
   declaration="program"
 />
 
-The results are called `laptopFlagged` and `taxiFlagged`, because `laptop` and
-`taxi` are now the events.
+We've called the results `laptopFlagged` and `taxiFlagged` to distinguish
+them from the receipts themselves.
 
-TypeScript underlines `event.amount` in `isLarge(event.amount)` in red, and
-the playground does not run the file. The message reads
+At this point you should see a red underline on `event.amount` in
+`isLarge(event.amount)`. The playground won't run the file yet. Read the
+message:
 `Argument of type 'number | undefined' is not assignable to parameter of type 'number'`.
-The interface allows an event without an amount, but `isLarge` requires a
-number. You need to handle the missing value before calling it.
+This is the case we came here to handle. The event may have no amount,
+while `isLarge` needs a number. Let's give the program a way to explain
+why it can't continue.
 
-## Defining the missing-field error
+## Describe what went wrong
 
-Add `Schema` to the `effect` import. Then declare `MissingField` between the
-interface and the two expenses:
+We'll use an error called `MissingField`, with a property recording the
+field's name. Add `Schema` to the `effect` import, then place this
+class between the interface and the two expenses:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
   declaration="MissingField"
 />
 
-The declaration uses two calls to `Schema.TaggedError`. The first,
-`<MissingField>()`, supplies the class's own type. The second supplies the
-**tag** `"MissingField"` and the fields stored on the error. The tag will
-let you select this error in a handler; the `field` property will tell the
-handler which value was missing.
+There's a little syntax to unpack here. `Schema.TaggedError` defines an
+error class in two calls: `<MissingField>()` supplies the class's own
+type, and the next call gives it the tag `"MissingField"` and its fields.
+The tag identifies the kind of error; `field` tells us which value was
+missing. `Schema.String` means that property is a string.
 
-Here, `Schema.String` describes the type of that property. You will use
-schemas more extensively in
-[Validating JSON with Schema](/learn/part-1/06-untrusted-json).
+For now, that's all we need from Schema. We'll return to it when we start
+reading rules from JSON.
 
-## Failing before the check
+## Stop when the amount is missing
 
 At the top of the `Effect.gen` block in `evaluate`, check for the amount. If
 it is missing, fail:
@@ -106,28 +112,30 @@ you just defined. The `return` also makes the end of this path explicit to
 TypeScript. After the check, it can narrow `event.amount` to `number`, and
 the red underline disappears.
 
-Hover `evaluate`. Its type is
-`(event: Event) => Effect<boolean, MissingField, never>`. The error type was
-`never`; now it is `MissingField`. A caller can see both possible outcomes
-in the type: success with a boolean or failure with a missing-field error.
+## See where the program stops
 
-## Following the failure through program
+Run the file. The laptop still produces `expense 1200 over 500`. Then the
+taxi produces a `MissingField` failure, and there's no
+`1 of 2 expenses flagged` summary. We haven't told reflex how to recover,
+so it stops at `yield* evaluate(taxi)` rather than inventing a result for
+that receipt.
 
-Run the file. The terminal prints `expense 1200 over 500` for the laptop.
-Then it reports a `MissingField` failure for the taxi, and the program stops.
-`1 of 2 expenses flagged` never appears. With no handler to recover from
-the failure, `evaluate` cannot produce a boolean for the taxi. The failure
-propagates through `yield* evaluate(taxi)` into `program`, which stops
-without running the summary.
+Now hover over `evaluate`. Its type is
+`(event: Event) => Effect<boolean, MissingField, never>`. Remember the
+error type we passed over in the first lesson? It's the second parameter.
+It was `never`, meaning no typed failures; now it's `MissingField`, telling a caller that
+the check can either succeed with a boolean or fail with this error.
 
-Hover `program`. The type is `Effect<void, MissingField, never>`. `program`
-does not create the error, but it runs `evaluate`, so the failure is part of
-its type too.
+Hover over `program` too. Its type is `Effect<void, MissingField, never>`.
+It doesn't create the error itself, but because it runs `evaluate`, the
+same failure can reach it. We can follow the failure through the types as
+well as through the output.
 
 ## Try it
 
-The error type can include more than one possible failure. Add a check for
-events that are not expenses:
+An amount isn't the only thing we might need to check. Try rejecting an
+event whose type isn't `"expense"`, and watch what happens to the error
+type:
 
 1. Declare a second error, `NotAnExpense`, the same way as `MissingField`.
    Give it a `type` field.
@@ -137,12 +145,13 @@ events that are not expenses:
    as `NotAnExpense | MissingField`. Both typed failures are included, and
    `program` shows the same union.
 
-This is practice only. The next lesson starts from the file without
+This extra check is just for practice; the next lesson starts without
 `NotAnExpense`.
 
-Using a schema for the error will also be useful beyond this file. In
-[Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it), these error
-classes become part of the HTTP API.
+The missing amount is no longer being mistaken for a small expense. We
+know what went wrong, and reflex stops rather than quietly reporting the
+wrong result. Next we'll make it more useful: keep that explanation,
+skip the incomplete receipt, and let the rest of the program continue.
 
 ## Reference
 
