@@ -80,6 +80,22 @@ const typecheck = Effect.fn("typecheck")(function*(options: {
 
 const count = (output: string, text: string) => output.split("\n").filter((line) => line.includes(text)).length
 
+const lineOf = (output: string, text: string) => output.split("\n").findIndex((line) => line.includes(text))
+
+// Lessons 3 to 5 carry one small program: two expenses are reviewed in order
+// and a summary of how many were flagged is logged after both verdicts.
+const summary = "1 of 2 expenses flagged"
+
+// A lesson's start is the previous lesson's end state.
+const assertStartIsPrevious = Effect.fn("assertStartIsPrevious")(function*(lesson: number) {
+  const fs = yield* FileSystem.FileSystem
+  assert.strictEqual(
+    yield* fs.readFileString(yield* lessonFile(lesson, "start")),
+    yield* fs.readFileString(yield* lessonFile(lesson - 1, "solution")),
+    `lesson ${lesson} start is the lesson ${lesson - 1} solution`
+  )
+})
+
 const alertLines = (output: string) =>
   output.split("\n").flatMap((line) => {
     const index = line.indexOf("expense 1200")
@@ -205,48 +221,67 @@ describe("Part 1 lesson files", () => {
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
     it.live(
-      "03 builds the message from an amount in Effect.gen and logs it, with no event or rule",
+      "03 reviews 1200 and 40 in order in Effect.gen, then logs how many were flagged, with no event or rule",
       () =>
         Effect.gen(function*() {
           const fs = yield* FileSystem.FileSystem
+          yield* assertStartIsPrevious(3)
           const file = yield* lessonFile(3, "solution")
           const source = yield* fs.readFileString(file)
           assert.include(source, "Effect.gen")
-          for (const later of [/\bEvent\b/, /\bRule\b/, /\bSchema\b/]) assert.notMatch(source, later)
+          for (const later of [/\bEvent\b/, /\bRule\b/, /\bSchema\b/, /\binterface\b/]) {
+            assert.notMatch(source, later)
+          }
           const result = yield* run(file)
           assert.strictEqual(result.exitCode, 0, report(result))
           assert.strictEqual(count(result.stdout, "expense 1200 over 500"), 1, report(result))
+          assert.strictEqual(count(result.stdout, "expense 40: no alert"), 1, report(result))
+          assert.strictEqual(count(result.stdout, summary), 1, report(result))
+          // The summary needs what both checks found, so it comes after them.
+          const last = lineOf(result.stdout, summary)
+          assert.isAbove(last, lineOf(result.stdout, "expense 1200 over 500"), report(result))
+          assert.isAbove(last, lineOf(result.stdout, "expense 40: no alert"), report(result))
         }).pipe(Effect.provide(NodeServices.layer)),
       timeout
     )
 
-    it.live("04 fails with MissingField when amount is absent", () =>
+    it.live("04 fails with MissingField when amount is absent, before the summary", () =>
       Effect.gen(function*() {
+        yield* assertStartIsPrevious(4)
         const result = yield* runLesson(4, "solution")
         assert.notStrictEqual(result.exitCode, 0, report(result))
         assert.match(result.stdout, /\bMissingField\b/, report(result))
+        assert.notInclude(result.stdout, "expenses flagged", report(result))
       }).pipe(Effect.provide(NodeServices.layer)), timeout)
 
-    it.live("05 alerts for laptop, skips taxi on MissingField and succeeds", () =>
-      Effect.gen(function*() {
-        const result = yield* runLesson(5, "solution")
-        assert.strictEqual(result.exitCode, 0, report(result))
-        assert.lengthOf(alertLines(result.stdout), 1, report(result))
-        assert.strictEqual(count(result.stdout, "skip"), 1, report(result))
-        assert.notMatch(result.stdout, /\bUnknownOperator\b/, report(result))
-      }).pipe(Effect.provide(NodeServices.layer)), timeout)
+    it.live(
+      "05 alerts for laptop, skips taxi on MissingField, logs the summary and succeeds",
+      () =>
+        Effect.gen(function*() {
+          const result = yield* runLesson(5, "solution")
+          assert.strictEqual(result.exitCode, 0, report(result))
+          assert.lengthOf(alertLines(result.stdout), 1, report(result))
+          assert.strictEqual(count(result.stdout, "skip"), 1, report(result))
+          assert.strictEqual(count(result.stdout, summary), 1, report(result))
+          assert.notMatch(result.stdout, /\bUnknownOperator\b/, report(result))
+        }).pipe(Effect.provide(NodeServices.layer)),
+      timeout
+    )
 
     it.live(
       "06 prints a schema error for the malformed rule and still alerts for the valid one",
       () =>
         Effect.gen(function*() {
           const fs = yield* FileSystem.FileSystem
+          yield* assertStartIsPrevious(6)
           const file = yield* lessonFile(6, "solution")
           assert.include(yield* fs.readFileString(file), "Schema.Struct")
           const result = yield* run(file)
           assert.match(result.stdout, /SchemaError|\bExpected\b/, report(result))
           assert.isAtLeast(count(result.stdout, "expense 1200 over 500"), 1, report(result))
           assert.isAtLeast(count(result.stdout, "skip"), 1, report(result))
+          // The broken rule fails the program before any summary.
+          assert.notInclude(result.stdout, "expenses flagged", report(result))
         }).pipe(Effect.provide(NodeServices.layer)),
       timeout
     )
