@@ -22,6 +22,15 @@ const makeUpstashKVS = (url: string, token: Redacted.Redacted) =>
     Effect.gen(function* () {
       const { Redis } = yield* Effect.promise(() => import("@upstash/redis"))
       const kv = new Redis({ url, token: Redacted.value(token) })
+      const keys = Effect.tryPromise({
+        try: () => kv.keys("*"),
+        catch: (cause) =>
+          new KeyValueStore.KeyValueStoreError({
+            message: "Failed to list keys",
+            method: "keys",
+            cause,
+          }),
+      })
 
       return KeyValueStore.makeStringOnly({
         get: (key) =>
@@ -58,15 +67,8 @@ const makeUpstashKVS = (url: string, token: Redacted.Redacted) =>
               }),
           }).pipe(Effect.asVoid),
         clear: Effect.void,
-        size: Effect.tryPromise({
-          try: () => kv.keys("*"),
-          catch: (cause) =>
-            new KeyValueStore.KeyValueStoreError({
-              message: "Failed to get size",
-              method: "size",
-              cause,
-            }),
-        }).pipe(Effect.map((keys) => keys.length)),
+        size: Effect.map(keys, (keys) => keys.length),
+        keys,
       })
     }),
   )

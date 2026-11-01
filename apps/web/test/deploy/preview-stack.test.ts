@@ -2,9 +2,10 @@ import { afterEach, assert, test, vi } from "vite-plus/test"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import { AlchemyContext } from "alchemy/AlchemyContext"
 import { provideFreshArtifactStore } from "alchemy/Artifacts"
+import { AuthProvidersLive } from "alchemy/Auth"
 import * as Interaction from "alchemy/Interaction"
 import * as Output from "alchemy/Output"
-import { evalStack } from "alchemy/Stack"
+import { evalStack } from "alchemy/EvalStack"
 import { Stage } from "alchemy/Stage"
 import * as State from "alchemy/State"
 import * as Effect from "effect/Effect"
@@ -60,6 +61,7 @@ const previewGraph = async () => {
       Effect.provide(
         Layer.mergeAll(
           NodeServices.layer,
+          AuthProvidersLive,
           State.inMemoryState(),
           Interaction.layerNonInteractive(),
         ),

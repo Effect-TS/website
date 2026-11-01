@@ -1,9 +1,8 @@
 import MixedbreadClient from "@mixedbread/sdk"
 import * as Config from "effect/Config"
 import * as Context from "effect/Context"
-import * as Crypto from "effect/Crypto"
 import * as Effect from "effect/Effect"
-import * as Hex from "effect/encoding/Hex"
+import { Digest } from "effect/crypto"
 import * as FileSystem from "effect/FileSystem"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
@@ -101,7 +100,7 @@ export class Mixedbread extends Context.Service<
       Config.withDefault(2),
     )
 
-    const crypto = yield* Crypto.Crypto
+    const digest = yield* Digest.Digest
     const fs = yield* FileSystem.FileSystem
     const path = yield* Path.Path
     const childProcesses = yield* ChildProcessSpawner.ChildProcessSpawner
@@ -109,10 +108,7 @@ export class Mixedbread extends Context.Service<
     const stores = makeStoreClient({ client, repository, storePrefix })
 
     const hash = Effect.fn("Mixedbread.hash")(function* (bytes: Uint8Array) {
-      const digest = yield* crypto
-        .digest("SHA-256", bytes)
-        .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-      return Hex.encode(digest)
+      return yield* digest.digestHex(Digest.sha256, bytes)
     })
 
     const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (

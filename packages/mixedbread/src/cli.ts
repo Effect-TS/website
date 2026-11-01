@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto"
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import * as Config from "effect/Config"
@@ -113,6 +114,7 @@ const program = Command.run(indexCommand, { version: "0.0.0" })
 const MainLayer = Layer.mergeAll(
   CliConfig.layer({ builtIns: [GlobalFlag.Help] }),
   NodeServices.layer,
+  NodeCrypto.layer,
 )
 
 program.pipe(Effect.provide(MainLayer), NodeRuntime.runMain)
