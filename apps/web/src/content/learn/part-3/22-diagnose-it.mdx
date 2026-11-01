@@ -1,0 +1,107 @@
+---
+part: 3
+order: 22
+title: Diagnosing a request from its trace
+minutes: 15
+mode: local
+---
+
+So far we have known what would go wrong before sending a request,
+because we chose the slow receiver or planted the bug ourselves. When
+Reflex runs without anyone watching, we lose that advantage. All we will
+have is the history and the traces it leaves behind, and we'll have to
+work backwards from those.
+
+Let's practise that with the mixed scenario from the last lesson. There is
+no code to write this time. Run the scenario again, then explain what
+happened using nothing but `runs list` and the viewer. Keep the code and
+the fixture files closed while you investigate. The question is whether
+our application leaves enough evidence to understand a request after it
+has finished.
+
+## Reproduce the mixed scenario
+
+Use checkpoint 22, or your own server if it matched the previous
+checkpoint. Start from an empty database, so the only results to inspect
+belong to this one event: stop the server and delete `reflex.db`, which
+removes the stored rules as well as the run history. Then start the mixed
+receiver and the server and run the commands below.
+
+```sh
+pnpm receiver --scenario mixed
+```
+
+```sh
+pnpm checkpoint 22 server
+```
+
+```sh
+pnpm checkpoint 22 cli rules add fixtures/rules/mixed/a-ok.json
+pnpm checkpoint 22 cli rules add fixtures/rules/mixed/b-ok.json
+pnpm checkpoint 22 cli rules add fixtures/rules/mixed/c-slow.json
+pnpm checkpoint 22 cli rules add fixtures/rules/mixed/d-fail.json
+pnpm checkpoint 22 cli events submit fixtures/events/laptop.json
+pnpm checkpoint 22 cli runs list
+```
+
+After about 10 seconds, `events submit` prints four outcomes and
+`runs list` shows four rows. That is our evidence. In the viewer, open the
+newest `reflex-server` trace that contains an `Engine.handleEvent` span.
+[Reading a trace in the viewer](/learn/part-2/trace-viewer) describes each
+part of the screen if you need a reminder.
+
+## Answer from the recorded evidence
+
+Take your time with the trace. For each question, write down your answer
+and the evidence behind it: a span name, a field in a run row, a measured
+duration. Evidence makes a better explanation than remembering what the
+fixture was supposed to do.
+
+1. Which operation was slowest? How long did it take, and why that long?
+2. Which operation failed, and with what?
+3. Which work finished, and did it wait for the slow one? How long did the
+   whole request take?
+4. Did a timeout fire? Name two places that show it.
+
+If the slow request succeeds instead of timing out, don't bend your answer
+to fit the question. Check whether `REFLEX_TIMEOUT` is set in the server's
+shell. The exercise assumes the default 10 second timeout, which is shorter
+than the receiver's 15 second response.
+
+## Compare your answers
+
+Once you have an explanation for each question, compare your notes with
+[the expected answers](/learn/part-3/diagnose-it-answers). Your trace ids
+and exact timings will differ, but the outcomes and how they relate should
+match.
+
+If you needed information that was not in `runs list` or the viewer, note
+what was missing. That is not a gap in your understanding. A trace can
+only explain what the program recorded, and your note is the start of one
+of the follow-on improvements in
+[Where to go next](/learn/part-4/what-comes-next).
+
+## Checkpoint
+
+Read your explanation as if you were handing it to someone who did not
+watch the request. It should name the slowest operation, tell its timeout
+apart from the 500 response, and show that the two successful runs did not
+wait for it, using the `Engine.handleEvent` span to explain how long the
+whole request took. Four run rows and four execution spans, two red and two
+Ok, back it all up.
+
+That is a useful thing to have built into Reflex. You can explain a request
+after the fact, without adding temporary log lines and hoping to catch it
+again.
+
+## Reference
+
+Use these existing records to support your answers:
+
+| Where             | What it tells you                                                       | Introduced in                                                                         |
+| ----------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `runs list`       | Shows each run's outcome, reason and error details                      | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)          |
+| `Engine.execute`  | Records one run's duration and status, annotated with `rule.id`         | [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)     |
+| Span status Error | Identifies a failed or crashed run, with details in the status message  | [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network) |
+| Span start times  | Show which runs started together and whether their execution overlapped | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |
+| Parent span       | Shows the duration of event handling in `Engine.handleEvent`            | [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)        |

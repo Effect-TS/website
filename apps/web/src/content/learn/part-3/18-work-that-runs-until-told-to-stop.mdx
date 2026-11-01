@@ -1,0 +1,124 @@
+---
+part: 3
+order: 18
+title: Running background work with Effect.forkScoped
+minutes: 15
+mode: local
+---
+
+Our expense alert waits for someone to submit an event. A service-status
+alert needs to work the other way round: it has to check a URL on its own,
+regularly, even when nobody is using the CLI. That checking should run for
+as long as Reflex runs and stop when we shut it down, cleanly enough that a
+last check never tries to use a database that has already closed.
+
+Starting and stopping is the hard part, so let's learn it before we add any
+network requests. We'll build a heartbeat: a small task that logs how many
+rules are stored, over and over. It is easy to watch, which makes it a good
+first piece of background work. By the end of the lesson, pressing Ctrl-C
+prints one final line confirming that the heartbeat stopped.
+
+## Create a repeating effect
+
+The heartbeat reads the rule count and logs it, once at startup and then
+every 30 seconds. Create `src/Heartbeat.ts`:
+
+<LessonCode file="checkpoints/18/src/Heartbeat.ts" />
+
+The inner `Effect.gen` block lists the rules and logs the count, once.
+`Effect.repeat` keeps it going, running it again according to a `Schedule`,
+a value that says when each repetition should happen. With
+`Schedule.spaced("30 seconds")`, the first run happens immediately and every
+later one starts 30 seconds after the previous one ends.
+
+A loop that never finishes brings a problem: if the layer waited for it,
+the server would never finish starting. So `Effect.forkScoped` starts the
+loop on a separate fiber instead. A fiber is an independently running
+computation, which means the server can carry on starting while this one
+logs and waits between iterations.
+
+Something still has to stop that fiber. It belongs to the current scope, so
+it is interrupted when the scope closes. `Effect.onInterrupt` adds the log
+line we'll use to watch that happen. The handler runs only on interruption,
+not when the effect succeeds or fails on its own.
+
+## Tie the heartbeat to the server lifecycle
+
+Unlike `RuleStore`, the heartbeat offers no methods for other code to
+call. It only needs to start when the server starts, which is what
+`Layer.effectDiscard` is for: it builds a layer from an effect without
+providing a service. The effect runs while the layer is being built, and
+`forkScoped` attaches the fiber to the scope of that build. When the server
+closes the scope, it interrupts the heartbeat and waits for the
+interruption handler to finish before shutdown completes.
+
+In `src/server/main.ts`, merge the heartbeat layer with the served API:
+
+<LessonCode file="checkpoints/18/src/server/main.ts" />
+
+The heartbeat depends on `RuleStore`, and that dependency decides the
+shutdown order. The store is built before the heartbeat, so the heartbeat
+is stopped before the store closes, and the database stays available until
+the loop has finished using it. There is no separate shutdown routine to
+write.
+
+Run `pnpm dev:server`. The heartbeat logs `rules stored:` followed by the
+number of rules in `reflex.db`, then repeats every 30 seconds.
+
+## Observe shutdown with Ctrl-C
+
+Once the count has appeared, press Ctrl-C. The last log line before the
+process exits is:
+
+```text
+heartbeat stopped
+```
+
+That line comes from `onInterrupt`, and we never wrote a signal handler.
+Ctrl-C reached the loop like this:
+
+1. `runMain` interrupts the main fiber when it receives Ctrl-C.
+2. That interruption ends `Layer.launch`, which has been keeping the server
+   running, and closes the layer scope.
+3. The scope interrupts the heartbeat fiber and waits for it to stop.
+4. The heartbeat runs its `onInterrupt` handler before it finishes.
+
+We now have background work that starts and stops with Reflex. The
+heartbeat keeps one fiber alive for the server's lifetime, most of it spent
+waiting between iterations. In
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+we'll use the same idea for interval rules, one loop per rule, and then
+face the harder question of stopping one rule without stopping the others.
+
+## Checkpoint
+
+To compare your startup and shutdown with the reference version, run
+checkpoint 18:
+
+```sh
+pnpm checkpoint 18 server
+```
+
+The heartbeat immediately logs `rules stored:` with the number of rules in
+`reflex.db`, then logs it again every 30 seconds. If the previous
+checkpoint's expense rule is the only stored rule, the count is 1. Press
+Ctrl-C and look for the final line before the process exits:
+
+```text
+heartbeat stopped
+```
+
+With the viewer running, the same line appears in its Logs tab, from
+`reflex-server`, so the shutdown is on record as well as in the terminal.
+
+## Reference
+
+| API                         | What it does                                                          | Introduced in                                                                             |
+| --------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Effect.repeat(schedule)`   | Runs an effect immediately, then repeats it according to the schedule | this lesson                                                                               |
+| `Schedule.spaced(duration)` | Waits `duration` after an iteration ends before starting the next     | this lesson                                                                               |
+| `Effect.onInterrupt(f)`     | Runs a handler when the effect is interrupted                         | this lesson                                                                               |
+| `Effect.forkScoped`         | Starts a fiber that is interrupted when the current scope closes      | this lesson                                                                               |
+| `Layer.effectDiscard`       | Builds a layer from an effect without providing a service             | this lesson                                                                               |
+| `Layer.mergeAll`            | Combines several layers and the services they provide                 | [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it)                             |
+| `NodeRuntime.runMain`       | Runs the main effect and interrupts it on Ctrl-C                      | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |

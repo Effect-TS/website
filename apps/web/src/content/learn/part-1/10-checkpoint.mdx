@@ -1,0 +1,95 @@
+---
+part: 1
+order: 10
+title: Part 1 review
+minutes: 5
+mode: playground
+lessonDir: 10-checkpoint
+---
+
+We started with a single message about a laptop. Reflex can now read a set
+of rules, check an expense against each one, and explain why it skipped an
+incomplete receipt. The rules are separate from the checking code, and we
+can change where they come from without rewriting that code. That is enough
+of an application to take out of the browser.
+
+Before we do, let's pause and read what we have. The editor contains the
+completed file from the previous lesson. Run it once more and look for the
+three alert lines and the three skips, then read through it at your own
+pace. There is no new code in this lesson, apart from the optional
+challenges at the end.
+
+## The types in the file
+
+When you first hovered over `program`, most of its type was unfamiliar. You
+have now seen each part of `Effect<Success, Error, Requirements>` in use.
+Read the file from top to bottom and predict the three types of each
+function before you hover over it. Follow `RuleStore` in particular: where
+does the program start needing it, and where do we supply it?
+
+| Name           | Type                                                                 | Notes                                                         |
+| -------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `Rule`         | A schema, with `type Rule` derived from it                           | The hover shows the rule's fields                             |
+| `decodeRule`   | Accepts unknown input and returns `Effect<Rule, SchemaError, never>` | Parses JSON text and validates the parsed rule                |
+| `RuleStore`    | A service with static `layer` and `layerFixtures` members            | The service key is `reflex/RuleStore`                         |
+| `MissingField` | An error class with a string property named `field`                  | Identifies the field missing from an event                    |
+| `matches`      | `(rule: Rule, amount: number) => boolean`                            | Calculates the result without an Effect                       |
+| `evaluate`     | Returns `Effect<boolean, SchemaError, never>`                        | Handles a missing amount but leaves an invalid rule unhandled |
+| `evaluateAll`  | Returns `Effect<void, SchemaError, RuleStore>`                       | Requires a provided `RuleStore`                               |
+| `program`      | `Effect<void, SchemaError, never>`                                   | Provides the store, leaving no service requirements           |
+
+If one of the types surprises you, the reference below links to the lesson
+that introduced it. You don't need to remember every API name. What matters
+for the next part is being able to say what the expense check returns, how
+it can fail, and where its rules come from.
+
+## Part 1 reference
+
+| API                                                   | What it does                                                                       | Introduced in                                                                             |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Effect.log`                                          | Creates an Effect that writes a log line when run                                  | [Running your first Effect](/learn/part-1/02-describe-then-run)                           |
+| `Effect.andThen`                                      | Combines two Effects to run in sequence                                            | [Running your first Effect](/learn/part-1/02-describe-then-run)                           |
+| `Effect.gen` and `yield*`                             | Build a sequential program, using `yield*` to run Effects and access their results | [Using Effect.gen to write programs](/learn/part-1/03-steps-in-order)                     |
+| `Schema.TaggedError`                                  | Defines an error class with a tag and fields described by schemas                  | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
+| `return yield* new E(...)`                            | Fails the Effect with an instance of the tagged error class `E`                    | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
+| `Effect.catchTag`                                     | Recovers from an error selected by its tag                                         | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `.pipe`                                               | Applies transformations in order: `x.pipe(f, g)` is `g(f(x))`                      | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `Effect.as`                                           | Replaces an Effect's successful result with a specified value                      | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `Schema.Struct`, `String`, `Number`, `Literals`       | Define the object fields and allowed values in a schema                            | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
+| `Schema.fromJsonString`, `Schema.decodeUnknownEffect` | Create a JSON decoder that reports invalid input as `SchemaError`                  | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
+| `Effect.fn("name")`                                   | Defines an Effect function whose calls run inside a named span                     | [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it)                            |
+| `Context.Service`                                     | Declares a service's key and interface; `yield*` retrieves its implementation      | [Defining a service with Context.Service](/learn/part-1/08-a-place-for-rules)             |
+| `Layer.effect`, `RuleStore.of`                        | Define a layer that constructs a typechecked service implementation                | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| `Effect.sync`                                         | Creates an Effect that runs a synchronous callback when executed                   | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| `Effect.provide`                                      | Uses a layer to supply the services an Effect requires                             | [Providing a service with a layer](/learn/part-1/09-provide-it)                           |
+| `NodeRuntime.runMain`                                 | Runs the program as a Node.js entrypoint                                           | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |
+
+## Optional challenges
+
+If you'd like more practice before Part 2, try one of these. They aren't
+counted in the course time, and nothing later depends on them.
+
+1. Add `eq` and `neq` operators for "equal to" and "not equal to". Start
+   with the schema, then update `matches` to handle the cases TypeScript
+   reports as missing.
+2. Make a skipped check distinguishable from one that didn't match. Instead
+   of logging the skip and returning `false`, have `evaluate` return a
+   `skipped` result with a reason. Hover to confirm that the success type
+   now includes this result alongside `boolean`, since a completed check
+   still returns `flagged`.
+   [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)
+   does a version of this for real.
+3. Add another kind of event, such as a battery level, and a rule for it.
+   The current alert message reads `event.amount`, which will not suit
+   every event. Adapt the message for an event that has no amount.
+
+## Next
+
+The browser let us concentrate on the expense check without any project
+setup. Next we'll give Reflex real files to read and somewhere to save its
+alerts, and from there turn it into a server that other programs can use.
+
+When you're ready, [set up the starter on your machine](/learn/part-2/setup).
+Allow about 15 minutes if the required tools are already installed. The
+starter includes this completed program, so you won't need to copy it out
+of the editor.

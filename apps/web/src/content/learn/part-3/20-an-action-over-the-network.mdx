@@ -1,0 +1,199 @@
+---
+part: 3
+order: 20
+title: Telling errors from defects with Cause
+minutes: 20
+mode: local
+---
+
+An alert in `alerts.log` only helps while we're looking at the terminal.
+To reach us anywhere else, Reflex has to hand the alert to another service,
+such as a webhook or a notification service, which means our rules need an
+HTTP action. The server has accepted `httpPost` rules since
+[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records),
+but it has skipped every one of them with the reason
+`httpPost actions run from lesson 20`. In this lesson we make them run.
+
+We'll post to our local receiver first, because there we control the
+response. That lets us try a rejected request and a slow one without
+depending on an outside service. Then we'll plant a bug of our own and
+compare it with those two failures. All three show up as red spans, so a
+red span alone cannot tell us what needs fixing. The details we record can.
+
+## Build and send a POST request
+
+The action needs a function that sends the message. In `src/Action.ts`,
+next to the file action, add `postMessage`. It sends the action's message
+as a plain-text POST body, appends the payload as JSON on the next line
+when `includePayload` is true, and includes any `headers` set on the
+action:
+
+<LessonCode file="checkpoints/20/src/Action.ts" />
+
+The request follows the describe-then-run pattern from the very first
+lesson. `HttpClientRequest.post(url)` creates a request value, and the
+pipeline adds headers with `HttpClientRequest.setHeaders` and a body with
+`HttpClientRequest.bodyText`. None of that touches the network. The request
+is only sent when `client.execute(request)` runs.
+
+The error policy is the one `poll` already uses. A request that fails
+outright, such as a refused connection, becomes `ActionFailed` with reason
+`io`. A response outside 2xx becomes `ActionFailed` with reason `status`,
+with the URL and the status code in its message.
+
+Now the Engine can use it. In `src/Engine.ts`, change the `httpPost` branch
+of `run` to call `postMessage` and return `succeeded` when it completes,
+providing the Engine's `HttpClient` with `Effect.provideService` just as
+`appendLine` receives `FileSystem`. The temporary skip for HTTP actions
+goes, which leaves two reasons a run can be skipped: a false condition and
+a missing field.
+
+The POST needs no timer of its own, because the `Effect.timeout` around
+`run` already covers it inside the execution span. If the receiver takes
+longer than 10 seconds, the timeout interrupts the request and the run ends
+with `TimeoutError`. The boundary records that as `failed (timeout)` rather
+than `interrupted`, because the timeout is the reason the run ended.
+
+## Compare a rejected request with a timeout
+
+Let's send two requests that fail for different reasons. With
+`pnpm receiver` and `pnpm dev:server` running, add the two rules and run
+each one on its own:
+
+```sh
+pnpm cli rules add fixtures/rules/post-fail.json
+pnpm cli rules add fixtures/rules/post-slow.json
+pnpm cli rules run <post-fail id> --event fixtures/events/laptop.json
+pnpm cli rules run <post-slow id> --event fixtures/events/laptop.json
+```
+
+The first prints `failed (status)` with the 500. The second takes about 10 seconds
+and prints `failed (timeout)`. `runs list` shows:
+
+| Rule file        | Receiver answer         | `runs list`                              |
+| ---------------- | ----------------------- | ---------------------------------------- |
+| `post-fail.json` | `/fail?status=500`: 500 | `failed (status): POST ... answered 500` |
+| `post-slow.json` | `/slow?ms=15000`: late  | `failed (timeout): timed out after 10s`  |
+
+Neither run says `crashed`. Both ended in a failure the program expects:
+one got a 500, the other got no answer before the deadline. Nothing is
+wrong with the action's code in either case. Whether it makes sense to
+retry depends on the receiver, and on whether repeating the action could
+do something unwanted.
+
+Open their `Engine.execute` spans in the viewer. Both are red, but the
+status messages tell the 500 response from the `TimeoutError`, and the
+timed-out span lasts about as long as the configured timeout.
+
+## Read the cause of an unsuccessful run
+
+Those two failures are the kind an effect's error type describes. As you
+saw in
+[Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see),
+the error type lets TypeScript check which errors your code handles. But it
+does not list every way execution can stop.
+
+The full picture is in the `Cause` inside an unsuccessful `Exit`. A `Cause`
+records typed failures, defects and interruptions, including the endings
+the error type does not mention. In this Engine, `ActionFailed` and
+`TimeoutError` are typed failures. A thrown exception is a defect, and so
+is a failure that `Effect.orDie` converted, such as the database errors in
+[Storing data in SQLite with SqlClient](/learn/part-3/17-survive-a-restart).
+An interruption happens when work is cancelled, by `FiberMap.remove` or by
+Ctrl-C. A timeout interrupts the work it cancels too, but the timed effect
+around it ends with the typed `TimeoutError`.
+
+With those cases in mind, read `terminal` in `src/Engine.ts` again. It
+handles a successful `Exit` first. For an unsuccessful one it checks
+`Cause.hasInterruptsOnly` before looking at any error, and a cause that
+holds only an interruption becomes `interrupted`. For every other cause,
+`Cause.squash` picks out the main error: `ActionFailed` and `TimeoutError`
+become `failed` with their reason, and anything else becomes `crashed`.
+
+When we diagnose a run, that distinction is what matters. The error type
+tells us what the implementation offers for handling. The recorded cause
+can also tell us that our own code threw, or that somebody cancelled the
+work.
+
+## Try it
+
+So far the receiver was to blame for every failure. This time the problem
+will be ours. Plant a bug in `postMessage`, compare its `crashed` row with
+the two `failed` rows, and undo the bug at the end:
+
+1. In `postMessage`, change the headers line to trim the `Title` header,
+   using `!` to assert that the headers exist even though `post-ok.json`
+   defines none. `pnpm check` still passes, because the assertion silences
+   TypeScript without adding any headers at runtime.
+2. Add the rule with `pnpm cli rules add fixtures/rules/post-ok.json` and note
+   the id it prints.
+3. Run only that rule, with
+   `pnpm cli rules run <post-ok id> --event fixtures/events/laptop.json`.
+   Don't submit the event to every rule: `post-fail` and `post-slow` match
+   expenses too and have no headers either, so they would crash as well.
+4. The CLI prints `crashed` with
+   `Cannot read properties of undefined (reading 'Title')`, and the server
+   logs `run crashed` at error level, with the stack. In `runs list`, the
+   `crashed` row sits next to `failed (status)` and `failed (timeout)`. In the
+   viewer, all three `Engine.execute` spans are red, and only the crashed one
+   carries a stack.
+5. Put the line back. Run the same `rules run` again. It prints `succeeded`,
+   and `pnpm check` passes.
+
+If you want the exact line, a copy of the file with the bug is in
+`exercises/20/`. This crash happens before the receiver is even contacted,
+and no amount of retrying would fix it: the code has to change. For an
+interval rule, this outcome would also stop its loop.
+
+With the line restored, Reflex can send an alert over HTTP, and its history
+can tell us why an attempt did not work. The new action fits the existing
+execution boundary without adding an outcome.
+
+You probably noticed how long the slow request kept the CLI waiting.
+`handleEvent` still runs rules one after another, so that request would
+also hold up every rule behind it. In
+[Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once)
+we'll let independent rules run without waiting for one another.
+
+## Checkpoint
+
+To compare your results with the reference version, reproduce the two HTTP
+failures against checkpoint 20. Start the receiver and the checkpoint
+server in separate terminals:
+
+```sh
+pnpm receiver
+pnpm checkpoint 20 server
+```
+
+In a third, add the two rules and run each one on its own:
+
+```sh
+pnpm checkpoint 20 cli rules add fixtures/rules/post-fail.json
+pnpm checkpoint 20 cli rules add fixtures/rules/post-slow.json
+pnpm checkpoint 20 cli rules run <post-fail id> --event fixtures/events/laptop.json
+pnpm checkpoint 20 cli rules run <post-slow id> --event fixtures/events/laptop.json
+```
+
+The first prints `failed (status)` with the 500. The second takes about 10
+seconds and prints `failed (timeout)`. The `crashed` row comes from the Try
+it exercise on your own server, not from the unmodified checkpoint, but
+both servers use `reflex.db`, so once you have done the exercise
+`runs list` shows all three rows together. In the viewer, compare the three
+red `Engine.execute` spans. They share a colour, and you can now tell a
+rejected request, a timeout and a programming bug apart anyway.
+
+## Reference
+
+| API                            | What it does                                                      | Introduced in                                                                  |
+| ------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `HttpClientRequest.post(url)`  | Creates a POST request value without sending it                   | this lesson                                                                    |
+| `HttpClientRequest.setHeaders` | Sets headers on a request value                                   | this lesson                                                                    |
+| `HttpClientRequest.bodyText`   | Sets the request body to plain text                               | this lesson                                                                    |
+| `client.execute(request)`      | Creates an effect that sends the request and returns its response | this lesson                                                                    |
+| `response.status`              | The HTTP status code returned by the receiver                     | [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock) |
+| `Exit`                         | Records either a successful value or an unsuccessful `Cause`      | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)   |
+| `Cause`                        | Records typed failures, defects and interruptions                 | this lesson                                                                    |
+| `Cause.squash`                 | Extracts a single representative error from a `Cause`             | this lesson                                                                    |
+| `Cause.hasInterruptsOnly`      | Checks for interruption without a typed failure or defect         | [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock) |
+| `Cause.isTimeoutError`         | Checks whether a value is a `TimeoutError`                        | this lesson                                                                    |

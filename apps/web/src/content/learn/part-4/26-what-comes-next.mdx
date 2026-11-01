@@ -1,0 +1,88 @@
+---
+part: 4
+order: 26
+title: Where to go next
+mode: guide
+---
+
+The first alert we wrote was a single message about a laptop, printed by
+one Effect in the browser. Now you can submit that expense to your own
+server and let a stored rule decide what to do about it. Reflex keeps a
+history of every decision, polls services on a schedule, and can send a
+notification instead of only logging a line.
+
+You've also worked through what happens when those actions don't go to
+plan. You can follow a failed request through a trace, test a loop without
+waiting for real time to pass, and stop the server without leaving work
+running behind it. If you completed the pause challenge, you've also taken
+a feature from a requirement to a working command with no implementation
+to copy.
+
+This is a good place to stop and keep the application as a reference. If
+there's something you'd like Reflex to do differently, the projects below
+are good places to start. And before you use it beyond your own machine,
+read the limits at the end of this page.
+
+## Follow-on projects
+
+Pick whichever project would make Reflex more useful to you. Each takes
+about 15 to 30 minutes, and the earlier ones stay closest to what we've
+already built.
+
+- Make the `degraded` rule notify only when the status changes from ok to
+  degraded, rather than on every tick. A `Ref` can hold the previous match
+  state for each rule; persist that state if it needs to survive a restart.
+- Support `{{field}}` substitution in messages, so a rule can write
+  `expense of {{amount}}` using a value from the payload. Handle a missing
+  field as conditions already do.
+- Add retries with backoff using `HttpClient.retryTransient`. Try a 500
+  response or a dropped connection a few more times before recording the
+  run as `failed`. Decide whether the timeout covers each attempt or the
+  whole run, including retries.
+- Turn the curl checks from
+  [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it), including
+  the 404s and 400s, into handler tests with `HttpApiTest`. The harness in
+  [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+  already uses it.
+- Count runs with a `Metric` counter tagged with the outcome. Show it in the
+  viewer alongside the traces, so you can see how many runs crashed today
+  without reading individual rows in `runs list`.
+- Use a `Queue` to accept events without waiting for their rules to
+  finish. Decide what `events submit` should print when the outcomes are
+  not available yet.
+- Let `rules add` accept several files in one request. Decide whether
+  valid rules should be stored if another file in the same request is
+  invalid.
+
+## What the course leaves out
+
+We kept the application small enough to build and understand in one
+course, which leaves some decisions to you if you want to use it for more
+than local experiments.
+
+Reflex has no authentication, deployment setup, or browser UI. It runs as a
+single process, without distributed workers or an exactly-once delivery
+guarantee. Accepting a request does not guarantee that every run completes:
+a shutdown can leave runs `interrupted`, and a process crash can leave
+rows that become `abandoned` on restart.
+[Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)
+explains these outcomes.
+
+Rules also have a fixed shape. There is no plugin system, no user-supplied
+code, no expression language, no rule graph, and no scheduling beyond a
+fixed interval. Each of those would need decisions about validation and
+execution that the current rule model doesn't make.
+
+There are more Effect APIs than the ones you've used, but you haven't
+needed them to get this far. `Effect.forEach` with a concurrency limit and
+`FiberMap` cover Reflex's concurrency needs, so `Deferred`, `Semaphore` and
+`Stream` never came up. Store lookups fail with `RuleNotFound` rather than
+returning an `Option`, and conditions don't remember whether they matched
+on the previous run. The first follow-on project is where that last
+limitation gives you a reason to try `Ref`.
+
+Keep your working Reflex nearby when you build something else with Effect.
+It holds examples you've run and changed yourself: accepting input, storing
+a rule, doing work that can fail, and finding out why it failed. Start
+with a need you recognize, as we did with that first expense, and reach for
+the pieces that meet it.

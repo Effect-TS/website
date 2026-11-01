@@ -1,0 +1,6 @@
+{
+  "name": "receiver degraded",
+  "trigger": { "type": "interval", "everySeconds": 5, "url": "http://localhost:4600/status" },
+  "condition": { "field": "body.status", "op": "eq", "value": "degraded" },
+  "action": { "type": "appendFile", "path": "alerts.log", "message": "receiver is degraded" }
+}

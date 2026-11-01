@@ -1,0 +1,160 @@
+---
+part: 1
+order: 4
+title: Defining errors with Schema.TaggedError
+minutes: 8
+mode: playground
+lessonDir: 04-failure-you-can-see
+---
+
+The laptop and the lunch were easy to check because we knew what each one
+cost. Real receipts aren't always so tidy. Our next one is a taxi ride, and
+the amount is missing.
+
+Reflex can't say whether that ride was over our limit. If we treated it as
+`false`, "we couldn't check" would look the same as "we checked and it was
+fine", and we need to keep those two situations apart.
+
+In this lesson, the check will fail with an error that says what was
+missing. The failure will stop the program, and we'll lose the summary for
+now. That is the point: once the failure has a name, the next lesson can
+decide how to recover from it.
+
+## Give the receipt a little more detail
+
+So far the check has received just a number. To describe a taxi ride with
+no amount, we need an object that says an expense happened even when we
+don't know what it cost. We'll call that object an **event**. Below the
+imports, add this interface:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="Event"
+/>
+
+The `?` on `amount` lets us leave the amount out. It also means we have to
+deal with that possibility whenever we read it.
+
+Below the interface, add the two expenses. The laptop has an amount:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="laptop"
+/>
+
+The taxi does not:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="taxi"
+/>
+
+## Try the new receipts
+
+Change `evaluate` so it takes an event instead of a number:
+
+- the parameter becomes `event: Event`
+- the check becomes `isLarge(event.amount)`
+- the log messages use `${event.type} ${event.amount}` where they used
+  `expense ${amount}`
+
+Then replace `program` so it checks the laptop, then the taxi:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="program"
+/>
+
+The results are called `laptopFlagged` and `taxiFlagged` to distinguish
+them from the receipts themselves.
+
+TypeScript now underlines `event.amount` in `isLarge(event.amount)` in red,
+and the playground won't run the file. The message reads
+`Argument of type 'number | undefined' is not assignable to parameter of type 'number'`.
+TypeScript has spotted our problem: the event may have no amount, while
+`isLarge` needs a number. We need a way for `evaluate` to say that it
+couldn't check this expense.
+
+## Describe what went wrong
+
+In Effect, that is an error, and we define errors as classes. Ours is
+called `MissingField`, and it records the name of the field that was
+missing. Add `Schema` to the `effect` import, then add this class between
+the interface and the two expenses:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="MissingField"
+/>
+
+`Schema.TaggedError` defines the class in two calls. The first,
+`<MissingField>()`, tells it the class's own type. The second gives it a
+tag, `"MissingField"`, and its fields. The tag identifies the kind of
+error, and the `field` property, a `Schema.String`, tells us which value
+was missing.
+
+That is all we need from Schema for now. It returns in a later lesson, when
+we start reading rules from JSON.
+
+## Stop when the amount is missing
+
+Now `evaluate` can fail when the amount is missing. At the top of its
+`Effect.gen` block, check for the amount and fail if it isn't there:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="evaluate"
+/>
+
+Yielding an error fails the Effect, so
+`return yield* new MissingField({ field: "amount" })` fails with the error
+we just defined. The `return` tells TypeScript that this path ends here.
+Below the check, `event.amount` can only be a `number`, and the red
+underline disappears.
+
+## See where the program stops
+
+Run the file. The laptop still prints `expense 1200 over 500`. Then the
+taxi fails with `MissingField`, and the summary never prints. We haven't
+told Reflex how to recover, so it stops at `yield* evaluate(taxi)` rather
+than inventing a result for that receipt.
+
+Hover over `evaluate`. Its type is
+`(event: Event) => Effect<boolean, MissingField, never>`. The second
+parameter is the **error type**, which we left alone in the first lesson.
+It was `never`, because nothing could fail. Now it is `MissingField`, so
+anyone calling `evaluate` can see that the check either succeeds with a
+boolean or fails with this error.
+
+Hover over `program` too. Its type is `Effect<void, MissingField, never>`.
+It never creates the error itself, but it runs `evaluate`, so the failure
+can reach it. The types tell the same story as the output.
+
+## Try it
+
+An amount isn't the only thing we might need to check. Try rejecting an
+event whose type isn't `"expense"`, and watch what happens to the error
+type:
+
+1. Declare a second error, `NotAnExpense`, the same way as `MissingField`.
+   Give it a `type` field.
+2. At the top of the `Effect.gen` block in `evaluate`, fail with it when
+   `event.type` is not `"expense"`.
+3. Hover `evaluate`. The error type now lists both errors as a union,
+   `NotAnExpense | MissingField`, and `program` shows the same union.
+
+This check is just for practice. The next lesson starts from the file
+without `NotAnExpense`.
+
+A missing amount can no longer be mistaken for a small expense. Reflex
+knows what went wrong and stops rather than reporting a wrong result.
+Stopping isn't very useful on its own, though. Next we'll keep the
+explanation, skip the incomplete receipt, and let the rest of the program
+continue.
+
+## Reference
+
+| API                        | What it does                                                      | Introduced in |
+| -------------------------- | ----------------------------------------------------------------- | ------------- |
+| `Schema.TaggedError`       | Defines an error class with a tag and fields described by schemas | this lesson   |
+| `return yield* new E(...)` | Fails the Effect with an instance of the tagged error class `E`   | this lesson   |

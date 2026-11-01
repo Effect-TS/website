@@ -21,14 +21,21 @@ export const useWorkspaceTree = () =>
 export function WorkspaceProvider({
   children,
   workspace,
+  autoSave = true,
 }: React.PropsWithChildren<{
   readonly workspace: Workspace
+  readonly autoSave?: boolean
 }>) {
   const handle = useAtomSuspense(workspaceHandleAtom(workspace)).value
-  useAtomMount(autoSaveAtom(handle))
   return (
     <WorkspaceContext.Provider value={handle}>
+      {autoSave && <AutoSave handle={handle} />}
       {children}
     </WorkspaceContext.Provider>
   )
+}
+
+function AutoSave({ handle }: { readonly handle: AtomWorkspaceHandle }) {
+  useAtomMount(autoSaveAtom(handle))
+  return null
 }

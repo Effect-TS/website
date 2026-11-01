@@ -1,0 +1,129 @@
+---
+part: 2
+order: 11
+title: Reading a trace in the viewer
+mode: guide
+---
+
+Once an expense travels from the CLI to the server, a terminal message
+only tells part of its story. The trace viewer lets us follow that same
+expense through the command, the request and the rule it runs. This page is
+a reference: come back to it whenever a lesson asks you to inspect a trace.
+
+The viewer is otel-desktop-viewer, running locally at
+[http://localhost:8000](http://localhost:8000). From
+[Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)
+on, your programs send it spans and logs on port 4318 using OTLP, the
+OpenTelemetry protocol for this kind of data.
+
+- `pnpm run doctor --viewer` downloads and starts it the first time.
+- `pnpm viewer` starts it in later sessions.
+- It keeps everything it receives until you stop it.
+
+The screenshots below show a successful request, a failed action and work
+that was stopped before it finished, so you have something to compare your
+own runs against.
+
+## Parts of a trace
+
+A trace records one piece of work, such as a CLI command, an HTTP request or
+an interval tick. It consists of spans arranged in a tree, so you can see
+which operations ran inside others.
+
+A span records the name and duration of one operation. Each call to a
+function defined with `Effect.fn("name")` creates a span with that name.
+
+The screenshot below shows the checkpoint from
+[Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know),
+a successful expense alert. The expense rule has been stored, and the CLI is
+submitting `laptop.json` with `events.submit`.
+
+![The events.submit trace in otel-desktop-viewer: CLI spans in pink, server spans in orange, Engine.execute selected with status Ok](../_assets/viewer-trace.png "One trace from reflex-cli into reflex-server")
+
+## Parts of the screen
+
+Select `events.submit` in the trace list. The nested rows in the middle
+show the calls that led to the alert, and the rest of the screen is read
+like this:
+
+- The Traces tab lists traces by their root span, newest first. Select a
+  trace to open it. The sidebar toggle at the top left hides this list and
+  gives the waterfall more room.
+- The waterfall has one row per span, indented to show nesting. In the
+  screenshot, `Engine.execute` ran inside `Engine.handleEvent`, which ran
+  inside the server's `POST`. The number in brackets counts a span's children.
+- Each bar shows when a span started and how long it took, against the time
+  axis at the top. The colour identifies the service rather than the result:
+  pink is `reflex-cli` and orange is `reflex-server`.
+- Selecting a row opens the details panel on the right. It shows the span's
+  duration, its `status.code` and attributes such as `rule.id`. Logs written
+  inside the span appear under Events and in the Logs tab.
+
+## Span status
+
+A span created by Effect ends with the result of the effect it wraps. When
+a run does not do what you expected, select its span and check
+`status.code` in the details panel:
+
+| Result | `status.code` | Colour | Meaning                                                   |
+| ------ | ------------- | ------ | --------------------------------------------------------- |
+| Ok     | `1 (Ok)`      | none   | The effect succeeded.                                     |
+| Error  | `2 (Error)`   | red    | The effect failed with a typed error or a defect.         |
+| Unset  | `0 (Unset)`   | none   | The effect was interrupted before it succeeded or failed. |
+
+### A failed span
+
+![A rules.run trace with Engine.execute in red, status.code 2 (Error) and an exception event BadResource: FileSystem.writeFile (fixtures)](../_assets/viewer-error-span.png "An Engine.execute span that failed")
+
+In this example, the rule tried to write an alert to `fixtures`. That path
+is a directory, not a file, so the write failed. The red spans lead you to
+where the failure happened:
+
+- The failed action's span and the execution span around it are red. The
+  trace header counts the errors (`1/2 err`), and the arrows next to the
+  count move between them.
+- `status.code` is `2 (Error)`. `status.message` and the `exception` event
+  carry the error's message.
+- The parent `POST` is not red, because the engine turned the failure into a
+  `failed` outcome and the request itself succeeded. The run row says the
+  same thing: `failed (io)`.
+
+### An interrupted span
+
+![A rules.run trace that took 1.61 s, Engine.execute selected with status.code 0 (Unset) and effect.fiber.interrupted true](../_assets/viewer-unset-span.png "An Engine.execute span that was interrupted")
+
+Work that was stopped looks different from a failed write. This trace was
+recorded after pressing Ctrl-C in the CLI while `rules run` was waiting for
+an append that could not finish. When the client disconnected, the server
+interrupted the request handler, and with it the `Engine.execute` and
+`appendLine` effects. Both the status and the attributes tell you so:
+
+- `status.code` is `0 (Unset)`. This is also the default code for a span
+  whose status was never set, so Unset on its own means neither
+  interruption nor success.
+- `effect.fiber.interrupted` is `true`, which is what identifies an
+  interruption.
+- The bar ends at the moment of interruption, so the duration is how long
+  the work ran before it was stopped.
+
+Until [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock),
+the Engine does not finalize interrupted runs, so their rows remain
+`started`. That lesson adds an `interrupted` outcome. Removing a rule during
+a poll then produces an interrupted span like this one and a matching
+`interrupted` row.
+
+## What each lesson shows
+
+If your viewer looks different from a screenshot, check where you are in
+the course, because the traces gain detail as Reflex grows. This table lists
+what to expect at each stage.
+
+| Lesson                                                                                               | Where                  | What to look for                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Setup to [Calling the API with HttpApiClient](/learn/part-2/15-talk-to-it)                           | nothing yet            | The trace list is empty. Your program creates spans, but nothing sends them to the viewer yet.                                      |
+| [Exporting traces with OtlpTracer](/learn/part-2/16-the-picture-you-already-know)                    | `reflex-cli` to server | One trace that starts in `reflex-cli` and continues into `reflex-server`, with `Engine.execute` under `Engine.handleEvent`.         |
+| [Running background work with Effect.forkScoped](/learn/part-3/18-work-that-runs-until-told-to-stop) | Logs tab               | The log line from `Effect.onInterrupt` when you press Ctrl-C.                                                                       |
+| [Running rules on a schedule with FiberMap](/learn/part-3/19-rules-on-a-clock)                       | `reflex-server`        | One trace per interval tick. `failed (status)` ticks are red. Removing a rule during a `/slow` poll leaves one Unset span.          |
+| [Telling errors from defects with Cause](/learn/part-3/20-an-action-over-the-network)                | `reflex-server`        | Three red `Engine.execute` spans: a 500 status, a timeout, and the planted bug.                                                     |
+| [Running work concurrently with Effect.forEach](/learn/part-3/21-many-at-once) and the diagnosis     | `reflex-server`        | Four `Engine.execute` spans under one `Engine.handleEvent`, starting together: two red, two Ok. The parent lasts about the timeout. |
+| [Challenge: pausing and resuming rules](/learn/part-4/24-independent-challenge)                      | `reflex-server`        | Under the `mixed` scenario the paused rule has no `Engine.execute` span. After resume it has one.                                   |

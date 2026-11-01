@@ -1,0 +1,117 @@
+---
+part: 1
+order: 9
+title: Providing a service with a layer
+minutes: 10
+mode: playground
+lessonDir: 09-provide-it
+---
+
+Let's get our alerts back. The program knows how to ask for rules and check
+them, but the red underline at `NodeRuntime.runMain(program)` reminds us
+that we haven't given it a store to ask.
+
+We'll start small, with a Map holding the same rule strings we've been
+using. Once the program runs again, we'll swap in a different set of rules
+and see how little of the program has to change.
+
+## Build our first store
+
+The store needs a Map and an implementation of the `list` operation we
+promised in `RuleStore`. In Effect, the code that builds a service is a
+**layer**. `Layer.effect(RuleStore, effect)` pairs the service with an
+Effect that constructs its implementation.
+
+Add `Layer` to the `effect` import and put the `largeExpense` and
+`malformed` constants back above the class. You can copy the original JSON
+strings from [Validating JSON with Schema](/learn/part-1/06-untrusted-json).
+Then add this static member to `RuleStore`, so the implementation lives
+next to the interface:
+
+```ts
+static readonly layer = Layer.effect(
+  RuleStore,
+  Effect.sync(() => {
+    const rules = new Map([["large expense", largeExpense], ["malformed", malformed]])
+    return RuleStore.of({ list: Effect.sync(() => Array.from(rules.values())) })
+  })
+)
+```
+
+Inside the layer is an ordinary Map and an object with a `list` member.
+`RuleStore.of` makes TypeScript check that the object matches the interface
+we declared. When `list` runs, it reads the Map's values into an array.
+
+The surrounding `Effect.sync` turns a synchronous callback into an Effect.
+Like our logging Effect, it describes work to do later, so the Map is
+created when the layer is built rather than when the file loads.
+
+## Connect the store to the program
+
+Attach `Effect.provide(RuleStore.layer)` to `program` with `.pipe`. The red
+underline at the run line disappears: the program now has both the code
+that asks for a store and a layer that supplies one.
+
+Run the file. The laptop gets its alert, followed by the malformed rule's
+`SchemaError`. That is expected, because we kept the broken rule in the
+store. The program is running again, and it reads its rules through `list`.
+
+Hover over `program`. Its type is now `Effect<void, SchemaError, never>`.
+Providing the layer satisfied the `RuleStore` requirement. The schema error
+remains, because supplying a store doesn't make its rules valid.
+
+## Try it
+
+Let's replace the broken rule with two useful ones: a budget rule for
+expenses under 5000, and a rule for amounts over 1000. Add these constants
+above the class:
+
+<LessonCode
+  file="lessons/part1/09-provide-it/solution/main.ts"
+  declaration="withinBudget"
+/>
+
+<LessonCode
+  file="lessons/part1/09-provide-it/solution/main.ts"
+  declaration="veryLarge"
+/>
+
+1. Add a second static member, `layerFixtures`, built the same way as
+   `layer`, holding `largeExpense`, `withinBudget` and `veryLarge`.
+2. Change one line, the `Effect.provide` on `program`, to provide
+   `RuleStore.layerFixtures`.
+3. Run the file. Three alert lines print for the laptop:
+   `expense 1200 over 500`, `expense 1200 under 5000` and
+   `expense 1200 over 1000`. Then three `skip: missing field amount` lines
+   print for the taxi, and the program finishes normally.
+
+The final `program` provides the fixture layer:
+
+<LessonCode
+  file="lessons/part1/09-provide-it/solution/main.ts"
+  declaration="program"
+/>
+
+Look at what you didn't have to edit: `evaluateAll`, `evaluate` and the
+rest of `program`. The same checking code read a different set of rules
+because we changed the layer, and nothing else. In Part 2 we'll use the
+same trick to supply test stores, and later to replace the memory store
+with SQLite.
+
+The cost is a little indirection. `yield* RuleStore` tells you which
+service is needed, but you have to find the provided layer to know which
+implementation runs. Keeping the layer next to the service declaration
+makes that connection easy to follow.
+
+Reflex now checks every stored rule, and the program runs to the end. That
+completes the browser part of the course. Before we move on to local files
+and a server, we'll take a short pause to review what we've built.
+
+## Reference
+
+| API              | What it does                                                              | Introduced in |
+| ---------------- | ------------------------------------------------------------------------- | ------------- |
+| `Layer.effect`   | Defines a layer that runs an Effect to construct a service implementation | this lesson   |
+| `RuleStore.of`   | Lets TypeScript check an object against the service's interface           | this lesson   |
+| `Effect.sync`    | Creates an Effect that runs a synchronous callback when executed          | this lesson   |
+| `Effect.provide` | Uses a layer to supply the services an Effect requires                    | this lesson   |

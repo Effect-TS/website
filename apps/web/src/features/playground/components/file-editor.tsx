@@ -1,14 +1,14 @@
 import { useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { constVoid } from "effect/Function"
 import * as Option from "effect/Option"
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, type ReactNode } from "react"
 import { editorAtom } from "../atoms/editor"
 import { useWorkspaceHandle } from "../context/workspace"
 import { ResetButton } from "./reset-button"
 import { ShareButton } from "./share-button"
 import { VersionToggle } from "./version-toggle"
 
-export function FileEditor() {
+export function FileEditor({ toolbar }: { readonly toolbar?: ReactNode }) {
   const handle = useWorkspaceHandle()
 
   const atom = editorAtom(handle)
@@ -32,9 +32,13 @@ export function FileEditor() {
           {selectedPath.slice(selectedPath.lastIndexOf("/") + 1)}
         </span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          <VersionToggle />
-          <ResetButton />
-          <ShareButton />
+          {toolbar ?? (
+            <>
+              <VersionToggle />
+              <ResetButton />
+              <ShareButton />
+            </>
+          )}
         </div>
       </div>
       <div ref={containerRef} className="min-h-0 flex-1" />

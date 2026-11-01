@@ -1,7 +1,7 @@
 import type * as Cause from "effect/Cause"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as AsyncResult from "effect/reactivity/AsyncResult"
-import { useCallback, Fragment, Suspense } from "react"
+import { useCallback, Fragment, Suspense, type ReactNode } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
 import {
   ResizableHandle,
@@ -25,23 +25,58 @@ import {
   useWorkspaceHandle,
   useWorkspaceShells,
 } from "./context/workspace"
+import type { Workspace } from "./domain/workspace"
 
-export function CodeEditor() {
+export interface CodeEditorProps {
+  /**
+   * Mounts this workspace instead of importing one (share hash, `?code`
+   * parameter, autosave, or default). It is never autosaved, so it cannot
+   * replace the playground's own workspace.
+   */
+  readonly workspace?: Workspace | undefined
+  /**
+   * Replaces the version, reset and share controls above the editor.
+   */
+  readonly toolbar?: ReactNode
+}
+
+export function CodeEditor({ workspace, toolbar }: CodeEditorProps) {
+  return workspace === undefined ? (
+    <ImportedCodeEditor />
+  ) : (
+    <WorkspaceEditor workspace={workspace} toolbar={toolbar} autoSave={false} />
+  )
+}
+
+function ImportedCodeEditor() {
   const result = useAtomValue(importAtom)
   return AsyncResult.builder(result)
     .onInitial(() => <PlaygroundLoader />)
     .onSuccess((workspace) => (
-      <>
-        <PlaygroundLoader />
-        <Suspense>
-          <WorkspaceProvider workspace={workspace}>
-            <CodeEditorPanels />
-          </WorkspaceProvider>
-        </Suspense>
-      </>
+      <WorkspaceEditor workspace={workspace} autoSave />
     ))
     .onFailure((cause) => <ImportError cause={cause} />)
     .render()
+}
+
+function WorkspaceEditor({
+  workspace,
+  toolbar,
+  autoSave,
+}: CodeEditorProps & {
+  readonly workspace: Workspace
+  readonly autoSave: boolean
+}) {
+  return (
+    <>
+      <PlaygroundLoader />
+      <Suspense>
+        <WorkspaceProvider workspace={workspace} autoSave={autoSave}>
+          <CodeEditorPanels toolbar={toolbar} />
+        </WorkspaceProvider>
+      </Suspense>
+    </>
+  )
 }
 
 /**
@@ -71,7 +106,7 @@ function ImportError({ cause }: { cause: Cause.Cause<never> }) {
   )
 }
 
-function CodeEditorPanels() {
+function CodeEditorPanels({ toolbar }: { readonly toolbar: ReactNode }) {
   const { terminalSize } = useWorkspaceHandle()
   const setSize = useAtomSet(terminalSize)
   const onResize = useCallback(
@@ -107,7 +142,7 @@ function CodeEditorPanels() {
           </ResizablePanel>
           <ResizableHandle className="w-px bg-zinc-200 hover:bg-zinc-400 dark:bg-zinc-700 dark:hover:bg-zinc-500" />
           <ResizablePanel defaultSize={80}>
-            <FileEditor />
+            <FileEditor toolbar={toolbar} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>

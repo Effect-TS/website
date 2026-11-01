@@ -34,6 +34,7 @@ import {
   type ModelSnapshot,
 } from "./file-sync"
 import { Loader } from "./loader"
+import * as RunControl from "./run-control"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
 
@@ -109,6 +110,21 @@ export class WebContainer extends Context.Service<WebContainer>()(
       }
 
       /**
+       * Whether the container process `pid` still exists. Only a clear "no
+       * such process" counts as gone; anything else, including a failed
+       * check, counts as alive.
+       */
+      function isProcessAlive(pid: number) {
+        return Effect.promise(async () => {
+          const process = await container.spawn("node", [
+            "-e",
+            `try { process.kill(${pid}, 0) } catch (error) { process.exit(error.code === "ESRCH" ? 3 : 4) }`,
+          ])
+          return (await process.exit) !== 3
+        }).pipe(Effect.catchCause(() => Effect.succeed(true)))
+      }
+
+      /**
        * Spawns the specified `command` into a `jsh` shell and waits for the
        * program to exit.
        */
@@ -128,7 +144,10 @@ export class WebContainer extends Context.Service<WebContainer>()(
       function installExe(name: string, script: string) {
         return Effect.promise(async () => {
           await container.fs.writeFile(name, script)
-          await container.spawn("chmod", ["+x", name])
+          // `spawn` resolves once the process starts, so wait for `chmod` to
+          // exit before anything tries to execute the file
+          const chmod = await container.spawn("chmod", ["+x", name])
+          await chmod.exit
         })
       }
 
@@ -804,69 +823,84 @@ export class WebContainer extends Context.Service<WebContainer>()(
           Effect.forkScoped,
         )
 
+        // Every `run` in the learner's terminals registers in `.run-control/`
+        // (see `runExe`). Replacing the files under a live compiler watch
+        // leaves it compiling stale files or not at all, so the swap pauses
+        // the runners first and always lets them resume afterwards.
+        const withRunnersPaused = RunControl.withRunnersPaused(container.fs, {
+          directory: runControlDirectory,
+          staleAfterMillis: runnerStaleAfterMillis,
+          pauseTimeoutMillis: runnerPauseTimeoutMillis,
+          isAlive: isProcessAlive,
+        })
+
         const resetWorkspace = (nextWorkspace: Workspace) =>
           mutationLock.withPermit(
-            Effect.gen(function* () {
-              const current = registry.get(workspaceRef)
-              for (const sync of fileSyncs.values()) {
-                sync.invalidate()
-              }
-              const entries = yield* readDirectory(workspace.name)
-              yield* Effect.forEach(
-                entries,
-                (entry) =>
-                  isIgnoredWorkspacePath(entry.name)
-                    ? Effect.void
-                    : Effect.promise(() =>
-                        container.fs.rm(`${workspace.name}/${entry.name}`, {
-                          recursive: true,
-                          force: true,
-                        }),
-                      ),
-                { concurrency: "unbounded", discard: true },
-              )
-              yield* Effect.promise(() =>
-                container.mount(treeFromWorkspace(nextWorkspace), {
-                  mountPoint: workspace.name,
-                }),
-              )
-              const nextFiles = new Set<string>()
-              for (const [node, path] of nextWorkspace.filePaths) {
-                if (node._tag === "File") {
-                  const fullPath = nextWorkspace.relativePath(path)
-                  nextFiles.add(fullPath)
-                  yield* loadModel(
-                    fullPath,
-                    node.initialContent,
-                    node.language ?? languageFromPath(path),
-                  )
-                  const model = yield* getModel(fullPath)
-                  const snapshot = {
-                    content: model.getValue(),
-                    modelVersion: model.getVersionId(),
-                  }
-                  const sync = fileSyncs.get(fullPath)
-                  if (sync === undefined) {
-                    fileSyncs.set(fullPath, FileSync.make(snapshot))
-                  } else {
-                    sync.reset(snapshot)
-                  }
+            withRunnersPaused(
+              Effect.gen(function* () {
+                const current = registry.get(workspaceRef)
+                for (const sync of fileSyncs.values()) {
+                  sync.invalidate()
                 }
-              }
-              for (const [node, path] of current.filePaths) {
-                if (node._tag === "File") {
-                  const fullPath = current.relativePath(path)
-                  if (!nextFiles.has(fullPath)) {
-                    fileSyncs.delete(fullPath)
-                    yield* getModel(fullPath).pipe(
-                      Effect.tap((model) => Effect.sync(() => model.dispose())),
-                      Effect.catchTag("FileNotFoundError", () => Effect.void),
+                const entries = yield* readDirectory(workspace.name)
+                yield* Effect.forEach(
+                  entries,
+                  (entry) =>
+                    isIgnoredWorkspacePath(entry.name)
+                      ? Effect.void
+                      : Effect.promise(() =>
+                          container.fs.rm(`${workspace.name}/${entry.name}`, {
+                            recursive: true,
+                            force: true,
+                          }),
+                        ),
+                  { concurrency: "unbounded", discard: true },
+                )
+                yield* Effect.promise(() =>
+                  container.mount(treeFromWorkspace(nextWorkspace), {
+                    mountPoint: workspace.name,
+                  }),
+                )
+                const nextFiles = new Set<string>()
+                for (const [node, path] of nextWorkspace.filePaths) {
+                  if (node._tag === "File") {
+                    const fullPath = nextWorkspace.relativePath(path)
+                    nextFiles.add(fullPath)
+                    yield* loadModel(
+                      fullPath,
+                      node.initialContent,
+                      node.language ?? languageFromPath(path),
                     )
+                    const model = yield* getModel(fullPath)
+                    const snapshot = {
+                      content: model.getValue(),
+                      modelVersion: model.getVersionId(),
+                    }
+                    const sync = fileSyncs.get(fullPath)
+                    if (sync === undefined) {
+                      fileSyncs.set(fullPath, FileSync.make(snapshot))
+                    } else {
+                      sync.reset(snapshot)
+                    }
                   }
                 }
-              }
-              registry.set(workspaceRef, nextWorkspace)
-            }),
+                for (const [node, path] of current.filePaths) {
+                  if (node._tag === "File") {
+                    const fullPath = current.relativePath(path)
+                    if (!nextFiles.has(fullPath)) {
+                      fileSyncs.delete(fullPath)
+                      yield* getModel(fullPath).pipe(
+                        Effect.tap((model) =>
+                          Effect.sync(() => model.dispose()),
+                        ),
+                        Effect.catchTag("FileNotFoundError", () => Effect.void),
+                      )
+                    }
+                  }
+                }
+                registry.set(workspaceRef, nextWorkspace)
+              }),
+            ),
           )
 
         return {
@@ -940,6 +974,16 @@ export class WebContainer extends Context.Service<WebContainer>()(
     Layer.provide(Loader.layer),
   )
 }
+
+// Where `run` registers itself and the page asks it to pause, beside `run` in
+// the container's home directory and outside every workspace.
+const runControlDirectory = ".run-control"
+// `run` writes its heartbeat every 500 ms. A heartbeat still for this long
+// only prompts a check that the process exists; a compile can block it longer.
+const runnerStaleAfterMillis = 2_000
+// A cold compile takes a few seconds and blocks the runner until it finishes,
+// so the swap waits well past that before it fails.
+const runnerPauseTimeoutMillis = 15_000
 
 const ignoredWorkspacePaths = new Set([".tsc-run.json", "dist", "node_modules"])
 function isIgnoredWorkspacePath(path: string) {
@@ -1164,30 +1208,133 @@ const host = TypeScript.createWatchCompilerHost(
 )
 const afterProgramCreate = host.afterProgramCreate
 let running
+let watcher
+// Bumped whenever a compile result is superseded, so a program queued behind
+// the previous one's exit never starts once a newer compile or a pause came.
+let generation = 0
+
+// Kills the program, if any, and resolves once it has exited.
+// Settles once every program this process has stopped has exited. Kept across
+// calls, so a compile or pause that comes while an exit is still pending waits
+// for it too.
+let exiting = Promise.resolve()
+
+// Kills the program, if any, and resolves once it and every program stopped
+// before it have exited.
+const stopProgram = () => {
+  const child = running
+  running = undefined
+  if (child !== undefined && child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise((resolve) => child.once("exit", () => resolve()))
+    child.kill("SIGKILL")
+    exiting = Promise.all([exiting, exited])
+  }
+  return exiting
+}
 
 host.afterProgramCreate = (builder) => {
   afterProgramCreate?.(builder)
-  running?.kill("SIGKILL")
-  running = undefined
+  const current = ++generation
   const diagnostics = TypeScript.getPreEmitDiagnostics(builder.getProgram())
-  if (diagnostics.length === 0) {
+  stopProgram().then(() => {
+    if (current !== generation || diagnostics.length > 0) return
     running = ChildProcess.spawn(process.execPath, [
       "--enable-source-maps",
       compiledProgram
     ], {
       stdio: "inherit"
     })
-  }
+  })
 }
 
-const watcher = TypeScript.createWatchProgram(host)
+// The page replaces the workspace files on Solve and Reset. It cannot reach
+// this process, which runs in the learner's shell, so the two meet in a
+// control directory beside this script. While .run-control/pause exists the
+// watch program is closed and the program stopped; .run-control/<pid> says
+// "watching" or "paused", and .run-control/<pid>.beat counts up while this
+// process lives, so the page can tell a stale registration from a live runner.
+const controlDir = Path.join(__dirname, ".run-control")
+const pauseFile = Path.join(controlDir, "pause")
+const stateFile = Path.join(controlDir, String(process.pid))
+const beatFile = stateFile + ".beat"
+Fs.mkdirSync(controlDir, { recursive: true })
+const setState = (state) => Fs.writeFileSync(stateFile, state)
+
+let beats = 0
+const beat = () => Fs.writeFileSync(beatFile, String(beats++))
+beat()
+setInterval(beat, 500)
+
+// The page writes pause and then reads each state; this process writes its
+// state and then checks for pause. With both writing first, at least one of
+// them sees the other, so the page never reads "paused" or no registration
+// for a runner that goes on to compile.
+setState("watching")
+let paused = Fs.existsSync(pauseFile)
+if (paused) {
+  setState("paused")
+} else {
+  watcher = TypeScript.createWatchProgram(host)
+}
+
+let switching = false
+setInterval(async () => {
+  if (switching) return
+  switching = true
+  try {
+    const pause = Fs.existsSync(pauseFile)
+    if (pause && !paused) {
+      paused = true
+      generation++
+      watcher.close()
+      watcher = undefined
+      await stopProgram()
+      setState("paused")
+    } else if (!pause && paused) {
+      // Announce the resume before the last look at pause, as at startup.
+      setState("watching")
+      if (Fs.existsSync(pauseFile)) {
+        setState("paused")
+      } else {
+        paused = false
+        watcher = TypeScript.createWatchProgram(host)
+      }
+    }
+  } finally {
+    switching = false
+  }
+}, 100)
+
+process.on("exit", () => {
+  Fs.rmSync(stateFile, { force: true })
+  Fs.rmSync(beatFile, { force: true })
+})
 
 function stop(exitCode) {
   running?.kill("SIGKILL")
-  watcher.close()
+  watcher?.close()
   process.exit(exitCode)
 }
 
+// Resetting the workspace (Solve, Reset) while the compiler watches it can make
+// the WebContainer runtime raise a bare ENOENT object with no stack, path or
+// syscall. The watcher survives it and recompiles on the next change, so only
+// that exact shape is ignored. Anything else stops the program and exits.
+const runtimeResetErrorKeys = new Set(["code", "errno", "message", "path", "syscall"])
+const isRuntimeResetError = (error) =>
+  Object.prototype.toString.call(error) === "[object Object]" &&
+  Object.keys(error).every((key) => runtimeResetErrorKeys.has(key)) &&
+  error.code === "ENOENT" &&
+  error.errno === -2 &&
+  error.message === "no such file or directory" &&
+  error.path === undefined &&
+  error.syscall === undefined
+
+process.on("uncaughtException", (error) => {
+  if (isRuntimeResetError(error)) return
+  console.error(error)
+  stop(1)
+})
 process.once("SIGINT", () => stop(130))
 process.once("SIGTERM", () => stop(143))
 `

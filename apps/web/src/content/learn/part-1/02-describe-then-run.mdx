@@ -1,0 +1,98 @@
+---
+part: 1
+order: 2
+title: Running your first Effect
+minutes: 6
+mode: playground
+lessonDir: 02-describe-then-run
+---
+
+Welcome to Learn Effect. In this tutorial, we'll build Reflex, a small
+application for automating things you'd otherwise have to check yourself.
+Perhaps you want to notice an unusually large expense, or get a notification
+when a service you rely on goes down. Reflex lets you describe a rule for
+each of those situations and choose what should happen when it matches.
+
+We'll start with expenses. Imagine keeping a record of your purchases and
+wanting an alert whenever one costs more than 500. A laptop would be worth
+a look; lunch probably wouldn't. By the end of the course, you'll be able
+to submit those expenses to a running server, inspect a history of its
+decisions, and even send an alert to your phone.
+
+We won't build all of that at once. We'll grow the same application a
+little at a time, introducing Effect as we need it. If you're comfortable
+reading TypeScript, you have enough background to begin, and there's
+nothing to install for this first part: the editor on this page runs the
+program in your browser.
+
+Our first step is to make an alert appear in the terminal. That is enough
+to see how an Effect program runs.
+
+## Your first alert
+
+Find `program` in the editor. It contains the message for our example
+laptop purchase:
+
+<LessonCode
+  file="lessons/part1/02-describe-then-run/start/main.ts"
+  declaration="program"
+/>
+
+Run the file. The terminal prints a log line containing
+`expense 1200 over 500`: the laptop cost 1200, which is over our limit of 500. The message is written directly in the code for now. In the next
+lesson we'll work it out from the amount.
+
+Two lines are involved in producing this output. The `Effect.log(...)`
+call creates a value that describes writing the message. We call that value
+an **Effect**, and we store it in `program`. The last line,
+`NodeRuntime.runMain(program)`, runs it.
+
+This separation is the first idea to get used to. Calling `Effect.log`
+doesn't print anything on its own. It gives us a value we can run later,
+or combine with other work before running it.
+
+## Try running the alert twice
+
+We'll reuse the alert to make a program that logs the same message twice.
+Leave the `NodeRuntime.runMain(program)` line as it is and change the code
+above it:
+
+1. Rename the existing `program` constant to `alert`.
+2. Add a new `program` constant set to `Effect.andThen(alert, alert)`.
+   `Effect.andThen(first, second)` runs `first`, then `second`, when the
+   combined Effect runs.
+3. Run the file again. The terminal now prints the message twice.
+
+The alert itself hasn't changed. We used it twice inside a larger program,
+and the same run line runs the whole thing. As Reflex grows, this is how
+we'll put together work such as reading a file, checking an expense and
+writing the result.
+
+## A first look at the type
+
+Hover over `program`. The editor shows its type, `Effect<void, never, never>`.
+
+The first parameter, `void`, is what the Effect produces when it runs. We
+call it the Effect's **success type**. Logging writes a message but doesn't
+produce a result for the next step to use, so the type is `void`, and
+running the alert twice still leaves us with `void`.
+
+You can leave the two `never` parameters alone for now. They describe
+errors and requirements, and we'll introduce them when the program needs
+them.
+
+You now have an alert you can reuse and a program that runs it. Next,
+[we'll give Reflex two expenses to check](/learn/part-1/03-steps-in-order),
+so that it decides which one deserves an alert rather than printing the
+same message every time.
+
+## Reference
+
+Each lesson ends with a table of the APIs it introduced. Come back to it
+whenever you need to look one up.
+
+| API                   | What it does                                      | Introduced in                                                                             |
+| --------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Effect.log`          | Creates an Effect that writes a log line when run | this lesson                                                                               |
+| `Effect.andThen`      | Combines two Effects to run in sequence           | this lesson                                                                               |
+| `NodeRuntime.runMain` | Runs an Effect and exits the process when it ends | [Using FileSystem and NodeRuntime.runMain](/learn/part-2/11-your-program-your-entrypoint) |

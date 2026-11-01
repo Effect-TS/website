@@ -1,0 +1,125 @@
+---
+import { getCollection } from "astro:content"
+import { Code } from "astro-expressive-code/components"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import { learnParts, starterCommands } from "@/features/learn/course"
+import LessonCode from "@/features/learn/LessonCode.astro"
+import { lessonLabel, lessonRoutes } from "@/features/learn/routes"
+import PageLayout from "@/layouts/PageLayout.astro"
+
+export const prerender = true
+
+const routes = lessonRoutes(await getCollection("learn"))
+const parts = learnParts.flatMap((part) => {
+  const lessons = routes.filter((route) => route.entry.data.part === part.part)
+  // Guides such as setup are budgeted on their own, not in their part.
+  const minutes = lessons.reduce(
+    (total, { entry: { data } }) => total + (data.mode === "guide" ? 0 : data.minutes),
+    0,
+  )
+  return lessons.length > 0 ? [{ ...part, lessons, minutes }] : []
+})
+// The course budget: every lesson, plus the guides that are budgeted, such as
+// setup. Best case, with nothing optional.
+const total = routes.reduce((sum, { entry: { data } }) => sum + (data.minutes ?? 0), 0)
+const hours = Math.floor(total / 60)
+---
+
+<PageLayout
+  title="Learn Effect | Build Reflex"
+  description="Learn Effect by building Reflex, a small application that checks expenses, watches services, and sends alerts. Start in your browser, with no Effect experience needed."
+  themeable
+>
+  <div class="mx-auto flex max-w-3xl flex-col gap-12 px-4 py-12 md:py-20">
+    <header>
+      <Eyebrow class="mb-3">Learn Effect</Eyebrow>
+      <h1 class="text-3xl font-semibold text-foreground md:text-4xl">Build Reflex</h1>
+      <p class="mt-4 text-lg text-muted-foreground">
+        Some things are worth keeping an eye on but not worth checking by hand all day: an unusually
+        large expense, or a service that has gone down. In this course we'll build Reflex, a small
+        application that watches for situations like these and acts on the rules you give it. We'll
+        start with a single alert in your browser and grow it into a server you can use from the
+        command line, learning Effect as we need it. If you're comfortable with TypeScript, you're
+        ready to begin. No Effect experience is needed.
+      </p>
+      <p class="mt-2 text-sm text-subtle-foreground">
+        Plan for at least {hours} h {total - hours * 60} min ({total} minutes), including setup. That
+        is the lesson time alone, so leave room for the optional exercises and for troubleshooting.
+      </p>
+    </header>
+
+    <section aria-labelledby="finished-app" class="flex flex-col gap-4">
+      <h2 id="finished-app" class="text-2xl font-semibold text-foreground">
+        A session with the finished app
+      </h2>
+      <p class="text-prose-foreground">
+        Here's where we're headed. In this session with the finished reference solution, Reflex
+        handles expenses and keeps checking a service's status. The service is a local HTTP
+        receiver, a small server on port 4600 that lets us try rules without calling anything
+        outside. One rule sends it a request for every expense event, and another checks its
+        <code>/status</code> page on a schedule.
+      </p>
+      <LessonCode file="checkpoints/24/transcript.txt" />
+      <p class="text-prose-foreground">
+        You don't need to understand every command yet. The part to notice is the
+        <code>runs list</code> output: Reflex records what happened to every run, including a reason when
+        it didn't succeed. Later we'll also look at traces, which show the work behind an
+        <code>events submit</code> or <code>rules run</code> command and let us follow a request from
+        the CLI through the server to each rule. We'll set up the trace viewer together in Part 2.
+      </p>
+    </section>
+
+    <section aria-labelledby="before-you-start" class="flex flex-col gap-4">
+      <h2 id="before-you-start" class="text-2xl font-semibold text-foreground">Before you start</h2>
+      <p class="text-prose-foreground">
+        Part 1 runs in your browser, so there's nothing to install before the first lesson. When we
+        move to your machine in Part 2, you'll need:
+      </p>
+      <ul class="list-disc pl-5 text-prose-foreground">
+        <li>Node 22.16 or newer</li>
+        <li>pnpm, or corepack to provide it</li>
+        <li>git and a browser</li>
+        <li>macOS, Linux with glibc 2.39 or newer, or Docker, for the trace viewer</li>
+      </ul>
+      <p class="text-prose-foreground">
+        The rest of the course uses a starter project. These are the commands that set it up, but
+        there's no need to run them until Part 2, when
+        <a href="/learn/part-2/setup" class="underline">Setting up your machine</a> walks you through
+        them.
+      </p>
+      <Code code={starterCommands} lang="sh" meta="showLineNumbers=false" />
+    </section>
+
+    {
+      parts.map(({ part, title, venue, lessons, minutes }) => (
+        <section aria-labelledby={`part-${part}`} class="flex flex-col gap-4">
+          <div>
+            <Eyebrow class="mb-1 text-xs">
+              Part {part} · {venue} · {minutes} min
+            </Eyebrow>
+            <h2 id={`part-${part}`} class="text-2xl font-semibold text-foreground">
+              {title}
+            </h2>
+          </div>
+          <ol class="flex flex-col divide-y divide-border rounded-lg border border-border">
+            {lessons.map(({ entry, slug }) => (
+              <li>
+                <a
+                  href={`/learn/${slug}`}
+                  class="flex items-baseline justify-between gap-4 px-4 py-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <span>{lessonLabel(entry)}</span>
+                  {entry.data.minutes !== undefined && (
+                    <span class="shrink-0 text-sm text-subtle-foreground">
+                      {entry.data.minutes} min
+                    </span>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+  </div>
+</PageLayout>

@@ -1,0 +1,81 @@
+---
+part: 1
+order: 7
+title: Naming steps with Effect.fn
+minutes: 7
+mode: playground
+lessonDir: 07-name-it-see-it
+---
+
+We'll keep the broken rule a little longer. This lesson starts from the
+previous lesson's solution, before the `eq` practice change, because the
+malformed rule gives us a failure to follow.
+
+Right now we know `op` was invalid because we just wrote the bad rule.
+Imagine seeing the same error after Reflex has grown to dozens of
+operations. We would want to know which part of the program was using that
+rule when it failed. Let's put the name `evaluate` into the failure report,
+so it points back to code we recognize.
+
+This is a small change. The check and its recovery stay the same. Only the
+way we define the function changes.
+
+## Giving evaluate a name
+
+Replace the arrow function and `Effect.gen` with `Effect.fn("evaluate")`.
+The generator now takes the function's parameters directly, and the
+existing `catchTag` becomes the next argument after it. Here is the whole
+function for comparison:
+
+<LessonCode
+  file="lessons/part1/07-name-it-see-it/solution/main.ts"
+  declaration="evaluate"
+/>
+
+Anything after the generator is applied to the Effect it produces, just as
+with `.pipe`, so the `MissingField` handler works exactly as before.
+
+Run the file. The laptop alert, the taxi skip and the malformed-rule failure
+are all still there. The difference is in the failure report.
+
+## Locating the failed call
+
+Under the `SchemaError`, look for a line beginning `at evaluate (`. That is
+the name we supplied, and the next line, `at evaluate (definition)`, points
+to the function's declaration. The error now connects the bad field to a
+particular call in our program.
+
+Each call to a function made with `Effect.fn` runs inside a **span** with
+that name. A span records an operation's name, start time, duration and
+outcome, and `runMain` includes the span's name when it prints a failure.
+
+For now the name only appears in a text report. Later we'll connect a
+[trace viewer](/learn/part-2/16-the-picture-you-already-know) and see the
+same spans on a timeline, where these names identify each operation.
+
+## Try it
+
+`evaluate` does two things, decoding the rule and checking the expense, and
+this failure happened during decoding. We can say so by giving the decode
+step its own name:
+
+1. Turn `decodeRule` into a function made with `Effect.fn("decodeRule")`
+   that takes the JSON string and decodes it.
+2. Run the file and read the failure. It names both steps: `at decodeRule`
+   first, then `at evaluate` under it. The decode failed, and it was running
+   inside `evaluate`.
+
+Two names now tell us where the failure happened and what called that
+operation. Name the steps where that information helps, and leave small
+helpers like `matches` as plain TypeScript. Each span costs a little at
+runtime, and exporting spans later adds network traffic.
+
+Next we'll stop passing each rule to `evaluate` by hand. Reflex needs a way
+to find all of its rules, whether they live in memory for now or in a
+database later.
+
+## Reference
+
+| API                 | What it does                                                                 | Introduced in |
+| ------------------- | ---------------------------------------------------------------------------- | ------------- |
+| `Effect.fn("name")` | Defines an Effect function whose calls run inside a span with the given name | this lesson   |

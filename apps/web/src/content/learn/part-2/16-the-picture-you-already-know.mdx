@@ -1,0 +1,144 @@
+---
+part: 2
+order: 16
+title: Exporting traces with OtlpTracer
+minutes: 10
+mode: local
+---
+
+When you run `events submit`, the CLI reports an outcome in one line. Quite
+a bit happens before that line appears: a request reaches the server, the
+Engine finds a rule, and the action writes an alert. In this lesson we look
+at all of that work together, in the viewer we started during setup.
+
+The functions we have already named record what we need. Each
+named `Effect.fn`, including `Engine.execute` and the CLI handlers, creates a
+span for its operation, and you have seen those names in failure reports.
+What is missing is a way to send the spans and logs from both programs to
+the viewer, so we can follow a whole request. The Engine and the handlers
+stay as they are; only the two entrypoints gain an export layer.
+
+## Configure telemetry for each program
+
+Open the starter's `src/Telemetry.ts`. Telemetry is the information a
+program reports about its own work, here our spans and logs. The file
+currently exports an unused placeholder `layer` with the service name
+`reflex-lessons`. We want to tell CLI work apart from server work in the
+viewer, so replace it with `layerServer` and `layerCli`, built by a shared
+helper:
+
+<LessonCode file="checkpoints/16/src/Telemetry.ts" />
+
+`OtlpTracer.layer` exports spans to `http://localhost:4318/v1/traces`, and
+`OtlpLogger.layer` exports logs to `http://localhost:4318/v1/logs`. Both
+attach a `resource` with a `serviceName`: `reflex-server` for the server and
+`reflex-cli` for the CLI.
+
+Both use OTLP, the OpenTelemetry protocol for this data, and the helper
+provides what they share: `OtlpSerialization.layerJson` encodes the data as
+JSON, and `FetchHttpClient.layer` supplies the HTTP client that sends it.
+
+Exporting telemetry adds some work to each run, and the viewer has to be
+running to receive it. The earlier lessons still work without a viewer
+because they do not provide these export layers.
+
+## Provide the telemetry layers
+
+Each program now needs its export layer. In `src/server/main.ts`, provide
+`Telemetry.layerServer` at the bottom of the server's layer stack. In
+`src/cli/main.ts`, provide `Telemetry.layerCli` in the CLI's entrypoint
+pipeline. These layers configure telemetry for every effect running in each
+program, so the Engine, stores and handlers stay unchanged.
+
+## Follow a command through both processes
+
+We are ready to see a trace. Start the viewer with `pnpm viewer` if it is
+not running, and the server with `pnpm dev:server`. In another terminal, add
+the expense rule and submit the laptop purchase:
+
+```sh
+pnpm cli rules add fixtures/rules/expense.json
+pnpm cli events submit fixtures/events/laptop.json
+```
+
+Open [http://localhost:8000](http://localhost:8000). The list is no longer
+empty. Pick the `events.submit` trace and follow the rows from `reflex-cli`
+into `reflex-server`, down to `Engine.execute` under `Engine.handleEvent`:
+
+![The events.submit trace: CLI spans, then the server's POST, Engine.handleEvent and Engine.execute nested under it](../_assets/viewer-trace.png "The checkpoint trace")
+
+These are two processes, but the viewer shows one connected trace. The CLI's
+`HttpClient` adds a `traceparent` header to the request with the current
+trace and span ids, and the server reads that header and starts its request
+span as a child of the client span. This propagation is what lets the viewer
+show work from two processes as one trace, and the HTTP client and server
+do it without any extra code in your handlers.
+
+As you expand the nested rows in the waterfall, you will recognize the
+functions we have been working on:
+
+- `Engine.handleEvent` and `Engine.execute` are the `Effect.fn` names from
+  [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records).
+- `evaluate` and `lookup` come from `Rule.ts`.
+- `events.submit` and `rules.add` are the CLI handler names from the previous
+  lesson.
+
+[Reading a trace in the viewer](/learn/part-2/trace-viewer) describes each
+part of this screen.
+
+## Try it
+
+Select an `Engine.execute` span and look at its attributes. We already
+attach `rule.id` and `rule.trigger`, but the condition's result is missing.
+Add it, so the trace alone tells the lunch purchase from the laptop purchase
+without opening the run history.
+
+1. In `src/Engine.ts`, find where `Engine.execute` evaluates the condition.
+   Store the result in a variable named `matched`.
+2. Add `Effect.annotateCurrentSpan("rule.condition", matched)`. It adds the
+   attribute to the span the code is running in.
+3. Leave the other paths alone. A rule without a condition has nothing to
+   record, and a missing field fails before there is a result.
+
+With the server and viewer running, submit `fixtures/events/lunch.json` and
+`laptop.json`, then compare their `Engine.execute` spans. Lunch has
+`rule.condition` set to `false` and the laptop has `true`, so the trace now
+tells you why one expense reached the action and the other did not. The
+hint and the changed file are in `exercises/16/`. The checkpoints do not
+include this change, because nothing later depends on it.
+
+## Checkpoint
+
+With the viewer running, start the reference server for checkpoint 16:
+
+```sh
+pnpm checkpoint 16 server
+```
+
+In a second terminal:
+
+```sh
+pnpm checkpoint 16 cli rules add fixtures/rules/expense.json
+pnpm checkpoint 16 cli events submit fixtures/events/laptop.json
+```
+
+The viewer shows one `events.submit` trace that starts in `reflex-cli` and
+continues into `reflex-server`, with `Engine.execute` under
+`Engine.handleEvent`, as in the screenshot above.
+
+That is the application we set out to build in this part: you can give
+Reflex a rule, send it an expense and inspect what it did, through both the
+run history and the trace. One limitation shows up as soon as you restart
+the server: the rules and the history disappear. Next, we keep them in
+SQLite, so restarting no longer means starting over.
+
+## Reference
+
+| API                                      | What it does                                       | Introduced in                                                                |
+| ---------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `OtlpTracer.layer`                       | Exports spans over OTLP                            | this lesson                                                                  |
+| `OtlpLogger.layer`                       | Exports logs over OTLP                             | this lesson                                                                  |
+| `OtlpSerialization.layerJson`            | Encodes OTLP data as JSON                          | this lesson                                                                  |
+| `resource: { serviceName }`              | Identifies the program that produced the telemetry | this lesson                                                                  |
+| `traceparent`                            | Carries trace and span ids in an HTTP request      | this lesson                                                                  |
+| `Effect.annotateCurrentSpan(key, value)` | Adds an attribute to the current span              | [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records) |

@@ -11,11 +11,13 @@ export default defineConfig({
     printWidth: 80,
     semi: false,
     sortPackageJson: false,
+    // courses/ holds standalone learner projects with their own tooling and CI
+    ignorePatterns: ["courses/**"],
   },
   lint: {
     plugins: ["typescript", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    ignorePatterns: [".direnv", "dist"],
+    ignorePatterns: [".direnv", "dist", "courses"],
     options: {
       typeAware: true,
       typeCheck: true,

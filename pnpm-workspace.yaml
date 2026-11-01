@@ -3,6 +3,7 @@ packages:
   - packages/*
 
 patchedDependencies:
+  "@alchemy.run/frontend-frameworks@2.0.0-beta.84": patches/@alchemy.run__frontend-frameworks.patch
   astro-tweet@0.0.6: patches/astro-tweet.patch
 
 supportedArchitectures:
@@ -22,39 +23,23 @@ allowBuilds:
   workerd: true
 
 minimumReleaseAgeExclude:
-  - "@effect/atom-react@4.0.1"
-  - "@effect/doctest@4.0.1"
+  - "@effect/atom-react@4.1.1"
+  - "@effect/doctest@4.1.1"
   - "@effect/monaco-editor@0.0.3"
-  - "@effect/platform-browser@4.0.1"
+  - "@effect/platform-browser@4.1.1"
   - "@effect/platform-node-shared@4.0.1"
-  - "@effect/platform-node@4.0.1"
-  - effect@4.0.1
-  - "@effect/sql-d1@4.0.1"
-  - "@effect/sql-sqlite-do@4.0.1"
-  - "@effect/vitest@4.0.1"
-  - "@alchemy.run/cloudflare-runtime@2.0.0-beta.80"
-  - "@alchemy.run/floci@2.0.0-beta.80"
-  - "@alchemy.run/frontend-frameworks@2.0.0-beta.80"
-  - "@alchemy.run/node-utils@2.0.0-beta.80"
-  - "@distilled.cloud/acme@1.0.0-rc.13"
-  - "@distilled.cloud/aws@1.0.0-rc.13"
-  - "@distilled.cloud/axiom@1.0.0-rc.13"
-  - "@distilled.cloud/cloudflare@1.0.0-rc.13"
-  - "@distilled.cloud/core@1.0.0-rc.13"
-  - "@distilled.cloud/doppler@1.0.0-rc.13"
-  - "@distilled.cloud/fly-io@1.0.0-rc.13"
-  - "@distilled.cloud/gcp@1.0.0-rc.13"
-  - "@distilled.cloud/hetzner@1.0.0-rc.13"
-  - "@distilled.cloud/infisical@1.0.0-rc.13"
-  - "@distilled.cloud/neon@1.0.0-rc.13"
-  - "@distilled.cloud/planetscale@1.0.0-rc.13"
-  - "@distilled.cloud/prisma@1.0.0-rc.13"
-  - "@distilled.cloud/railway@1.0.0-rc.13"
-  - "@distilled.cloud/stripe@1.0.0-rc.13"
-  - "@distilled.cloud/zerossl@1.0.0-rc.13"
-  - alchemy@2.0.0-beta.80
+  - "@effect/platform-node@4.1.1"
+  - effect@4.1.1
+  - "@effect/sql-d1@4.1.1"
+  - "@effect/sql-sqlite-do@4.1.1"
+  - "@effect/vitest@4.1.1"
 
 catalogMode: manual
+
+# The Alchemy preview builds pin their own dependencies by tarball URL from
+# pkg.alchemy.run. Approved for this pin only (EFF-3226); restore the default
+# once the catalog is back on npm releases.
+blockExoticSubdeps: false
 
 update:
   ignoreDeps:
@@ -75,21 +60,26 @@ catalog:
   vite-plus: 1.0.0
 
 catalogs:
+  # Preview builds of alchemy-run/alchemy main at 55e34d0272, addressed by
+  # content hash. The shared Cloudflare state store speaks protocol v8, which
+  # no npm release supports yet; move back to npm once one does.
   alchemy:
-    alchemy: 2.0.0-beta.80
-    "@alchemy.run/frontend-frameworks": 2.0.0-beta.80
+    alchemy: https://pkg.alchemy.run/alchemy/-/a2ab0b905a1019317f999b820778c9f6b9d8fdbeedaee02fd825d977423a4412.tgz
+    "@alchemy.run/cloudflare": https://pkg.alchemy.run/@alchemy.run/cloudflare/-/4e37a6f49e8bc4163df5c91d0f6636b7ba298f05931b18dc0c21fe63b2a9f5de.tgz
+    "@alchemy.run/github": https://pkg.alchemy.run/@alchemy.run/github/-/d49befa512d2912458aa7b97096264017284be57a3ad7fab01cd3457f8deb64a.tgz
+    "@alchemy.run/frontend-frameworks": https://pkg.alchemy.run/@alchemy.run/frontend-frameworks/-/13672b88b5368e82926e7031f29652eb2d19e05f760760315a0df104560f03d8.tgz
   effect:
-    effect: 4.0.1
-    "@effect/atom-react": 4.0.1
+    effect: 4.1.1
+    "@effect/atom-react": 4.1.1
     "@effect/monaco-editor": ^0.0.3
-    "@effect/platform-browser": 4.0.1
-    "@effect/platform-node": 4.0.1
-    "@effect/doctest": 4.0.1
+    "@effect/platform-browser": 4.1.1
+    "@effect/platform-node": 4.1.1
+    "@effect/doctest": 4.1.1
 
 overrides:
-  "@effect/sql-d1": 4.0.1
-  "@effect/sql-sqlite-do": 4.0.1
-  "@effect/vitest": 4.0.1
+  "@effect/sql-d1": 4.1.1
+  "@effect/sql-sqlite-do": 4.1.1
+  "@effect/vitest": 4.1.1
   vite: "catalog:"
 
 peerDependencyRules:

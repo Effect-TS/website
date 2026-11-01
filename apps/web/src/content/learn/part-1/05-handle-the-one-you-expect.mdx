@@ -1,0 +1,105 @@
+---
+part: 1
+order: 5
+title: Recovering from errors
+minutes: 8
+mode: playground
+lessonDir: 05-handle-the-one-you-expect
+---
+
+One incomplete taxi receipt has stopped the whole expense check. That is
+better than treating it as a small purchase, but we don't want every
+missing amount to hide the rest of the results. We know exactly what went
+wrong, so we can decide what to do about it.
+
+Our policy will be simple: log that the expense was skipped, leave it out
+of the flagged count, and carry on to the summary. We still won't know what
+the taxi cost. Recovering from an error means choosing what to do about the
+gap, not filling it with a guess.
+
+## Give the missing amount a handler
+
+The editor contains the failing program from the previous lesson. The
+recovery belongs in `evaluate`, next to the check that can fail, so that
+`program` only has to run checks and count results.
+
+`Effect.catchTag` picks out one error by its tag and lets us supply a
+handler for it. Attach it to the `Effect.gen(...)` block with `.pipe`:
+
+<LessonCode
+  file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
+  declaration="evaluate"
+/>
+
+The handler receives the error, including its `field` property, so it can
+say why the taxi was skipped. It returns an Effect that logs the reason and
+then succeeds with `false`. That `false` is the result the caller gets, so
+counting can continue.
+
+`Effect.as` supplies the `false`. It runs the logging Effect and replaces
+its result with the value we give it. Only `MissingField` is handled here.
+Any other error would still stop the program.
+
+## Run both receipts again
+
+`program` needs no changes. Run the file. The summary is back, and a new
+line explains the taxi receipt:
+
+1. `expense 1200 over 500` for the laptop.
+2. `skip: missing field amount` for the taxi.
+3. `1 of 2 expenses flagged`.
+
+The taxi check now finishes with `false`, so the summary can run, and the
+skip line keeps the incomplete receipt visible. Without it, someone reading
+the output couldn't tell a skipped expense from one below the limit.
+
+The `.pipe` we used to attach the handler deserves a closer look, because
+it appears everywhere in Effect code. Every Effect has a `.pipe` method.
+`effect.pipe(f)` means `f(effect)`, and `effect.pipe(f, g)` means
+`g(f(effect))`, so we can write transformations in the order we apply them.
+Here there is just one, which adds error handling to the generator's
+Effect.
+
+## Check what changed in the type
+
+Hover `evaluate`. Its type is
+`(event: Event) => Effect<boolean, never, never>`. In the previous lesson it
+was `(event: Event) => Effect<boolean, MissingField, never>`. `MissingField`
+has gone from the error type because we handled it, and with nothing else
+that can fail, the error type is back to `never`. The success type is still
+`boolean`, whether it comes from a completed check or from the handler.
+
+Hover `program`. The type is `Effect<void, never, never>`. The failure is
+gone from `program` too.
+
+## Try it
+
+We made two choices in the handler: handling the error at all, and
+choosing `false` as the replacement result. Remove each one in turn to see
+what it contributes:
+
+1. Remove the `Effect.as` around `Effect.log(...)`, keeping the log. Hover
+   `evaluate`: the success type is now `boolean | void`, because logging
+   produces `void`. Run the file. The output happens to be the same, because
+   `filter(Boolean)` drops `undefined`, but `evaluate` no longer promises a
+   boolean. Put `Effect.as` back.
+2. Remove the whole `.pipe(Effect.catchTag(...))`. Hover `evaluate`. The
+   error type is `MissingField` again. Run the file. The taxi stops the
+   program and the summary is gone. Put the `catchTag` back.
+
+With the handler restored, Reflex carries on past an incomplete receipt
+without hiding what happened. We made that decision for one specific error,
+not for every possible failure.
+
+Next we'll let someone change the rule without editing the check. That
+brings a new kind of problem: the rule they give us may be invalid. We'll
+keep that failure separate from a missing amount, because the right
+response to each is different.
+
+## Reference
+
+| API               | What it does                                                  | Introduced in |
+| ----------------- | ------------------------------------------------------------- | ------------- |
+| `Effect.catchTag` | Recovers from an error selected by its tag                    | this lesson   |
+| `Effect.as`       | Replaces an Effect's successful result with a specified value | this lesson   |
+| `.pipe`           | Applies transformations in order: `x.pipe(f, g)` is `g(f(x))` | this lesson   |

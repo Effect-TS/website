@@ -1,0 +1,46 @@
+diff --git a/dist/astro/source.js b/dist/astro/source.js
+index eb7d4f6..68d8708 100644
+--- a/dist/astro/source.js
++++ b/dist/astro/source.js
+@@ -247,7 +247,9 @@ const hashAstroInput = (rootDir, memo, main, additionalWorkspaces) => Effect.gen
+ 		return resolved === packageMeta.root || resolved.startsWith(packageMeta.root + path.sep);
+ 	};
+ 	const relativeWorkspaces = [...new Set(Array.from(workspaces).filter((cwd) => !isOwnPackage(cwd)).map(toRelative))].sort();
+-	const workspaceHashes = yield* Effect.forEach(relativeWorkspaces, (cwd) => hashWorkspaceDirectory(cwd), { concurrency: "unbounded" });
++	const fs = yield* FileSystem.FileSystem;
++	const hashRecordedWorkspace = (cwd) => fs.exists(path.resolve(rootDir, cwd)).pipe(Effect.flatMap((exists) => exists ? hashWorkspaceDirectory(cwd) : Effect.succeed(`${cwd}:missing`)));
++	const workspaceHashes = yield* Effect.forEach(relativeWorkspaces, hashRecordedWorkspace, { concurrency: "unbounded" });
+ 	return {
+ 		hash: yield* sha256Object([
+ 			...salt,
+diff --git a/src/astro/source.ts b/src/astro/source.ts
+index 6af5c75..3c1088c 100644
+--- a/src/astro/source.ts
++++ b/src/astro/source.ts
+@@ -632,11 +632,21 @@ const hashAstroInput = (
+           .map(toRelative),
+       ),
+     ].sort();
+-    const workspaceHashes = yield* Effect.forEach(
+-      relativeWorkspaces,
+-      (cwd) => hashWorkspaceDirectory(cwd),
+-      { concurrency: "unbounded" },
+-    );
++    // A workspace recorded by the previous deploy may since have moved or
++    // been deleted. Hash it as missing, so the deploy rebuilds and records
++    // the workspaces the new build imports.
++    const fs = yield* FileSystem.FileSystem;
++    const hashRecordedWorkspace = (cwd: string) =>
++      fs
++        .exists(path.resolve(rootDir, cwd))
++        .pipe(
++          Effect.flatMap((exists) =>
++            exists ? hashWorkspaceDirectory(cwd) : Effect.succeed(`${cwd}:missing`),
++          ),
++        );
++    const workspaceHashes = yield* Effect.forEach(relativeWorkspaces, hashRecordedWorkspace, {
++      concurrency: "unbounded",
++    });
+     const hash = yield* sha256Object([...salt, root, ...workspaceHashes.sort()]);
+     return { hash, workspaces: relativeWorkspaces };
+   });

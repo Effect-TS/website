@@ -1,0 +1,71 @@
+import { Schema } from "effect"
+import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
+import { Outcome } from "../Engine.ts"
+import { PayloadTooLarge, TooManyRules } from "../Limits.ts"
+import { Event, Rule } from "../Rule.ts"
+import { RuleNotFound, StoredRule } from "../RuleStore.ts"
+import { Run } from "../RunLog.ts"
+
+// The API is a value: the server implements it and, from lesson 15, the CLI
+// derives its client from it. Every schema here is one the domain already has.
+
+// A rule id the server does not know is a 404 on the wire, and a RuleNotFound
+// again when the client decodes it.
+const NotFound = RuleNotFound.pipe(HttpApiSchema.status(404))
+
+// The limits from lesson 21 are refusals the client can act on.
+const Conflict = TooManyRules.pipe(HttpApiSchema.status(409))
+const TooLarge = PayloadTooLarge.pipe(HttpApiSchema.status(413))
+
+// A rule as `rules list` shows it. A paused rule says so. An interval rule
+// also says whether its loop is running, or stopped after a crashed run.
+export const ListedRule = Schema.Struct({
+  ...StoredRule.fields,
+  status: Schema.optionalKey(Schema.Literals(["running", "stopped", "paused"]))
+})
+export type ListedRule = typeof ListedRule.Type
+
+export class RulesApi extends HttpApiGroup.make("rules")
+  .add(
+    HttpApiEndpoint.post("create", "/", { payload: Rule, success: StoredRule, error: Conflict }),
+    HttpApiEndpoint.get("list", "/", { success: Schema.Array(ListedRule) }),
+    HttpApiEndpoint.get("get", "/:id", { params: { id: Schema.String }, success: StoredRule, error: NotFound }),
+    HttpApiEndpoint.delete("remove", "/:id", { params: { id: Schema.String }, error: NotFound }),
+    HttpApiEndpoint.post("pause", "/:id/pause", { params: { id: Schema.String }, error: NotFound }),
+    HttpApiEndpoint.post("resume", "/:id/resume", { params: { id: Schema.String }, error: NotFound }),
+    HttpApiEndpoint.post("run", "/:id/run", {
+      params: { id: Schema.String },
+      payload: Event,
+      success: Outcome,
+      error: [NotFound, TooLarge]
+    })
+  )
+  .prefix("/rules")
+{}
+
+export class EventsApi extends HttpApiGroup.make("events")
+  .add(
+    HttpApiEndpoint.post("submit", "/", { payload: Event, success: Schema.Array(Outcome), error: TooLarge })
+  )
+  .prefix("/events")
+{}
+
+export class RunsApi extends HttpApiGroup.make("runs")
+  .add(
+    HttpApiEndpoint.get("list", "/", {
+      query: {
+        ruleId: Schema.optional(Schema.String),
+        limit: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0)))
+      },
+      success: Schema.Array(Run)
+    })
+  )
+  .prefix("/runs")
+{}
+
+export class Api extends HttpApi.make("reflex")
+  .add(RulesApi)
+  .add(EventsApi)
+  .add(RunsApi)
+  .annotateMerge(OpenApi.annotations({ title: "reflex" }))
+{}

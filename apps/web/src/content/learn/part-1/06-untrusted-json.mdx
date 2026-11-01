@@ -1,0 +1,181 @@
+---
+part: 1
+order: 6
+title: Validating JSON with Schema
+minutes: 11
+mode: playground
+lessonDir: 06-untrusted-json
+---
+
+Suppose 500 is no longer the limit you care about. You want an alert for
+anything over 1000, with a different message. At the moment that means
+editing both `isLarge` and `evaluate`. That is inconvenient for us, and
+impossible for someone who uses Reflex without touching its source code.
+
+So let's turn those choices into data. A **rule** will hold the comparison,
+the threshold and the message. Eventually Reflex will read rules from files
+and accept them through an API. For now, a JSON string is enough to work
+with in the browser. Here is our expense rule in that form:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="largeExpense"
+/>
+
+It reads much as you'd expect: greater than 500, with the message
+"over 500". Once the rule is data, changing 500 to 1000 won't touch the
+checking code.
+
+There is a catch. Someone could misspell the operator or put text where
+the number belongs, and TypeScript can't check JSON that arrives while the
+program is running. We have to check it ourselves, at runtime. We'll use
+Schema to describe what a valid rule looks like, and let it reject anything
+else.
+
+## Decide what a rule can contain
+
+We used `Schema.String` to describe the `field` of our error. Now we'll
+combine a few schemas to describe a whole rule. Add this below the `Event`
+interface:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="Rule"
+/>
+
+`Schema.Struct({ ... })` describes an object with the listed fields. Its
+`name` and `message` must be strings, and its `value` must be a number.
+`Schema.Literals(["gt", "lt"])` restricts `op` to those two strings, so a
+rule with any other operator will fail validation.
+
+Below it, add `type Rule = typeof Rule.Type`. This derives a TypeScript
+type from the schema, so we don't maintain a separate interface with the
+same fields. The schema and the type can share the name `Rule`, because
+TypeScript tells them apart by how we use it.
+
+## Turn the text into a checked rule
+
+Next we need a function that takes the JSON text and either returns a rule
+or explains what is wrong with it. Add this line below the type:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="decodeRule"
+/>
+
+`Schema.fromJsonString(Rule)` describes parsing JSON text and checking the
+parsed value against `Rule`. `Schema.decodeUnknownEffect` turns that
+description into a decoding function. The resulting `decodeRule` accepts
+unknown input and returns an Effect that succeeds with a `Rule` or fails
+with a `SchemaError`.
+
+We'll see that error shortly. The payoff is that once decoding succeeds,
+the rest of the program can use the rule without checking its fields again.
+The cost is some work at runtime, and a schema to update whenever the rule
+format changes.
+
+## Let the rule choose the comparison
+
+Our old `isLarge` always checked for an amount over 500. Replace it with
+`matches`, which uses the operator and value from the rule:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="matches"
+/>
+
+There are only two cases because the schema accepts only `"gt"` and `"lt"`.
+That is the benefit of checking the input first: `matches` needs no
+`default` branch for an operator it doesn't understand.
+
+Now `evaluate` needs the rule. Add a `json: string` parameter before
+`event`, so callers write `evaluate(json, event)`, and make decoding the
+first step: `const rule = yield* decodeRule(json)`. The message becomes
+`${event.type} ${event.amount} ${rule.message}` when the rule matches and
+`${rule.name}: no alert` when it does not:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="evaluate"
+/>
+
+To see both outcomes, we'll give it a valid rule and a broken one. Add
+`largeExpense` from the top of this lesson, then this deliberately
+malformed rule:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="malformed"
+/>
+
+Make `program` evaluate `largeExpense` for the laptop, `largeExpense` for the
+taxi, and `malformed` for the laptop, and remove the summary line:
+
+<LessonCode
+  file="lessons/part1/06-untrusted-json/solution/main.ts"
+  declaration="program"
+/>
+
+Run the file. The terminal shows three outcomes in order:
+
+1. The laptop matches `largeExpense`. The message is
+   `expense 1200 over 500`.
+2. The taxi is skipped, as in the previous lesson: `skip: missing field amount`.
+3. `malformed` fails with a `SchemaError`, and the program stops.
+
+The taxi still gets the recovery we chose for it. The broken rule does not,
+because `catchTag` handles only `MissingField`. Allowing incomplete
+receipts hasn't hidden a broken rule.
+
+The summary is gone for now. `evaluate` still returns a boolean, but a
+broken rule can stop the program before every expense has been checked, so
+a count at the end would be misleading. In Part 2, a run history takes over
+the job of recording what happened.
+
+## Finding the invalid field
+
+Look at the failure in the terminal. It reads
+`SchemaError: Expected "gt" | "lt"` at `["op"]`. That is enough to find the
+mistake: `op` is the offending field, and the message says which values it
+accepts.
+
+Decoding stops at the first problem it finds. `malformed` also has a string
+where the value should be a number, and no message at all. Fix the operator
+and the next problem is reported.
+
+Hover `evaluate`. Its return type is
+`Effect<boolean, SchemaError, never>`. Unlike `MissingField`, this error
+comes from the decoder rather than from a class we defined, and it stays in
+the type because we haven't handled it.
+
+## Try it
+
+Let's add an operator for an exact amount. Start with the schema and let
+TypeScript show you what else has to change:
+
+1. Add `"eq"` to the literals. TypeScript underlines `matches`, because its
+   `switch` no longer covers every case. Add the `eq` case,
+   `amount === rule.value`.
+2. Change the operator in `malformed` to `"between"` and run the file. The
+   error now lists `"eq"` among the expected operators.
+
+Notice which values need a decoder. The rule arrives as text, so it needs
+validating at runtime. The `laptop` object is written in TypeScript and
+checked against the `Event` interface, so it doesn't. Only input from
+outside the program needs a schema.
+
+Reflex now reads its rule from data, and it has a useful response when that
+rule is wrong. Before we add more rules, let's make failures easier to
+locate. The error says which field was invalid. Next we'll add the name of
+the operation that found it.
+
+## Reference
+
+| API                              | What it does                                                                | Introduced in |
+| -------------------------------- | --------------------------------------------------------------------------- | ------------- |
+| `Schema.Struct`                  | Defines an object schema with the specified fields                          | this lesson   |
+| `Schema.String`, `Schema.Number` | Validate string and number values                                           | this lesson   |
+| `Schema.Literals`                | Restricts a value to one of the specified literals                          | this lesson   |
+| `typeof Rule.Type`               | Derives the validated value's TypeScript type from `Rule`                   | this lesson   |
+| `Schema.fromJsonString`          | Defines JSON parsing followed by validation against a schema                | this lesson   |
+| `Schema.decodeUnknownEffect`     | Creates an Effect-based decoder that reports invalid input as `SchemaError` | this lesson   |

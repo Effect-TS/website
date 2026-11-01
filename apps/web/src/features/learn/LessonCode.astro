@@ -1,0 +1,27 @@
+---
+import { Code } from "astro-expressive-code/components"
+import { courseDeclaration, courseFile } from "./lessons"
+
+interface Props {
+  /**
+   * The file's path in `courses/reflex/`, e.g.
+   * `lessons/part1/02-describe-then-run/solution/main.ts`.
+   */
+  readonly file: string
+  /**
+   * Renders only this top-level declaration from the file, for a lesson that
+   * must not show the rest of it.
+   */
+  readonly declaration?: string
+  readonly title?: string
+}
+
+const { file, declaration, title = file } = Astro.props
+const lang = file.slice(file.lastIndexOf(".") + 1)
+---
+
+<Code
+  code={declaration === undefined ? courseFile(file) : courseDeclaration(file, declaration)}
+  lang={lang}
+  title={title}
+/>
