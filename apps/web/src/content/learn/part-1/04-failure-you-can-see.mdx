@@ -7,25 +7,32 @@ mode: playground
 lessonDir: 04-failure-you-can-see
 ---
 
-In reflex an amount arrives inside an **event**, a small object that says
-what happened, such as `{ type: "expense", amount: 1200 }`. Events are not
-always complete. A taxi receipt can arrive with a type and no amount.
+Every expense so far came with an amount. Real ones don't always. Here is a
+taxi receipt exactly as it arrived: `{ type: "expense" }`. No `amount`.
 
-There is no verdict for an expense with no amount. The program cannot check
-it, and it should say so. By the end of this lesson `program` fails with a
-named error when the amount is missing, and that error appears in the type of
-`program`.
+Ask `isLarge` about it and there is no honest answer: it isn't over 500, and
+it isn't under 500 either. Nobody has checked this expense, and the summary
+you wrote in the previous lesson should not count it as if someone had.
+
+So `evaluate` needs a way to say "I couldn't do this one", and that way should
+show up in its type, so the rest of the program has to deal with it. In Effect
+that is a failure. In this lesson you will make `evaluate` fail on a missing
+field, watch the failure appear in the type of `evaluate`, and see what it
+does to the program when it runs: the taxi stops it, and the summary never
+prints. In the next lesson you decide what to do about that.
 
 In this lesson you will:
 
-- describe an event with an optional field
+- describe an expense as an event with an optional field
 - define an error class with `Schema.TaggedError`
 - fail an Effect with that error
 - read the error type of an Effect
 
-## 1. Describe the event
+## 1. Describe the expenses
 
-Below the imports, add an interface:
+The file starts where the previous lesson ended. Reflex will receive expenses
+as **events**, small objects that say what happened. Below the imports, add
+an interface for them:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
@@ -34,21 +41,49 @@ Below the imports, add an interface:
 
 The `?` on `amount` says it may be missing.
 
-Replace `const amount: number = 1200` with the event that is missing it:
+Below the interface, add the two expenses. The laptop has an amount:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="laptop"
+/>
+
+The taxi does not:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
   declaration="taxi"
 />
 
-In `program`, change `amount` to `taxi.amount`. TypeScript underlines
-`isLarge(taxi.amount)` in red, and the playground does not run the file.
-`taxi.amount` may be `undefined`, and `isLarge` wants a number.
+## 2. Check the events
 
-## 2. Define the error
+Change `evaluate` so it takes an event instead of a number:
 
-Add `Schema` to the `effect` import. Then declare `MissingField` below the
-interface:
+- the parameter becomes `event: Event`
+- the check becomes `isLarge(event.amount)`
+- the log messages use `${event.type} ${event.amount}` where they used
+  `expense ${amount}`
+
+Then replace `program` so it checks the laptop, then the taxi:
+
+<LessonCode
+  file="lessons/part1/04-failure-you-can-see/solution/main.ts"
+  declaration="program"
+/>
+
+The results are called `laptopFlagged` and `taxiFlagged`, because `laptop` and
+`taxi` are now the events.
+
+TypeScript underlines `event.amount` in `isLarge(event.amount)` in red, and
+the playground does not run the file. The message reads
+`Argument of type 'number | undefined' is not assignable to parameter of type 'number'`.
+TypeScript has found the taxi's problem before anything ran: there may be no
+amount to check.
+
+## 3. Defining an error
+
+Add `Schema` to the `effect` import. Then declare `MissingField` between the
+interface and the two expenses:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
@@ -67,35 +102,48 @@ interface:
 [Validating JSON with Schema](/learn/part-1/06-untrusted-json). Here it only
 lists what the error carries.
 
-## 3. Fail with the error
+## 4. Fail when the amount is missing
 
-At the top of `program`, check for the amount. If it is missing, fail:
+At the top of the `Effect.gen` block in `evaluate`, check for the amount. If
+it is missing, fail:
 
 <LessonCode
   file="lessons/part1/04-failure-you-can-see/solution/main.ts"
-  declaration="program"
+  declaration="evaluate"
 />
 
 `return yield* new MissingField({ field: "amount" })` fails the Effect with
 that error. `return` tells TypeScript that this path ends here, so after the
-check `taxi.amount` is a number and the red underline is gone.
+check `event.amount` is a number and the red underline is gone.
 
-Run the file. The terminal reports a `MissingField` failure and the program
-stops.
+Hover `evaluate`. Its type is
+`(event: Event) => Effect<boolean, MissingField, never>`. The error type was
+`never`. Now it names `MissingField`, so anything that runs `evaluate` can see
+that it may fail, and with what.
 
-Hover `program`. The type is `Effect<string, MissingField, never>`. The
-error type names the failure, so any code that uses `program` can see that it
-can fail, and with what.
+## 5. Run it
+
+Run the file. The terminal prints `expense 1200 over 500` for the laptop.
+Then it reports a `MissingField` failure for the taxi, and the program stops.
+`1 of 2 expenses flagged` never appears. A failure ends the `Effect.gen`
+block it happens in, and every block that ran it with `yield*`, so the line
+after `yield* evaluate(taxi)` never runs.
+
+Hover `program`. The type is `Effect<void, MissingField, never>`. `program`
+does not create the error, but it runs `evaluate`, so the failure is part of
+its type too.
 
 ## Try it
 
 An event can also be something other than an expense.
 
 1. Declare a second error, `NotAnExpense`, the same way as `MissingField`.
-2. At the top of `program`, fail with it when `taxi.type` is not
-   `"expense"`.
-3. Hover `program`. The error type is now `MissingField | NotAnExpense`.
-   Every failure an Effect can produce joins that union.
+   Give it a `type` field.
+2. At the top of the `Effect.gen` block in `evaluate`, fail with it when
+   `event.type` is not `"expense"`.
+3. Hover `evaluate`. The error type now lists both errors, as a union such
+   as `NotAnExpense | MissingField`. Every failure an Effect can produce
+   joins that union, and `program` shows the same union.
 
 This is practice only. The next lesson starts from the file without
 `NotAnExpense`.
@@ -107,7 +155,9 @@ This is practice only. The next lesson starts from the file without
 - `Schema.TaggedError` defines an error class with a tag and typed fields.
 - `return yield* new MissingField(...)` fails an Effect with that error and
   ends the current path.
-- The error type of an Effect lists the failures it can produce.
+- The error type of an Effect lists the failures it can produce, including
+  the failures of the Effects it runs.
+- A failure stops the program at the step that failed. Nothing after it runs.
 - Each failure is one class. In
   [Serving an HTTP API with HttpApi](/learn/part-2/14-serve-it) these classes
   travel over HTTP, which is why they are built from `Schema`.

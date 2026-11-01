@@ -28,7 +28,7 @@ requirements type.
 | `RuleStore`    | a service, with `layer` and `layerFixtures` as static members   | key `reflex/RuleStore`                                     |
 | `MissingField` | an error class with one field, `field`                          | the one error you declared and still use                   |
 | `matches`      | `(rule: Rule, amount: number) => boolean`                       | a plain function, no Effect                                |
-| `evaluate`     | returns `Effect<string \| void, SchemaError, never>`            | a missing field is handled inside, a malformed rule is not |
+| `evaluate`     | returns `Effect<boolean, SchemaError, never>`                   | a missing field is handled inside, a malformed rule is not |
 | `evaluateAll`  | returns `Effect<void, SchemaError, RuleStore>`                  | needs the store                                            |
 | `program`      | `Effect<void, SchemaError, never>`                              | the store is provided                                      |
 
@@ -44,8 +44,9 @@ lesson that introduced it.
 | `Effect.gen` and `yield*`                             | Steps in order; `yield*` runs an Effect and gives its result | [Using Effect.gen to write programs](/learn/part-1/03-steps-in-order)                     |
 | `Schema.TaggedError`                                  | Defines an error class with a tag and typed fields           | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
 | `return yield* new E(...)`                            | Fails with `E` and ends the current path                     | [Defining errors with Schema.TaggedError](/learn/part-1/04-failure-you-can-see)           |
-| `Effect.catchTag`                                     | Handles one error by its tag                                 | [Recovering from errors with catchTag](/learn/part-1/05-handle-the-one-you-expect)        |
-| `.pipe`                                               | `x.pipe(f, g)` is `g(f(x))`                                  | [Recovering from errors with catchTag](/learn/part-1/05-handle-the-one-you-expect)        |
+| `Effect.catchTag`                                     | Handles one error by its tag                                 | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `.pipe`                                               | `x.pipe(f, g)` is `g(f(x))`                                  | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
+| `Effect.as`                                           | Runs an Effect, then succeeds with a value you give it       | [Recovering from errors](/learn/part-1/05-handle-the-one-you-expect)                      |
 | `Schema.Struct`, `String`, `Number`, `Literals`       | Describe a shape                                             | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
 | `Schema.fromJsonString`, `Schema.decodeUnknownEffect` | Parse and check JSON, fail with `SchemaError`                | [Validating JSON with Schema](/learn/part-1/06-untrusted-json)                            |
 | `Effect.fn("name")`                                   | A named function whose calls are spans                       | [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it)                            |
@@ -63,8 +64,9 @@ them.
 1. **`eq` and `neq` operators.** Add "equal to" and "not equal to". Start
    with the schema, then follow what TypeScript asks of `matches`.
 2. **A `skipped` result with a reason.** Instead of logging a skip and giving
-   back nothing, make `evaluate` give back a value that says the rule was
-   skipped and why. `string | void` disappears from the hover.
+   back `false`, make `evaluate` give back a value that says the rule was
+   skipped and why. The hover then shows that value's type instead of
+   `boolean`.
    [Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)
    does a version of this.
 3. **A second kind of event.** Add an event that is not an expense, such as a

@@ -1,50 +1,32 @@
 ---
 part: 1
 order: 5
-title: Recovering from errors with catchTag
+title: Recovering from errors
 minutes: 8
 mode: playground
 lessonDir: 05-handle-the-one-you-expect
 ---
 
-The taxi stops the whole program. A missing amount is normal, not a
-disaster. The alert does not apply to that event, so reflex should log that
-it skipped the event and move on to the next one.
+The taxi stopped everything. That is the right default: a problem you have
+not thought about should not be papered over. But a missing amount is one you
+have thought about. It means skip this expense, say so, and carry on to the
+summary. That is what handling a failure is: you name the one you expect, you
+say what happens instead, and the type of `evaluate` stops mentioning it.
 
-By the end of this lesson the program checks two events with the same code.
-The laptop gets its alert, the taxi gets a skip line, and the program
-finishes normally.
+By the end of this lesson the terminal prints the laptop's alert, a skip line
+for the taxi, and the summary again: `1 of 2 expenses flagged`.
 
 In this lesson you will:
 
-- put the steps in a function that returns an Effect, so you can reuse them
 - handle one error by its tag with `Effect.catchTag`
+- replace an Effect's result with `Effect.as`
 - attach a step to an Effect with `.pipe`
 - watch the error leave the error type
 
-## 1. Evaluate both events
+## 1. Handling an error with catchTag
 
-Turn the body of `program` into a function, `evaluate(event)`, that returns
-the `Effect.gen` block, with `taxi` replaced by `event` throughout.
-
-Add the second event above `taxi`:
-
-<LessonCode
-  file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
-  declaration="laptop"
-/>
-
-Make `program` evaluate both, laptop first:
-
-<LessonCode
-  file="lessons/part1/05-handle-the-one-you-expect/solution/main.ts"
-  declaration="program"
-/>
-
-Run the file. The terminal prints the laptop's alert, then the taxi's
-`MissingField` failure stops the program.
-
-## 2. Handle the error
+The file starts where the previous lesson ended: `evaluate` fails with
+`MissingField` when an event has no amount.
 
 `Effect.catchTag` handles exactly one error, picked out by its tag. Its
 handler receives the typed error and returns the Effect to run instead.
@@ -57,36 +39,60 @@ Attach it to `evaluate` with `.pipe`, after the `Effect.gen(...)` block:
   declaration="evaluate"
 />
 
+The handler has two jobs. It logs the skip, and it gives `program` an answer
+for the taxi. `Effect.as(effect, value)` runs `effect` and then succeeds with
+`value` instead of the effect's own result. Here the log runs, and the result
+is `false`: the taxi was not flagged.
+
 Every Effect has a `.pipe` method. `effect.pipe(f)` is the same as
 `f(effect)`, and `effect.pipe(f, g)` is the same as `g(f(effect))`. It lets
 you add steps after an Effect and read them left to right.
 
-Run the file. The terminal prints a log line with the message
-`expense 1200 over 500`, then one with `skip: missing field amount`, and the
-program finishes normally.
+## 2. Run it
 
-## 3. Read the error type
+Run the file. The terminal prints three log lines:
 
-Hover `evaluate`. Its return type is `Effect<string | void, never, never>`.
+1. `expense 1200 over 500` for the laptop.
+2. `skip: missing field amount` for the taxi.
+3. `1 of 2 expenses flagged`.
 
-Before you added `catchTag`, the return type was
-`Effect<string, MissingField, never>`. `MissingField` has left the error
-type because it is handled, and nothing else can fail, so the error type is
-`never`. The success type gained `void`, because the skip branch logs a line
-and gives back nothing.
+`program` did not change. The taxi no longer fails, so the step after it
+runs, and the summary is back. The taxi's `false` means it is not counted.
+
+## 3. Read the types
+
+Hover `evaluate`. Its type is
+`(event: Event) => Effect<boolean, never, never>`.
+
+In the previous lesson it was
+`(event: Event) => Effect<boolean, MissingField, never>`. `MissingField` has
+left the error type because it is handled, and nothing else can fail, so the
+error type is `never`. The success type is still `boolean`, because the
+handler also gives back a boolean.
+
+Hover `program`. The type is `Effect<void, never, never>`. The failure is
+gone from `program` too.
 
 ## Try it
 
-Remove the `.pipe(Effect.catchTag(...))` from `evaluate` and hover `evaluate`
-again. The error type is `MissingField`. Put the `catchTag` back and hover
-once more. The error type is `never`.
+See what each part of the handler does.
+
+1. In the handler, keep only the `Effect.log(...)` call and remove the
+   `Effect.as` around it. Hover `evaluate`. The success type is now
+   `boolean | void`, because the skip path gives back nothing. Run the file. The output is the same, since
+   `filter(Boolean)` drops the empty result, but the type no longer says that
+   every expense gets a yes or a no. Put `Effect.as` back.
+2. Remove the whole `.pipe(Effect.catchTag(...))`. Hover `evaluate`. The
+   error type is `MissingField` again. Run the file. The taxi stops the
+   program and the summary is gone. Put the `catchTag` back.
 
 ## What you learned
 
-- A function that returns an Effect runs the same steps on different inputs.
 - `Effect.catchTag("Tag", handler)` handles one error by its tag and removes
   it from the error type.
+- `Effect.as(effect, value)` runs `effect` and succeeds with `value`.
 - `.pipe` attaches steps to an Effect, read left to right.
+- Handling a failure lets the steps after it run again.
 - Every error is a decision: handle it here, or leave it in the type for the
   caller.
 - A rule that is itself broken is a different kind of error. The next lesson,
@@ -98,4 +104,5 @@ once more. The error type is `never`.
 | API               | What it does                                              | Introduced in |
 | ----------------- | --------------------------------------------------------- | ------------- |
 | `Effect.catchTag` | Handles one error by its tag and removes it from the type | this lesson   |
+| `Effect.as`       | Runs an Effect, then succeeds with the value you give it  | this lesson   |
 | `.pipe`           | `x.pipe(f, g)` is `g(f(x))`                               | this lesson   |

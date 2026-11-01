@@ -7,92 +7,125 @@ mode: playground
 lessonDir: 03-steps-in-order
 ---
 
-The alert is hard-coded. Reflex should look at an amount, decide whether it
-is large, build the message, log it, and give the message back. Those are
-steps that run in order, and each one uses the result of the one before. By
-the end of this lesson `program` does all of them, and the terminal still
-prints `expense 1200 over 500`.
+Reflex's job is to look at expenses and raise an alert for the ones that need
+attention. Give it two to look at: a laptop at 1200 and a lunch at 40. For
+each one it should log a verdict, over 500 or not, and once both are done it
+should log how many were flagged.
+
+That last line is the interesting one. It can only be written after the two
+checks have run, and it needs what they found. So the three steps have to
+happen in order, and the earlier ones have to hand their results to the later
+one. `Effect.gen` is how you write that.
+
+By the end of this lesson the terminal prints three log lines, with the
+messages `expense 1200 over 500`, `expense 40: no alert` and
+`1 of 2 expenses flagged`.
 
 In this lesson you will:
 
-- write steps in order with `Effect.gen`
-- run an Effect inside a generator with `yield*`
-- return a value from a generator and see it in the success type
+- write steps that run in order with `Effect.gen`
+- run an Effect and get its result with `yield*`
+- return a value from `Effect.gen` and find it in the success type
 - see what happens when you forget a `yield*`
 
-## 1. Add the amount and a plain function
+## 1. Write the check
 
-The file starts where the previous lesson ended: `alert` and
+The file starts where the previous lesson ended, with `alert` and
 `Effect.andThen(alert, alert)`.
 
-Above `program`, add a constant and a function:
+Above `program`, add a function that decides whether an amount is large:
 
 <LessonCode
   file="lessons/part1/03-steps-in-order/solution/main.ts"
   declaration="isLarge"
 />
 
+`isLarge` is a plain function. It takes a number, returns a boolean, and does
+nothing else. Not every step needs to be an Effect.
+
+## 2. Check one expense
+
+Below `isLarge`, add `evaluate`. It checks one amount, logs the verdict and
+reports whether the amount was flagged:
+
 <LessonCode
   file="lessons/part1/03-steps-in-order/solution/main.ts"
   declaration="evaluate"
 />
 
-`isLarge` is a plain function. It takes a number and returns a boolean, and
-it does nothing else. Not every step needs to be an Effect.
+`Effect.gen(function*() { ... })` builds one Effect from steps written one per
+line. `function*` makes the block a generator. That is all you need to know
+about generators in this course.
 
-## 2. Write the steps with Effect.gen
+The block has three steps:
 
-Delete `alert` and replace `program` with an `Effect.gen` block:
+1. `isLarge(amount)` is a plain function call, so it runs straight away.
+2. `yield* Effect.log(...)` runs the logging Effect. `yield*` runs an Effect
+   and waits for it to finish before the next line.
+3. `return flagged` is the result of the whole block.
+
+Hover `evaluate`. Its type is
+`(amount: number) => Effect<boolean, never, never>`. Calling `evaluate(1200)`
+does not log anything yet. It gives you an Effect, and when that Effect runs,
+its result is a `boolean`. Whatever the block returns becomes the success
+type.
+
+## 3. Check both and count
+
+Delete `alert` and replace `program` with a second `Effect.gen` block:
 
 <LessonCode
   file="lessons/part1/03-steps-in-order/solution/main.ts"
   declaration="program"
 />
 
-Run the file. The terminal prints one log line with the message
-`expense 1200 over 500`.
+`yield* evaluate(1200)` runs the Effect for the laptop and gives you its
+result. Hover `laptop`. It is a `boolean`, not an Effect. The lunch is
+checked the same way, after the laptop.
 
-`Effect.gen(function* () { ... })` builds one Effect from steps written one
-per line. `function*` makes the block a generator. That is all you need to
-know about generators in this course.
+The third line counts the flagged expenses. `filter(Boolean)` keeps the
+`true` values, and `length` counts them. It is plain code, because by this
+line both results are ordinary booleans.
 
-Inside the block, `yield*` runs an Effect and hands you its result before the
-next line runs. `isLarge(amount)` is called without `yield*` because it is a
-plain function, not an Effect. Save `yield*` for Effects.
+Run the file. The terminal prints the laptop's verdict, then the lunch's,
+then `1 of 2 expenses flagged`. The summary comes last because each `yield*`
+finishes before the next line starts.
 
-## 3. Read the success type
-
-Hover `program`. The type is `Effect<string, never, never>`.
-
-The success type changed from `void` to `string`. Whatever the generator
-returns is what the whole Effect gives back, and this one returns `message`.
+Hover `program`. The type is `Effect<void, never, never>`. `program` returns
+nothing, so its success type is `void`.
 
 ## Try it
 
-Delete the `yield*` in front of `Effect.log(message)`.
+Forget a `yield*` on purpose.
 
-1. Hover `Effect.log(message)`. It is an `Effect<void>`, a description of
-   logging.
-2. Run the file. The log line is gone. The description was built and then
-   dropped, because nothing ran it.
-3. Notice that TypeScript did not complain. A forgotten `yield*` is not a
-   type error.
-4. Put the `yield*` back and run the file again. The line is back.
+1. Delete the `yield*` in front of `evaluate(40)`.
+2. Look for a red underline. There is none, and the playground reports no
+   errors. Leaving out `yield*` is valid TypeScript.
+3. Hover `lunch`. It is now `Effect<boolean, never, never>` instead of
+   `boolean`. That hover is the only sign in the editor that something
+   changed.
+4. Run the file. The terminal prints `expense 1200 over 500`, then
+   `2 of 2 expenses flagged`. The line for 40 is missing, because nothing ran
+   that Effect. The summary is wrong, because `lunch` is an Effect, which is
+   an object, and `filter(Boolean)` keeps every object.
+5. Put the `yield*` back and run the file again. The three lines return.
 
-When a log line or a step goes missing, a missing `yield*` is the first thing
-to look for.
+When a log line goes missing or a result looks wrong, check for a missing
+`yield*` first.
 
 ## What you learned
 
-- `Effect.gen(function* () { ... })` builds one Effect from steps that run in
+- `Effect.gen(function*() { ... })` builds one Effect from steps that run in
   order.
-- `yield*` runs an Effect and gives you its result. What you `return` becomes
-  the success type.
+- `yield*` runs an Effect and gives you its result, so a later step can use
+  what an earlier step found.
+- What the block returns becomes the success type. `evaluate` returns
+  `flagged`, so its Effect succeeds with a `boolean`.
 - Plain functions such as `isLarge` are called without `yield*`.
-- An Effect you build inside a generator and do not `yield*` never runs, and
-  TypeScript does not warn you.
-- In [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it) you give a
-  generator a name, so its failures say where they came from.
+- An Effect you forget to `yield*` never runs. TypeScript reports no error,
+  but hovering the value shows an Effect where you expected a result.
+- In [Naming steps with Effect.fn](/learn/part-1/07-name-it-see-it) you give
+  a generator a name, so its failures say where they came from.
 
 ## Reference
 

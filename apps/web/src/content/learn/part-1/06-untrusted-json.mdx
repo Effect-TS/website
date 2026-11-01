@@ -93,7 +93,7 @@ this lesson. `malformed` is broken on purpose:
 />
 
 Make `program` evaluate `largeExpense` for the laptop, `largeExpense` for the
-taxi, and `malformed` for the laptop:
+taxi, and `malformed` for the laptop, and remove the summary line:
 
 <LessonCode
   file="lessons/part1/06-untrusted-json/solution/main.ts"
@@ -110,6 +110,12 @@ Run the file. The terminal shows three outcomes in order:
 A missing amount is expected, so it is handled and becomes a skip. A broken
 rule is not expected, so it stops the program.
 
+That is why the summary is gone. A broken rule stops the program before a
+summary could print, and from
+[Recording runs with Effect.onExit](/learn/part-2/12-an-engine-that-records)
+on, a run log records how every run ended instead. `evaluate` still gives
+back whether the rule matched.
+
 ## 4. Read the schema error
 
 Look at the malformed rule's error in the terminal. It reads
@@ -121,7 +127,7 @@ where the value should be a number, and no message at all. Fix the operator
 and the next problem is reported.
 
 Hover `evaluate`. Its return type is
-`Effect<string | void, SchemaError, never>`. `SchemaError` is defined by the
+`Effect<boolean, SchemaError, never>`. `SchemaError` is defined by the
 library and reported for you.
 
 ## Try it
