@@ -5,6 +5,9 @@ import { foldkitDevDependencies } from "./dev-dependencies"
 import { foldkitBuildId } from "./build-id"
 import { foldkitPlugins } from "./plugins"
 
+const TOOLBAR_ICON =
+  '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 2 2.5 6 10 10l7.5-4L10 2Z"/><path d="m2.5 10 7.5 4 7.5-4"/><path d="m2.5 14 7.5 4 7.5-4"/></svg>'
+
 const entrypoint = (file: string) =>
   fileURLToPath(new URL(file, import.meta.url))
 
@@ -38,7 +41,20 @@ export const foldkit = (options: FoldkitOptions = {}): AstroIntegration => {
   return {
     name: "foldkit",
     hooks: {
-      "astro:config:setup": ({ addRenderer, updateConfig }) => {
+      "astro:config:setup": ({
+        addDevToolbarApp,
+        addRenderer,
+        command,
+        updateConfig,
+      }) => {
+        if (command === "dev") {
+          addDevToolbarApp({
+            id: "foldkit",
+            name: "Foldkit",
+            icon: TOOLBAR_ICON,
+            entrypoint: entrypoint("./devtools-toolbar-app.ts"),
+          })
+        }
         addRenderer({
           name: "foldkit",
           clientEntrypoint: entrypoint("./client.ts"),

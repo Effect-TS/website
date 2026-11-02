@@ -7,7 +7,10 @@ import { ApplicationTypeId, isApplication } from "./application"
  * swap pages on this site, so the island lives as long as the document.
  */
 export default (_element: HTMLElement) =>
-  (Component: unknown): void => {
+  async (Component: unknown): Promise<void> => {
+    if (import.meta.env.DEV) {
+      await import("./devtools-overlay")
+    }
     if (!isApplication(Component)) {
       throw new Error(
         "The foldkit renderer needs a component from defineApplication.",

@@ -1,7 +1,7 @@
 import type { Plugin } from "vite"
 
 /** Foldkit's own browser dependency that Vite would find only after the first page. */
-const FOLDKIT_PRE_BUNDLED = ["@foldkit/ui"]
+const FOLDKIT_PRE_BUNDLED = ["@foldkit/ui", "@foldkit/devtools/vite"]
 
 /**
  * Vite finds some dependencies only after the first page loads, then
