@@ -23,7 +23,9 @@ const pageOf = (context: unknown): object | undefined =>
  */
 const claimPage = (context: unknown, name: string): void => {
   const page = pageOf(context)
-  if (page === undefined) return
+  if (page === undefined) {
+    return
+  }
   const first = firstOnPage.get(page)
   if (first !== undefined) {
     throw new Error(

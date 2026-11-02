@@ -1,4 +1,4 @@
-import type { Schema } from "effect"
+import { Predicate, type Schema } from "effect"
 import type { Update } from "foldkit"
 import type { Document, HtmlBuilder } from "foldkit/html"
 import type { Subscriptions } from "foldkit/subscription"
@@ -79,4 +79,4 @@ export const defineApplication = <
   )
 
 export const isApplication = (value: unknown): value is Application<unknown> =>
-  typeof value === "function" && ApplicationTypeId in value
+  Predicate.isFunction(value) && ApplicationTypeId in value
