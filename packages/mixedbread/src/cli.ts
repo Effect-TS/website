@@ -4,6 +4,7 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import * as Config from "effect/Config"
 import * as Console from "effect/Console"
+import { Digest } from "effect/crypto"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
@@ -113,6 +114,7 @@ const program = Command.run(indexCommand, { version: "0.0.0" })
 const MainLayer = Layer.mergeAll(
   CliConfig.layer({ builtIns: [GlobalFlag.Help] }),
   NodeServices.layer,
+  Digest.layerWebCrypto,
 )
 
 program.pipe(Effect.provide(MainLayer), NodeRuntime.runMain)

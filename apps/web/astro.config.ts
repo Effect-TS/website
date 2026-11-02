@@ -19,6 +19,7 @@ import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 import { remarkMermaid } from "./src/features/docs/remark-mermaid"
+import { foldkit } from "./src/lib/foldkit/integration"
 import { incrementalBuildReport } from "./src/lib/incremental-build-report"
 
 const FontsourceProvider = fontProviders.fontsource()
@@ -131,6 +132,10 @@ const config = defineConfig({
   integrations: [
     expressiveCode(),
     react(),
+    foldkit({
+      buildId: process.env.WEBSITE_REVISION,
+      preBundle: ["effect/http", "effect/persistence"],
+    }),
     mdx(),
     incrementalBuildReport(),
     {
