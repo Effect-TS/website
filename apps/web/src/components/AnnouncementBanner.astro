@@ -13,7 +13,7 @@ import { ArrowRight } from "@lucide/astro"
 >
   <span
     aria-hidden="true"
-    class="announcement-glow pointer-events-none absolute inset-x-0 bottom-[-1px] h-px"
+    class="announcement-glow pointer-events-none absolute inset-x-0 -bottom-px h-px"
   ></span>
 
   <a
@@ -37,17 +37,18 @@ import { ArrowRight } from "@lucide/astro"
   @keyframes announcement-glow {
     from {
       transform: scaleX(0);
+      opacity: 0;
     }
     to {
       transform: scaleX(1);
+      opacity: 1;
     }
   }
 
   [data-announcement] .announcement-glow {
-    background: white;
-    box-shadow: 0 0 8px 1px rgb(255 255 255 / 45%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%);
     transform-origin: center;
-    animation: announcement-glow 1600ms ease-out both;
+    animation: announcement-glow 1200ms ease-in-out both;
   }
 
   @media (prefers-reduced-motion: reduce) {
