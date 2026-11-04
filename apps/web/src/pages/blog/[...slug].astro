@@ -13,6 +13,7 @@ import { FormattedDate } from "@/components/ui/FormattedDate"
 import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
+import { BLOG_FEED } from "@/lib/constants/blog-feed"
 import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
 
 export const prerender = true
@@ -116,8 +117,8 @@ const shareShellClass =
   title={`${post.data.title} | Effect Blog`}
   description={post.data.excerpt}
   activeSlug={isSeriesPost ? "motw" : "blog"}
+  feed={isSeriesPost ? MODULE_FEED : BLOG_FEED}
   themeable
-  {...isSeriesPost ? { feed: MODULE_FEED } : undefined}
 >
   <section class="relative overflow-hidden">
     <div aria-hidden="true" class="pointer-events-none absolute inset-0 z-0">

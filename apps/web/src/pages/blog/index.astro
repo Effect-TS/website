@@ -1,5 +1,6 @@
 ---
 import { Struct } from "effect"
+import { Rss } from "@lucide/astro"
 import { Image } from "astro:assets"
 import { getCollection, getEntries, type CollectionEntry } from "astro:content"
 
@@ -10,6 +11,7 @@ import { TWIEScrollRail } from "@/components/blog/TWIEScrollRail"
 import GridBackground from "@/components/GridBackground.astro"
 import Eyebrow from "@/components/ui/Eyebrow.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
+import { BLOG_FEED } from "@/lib/constants/blog-feed"
 
 const [blogCollection, tagCollection] = await Promise.all([
   getCollection("blog"),
@@ -79,6 +81,7 @@ const serialize = (post: (typeof allPosts)[number]): SerializedPost => ({
   title="Blog | Effect"
   description="Get with the latest updates from the Effect ecosystem"
   activeSlug="blog"
+  feed={BLOG_FEED}
   themeable
 >
   <section class="relative overflow-hidden">
@@ -116,6 +119,17 @@ const serialize = (post: (typeof allPosts)[number]): SerializedPost => ({
         >
           Notes from the Effect team
         </h1>
+        <a
+          href={BLOG_FEED.href}
+          aria-label={`${BLOG_FEED.title} RSS feed`}
+          class="group mt-4 inline-flex items-center gap-1.5 font-mono text-sm text-foreground transition-colors"
+        >
+          RSS
+          <Rss
+            class="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground"
+            aria-hidden="true"
+          />
+        </a>
       </div>
 
       {
