@@ -22,7 +22,8 @@ const hostShadow = (): ShadowRoot | null =>
 
 /**
  * Hides the overlay's badge so a native control is the only trigger, and lifts
- * a bottom panel above the Astro toolbar, which it would otherwise cover.
+ * a bottom panel and the pause blocker clear of the Astro toolbar, which they
+ * would otherwise cover.
  */
 export const useNativeTrigger = (): void => {
   const shadow = hostShadow()
@@ -37,8 +38,20 @@ export const useNativeTrigger = (): void => {
   style.textContent = `
     ${BADGE_SELECTOR} { display: none !important; }
     .dt-panel-br, .dt-panel-bl { bottom: ${TOOLBAR_CLEARANCE}; }
+    .dt-interaction-blocker { bottom: ${TOOLBAR_CLEARANCE}; }
   `
   shadow.appendChild(style)
+}
+
+/**
+ * A paused application sits behind a full-screen blocker that only the open
+ * panel can lift. Closing the panel while paused would lock the page, so the
+ * trigger resumes first.
+ */
+const resumeApplication = (shadow: ShadowRoot): void => {
+  Array.from(shadow.querySelectorAll<HTMLElement>(".dt-panel button"))
+    .find((button) => button.textContent?.trim().startsWith("Resume"))
+    ?.click()
 }
 
 const makeTrigger = (shadow: ShadowRoot): DevToolsTrigger => {
@@ -46,6 +59,9 @@ const makeTrigger = (shadow: ShadowRoot): DevToolsTrigger => {
   return {
     isOpen,
     toggle: () => {
+      if (isOpen()) {
+        resumeApplication(shadow)
+      }
       shadow.querySelector<HTMLElement>(BADGE_SELECTOR)?.click()
     },
     subscribe: (listener) => {
