@@ -1,6 +1,6 @@
 ---
 // Permanent site-wide banner sharing the navbar's sticky wrapper. Not
-// dismissible. Its bottom-border glow expands once on load and stays visible.
+// dismissible. Its glow waits for the hero grid pulse, then expands once and stays.
 ---
 
 <effect-announcement
@@ -53,18 +53,32 @@
   [data-announcement] .announcement-glow {
     background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%);
     transform-origin: center;
+    transform: scaleX(0);
+    opacity: 0;
+  }
+
+  [data-announcement][data-glow] .announcement-glow {
     animation: announcement-glow 1200ms ease-in-out both;
   }
 
   @media (prefers-reduced-motion: reduce) {
     [data-announcement] .announcement-glow {
       animation: none;
+      transform: scaleX(1);
+      opacity: 1;
     }
   }
 </style>
 
 <script>
   class AnnouncementElement extends HTMLElement {
+    #glow = () => this.setAttribute("data-glow", "")
+
+    #ready = () => {
+      const pulse = document.querySelector<HTMLElement>("[data-hero-grid-pulse]")
+      if (!pulse || pulse.hasAttribute("data-complete")) this.#glow()
+    }
+
     #resize = new ResizeObserver(() => {
       const height = this.getBoundingClientRect().height
       document.documentElement.style.setProperty("--announcement-height", `${height}px`)
@@ -76,10 +90,15 @@
 
     connectedCallback() {
       this.#resize.observe(this)
+      document.addEventListener("hero-grid-pulse-complete", this.#glow, { once: true })
+      if (document.readyState === "complete") this.#ready()
+      else window.addEventListener("load", this.#ready, { once: true })
     }
 
     disconnectedCallback() {
       this.#resize.disconnect()
+      document.removeEventListener("hero-grid-pulse-complete", this.#glow)
+      window.removeEventListener("load", this.#ready)
     }
   }
 
