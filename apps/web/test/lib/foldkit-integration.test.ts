@@ -1,8 +1,5 @@
-import type { AstroIntegration } from "astro"
 import { assert, test } from "vite-plus/test"
 import { foldkit } from "../../src/lib/foldkit/integration.ts"
-
-type SetupHook = NonNullable<AstroIntegration["hooks"]["astro:config:setup"]>
 
 const setup = (command: "dev" | "build") => {
   const toolbars: Array<unknown> = []
@@ -10,12 +7,19 @@ const setup = (command: "dev" | "build") => {
   const updates: Array<unknown> = []
   const hook = foldkit({ buildId: "test" }).hooks["astro:config:setup"]
   assert.isDefined(hook)
-  ;(hook as unknown as (options: unknown) => void)({
+  const options = {
     command,
-    addDevToolbarApp: (app: unknown) => toolbars.push(app),
-    addRenderer: (renderer: unknown) => renderers.push(renderer),
-    updateConfig: (config: unknown) => updates.push(config),
-  } satisfies Partial<Parameters<SetupHook>[0]>)
+    addDevToolbarApp: (app: unknown) => {
+      toolbars.push(app)
+    },
+    addRenderer: (renderer: unknown) => {
+      renderers.push(renderer)
+    },
+    updateConfig: (config: unknown) => {
+      updates.push(config)
+    },
+  }
+  ;(hook as unknown as (options: unknown) => void)(options)
   return { toolbars, renderers, updates }
 }
 

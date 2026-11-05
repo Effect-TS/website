@@ -113,32 +113,18 @@ test("separate pages each number their Programs from one", async () => {
     Counter,
     { start: 1 },
     {},
-    {},
   )
   await renderer.renderToStaticMarkup.call(
     { result: {} },
     Counter,
     { start: 1 },
     {},
-    {},
   )
 })
 
 test("a render outside a page has no page to guard", async () => {
-  await renderer.renderToStaticMarkup.call(
-    undefined,
-    Counter,
-    { start: 1 },
-    {},
-    {},
-  )
-  await renderer.renderToStaticMarkup.call(
-    undefined,
-    Counter,
-    { start: 1 },
-    {},
-    {},
-  )
+  await renderer.renderToStaticMarkup.call(undefined, Counter, { start: 1 }, {})
+  await renderer.renderToStaticMarkup.call(undefined, Counter, { start: 1 }, {})
 })
 
 test("the renderer refuses something that is not a Program", async () => {
