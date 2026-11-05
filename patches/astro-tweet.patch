@@ -6,7 +6,7 @@ index 9ef574015d9f58d13dd1de8fe343d66518e4b27f..db46e2c0dfb23c5367f40a328acc5ff9
  ---
  import TweetContent from "./TweetContent.astro";
 +import type { TwitterComponents } from "./twitter-theme/types";
-
+ 
  interface Props {
    id: string;
 -  // TODO: add support for custom components (do we need this though?)
@@ -28,7 +28,7 @@ index 8084b749cf2782e0f2ab6c6106d1dda3faaa7f91..db4cec7e9bbbb5b6b9bb4382d1a6c976
    fetchOptions?: RequestInit;
    onError?: ((error: any) => any) | undefined;
  }
-
+ 
 -const { id, components, fetchOptions, onError } = Astro.props;
 +const { id, components, mediaAlt, fetchOptions, onError } = Astro.props;
  let error;
@@ -52,12 +52,12 @@ index fd68fcc916e99bba05196c18220c861d1e643c7c..339c74461230c4f7fb6058d2b57d67db
    components?: Omit<TwitterComponents, "TweetNotFound">;
 +  mediaAlt?: ReadonlyArray<string>;
  };
-
+ 
 -const { tweet: t, components } = Astro.props;
 +const { tweet: t, components, mediaAlt } = Astro.props;
  const tweet = enrichTweet(t);
  ---
-
+ 
 @@ -27,7 +28,7 @@ const tweet = enrichTweet(t);
    <TweetBody tweet={tweet} />
    {
@@ -74,7 +74,7 @@ index 04225a838ebf91081acf59efd30c335732e5ca83..4e8edfcea4e82dd0ee1b89b890499dfa
 @@ -8,24 +8,20 @@ interface Props {
  const { tweet } = Astro.props;
  ---
-
+ 
 -<p class={styles.root}>
 -  {
 -    tweet.entities.map((item, i) => {
@@ -128,7 +128,7 @@ index e61fd03544caaa3be53323d65e870ee78ee538a4..8be5e6ac26d568db858bc7366a16812e
 +  rel: "noopener noreferrer"
 +}
  ---
-
+ 
 -<a
 -  href={tweet.in_reply_to_url}
 -  class={s.root}
@@ -138,6 +138,40 @@ index e61fd03544caaa3be53323d65e870ee78ee538a4..8be5e6ac26d568db858bc7366a16812e
 -  Replying to @{tweet.in_reply_to_screen_name}
 -</a>
 +<a {...props}>Replying to @{tweet.in_reply_to_screen_name}</a>
+diff --git a/src/twitter-theme/TweetInfoCreatedAt.astro b/src/twitter-theme/TweetInfoCreatedAt.astro
+index 9fc1f705983ccf165efccbc2da583a0cc1678b56..cab11486249027ba261e553dec6ff4b9bbe2f09d 100644
+--- a/src/twitter-theme/TweetInfoCreatedAt.astro
++++ b/src/twitter-theme/TweetInfoCreatedAt.astro
+@@ -1,5 +1,4 @@
+ ---
+-import format from "date-fns/format/index.js";
+ import type { EnrichedTweet } from "../utils.js";
+ import styles from "./tweet-info-created-at.module.css";
+ 
+@@ -8,6 +7,11 @@ interface Props {
+ }
+ const { tweet } = Astro.props;
+ const createdAt = new Date(tweet.created_at);
++const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" })
++  .format(createdAt)
++  .replace(/\s/g, " ");
++const date = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(createdAt);
++const label = `${time} · ${date}`;
+ ---
+ 
+ <a
+@@ -15,9 +19,9 @@ const createdAt = new Date(tweet.created_at);
+   href={tweet.url}
+   target="_blank"
+   rel="noopener noreferrer"
+-  aria-label={format(createdAt!, "h:mm a · MMM d, y")}
++  aria-label={label}
+ >
+   <time datetime={createdAt?.toISOString()}>
+-    {format(createdAt!, "h:mm a · MMM d, y")}
++    {label}
+   </time>
+ </a>
 diff --git a/src/twitter-theme/TweetLink.astro b/src/twitter-theme/TweetLink.astro
 index 124bd3d3d8b2f0190e8aee3a7def441722d8a460..88e97b44654a93ef765ac0d2f67b940fac228b36 100644
 --- a/src/twitter-theme/TweetLink.astro
@@ -157,7 +191,7 @@ index 124bd3d3d8b2f0190e8aee3a7def441722d8a460..88e97b44654a93ef765ac0d2f67b940f
 +  rel: "noopener noreferrer"
 +}
  ---
-
+ 
 -<a
 -  href={Astro.props.href}
 -  class={s.root}
@@ -208,7 +242,7 @@ index 1edf0b8c089fbe8578a9994599552f67d5d94884..0efee2080cb41832d91416021755cdb3
 @@ -7,6 +7,4 @@ interface Props {
  }
  ---
-
+ 
 -<p class={styles.root}>
 -  {Astro.props.tweet.entities.map((item, i) => <span>{item.text}</span>)}
 -</p>
@@ -226,21 +260,21 @@ index 4e4d79509675fb339838b399b283da2faaf5a801..7af25eef751a291b2cb4d4cd2a2104db
    overflow-wrap: break-word;
    overflow: hidden;
  }
-
+ 
  .avatar {
 +  flex-shrink: 0;
    position: relative;
    height: 20px;
    width: 20px;
 @@ -20,14 +21,14 @@
-
+ 
  .author {
    display: flex;
 +  flex-wrap: wrap;
 +  min-width: 0;
    margin: 0 0.5rem;
  }
-
+ 
  .authorText {
    font-weight: 700;
 -  text-overflow: ellipsis;
@@ -248,7 +282,7 @@ index 4e4d79509675fb339838b399b283da2faaf5a801..7af25eef751a291b2cb4d4cd2a2104db
 -  white-space: nowrap;
 +  overflow-wrap: anywhere;
  }
-
+ 
  .username {
 diff --git a/src/twitter-theme/tweet-container.module.css b/src/twitter-theme/tweet-container.module.css
 index d02e6cc4308cc853f450cf2f16804c861443b9b8..6c3a96793ab211cc69a308960b029a7e070244ce 100644
@@ -293,7 +327,7 @@ index 2ce994e2fab7481e5aee88f016966036ae2eee94..150f531ae62d3f5ce0f3c6bbe1acdd49
 -  overflow: hidden;
 +  overflow: visible;
  }
-
+ 
  .avatar {
 +  flex-shrink: 0;
    position: relative;
@@ -301,7 +335,7 @@ index 2ce994e2fab7481e5aee88f016966036ae2eee94..150f531ae62d3f5ce0f3c6bbe1acdd49
    width: 48px;
 @@ -35,6 +36,7 @@
  }
-
+ 
  .author {
 +  min-width: 0;
    max-width: calc(100% - 84px);
@@ -324,7 +358,7 @@ index 2ce994e2fab7481e5aee88f016966036ae2eee94..150f531ae62d3f5ce0f3c6bbe1acdd49
 -  white-space: nowrap;
 +  overflow-wrap: anywhere;
  }
-
+ 
  .authorMeta {
    display: flex;
 +  flex-wrap: wrap;
@@ -349,14 +383,14 @@ index 2ce994e2fab7481e5aee88f016966036ae2eee94..150f531ae62d3f5ce0f3c6bbe1acdd49
    font-weight: 700;
 @@ -84,6 +92,9 @@
  }
-
+ 
  .brand {
 +  min-width: 24px;
 +  min-height: 24px;
 +  flex-shrink: 0;
    margin-inline-start: auto;
  }
-
+ 
 diff --git a/src/twitter-theme/tweet-link.module.css b/src/twitter-theme/tweet-link.module.css
 index b41aa448eb07b93b216cb15c0539e5681179ce1a..18eb4973799fc3d11205f157762a79f0e7c40f5e 100644
 --- a/src/twitter-theme/tweet-link.module.css
@@ -378,7 +412,7 @@ index 66166d2c8fd901246d3f25bbb9347b2ab833afa5..fca602947325240c116e792044430fc4
 @@ -120,10 +120,10 @@ function getEntities(tweet: TweetBase): Entity[] {
      { indices: tweet.display_text_range, type: "text" },
    ];
-
+ 
 -  addEntities(result, "hashtag", tweet.entities.hashtags);
 -  addEntities(result, "mention", tweet.entities.user_mentions);
 -  addEntities(result, "url", tweet.entities.urls);
