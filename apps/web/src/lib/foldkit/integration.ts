@@ -6,7 +6,7 @@ import { foldkitBuildId } from "./build-id"
 import { foldkitPlugins } from "./plugins"
 
 const TOOLBAR_ICON =
-  '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 2 2.5 6 10 10l7.5-4L10 2Z"/><path d="m2.5 10 7.5 4 7.5-4"/><path d="m2.5 14 7.5 4 7.5-4"/></svg>'
+  '<svg viewBox="41.25 41.25 97.5 97.5" fill="currentColor"><rect x="41.25" y="41.25" width="45" height="97.5"/><rect x="93.75" y="41.25" width="45" height="18.75"/><rect x="93.75" y="67.5" width="45" height="18.75"/></svg>'
 
 const entrypoint = (file: string) =>
   fileURLToPath(new URL(file, import.meta.url))
