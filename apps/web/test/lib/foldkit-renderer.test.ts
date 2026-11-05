@@ -2,17 +2,17 @@ import { Schema } from "effect"
 import { defineMessageUnion } from "foldkit/message"
 import { assert, test } from "vite-plus/test"
 import {
-  ApplicationTypeId,
-  defineApplication,
-  isApplication,
-} from "../../src/lib/foldkit/application.ts"
+  ProgramTypeId,
+  defineProgram,
+  isProgram,
+} from "../../src/lib/foldkit/program.ts"
 import renderer from "../../src/lib/foldkit/server.ts"
 
 const Model = Schema.Struct({ count: Schema.Number })
 const Flags = Schema.Struct({ start: Schema.Number })
 const Message = defineMessageUnion({ Clicked: {} })
 
-const Counter = defineApplication<
+const Counter = defineProgram<
   { readonly start: number },
   typeof Model.Type,
   typeof Message.Type,
@@ -22,32 +22,29 @@ const Counter = defineApplication<
   Flags,
   init: (flags) => ({ model: { count: flags.start } }),
   update: (model) => ({ model }),
-  view: (model, h) => ({
-    title: `Count ${model.count}`,
-    body: h.div([h.Class("counter")], [`${model.count} ${"slot"}`]),
-  }),
+  view: (model, h) => h.div([h.Class("counter")], [`${model.count} ${"slot"}`]),
   flags: ({ props }) => ({ start: props.start }),
 })
 
-test("an application carries its spec under the application id", () => {
-  assert.isTrue(isApplication(Counter))
+test("a Program carries its spec under the Program id", () => {
+  assert.isTrue(isProgram(Counter))
   assert.deepEqual(
-    Counter[ApplicationTypeId].flags({ props: { start: 3 }, slots: {} }),
+    Counter[ProgramTypeId].flags({ props: { start: 3 }, slots: {} }),
     { start: 3 },
   )
 })
 
-test("only applications pass the guard", () => {
-  assert.isFalse(isApplication(() => null))
-  assert.isFalse(isApplication({}))
-  assert.isFalse(isApplication(undefined))
+test("only Programs pass the guard", () => {
+  assert.isFalse(isProgram(() => null))
+  assert.isFalse(isProgram({}))
+  assert.isFalse(isProgram(undefined))
 })
 
-test("calling an application as a component fails loudly", () => {
+test("calling a Program as a component fails loudly", () => {
   assert.throws(() => Counter({ start: 1 }), "renders only through Astro")
 })
 
-test("the renderer claims only applications", async () => {
+test("the renderer claims only Programs", async () => {
   assert.isTrue(await renderer.check(Counter))
   assert.isFalse(await renderer.check(() => null))
 })
@@ -60,15 +57,15 @@ test("the renderer returns hydratable HTML stamped with the build id", async () 
   )
   assert.include(html, 'class="counter"')
   assert.include(html, "7 slot")
-  assert.include(html, 'data-foldkit-app="app"')
+  assert.include(html, 'data-foldkit-app="program-')
   assert.include(html, 'data-foldkit-build="test-build"')
-  assert.include(html, 'data-foldkit-flags="app"')
+  assert.include(html, 'data-foldkit-flags="program-')
   assert.include(html, '{"start":7}')
 })
 
 test("slot HTML arrives as plain strings even when Astro hands over String objects", async () => {
   const htmlString = new String("<p>prose</p>") as unknown as string
-  const App = defineApplication<
+  const App = defineProgram<
     unknown,
     { readonly prose: string },
     typeof Message.Type,
@@ -78,10 +75,7 @@ test("slot HTML arrives as plain strings even when Astro hands over String objec
     Flags: Schema.Struct({ prose: Schema.String }),
     init: (flags) => ({ model: { prose: flags.prose } }),
     update: (model) => ({ model }),
-    view: (model, h) => ({
-      title: "t",
-      body: h.div([], [model.prose]),
-    }),
+    view: (model, h) => h.div([], [model.prose]),
     flags: ({ slots }) => ({ prose: slots["default"] ?? "" }),
   })
   const { html } = await renderer.renderToStaticMarkup(
@@ -92,33 +86,28 @@ test("slot HTML arrives as plain strings even when Astro hands over String objec
   assert.include(html, "prose")
 })
 
-test("a second application on the same page is refused, naming both", async () => {
-  const page = {}
-  await renderer.renderToStaticMarkup.call(
-    page && { result: page },
+test("several Programs on one page each get their own root and Flags", async () => {
+  const page = { result: {} }
+  const first = await renderer.renderToStaticMarkup.call(
+    page,
     Counter,
     { start: 1 },
     {},
-    { displayName: "First" },
   )
-  let message = ""
-  await renderer.renderToStaticMarkup
-    .call(
-      { result: page },
-      Counter,
-      { start: 2 },
-      {},
-      { displayName: "Second" },
-    )
-    .catch((error: Error) => {
-      message = error.message
-    })
-  assert.include(message, "one Foldkit application")
-  assert.include(message, "Second")
-  assert.include(message, "First")
+  const second = await renderer.renderToStaticMarkup.call(
+    page,
+    Counter,
+    { start: 2 },
+    {},
+  )
+  assert.include(first.html, 'data-foldkit-app="program-1"')
+  assert.include(first.html, "data-foldkit-element")
+  assert.include(first.html, 'data-foldkit-flags="program-1"')
+  assert.include(second.html, 'data-foldkit-app="program-2"')
+  assert.include(second.html, 'data-foldkit-flags="program-2"')
 })
 
-test("separate pages each get their application", async () => {
+test("separate pages each number their Programs from one", async () => {
   await renderer.renderToStaticMarkup.call(
     { result: {} },
     Counter,
@@ -152,12 +141,12 @@ test("a render outside a page has no page to guard", async () => {
   )
 })
 
-test("the renderer refuses something that is not an application", async () => {
+test("the renderer refuses something that is not a Program", async () => {
   let message = ""
   await renderer
     .renderToStaticMarkup(() => null, {}, {})
     .catch((error: Error) => {
       message = error.message
     })
-  assert.include(message, "defineApplication")
+  assert.include(message, "defineProgram")
 })

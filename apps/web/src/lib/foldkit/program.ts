@@ -1,6 +1,6 @@
 import { Predicate, type Schema } from "effect"
 import type { Update } from "foldkit"
-import type { Document, Html, HtmlBuilder } from "foldkit/html"
+import type { Html, HtmlBuilder } from "foldkit/html"
 import type { Subscriptions } from "foldkit/subscription"
 import buildId from "virtual:foldkit/build-id"
 
@@ -12,82 +12,13 @@ export interface FlagsInput<Props> {
   readonly slots: Slots
 }
 
-export interface ApplicationSpec<
+export interface ProgramSpec<
   Props,
   Model,
   Message extends { _tag: string },
   Flags,
 > {
-  readonly Model: Schema.Codec<Model, any, unknown, unknown>
-  readonly Flags: Schema.Codec<Flags, any, never, never>
-  readonly init: (flags: Flags) => Update.Return<Model, Message>
-  readonly update: (
-    model: Model,
-    message: Message,
-  ) => Update.Return<Model, Message>
-  readonly view: (model: Model, h: HtmlBuilder<Message>) => Document
-  readonly subscriptions?: Subscriptions<Model, Message>
-  /**
-   * Builds the first Flags from what Astro knows at render time. The server
-   * embeds them in the HTML and the client reads them back, so they must not
-   * depend on anything only the browser knows.
-   */
-  readonly flags: (input: FlagsInput<Props>) => Flags
-}
-
-export const ApplicationTypeId: unique symbol = Symbol.for(
-  "effect-website/foldkit/Application",
-)
-
-/**
- * A page-owning Foldkit application Astro can render on the server and hydrate
- * in the browser with `client:load`. The value is callable so `.astro` files
- * type check props. Astro never calls it.
- *
- * The application owns the page: it writes the document title and hydrates a
- * single stamped root, so use at most one per page.
- */
-export interface Application<Props> {
-  (props: Props): never
-  readonly [ApplicationTypeId]: ResolvedSpec<Props>
-}
-
-/** Fields the renderer adds to what the application defines. */
-export type ResolvedSpec<Props> = ApplicationSpec<Props, any, any, any> & {
-  readonly buildId: string
-}
-
-/**
- * The build id rides on the application, not on each page. Anything that
- * imports an application therefore depends on the id, so Astro's incremental
- * build re-renders those pages when it changes. A page that rendered under
- * another id would be refused by the client at hydration.
- */
-export const defineApplication = <
-  Props,
-  Model,
-  Message extends { _tag: string },
-  Flags,
->(
-  spec: ApplicationSpec<Props, Model, Message, Flags>,
-): Application<Props> =>
-  Object.assign(
-    (): never => {
-      throw new Error("A Foldkit application renders only through Astro.")
-    },
-    { [ApplicationTypeId]: { ...spec, buildId } },
-  )
-
-export const isApplication = (value: unknown): value is Application<unknown> =>
-  Predicate.isFunction(value) && ApplicationTypeId in value
-
-export interface ElementSpec<
-  Props,
-  Model,
-  Message extends { _tag: string },
-  Flags,
-> {
-  /** Names the app in the DevTools picker, from its props. Defaults to the island's module name. */
+  /** Names the Program in the DevTools dropdown, from its props. Defaults to the island's module name. */
   readonly name?: string | ((props: Props) => string)
   readonly Model: Schema.Codec<Model, any, unknown, unknown>
   readonly Flags: Schema.Codec<Flags, any, never, never>
@@ -98,41 +29,52 @@ export interface ElementSpec<
   ) => Update.Return<Model, Message>
   readonly view: (model: Model, h: HtmlBuilder<Message>) => Html
   readonly subscriptions?: Subscriptions<Model, Message>
-  readonly flags: (props: Props) => Flags
+  /**
+   * Builds the first Flags from what Astro knows at render time. The server
+   * embeds them in the HTML and the client reads them back, so they must not
+   * depend on anything only the browser knows.
+   */
+  readonly flags: (input: FlagsInput<Props>) => Flags
 }
 
-/** Marks the empty container the server leaves for an element. */
-export const ELEMENT_ATTRIBUTE = "data-foldkit-element"
-
-export const ElementTypeId: unique symbol = Symbol.for(
-  "effect-website/foldkit/Element",
+export const ProgramTypeId: unique symbol = Symbol.for(
+  "effect-website/foldkit/Program",
 )
 
-/**
- * A Foldkit app that lives inside a page it does not own. The server renders
- * an empty container and the browser starts the app in it with
- * `Runtime.embed`, so a page can hold any number of them beside one
- * `defineApplication`. They have no server-rendered HTML.
- */
-export interface Element<Props> {
-  (props: Props): never
-  readonly [ElementTypeId]: ElementSpec<Props, any, any, any>
+/** Fields the renderer adds to what the Program defines. */
+export type ResolvedSpec<Props> = ProgramSpec<Props, any, any, any> & {
+  readonly buildId: string
 }
 
-export const defineElement = <
+/**
+ * A Foldkit Program Astro renders on the server and hydrates in the browser
+ * with any `client:*` directive. The value is callable so `.astro` files type
+ * check props. Astro never calls it. A page can hold any number of Programs.
+ *
+ * The build id rides on the Program, not on each page. Anything that imports a
+ * Program therefore depends on the id, so Astro's incremental build re-renders
+ * those pages when it changes. A page that rendered under another id would be
+ * refused by the client at hydration.
+ */
+export interface Program<Props> {
+  (props: Props): never
+  readonly [ProgramTypeId]: ResolvedSpec<Props>
+}
+
+export const defineProgram = <
   Props,
   Model,
   Message extends { _tag: string },
   Flags,
 >(
-  spec: ElementSpec<Props, Model, Message, Flags>,
-): Element<Props> =>
+  spec: ProgramSpec<Props, Model, Message, Flags>,
+): Program<Props> =>
   Object.assign(
     (): never => {
-      throw new Error("A Foldkit element renders only through Astro.")
+      throw new Error("A Foldkit Program renders only through Astro.")
     },
-    { [ElementTypeId]: spec },
+    { [ProgramTypeId]: { ...spec, buildId } },
   )
 
-export const isElement = (value: unknown): value is Element<unknown> =>
-  Predicate.isFunction(value) && ElementTypeId in value
+export const isProgram = (value: unknown): value is Program<unknown> =>
+  Predicate.isFunction(value) && ProgramTypeId in value

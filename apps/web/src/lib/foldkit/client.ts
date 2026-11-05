@@ -1,14 +1,8 @@
 import { Effect } from "effect"
 import { Runtime } from "foldkit"
-import {
-  ApplicationTypeId,
-  ELEMENT_ATTRIBUTE,
-  ElementTypeId,
-  isApplication,
-  isElement,
-} from "./application"
+import { ProgramTypeId, isProgram } from "./program"
 
-let embeddedCount = 0
+const ROOT_SELECTOR = "[data-foldkit-app]"
 
 const nameOf = (
   name: string | ((props: never) => string) | undefined,
@@ -17,64 +11,44 @@ const nameOf = (
   typeof name === "function" ? name(props as never) : name
 
 /**
- * Astro client entrypoint. An application adopts the server-rendered DOM in
- * place and lives as long as the document. An element starts in the empty
- * container the server left, through `Runtime.embed`.
+ * Astro client entrypoint. Each Program adopts the server-rendered root inside
+ * its own island, in place, so late islands start without rebuilding any DOM.
  */
 export default (element: HTMLElement) =>
   async (Component: unknown, props: Record<string, unknown>): Promise<void> => {
     if (import.meta.env.DEV) {
       await import("./devtools-overlay")
     }
-    if (isElement(Component)) {
-      const spec = Component[ElementTypeId]
-      const container = element.querySelector<HTMLElement>(
-        `[${ELEMENT_ATTRIBUTE}]`,
-      )
-      if (container === null) {
-        throw new Error("The foldkit element has no container to start in.")
-      }
-      embeddedCount += 1
-      container.id = `foldkit-element-${embeddedCount}`
-      Runtime.embed(
-        Runtime.makeElement({
-          Model: spec.Model,
-          Flags: spec.Flags,
-          flags: Effect.succeed(spec.flags(props)),
-          init: spec.init,
-          update: spec.update,
-          view: spec.view,
-          ...(spec.subscriptions === undefined
-            ? {}
-            : { subscriptions: spec.subscriptions }),
-          container,
-          devTools: {
-            banner:
-              nameOf(spec.name, props) ??
-              element.getAttribute("component-url") ??
-              "Foldkit element",
-          },
-        }),
-      )
-      return
-    }
-    if (!isApplication(Component)) {
+    if (!isProgram(Component)) {
       throw new Error(
-        "The foldkit renderer needs a component from defineApplication or defineElement.",
+        "The foldkit renderer needs a component from defineProgram.",
       )
     }
-    const spec = Component[ApplicationTypeId]
+    const spec = Component[ProgramTypeId]
+    const container = element.querySelector<HTMLElement>(ROOT_SELECTOR)
+    if (container === null) {
+      throw new Error("The Foldkit island has no server-rendered root.")
+    }
     Runtime.hydrate(
-      Runtime.makeApplication({
+      Runtime.makeElement({
         Model: spec.Model,
         Flags: spec.Flags,
+        flags: Effect.die(
+          new Error("A hydrated Program reads its Flags from the page."),
+        ),
         init: spec.init,
         update: spec.update,
         view: spec.view,
         ...(spec.subscriptions === undefined
           ? {}
           : { subscriptions: spec.subscriptions }),
-        container: null,
+        container,
+        devTools: {
+          banner:
+            nameOf(spec.name, props) ??
+            element.getAttribute("component-url") ??
+            "Foldkit program",
+        },
       }),
       { buildId: spec.buildId },
     )

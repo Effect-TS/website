@@ -27,9 +27,9 @@ export interface FoldkitOptions {
 }
 
 /**
- * Renders Foldkit applications on the server and hydrates them in the browser
- * through a `foldkit` renderer: `<App client:load />` for an `App` made with
- * `defineApplication`.
+ * Renders Foldkit Programs on the server and hydrates them in the browser
+ * through a `foldkit` renderer: `<Program client:load />` for a Program made with
+ * `defineProgram`.
  *
  * From `@foldkit/vite-plugin` it uses the view-identity transform and the dev
  * Model preservation, and leaves out what would break React Fast Refresh and
