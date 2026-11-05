@@ -1,0 +1,46 @@
+import { Number, Schema } from 'effect'
+
+import type { Html, HtmlBuilder } from '../../html/index.js'
+import { defineMessageUnion } from '../../message/index.js'
+import { modifyFields } from '../../struct/index.js'
+import type * as Update from '../../update/index.js'
+
+// MODEL
+
+export const Model = Schema.Struct({ clicks: Schema.Number })
+export type Model = typeof Model.Type
+
+// MESSAGE
+
+export const Message = defineMessageUnion({
+  ClickedFallback: {},
+})
+
+export type Message = typeof Message.Type
+
+// INIT
+
+export const initialModel: Model = { clicks: 0 }
+
+// UPDATE
+
+export const update = (model: Model, message: Message) =>
+  Message.match<Update.Return<Model, Message>>(message, {
+    ClickedFallback: () => ({
+      model: modifyFields(model, { clicks: Number.increment }),
+    }),
+  })
+
+// VIEW
+
+export const view = (model: Model, h: HtmlBuilder<Message>): Html => {
+  return h.div(
+    [],
+    [
+      h.div(
+        [h.Role('doc-subtitle heading'), h.OnClick(Message.ClickedFallback())],
+        [`Fallback element clicks=${model.clicks}`],
+      ),
+    ],
+  )
+}

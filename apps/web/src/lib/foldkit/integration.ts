@@ -62,6 +62,9 @@ export const foldkit = (options: FoldkitOptions = {}): AstroIntegration => {
         })
         updateConfig({
           vite: {
+            ssr: {
+              noExternal: ["foldkit", "@foldkit/ui", "@foldkit/devtools"],
+            },
             plugins: [
               foldkitDevDependencies(options.preBundle ?? []),
               foldkitBuildId(buildId),

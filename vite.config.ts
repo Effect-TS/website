@@ -11,11 +11,17 @@ export default defineConfig({
     printWidth: 80,
     semi: false,
     sortPackageJson: false,
+    ignorePatterns: ["packages/foldkit/**", "packages/foldkit-devtools/**"],
   },
   lint: {
     plugins: ["typescript", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    ignorePatterns: [".direnv", "dist"],
+    ignorePatterns: [
+      ".direnv",
+      "dist",
+      "packages/foldkit/**",
+      "packages/foldkit-devtools/**",
+    ],
     options: {
       typeAware: true,
       typeCheck: true,

@@ -1,0 +1,5624 @@
+import {
+  Array,
+  Context,
+  Data,
+  Effect,
+  Fiber,
+  Function,
+  Option,
+  Predicate,
+  Record,
+  Schema,
+  Stream,
+} from 'effect'
+
+import {
+  restoreUncontrolledContent,
+  synchronizeControlledDefault,
+} from '../controlledDomState.js'
+import {
+  FOREIGN_REPRESENTABLE_PROPERTIES,
+  assertStyleIsRepresentable,
+  htmlAttributeValue,
+  isHtmlPropertyRepresentable,
+  normalizedStyleProperties,
+  reflectedAttributeName,
+} from '../domReflection.js'
+import type { File } from '../file/index.js'
+import { isImeCompositionKeydown } from '../imeComposition.js'
+import type { MountAction } from '../mount/index.js'
+import {
+  MountRuntime,
+  MountTracker,
+  liveViewStateChanges,
+} from '../mount/index.js'
+import {
+  attachOnUnmount,
+  beginReplayUnmountRender,
+  endReplayUnmountRender,
+  flushReplayUnmountsAfterPatchFailure,
+} from '../onUnmountModule.js'
+import {
+  hasTrustedInnerHtml,
+  isClientOnlyProperty,
+  markClientOnlyProperty,
+  markTrustedInnerHtml,
+  unmarkClientOnlyProperty,
+} from '../propertyProvenance.js'
+import {
+  type On,
+  type VNodeData,
+  VNodeDataMask,
+  h,
+  vnodeDataMaskKey,
+} from '../snabbdom/index.js'
+import { tagNameFromSelector } from '../tagName.js'
+import { VNode } from '../vdom.js'
+import { type ChildAttribute, isChildAttribute } from './childAttribute.js'
+import {
+  checkScheduledLeave,
+  clearDragZoneAfterDrop,
+  getDragZoneState,
+  processDragEnter,
+  processDragLeave,
+} from './dragZoneTracking.js'
+import {
+  type DispatchSync,
+  type MountDispatchResolver,
+  type MountRenderOwner,
+  type UnmountResolver,
+  clearRuntime,
+  requireBoundaryMappers,
+  requireDispatch,
+  requireMountDispatchResolver,
+  requireRuntimeContext,
+  requireUnmountResolver,
+  setRuntime,
+} from './runtimeSingleton.js'
+import {
+  type AnySubmodelView,
+  type SubmodelConfig,
+  submodel,
+} from './submodel.js'
+
+export { createKeyedLazy, createLazy } from './lazy.js'
+export {
+  beginRender as __beginRender,
+  createBoundaryRegistry as __createBoundaryRegistry,
+} from './boundary.js'
+export type { BoundaryRegistry } from './boundary.js'
+export { childAttributes } from './childAttribute.js'
+export type { ChildAttribute } from './childAttribute.js'
+export { defineView } from './submodel.js'
+export type {
+  AnySubmodelView,
+  SubmodelConfig,
+  SubmodelView,
+} from './submodel.js'
+
+/** Pushes a dispatch and runtime context frame for the duration of a render.
+ *  The runtime calls this immediately before invoking a user `view` and
+ *  matches it with {@link __clearRuntime} in a `finally` so an exception
+ *  inside view code does not leak the frame to the next render. Test
+ *  scaffolding that builds VNodes outside of a real program (Scene, Canvas
+ *  view-only tests, Mount tests) uses the same pair. Nested frames are
+ *  supported via an internal stack. */
+export const __setRuntime = setRuntime
+
+/** Pops the current dispatch and runtime context frame. Must be paired with a
+ *  prior {@link __setRuntime} on the same call stack. */
+export const __clearRuntime = clearRuntime
+
+/** Returns the current dispatch function. Foldkit's `Canvas.view` reads this
+ *  to build its synchronous pointer handlers, since it builds VNodes directly
+ *  rather than going through the html factory. Most application code never
+ *  needs to call this. */
+export const __requireDispatch = requireDispatch
+
+/**
+ * The `id` of the DOM element that hosts the Foldkit DevTools shadow root.
+ * Defined here (not in `devTools/`) because the `OnBlur` handler below uses it
+ * to suppress blur Messages whose `relatedTarget` is this host (i.e. when
+ * focus crosses into the DevTools UI). Surfaced publicly through
+ * `foldkit/devtools-host` (not `foldkit/html`); the DevTools overlay imports it
+ * from there when creating the host element, so the two stay in sync.
+ */
+export const DEVTOOLS_HOST_ID = 'foldkit-devtools'
+
+/**
+ * Tag symbol attached to file-aware event handler functions so Scene test
+ * helpers can distinguish `OnFileChange` from `OnChange` (both register on
+ * the DOM `change` event) and `OnDropFiles` from `OnDrop` (both register on
+ * the DOM `drop` event). Internal implementation detail. Consumer code
+ * should never need to reference this directly.
+ */
+/* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+export const FileHandlerSymbol: unique symbol = Symbol.for(
+  'foldkit/html/fileHandler',
+) as unknown as FileHandlerSymbol
+/** Type-level brand for file-aware event handler tags. */
+export type FileHandlerSymbol = typeof FileHandlerSymbol
+
+const tagAsFileHandler = <T extends Function>(
+  handler: T,
+  tag: 'OnFileChange' | 'OnDropFiles',
+): T => {
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  ;(handler as unknown as Record<symbol, string>)[FileHandlerSymbol] = tag
+  return handler
+}
+
+/** Modifier key state extracted from a `KeyboardEvent`. */
+export type KeyboardModifiers = Readonly<{
+  shiftKey: boolean
+  ctrlKey: boolean
+  altKey: boolean
+  metaKey: boolean
+}>
+
+const keyboardModifiers = (event: KeyboardEvent): KeyboardModifiers => ({
+  shiftKey: event.shiftKey,
+  ctrlKey: event.ctrlKey,
+  altKey: event.altKey,
+  metaKey: event.metaKey,
+})
+
+const skipImeCompositionKeydown =
+  (handle: (event: KeyboardEvent) => void) =>
+  (event: KeyboardEvent): void => {
+    if (isImeCompositionKeydown(event)) {
+      return
+    }
+
+    handle(event)
+  }
+
+const inputEventValue = (target: EventTarget | null): string => {
+  if (
+    Predicate.hasProperty(target, 'value') &&
+    Predicate.isString(target.value)
+  ) {
+    return target.value
+  }
+
+  if (
+    Predicate.hasProperty(target, 'innerText') &&
+    Predicate.isString(target.innerText)
+  ) {
+    return target.innerText
+  }
+
+  if (
+    Predicate.hasProperty(target, 'textContent') &&
+    Predicate.isString(target.textContent)
+  ) {
+    return target.textContent
+  }
+
+  return ''
+}
+
+const isEventTargetCurrentTarget = (event: Event): boolean =>
+  event.target === event.currentTarget
+
+const isDevToolsFocusTarget = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.id === DEVTOOLS_HOST_ID
+
+const isFocusInsideCurrentTarget = (event: FocusEvent): boolean =>
+  event.currentTarget instanceof Element &&
+  event.relatedTarget instanceof Node &&
+  event.currentTarget.contains(event.relatedTarget)
+
+/** A virtual DOM element. Constructed synchronously by the element factories
+ *  on {@link HtmlBuilder}. The runtime patches a `VNode` (or `null` to
+ *  render nothing) into the application container. */
+export type Html = VNode | null
+export type Child = Html | string
+
+/** Whether an event handler leaves the browser's default action in place or
+ *  prevents it synchronously. */
+export const DefaultAction = Schema.Literals(['Allow', 'Prevent'])
+/** Whether an event handler leaves the browser's default action in place or
+ *  prevents it synchronously. */
+export type DefaultAction = typeof DefaultAction.Type
+
+/** Whether an event continues through its DOM propagation path or stops after
+ *  the handlers on its current element have run. */
+export const EventPropagation = Schema.Literals(['Bubble', 'Stop'])
+/** Whether an event continues through its DOM propagation path or stops after
+ *  the handlers on its current element have run. */
+export type EventPropagation = typeof EventPropagation.Type
+
+/** Declarative controls for an `OnClick` handler. Omitted
+ *  fields keep the browser default, allow the click to bubble, and leave focus
+ *  unchanged. */
+export const ClickOptions = Schema.Struct({
+  defaultAction: Schema.optional(DefaultAction),
+  propagation: Schema.optional(EventPropagation),
+  focusSelector: Schema.optional(Schema.String),
+})
+/** Declarative controls for an `OnClick` handler. Omitted
+ *  fields keep the browser default, allow the click to bubble, and leave focus
+ *  unchanged. */
+export type ClickOptions = typeof ClickOptions.Type
+
+/** Text direction for the document root, applied to `dir` on the `<html>`
+ *  element. `Auto` defers to the browser's first-strong-character heuristic. */
+export const TextDirection = Schema.Literals(['Ltr', 'Rtl', 'Auto'])
+/** Text direction for the document root, applied to `dir` on the `<html>`
+ *  element. `Auto` defers to the browser's first-strong-character heuristic. */
+export type TextDirection = typeof TextDirection.Type
+
+const textDirectionAttributes: Readonly<
+  Record<TextDirection, 'ltr' | 'rtl' | 'auto'>
+> = {
+  Ltr: 'ltr',
+  Rtl: 'rtl',
+  Auto: 'auto',
+}
+
+/** Maps a {@link TextDirection} to the lowercase value written to the `dir`
+ *  attribute on the `<html>` element. Shared by the client runtime, which sets
+ *  it after each render, and server rendering, which stamps it into the served
+ *  shell so the direction is correct on first paint. */
+export const textDirectionToAttribute = (
+  direction: TextDirection,
+): 'ltr' | 'rtl' | 'auto' => textDirectionAttributes[direction]
+
+/** The complete output of a page-owning view. The runtime patches `body` into
+ *  the application container, writes `title` to `document.title`, and manages
+ *  the optional document metadata.
+ *
+ *  Supplied `lang` and `dir` values are written to the `<html>` element. An
+ *  omitted value leaves the current attribute unchanged, including a value
+ *  from the served HTML or an earlier render. Drive both fields from the Model
+ *  when the application can switch languages at runtime.
+ *
+ *  `canonical` has no address-bar default. Derive it from the typed route in
+ *  the Model, where the application can decide which route and query values
+ *  identify the page. If the view never supplies it, the runtime leaves a
+ *  served `<link rel="canonical">` unchanged or keeps the document without one.
+ *
+ *  Before the client first writes `canonical` or `ogUrl`, it records the value
+ *  already present on the corresponding element. A later omission restores
+ *  that value, or removes the element if the runtime created it. During
+ *  hydration, the recorded value may be metadata rendered for the initial
+ *  route. `ogUrl` can be supplied independently; when omitted alongside an
+ *  explicit `canonical`, it uses that canonical.
+ *
+ *  Server rendering returns only the canonical supplied by the view. It
+ *  returns `ogUrl` when supplied or falls back to an explicit canonical.
+ *
+ *  This is the return type of a `makeApplication` view. An application embedded
+ *  at a node should use `makeElement`; its view returns `Html` and never changes
+ *  the `<head>` or `<html>` element. */
+export type Document = Readonly<{
+  title: string
+  lang?: string
+  dir?: TextDirection
+  canonical?: string
+  ogUrl?: string
+  body: Html
+}>
+
+/** Union of all valid HTML, SVG, and MathML tag names. */
+export type TagName =
+  | 'a'
+  | 'abbr'
+  | 'address'
+  | 'area'
+  | 'article'
+  | 'aside'
+  | 'audio'
+  | 'b'
+  | 'base'
+  | 'bdi'
+  | 'bdo'
+  | 'blockquote'
+  | 'body'
+  | 'br'
+  | 'button'
+  | 'canvas'
+  | 'caption'
+  | 'cite'
+  | 'code'
+  | 'col'
+  | 'colgroup'
+  | 'data'
+  | 'datalist'
+  | 'dd'
+  | 'del'
+  | 'details'
+  | 'dfn'
+  | 'dialog'
+  | 'div'
+  | 'dl'
+  | 'dt'
+  | 'em'
+  | 'embed'
+  | 'fieldset'
+  | 'figcaption'
+  | 'figure'
+  | 'footer'
+  | 'form'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'h4'
+  | 'h5'
+  | 'h6'
+  | 'head'
+  | 'header'
+  | 'hgroup'
+  | 'hr'
+  | 'html'
+  | 'i'
+  | 'iframe'
+  | 'img'
+  | 'input'
+  | 'ins'
+  | 'kbd'
+  | 'label'
+  | 'legend'
+  | 'li'
+  | 'link'
+  | 'main'
+  | 'map'
+  | 'mark'
+  | 'menu'
+  | 'meta'
+  | 'meter'
+  | 'nav'
+  | 'noscript'
+  | 'object'
+  | 'ol'
+  | 'optgroup'
+  | 'option'
+  | 'output'
+  | 'p'
+  | 'picture'
+  | 'portal'
+  | 'pre'
+  | 'progress'
+  | 'q'
+  | 'rp'
+  | 'rt'
+  | 'ruby'
+  | 's'
+  | 'samp'
+  | 'script'
+  | 'search'
+  | 'section'
+  | 'select'
+  | 'slot'
+  | 'small'
+  | 'source'
+  | 'span'
+  | 'strong'
+  | 'style'
+  | 'sub'
+  | 'summary'
+  | 'sup'
+  | 'table'
+  | 'tbody'
+  | 'td'
+  | 'template'
+  | 'textarea'
+  | 'tfoot'
+  | 'th'
+  | 'thead'
+  | 'time'
+  | 'title'
+  | 'tr'
+  | 'track'
+  | 'u'
+  | 'ul'
+  | 'var'
+  | 'video'
+  | 'wbr'
+  | 'animate'
+  | 'animateMotion'
+  | 'animateTransform'
+  | 'circle'
+  | 'clipPath'
+  | 'defs'
+  | 'desc'
+  | 'ellipse'
+  | 'feBlend'
+  | 'feColorMatrix'
+  | 'feComponentTransfer'
+  | 'feComposite'
+  | 'feConvolveMatrix'
+  | 'feDiffuseLighting'
+  | 'feDisplacementMap'
+  | 'feDistantLight'
+  | 'feDropShadow'
+  | 'feFlood'
+  | 'feFuncA'
+  | 'feFuncB'
+  | 'feFuncG'
+  | 'feFuncR'
+  | 'feGaussianBlur'
+  | 'feImage'
+  | 'feMerge'
+  | 'feMergeNode'
+  | 'feMorphology'
+  | 'feOffset'
+  | 'fePointLight'
+  | 'feSpecularLighting'
+  | 'feSpotLight'
+  | 'feTile'
+  | 'feTurbulence'
+  | 'filter'
+  | 'foreignObject'
+  | 'g'
+  | 'image'
+  | 'line'
+  | 'linearGradient'
+  | 'marker'
+  | 'mask'
+  | 'metadata'
+  | 'mpath'
+  | 'path'
+  | 'pattern'
+  | 'polygon'
+  | 'polyline'
+  | 'radialGradient'
+  | 'rect'
+  | 'set'
+  | 'stop'
+  | 'svg'
+  | 'switch'
+  | 'symbol'
+  | 'text'
+  | 'textPath'
+  | 'tspan'
+  | 'use'
+  | 'view'
+  | 'annotation'
+  | 'annotation-xml'
+  | 'math'
+  | 'maction'
+  | 'menclose'
+  | 'merror'
+  | 'mfenced'
+  | 'mfrac'
+  | 'mglyph'
+  | 'mi'
+  | 'mlabeledtr'
+  | 'mlongdiv'
+  | 'mmultiscripts'
+  | 'mn'
+  | 'mo'
+  | 'mover'
+  | 'mpadded'
+  | 'mphantom'
+  | 'mprescripts'
+  | 'mroot'
+  | 'mrow'
+  | 'ms'
+  | 'mscarries'
+  | 'mscarry'
+  | 'msgroup'
+  | 'msline'
+  | 'mspace'
+  | 'msqrt'
+  | 'msrow'
+  | 'mstack'
+  | 'mstyle'
+  | 'msub'
+  | 'msubsup'
+  | 'msup'
+  | 'mtable'
+  | 'mtd'
+  | 'mtext'
+  | 'mtr'
+  | 'munder'
+  | 'munderover'
+  | 'semantics'
+
+type OnMountLifecycle = {
+  isActive: boolean
+  isStarted: boolean
+}
+
+type OnMountState = {
+  fiber: Fiber.Fiber<void>
+  lifecycle: OnMountLifecycle
+  notifyEnded: () => void
+  owner: MountRenderOwner
+}
+
+const onMountStates = new WeakMap<Element, OnMountState>()
+
+// NOTE: snabbdom `destroy` hooks fire during the patch that removes an element,
+// and the hook on the OLD (being-removed) VNode was built in a prior live
+// render, so it cannot tell a live patch from a DevTools time-travel replay on
+// its own. Mount Effects get this for free because the replayed tree is built
+// with `noOpDispatch`, but the `OnUnmount` destroy hook fires against the prior
+// live tree, so the runtime opens this window during a replay render and
+// the OnUnmount VDOM module defers dispatching a hygiene Message into live
+// history. A successful replay discards those callbacks. Patch-failure recovery
+// flushes them because it destroys and later rebuilds the imperative live tree.
+
+/** Opens a replay-render window. The runtime calls this immediately before a
+ *  DevTools time-travel render and closes it with {@link __endReplayRender}
+ *  afterward, so the `OnUnmount` module can defer live callbacks while the
+ *  replayed tree is patched in. Without the gate the callback would
+ *  enqueue a hygiene Message into live history during mere inspection of past
+ *  state. */
+export const __beginReplayRender = beginReplayUnmountRender
+
+/** Closes the replay-render window opened by {@link __beginReplayRender}. */
+export const __endReplayRender = endReplayUnmountRender
+
+/** Dispatches the live `OnUnmount` callbacks deferred by a replay patch that
+ *  failed and forced the runtime to discard the damaged DOM. */
+export const __flushReplayUnmountsAfterPatchFailure =
+  flushReplayUnmountsAfterPatchFailure
+
+/** Key under which the OnMount attribute stamps a `{ name }` marker on the
+ *  snabbdom `VNodeData`. Snabbdom passes unknown data fields through without
+ *  rendering them to the DOM, so the marker is invisible at runtime but
+ *  observable by VNode walkers (Scene tests). */
+export const FOLDKIT_MOUNT_KEY = 'foldkitMount' as const
+
+/** Marker stamped on `VNodeData[FOLDKIT_MOUNT_KEY]` for any element with an
+ *  `OnMount` attribute. Carries the Mount Definition's name (and args) so test
+ *  introspection can identify pending mounts. When the mount lives inside a
+ *  Submodel boundary, it also carries that boundary's `toParentMessage` chain
+ *  (innermost first), snapshotted at render time, so `Scene.Mount.resolve` can
+ *  replay the lift the result travels through in production. Production keeps
+ *  the Mount bound to the dispatcher owned by its acquiring render, then
+ *  resolves that owner's latest chain when the Mount emits. */
+export type FoldkitMountMarker = Readonly<{
+  name: string
+  args?: Record<string, unknown>
+  messageMappers?: ReadonlyArray<(message: unknown) => unknown>
+}>
+
+/** Union of all HTML, SVG, and MathML attributes a virtual DOM element can carry.
+ *
+ *  When a Submodel publishes attribute groups to a consumer's `toView`
+ *  slot, those attributes are wrapped via {@link childAttributes} into
+ *  {@link ChildAttribute}, a distinct type that carries the Submodel's
+ *  own dispatcher. Element constructors accept the union
+ *  `ReadonlyArray<Attribute<Message> | ChildAttribute>`, so consumers
+ *  can spread published bundles directly into their own attribute
+ *  arrays. */
+export type Attribute<Message> = Data.TaggedEnum<{
+  Key: { readonly value: string }
+  Class: { readonly value: string }
+  Id: { readonly value: string }
+  Title: { readonly value: string }
+  Lang: { readonly value: string }
+  Dir: { readonly value: string }
+  Tabindex: { readonly value: number }
+  Hidden: { readonly value: boolean }
+  Contenteditable: { readonly value: string }
+  Draggable: { readonly value: boolean }
+  Accesskey: { readonly value: string }
+  Translate: { readonly value: string }
+  Inert: { readonly value: boolean }
+  Popover: { readonly value: string }
+  Popovertarget: { readonly value: string }
+  Popovertargetaction: { readonly value: string }
+  OnClick: { readonly message: Message; readonly options?: ClickOptions }
+  OnDoubleClick: { readonly message: Message }
+  OnMouseDown: { readonly message: Message }
+  OnMouseUp: { readonly message: Message }
+  OnMouseEnter: { readonly message: Message }
+  OnMouseLeave: { readonly message: Message }
+  OnMouseOver: { readonly message: Message }
+  OnMouseOut: { readonly message: Message }
+  OnMouseMove: { readonly message: Message }
+  OnPointerMove: {
+    readonly f: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+    ) => Option.Option<Message>
+  }
+  OnPointerLeave: {
+    readonly f: (pointerType: string) => Option.Option<Message>
+  }
+  OnPointerDown: {
+    readonly f: (
+      pointerType: string,
+      button: number,
+      screenX: number,
+      screenY: number,
+      timeStamp: number,
+      clientX: number,
+      clientY: number,
+      pointerId: number,
+      target: EventTarget | null,
+    ) => Option.Option<Message>
+  }
+  OnPointerUp: {
+    readonly f: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+      timeStamp: number,
+    ) => Option.Option<Message>
+  }
+  OnKeyDown: {
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnKeyDownPreventDefault: {
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>
+  }
+  OnKeyDownSelf: {
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnKeyDownSelfPreventDefault: {
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>
+  }
+  OnKeyDownFocus: {
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Readonly<{ focusSelector: string; message: Message }>>
+  }
+  OnKeyUp: {
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnKeyUpPreventDefault: {
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>
+  }
+  OnKeyPress: {
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnFocus: { readonly message: Message }
+  OnBlur: { readonly message: Message }
+  OnFocusEnter: { readonly message: Message }
+  OnFocusLeave: { readonly message: Message }
+  OnInput: { readonly f: (value: string) => Message }
+  OnChange: { readonly f: (value: string) => Message }
+  OnBeforeInput: {
+    readonly f: (inputType: string, data: Option.Option<string>) => Message
+  }
+  OnBeforeInputPreventDefault: {
+    readonly f: (
+      inputType: string,
+      data: Option.Option<string>,
+    ) => Option.Option<Message>
+  }
+  OnFileChange: {
+    readonly f: (files: ReadonlyArray<File>) => Message
+  }
+  OnSubmit: { readonly message: Message }
+  OnReset: { readonly message: Message }
+  OnScroll: { readonly f: (scrollTop: number) => Message }
+  OnWheel: { readonly message: Message }
+  OnCopy: { readonly message: Message }
+  OnCut: { readonly message: Message }
+  OnPaste: { readonly message: Message }
+  OnPastePreventDefault: {
+    readonly f: (text: string) => Option.Option<Message>
+  }
+  OnCopyText: { readonly text: string }
+  OnCutText: { readonly text: string; readonly message: Message }
+  OnCancel: { readonly message: Message }
+  OnCancelPreventDefault: {
+    readonly maybeCustomEventMessage: Option.Option<Message>
+  }
+  OnToggle: { readonly f: (isOpen: boolean) => Message }
+  OnContextMenu: { readonly message: Message }
+  OnDragStart: { readonly message: Message }
+  OnDrag: { readonly message: Message }
+  OnDragEnd: { readonly message: Message }
+  OnDragEnter: { readonly message: Message }
+  OnDragLeave: { readonly message: Message }
+  OnDragOver: { readonly message: Message }
+  AllowDrop: {}
+  OnDrop: { readonly message: Message }
+  OnDropFiles: {
+    readonly f: (files: ReadonlyArray<File>) => Message
+  }
+  OnTouchStart: { readonly message: Message }
+  OnTouchEnd: { readonly message: Message }
+  OnTouchMove: { readonly message: Message }
+  OnTouchCancel: { readonly message: Message }
+  OnAnimationStart: { readonly message: Message }
+  OnAnimationEnd: { readonly message: Message }
+  OnAnimationIteration: { readonly message: Message }
+  OnTransitionEnd: { readonly message: Message }
+  OnLoad: { readonly message: Message }
+  OnError: { readonly message: Message }
+  OnPlay: { readonly message: Message }
+  OnPause: { readonly message: Message }
+  OnEnded: { readonly message: Message }
+  OnTimeUpdate: { readonly message: Message }
+  OnVolumeChange: { readonly message: Message }
+  OnSelect: { readonly message: Message }
+  Value: { readonly value: string }
+  Checked: { readonly value: boolean }
+  Selected: { readonly value: boolean }
+  Open: { readonly value: boolean }
+  Placeholder: { readonly value: string }
+  Name: { readonly value: string }
+  Disabled: { readonly value: boolean }
+  Readonly: { readonly value: boolean }
+  Required: { readonly value: boolean }
+  Autofocus: { readonly value: boolean }
+  Spellcheck: { readonly value: boolean }
+  Autocorrect: { readonly value: string }
+  Autocapitalize: { readonly value: string }
+  InputMode: { readonly value: string }
+  EnterKeyHint: { readonly value: string }
+  Multiple: { readonly value: boolean }
+  Type: { readonly value: string }
+  Accept: { readonly value: string }
+  Autocomplete: { readonly value: string }
+  Pattern: { readonly value: string }
+  Maxlength: { readonly value: number }
+  Minlength: { readonly value: number }
+  Size: { readonly value: number }
+  Cols: { readonly value: number }
+  Rows: { readonly value: number }
+  Max: { readonly value: string }
+  Min: { readonly value: string }
+  Step: { readonly value: string }
+  For: { readonly value: string }
+  Href: { readonly value: string }
+  Src: { readonly value: string }
+  Alt: { readonly value: string }
+  Target: { readonly value: string }
+  Rel: { readonly value: string }
+  Download: { readonly value: string }
+  Action: { readonly value: string }
+  Method: { readonly value: string }
+  Enctype: { readonly value: string }
+  Novalidate: { readonly value: boolean }
+  Formaction: { readonly value: string }
+  Formmethod: { readonly value: string }
+  Formnovalidate: { readonly value: boolean }
+  Formtarget: { readonly value: string }
+  Formenctype: { readonly value: string }
+  Colspan: { readonly value: number }
+  Rowspan: { readonly value: number }
+  Scope: { readonly value: string }
+  Headers: { readonly value: string }
+  Span: { readonly value: number }
+  Start: { readonly value: number }
+  Reversed: { readonly value: boolean }
+  CiteAttr: { readonly value: string }
+  Datetime: { readonly value: string }
+  Wrap: { readonly value: string }
+  List: { readonly value: string }
+  FormAttr: { readonly value: string }
+  LabelAttr: { readonly value: string }
+  ContentAttr: { readonly value: string }
+  Charset: { readonly value: string }
+  HttpEquiv: { readonly value: string }
+  Srcset: { readonly value: string }
+  Sizes: { readonly value: string }
+  Loading: { readonly value: string }
+  Decoding: { readonly value: string }
+  Fetchpriority: { readonly value: string }
+  Crossorigin: { readonly value: string }
+  Referrerpolicy: { readonly value: string }
+  Integrity: { readonly value: string }
+  Hreflang: { readonly value: string }
+  Ping: { readonly value: string }
+  Sandbox: { readonly value: string }
+  Allow: { readonly value: string }
+  Srcdoc: { readonly value: string }
+  Autoplay: { readonly value: boolean }
+  Controls: { readonly value: boolean }
+  Loop: { readonly value: boolean }
+  Muted: { readonly value: boolean }
+  Poster: { readonly value: string }
+  Preload: { readonly value: string }
+  Playsinline: { readonly value: boolean }
+  High: { readonly value: number }
+  Low: { readonly value: number }
+  Optimum: { readonly value: number }
+  Usemap: { readonly value: string }
+  Ismap: { readonly value: boolean }
+  Role: { readonly value: string }
+  AriaLabel: { readonly value: string }
+  AriaLabelledBy: { readonly value: string }
+  AriaDescribedBy: { readonly value: string }
+  AriaHidden: { readonly value: boolean }
+  AriaExpanded: { readonly value: boolean }
+  AriaSelected: { readonly value: boolean }
+  AriaChecked: { readonly value: boolean | 'mixed' }
+  AriaDisabled: { readonly value: boolean }
+  AriaRequired: { readonly value: boolean }
+  AriaInvalid: { readonly value: boolean }
+  AriaLive: { readonly value: string }
+  AriaControls: { readonly value: string }
+  AriaCurrent: { readonly value: string }
+  AriaOrientation: { readonly value: string }
+  AriaPressed: { readonly value: string }
+  AriaHasPopup: { readonly value: string }
+  AriaActiveDescendant: { readonly value: string }
+  AriaSort: { readonly value: string }
+  AriaMultiSelectable: { readonly value: boolean }
+  AriaModal: { readonly value: boolean }
+  AriaBusy: { readonly value: boolean }
+  AriaErrorMessage: { readonly value: string }
+  AriaRoleDescription: { readonly value: string }
+  AriaAtomic: { readonly value: boolean }
+  AriaAutocomplete: { readonly value: string }
+  AriaColcount: { readonly value: number }
+  AriaColindex: { readonly value: number }
+  AriaColspan: { readonly value: number }
+  AriaDescription: { readonly value: string }
+  AriaDetails: { readonly value: string }
+  AriaFlowto: { readonly value: string }
+  AriaKeyshortcuts: { readonly value: string }
+  AriaLevel: { readonly value: number }
+  AriaOwns: { readonly value: string }
+  AriaPlaceholder: { readonly value: string }
+  AriaPosinset: { readonly value: number }
+  AriaReadonly: { readonly value: boolean }
+  AriaRelevant: { readonly value: string }
+  AriaRowcount: { readonly value: number }
+  AriaRowindex: { readonly value: number }
+  AriaRowspan: { readonly value: number }
+  AriaSetsize: { readonly value: number }
+  AriaValuemax: { readonly value: number }
+  AriaValuemin: { readonly value: number }
+  AriaValuenow: { readonly value: number }
+  AriaValuetext: { readonly value: string }
+  Attribute: { readonly key: string; readonly value: string }
+  DataAttribute: { readonly key: string; readonly value: string }
+  Style: { readonly value: Record<string, string> }
+  InnerHTML: { readonly value: string }
+  ViewBox: { readonly value: string }
+  Xmlns: { readonly value: string }
+  Fill: { readonly value: string }
+  FillRule: { readonly value: string }
+  ClipRule: { readonly value: string }
+  Stroke: { readonly value: string }
+  StrokeWidth: { readonly value: string }
+  StrokeLinecap: { readonly value: string }
+  StrokeLinejoin: { readonly value: string }
+  D: { readonly value: string }
+  Cx: { readonly value: string }
+  Cy: { readonly value: string }
+  R: { readonly value: string }
+  X: { readonly value: string }
+  Y: { readonly value: string }
+  Width: { readonly value: string }
+  Height: { readonly value: string }
+  X1: { readonly value: string }
+  Y1: { readonly value: string }
+  X2: { readonly value: string }
+  Y2: { readonly value: string }
+  Points: { readonly value: string }
+  Transform: { readonly value: string }
+  Opacity: { readonly value: string }
+  StrokeDasharray: { readonly value: string }
+  StrokeDashoffset: { readonly value: string }
+  Dx: { readonly value: string }
+  Dy: { readonly value: string }
+  Rotate: { readonly value: string }
+  TextAnchor: { readonly value: string }
+  DominantBaseline: { readonly value: string }
+  AlignmentBaseline: { readonly value: string }
+  BaselineShift: { readonly value: string }
+  TextLength: { readonly value: string }
+  LengthAdjust: { readonly value: string }
+  FontFamily: { readonly value: string }
+  FontSize: { readonly value: string }
+  FontWeight: { readonly value: string }
+  FontStyle: { readonly value: string }
+  LetterSpacing: { readonly value: string }
+  WordSpacing: { readonly value: string }
+  TextDecoration: { readonly value: string }
+  WritingMode: { readonly value: string }
+  Rx: { readonly value: string }
+  Ry: { readonly value: string }
+  PathLength: { readonly value: string }
+  FillOpacity: { readonly value: string }
+  StrokeOpacity: { readonly value: string }
+  StrokeMiterlimit: { readonly value: string }
+  PaintOrder: { readonly value: string }
+  VectorEffect: { readonly value: string }
+  Color: { readonly value: string }
+  Visibility: { readonly value: string }
+  Display: { readonly value: string }
+  Overflow: { readonly value: string }
+  PointerEvents: { readonly value: string }
+  Cursor: { readonly value: string }
+  ShapeRendering: { readonly value: string }
+  TextRendering: { readonly value: string }
+  ImageRendering: { readonly value: string }
+  ClipPath: { readonly value: string }
+  Mask: { readonly value: string }
+  Filter: { readonly value: string }
+  ClipPathUnits: { readonly value: string }
+  MaskUnits: { readonly value: string }
+  MaskContentUnits: { readonly value: string }
+  FilterUnits: { readonly value: string }
+  PrimitiveUnits: { readonly value: string }
+  Offset: { readonly value: string }
+  StopColor: { readonly value: string }
+  StopOpacity: { readonly value: string }
+  GradientUnits: { readonly value: string }
+  GradientTransform: { readonly value: string }
+  SpreadMethod: { readonly value: string }
+  Fx: { readonly value: string }
+  Fy: { readonly value: string }
+  Fr: { readonly value: string }
+  PatternUnits: { readonly value: string }
+  PatternContentUnits: { readonly value: string }
+  PatternTransform: { readonly value: string }
+  MarkerStart: { readonly value: string }
+  MarkerMid: { readonly value: string }
+  MarkerEnd: { readonly value: string }
+  MarkerWidth: { readonly value: string }
+  MarkerHeight: { readonly value: string }
+  MarkerUnits: { readonly value: string }
+  RefX: { readonly value: string }
+  RefY: { readonly value: string }
+  Orient: { readonly value: string }
+  PreserveAspectRatio: { readonly value: string }
+  Prop: { readonly key: string; readonly value: unknown }
+  OnCustomEvent: {
+    readonly name: string
+    readonly f: (event: CustomEvent<unknown>) => Option.Option<Message>
+  }
+  OnMount: {
+    readonly action: MountAction<Message, any>
+  }
+  OnUnmount: {
+    readonly message: Message
+  }
+}>
+
+interface AttributeDefinition extends Data.TaggedEnum.WithGenerics<1> {
+  readonly taggedEnum: Attribute<this['A']>
+}
+
+const {
+  Key,
+  Class,
+  Id,
+  Title,
+  Lang,
+  Dir,
+  Tabindex,
+  Hidden,
+  Contenteditable,
+  Draggable,
+  Accesskey,
+  Translate,
+  Inert,
+  Popover,
+  Popovertarget,
+  Popovertargetaction,
+  OnClick,
+  OnDoubleClick,
+  OnMouseDown,
+  OnMouseUp,
+  OnMouseEnter,
+  OnMouseLeave,
+  OnMouseOver,
+  OnMouseOut,
+  OnMouseMove,
+  OnPointerMove,
+  OnPointerLeave,
+  OnPointerDown,
+  OnPointerUp,
+  OnKeyDown,
+  OnKeyDownPreventDefault,
+  OnKeyDownSelf,
+  OnKeyDownSelfPreventDefault,
+  OnKeyDownFocus,
+  OnKeyUp,
+  OnKeyUpPreventDefault,
+  OnKeyPress,
+  OnFocus,
+  OnBlur,
+  OnFocusEnter,
+  OnFocusLeave,
+  OnInput,
+  OnChange,
+  OnBeforeInput,
+  OnBeforeInputPreventDefault,
+  OnFileChange,
+  OnSubmit,
+  OnReset,
+  OnScroll,
+  OnWheel,
+  OnCopy,
+  OnCut,
+  OnPaste,
+  OnPastePreventDefault,
+  OnCopyText,
+  OnCutText,
+  OnCancel,
+  OnCancelPreventDefault,
+  OnToggle,
+  OnContextMenu,
+  OnDragStart,
+  OnDrag,
+  OnDragEnd,
+  OnDragEnter,
+  OnDragLeave,
+  OnDragOver,
+  AllowDrop,
+  OnDrop,
+  OnDropFiles,
+  OnTouchStart,
+  OnTouchEnd,
+  OnTouchMove,
+  OnTouchCancel,
+  OnAnimationStart,
+  OnAnimationEnd,
+  OnAnimationIteration,
+  OnTransitionEnd,
+  OnLoad,
+  OnError,
+  OnPlay,
+  OnPause,
+  OnEnded,
+  OnTimeUpdate,
+  OnVolumeChange,
+  OnSelect,
+  Value,
+  Checked,
+  Selected,
+  Open,
+  Placeholder,
+  Name,
+  Disabled,
+  Readonly,
+  Required,
+  Autofocus,
+  Spellcheck,
+  Autocorrect,
+  Autocapitalize,
+  InputMode,
+  EnterKeyHint,
+  Multiple,
+  Type,
+  Accept,
+  Autocomplete,
+  Pattern,
+  Maxlength,
+  Minlength,
+  Size,
+  Cols,
+  Rows,
+  Max,
+  Min,
+  Step,
+  For,
+  Href,
+  Src,
+  Alt,
+  Target,
+  Rel,
+  Download,
+  Action,
+  Method,
+  Enctype,
+  Novalidate,
+  Formaction,
+  Formmethod,
+  Formnovalidate,
+  Formtarget,
+  Formenctype,
+  Colspan,
+  Rowspan,
+  Scope,
+  Headers,
+  Span,
+  Start,
+  Reversed,
+  CiteAttr,
+  Datetime,
+  Wrap,
+  List,
+  FormAttr,
+  LabelAttr,
+  ContentAttr,
+  Charset,
+  HttpEquiv,
+  Srcset,
+  Sizes,
+  Loading,
+  Decoding,
+  Fetchpriority,
+  Crossorigin,
+  Referrerpolicy,
+  Integrity,
+  Hreflang,
+  Ping,
+  Sandbox,
+  Allow,
+  Srcdoc,
+  Autoplay,
+  Controls,
+  Loop,
+  Muted,
+  Poster,
+  Preload,
+  Playsinline,
+  High,
+  Low,
+  Optimum,
+  Usemap,
+  Ismap,
+  Role,
+  AriaLabel,
+  AriaLabelledBy,
+  AriaDescribedBy,
+  AriaHidden,
+  AriaExpanded,
+  AriaSelected,
+  AriaChecked,
+  AriaDisabled,
+  AriaRequired,
+  AriaInvalid,
+  AriaLive,
+  AriaControls,
+  AriaCurrent,
+  AriaOrientation,
+  AriaPressed,
+  AriaHasPopup,
+  AriaActiveDescendant,
+  AriaSort,
+  AriaMultiSelectable,
+  AriaModal,
+  AriaBusy,
+  AriaErrorMessage,
+  AriaRoleDescription,
+  AriaAtomic,
+  AriaAutocomplete,
+  AriaColcount,
+  AriaColindex,
+  AriaColspan,
+  AriaDescription,
+  AriaDetails,
+  AriaFlowto,
+  AriaKeyshortcuts,
+  AriaLevel,
+  AriaOwns,
+  AriaPlaceholder,
+  AriaPosinset,
+  AriaReadonly,
+  AriaRelevant,
+  AriaRowcount,
+  AriaRowindex,
+  AriaRowspan,
+  AriaSetsize,
+  AriaValuemax,
+  AriaValuemin,
+  AriaValuenow,
+  AriaValuetext,
+  Attribute,
+  DataAttribute,
+  Style,
+  InnerHTML,
+  ViewBox,
+  Xmlns,
+  Fill,
+  FillRule,
+  ClipRule,
+  Stroke,
+  StrokeWidth,
+  StrokeLinecap,
+  StrokeLinejoin,
+  D,
+  Cx,
+  Cy,
+  R,
+  X,
+  Y,
+  Width,
+  Height,
+  X1,
+  Y1,
+  X2,
+  Y2,
+  Points,
+  Transform,
+  Opacity,
+  StrokeDasharray,
+  StrokeDashoffset,
+  Dx,
+  Dy,
+  Rotate,
+  TextAnchor,
+  DominantBaseline,
+  AlignmentBaseline,
+  BaselineShift,
+  TextLength,
+  LengthAdjust,
+  FontFamily,
+  FontSize,
+  FontWeight,
+  FontStyle,
+  LetterSpacing,
+  WordSpacing,
+  TextDecoration,
+  WritingMode,
+  Rx,
+  Ry,
+  PathLength,
+  FillOpacity,
+  StrokeOpacity,
+  StrokeMiterlimit,
+  PaintOrder,
+  VectorEffect,
+  Color,
+  Visibility,
+  Display,
+  Overflow,
+  PointerEvents,
+  Cursor,
+  ShapeRendering,
+  TextRendering,
+  ImageRendering,
+  ClipPath,
+  Mask,
+  Filter,
+  ClipPathUnits,
+  MaskUnits,
+  MaskContentUnits,
+  FilterUnits,
+  PrimitiveUnits,
+  Offset,
+  StopColor,
+  StopOpacity,
+  GradientUnits,
+  GradientTransform,
+  SpreadMethod,
+  Fx,
+  Fy,
+  Fr,
+  PatternUnits,
+  PatternContentUnits,
+  PatternTransform,
+  MarkerStart,
+  MarkerMid,
+  MarkerEnd,
+  MarkerWidth,
+  MarkerHeight,
+  MarkerUnits,
+  RefX,
+  RefY,
+  Orient,
+  PreserveAspectRatio,
+  Prop,
+  OnCustomEvent,
+  OnMount,
+  OnUnmount,
+} = Data.taggedEnum<AttributeDefinition>()
+
+export { Prop, OnCustomEvent }
+
+// BUILD CONTEXT: per-VNode bag of mutable VNode data plus the dispatchers this
+// VNode's events and Mount results route through. Allocated once per unique
+// dispatcher in `buildVNodeData`, typically once total (a second time when
+// ChildAttribute items route through a child Submodel's own dispatch).
+type BuildContext = Readonly<{
+  data: VNodeData
+  getPostpatchProps: () => Array<Readonly<{ propName: string; value: unknown }>>
+  dispatch: DispatchSync
+  resolveUnmount: UnmountResolver
+  boundaryMappers: ReadonlyArray<(message: unknown) => unknown>
+  resolveMountDispatch?: MountDispatchResolver
+  getCapturedContext: () => Context.Context<never>
+}>
+
+const setData = <K extends keyof VNodeData>(
+  ctx: BuildContext,
+  key: K,
+  value: VNodeData[K],
+): void => {
+  ctx.data[key] = value
+}
+
+const addVNodeDataMask = (ctx: BuildContext, dataMask: number): void => {
+  ctx.data[vnodeDataMaskKey] = (ctx.data[vnodeDataMaskKey] ?? 0) | dataMask
+}
+
+const setModuleData = <K extends keyof VNodeData>(
+  ctx: BuildContext,
+  key: K,
+  value: VNodeData[K],
+  dataMask: number,
+): void => {
+  ctx.data[key] = value
+  addVNodeDataMask(ctx, dataMask)
+}
+
+// NOTE: single-key fast paths. The bulk of attribute handlers set exactly
+// one prop, attr, or event handler; writing it directly into the vnode data
+// avoids allocating a `{ key: value }` literal and merging it per attribute.
+const writeDataProp = (
+  ctx: BuildContext,
+  key: string,
+  value: unknown,
+): Record<string, unknown> => {
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  const props = (ctx.data.props ??= {}) as Record<string, unknown>
+  if (key === '__proto__') {
+    Object.defineProperty(props, key, {
+      configurable: true,
+      enumerable: true,
+      value,
+      writable: true,
+    })
+  } else {
+    props[key] = value
+  }
+  addVNodeDataMask(ctx, VNodeDataMask.Props)
+  return props
+}
+
+// A typed attribute builder writes the DOM property that reflects the HTML
+// attribute it is named after, so the server serializer can emit it as that
+// attribute even on a custom element, where a same-named component property
+// would mean something else entirely. Overwriting a property a generic write
+// left behind takes the name back, so the mark always describes the value that
+// is actually in the bag. The unmark is a no-op unless a generic write happened
+// on this element, which keeps the common path free of any bookkeeping.
+const setDataProp = (ctx: BuildContext, key: string, value: unknown): void => {
+  const props = writeDataProp(ctx, key, value)
+  unmarkClientOnlyProperty(props, key)
+}
+
+// `Prop` writes a DOM property and claims nothing about what it means: the
+// value may be a client-only component property, and the name may collide with
+// one an attribute builder owns. `CustomElement.define` property factories
+// produce `Prop`, so a declared component property lands here too.
+const setClientOnlyDataProp = (
+  ctx: BuildContext,
+  key: string,
+  value: unknown,
+): void => {
+  const props = writeDataProp(ctx, key, value)
+  markClientOnlyProperty(props, key)
+}
+
+// NOTE: `h.InnerHTML` marks the value it wrote as markup the view author intends
+// to be parsed as HTML, which is what lets the server serializer write it to the
+// raw sink. A custom-element property or raw `Prop` named `innerHTML` marks the
+// same key client-only instead. The marks are mutually exclusive, so the last
+// builder owns the key even when both builders wrote exactly the same string.
+const setTrustedInnerHtml = (ctx: BuildContext, value: string): void => {
+  const props = writeDataProp(ctx, 'innerHTML', value)
+  markTrustedInnerHtml(props, value)
+}
+
+const setDataAttr = (
+  ctx: BuildContext,
+  key: string,
+  value: string | number | boolean,
+): void => {
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  const attrs = (ctx.data.attrs ??= {}) as Record<
+    string,
+    string | number | boolean
+  >
+  attrs[key] = value
+  addVNodeDataMask(ctx, VNodeDataMask.Attrs)
+}
+
+const addDataOn = (
+  ctx: BuildContext,
+  eventName: string,
+  handler: (...args: ReadonlyArray<never>) => void,
+): void => {
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  const on = (ctx.data.on ??= {}) as Record<string, unknown>
+  addVNodeDataMask(ctx, VNodeDataMask.On)
+  const existingHandler = on[eventName]
+  if (existingHandler === undefined) {
+    on[eventName] = handler
+  } else {
+    // NOTE: chain in registration order, mirroring updateDataOn.
+    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+    const previous = existingHandler as (...args: ReadonlyArray<never>) => void
+    on[eventName] = (...args: ReadonlyArray<never>) => {
+      previous(...args)
+      handler(...args)
+    }
+  }
+}
+
+// Event handlers chain per DOM event in spread order. Without this,
+// `Object.assign` would silently drop earlier handlers for the same
+// event when a consumer spreads published ChildAttributes alongside
+// their own (e.g. `[...attributes.checkbox, h.OnClick(MyMsg())]` would
+// drop one of the two click handlers depending on order). Each chained
+// handler is invoked synchronously in registration order; if an
+// earlier handler throws, later handlers do not run (mirroring native
+// exception propagation, not silently swallowing bugs).
+const updateDataOn = (ctx: BuildContext, on: On): void => {
+  addVNodeDataMask(ctx, VNodeDataMask.On)
+  if (ctx.data.on === undefined) {
+    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+    ctx.data.on = on as On
+    return
+  }
+  const existing = ctx.data.on
+  for (const key of Object.keys(on)) {
+    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+    const existingHandler = (existing as Record<string, unknown>)[key] as
+      | ((...args: ReadonlyArray<unknown>) => void)
+      | undefined
+    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+    const newHandler = (on as Record<string, unknown>)[key] as (
+      ...args: ReadonlyArray<unknown>
+    ) => void
+    if (existingHandler === undefined) {
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      ;(existing as Record<string, unknown>)[key] = newHandler
+    } else {
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      ;(existing as Record<string, unknown>)[key] = (
+        ...args: ReadonlyArray<unknown>
+      ) => {
+        existingHandler(...args)
+        newHandler(...args)
+      }
+    }
+  }
+}
+
+// The values a numeric builder accepts, per property.
+//
+// The server writes these as attribute text and a browser parses them; the
+// client assigns them through the DOM property. The two do not agree
+// everywhere. Assigning a negative `maxLength` throws IndexSizeError while the
+// attribute parses to -1; `size = 0` throws while the attribute falls back to
+// 20; `Infinity` and `NaN` become 0 through the property and the attribute's own
+// default through the parser; and past 2^31 the property conversions wrap while
+// the attribute clamps.
+//
+// The bounds below were measured in Chromium: within them, a parsed attribute
+// and a direct assignment produce the same property for every builder here.
+// Outside them the two disagree or the assignment throws, so the value is
+// refused where it is written rather than diverging once served.
+const SIGNED_LONG_MAXIMUM = 2147483647
+const SIGNED_LONG_MINIMUM = -SIGNED_LONG_MAXIMUM - 1
+
+const NUMERIC_PROPERTY_RANGES: Readonly<
+  Record<string, Readonly<{ minimum: number; maximum: number }>>
+> = {
+  cols: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  colSpan: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  maxLength: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  minLength: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  rows: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  rowSpan: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  size: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  span: { minimum: 0, maximum: SIGNED_LONG_MAXIMUM },
+  // An ordered list may start anywhere, and negatives agree on both sides.
+  start: { minimum: SIGNED_LONG_MINIMUM, maximum: SIGNED_LONG_MAXIMUM },
+  // Any element can carry one, and the two sides agree across the whole signed
+  // long range. Outside it they part company in a way no value hints at: an
+  // out-of-range assignment wraps (2147483648 becomes -2147483648) while the
+  // attribute falls back to the element's default, which is 0 on a focusable
+  // element and -1 on any other, so the same view yields a focusable served
+  // element and an unreachable fresh one.
+  tabIndex: { minimum: SIGNED_LONG_MINIMUM, maximum: SIGNED_LONG_MAXIMUM },
+}
+
+const numericPropertyRefusal = (propName: string, value: number): string =>
+  `[foldkit] ${propName} was given ${String(value)}, which a browser reads ` +
+  'differently depending on whether it arrives as parsed markup or as a ' +
+  'property assignment, and which can throw outright when assigned. '
+
+const setNumericDataProp = (
+  ctx: BuildContext,
+  propName: string,
+  value: number,
+): void => {
+  const range = NUMERIC_PROPERTY_RANGES[propName]
+  if (
+    range !== undefined &&
+    !(
+      Number.isInteger(value) &&
+      value >= range.minimum &&
+      value <= range.maximum
+    )
+  ) {
+    throw new Error(
+      numericPropertyRefusal(propName, value) +
+        `Use an integer from ${String(range.minimum)} to ` +
+        `${String(range.maximum)}.`,
+    )
+  }
+  setDataProp(ctx, propName, value)
+}
+
+const setFiniteNumericDataProp = (
+  ctx: BuildContext,
+  propName: string,
+  value: number,
+): void => {
+  if (!Number.isFinite(value)) {
+    throw new Error(
+      numericPropertyRefusal(propName, value) + 'Use a finite number.',
+    )
+  }
+  setDataProp(ctx, propName, value)
+}
+
+const updatePropsWithPostpatch = (
+  ctx: BuildContext,
+  propName: string,
+  value: unknown,
+): void => {
+  setDataProp(ctx, propName, value)
+  ctx.getPostpatchProps().push({ propName, value })
+}
+
+// NOTE: class strings repeat heavily across elements and renders, so the
+// parsed class object is cached per distinct string. Cached objects are
+// shared across vnodes; snabbdom's classModule only reads them, and the
+// Class handler installs them via `setData` (never merged into), so sharing
+// is safe. Class strings interpolated from model data can take unboundedly
+// many values, so the cache clears at a size cap instead of retaining every
+// string for the page lifetime; the render after a clear re-parses and
+// re-caches what it actually uses.
+const CLASS_OBJECT_CACHE_LIMIT = 10_000
+const classObjectCache = new Map<string, Readonly<Record<string, true>>>()
+
+const classObjectFor = (value: string): Readonly<Record<string, true>> => {
+  const cached = classObjectCache.get(value)
+  if (cached !== undefined) {
+    return cached
+  }
+  const classObject: Record<string, true> = {}
+  for (const className of value.split(/\s+/)) {
+    if (className !== '') {
+      classObject[className] = true
+    }
+  }
+  if (classObjectCache.size >= CLASS_OBJECT_CACHE_LIMIT) {
+    classObjectCache.clear()
+  }
+  classObjectCache.set(value, classObject)
+  return classObject
+}
+
+// NOTE: navigation and resource URL attributes (href, src, action,
+// formaction) execute script when their scheme is `javascript:` or
+// `vbscript:`, so an untrusted value bound to them is an XSS sink. Browsers
+// ignore ASCII control characters embedded in a scheme (`java\tscript:`
+// still runs), so those are stripped before the scheme is read. A dangerous
+// scheme neutralizes to an empty value; every other URL, including relative
+// paths, http(s), mailto, tel, and data URLs, passes through unchanged.
+const DANGEROUS_URL_SCHEMES: ReadonlySet<string> = new Set([
+  'javascript',
+  'vbscript',
+])
+const URL_CONTROL_CHARACTERS = /[\u0000-\u001F\u007F-\u009F]/g
+const URL_SCHEME_PATTERN = /^\s*([a-zA-Z][a-zA-Z0-9+.-]*)\s*:/
+
+const sanitizeUrl = (value: string): string => {
+  const match = URL_SCHEME_PATTERN.exec(
+    value.replace(URL_CONTROL_CHARACTERS, ''),
+  )
+  if (match !== null) {
+    const scheme = match[1]
+    if (
+      scheme !== undefined &&
+      DANGEROUS_URL_SCHEMES.has(scheme.toLowerCase())
+    ) {
+      return ''
+    }
+  }
+  return value
+}
+
+// NOTE: Built once at module load. Handlers are keyed by `_tag` and apply
+// their mutation to a per-VNode BuildContext directly, so applying an
+// attribute is one map lookup and one call with no per-attribute closure
+// allocation. The mapped type keeps the record exhaustive over the Attribute
+// union exactly like `Match.tagsExhaustive` did. `Attribute<unknown>` is the
+// runtime-erased shape. Message is purely a TypeScript parameter at this
+// level and DispatchSync already accepts unknown.
+type AttributeHandlers = {
+  readonly [Tag in Attribute<unknown>['_tag']]: (
+    attribute: Extract<Attribute<unknown>, Readonly<{ _tag: Tag }>>,
+    ctx: BuildContext,
+  ) => void
+}
+
+const attributeHandlers: AttributeHandlers = {
+  Key: ({ value }, ctx: BuildContext) => setData(ctx, 'key', value),
+  Class: ({ value }, ctx: BuildContext) =>
+    setModuleData(ctx, 'class', classObjectFor(value), VNodeDataMask.Class),
+  Id: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'id', value),
+  Title: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'title', value),
+  Lang: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'lang', value),
+  Dir: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'dir', value),
+  Tabindex: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'tabIndex', value),
+  Hidden: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'hidden', value),
+  Contenteditable: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'contenteditable', value),
+  Draggable: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'draggable', value),
+  Accesskey: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'accesskey', value),
+  Translate: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'translate', value),
+  Inert: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'inert', value),
+  Popover: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'popover', value),
+  Popovertarget: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'popovertarget', value),
+  Popovertargetaction: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'popovertargetaction', value),
+  OnClick: ({ message, options }, ctx: BuildContext) =>
+    addDataOn(ctx, 'click', (event: MouseEvent) => {
+      if (options?.defaultAction === 'Prevent') {
+        event.preventDefault()
+      }
+      if (options?.propagation === 'Stop') {
+        event.stopPropagation()
+      }
+      const focusSelector = options?.focusSelector
+      if (focusSelector !== undefined) {
+        const focusTarget = document.querySelector(focusSelector)
+        if (focusTarget instanceof HTMLElement) {
+          focusTarget.focus()
+        }
+      }
+      ctx.dispatch(message)
+    }),
+  OnDoubleClick: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'dblclick', () => ctx.dispatch(message)),
+  OnMouseDown: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mousedown', () => ctx.dispatch(message)),
+  OnMouseUp: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mouseup', () => ctx.dispatch(message)),
+  OnMouseEnter: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mouseenter', () => ctx.dispatch(message)),
+  OnMouseLeave: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mouseleave', () => ctx.dispatch(message)),
+  OnMouseOver: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mouseover', () => ctx.dispatch(message)),
+  OnMouseOut: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mouseout', () => ctx.dispatch(message)),
+  OnMouseMove: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'mousemove', () => ctx.dispatch(message)),
+  OnPointerMove: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      pointermove: (event: PointerEvent) => {
+        const maybeMessage = toMaybeMessage(
+          event.screenX,
+          event.screenY,
+          event.pointerType,
+        )
+        if (Option.isSome(maybeMessage)) {
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnPointerLeave: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      pointerleave: (event: PointerEvent) => {
+        const maybeMessage = toMaybeMessage(event.pointerType)
+        if (Option.isSome(maybeMessage)) {
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnPointerDown: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      pointerdown: (event: PointerEvent) => {
+        const maybeMessage = toMaybeMessage(
+          event.pointerType,
+          event.button,
+          event.screenX,
+          event.screenY,
+          event.timeStamp,
+          event.clientX,
+          event.clientY,
+          event.pointerId,
+          event.target,
+        )
+        if (Option.isSome(maybeMessage)) {
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnPointerUp: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      pointerup: (event: PointerEvent) => {
+        const maybeMessage = toMaybeMessage(
+          event.screenX,
+          event.screenY,
+          event.pointerType,
+          event.timeStamp,
+        )
+        if (Option.isSome(maybeMessage)) {
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnKeyDown: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keydown: skipImeCompositionKeydown(event => {
+        ctx.dispatch(toMessage(event.key, keyboardModifiers(event)))
+      }),
+    }),
+  OnKeyDownPreventDefault: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keydown: skipImeCompositionKeydown(event => {
+        const maybeMessage = toMaybeMessage(event.key, keyboardModifiers(event))
+        if (Option.isSome(maybeMessage)) {
+          event.preventDefault()
+          ctx.dispatch(maybeMessage.value)
+        }
+      }),
+    }),
+  OnKeyDownSelf: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keydown: skipImeCompositionKeydown(event => {
+        if (isEventTargetCurrentTarget(event)) {
+          ctx.dispatch(toMessage(event.key, keyboardModifiers(event)))
+        }
+      }),
+    }),
+  OnKeyDownSelfPreventDefault: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keydown: skipImeCompositionKeydown(event => {
+        if (!isEventTargetCurrentTarget(event)) {
+          return
+        }
+
+        const maybeMessage = toMaybeMessage(event.key, keyboardModifiers(event))
+        if (Option.isSome(maybeMessage)) {
+          event.preventDefault()
+          ctx.dispatch(maybeMessage.value)
+        }
+      }),
+    }),
+  OnKeyDownFocus: ({ f: toMaybeFocusAndMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keydown: skipImeCompositionKeydown(event => {
+        const maybeResult = toMaybeFocusAndMessage(
+          event.key,
+          keyboardModifiers(event),
+        )
+        if (Option.isSome(maybeResult)) {
+          event.preventDefault()
+          const { focusSelector, message } = maybeResult.value
+          const focusTarget = document.querySelector(focusSelector)
+          if (focusTarget instanceof HTMLElement) {
+            focusTarget.focus()
+          }
+          ctx.dispatch(message)
+        }
+      }),
+    }),
+  OnKeyUp: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keyup: (event: KeyboardEvent) =>
+        ctx.dispatch(toMessage(event.key, keyboardModifiers(event))),
+    }),
+  OnKeyUpPreventDefault: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keyup: (event: KeyboardEvent) => {
+        const maybeMessage = toMaybeMessage(event.key, keyboardModifiers(event))
+        if (Option.isSome(maybeMessage)) {
+          event.preventDefault()
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnKeyPress: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      keypress: (event: KeyboardEvent) =>
+        ctx.dispatch(toMessage(event.key, keyboardModifiers(event))),
+    }),
+  OnFocus: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'focus', () => ctx.dispatch(message)),
+  OnBlur: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      blur: (event: FocusEvent) => {
+        if (isDevToolsFocusTarget(event.relatedTarget)) {
+          return
+        }
+        ctx.dispatch(message)
+      },
+    }),
+  OnFocusEnter: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      focusin: (event: FocusEvent) => {
+        if (!isFocusInsideCurrentTarget(event)) {
+          ctx.dispatch(message)
+        }
+      },
+    }),
+  OnFocusLeave: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      focusout: (event: FocusEvent) => {
+        if (!isFocusInsideCurrentTarget(event)) {
+          ctx.dispatch(message)
+        }
+      },
+    }),
+  OnInput: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      input: (event: Event) =>
+        ctx.dispatch(toMessage(inputEventValue(event.target))),
+    }),
+  OnChange: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      change: (event: Event) =>
+        ctx.dispatch(toMessage(inputEventValue(event.target))),
+    }),
+  OnBeforeInput: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      beforeinput: (event: InputEvent) =>
+        ctx.dispatch(
+          toMessage(event.inputType, Option.fromNullishOr(event.data)),
+        ),
+    }),
+  OnBeforeInputPreventDefault: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      beforeinput: (event: InputEvent) => {
+        if (!event.cancelable) {
+          return
+        }
+
+        const maybeMessage = toMaybeMessage(
+          event.inputType,
+          Option.fromNullishOr(event.data),
+        )
+        if (Option.isSome(maybeMessage)) {
+          event.preventDefault()
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnFileChange: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      change: tagAsFileHandler((event: Event) => {
+        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+        const target = event.target as HTMLInputElement
+        const files: ReadonlyArray<File> = target.files
+          ? Array.fromIterable(target.files)
+          : Array.empty()
+        target.value = ''
+        ctx.dispatch(toMessage(files))
+      }, 'OnFileChange'),
+    }),
+  OnSubmit: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      submit: (event: Event) => {
+        event.preventDefault()
+        ctx.dispatch(message)
+      },
+    }),
+  OnReset: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'reset', () => ctx.dispatch(message)),
+  OnScroll: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      scroll: (event: Event) =>
+        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+        ctx.dispatch(toMessage((event.target as HTMLElement).scrollTop)),
+    }),
+  OnWheel: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'wheel', () => ctx.dispatch(message)),
+  OnCopy: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'copy', () => ctx.dispatch(message)),
+  OnCut: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'cut', () => ctx.dispatch(message)),
+  OnPaste: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'paste', () => ctx.dispatch(message)),
+  OnPastePreventDefault: ({ f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      paste: (event: ClipboardEvent) => {
+        const text = event.clipboardData?.getData('text/plain') ?? ''
+        const maybeMessage = toMaybeMessage(text)
+        if (Option.isSome(maybeMessage)) {
+          event.preventDefault()
+          ctx.dispatch(maybeMessage.value)
+        }
+      },
+    }),
+  OnCopyText: ({ text }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      copy: (event: ClipboardEvent) => {
+        if (event.clipboardData) {
+          event.clipboardData.setData('text/plain', text)
+          event.preventDefault()
+        }
+      },
+    }),
+  OnCutText: ({ text, message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      cut: (event: ClipboardEvent) => {
+        if (event.clipboardData) {
+          event.clipboardData.setData('text/plain', text)
+          event.preventDefault()
+          ctx.dispatch(message)
+        }
+      },
+    }),
+  OnCancel: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      cancel: (event: Event) => {
+        event.preventDefault()
+        ctx.dispatch(message)
+      },
+    }),
+  OnCancelPreventDefault: ({ maybeCustomEventMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      cancel: (event: Event) => {
+        event.preventDefault()
+        if (
+          event instanceof CustomEvent &&
+          Option.isSome(maybeCustomEventMessage)
+        ) {
+          ctx.dispatch(maybeCustomEventMessage.value)
+        }
+      },
+    }),
+  OnToggle: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      toggle: event =>
+        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+        ctx.dispatch(toMessage((event.target as HTMLDetailsElement).open)),
+    }),
+  OnContextMenu: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      contextmenu: (event: Event) => {
+        event.preventDefault()
+        ctx.dispatch(message)
+      },
+    }),
+  OnDragStart: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'dragstart', () => ctx.dispatch(message)),
+  OnDrag: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'drag', () => ctx.dispatch(message)),
+  OnDragEnd: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'dragend', () => ctx.dispatch(message)),
+  OnDragEnter: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      dragenter: (event: Event) => {
+        event.preventDefault()
+        const zone = event.currentTarget
+        if (!(zone instanceof Element)) {
+          ctx.dispatch(message)
+          return
+        }
+        const state = getDragZoneState(zone)
+        if (processDragEnter(state, zone, event.target)) {
+          ctx.dispatch(message)
+        }
+      },
+    }),
+  OnDragLeave: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      dragleave: (event: Event) => {
+        const zone = event.currentTarget
+        if (!(zone instanceof Element)) {
+          ctx.dispatch(message)
+          return
+        }
+        const state = getDragZoneState(zone)
+        if (processDragLeave(state, zone, event.target) === 'schedule') {
+          queueMicrotask(() => {
+            if (checkScheduledLeave(state)) {
+              ctx.dispatch(message)
+            }
+          })
+        }
+      },
+    }),
+  OnDragOver: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      dragover: (event: Event) => {
+        event.preventDefault()
+        ctx.dispatch(message)
+      },
+    }),
+  AllowDrop: (_attribute, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      dragover: (event: Event) => {
+        event.preventDefault()
+      },
+    }),
+  OnDrop: ({ message }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      drop: (event: Event) => {
+        event.preventDefault()
+        const zone = event.currentTarget
+        if (zone instanceof Element) {
+          clearDragZoneAfterDrop(zone)
+        }
+        ctx.dispatch(message)
+      },
+    }),
+  OnDropFiles: ({ f: toMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      drop: tagAsFileHandler((event: Event) => {
+        event.preventDefault()
+        /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+        const dragEvent = event as DragEvent
+        const zone = dragEvent.currentTarget
+        if (zone instanceof Element) {
+          clearDragZoneAfterDrop(zone)
+        }
+        const files: ReadonlyArray<File> = dragEvent.dataTransfer?.files
+          ? Array.fromIterable(dragEvent.dataTransfer.files)
+          : Array.empty()
+        ctx.dispatch(toMessage(files))
+      }, 'OnDropFiles'),
+    }),
+  OnTouchStart: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'touchstart', () => ctx.dispatch(message)),
+  OnTouchEnd: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'touchend', () => ctx.dispatch(message)),
+  OnTouchMove: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'touchmove', () => ctx.dispatch(message)),
+  OnTouchCancel: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'touchcancel', () => ctx.dispatch(message)),
+  OnAnimationStart: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'animationstart', () => ctx.dispatch(message)),
+  OnAnimationEnd: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'animationend', () => ctx.dispatch(message)),
+  OnAnimationIteration: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'animationiteration', () => ctx.dispatch(message)),
+  OnTransitionEnd: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'transitionend', () => ctx.dispatch(message)),
+  OnLoad: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'load', () => ctx.dispatch(message)),
+  OnError: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'error', () => ctx.dispatch(message)),
+  OnPlay: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'play', () => ctx.dispatch(message)),
+  OnPause: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'pause', () => ctx.dispatch(message)),
+  OnEnded: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'ended', () => ctx.dispatch(message)),
+  OnTimeUpdate: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'timeupdate', () => ctx.dispatch(message)),
+  OnVolumeChange: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'volumechange', () => ctx.dispatch(message)),
+  OnSelect: ({ message }, ctx: BuildContext) =>
+    addDataOn(ctx, 'select', () => ctx.dispatch(message)),
+  Value: ({ value }, ctx: BuildContext) =>
+    updatePropsWithPostpatch(ctx, 'value', value),
+  Checked: ({ value }, ctx: BuildContext) =>
+    updatePropsWithPostpatch(ctx, 'checked', value),
+  Selected: ({ value }, ctx: BuildContext) =>
+    updatePropsWithPostpatch(ctx, 'selected', value),
+  Open: ({ value }, ctx: BuildContext) =>
+    updatePropsWithPostpatch(ctx, 'open', value),
+  Placeholder: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'placeholder', value),
+  Name: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'name', value),
+  Disabled: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'disabled', value),
+  Readonly: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'readOnly', value),
+  Required: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'required', value),
+  Autofocus: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'autofocus', value),
+  Spellcheck: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'spellcheck', value.toString()),
+  Autocorrect: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'autocorrect', value),
+  Autocapitalize: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'autocapitalize', value),
+  InputMode: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'inputmode', value),
+  EnterKeyHint: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'enterkeyhint', value),
+  Multiple: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'multiple', value),
+  Type: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'type', value),
+  Accept: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'accept', value),
+  Autocomplete: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'autocomplete', value),
+  Pattern: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'pattern', value),
+  Maxlength: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'maxLength', value),
+  Minlength: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'minLength', value),
+  Size: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'size', value),
+  Cols: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'cols', value),
+  Rows: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'rows', value),
+  Max: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'max', value),
+  Min: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'min', value),
+  Step: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'step', value),
+  For: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'htmlFor', value),
+  Href: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'href', sanitizeUrl(value)),
+  Src: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'src', sanitizeUrl(value)),
+  Alt: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'alt', value),
+  Target: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'target', value),
+  Rel: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'rel', value),
+  Download: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'download', value),
+  Action: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'action', sanitizeUrl(value)),
+  Method: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'method', value),
+  Enctype: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'enctype', value),
+  Novalidate: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'noValidate', value),
+  Formaction: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'formAction', sanitizeUrl(value)),
+  Formmethod: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'formMethod', value),
+  Formnovalidate: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'formNoValidate', value),
+  Formtarget: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'formTarget', value),
+  Formenctype: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'formEnctype', value),
+  Colspan: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'colSpan', value),
+  Rowspan: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'rowSpan', value),
+  Scope: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'scope', value),
+  Headers: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'headers', value),
+  Span: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'span', value),
+  Start: ({ value }, ctx: BuildContext) =>
+    setNumericDataProp(ctx, 'start', value),
+  Reversed: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'reversed', value),
+  CiteAttr: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'cite', value),
+  Datetime: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'dateTime', value),
+  Wrap: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'wrap', value),
+  List: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'list', value),
+  FormAttr: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'form', value),
+  LabelAttr: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'label', value),
+  ContentAttr: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'content', value),
+  Charset: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'charset', value),
+  HttpEquiv: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'http-equiv', value),
+  Srcset: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'srcset', value),
+  Sizes: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'sizes', value),
+  Loading: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'loading', value),
+  Decoding: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'decoding', value),
+  Fetchpriority: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'fetchpriority', value),
+  Crossorigin: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'crossorigin', value),
+  Referrerpolicy: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'referrerpolicy', value),
+  Integrity: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'integrity', value),
+  Hreflang: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'hreflang', value),
+  Ping: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'ping', value),
+  Sandbox: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'sandbox', value),
+  Allow: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'allow', value),
+  Srcdoc: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'srcdoc', value),
+  Autoplay: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'autoplay', value),
+  Controls: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'controls', value),
+  Loop: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'loop', value),
+  Muted: ({ value }, ctx: BuildContext) =>
+    updatePropsWithPostpatch(ctx, 'muted', value),
+  Poster: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'poster', value),
+  Preload: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'preload', value),
+  Playsinline: ({ value }, ctx: BuildContext) =>
+    setDataProp(ctx, 'playsInline', value),
+  High: ({ value }, ctx: BuildContext) =>
+    setFiniteNumericDataProp(ctx, 'high', value),
+  Low: ({ value }, ctx: BuildContext) =>
+    setFiniteNumericDataProp(ctx, 'low', value),
+  Optimum: ({ value }, ctx: BuildContext) =>
+    setFiniteNumericDataProp(ctx, 'optimum', value),
+  Usemap: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'usemap', value),
+  Ismap: ({ value }, ctx: BuildContext) => setDataProp(ctx, 'isMap', value),
+  Role: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'role', value),
+  AriaLabel: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-label', value),
+  AriaLabelledBy: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-labelledby', value),
+  AriaDescribedBy: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-describedby', value),
+  AriaHidden: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-hidden', value.toString()),
+  AriaExpanded: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-expanded', value.toString()),
+  AriaSelected: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-selected', value.toString()),
+  AriaChecked: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-checked', value.toString()),
+  AriaDisabled: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-disabled', value.toString()),
+  AriaRequired: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-required', value.toString()),
+  AriaInvalid: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-invalid', value.toString()),
+  AriaLive: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-live', value),
+  AriaControls: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-controls', value),
+  AriaCurrent: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-current', value),
+  AriaOrientation: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-orientation', value),
+  AriaPressed: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-pressed', value),
+  AriaHasPopup: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-haspopup', value),
+  AriaActiveDescendant: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-activedescendant', value),
+  AriaSort: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-sort', value),
+  AriaMultiSelectable: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-multiselectable', value.toString()),
+  AriaModal: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-modal', value.toString()),
+  AriaBusy: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-busy', value.toString()),
+  AriaErrorMessage: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-errormessage', value),
+  AriaRoleDescription: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-roledescription', value),
+  AriaAtomic: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-atomic', value.toString()),
+  AriaAutocomplete: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-autocomplete', value),
+  AriaColcount: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-colcount', value.toString()),
+  AriaColindex: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-colindex', value.toString()),
+  AriaColspan: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-colspan', value.toString()),
+  AriaDescription: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-description', value),
+  AriaDetails: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-details', value),
+  AriaFlowto: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-flowto', value),
+  AriaKeyshortcuts: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-keyshortcuts', value),
+  AriaLevel: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-level', value.toString()),
+  AriaOwns: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-owns', value),
+  AriaPlaceholder: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-placeholder', value),
+  AriaPosinset: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-posinset', value.toString()),
+  AriaReadonly: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-readonly', value.toString()),
+  AriaRelevant: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-relevant', value),
+  AriaRowcount: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-rowcount', value.toString()),
+  AriaRowindex: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-rowindex', value.toString()),
+  AriaRowspan: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-rowspan', value.toString()),
+  AriaSetsize: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-setsize', value.toString()),
+  AriaValuemax: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-valuemax', value.toString()),
+  AriaValuemin: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-valuemin', value.toString()),
+  AriaValuenow: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-valuenow', value.toString()),
+  AriaValuetext: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'aria-valuetext', value),
+  Attribute: ({ key, value }, ctx: BuildContext) =>
+    setDataAttr(ctx, key, value),
+  DataAttribute: ({ key, value }, ctx: BuildContext) =>
+    setDataAttr(ctx, `data-${key}`, value),
+  Style: ({ value }, ctx: BuildContext) =>
+    setModuleData(
+      ctx,
+      'style',
+      normalizedStyleProperties(value),
+      VNodeDataMask.Style,
+    ),
+  InnerHTML: ({ value }, ctx: BuildContext) => setTrustedInnerHtml(ctx, value),
+  ViewBox: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'viewBox', value),
+  Xmlns: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'xmlns', value),
+  Fill: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'fill', value),
+  FillRule: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'fill-rule', value),
+  ClipRule: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'clip-rule', value),
+  Stroke: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'stroke', value),
+  StrokeWidth: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-width', value),
+  StrokeLinecap: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-linecap', value),
+  StrokeLinejoin: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-linejoin', value),
+  D: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'd', value),
+  Cx: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'cx', value),
+  Cy: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'cy', value),
+  R: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'r', value),
+  X: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'x', value),
+  Y: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'y', value),
+  Width: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'width', value),
+  Height: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'height', value),
+  X1: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'x1', value),
+  Y1: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'y1', value),
+  X2: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'x2', value),
+  Y2: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'y2', value),
+  Points: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'points', value),
+  Transform: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'transform', value),
+  Opacity: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'opacity', value),
+  StrokeDasharray: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-dasharray', value),
+  StrokeDashoffset: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-dashoffset', value),
+  Dx: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'dx', value),
+  Dy: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'dy', value),
+  Rotate: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'rotate', value),
+  TextAnchor: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'text-anchor', value),
+  DominantBaseline: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'dominant-baseline', value),
+  AlignmentBaseline: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'alignment-baseline', value),
+  BaselineShift: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'baseline-shift', value),
+  TextLength: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'textLength', value),
+  LengthAdjust: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'lengthAdjust', value),
+  FontFamily: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'font-family', value),
+  FontSize: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'font-size', value),
+  FontWeight: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'font-weight', value),
+  FontStyle: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'font-style', value),
+  LetterSpacing: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'letter-spacing', value),
+  WordSpacing: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'word-spacing', value),
+  TextDecoration: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'text-decoration', value),
+  WritingMode: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'writing-mode', value),
+  Rx: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'rx', value),
+  Ry: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'ry', value),
+  PathLength: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'pathLength', value),
+  FillOpacity: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'fill-opacity', value),
+  StrokeOpacity: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-opacity', value),
+  StrokeMiterlimit: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stroke-miterlimit', value),
+  PaintOrder: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'paint-order', value),
+  VectorEffect: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'vector-effect', value),
+  Color: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'color', value),
+  Visibility: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'visibility', value),
+  Display: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'display', value),
+  Overflow: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'overflow', value),
+  PointerEvents: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'pointer-events', value),
+  Cursor: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'cursor', value),
+  ShapeRendering: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'shape-rendering', value),
+  TextRendering: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'text-rendering', value),
+  ImageRendering: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'image-rendering', value),
+  ClipPath: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'clip-path', value),
+  Mask: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'mask', value),
+  Filter: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'filter', value),
+  ClipPathUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'clipPathUnits', value),
+  MaskUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'maskUnits', value),
+  MaskContentUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'maskContentUnits', value),
+  FilterUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'filterUnits', value),
+  PrimitiveUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'primitiveUnits', value),
+  Offset: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'offset', value),
+  StopColor: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stop-color', value),
+  StopOpacity: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'stop-opacity', value),
+  GradientUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'gradientUnits', value),
+  GradientTransform: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'gradientTransform', value),
+  SpreadMethod: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'spreadMethod', value),
+  Fx: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'fx', value),
+  Fy: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'fy', value),
+  Fr: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'fr', value),
+  PatternUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'patternUnits', value),
+  PatternContentUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'patternContentUnits', value),
+  PatternTransform: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'patternTransform', value),
+  MarkerStart: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'marker-start', value),
+  MarkerMid: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'marker-mid', value),
+  MarkerEnd: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'marker-end', value),
+  MarkerWidth: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'markerWidth', value),
+  MarkerHeight: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'markerHeight', value),
+  MarkerUnits: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'markerUnits', value),
+  RefX: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'refX', value),
+  RefY: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'refY', value),
+  Orient: ({ value }, ctx: BuildContext) => setDataAttr(ctx, 'orient', value),
+  PreserveAspectRatio: ({ value }, ctx: BuildContext) =>
+    setDataAttr(ctx, 'preserveAspectRatio', value),
+  Prop: ({ key, value }, ctx: BuildContext) =>
+    setClientOnlyDataProp(ctx, key, value),
+  OnCustomEvent: ({ name, f: toMaybeMessage }, ctx: BuildContext) =>
+    updateDataOn(ctx, {
+      [name]: (event: Event) => {
+        if (event instanceof CustomEvent) {
+          const maybeMessage = toMaybeMessage(event)
+
+          if (Option.isSome(maybeMessage)) {
+            ctx.dispatch(maybeMessage.value)
+          }
+        }
+      },
+    }),
+  OnMount: ({ action }, ctx: BuildContext) => {
+    const capturedContext = ctx.getCapturedContext()
+    const maybeTracker = Context.getOption(capturedContext, MountTracker)
+    const maybeMountRuntime = Context.getOption(capturedContext, MountRuntime)
+    const resolveMountDispatch =
+      ctx.resolveMountDispatch ?? currentMountDispatchResolverOrFallback()
+    const notifyStarted = Option.isSome(maybeTracker)
+      ? () => maybeTracker.value.started(action.name, action.args)
+      : Function.constVoid
+    const notifyEnded = Option.isSome(maybeTracker)
+      ? () => maybeTracker.value.ended(action.name, action.args)
+      : Function.constVoid
+    const markerWithArgs: FoldkitMountMarker =
+      action.args === undefined
+        ? { name: action.name }
+        : { name: action.name, args: action.args }
+    const boundaryLift = ctx.boundaryMappers
+    const marker: FoldkitMountMarker = Array.isReadonlyArrayEmpty(boundaryLift)
+      ? markerWithArgs
+      : { ...markerWithArgs, messageMappers: boundaryLift }
+    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+    ;(ctx.data as Record<string, unknown>)[FOLDKIT_MOUNT_KEY] = marker
+    const existingDestroy = ctx.data.hook?.destroy
+    ctx.data.hook = {
+      ...ctx.data.hook,
+      insert: vnode => {
+        if (vnode.elm instanceof Element) {
+          const element = vnode.elm
+          acquireMount(element)
+        }
+      },
+      postpatch: (_previousVNode, vnode) => {
+        if (vnode.elm instanceof Element) {
+          const state = onMountStates.get(vnode.elm)
+          if (
+            state?.owner === 'Replay' &&
+            resolveMountDispatch.owner === 'Live'
+          ) {
+            releaseMount(state)
+            acquireMount(vnode.elm, state.fiber)
+          }
+        }
+      },
+      destroy: vnode => {
+        if (existingDestroy !== undefined) {
+          existingDestroy(vnode)
+        }
+        if (vnode.elm instanceof Element) {
+          const state = onMountStates.get(vnode.elm)
+          if (state) {
+            releaseMount(state)
+            Effect.runFork(Fiber.interrupt(state.fiber))
+            onMountStates.delete(vnode.elm)
+          }
+        }
+      },
+    }
+
+    function releaseMount(state: OnMountState): void {
+      state.lifecycle.isActive = false
+      if (state.lifecycle.isStarted) {
+        state.lifecycle.isStarted = false
+        if (state.owner === 'Live') {
+          state.notifyEnded()
+        }
+      }
+    }
+
+    function acquireMount(
+      element: Element,
+      previousFiber?: Fiber.Fiber<void>,
+    ): void {
+      const lifecycle: OnMountLifecycle = {
+        isActive: true,
+        isStarted: true,
+      }
+      const mountDispatch = resolveMountDispatch.resolve()
+      const viewStateChanges = Option.match(maybeMountRuntime, {
+        onNone: () => liveViewStateChanges,
+        onSome: mountRuntime => mountRuntime.captureViewStateChanges(),
+      })
+      notifyStarted()
+      const runMount = Effect.suspend(() => {
+        if (!lifecycle.isActive) {
+          return Effect.void
+        }
+        return Stream.runForEach(action.f(element, viewStateChanges), message =>
+          Effect.sync(() => mountDispatch(message)),
+        )
+      }).pipe(
+        Effect.catchCause(cause =>
+          Effect.sync(() => {
+            console.error(`[OnMount ${action.name}] unhandled failure`, cause)
+          }),
+        ),
+      )
+      const acquire =
+        previousFiber === undefined
+          ? runMount
+          : Fiber.interrupt(previousFiber).pipe(Effect.andThen(runMount))
+      const fiber = Effect.runForkWith(capturedContext)(acquire)
+      onMountStates.set(element, {
+        fiber,
+        lifecycle,
+        notifyEnded,
+        owner: resolveMountDispatch.owner,
+      })
+    }
+  },
+  OnUnmount: ({ message }, ctx: BuildContext) => {
+    // NOTE: resolve the boundary wrapping chain eagerly, while the boundary
+    // is still live this render. The dispatch runs during teardown, or later
+    // after a failed replay patch, so the precomputed thunk does not depend
+    // on what the registry holds at that time.
+    const dispatchUnmount = ctx.resolveUnmount(message)
+    attachOnUnmount(ctx.data, dispatchUnmount)
+  },
+}
+
+const applyAttribute = (
+  attribute: Attribute<unknown>,
+  ctx: BuildContext,
+): void => {
+  // NOTE: the mapped record type correlates each handler's attribute
+  // parameter with its tag, which TypeScript cannot re-derive at this
+  // widened call site.
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  const handler = attributeHandlers[attribute._tag] as (
+    attribute: Attribute<unknown>,
+    ctx: BuildContext,
+  ) => void
+  handler(attribute, ctx)
+}
+
+// NOTE: tolerate the absence of a runtime frame. Static elements
+// (`h.code([h.Class('x')], ['text'])`) and prose fragments built at module
+// top level (`const fragment = inlineCode('foo')` at import time) must
+// construct without an active render frame. They never invoke the fallback
+// dispatcher because they have no event handlers; event-bearing Html
+// constructed outside a render reaches the fallback only at event-fire time,
+// which surfaces a clear error rather than failing at import time. The
+// fallbacks are module-level constants so element construction allocates no
+// per-element closures for them.
+const fallbackDispatch: DispatchSync = () => {
+  throw new Error(
+    'Foldkit: an event-bearing Html attribute fired without an ' +
+      'active runtime frame. This typically means an Html element ' +
+      'with event handlers (OnClick, OnInput, etc.) was constructed ' +
+      'at module top level outside of a view function.',
+  )
+}
+
+const fallbackUnmountResolver: UnmountResolver = () => () => {
+  throw new Error(
+    'Foldkit: an OnUnmount attribute fired without an active runtime ' +
+      'frame. This typically means an Html element with OnUnmount was ' +
+      'constructed at module top level outside of a view function.',
+  )
+}
+
+const currentDispatchOrFallback = (): DispatchSync => {
+  try {
+    return requireDispatch()
+  } catch {
+    return fallbackDispatch
+  }
+}
+
+const currentUnmountResolverOrFallback = (): UnmountResolver => {
+  try {
+    return requireUnmountResolver()
+  } catch {
+    return fallbackUnmountResolver
+  }
+}
+
+const currentMountDispatchResolverOrFallback = (): MountDispatchResolver => {
+  try {
+    return requireMountDispatchResolver()
+  } catch {
+    return { owner: 'Live', resolve: () => fallbackDispatch }
+  }
+}
+
+const capturedContextOrEmpty = (): Context.Context<never> => {
+  try {
+    return requireRuntimeContext()
+  } catch {
+    return Context.empty()
+  }
+}
+
+// NOTE: reasserted on `insert` as well as on `postpatch`. The props module sets
+// a controlled property while the element is being created, before its children
+// exist, and a `<select>`'s `value` setter has nothing to match against until
+// its `<option>`s are there, so a fresh render left the select on the browser's
+// own default until some later patch corrected it. The server instead marks the
+// matching option, so the served page was right and the fresh one was not.
+// `insert` fires once the subtree is built, which is where the two agree.
+const applyControlledProps = (
+  vnode: VNode,
+  controlledProps: ReadonlyArray<
+    Readonly<{ propName: string; value: unknown }>
+  >,
+): void => {
+  if (!vnode.elm) {
+    return
+  }
+  Array.forEach(controlledProps, ({ propName, value }) => {
+    const isOutputValue =
+      vnode.elm instanceof Element &&
+      vnode.elm.localName === 'output' &&
+      propName === 'value'
+    /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+    if (isOutputValue || (vnode.elm as any)[propName] !== value) {
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      ;(vnode.elm as any)[propName] = value
+    }
+    if (vnode.elm instanceof Element) {
+      synchronizeControlledDefault(vnode.elm, propName, value)
+    }
+  })
+}
+
+const attachPostpatchHook = (
+  data: VNodeData,
+  postpatchProps: ReadonlyArray<Readonly<{ propName: string; value: unknown }>>,
+): void => {
+  const existingInsert = data.hook?.insert
+  const existingPostpatch = data.hook?.postpatch
+  data.hook = {
+    ...data.hook,
+    insert: vnode => {
+      applyControlledProps(vnode, postpatchProps)
+      existingInsert?.(vnode)
+    },
+    postpatch: (oldVnode, vnode) => {
+      applyControlledProps(vnode, postpatchProps)
+      existingPostpatch?.(oldVnode, vnode)
+    },
+  }
+}
+
+const attachControlledContentOwnershipHook = (data: VNodeData): void => {
+  const existingPostpatch = data.hook?.postpatch
+  data.hook = {
+    ...data.hook,
+    postpatch: (oldVnode, vnode) => {
+      existingPostpatch?.(oldVnode, vnode)
+      const oldProperties = oldVnode.data?.props
+      const properties = vnode.data?.props
+      if (
+        oldProperties !== undefined &&
+        Object.hasOwn(oldProperties, 'value') &&
+        (properties === undefined || !Object.hasOwn(properties, 'value')) &&
+        vnode.elm instanceof Element
+      ) {
+        restoreUncontrolledContent(vnode.elm, vnode)
+      }
+    },
+  }
+}
+
+const buildVNodeData = <Message>(
+  attributes: ReadonlyArray<Attribute<Message> | ChildAttribute>,
+): VNodeData => {
+  const data: VNodeData = { [vnodeDataMaskKey]: 0 }
+  if (attributes.length === 0) {
+    return data
+  }
+
+  // NOTE: most attributes route through the current frame's dispatch.
+  // ChildAttribute items carry a different dispatcher (captured by
+  // `childAttributes` in a Submodel's own boundary), so they need their own
+  // BuildContext closed over that dispatch. The handler record itself is
+  // module-level and shared. The main ctx is built lazily. Static-only
+  // attribute arrays (Class, Id, etc. with no event handlers) skip
+  // `requireDispatch` entirely so Html can be constructed at module top
+  // level. The boundary ctx map is only allocated when a ChildAttribute is
+  // actually present.
+  let mainCtx: BuildContext | undefined
+  let boundaryCtxByDispatch: Map<DispatchSync, BuildContext> | undefined
+  let sharedPostpatchProps:
+    | Array<Readonly<{ propName: string; value: unknown }>>
+    | undefined
+  const getSharedPostpatchProps = (): Array<
+    Readonly<{ propName: string; value: unknown }>
+  > => (sharedPostpatchProps ??= [])
+
+  for (const item of attributes) {
+    if (isChildAttribute(item)) {
+      boundaryCtxByDispatch ??= new Map()
+      let ctx = boundaryCtxByDispatch.get(item.dispatch)
+      if (
+        ctx === undefined ||
+        (item.resolveMountDispatch !== undefined &&
+          ctx.resolveMountDispatch !== item.resolveMountDispatch)
+      ) {
+        ctx = {
+          data,
+          getPostpatchProps: getSharedPostpatchProps,
+          dispatch: item.dispatch,
+          resolveUnmount: item.resolveUnmount,
+          boundaryMappers: item.boundaryMappers,
+          ...(item.resolveMountDispatch !== undefined && {
+            resolveMountDispatch: item.resolveMountDispatch,
+          }),
+          getCapturedContext: capturedContextOrEmpty,
+        }
+        boundaryCtxByDispatch.set(item.dispatch, ctx)
+      }
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      applyAttribute(item.attribute as Attribute<unknown>, ctx)
+    } else {
+      if (mainCtx === undefined) {
+        mainCtx = {
+          data,
+          getPostpatchProps: getSharedPostpatchProps,
+          dispatch: currentDispatchOrFallback(),
+          resolveUnmount: currentUnmountResolverOrFallback(),
+          boundaryMappers: requireBoundaryMappers(),
+          getCapturedContext: capturedContextOrEmpty,
+        }
+      }
+      /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+      applyAttribute(item as Attribute<unknown>, mainCtx)
+    }
+  }
+
+  if (
+    sharedPostpatchProps !== undefined &&
+    Array.isReadonlyArrayNonEmpty(sharedPostpatchProps)
+  ) {
+    attachPostpatchHook(data, sharedPostpatchProps)
+  }
+
+  return data
+}
+
+// NOTE: one fresh mutable array per element in a single pass: `h.empty`
+// children (null) are dropped, and snabbdom's `h` converts primitive
+// children to text vnodes in place, so the caller's array must never be
+// handed over directly.
+const copyChildrenDroppingEmpty = (
+  children: ReadonlyArray<Child>,
+): Array<VNode | string> => {
+  const next: Array<VNode | string> = []
+  for (let index = 0; index < children.length; index++) {
+    const child = children[index]
+    if (child !== null && child !== undefined) {
+      next.push(child)
+    }
+  }
+  return next
+}
+
+// Elements whose content a controlled `value` owns. Giving one both a value and
+// trusted raw HTML asks two mechanisms to own the same text.
+const CONTROLLED_CONTENT_ELEMENTS: ReadonlySet<string> = new Set([
+  'output',
+  'select',
+  'textarea',
+])
+
+// Elements that carry no content at all, so raw HTML written into one cannot be
+// represented in served markup. Assigning the property in a browser can still
+// build child nodes, which is a difference no server render can reproduce.
+const VOID_CONTENT_ELEMENTS: ReadonlySet<string> = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+])
+
+// One owner per element's content. Both `h.InnerHTML` and a client-only
+// `innerHTML` property hand the element an opaque subtree. A view that also
+// declares children or a controlled value gives the differ child vnodes for
+// nodes the property replaces, leaving those vnodes detached and making a later
+// patch unable to restore the declared children. Trusted `h.InnerHTML` also
+// disagrees with the server serializer in these combinations. Rejecting at the
+// builder makes the server render, a fresh client render, and hydration refuse
+// the same self-contradictory view.
+const assertSingleContentOwner = (
+  tagName: string,
+  data: VNodeData,
+  children: ReadonlyArray<Child>,
+): void => {
+  const lowerTagName = tagName.toLowerCase()
+  if (
+    (lowerTagName === 'textarea' || lowerTagName === 'output') &&
+    data.props?.['value'] !== undefined &&
+    children.length > 0
+  ) {
+    throw new Error(
+      `[foldkit] <${lowerTagName}> was given both a controlled value and ` +
+        'children. Both own the element content, so a property assignment ' +
+        'replaces the child nodes the differ expects to patch. Keep one owner.',
+    )
+  }
+  const properties = data.props
+  if (properties === undefined || !Object.hasOwn(properties, 'innerHTML')) {
+    return
+  }
+  const innerHtmlOwner = hasTrustedInnerHtml(properties)
+    ? 'h.InnerHTML'
+    : 'a client-only innerHTML property'
+  if (lowerTagName === 'textarea') {
+    throw new Error(
+      `[foldkit] <textarea> was given ${innerHtmlOwner}. Textarea content ` +
+        'must use h.Value because innerHTML stops updating the live value ' +
+        'after the browser marks the field dirty. Remove the innerHTML owner.',
+    )
+  }
+  if (children.length > 0) {
+    throw new Error(
+      `[foldkit] <${lowerTagName}> was given both ${innerHtmlOwner} and children. ` +
+        'innerHTML owns the whole of an element\u2019s content, so the two ' +
+        'cannot both describe it: server rendering emits the raw HTML alone ' +
+        'for h.InnerHTML, while a browser property assignment replaces the ' +
+        'nodes the differ expects to patch. Keep one content owner.',
+    )
+  }
+  if (
+    CONTROLLED_CONTENT_ELEMENTS.has(lowerTagName) &&
+    data.props?.['value'] !== undefined
+  ) {
+    throw new Error(
+      `[foldkit] <${lowerTagName}> was given both ${innerHtmlOwner} and a ` +
+        'controlled value. Both own this element\u2019s content, and they ' +
+        'disagree once the client reasserts the value. Keep one of them.',
+    )
+  }
+  if (VOID_CONTENT_ELEMENTS.has(lowerTagName)) {
+    throw new Error(
+      `[foldkit] <${lowerTagName}> cannot hold content, so ${innerHtmlOwner} ` +
+        'on it ' +
+        'has no representation in served HTML. A browser can still build ' +
+        'child nodes from the property, which no server render reproduces. ' +
+        'Remove the innerHTML value.',
+    )
+  }
+}
+
+const assertSingleStyleOwner = (data: VNodeData): void => {
+  if (
+    data.style === undefined ||
+    htmlAttributeValue(data.attrs, 'style') === undefined
+  ) {
+    return
+  }
+  throw new Error(
+    '[foldkit] An element was given both h.Style and a raw ' +
+      "h.Attribute('style', ...). They are two owners of one declaration " +
+      'block, and CSS parsing can make one swallow or override the other. ' +
+      'Keep all inline declarations in one of them.',
+  )
+}
+
+// The state an element would be in once it exists, read from the tag, the raw
+// attributes, and the typed properties together. A builder on its own cannot
+// decide any of this: `h.Value` is a string on an input and a number on a
+// meter, `type="file"` refuses the value an input takes everywhere else, and a
+// raw attribute means nothing until something says which property claims the
+// same name.
+//
+// Each rule below marks a view whose server render and fresh client render
+// cannot agree. Refusing it where it is written is what makes the two, plus a
+// hydration of the first by the second, fail the same way rather than diverge
+// quietly.
+
+// A number both a parser and an assignment read identically: ASCII digits, one
+// optional leading minus, an optional fraction, an optional exponent. Anything
+// else parts the two: `0x10` is 16 to `Number` and invalid to the parser, a
+// leading `+` or surrounding whitespace is accepted by one and not the other,
+// and `Infinity` throws on assignment while the attribute falls back to the
+// element's default.
+const DECIMAL_NUMBER = /^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$/
+const DECIMAL_INTEGER = /^-?[0-9]+$/
+
+// Properties the DOM defines as numbers on these elements and as strings
+// elsewhere, so the same builder means different things depending on where it
+// is written.
+const DOUBLE_IDL_PROPERTIES: Readonly<Record<string, ReadonlySet<string>>> = {
+  meter: new Set(['high', 'low', 'max', 'min', 'optimum', 'value']),
+  progress: new Set(['max', 'value']),
+}
+
+const LONG_IDL_PROPERTIES: Readonly<Record<string, ReadonlySet<string>>> = {
+  li: new Set(['value']),
+}
+
+const assertDoubleIdlValue = (
+  tagName: string,
+  propName: string,
+  value: unknown,
+): void => {
+  const isRepresentable =
+    typeof value === 'number'
+      ? Number.isFinite(value)
+      : typeof value === 'string' &&
+        DECIMAL_NUMBER.test(value) &&
+        Number.isFinite(Number(value))
+  if (!isRepresentable) {
+    throw new Error(
+      `[foldkit] <${tagName}> reads ${propName} as a number, and ` +
+        `${JSON.stringify(value)} is not one a browser reads the same way from ` +
+        'markup and from a property assignment. Use a finite decimal number.',
+    )
+  }
+}
+
+const assertLongIdlValue = (
+  tagName: string,
+  propName: string,
+  value: unknown,
+): void => {
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && DECIMAL_INTEGER.test(value)
+        ? Number(value)
+        : Number.NaN
+  if (
+    !Number.isInteger(parsed) ||
+    parsed < SIGNED_LONG_MINIMUM ||
+    parsed > SIGNED_LONG_MAXIMUM
+  ) {
+    throw new Error(
+      `[foldkit] <${tagName}> reads ${propName} as an integer, and ` +
+        `${JSON.stringify(value)} is not one a browser reads the same way from ` +
+        'markup and from a property assignment. Use an integer from ' +
+        `${String(SIGNED_LONG_MINIMUM)} to ${String(SIGNED_LONG_MAXIMUM)}.`,
+    )
+  }
+}
+
+const effectiveInputType = (data: VNodeData): string | undefined => {
+  const typed = data.props?.['type']
+  if (typeof typed === 'string') {
+    return typed.toLowerCase()
+  }
+  const raw = htmlAttributeValue(data.attrs, 'type')
+  return typeof raw === 'string' ? raw.toLowerCase() : undefined
+}
+
+const assertElementStateIsRepresentable = (
+  tagName: string,
+  data: VNodeData,
+): void => {
+  const props = data.props
+  if (props === undefined) {
+    return
+  }
+  const lowerTagName = tagName.toLowerCase()
+  const doubleIdl = DOUBLE_IDL_PROPERTIES[lowerTagName]
+  const longIdl = LONG_IDL_PROPERTIES[lowerTagName]
+
+  for (const propName of Object.keys(props)) {
+    const value = props[propName]
+    if (value === undefined || propName === 'innerHTML') {
+      continue
+    }
+    if (doubleIdl?.has(propName) === true) {
+      assertDoubleIdlValue(lowerTagName, propName, value)
+    }
+    if (longIdl?.has(propName) === true) {
+      assertLongIdlValue(lowerTagName, propName, value)
+    }
+    if (lowerTagName === 'input' && propName === 'size' && value === 0) {
+      throw new Error(
+        numericPropertyRefusal(propName, value) +
+          `Use an integer from 1 to ${String(SIGNED_LONG_MAXIMUM)} on an input.`,
+      )
+    }
+    // A raw attribute and a typed builder that name the same attribute are two
+    // owners of one piece of state, and their served form has no source
+    // spelling. `h.Attribute('checked', '')` with `h.Checked(false)` serves no
+    // attribute at all, so the served element has `defaultChecked` false while
+    // a fresh render parses the attribute and has it true: `form.reset()`,
+    // `:default`, and an attribute selector then read the two pages
+    // differently. A client-only property carries no such claim, so a
+    // `CustomElement.define` property never conflicts with an attribute.
+    const attributeName = reflectedAttributeName(propName)
+    if (
+      attributeName !== undefined &&
+      !isClientOnlyProperty(props, propName) &&
+      htmlAttributeValue(data.attrs, attributeName) !== undefined
+    ) {
+      throw new Error(
+        `[foldkit] <${lowerTagName}> was given both a typed ${propName} and a ` +
+          `raw h.Attribute('${attributeName}', ...). They are two owners of ` +
+          'one attribute, and the state they describe together has no spelling ' +
+          'in served HTML: the property decides what is served while a fresh ' +
+          'render parses the attribute as the default too. Keep one of them.',
+      )
+    }
+  }
+
+  if (lowerTagName === 'input' && effectiveInputType(data) === 'file') {
+    const value = props['value']
+    if (typeof value === 'string' && value !== '') {
+      throw new Error(
+        '[foldkit] <input type="file"> was given a value. A file input takes ' +
+          'no value from markup or from the Model: the served attribute is ' +
+          'ignored and assigning the property throws InvalidStateError, so the ' +
+          'view crashes on a fresh render and on hydration. Drop the value.',
+      )
+    }
+  }
+}
+
+// NOTE: A typed property on an HTML element whose native interface does not own it
+// has always been a client-side expando. For example, RadioGroup deliberately
+// includes `h.Type('button')` in an attribute bundle that consumers may spread
+// onto a button, div, or span. Mark the wrong-element case as client-only so
+// server rendering omits it and hydration applies the same expando a fresh
+// render does, without turning a pre-existing client pattern into live markup.
+const markUnreflectedHtmlPropertiesClientOnly = (
+  tagName: string,
+  data: VNodeData,
+): void => {
+  const props = data.props
+  if (props === undefined) {
+    return
+  }
+  for (const propName of Object.keys(props)) {
+    if (
+      reflectedAttributeName(propName) !== undefined &&
+      !isHtmlPropertyRepresentable(tagName, propName)
+    ) {
+      markClientOnlyProperty(props, propName)
+    }
+  }
+}
+
+// The same question in SVG and MathML, where the answer is decided by the
+// namespace rather than by the tag. A foreign element has none of the HTML
+// interface members a typed builder writes, apart from the three measured to
+// reflect there. Assigning `href` on an SVG `<a>` throws, since bundled code is
+// strict and `SVGAElement.href` is readonly; assigning `title` sets an expando
+// no attribute ever sees. The serializer would have written an attribute for
+// both. Raw `h.Attribute` is the mechanism SVG and MathML use, and it behaves
+// identically on both sides.
+//
+// The namespace is only known once the `svg` or `math` element that introduces
+// it is built, because that is when it propagates down. The walk stops where
+// the namespace stops, so an HTML integration point such as `<foreignObject>`
+// keeps ordinary HTML rules for its content.
+const assertForeignPropertiesAreRepresentable = (node: VNode): void => {
+  const data = node.data
+  if (data === undefined || data.ns === undefined) {
+    return
+  }
+  const props = data.props
+  if (props !== undefined) {
+    for (const propName of Object.keys(props)) {
+      if (
+        props[propName] === undefined ||
+        propName === 'innerHTML' ||
+        FOREIGN_REPRESENTABLE_PROPERTIES.has(propName) ||
+        reflectedAttributeName(propName) === undefined
+      ) {
+        continue
+      }
+      throw new Error(
+        `[foldkit] <${tagNameFromSelector(node.sel ?? '')}> is in the SVG or ` +
+          `MathML namespace, where ${propName} is not a property the element ` +
+          'has. Assigning it on the client sets a value no attribute reflects, ' +
+          'or throws outright, while server rendering writes the attribute, so ' +
+          `the two disagree. Write it as h.Attribute('${propName}', ...), ` +
+          'which foreign content reads the same way on both sides.',
+      )
+    }
+  }
+  for (const child of node.children ?? []) {
+    if (typeof child !== 'string') {
+      assertForeignPropertiesAreRepresentable(child)
+    }
+  }
+}
+
+const buildElement = (
+  tagName: string,
+  data: VNodeData,
+  children: ReadonlyArray<Child>,
+): Html => {
+  const copiedChildren = copyChildrenDroppingEmpty(children)
+  markUnreflectedHtmlPropertiesClientOnly(tagName, data)
+  assertSingleContentOwner(tagName, data, copiedChildren)
+  assertSingleStyleOwner(data)
+  if (data.style !== undefined) {
+    assertStyleIsRepresentable(data.style)
+  }
+  assertElementStateIsRepresentable(tagName, data)
+  if (
+    tagName.toLowerCase() === 'select' ||
+    tagName.toLowerCase() === 'textarea' ||
+    tagName.toLowerCase() === 'output'
+  ) {
+    attachControlledContentOwnershipHook(data)
+  }
+  const built = h(tagName, data, copiedChildren)
+  assertForeignPropertiesAreRepresentable(built)
+  return built
+}
+
+const createElement = <Message>(
+  tagName: string,
+  attributes: ReadonlyArray<Attribute<Message> | ChildAttribute> = [],
+  children: ReadonlyArray<Child> = [],
+): Html => buildElement(tagName, buildVNodeData(attributes), children)
+
+const element =
+  <Message>() =>
+  (tagName: TagName) =>
+  (
+    attributes: ReadonlyArray<Attribute<Message> | ChildAttribute> = [],
+    children: ReadonlyArray<Child> = [],
+  ): Html =>
+    createElement(tagName, attributes, children)
+
+export const customElement =
+  <Message>() =>
+  (tagName: string) =>
+  (
+    attributes: ReadonlyArray<Attribute<Message> | ChildAttribute> = [],
+    children: ReadonlyArray<Child> = [],
+  ): Html =>
+    createElement(tagName, attributes, children)
+
+const voidElement =
+  <Message>() =>
+  (tagName: TagName) =>
+  (attributes: ReadonlyArray<Attribute<Message> | ChildAttribute> = []): Html =>
+    createElement(tagName, attributes, [])
+
+const keyed =
+  <Message>(): KeyedFunction<Message> =>
+  (tagName: TagName) =>
+  (
+    key: PropertyKey,
+    attributes: ReadonlyArray<Attribute<Message> | ChildAttribute> = [],
+    children: ReadonlyArray<Child> = [],
+  ): Html => {
+    const data = buildVNodeData(attributes)
+    data.key = key
+    return buildElement(tagName, data, children)
+  }
+
+type ElementFunction<Message> = (
+  attributes: ReadonlyArray<Attribute<Message> | ChildAttribute>,
+  children?: ReadonlyArray<Child>,
+) => Html
+
+type VoidElementFunction<Message> = (
+  attributes: ReadonlyArray<Attribute<Message> | ChildAttribute>,
+) => Html
+
+/** An attribute accepted by textarea builders. Textarea content must use
+ *  `h.Value`; innerHTML does not keep the live value tracking the Model after
+ *  the field is dirty. */
+export type TextareaAttribute<Message> = Exclude<
+  Attribute<Message>,
+  Readonly<{ _tag: 'InnerHTML' }>
+>
+
+type TextValueElementFunction<Message> = (
+  attributes: ReadonlyArray<TextareaAttribute<Message> | ChildAttribute>,
+) => Html
+
+type KeyedElementFunction<Message> = (
+  key: PropertyKey,
+  attributes?: ReadonlyArray<Attribute<Message> | ChildAttribute>,
+  children?: ReadonlyArray<Child>,
+) => Html
+
+type KeyedTextValueElementFunction<Message> = (
+  key: PropertyKey,
+  attributes?: ReadonlyArray<TextareaAttribute<Message> | ChildAttribute>,
+) => Html
+
+type KeyedFunction<Message> = <Name extends TagName>(
+  tagName: Name,
+) => Name extends 'textarea'
+  ? KeyedTextValueElementFunction<Message>
+  : KeyedElementFunction<Message>
+
+type HtmlElements<Message> = {
+  a: ElementFunction<Message>
+  abbr: ElementFunction<Message>
+  address: ElementFunction<Message>
+  area: VoidElementFunction<Message>
+  article: ElementFunction<Message>
+  aside: ElementFunction<Message>
+  audio: ElementFunction<Message>
+  b: ElementFunction<Message>
+  base: VoidElementFunction<Message>
+  bdi: ElementFunction<Message>
+  bdo: ElementFunction<Message>
+  blockquote: ElementFunction<Message>
+  body: ElementFunction<Message>
+  br: VoidElementFunction<Message>
+  button: ElementFunction<Message>
+  canvas: ElementFunction<Message>
+  caption: ElementFunction<Message>
+  cite: ElementFunction<Message>
+  code: ElementFunction<Message>
+  col: VoidElementFunction<Message>
+  colgroup: ElementFunction<Message>
+  data: ElementFunction<Message>
+  datalist: ElementFunction<Message>
+  dd: ElementFunction<Message>
+  del: ElementFunction<Message>
+  details: ElementFunction<Message>
+  dfn: ElementFunction<Message>
+  dialog: ElementFunction<Message>
+  div: ElementFunction<Message>
+  dl: ElementFunction<Message>
+  dt: ElementFunction<Message>
+  em: ElementFunction<Message>
+  embed: VoidElementFunction<Message>
+  fieldset: ElementFunction<Message>
+  figcaption: ElementFunction<Message>
+  figure: ElementFunction<Message>
+  footer: ElementFunction<Message>
+  form: ElementFunction<Message>
+  h1: ElementFunction<Message>
+  h2: ElementFunction<Message>
+  h3: ElementFunction<Message>
+  h4: ElementFunction<Message>
+  h5: ElementFunction<Message>
+  h6: ElementFunction<Message>
+  head: ElementFunction<Message>
+  header: ElementFunction<Message>
+  hgroup: ElementFunction<Message>
+  hr: VoidElementFunction<Message>
+  html: ElementFunction<Message>
+  i: ElementFunction<Message>
+  iframe: ElementFunction<Message>
+  img: VoidElementFunction<Message>
+  input: VoidElementFunction<Message>
+  ins: ElementFunction<Message>
+  kbd: ElementFunction<Message>
+  label: ElementFunction<Message>
+  legend: ElementFunction<Message>
+  li: ElementFunction<Message>
+  link: VoidElementFunction<Message>
+  main: ElementFunction<Message>
+  map: ElementFunction<Message>
+  mark: ElementFunction<Message>
+  menu: ElementFunction<Message>
+  meta: VoidElementFunction<Message>
+  meter: ElementFunction<Message>
+  nav: ElementFunction<Message>
+  noscript: ElementFunction<Message>
+  object: ElementFunction<Message>
+  ol: ElementFunction<Message>
+  optgroup: ElementFunction<Message>
+  option: ElementFunction<Message>
+  output: ElementFunction<Message>
+  p: ElementFunction<Message>
+  picture: ElementFunction<Message>
+  portal: ElementFunction<Message>
+  pre: ElementFunction<Message>
+  progress: ElementFunction<Message>
+  q: ElementFunction<Message>
+  rp: ElementFunction<Message>
+  rt: ElementFunction<Message>
+  ruby: ElementFunction<Message>
+  s: ElementFunction<Message>
+  samp: ElementFunction<Message>
+  script: ElementFunction<Message>
+  search: ElementFunction<Message>
+  section: ElementFunction<Message>
+  select: ElementFunction<Message>
+  slot: ElementFunction<Message>
+  small: ElementFunction<Message>
+  source: VoidElementFunction<Message>
+  span: ElementFunction<Message>
+  strong: ElementFunction<Message>
+  style: ElementFunction<Message>
+  sub: ElementFunction<Message>
+  summary: ElementFunction<Message>
+  sup: ElementFunction<Message>
+  table: ElementFunction<Message>
+  tbody: ElementFunction<Message>
+  td: ElementFunction<Message>
+  template: ElementFunction<Message>
+  textarea: TextValueElementFunction<Message>
+  tfoot: ElementFunction<Message>
+  th: ElementFunction<Message>
+  thead: ElementFunction<Message>
+  time: ElementFunction<Message>
+  title: ElementFunction<Message>
+  tr: ElementFunction<Message>
+  track: VoidElementFunction<Message>
+  u: ElementFunction<Message>
+  ul: ElementFunction<Message>
+  var: ElementFunction<Message>
+  video: ElementFunction<Message>
+  wbr: VoidElementFunction<Message>
+  svg: ElementFunction<Message>
+  animate: ElementFunction<Message>
+  animateMotion: ElementFunction<Message>
+  animateTransform: ElementFunction<Message>
+  circle: ElementFunction<Message>
+  clipPath: ElementFunction<Message>
+  defs: ElementFunction<Message>
+  desc: ElementFunction<Message>
+  ellipse: ElementFunction<Message>
+  feBlend: ElementFunction<Message>
+  feColorMatrix: ElementFunction<Message>
+  feComponentTransfer: ElementFunction<Message>
+  feComposite: ElementFunction<Message>
+  feConvolveMatrix: ElementFunction<Message>
+  feDiffuseLighting: ElementFunction<Message>
+  feDisplacementMap: ElementFunction<Message>
+  feDistantLight: ElementFunction<Message>
+  feDropShadow: ElementFunction<Message>
+  feFlood: ElementFunction<Message>
+  feFuncA: ElementFunction<Message>
+  feFuncB: ElementFunction<Message>
+  feFuncG: ElementFunction<Message>
+  feFuncR: ElementFunction<Message>
+  feGaussianBlur: ElementFunction<Message>
+  feImage: ElementFunction<Message>
+  feMerge: ElementFunction<Message>
+  feMergeNode: ElementFunction<Message>
+  feMorphology: ElementFunction<Message>
+  feOffset: ElementFunction<Message>
+  fePointLight: ElementFunction<Message>
+  feSpecularLighting: ElementFunction<Message>
+  feSpotLight: ElementFunction<Message>
+  feTile: ElementFunction<Message>
+  feTurbulence: ElementFunction<Message>
+  filter: ElementFunction<Message>
+  foreignObject: ElementFunction<Message>
+  g: ElementFunction<Message>
+  image: ElementFunction<Message>
+  line: ElementFunction<Message>
+  linearGradient: ElementFunction<Message>
+  marker: ElementFunction<Message>
+  mask: ElementFunction<Message>
+  metadata: ElementFunction<Message>
+  mpath: ElementFunction<Message>
+  path: ElementFunction<Message>
+  pattern: ElementFunction<Message>
+  polygon: ElementFunction<Message>
+  polyline: ElementFunction<Message>
+  radialGradient: ElementFunction<Message>
+  rect: ElementFunction<Message>
+  set: ElementFunction<Message>
+  stop: ElementFunction<Message>
+  switch: ElementFunction<Message>
+  symbol: ElementFunction<Message>
+  text: ElementFunction<Message>
+  textPath: ElementFunction<Message>
+  tspan: ElementFunction<Message>
+  use: ElementFunction<Message>
+  view: ElementFunction<Message>
+  math: ElementFunction<Message>
+  annotation: ElementFunction<Message>
+  'annotation-xml': ElementFunction<Message>
+  maction: ElementFunction<Message>
+  menclose: ElementFunction<Message>
+  merror: ElementFunction<Message>
+  mfenced: ElementFunction<Message>
+  mfrac: ElementFunction<Message>
+  mglyph: ElementFunction<Message>
+  mi: ElementFunction<Message>
+  mlabeledtr: ElementFunction<Message>
+  mlongdiv: ElementFunction<Message>
+  mmultiscripts: ElementFunction<Message>
+  mn: ElementFunction<Message>
+  mo: ElementFunction<Message>
+  mover: ElementFunction<Message>
+  mpadded: ElementFunction<Message>
+  mphantom: ElementFunction<Message>
+  mprescripts: ElementFunction<Message>
+  mroot: ElementFunction<Message>
+  mrow: ElementFunction<Message>
+  ms: ElementFunction<Message>
+  mscarries: ElementFunction<Message>
+  mscarry: ElementFunction<Message>
+  msgroup: ElementFunction<Message>
+  msline: ElementFunction<Message>
+  mspace: ElementFunction<Message>
+  msqrt: ElementFunction<Message>
+  msrow: ElementFunction<Message>
+  mstack: ElementFunction<Message>
+  mstyle: ElementFunction<Message>
+  msub: ElementFunction<Message>
+  msubsup: ElementFunction<Message>
+  msup: ElementFunction<Message>
+  mtable: ElementFunction<Message>
+  mtd: ElementFunction<Message>
+  mtext: ElementFunction<Message>
+  mtr: ElementFunction<Message>
+  munder: ElementFunction<Message>
+  munderover: ElementFunction<Message>
+  semantics: ElementFunction<Message>
+}
+
+const htmlElements = <Message>(): HtmlElements<Message> => {
+  const el = element<Message>()
+  const voidEl = voidElement<Message>()
+
+  return {
+    // HTML
+    a: el('a'),
+    abbr: el('abbr'),
+    address: el('address'),
+    area: voidEl('area'),
+    article: el('article'),
+    aside: el('aside'),
+    audio: el('audio'),
+    b: el('b'),
+    base: voidEl('base'),
+    bdi: el('bdi'),
+    bdo: el('bdo'),
+    blockquote: el('blockquote'),
+    body: el('body'),
+    br: voidEl('br'),
+    button: el('button'),
+    canvas: el('canvas'),
+    caption: el('caption'),
+    cite: el('cite'),
+    code: el('code'),
+    col: voidEl('col'),
+    colgroup: el('colgroup'),
+    data: el('data'),
+    datalist: el('datalist'),
+    dd: el('dd'),
+    del: el('del'),
+    details: el('details'),
+    dfn: el('dfn'),
+    dialog: el('dialog'),
+    div: el('div'),
+    dl: el('dl'),
+    dt: el('dt'),
+    em: el('em'),
+    embed: voidEl('embed'),
+    fieldset: el('fieldset'),
+    figcaption: el('figcaption'),
+    figure: el('figure'),
+    footer: el('footer'),
+    form: el('form'),
+    h1: el('h1'),
+    h2: el('h2'),
+    h3: el('h3'),
+    h4: el('h4'),
+    h5: el('h5'),
+    h6: el('h6'),
+    head: el('head'),
+    header: el('header'),
+    hgroup: el('hgroup'),
+    hr: voidEl('hr'),
+    html: el('html'),
+    i: el('i'),
+    iframe: el('iframe'),
+    img: voidEl('img'),
+    input: voidEl('input'),
+    ins: el('ins'),
+    kbd: el('kbd'),
+    label: el('label'),
+    legend: el('legend'),
+    li: el('li'),
+    link: voidEl('link'),
+    main: el('main'),
+    map: el('map'),
+    mark: el('mark'),
+    menu: el('menu'),
+    meta: voidEl('meta'),
+    meter: el('meter'),
+    nav: el('nav'),
+    noscript: el('noscript'),
+    object: el('object'),
+    ol: el('ol'),
+    optgroup: el('optgroup'),
+    option: el('option'),
+    output: el('output'),
+    p: el('p'),
+    picture: el('picture'),
+    portal: el('portal'),
+    pre: el('pre'),
+    progress: el('progress'),
+    q: el('q'),
+    rp: el('rp'),
+    rt: el('rt'),
+    ruby: el('ruby'),
+    s: el('s'),
+    samp: el('samp'),
+    script: el('script'),
+    search: el('search'),
+    section: el('section'),
+    select: el('select'),
+    slot: el('slot'),
+    small: el('small'),
+    source: voidEl('source'),
+    span: el('span'),
+    strong: el('strong'),
+    style: el('style'),
+    sub: el('sub'),
+    summary: el('summary'),
+    sup: el('sup'),
+    table: el('table'),
+    tbody: el('tbody'),
+    td: el('td'),
+    template: el('template'),
+    textarea: el('textarea'),
+    tfoot: el('tfoot'),
+    th: el('th'),
+    thead: el('thead'),
+    time: el('time'),
+    title: el('title'),
+    tr: el('tr'),
+    track: voidEl('track'),
+    u: el('u'),
+    ul: el('ul'),
+    var: el('var'),
+    video: el('video'),
+    wbr: voidEl('wbr'),
+
+    // SVG
+    svg: el('svg'),
+    animate: el('animate'),
+    animateMotion: el('animateMotion'),
+    animateTransform: el('animateTransform'),
+    circle: el('circle'),
+    clipPath: el('clipPath'),
+    defs: el('defs'),
+    desc: el('desc'),
+    ellipse: el('ellipse'),
+    feBlend: el('feBlend'),
+    feColorMatrix: el('feColorMatrix'),
+    feComponentTransfer: el('feComponentTransfer'),
+    feComposite: el('feComposite'),
+    feConvolveMatrix: el('feConvolveMatrix'),
+    feDiffuseLighting: el('feDiffuseLighting'),
+    feDisplacementMap: el('feDisplacementMap'),
+    feDistantLight: el('feDistantLight'),
+    feDropShadow: el('feDropShadow'),
+    feFlood: el('feFlood'),
+    feFuncA: el('feFuncA'),
+    feFuncB: el('feFuncB'),
+    feFuncG: el('feFuncG'),
+    feFuncR: el('feFuncR'),
+    feGaussianBlur: el('feGaussianBlur'),
+    feImage: el('feImage'),
+    feMerge: el('feMerge'),
+    feMergeNode: el('feMergeNode'),
+    feMorphology: el('feMorphology'),
+    feOffset: el('feOffset'),
+    fePointLight: el('fePointLight'),
+    feSpecularLighting: el('feSpecularLighting'),
+    feSpotLight: el('feSpotLight'),
+    feTile: el('feTile'),
+    feTurbulence: el('feTurbulence'),
+    filter: el('filter'),
+    foreignObject: el('foreignObject'),
+    g: el('g'),
+    image: el('image'),
+    line: el('line'),
+    linearGradient: el('linearGradient'),
+    marker: el('marker'),
+    mask: el('mask'),
+    metadata: el('metadata'),
+    mpath: el('mpath'),
+    path: el('path'),
+    pattern: el('pattern'),
+    polygon: el('polygon'),
+    polyline: el('polyline'),
+    radialGradient: el('radialGradient'),
+    rect: el('rect'),
+    set: el('set'),
+    stop: el('stop'),
+    switch: el('switch'),
+    symbol: el('symbol'),
+    text: el('text'),
+    textPath: el('textPath'),
+    tspan: el('tspan'),
+    use: el('use'),
+    view: el('view'),
+
+    // MATH ML
+    math: el('math'),
+    annotation: el('annotation'),
+    'annotation-xml': el('annotation-xml'),
+    maction: el('maction'),
+    menclose: el('menclose'),
+    merror: el('merror'),
+    mfenced: el('mfenced'),
+    mfrac: el('mfrac'),
+    mglyph: el('mglyph'),
+    mi: el('mi'),
+    mlabeledtr: el('mlabeledtr'),
+    mlongdiv: el('mlongdiv'),
+    mmultiscripts: el('mmultiscripts'),
+    mn: el('mn'),
+    mo: el('mo'),
+    mover: el('mover'),
+    mpadded: el('mpadded'),
+    mphantom: el('mphantom'),
+    mprescripts: el('mprescripts'),
+    mroot: el('mroot'),
+    mrow: el('mrow'),
+    ms: el('ms'),
+    mscarries: el('mscarries'),
+    mscarry: el('mscarry'),
+    msgroup: el('msgroup'),
+    msline: el('msline'),
+    mspace: el('mspace'),
+    msqrt: el('msqrt'),
+    msrow: el('msrow'),
+    mstack: el('mstack'),
+    mstyle: el('mstyle'),
+    msub: el('msub'),
+    msubsup: el('msubsup'),
+    msup: el('msup'),
+    mtable: el('mtable'),
+    mtd: el('mtd'),
+    mtext: el('mtext'),
+    mtr: el('mtr'),
+    munder: el('munder'),
+    munderover: el('munderover'),
+    semantics: el('semantics'),
+  }
+}
+
+type HtmlAttributes<Message> = {
+  Key: (value: string) => { readonly _tag: 'Key'; readonly value: string }
+  Class: (value: string) => { readonly _tag: 'Class'; readonly value: string }
+  Id: (value: string) => { readonly _tag: 'Id'; readonly value: string }
+  Title: (value: string) => { readonly _tag: 'Title'; readonly value: string }
+  Lang: (value: string) => { readonly _tag: 'Lang'; readonly value: string }
+  Dir: (value: string) => { readonly _tag: 'Dir'; readonly value: string }
+  Tabindex: (value: number) => {
+    readonly _tag: 'Tabindex'
+    readonly value: number
+  }
+  Hidden: (value: boolean) => {
+    readonly _tag: 'Hidden'
+    readonly value: boolean
+  }
+  Contenteditable: (value: string) => {
+    readonly _tag: 'Contenteditable'
+    readonly value: string
+  }
+  Draggable: (value: boolean) => {
+    readonly _tag: 'Draggable'
+    readonly value: boolean
+  }
+  Accesskey: (value: string) => {
+    readonly _tag: 'Accesskey'
+    readonly value: string
+  }
+  Translate: (value: string) => {
+    readonly _tag: 'Translate'
+    readonly value: string
+  }
+  Inert: (value: boolean) => {
+    readonly _tag: 'Inert'
+    readonly value: boolean
+  }
+  Popover: (value: string) => {
+    readonly _tag: 'Popover'
+    readonly value: string
+  }
+  Popovertarget: (value: string) => {
+    readonly _tag: 'Popovertarget'
+    readonly value: string
+  }
+  Popovertargetaction: (value: string) => {
+    readonly _tag: 'Popovertargetaction'
+    readonly value: string
+  }
+  /** Dispatches `message` when the element is clicked. The optional controls
+   *  can synchronously prevent the browser default, stop DOM propagation, and
+   *  focus an existing element before dispatch. Omitted controls preserve the
+   *  existing allow-and-bubble behavior.
+   *
+   *  `propagation: 'Stop'` still lets every click handler registered on the
+   *  current element run, matching `Event.stopPropagation()`. It only prevents
+   *  ancestor handlers from receiving the click.
+   *
+   *  `focusSelector` is for browser APIs that require focus during the
+   *  originating user gesture, such as opening the iOS on-screen keyboard. The
+   *  target must already exist. If the real input mounts after the Message
+   *  changes the view, focus an always-present warmup input here, then return a
+   *  `Dom.focus` Command from update to transfer focus after the real input
+   *  mounts.
+   *
+   *  @example
+   *  ```typescript
+   *  h.OnClick(Message.ClickedExpand(), {
+   *    defaultAction: 'Prevent',
+   *    propagation: 'Stop',
+   *  })
+   *  ``` */
+  OnClick: (
+    message: Message,
+    options?: ClickOptions,
+  ) => {
+    readonly _tag: 'OnClick'
+    readonly message: Message
+    readonly options?: ClickOptions
+  }
+  OnDoubleClick: (message: Message) => {
+    readonly _tag: 'OnDoubleClick'
+    readonly message: Message
+  }
+  OnMouseDown: (message: Message) => {
+    readonly _tag: 'OnMouseDown'
+    readonly message: Message
+  }
+  OnMouseUp: (message: Message) => {
+    readonly _tag: 'OnMouseUp'
+    readonly message: Message
+  }
+  OnMouseEnter: (message: Message) => {
+    readonly _tag: 'OnMouseEnter'
+    readonly message: Message
+  }
+  OnMouseLeave: (message: Message) => {
+    readonly _tag: 'OnMouseLeave'
+    readonly message: Message
+  }
+  OnMouseOver: (message: Message) => {
+    readonly _tag: 'OnMouseOver'
+    readonly message: Message
+  }
+  OnMouseOut: (message: Message) => {
+    readonly _tag: 'OnMouseOut'
+    readonly message: Message
+  }
+  OnMouseMove: (message: Message) => {
+    readonly _tag: 'OnMouseMove'
+    readonly message: Message
+  }
+  OnPointerMove: (
+    toMaybeMessage: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnPointerMove'
+    readonly f: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+    ) => Option.Option<Message>
+  }
+  OnPointerLeave: (
+    toMaybeMessage: (pointerType: string) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnPointerLeave'
+    readonly f: (pointerType: string) => Option.Option<Message>
+  }
+  /** Dispatches an optional Message on pointerdown. The final callback
+   *  arguments identify the pointer and its originating target, so a parent
+   *  gesture handler can distinguish touches and ignore nested controls. */
+  OnPointerDown: (
+    toMaybeMessage: (
+      pointerType: string,
+      button: number,
+      screenX: number,
+      screenY: number,
+      timeStamp: number,
+      clientX: number,
+      clientY: number,
+      pointerId: number,
+      target: EventTarget | null,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnPointerDown'
+    readonly f: (
+      pointerType: string,
+      button: number,
+      screenX: number,
+      screenY: number,
+      timeStamp: number,
+      clientX: number,
+      clientY: number,
+      pointerId: number,
+      target: EventTarget | null,
+    ) => Option.Option<Message>
+  }
+  OnPointerUp: (
+    toMaybeMessage: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+      timeStamp: number,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnPointerUp'
+    readonly f: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+      timeStamp: number,
+    ) => Option.Option<Message>
+  }
+  OnKeyDown: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => {
+    readonly _tag: 'OnKeyDown'
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnKeyDownFocus: (
+    toMaybeFocusAndMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Readonly<{ focusSelector: string; message: Message }>>,
+  ) => {
+    readonly _tag: 'OnKeyDownFocus'
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Readonly<{ focusSelector: string; message: Message }>>
+  }
+  OnKeyDownPreventDefault: (
+    toMaybeMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnKeyDownPreventDefault'
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>
+  }
+  OnKeyDownSelf: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => {
+    readonly _tag: 'OnKeyDownSelf'
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnKeyDownSelfPreventDefault: (
+    toMaybeMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnKeyDownSelfPreventDefault'
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>
+  }
+  OnKeyUp: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => {
+    readonly _tag: 'OnKeyUp'
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnKeyUpPreventDefault: (
+    toMaybeMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnKeyUpPreventDefault'
+    readonly f: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>
+  }
+  OnKeyPress: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => {
+    readonly _tag: 'OnKeyPress'
+    readonly f: (key: string, modifiers: KeyboardModifiers) => Message
+  }
+  OnFocus: (message: Message) => {
+    readonly _tag: 'OnFocus'
+    readonly message: Message
+  }
+  OnBlur: (message: Message) => {
+    readonly _tag: 'OnBlur'
+    readonly message: Message
+  }
+  /**
+   * Dispatches `message` when focus enters this element's subtree from
+   * outside it. Moving focus between descendants does not dispatch.
+   *
+   * This uses the bubbling `focusin` event, so the element itself does not
+   * need to be focusable. Pair it with {@link OnFocusLeave} to model whether
+   * a compound region such as an editor and its toolbar contains focus.
+   */
+  OnFocusEnter: (message: Message) => {
+    readonly _tag: 'OnFocusEnter'
+    readonly message: Message
+  }
+  /**
+   * Dispatches `message` when focus leaves this element's subtree. Moving
+   * focus between descendants does not dispatch.
+   *
+   * This uses the bubbling `focusout` event and compares its related target
+   * with the current element. The element itself does not need to be
+   * focusable. Pair it with {@link OnFocusEnter} to model whether a compound
+   * region such as an editor and its toolbar contains focus.
+   */
+  OnFocusLeave: (message: Message) => {
+    readonly _tag: 'OnFocusLeave'
+    readonly message: Message
+  }
+  OnInput: (toMessage: (value: string) => Message) => {
+    readonly _tag: 'OnInput'
+    readonly f: (value: string) => Message
+  }
+  OnChange: (toMessage: (value: string) => Message) => {
+    readonly _tag: 'OnChange'
+    readonly f: (value: string) => Message
+  }
+  OnBeforeInput: (
+    toMessage: (inputType: string, data: Option.Option<string>) => Message,
+  ) => {
+    readonly _tag: 'OnBeforeInput'
+    readonly f: (inputType: string, data: Option.Option<string>) => Message
+  }
+  OnBeforeInputPreventDefault: (
+    toMaybeMessage: (
+      inputType: string,
+      data: Option.Option<string>,
+    ) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnBeforeInputPreventDefault'
+    readonly f: (
+      inputType: string,
+      data: Option.Option<string>,
+    ) => Option.Option<Message>
+  }
+  OnFileChange: (toMessage: (files: ReadonlyArray<File>) => Message) => {
+    readonly _tag: 'OnFileChange'
+    readonly f: (files: ReadonlyArray<File>) => Message
+  }
+  OnSubmit: (message: Message) => {
+    readonly _tag: 'OnSubmit'
+    readonly message: Message
+  }
+  OnReset: (message: Message) => {
+    readonly _tag: 'OnReset'
+    readonly message: Message
+  }
+  OnScroll: (toMessage: (scrollTop: number) => Message) => {
+    readonly _tag: 'OnScroll'
+    readonly f: (scrollTop: number) => Message
+  }
+  OnWheel: (message: Message) => {
+    readonly _tag: 'OnWheel'
+    readonly message: Message
+  }
+  OnCopy: (message: Message) => {
+    readonly _tag: 'OnCopy'
+    readonly message: Message
+  }
+  OnCut: (message: Message) => {
+    readonly _tag: 'OnCut'
+    readonly message: Message
+  }
+  OnPaste: (message: Message) => {
+    readonly _tag: 'OnPaste'
+    readonly message: Message
+  }
+  OnPastePreventDefault: (
+    toMaybeMessage: (text: string) => Option.Option<Message>,
+  ) => {
+    readonly _tag: 'OnPastePreventDefault'
+    readonly f: (text: string) => Option.Option<Message>
+  }
+  OnCopyText: (text: string) => {
+    readonly _tag: 'OnCopyText'
+    readonly text: string
+  }
+  OnCutText: (
+    text: string,
+    message: Message,
+  ) => {
+    readonly _tag: 'OnCutText'
+    readonly text: string
+    readonly message: Message
+  }
+  OnCancel: (message: Message) => {
+    readonly _tag: 'OnCancel'
+    readonly message: Message
+  }
+  /** Prevents the default action of a `cancel` event. When a
+   *  `customEventMessage` is provided, dispatches it only for a `CustomEvent`,
+   *  allowing a synthetic cancel signal to be distinguished from the native
+   *  event. Native `cancel` events never dispatch a Message. */
+  OnCancelPreventDefault: (customEventMessage?: Message) => {
+    readonly _tag: 'OnCancelPreventDefault'
+    readonly maybeCustomEventMessage: Option.Option<Message>
+  }
+  OnToggle: (toMessage: (isOpen: boolean) => Message) => {
+    readonly _tag: 'OnToggle'
+    readonly f: (isOpen: boolean) => Message
+  }
+  OnContextMenu: (message: Message) => {
+    readonly _tag: 'OnContextMenu'
+    readonly message: Message
+  }
+  OnDragStart: (message: Message) => {
+    readonly _tag: 'OnDragStart'
+    readonly message: Message
+  }
+  OnDrag: (message: Message) => {
+    readonly _tag: 'OnDrag'
+    readonly message: Message
+  }
+  OnDragEnd: (message: Message) => {
+    readonly _tag: 'OnDragEnd'
+    readonly message: Message
+  }
+  OnDragEnter: (message: Message) => {
+    readonly _tag: 'OnDragEnter'
+    readonly message: Message
+  }
+  OnDragLeave: (message: Message) => {
+    readonly _tag: 'OnDragLeave'
+    readonly message: Message
+  }
+  OnDragOver: (message: Message) => {
+    readonly _tag: 'OnDragOver'
+    readonly message: Message
+  }
+  AllowDrop: () => { readonly _tag: 'AllowDrop' }
+  OnDrop: (message: Message) => {
+    readonly _tag: 'OnDrop'
+    readonly message: Message
+  }
+  OnDropFiles: (toMessage: (files: ReadonlyArray<File>) => Message) => {
+    readonly _tag: 'OnDropFiles'
+    readonly f: (files: ReadonlyArray<File>) => Message
+  }
+  OnTouchStart: (message: Message) => {
+    readonly _tag: 'OnTouchStart'
+    readonly message: Message
+  }
+  OnTouchEnd: (message: Message) => {
+    readonly _tag: 'OnTouchEnd'
+    readonly message: Message
+  }
+  OnTouchMove: (message: Message) => {
+    readonly _tag: 'OnTouchMove'
+    readonly message: Message
+  }
+  OnTouchCancel: (message: Message) => {
+    readonly _tag: 'OnTouchCancel'
+    readonly message: Message
+  }
+  OnAnimationStart: (message: Message) => {
+    readonly _tag: 'OnAnimationStart'
+    readonly message: Message
+  }
+  OnAnimationEnd: (message: Message) => {
+    readonly _tag: 'OnAnimationEnd'
+    readonly message: Message
+  }
+  OnAnimationIteration: (message: Message) => {
+    readonly _tag: 'OnAnimationIteration'
+    readonly message: Message
+  }
+  OnTransitionEnd: (message: Message) => {
+    readonly _tag: 'OnTransitionEnd'
+    readonly message: Message
+  }
+  OnLoad: (message: Message) => {
+    readonly _tag: 'OnLoad'
+    readonly message: Message
+  }
+  OnError: (message: Message) => {
+    readonly _tag: 'OnError'
+    readonly message: Message
+  }
+  OnPlay: (message: Message) => {
+    readonly _tag: 'OnPlay'
+    readonly message: Message
+  }
+  OnPause: (message: Message) => {
+    readonly _tag: 'OnPause'
+    readonly message: Message
+  }
+  OnEnded: (message: Message) => {
+    readonly _tag: 'OnEnded'
+    readonly message: Message
+  }
+  OnTimeUpdate: (message: Message) => {
+    readonly _tag: 'OnTimeUpdate'
+    readonly message: Message
+  }
+  OnVolumeChange: (message: Message) => {
+    readonly _tag: 'OnVolumeChange'
+    readonly message: Message
+  }
+  OnSelect: (message: Message) => {
+    readonly _tag: 'OnSelect'
+    readonly message: Message
+  }
+  Value: (value: string) => { readonly _tag: 'Value'; readonly value: string }
+  Checked: (value: boolean) => {
+    readonly _tag: 'Checked'
+    readonly value: boolean
+  }
+  Selected: (value: boolean) => {
+    readonly _tag: 'Selected'
+    readonly value: boolean
+  }
+  Open: (value: boolean) => { readonly _tag: 'Open'; readonly value: boolean }
+  Placeholder: (value: string) => {
+    readonly _tag: 'Placeholder'
+    readonly value: string
+  }
+  Name: (value: string) => { readonly _tag: 'Name'; readonly value: string }
+  Disabled: (value: boolean) => {
+    readonly _tag: 'Disabled'
+    readonly value: boolean
+  }
+  Readonly: (value: boolean) => {
+    readonly _tag: 'Readonly'
+    readonly value: boolean
+  }
+  Required: (value: boolean) => {
+    readonly _tag: 'Required'
+    readonly value: boolean
+  }
+  Autofocus: (value: boolean) => {
+    readonly _tag: 'Autofocus'
+    readonly value: boolean
+  }
+  Spellcheck: (value: boolean) => {
+    readonly _tag: 'Spellcheck'
+    readonly value: boolean
+  }
+  Autocorrect: (value: string) => {
+    readonly _tag: 'Autocorrect'
+    readonly value: string
+  }
+  Autocapitalize: (value: string) => {
+    readonly _tag: 'Autocapitalize'
+    readonly value: string
+  }
+  InputMode: (value: string) => {
+    readonly _tag: 'InputMode'
+    readonly value: string
+  }
+  EnterKeyHint: (value: string) => {
+    readonly _tag: 'EnterKeyHint'
+    readonly value: string
+  }
+  Multiple: (value: boolean) => {
+    readonly _tag: 'Multiple'
+    readonly value: boolean
+  }
+  Type: (value: string) => { readonly _tag: 'Type'; readonly value: string }
+  Accept: (value: string) => { readonly _tag: 'Accept'; readonly value: string }
+  Autocomplete: (value: string) => {
+    readonly _tag: 'Autocomplete'
+    readonly value: string
+  }
+  Pattern: (value: string) => {
+    readonly _tag: 'Pattern'
+    readonly value: string
+  }
+  Maxlength: (value: number) => {
+    readonly _tag: 'Maxlength'
+    readonly value: number
+  }
+  Minlength: (value: number) => {
+    readonly _tag: 'Minlength'
+    readonly value: number
+  }
+  Size: (value: number) => { readonly _tag: 'Size'; readonly value: number }
+  Cols: (value: number) => { readonly _tag: 'Cols'; readonly value: number }
+  Rows: (value: number) => { readonly _tag: 'Rows'; readonly value: number }
+  Max: (value: string) => { readonly _tag: 'Max'; readonly value: string }
+  Min: (value: string) => { readonly _tag: 'Min'; readonly value: string }
+  Step: (value: string) => { readonly _tag: 'Step'; readonly value: string }
+  For: (value: string) => { readonly _tag: 'For'; readonly value: string }
+  Href: (value: string) => { readonly _tag: 'Href'; readonly value: string }
+  Src: (value: string) => { readonly _tag: 'Src'; readonly value: string }
+  Alt: (value: string) => { readonly _tag: 'Alt'; readonly value: string }
+  Target: (value: string) => { readonly _tag: 'Target'; readonly value: string }
+  Rel: (value: string) => { readonly _tag: 'Rel'; readonly value: string }
+  Download: (value: string) => {
+    readonly _tag: 'Download'
+    readonly value: string
+  }
+  Action: (value: string) => { readonly _tag: 'Action'; readonly value: string }
+  Method: (value: string) => { readonly _tag: 'Method'; readonly value: string }
+  Enctype: (value: string) => {
+    readonly _tag: 'Enctype'
+    readonly value: string
+  }
+  Novalidate: (value: boolean) => {
+    readonly _tag: 'Novalidate'
+    readonly value: boolean
+  }
+  Formaction: (value: string) => {
+    readonly _tag: 'Formaction'
+    readonly value: string
+  }
+  Formmethod: (value: string) => {
+    readonly _tag: 'Formmethod'
+    readonly value: string
+  }
+  Formnovalidate: (value: boolean) => {
+    readonly _tag: 'Formnovalidate'
+    readonly value: boolean
+  }
+  Formtarget: (value: string) => {
+    readonly _tag: 'Formtarget'
+    readonly value: string
+  }
+  Formenctype: (value: string) => {
+    readonly _tag: 'Formenctype'
+    readonly value: string
+  }
+  Colspan: (value: number) => {
+    readonly _tag: 'Colspan'
+    readonly value: number
+  }
+  Rowspan: (value: number) => {
+    readonly _tag: 'Rowspan'
+    readonly value: number
+  }
+  Scope: (value: string) => {
+    readonly _tag: 'Scope'
+    readonly value: string
+  }
+  Headers: (value: string) => {
+    readonly _tag: 'Headers'
+    readonly value: string
+  }
+  Span: (value: number) => { readonly _tag: 'Span'; readonly value: number }
+  Start: (value: number) => { readonly _tag: 'Start'; readonly value: number }
+  Reversed: (value: boolean) => {
+    readonly _tag: 'Reversed'
+    readonly value: boolean
+  }
+  CiteAttr: (value: string) => {
+    readonly _tag: 'CiteAttr'
+    readonly value: string
+  }
+  Datetime: (value: string) => {
+    readonly _tag: 'Datetime'
+    readonly value: string
+  }
+  Wrap: (value: string) => { readonly _tag: 'Wrap'; readonly value: string }
+  List: (value: string) => { readonly _tag: 'List'; readonly value: string }
+  FormAttr: (value: string) => {
+    readonly _tag: 'FormAttr'
+    readonly value: string
+  }
+  LabelAttr: (value: string) => {
+    readonly _tag: 'LabelAttr'
+    readonly value: string
+  }
+  ContentAttr: (value: string) => {
+    readonly _tag: 'ContentAttr'
+    readonly value: string
+  }
+  Charset: (value: string) => {
+    readonly _tag: 'Charset'
+    readonly value: string
+  }
+  HttpEquiv: (value: string) => {
+    readonly _tag: 'HttpEquiv'
+    readonly value: string
+  }
+  Srcset: (value: string) => {
+    readonly _tag: 'Srcset'
+    readonly value: string
+  }
+  Sizes: (value: string) => { readonly _tag: 'Sizes'; readonly value: string }
+  Loading: (value: string) => {
+    readonly _tag: 'Loading'
+    readonly value: string
+  }
+  Decoding: (value: string) => {
+    readonly _tag: 'Decoding'
+    readonly value: string
+  }
+  Fetchpriority: (value: string) => {
+    readonly _tag: 'Fetchpriority'
+    readonly value: string
+  }
+  Crossorigin: (value: string) => {
+    readonly _tag: 'Crossorigin'
+    readonly value: string
+  }
+  Referrerpolicy: (value: string) => {
+    readonly _tag: 'Referrerpolicy'
+    readonly value: string
+  }
+  Integrity: (value: string) => {
+    readonly _tag: 'Integrity'
+    readonly value: string
+  }
+  Hreflang: (value: string) => {
+    readonly _tag: 'Hreflang'
+    readonly value: string
+  }
+  Ping: (value: string) => { readonly _tag: 'Ping'; readonly value: string }
+  Sandbox: (value: string) => {
+    readonly _tag: 'Sandbox'
+    readonly value: string
+  }
+  Allow: (value: string) => { readonly _tag: 'Allow'; readonly value: string }
+  Srcdoc: (value: string) => {
+    readonly _tag: 'Srcdoc'
+    readonly value: string
+  }
+  Autoplay: (value: boolean) => {
+    readonly _tag: 'Autoplay'
+    readonly value: boolean
+  }
+  Controls: (value: boolean) => {
+    readonly _tag: 'Controls'
+    readonly value: boolean
+  }
+  Loop: (value: boolean) => { readonly _tag: 'Loop'; readonly value: boolean }
+  Muted: (value: boolean) => {
+    readonly _tag: 'Muted'
+    readonly value: boolean
+  }
+  Poster: (value: string) => {
+    readonly _tag: 'Poster'
+    readonly value: string
+  }
+  Preload: (value: string) => {
+    readonly _tag: 'Preload'
+    readonly value: string
+  }
+  Playsinline: (value: boolean) => {
+    readonly _tag: 'Playsinline'
+    readonly value: boolean
+  }
+  High: (value: number) => { readonly _tag: 'High'; readonly value: number }
+  Low: (value: number) => { readonly _tag: 'Low'; readonly value: number }
+  Optimum: (value: number) => {
+    readonly _tag: 'Optimum'
+    readonly value: number
+  }
+  Usemap: (value: string) => {
+    readonly _tag: 'Usemap'
+    readonly value: string
+  }
+  Ismap: (value: boolean) => {
+    readonly _tag: 'Ismap'
+    readonly value: boolean
+  }
+  Role: (value: string) => { readonly _tag: 'Role'; readonly value: string }
+  AriaLabel: (value: string) => {
+    readonly _tag: 'AriaLabel'
+    readonly value: string
+  }
+  AriaLabelledBy: (value: string) => {
+    readonly _tag: 'AriaLabelledBy'
+    readonly value: string
+  }
+  AriaDescribedBy: (value: string) => {
+    readonly _tag: 'AriaDescribedBy'
+    readonly value: string
+  }
+  AriaHidden: (value: boolean) => {
+    readonly _tag: 'AriaHidden'
+    readonly value: boolean
+  }
+  AriaExpanded: (value: boolean) => {
+    readonly _tag: 'AriaExpanded'
+    readonly value: boolean
+  }
+  AriaSelected: (value: boolean) => {
+    readonly _tag: 'AriaSelected'
+    readonly value: boolean
+  }
+  AriaChecked: (value: boolean | 'mixed') => {
+    readonly _tag: 'AriaChecked'
+    readonly value: boolean | 'mixed'
+  }
+  AriaDisabled: (value: boolean) => {
+    readonly _tag: 'AriaDisabled'
+    readonly value: boolean
+  }
+  AriaRequired: (value: boolean) => {
+    readonly _tag: 'AriaRequired'
+    readonly value: boolean
+  }
+  AriaInvalid: (value: boolean) => {
+    readonly _tag: 'AriaInvalid'
+    readonly value: boolean
+  }
+  AriaLive: (value: string) => {
+    readonly _tag: 'AriaLive'
+    readonly value: string
+  }
+  AriaControls: (value: string) => {
+    readonly _tag: 'AriaControls'
+    readonly value: string
+  }
+  AriaCurrent: (value: string) => {
+    readonly _tag: 'AriaCurrent'
+    readonly value: string
+  }
+  AriaOrientation: (value: string) => {
+    readonly _tag: 'AriaOrientation'
+    readonly value: string
+  }
+  AriaPressed: (value: string) => {
+    readonly _tag: 'AriaPressed'
+    readonly value: string
+  }
+  AriaHasPopup: (value: string) => {
+    readonly _tag: 'AriaHasPopup'
+    readonly value: string
+  }
+  AriaActiveDescendant: (value: string) => {
+    readonly _tag: 'AriaActiveDescendant'
+    readonly value: string
+  }
+  AriaSort: (value: string) => {
+    readonly _tag: 'AriaSort'
+    readonly value: string
+  }
+  AriaMultiSelectable: (value: boolean) => {
+    readonly _tag: 'AriaMultiSelectable'
+    readonly value: boolean
+  }
+  AriaModal: (value: boolean) => {
+    readonly _tag: 'AriaModal'
+    readonly value: boolean
+  }
+  AriaBusy: (value: boolean) => {
+    readonly _tag: 'AriaBusy'
+    readonly value: boolean
+  }
+  AriaErrorMessage: (value: string) => {
+    readonly _tag: 'AriaErrorMessage'
+    readonly value: string
+  }
+  AriaRoleDescription: (value: string) => {
+    readonly _tag: 'AriaRoleDescription'
+    readonly value: string
+  }
+  AriaAtomic: (value: boolean) => {
+    readonly _tag: 'AriaAtomic'
+    readonly value: boolean
+  }
+  AriaAutocomplete: (value: string) => {
+    readonly _tag: 'AriaAutocomplete'
+    readonly value: string
+  }
+  AriaColcount: (value: number) => {
+    readonly _tag: 'AriaColcount'
+    readonly value: number
+  }
+  AriaColindex: (value: number) => {
+    readonly _tag: 'AriaColindex'
+    readonly value: number
+  }
+  AriaColspan: (value: number) => {
+    readonly _tag: 'AriaColspan'
+    readonly value: number
+  }
+  AriaDescription: (value: string) => {
+    readonly _tag: 'AriaDescription'
+    readonly value: string
+  }
+  AriaDetails: (value: string) => {
+    readonly _tag: 'AriaDetails'
+    readonly value: string
+  }
+  AriaFlowto: (value: string) => {
+    readonly _tag: 'AriaFlowto'
+    readonly value: string
+  }
+  AriaKeyshortcuts: (value: string) => {
+    readonly _tag: 'AriaKeyshortcuts'
+    readonly value: string
+  }
+  AriaLevel: (value: number) => {
+    readonly _tag: 'AriaLevel'
+    readonly value: number
+  }
+  AriaOwns: (value: string) => {
+    readonly _tag: 'AriaOwns'
+    readonly value: string
+  }
+  AriaPlaceholder: (value: string) => {
+    readonly _tag: 'AriaPlaceholder'
+    readonly value: string
+  }
+  AriaPosinset: (value: number) => {
+    readonly _tag: 'AriaPosinset'
+    readonly value: number
+  }
+  AriaReadonly: (value: boolean) => {
+    readonly _tag: 'AriaReadonly'
+    readonly value: boolean
+  }
+  AriaRelevant: (value: string) => {
+    readonly _tag: 'AriaRelevant'
+    readonly value: string
+  }
+  AriaRowcount: (value: number) => {
+    readonly _tag: 'AriaRowcount'
+    readonly value: number
+  }
+  AriaRowindex: (value: number) => {
+    readonly _tag: 'AriaRowindex'
+    readonly value: number
+  }
+  AriaRowspan: (value: number) => {
+    readonly _tag: 'AriaRowspan'
+    readonly value: number
+  }
+  AriaSetsize: (value: number) => {
+    readonly _tag: 'AriaSetsize'
+    readonly value: number
+  }
+  AriaValuemax: (value: number) => {
+    readonly _tag: 'AriaValuemax'
+    readonly value: number
+  }
+  AriaValuemin: (value: number) => {
+    readonly _tag: 'AriaValuemin'
+    readonly value: number
+  }
+  AriaValuenow: (value: number) => {
+    readonly _tag: 'AriaValuenow'
+    readonly value: number
+  }
+  AriaValuetext: (value: string) => {
+    readonly _tag: 'AriaValuetext'
+    readonly value: string
+  }
+  Attribute: (
+    key: string,
+    value: string,
+  ) => {
+    readonly _tag: 'Attribute'
+    readonly key: string
+    readonly value: string
+  }
+  DataAttribute: (
+    key: string,
+    value: string,
+  ) => {
+    readonly _tag: 'DataAttribute'
+    readonly key: string
+    readonly value: string
+  }
+  Style: (value: Record<string, string>) => {
+    readonly _tag: 'Style'
+    readonly value: Record<string, string>
+  }
+  InnerHTML: (value: string) => {
+    readonly _tag: 'InnerHTML'
+    readonly value: string
+  }
+  ViewBox: (value: string) => {
+    readonly _tag: 'ViewBox'
+    readonly value: string
+  }
+  Xmlns: (value: string) => { readonly _tag: 'Xmlns'; readonly value: string }
+  Fill: (value: string) => { readonly _tag: 'Fill'; readonly value: string }
+  FillRule: (value: string) => {
+    readonly _tag: 'FillRule'
+    readonly value: string
+  }
+  ClipRule: (value: string) => {
+    readonly _tag: 'ClipRule'
+    readonly value: string
+  }
+  Stroke: (value: string) => { readonly _tag: 'Stroke'; readonly value: string }
+  StrokeWidth: (value: string) => {
+    readonly _tag: 'StrokeWidth'
+    readonly value: string
+  }
+  StrokeLinecap: (value: string) => {
+    readonly _tag: 'StrokeLinecap'
+    readonly value: string
+  }
+  StrokeLinejoin: (value: string) => {
+    readonly _tag: 'StrokeLinejoin'
+    readonly value: string
+  }
+  D: (value: string) => { readonly _tag: 'D'; readonly value: string }
+  Cx: (value: string) => { readonly _tag: 'Cx'; readonly value: string }
+  Cy: (value: string) => { readonly _tag: 'Cy'; readonly value: string }
+  R: (value: string) => { readonly _tag: 'R'; readonly value: string }
+  X: (value: string) => { readonly _tag: 'X'; readonly value: string }
+  Y: (value: string) => { readonly _tag: 'Y'; readonly value: string }
+  Width: (value: string) => { readonly _tag: 'Width'; readonly value: string }
+  Height: (value: string) => { readonly _tag: 'Height'; readonly value: string }
+  X1: (value: string) => { readonly _tag: 'X1'; readonly value: string }
+  Y1: (value: string) => { readonly _tag: 'Y1'; readonly value: string }
+  X2: (value: string) => { readonly _tag: 'X2'; readonly value: string }
+  Y2: (value: string) => { readonly _tag: 'Y2'; readonly value: string }
+  Points: (value: string) => { readonly _tag: 'Points'; readonly value: string }
+  Transform: (value: string) => {
+    readonly _tag: 'Transform'
+    readonly value: string
+  }
+  Opacity: (value: string) => {
+    readonly _tag: 'Opacity'
+    readonly value: string
+  }
+  StrokeDasharray: (value: string) => {
+    readonly _tag: 'StrokeDasharray'
+    readonly value: string
+  }
+  StrokeDashoffset: (value: string) => {
+    readonly _tag: 'StrokeDashoffset'
+    readonly value: string
+  }
+  Dx: (value: string) => { readonly _tag: 'Dx'; readonly value: string }
+  Dy: (value: string) => { readonly _tag: 'Dy'; readonly value: string }
+  Rotate: (value: string) => { readonly _tag: 'Rotate'; readonly value: string }
+  TextAnchor: (value: string) => {
+    readonly _tag: 'TextAnchor'
+    readonly value: string
+  }
+  DominantBaseline: (value: string) => {
+    readonly _tag: 'DominantBaseline'
+    readonly value: string
+  }
+  AlignmentBaseline: (value: string) => {
+    readonly _tag: 'AlignmentBaseline'
+    readonly value: string
+  }
+  BaselineShift: (value: string) => {
+    readonly _tag: 'BaselineShift'
+    readonly value: string
+  }
+  TextLength: (value: string) => {
+    readonly _tag: 'TextLength'
+    readonly value: string
+  }
+  LengthAdjust: (value: string) => {
+    readonly _tag: 'LengthAdjust'
+    readonly value: string
+  }
+  FontFamily: (value: string) => {
+    readonly _tag: 'FontFamily'
+    readonly value: string
+  }
+  FontSize: (value: string) => {
+    readonly _tag: 'FontSize'
+    readonly value: string
+  }
+  FontWeight: (value: string) => {
+    readonly _tag: 'FontWeight'
+    readonly value: string
+  }
+  FontStyle: (value: string) => {
+    readonly _tag: 'FontStyle'
+    readonly value: string
+  }
+  LetterSpacing: (value: string) => {
+    readonly _tag: 'LetterSpacing'
+    readonly value: string
+  }
+  WordSpacing: (value: string) => {
+    readonly _tag: 'WordSpacing'
+    readonly value: string
+  }
+  TextDecoration: (value: string) => {
+    readonly _tag: 'TextDecoration'
+    readonly value: string
+  }
+  WritingMode: (value: string) => {
+    readonly _tag: 'WritingMode'
+    readonly value: string
+  }
+  Rx: (value: string) => { readonly _tag: 'Rx'; readonly value: string }
+  Ry: (value: string) => { readonly _tag: 'Ry'; readonly value: string }
+  PathLength: (value: string) => {
+    readonly _tag: 'PathLength'
+    readonly value: string
+  }
+  FillOpacity: (value: string) => {
+    readonly _tag: 'FillOpacity'
+    readonly value: string
+  }
+  StrokeOpacity: (value: string) => {
+    readonly _tag: 'StrokeOpacity'
+    readonly value: string
+  }
+  StrokeMiterlimit: (value: string) => {
+    readonly _tag: 'StrokeMiterlimit'
+    readonly value: string
+  }
+  PaintOrder: (value: string) => {
+    readonly _tag: 'PaintOrder'
+    readonly value: string
+  }
+  VectorEffect: (value: string) => {
+    readonly _tag: 'VectorEffect'
+    readonly value: string
+  }
+  Color: (value: string) => { readonly _tag: 'Color'; readonly value: string }
+  Visibility: (value: string) => {
+    readonly _tag: 'Visibility'
+    readonly value: string
+  }
+  Display: (value: string) => {
+    readonly _tag: 'Display'
+    readonly value: string
+  }
+  Overflow: (value: string) => {
+    readonly _tag: 'Overflow'
+    readonly value: string
+  }
+  PointerEvents: (value: string) => {
+    readonly _tag: 'PointerEvents'
+    readonly value: string
+  }
+  Cursor: (value: string) => { readonly _tag: 'Cursor'; readonly value: string }
+  ShapeRendering: (value: string) => {
+    readonly _tag: 'ShapeRendering'
+    readonly value: string
+  }
+  TextRendering: (value: string) => {
+    readonly _tag: 'TextRendering'
+    readonly value: string
+  }
+  ImageRendering: (value: string) => {
+    readonly _tag: 'ImageRendering'
+    readonly value: string
+  }
+  ClipPath: (value: string) => {
+    readonly _tag: 'ClipPath'
+    readonly value: string
+  }
+  Mask: (value: string) => { readonly _tag: 'Mask'; readonly value: string }
+  Filter: (value: string) => { readonly _tag: 'Filter'; readonly value: string }
+  ClipPathUnits: (value: string) => {
+    readonly _tag: 'ClipPathUnits'
+    readonly value: string
+  }
+  MaskUnits: (value: string) => {
+    readonly _tag: 'MaskUnits'
+    readonly value: string
+  }
+  MaskContentUnits: (value: string) => {
+    readonly _tag: 'MaskContentUnits'
+    readonly value: string
+  }
+  FilterUnits: (value: string) => {
+    readonly _tag: 'FilterUnits'
+    readonly value: string
+  }
+  PrimitiveUnits: (value: string) => {
+    readonly _tag: 'PrimitiveUnits'
+    readonly value: string
+  }
+  Offset: (value: string) => { readonly _tag: 'Offset'; readonly value: string }
+  StopColor: (value: string) => {
+    readonly _tag: 'StopColor'
+    readonly value: string
+  }
+  StopOpacity: (value: string) => {
+    readonly _tag: 'StopOpacity'
+    readonly value: string
+  }
+  GradientUnits: (value: string) => {
+    readonly _tag: 'GradientUnits'
+    readonly value: string
+  }
+  GradientTransform: (value: string) => {
+    readonly _tag: 'GradientTransform'
+    readonly value: string
+  }
+  SpreadMethod: (value: string) => {
+    readonly _tag: 'SpreadMethod'
+    readonly value: string
+  }
+  Fx: (value: string) => { readonly _tag: 'Fx'; readonly value: string }
+  Fy: (value: string) => { readonly _tag: 'Fy'; readonly value: string }
+  Fr: (value: string) => { readonly _tag: 'Fr'; readonly value: string }
+  PatternUnits: (value: string) => {
+    readonly _tag: 'PatternUnits'
+    readonly value: string
+  }
+  PatternContentUnits: (value: string) => {
+    readonly _tag: 'PatternContentUnits'
+    readonly value: string
+  }
+  PatternTransform: (value: string) => {
+    readonly _tag: 'PatternTransform'
+    readonly value: string
+  }
+  MarkerStart: (value: string) => {
+    readonly _tag: 'MarkerStart'
+    readonly value: string
+  }
+  MarkerMid: (value: string) => {
+    readonly _tag: 'MarkerMid'
+    readonly value: string
+  }
+  MarkerEnd: (value: string) => {
+    readonly _tag: 'MarkerEnd'
+    readonly value: string
+  }
+  MarkerWidth: (value: string) => {
+    readonly _tag: 'MarkerWidth'
+    readonly value: string
+  }
+  MarkerHeight: (value: string) => {
+    readonly _tag: 'MarkerHeight'
+    readonly value: string
+  }
+  MarkerUnits: (value: string) => {
+    readonly _tag: 'MarkerUnits'
+    readonly value: string
+  }
+  RefX: (value: string) => { readonly _tag: 'RefX'; readonly value: string }
+  RefY: (value: string) => { readonly _tag: 'RefY'; readonly value: string }
+  Orient: (value: string) => { readonly _tag: 'Orient'; readonly value: string }
+  PreserveAspectRatio: (value: string) => {
+    readonly _tag: 'PreserveAspectRatio'
+    readonly value: string
+  }
+  OnMount: (action: MountAction<Message, any>) => {
+    readonly _tag: 'OnMount'
+    readonly action: MountAction<Message, any>
+  }
+  OnUnmount: (message: Message) => {
+    readonly _tag: 'OnUnmount'
+    readonly message: Message
+  }
+}
+
+const htmlAttributes = <Message>(): HtmlAttributes<Message> => ({
+  Key: (value: string) => Key({ value }),
+  Class: (value: string) => Class({ value }),
+  Id: (value: string) => Id({ value }),
+  Title: (value: string) => Title({ value }),
+  Lang: (value: string) => Lang({ value }),
+  Dir: (value: string) => Dir({ value }),
+  Tabindex: (value: number) => Tabindex({ value }),
+  Hidden: (value: boolean) => Hidden({ value }),
+  Contenteditable: (value: string) => Contenteditable({ value }),
+  Draggable: (value: boolean) => Draggable({ value }),
+  Accesskey: (value: string) => Accesskey({ value }),
+  Translate: (value: string) => Translate({ value }),
+  Inert: (value: boolean) => Inert({ value }),
+  Popover: (value: string) => Popover({ value }),
+  Popovertarget: (value: string) => Popovertarget({ value }),
+  Popovertargetaction: (value: string) => Popovertargetaction({ value }),
+  OnClick: (message: Message, options?: ClickOptions) =>
+    options === undefined
+      ? OnClick({ message })
+      : OnClick({ message, options }),
+  OnDoubleClick: (message: Message) => OnDoubleClick({ message }),
+  OnMouseDown: (message: Message) => OnMouseDown({ message }),
+  OnMouseUp: (message: Message) => OnMouseUp({ message }),
+  OnMouseEnter: (message: Message) => OnMouseEnter({ message }),
+  OnMouseLeave: (message: Message) => OnMouseLeave({ message }),
+  OnMouseOver: (message: Message) => OnMouseOver({ message }),
+  OnMouseOut: (message: Message) => OnMouseOut({ message }),
+  OnMouseMove: (message: Message) => OnMouseMove({ message }),
+  OnPointerMove: (
+    toMaybeMessage: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+    ) => Option.Option<Message>,
+  ) => OnPointerMove({ f: toMaybeMessage }),
+  OnPointerLeave: (
+    toMaybeMessage: (pointerType: string) => Option.Option<Message>,
+  ) => OnPointerLeave({ f: toMaybeMessage }),
+  OnPointerDown: (
+    toMaybeMessage: (
+      pointerType: string,
+      button: number,
+      screenX: number,
+      screenY: number,
+      timeStamp: number,
+      clientX: number,
+      clientY: number,
+      pointerId: number,
+      target: EventTarget | null,
+    ) => Option.Option<Message>,
+  ) => OnPointerDown({ f: toMaybeMessage }),
+  OnPointerUp: (
+    toMaybeMessage: (
+      screenX: number,
+      screenY: number,
+      pointerType: string,
+      timeStamp: number,
+    ) => Option.Option<Message>,
+  ) => OnPointerUp({ f: toMaybeMessage }),
+  OnKeyDown: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => OnKeyDown({ f: toMessage }),
+  OnKeyDownPreventDefault: (
+    toMaybeMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>,
+  ) => OnKeyDownPreventDefault({ f: toMaybeMessage }),
+  /**
+   * Like `OnKeyDown`, but dispatches only when the keydown targets this
+   * element itself rather than bubbling from a descendant.
+   *
+   * Use this on a composite widget that owns keyboard input for its host but
+   * contains interactive children whose keydowns should remain independent.
+   *
+   * @example
+   * ```typescript
+   * h.OnKeyDownSelf((key, modifiers) => Message.PressedHostKey({ key }))
+   * ```
+   */
+  OnKeyDownSelf: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => OnKeyDownSelf({ f: toMessage }),
+  /**
+   * Like `OnKeyDownPreventDefault`, but handles only keydowns that target this
+   * element itself rather than bubbling from a descendant. Returning `Some`
+   * prevents the browser's default action and dispatches the Message;
+   * returning `None` leaves the key to the browser.
+   *
+   * @example
+   * ```typescript
+   * h.OnKeyDownSelfPreventDefault(key =>
+   *   key === 'Enter'
+   *     ? Option.some(Message.SubmittedEditor())
+   *     : Option.none(),
+   * )
+   * ```
+   */
+  OnKeyDownSelfPreventDefault: (
+    toMaybeMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>,
+  ) => OnKeyDownSelfPreventDefault({ f: toMaybeMessage }),
+  /**
+   * Keydown handler that, for a handled key, synchronously focuses the element
+   * matching `focusSelector` and dispatches `message`, both inside the
+   * originating event handler. Returns `Option.none()` for keys it does not
+   * handle, leaving default behavior intact; a `Some` result also
+   * `preventDefault`s.
+   *
+   * Use this for roving-tabindex widgets (radio groups, toolbars) where an
+   * arrow key must move DOM focus to the newly-active option. Because the focus
+   * runs inside the component's own handler, the parent never sees a focus
+   * command: the value flows out as a plain Message and the DOM mechanics stay
+   * in the view.
+   *
+   * @example
+   * ```typescript
+   * h.OnKeyDownFocus(key =>
+   *   key === 'ArrowDown'
+   *     ? Option.some({ focusSelector: '#option-2', message: Selected('b') })
+   *     : Option.none(),
+   * )
+   * ```
+   */
+  OnKeyDownFocus: (
+    toMaybeFocusAndMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Readonly<{ focusSelector: string; message: Message }>>,
+  ) => OnKeyDownFocus({ f: toMaybeFocusAndMessage }),
+  OnKeyUp: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => OnKeyUp({ f: toMessage }),
+  OnKeyUpPreventDefault: (
+    toMaybeMessage: (
+      key: string,
+      modifiers: KeyboardModifiers,
+    ) => Option.Option<Message>,
+  ) => OnKeyUpPreventDefault({ f: toMaybeMessage }),
+  OnKeyPress: (
+    toMessage: (key: string, modifiers: KeyboardModifiers) => Message,
+  ) => OnKeyPress({ f: toMessage }),
+  OnFocus: (message: Message) => OnFocus({ message }),
+  OnBlur: (message: Message) => OnBlur({ message }),
+  OnFocusEnter: (message: Message) => OnFocusEnter({ message }),
+  OnFocusLeave: (message: Message) => OnFocusLeave({ message }),
+  /**
+   * Dispatches the target's textual value on every `input` event. Form
+   * controls report their `value`; a `Contenteditable` host reports its
+   * rendered text.
+   */
+  OnInput: (toMessage: (value: string) => Message) => OnInput({ f: toMessage }),
+  /**
+   * Dispatches the target's textual value on every `change` event, using the
+   * same form-control and `Contenteditable` value semantics as `OnInput`.
+   */
+  OnChange: (toMessage: (value: string) => Message) =>
+    OnChange({ f: toMessage }),
+  /**
+   * Observes `beforeinput` events. The translator receives the edit's
+   * `inputType` and its `data` as an `Option`; edits such as deletion usually
+   * carry no text and therefore provide `None`.
+   */
+  OnBeforeInput: (
+    toMessage: (inputType: string, data: Option.Option<string>) => Message,
+  ) => OnBeforeInput({ f: toMessage }),
+  /**
+   * Handles cancelable `beforeinput` events before the browser mutates the
+   * DOM. Returning `Some` prevents the native edit and dispatches the Message;
+   * returning `None` lets the edit proceed.
+   *
+   * A non-cancelable edit, including some IME composition input, proceeds
+   * without dispatching. Use `OnInput` to reconcile the resulting content.
+   *
+   * @example
+   * ```typescript
+   * h.OnBeforeInputPreventDefault((inputType, data) =>
+   *   inputType === 'insertText'
+   *     ? Option.map(data, value => Message.InsertedText({ value }))
+   *     : Option.none(),
+   * )
+   * ```
+   */
+  OnBeforeInputPreventDefault: (
+    toMaybeMessage: (
+      inputType: string,
+      data: Option.Option<string>,
+    ) => Option.Option<Message>,
+  ) => OnBeforeInputPreventDefault({ f: toMaybeMessage }),
+  OnFileChange: (toMessage: (files: ReadonlyArray<File>) => Message) =>
+    OnFileChange({ f: toMessage }),
+  OnSubmit: (message: Message) => OnSubmit({ message }),
+  OnReset: (message: Message) => OnReset({ message }),
+  OnScroll: (toMessage: (scrollTop: number) => Message) =>
+    OnScroll({ f: toMessage }),
+  OnWheel: (message: Message) => OnWheel({ message }),
+  OnCopy: (message: Message) => OnCopy({ message }),
+  OnCut: (message: Message) => OnCut({ message }),
+  OnPaste: (message: Message) => OnPaste({ message }),
+  /**
+   * Paste handler with synchronous clipboard access. The function receives
+   * the clipboard's `text/plain` payload. Returning `Some` calls
+   * `preventDefault`, suppressing the browser's default insertion, and
+   * dispatches the Message. Returning `None` leaves the paste to the
+   * browser.
+   *
+   * Like `OnKeyDownPreventDefault`, the side effect lives inside the
+   * framework's event handler. The clipboard is only readable and
+   * `preventDefault` only works synchronously inside the originating paste
+   * event; a Command resolves a frame too late.
+   *
+   * @example
+   * ```typescript
+   * h.OnPastePreventDefault(text => Option.some(PastedText({ text })))
+   * ```
+   */
+  OnPastePreventDefault: (
+    toMaybeMessage: (text: string) => Option.Option<Message>,
+  ) => OnPastePreventDefault({ f: toMaybeMessage }),
+  /**
+   * Copy handler that synchronously writes `text` to the clipboard as
+   * `text/plain` and calls `preventDefault`, replacing the browser's default
+   * copy payload. Derive `text` from the Model at view time, for example a
+   * markdown serialization of the current selection. The clipboard is only
+   * writable synchronously inside the originating copy event, so the write
+   * runs in the framework's event handler rather than a Command.
+   *
+   * @example
+   * ```typescript
+   * h.OnCopyText(serializeSelectionToMarkdown(model))
+   * ```
+   */
+  OnCopyText: (text: string) => OnCopyText({ text }),
+  /**
+   * Cut handler that synchronously writes `text` to the clipboard as
+   * `text/plain`, calls `preventDefault`, and dispatches `message` so update
+   * can remove the cut content from the Model. The clipboard is only
+   * writable synchronously inside the originating cut event, so the write
+   * runs in the framework's event handler rather than a Command.
+   *
+   * @example
+   * ```typescript
+   * h.OnCutText(serializeSelectionToMarkdown(model), CutSelection())
+   * ```
+   */
+  OnCutText: (text: string, message: Message) => OnCutText({ text, message }),
+  OnCancel: (message: Message) => OnCancel({ message }),
+  /**
+   * Cancel handler that always calls `preventDefault`. A native cancel event
+   * does not dispatch a Message. When the event is a `CustomEvent`, the
+   * optional `customEventMessage` is dispatched instead.
+   *
+   * Use this when native cancellation and an application-owned cancel signal
+   * share an event name but need different behavior. Without a Message, the
+   * attribute only suppresses the native default action.
+   *
+   * @example
+   * ```typescript
+   * h.OnCancelPreventDefault(Message.RequestedClose())
+   * ```
+   */
+  OnCancelPreventDefault: (customEventMessage?: Message) =>
+    OnCancelPreventDefault({
+      maybeCustomEventMessage: Option.fromNullishOr(customEventMessage),
+    }),
+  OnToggle: (toMessage: (isOpen: boolean) => Message) =>
+    OnToggle({ f: toMessage }),
+  OnContextMenu: (message: Message) => OnContextMenu({ message }),
+  OnDragStart: (message: Message) => OnDragStart({ message }),
+  OnDrag: (message: Message) => OnDrag({ message }),
+  OnDragEnd: (message: Message) => OnDragEnd({ message }),
+  OnDragEnter: (message: Message) => OnDragEnter({ message }),
+  OnDragLeave: (message: Message) => OnDragLeave({ message }),
+  OnDragOver: (message: Message) => OnDragOver({ message }),
+  AllowDrop: () => AllowDrop(),
+  OnDrop: (message: Message) => OnDrop({ message }),
+  OnDropFiles: (toMessage: (files: ReadonlyArray<File>) => Message) =>
+    OnDropFiles({ f: toMessage }),
+  OnTouchStart: (message: Message) => OnTouchStart({ message }),
+  OnTouchEnd: (message: Message) => OnTouchEnd({ message }),
+  OnTouchMove: (message: Message) => OnTouchMove({ message }),
+  OnTouchCancel: (message: Message) => OnTouchCancel({ message }),
+  OnAnimationStart: (message: Message) => OnAnimationStart({ message }),
+  OnAnimationEnd: (message: Message) => OnAnimationEnd({ message }),
+  OnAnimationIteration: (message: Message) => OnAnimationIteration({ message }),
+  OnTransitionEnd: (message: Message) => OnTransitionEnd({ message }),
+  OnLoad: (message: Message) => OnLoad({ message }),
+  OnError: (message: Message) => OnError({ message }),
+  OnPlay: (message: Message) => OnPlay({ message }),
+  OnPause: (message: Message) => OnPause({ message }),
+  OnEnded: (message: Message) => OnEnded({ message }),
+  OnTimeUpdate: (message: Message) => OnTimeUpdate({ message }),
+  OnVolumeChange: (message: Message) => OnVolumeChange({ message }),
+  OnSelect: (message: Message) => OnSelect({ message }),
+  Value: (value: string) => Value({ value }),
+  Checked: (value: boolean) => Checked({ value }),
+  Selected: (value: boolean) => Selected({ value }),
+  Open: (value: boolean) => Open({ value }),
+  Placeholder: (value: string) => Placeholder({ value }),
+  Name: (value: string) => Name({ value }),
+  Disabled: (value: boolean) => Disabled({ value }),
+  Readonly: (value: boolean) => Readonly({ value }),
+  Required: (value: boolean) => Required({ value }),
+  Autofocus: (value: boolean) => Autofocus({ value }),
+  Spellcheck: (value: boolean) => Spellcheck({ value }),
+  Autocorrect: (value: string) => Autocorrect({ value }),
+  Autocapitalize: (value: string) => Autocapitalize({ value }),
+  InputMode: (value: string) => InputMode({ value }),
+  EnterKeyHint: (value: string) => EnterKeyHint({ value }),
+  Multiple: (value: boolean) => Multiple({ value }),
+  Type: (value: string) => Type({ value }),
+  Accept: (value: string) => Accept({ value }),
+  Autocomplete: (value: string) => Autocomplete({ value }),
+  Pattern: (value: string) => Pattern({ value }),
+  Maxlength: (value: number) => Maxlength({ value }),
+  Minlength: (value: number) => Minlength({ value }),
+  Size: (value: number) => Size({ value }),
+  Cols: (value: number) => Cols({ value }),
+  Rows: (value: number) => Rows({ value }),
+  Max: (value: string) => Max({ value }),
+  Min: (value: string) => Min({ value }),
+  Step: (value: string) => Step({ value }),
+  For: (value: string) => For({ value }),
+  Href: (value: string) => Href({ value }),
+  Src: (value: string) => Src({ value }),
+  Alt: (value: string) => Alt({ value }),
+  Target: (value: string) => Target({ value }),
+  Rel: (value: string) => Rel({ value }),
+  Download: (value: string) => Download({ value }),
+  Action: (value: string) => Action({ value }),
+  Method: (value: string) => Method({ value }),
+  Enctype: (value: string) => Enctype({ value }),
+  Novalidate: (value: boolean) => Novalidate({ value }),
+  Formaction: (value: string) => Formaction({ value }),
+  Formmethod: (value: string) => Formmethod({ value }),
+  Formnovalidate: (value: boolean) => Formnovalidate({ value }),
+  Formtarget: (value: string) => Formtarget({ value }),
+  Formenctype: (value: string) => Formenctype({ value }),
+  Colspan: (value: number) => Colspan({ value }),
+  Rowspan: (value: number) => Rowspan({ value }),
+  Scope: (value: string) => Scope({ value }),
+  Headers: (value: string) => Headers({ value }),
+  Span: (value: number) => Span({ value }),
+  Start: (value: number) => Start({ value }),
+  Reversed: (value: boolean) => Reversed({ value }),
+  CiteAttr: (value: string) => CiteAttr({ value }),
+  Datetime: (value: string) => Datetime({ value }),
+  Wrap: (value: string) => Wrap({ value }),
+  List: (value: string) => List({ value }),
+  FormAttr: (value: string) => FormAttr({ value }),
+  LabelAttr: (value: string) => LabelAttr({ value }),
+  ContentAttr: (value: string) => ContentAttr({ value }),
+  Charset: (value: string) => Charset({ value }),
+  HttpEquiv: (value: string) => HttpEquiv({ value }),
+  Srcset: (value: string) => Srcset({ value }),
+  Sizes: (value: string) => Sizes({ value }),
+  Loading: (value: string) => Loading({ value }),
+  Decoding: (value: string) => Decoding({ value }),
+  Fetchpriority: (value: string) => Fetchpriority({ value }),
+  Crossorigin: (value: string) => Crossorigin({ value }),
+  Referrerpolicy: (value: string) => Referrerpolicy({ value }),
+  Integrity: (value: string) => Integrity({ value }),
+  Hreflang: (value: string) => Hreflang({ value }),
+  Ping: (value: string) => Ping({ value }),
+  Sandbox: (value: string) => Sandbox({ value }),
+  Allow: (value: string) => Allow({ value }),
+  Srcdoc: (value: string) => Srcdoc({ value }),
+  Autoplay: (value: boolean) => Autoplay({ value }),
+  Controls: (value: boolean) => Controls({ value }),
+  Loop: (value: boolean) => Loop({ value }),
+  Muted: (value: boolean) => Muted({ value }),
+  Poster: (value: string) => Poster({ value }),
+  Preload: (value: string) => Preload({ value }),
+  Playsinline: (value: boolean) => Playsinline({ value }),
+  High: (value: number) => High({ value }),
+  Low: (value: number) => Low({ value }),
+  Optimum: (value: number) => Optimum({ value }),
+  Usemap: (value: string) => Usemap({ value }),
+  Ismap: (value: boolean) => Ismap({ value }),
+  Role: (value: string) => Role({ value }),
+  AriaLabel: (value: string) => AriaLabel({ value }),
+  AriaLabelledBy: (value: string) => AriaLabelledBy({ value }),
+  AriaDescribedBy: (value: string) => AriaDescribedBy({ value }),
+  AriaHidden: (value: boolean) => AriaHidden({ value }),
+  AriaExpanded: (value: boolean) => AriaExpanded({ value }),
+  AriaSelected: (value: boolean) => AriaSelected({ value }),
+  AriaChecked: (value: boolean | 'mixed') => AriaChecked({ value }),
+  AriaDisabled: (value: boolean) => AriaDisabled({ value }),
+  AriaRequired: (value: boolean) => AriaRequired({ value }),
+  AriaInvalid: (value: boolean) => AriaInvalid({ value }),
+  AriaLive: (value: string) => AriaLive({ value }),
+  AriaControls: (value: string) => AriaControls({ value }),
+  AriaCurrent: (value: string) => AriaCurrent({ value }),
+  AriaOrientation: (value: string) => AriaOrientation({ value }),
+  AriaPressed: (value: string) => AriaPressed({ value }),
+  AriaHasPopup: (value: string) => AriaHasPopup({ value }),
+  AriaActiveDescendant: (value: string) => AriaActiveDescendant({ value }),
+  AriaSort: (value: string) => AriaSort({ value }),
+  AriaMultiSelectable: (value: boolean) => AriaMultiSelectable({ value }),
+  AriaModal: (value: boolean) => AriaModal({ value }),
+  AriaBusy: (value: boolean) => AriaBusy({ value }),
+  AriaErrorMessage: (value: string) => AriaErrorMessage({ value }),
+  AriaRoleDescription: (value: string) => AriaRoleDescription({ value }),
+  AriaAtomic: (value: boolean) => AriaAtomic({ value }),
+  AriaAutocomplete: (value: string) => AriaAutocomplete({ value }),
+  AriaColcount: (value: number) => AriaColcount({ value }),
+  AriaColindex: (value: number) => AriaColindex({ value }),
+  AriaColspan: (value: number) => AriaColspan({ value }),
+  AriaDescription: (value: string) => AriaDescription({ value }),
+  AriaDetails: (value: string) => AriaDetails({ value }),
+  AriaFlowto: (value: string) => AriaFlowto({ value }),
+  AriaKeyshortcuts: (value: string) => AriaKeyshortcuts({ value }),
+  AriaLevel: (value: number) => AriaLevel({ value }),
+  AriaOwns: (value: string) => AriaOwns({ value }),
+  AriaPlaceholder: (value: string) => AriaPlaceholder({ value }),
+  AriaPosinset: (value: number) => AriaPosinset({ value }),
+  AriaReadonly: (value: boolean) => AriaReadonly({ value }),
+  AriaRelevant: (value: string) => AriaRelevant({ value }),
+  AriaRowcount: (value: number) => AriaRowcount({ value }),
+  AriaRowindex: (value: number) => AriaRowindex({ value }),
+  AriaRowspan: (value: number) => AriaRowspan({ value }),
+  AriaSetsize: (value: number) => AriaSetsize({ value }),
+  AriaValuemax: (value: number) => AriaValuemax({ value }),
+  AriaValuemin: (value: number) => AriaValuemin({ value }),
+  AriaValuenow: (value: number) => AriaValuenow({ value }),
+  AriaValuetext: (value: string) => AriaValuetext({ value }),
+  Attribute: (key: string, value: string) => Attribute({ key, value }),
+  DataAttribute: (key: string, value: string) => DataAttribute({ key, value }),
+  Style: (value: Record<string, string>) => Style({ value }),
+  InnerHTML: (value: string) => InnerHTML({ value }),
+  ViewBox: (value: string) => ViewBox({ value }),
+  Xmlns: (value: string) => Xmlns({ value }),
+  Fill: (value: string) => Fill({ value }),
+  FillRule: (value: string) => FillRule({ value }),
+  ClipRule: (value: string) => ClipRule({ value }),
+  Stroke: (value: string) => Stroke({ value }),
+  StrokeWidth: (value: string) => StrokeWidth({ value }),
+  StrokeLinecap: (value: string) => StrokeLinecap({ value }),
+  StrokeLinejoin: (value: string) => StrokeLinejoin({ value }),
+  D: (value: string) => D({ value }),
+  Cx: (value: string) => Cx({ value }),
+  Cy: (value: string) => Cy({ value }),
+  R: (value: string) => R({ value }),
+  X: (value: string) => X({ value }),
+  Y: (value: string) => Y({ value }),
+  Width: (value: string) => Width({ value }),
+  Height: (value: string) => Height({ value }),
+  X1: (value: string) => X1({ value }),
+  Y1: (value: string) => Y1({ value }),
+  X2: (value: string) => X2({ value }),
+  Y2: (value: string) => Y2({ value }),
+  Points: (value: string) => Points({ value }),
+  Transform: (value: string) => Transform({ value }),
+  Opacity: (value: string) => Opacity({ value }),
+  StrokeDasharray: (value: string) => StrokeDasharray({ value }),
+  StrokeDashoffset: (value: string) => StrokeDashoffset({ value }),
+  Dx: (value: string) => Dx({ value }),
+  Dy: (value: string) => Dy({ value }),
+  Rotate: (value: string) => Rotate({ value }),
+  TextAnchor: (value: string) => TextAnchor({ value }),
+  DominantBaseline: (value: string) => DominantBaseline({ value }),
+  AlignmentBaseline: (value: string) => AlignmentBaseline({ value }),
+  BaselineShift: (value: string) => BaselineShift({ value }),
+  TextLength: (value: string) => TextLength({ value }),
+  LengthAdjust: (value: string) => LengthAdjust({ value }),
+  FontFamily: (value: string) => FontFamily({ value }),
+  FontSize: (value: string) => FontSize({ value }),
+  FontWeight: (value: string) => FontWeight({ value }),
+  FontStyle: (value: string) => FontStyle({ value }),
+  LetterSpacing: (value: string) => LetterSpacing({ value }),
+  WordSpacing: (value: string) => WordSpacing({ value }),
+  TextDecoration: (value: string) => TextDecoration({ value }),
+  WritingMode: (value: string) => WritingMode({ value }),
+  Rx: (value: string) => Rx({ value }),
+  Ry: (value: string) => Ry({ value }),
+  PathLength: (value: string) => PathLength({ value }),
+  FillOpacity: (value: string) => FillOpacity({ value }),
+  StrokeOpacity: (value: string) => StrokeOpacity({ value }),
+  StrokeMiterlimit: (value: string) => StrokeMiterlimit({ value }),
+  PaintOrder: (value: string) => PaintOrder({ value }),
+  VectorEffect: (value: string) => VectorEffect({ value }),
+  Color: (value: string) => Color({ value }),
+  Visibility: (value: string) => Visibility({ value }),
+  Display: (value: string) => Display({ value }),
+  Overflow: (value: string) => Overflow({ value }),
+  PointerEvents: (value: string) => PointerEvents({ value }),
+  Cursor: (value: string) => Cursor({ value }),
+  ShapeRendering: (value: string) => ShapeRendering({ value }),
+  TextRendering: (value: string) => TextRendering({ value }),
+  ImageRendering: (value: string) => ImageRendering({ value }),
+  ClipPath: (value: string) => ClipPath({ value }),
+  Mask: (value: string) => Mask({ value }),
+  Filter: (value: string) => Filter({ value }),
+  ClipPathUnits: (value: string) => ClipPathUnits({ value }),
+  MaskUnits: (value: string) => MaskUnits({ value }),
+  MaskContentUnits: (value: string) => MaskContentUnits({ value }),
+  FilterUnits: (value: string) => FilterUnits({ value }),
+  PrimitiveUnits: (value: string) => PrimitiveUnits({ value }),
+  Offset: (value: string) => Offset({ value }),
+  StopColor: (value: string) => StopColor({ value }),
+  StopOpacity: (value: string) => StopOpacity({ value }),
+  GradientUnits: (value: string) => GradientUnits({ value }),
+  GradientTransform: (value: string) => GradientTransform({ value }),
+  SpreadMethod: (value: string) => SpreadMethod({ value }),
+  Fx: (value: string) => Fx({ value }),
+  Fy: (value: string) => Fy({ value }),
+  Fr: (value: string) => Fr({ value }),
+  PatternUnits: (value: string) => PatternUnits({ value }),
+  PatternContentUnits: (value: string) => PatternContentUnits({ value }),
+  PatternTransform: (value: string) => PatternTransform({ value }),
+  MarkerStart: (value: string) => MarkerStart({ value }),
+  MarkerMid: (value: string) => MarkerMid({ value }),
+  MarkerEnd: (value: string) => MarkerEnd({ value }),
+  MarkerWidth: (value: string) => MarkerWidth({ value }),
+  MarkerHeight: (value: string) => MarkerHeight({ value }),
+  MarkerUnits: (value: string) => MarkerUnits({ value }),
+  RefX: (value: string) => RefX({ value }),
+  RefY: (value: string) => RefY({ value }),
+  Orient: (value: string) => Orient({ value }),
+  PreserveAspectRatio: (value: string) => PreserveAspectRatio({ value }),
+  OnMount: (action: MountAction<Message, any>) => OnMount({ action }),
+  /**
+   * Dispatches `message` when this element is removed from the DOM by a
+   * structural patch (a key change, a parent re-render that drops it, route
+   * navigation away from the subtree it lives in). The Message is the fact
+   * "this element unmounted"; `update` decides what it means.
+   *
+   * Use this for framework-level hygiene that must run as a backstop when an
+   * element disappears without a purposeful teardown Message flowing through
+   * `update` first. A dialog whose `<dialog>` lives in a route-keyed subtree
+   * is the motivating case: navigating away unmounts it without a close, so
+   * the close Command that would release the scroll lock and focus trap never
+   * runs. An `OnUnmount` Message lets `update` release those resources.
+   *
+   * Works across Submodel boundaries. The wrapping chain is resolved eagerly
+   * at render time into a dispatch that still reaches the parent, even when
+   * it runs after the Submodel's teardown has deregistered its boundary wrap.
+   *
+   * Replay-safe. The runtime suppresses the dispatch during a DevTools
+   * time-travel render, so scrubbing through history never re-runs the
+   * cleanup. Make the resulting `update` handler idempotent: the element
+   * can unmount after a normal close already released its resources, or while
+   * a leave animation is mid-flight.
+   *
+   * This is a backstop, not the primary teardown path. When the cause is a
+   * Message the user dispatched (clicking a close button, pressing Escape),
+   * handle it directly in `update` and return the teardown Command. Reach for
+   * `OnUnmount` only for the unmount-without-a-Message case.
+   *
+   * @example Release a dialog's scroll lock and focus trap on structural unmount
+   * ```ts
+   * h.dialog([h.OnUnmount(UnmountedWhileOpen())], [...])
+   * ```
+   */
+  OnUnmount: (message: Message) => OnUnmount({ message }),
+})
+
+declare const messageUniverse: unique symbol
+
+/**
+ * Phantom marker carrying the builder's Message universe invariantly, so a
+ * builder from the wrong frame is rejected on this property rather than deep
+ * inside the structural comparison of every element constructor. It exists only
+ * to keep the diagnostic short and pointed at the cause.
+ */
+type MessageUniverse<Message> = Readonly<{
+  [messageUniverse]: (message: Message) => Message
+}>
+
+/**
+ * The typed Html builder a view builds DOM with: all HTML, SVG, and MathML
+ * element constructors, attribute constructors, a `keyed` helper for keyed
+ * elements, `empty` for rendering nothing, and `submodel` for embedding a
+ * child Submodel.
+ *
+ * A builder cannot be constructed by application code. The runtime supplies
+ * it to each view alongside the model, typed by the Message universe of the
+ * frame that view renders in: the app's Message for the root view, the
+ * Submodel's own Message inside a `Submodel.defineView`. Used in the frame
+ * that supplied it, a handler built with it carries exactly the Messages that
+ * frame's dispatcher can route, so a Message from another universe (the
+ * classic case: a shared helper building an app-level Message inside a
+ * Submodel) is a compile error at the handler call site.
+ *
+ * The type scopes where a builder is obtained, not where it is used. Carrying
+ * one into another frame, by storing it or handing the builder itself to a
+ * child through `viewInputs`, still compiles and still builds handlers that
+ * frame cannot route. Thread `h` as a parameter; never store it.
+ *
+ * Pass `h` along as an ordinary parameter when extracting view helpers; a
+ * memoized helper receives it through the `createLazy` args array. When a
+ * child must render markup that belongs to an ancestor, the ancestor passes a
+ * renderer that already closed over its own builder, not the builder, so the
+ * handlers resolve in the ancestor's boundary. Where no builder is in scope
+ * at all, typically module scope, use {@link inertHtml}.
+ */
+export type HtmlBuilder<Message> = MessageUniverse<Message> &
+  HtmlElements<Message> &
+  HtmlAttributes<Message> &
+  Readonly<{
+    empty: null
+    keyed: KeyedFunction<Message>
+    submodel: <View extends AnySubmodelView>(
+      config: SubmodelConfig<View, Message>,
+    ) => Html
+  }>
+
+const buildHtmlFactory = <Message>(): Omit<
+  HtmlBuilder<Message>,
+  typeof messageUniverse
+> => ({
+  ...htmlElements<Message>(),
+  ...htmlAttributes<Message>(),
+  empty: null,
+  keyed: keyed<Message>(),
+  submodel: <View extends AnySubmodelView>(
+    config: SubmodelConfig<View, Message>,
+  ) => submodel(config, cachedHtmlBuilder),
+})
+
+// NOTE: the Message type parameter is erased at runtime and the element and
+// attribute constructors carry no per-program state (dispatch is read from
+// the runtime singleton frame at call time), so one process-wide builder
+// object serves every frame. Handing out the singleton under a frame's
+// Message type changes the static type and nothing else, so the same object
+// reaches every view. That keeps the builder referentially stable across
+// renders, which `createLazy`'s `===` args comparison relies on when `h` is
+// passed through a memoized helper's args array.
+const cachedHtmlBuilder: HtmlBuilder<unknown> =
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  buildHtmlFactory<unknown>() as HtmlBuilder<unknown>
+
+/** @internal Returns the process-wide builder singleton retyped to a frame's
+ *  Message. Only the runtime, the Scene test harness, and the framework's own
+ *  tests call this, each immediately before invoking a view under the frame
+ *  that Message belongs to. `h.submodel` does not: it receives the singleton
+ *  as a parameter, which is what keeps `index.ts` and `submodel.ts` free of a
+ *  runtime import cycle. Application code receives builders exclusively as
+ *  view parameters. */
+export const __htmlBuilder = <Message>(): HtmlBuilder<Message> =>
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
+  cachedHtmlBuilder as HtmlBuilder<Message>
+
+/**
+ * Builder whose Message universe is empty. Its Message type is `never`, so
+ * every event-handler constructor is uncallable and nothing built with it can
+ * dispatch a Message. Elements, attributes, and keying behave exactly as they
+ * do on any other builder, and the markup itself is free to vary with runtime
+ * data. Inert describes what the result can do, not how it is computed.
+ *
+ * Inert to Foldkit's dispatch, not to the browser. A raw DOM attribute still
+ * does whatever the browser makes of it, which is exactly how the default
+ * crash view gets a working reload button:
+ * `h.Attribute('onclick', 'location.reload()')`. What `never` rules out is a
+ * Message reaching `update`, not every possible behavior.
+ *
+ * Use it where no builder is in scope, which in practice means module scope
+ * and the frameless renders the framework performs itself:
+ *
+ * ```ts
+ * import { inertHtml as ih } from 'foldkit/html'
+ *
+ * const PagefindBody = ih.DataAttribute('pagefind-body', '')
+ * ```
+ *
+ * Attributes it produces are `Attribute<never>`, so they flow into any
+ * Message universe by covariance. That makes it the right builder for
+ * library code emitting handler-free attribute bundles for arbitrary apps.
+ *
+ * Inside a view, use the view's own `h` parameter. A view already holds a
+ * builder, and reaching past it for this one is the habit that made a
+ * caller-chosen Message type possible in the first place.
+ */
+export const inertHtml: HtmlBuilder<never> = __htmlBuilder<never>()
