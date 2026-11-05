@@ -1,19 +1,19 @@
 ---
 import { Search, X } from "@lucide/astro"
-import type { NavigationActiveSlug, NavigationLink } from "@/lib/navigation"
+import { ArrowUpRight, ChevronDown } from "@lucide/astro"
+import type { NavigationItemView, NavigationLink } from "@/lib/navigation"
 import DiscordIcon from "@/assets/icons/fa7-brands/discord.svg"
 import GitHubIcon from "@/assets/icons/fa7-brands/github.svg"
 import TwitterIcon from "@/assets/icons/fa7-brands/x-twitter.svg"
 import ThemeToggle from "@/components/ui/ThemeToggle"
 
 interface Props {
-  readonly primaryLinks: ReadonlyArray<NavigationLink>
+  readonly primaryItems: ReadonlyArray<NavigationItemView>
   readonly socialLinks: ReadonlyArray<NavigationLink>
-  readonly activeSlug?: NavigationActiveSlug | undefined
   readonly showThemeToggle?: boolean
 }
 
-const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro.props
+const { primaryItems, socialLinks, showThemeToggle = false } = Astro.props
 ---
 
 <effect-mobile-menu class="ml-auto flex items-center gap-2">
@@ -21,7 +21,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
     showThemeToggle && (
       <ThemeToggle
         client:load
-        className="h-10 w-10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white @min-[64rem]/navigation:hidden"
+        className="h-10 w-10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white @min-[50rem]/navigation:hidden"
       />
     )
   }
@@ -31,7 +31,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
     data-role="menu-button"
     aria-label="Open navigation menu"
     aria-expanded="false"
-    class="flex h-10 w-10 appearance-none items-center justify-center rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 @min-[64rem]/navigation:hidden dark:hover:bg-zinc-800 text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white"
+    class="flex h-10 w-10 appearance-none items-center justify-center rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 @min-[50rem]/navigation:hidden dark:hover:bg-zinc-800 text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white"
   >
     <svg
       data-role="icon-open"
@@ -56,7 +56,7 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       role="dialog"
       aria-modal="true"
       aria-label="Navigation menu"
-      class="fixed top-0 right-0 flex h-full w-full max-w-[64%] flex-col bg-white shadow-xl dark:bg-zinc-900"
+      class="fixed top-0 right-0 flex h-full w-full max-w-[88%] sm:max-w-sm flex-col bg-white shadow-xl dark:bg-zinc-900"
       style="transform: translateX(100%)"
     >
       <div
@@ -75,23 +75,66 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
       <nav aria-label="Mobile" class="flex-1 overflow-y-auto px-6 py-6">
         <div class="space-y-1">
           {
-            primaryLinks.map((link) => (
-              <a
-                href={link.href}
-                target={link.kind === "external" ? link.target : undefined}
-                rel={link.kind === "external" ? link.rel : undefined}
-                data-role="menu-link"
-                aria-current={link.id === activeSlug ? "page" : undefined}
-                class:list={[
-                  "block rounded-md px-3 py-2.5 text-[15px] no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white",
-                  link.id === activeSlug
-                    ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
-                    : "text-zinc-600 dark:text-zinc-300",
-                ]}
-              >
-                {link.label}
-              </a>
-            ))
+            primaryItems.map(({ link, active, entries }) => {
+              if (entries.length > 0) {
+                return (
+                  <details class="group" open={active || undefined}>
+                    <summary
+                      class:list={[
+                        "flex cursor-pointer list-none items-center justify-between rounded-md px-3 py-2.5 text-[15px] transition-colors marker:hidden hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white [&::-webkit-details-marker]:hidden",
+                        active
+                          ? "text-zinc-900 dark:text-white"
+                          : "text-zinc-600 dark:text-zinc-300",
+                      ]}
+                    >
+                      {link.label}
+                      <ChevronDown
+                        class="size-4 shrink-0 transition-transform group-open:rotate-180"
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <ul class="mt-1 mb-2 ml-3 space-y-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-800">
+                      {entries.map((entry) => {
+                        return (
+                          <li>
+                            <a
+                              href={entry.href}
+                              target={entry.external ? "_blank" : undefined}
+                              rel={entry.external ? "noopener noreferrer" : undefined}
+                              data-role="menu-link"
+                              aria-current={entry.active ? "page" : undefined}
+                              class="block rounded-md px-3 py-2 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:bg-zinc-100 aria-[current=page]:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-white"
+                            >
+                              <span class="inline-flex items-center gap-1">
+                                {entry.label}
+                                {entry.external && <ArrowUpRight size={14} aria-hidden="true" />}
+                              </span>
+                            </a>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </details>
+                )
+              }
+              return (
+                <a
+                  href={link.href}
+                  target={link.kind === "external" ? link.target : undefined}
+                  rel={link.kind === "external" ? link.rel : undefined}
+                  data-role="menu-link"
+                  aria-current={active ? "page" : undefined}
+                  class:list={[
+                    "block rounded-md px-3 py-2.5 text-[15px] no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white",
+                    active
+                      ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                      : "text-zinc-600 dark:text-zinc-300",
+                  ]}
+                >
+                  {link.label}
+                </a>
+              )
+            })
           }
         </div>
 

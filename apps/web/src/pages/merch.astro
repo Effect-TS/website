@@ -2,14 +2,9 @@
 import { getCollection } from "astro:content"
 import { Image } from "astro:assets"
 import { ChevronLeft, ChevronRight, CornerRightDown } from "@lucide/astro"
-import BaseLayout from "@/layouts/BaseLayout.astro"
-import Navigation from "@/components/navigation/Navigation.astro"
-import Footer from "@/components/Footer.astro"
-import DitheredOverlay from "@/components/DitheredOverlay.astro"
-import GridRails from "@/components/GridRails.astro"
+import PageLayout from "@/layouts/PageLayout.astro"
 import Link from "@/components/Link.astro"
 import SocialLink from "@/components/SocialLink.astro"
-import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 
 const products = await getCollection("merch")
 
@@ -21,249 +16,242 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
 }
 ---
 
-<BaseLayout title="Effect Swag" description="Effect-branded merchandise for the community">
-  <div class="relative min-h-screen bg-zinc-950 text-white antialiased">
-    <DitheredOverlay />
-    <GridRails />
-
-    <Navigation />
-
-    <main id={PAGE_TITLE_ID} class="relative w-full">
-      <!-- Hero Section -->
-      <section class="relative w-full bg-zinc-950 pt-16 pb-16">
-        <div class="mx-auto w-full max-w-295 px-4">
-          <div class="grid grid-cols-1 items-center lg:grid-cols-2">
-            <!-- Left: Text content -->
-            <div class="flex flex-col gap-6 lg:pr-8">
-              <h1 class="text-[3.052rem] font-semibold leading-tight text-white md:text-[3.815rem]">
-                Show off your
-                <span class="effect-badge relative inline-block px-4 py-1.5 font-mono">
-                  <span class="corner-bracket corner-tl corner-amber"></span>
-                  <span class="corner-bracket corner-tr corner-amber"></span>
-                  <span class="corner-bracket corner-bl corner-amber"></span>
-                  <span class="corner-bracket corner-br corner-amber"></span>
-                  Effect
-                </span>
-                style
-              </h1>
-              <p class="max-w-md text-xl text-zinc-400">
-                Explore a selection of Effect-branded items – designed for the community.
-              </p>
-              <div>
-                <a href="#products" class="merch-btn-primary group inline-flex items-center gap-2">
-                  View all items
-                  <CornerRightDown class="size-4" />
-                </a>
-              </div>
-            </div>
-
-            <!-- Right: Product preview bento grid -->
-            <div class="mt-8 grid grid-cols-2 grid-rows-2 gap-3 lg:mt-0">
-              <!-- Hoodie - spans full height -->
-              <div
-                class="relative row-span-2 flex items-center justify-center overflow-hidden border border-zinc-800 bg-zinc-900/40 p-6"
-              >
-                <Image
-                  src={getMerchImage("hoodie-1.avif")!}
-                  alt="Effect hoodie"
-                  class="max-h-full max-w-full object-contain"
-                />
-              </div>
-              <!-- Cap -->
-              <div
-                class="relative flex aspect-square items-center justify-center overflow-hidden p-4 transition-all duration-200 hover:shadow-lg hover:shadow-black/20"
-              >
-                <span class="corner-bracket corner-tl corner-zinc"></span>
-                <span class="corner-bracket corner-tr corner-zinc"></span>
-                <span class="corner-bracket corner-bl corner-zinc"></span>
-                <span class="corner-bracket corner-br corner-zinc"></span>
-                <Image
-                  src={getMerchImage("cap-1.avif")!}
-                  alt="Effect.orDie cap"
-                  class="max-h-full max-w-full object-contain"
-                />
-              </div>
-              <!-- Tote -->
-              <div
-                class="relative flex aspect-square items-center justify-center overflow-hidden p-4 transition-all duration-200 hover:shadow-lg hover:shadow-black/20"
-              >
-                <span class="corner-bracket corner-tl corner-zinc"></span>
-                <span class="corner-bracket corner-tr corner-zinc"></span>
-                <span class="corner-bracket corner-bl corner-zinc"></span>
-                <span class="corner-bracket corner-br corner-zinc"></span>
-                <Image
-                  src={getMerchImage("tote-1.avif")!}
-                  alt="Effect tote bag"
-                  class="max-h-full max-w-full object-contain"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Products Section -->
-      <section id="products" class="relative z-70 w-full bg-zinc-100 pt-28 pb-32">
-        <div class="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
-          <div class="relative mx-auto h-full w-full max-w-295">
-            <div class="absolute inset-y-0 left-0 w-px bg-zinc-200"></div>
-            <div class="absolute inset-y-0 right-0 w-px bg-zinc-200"></div>
+<PageLayout
+  activeSlug="merch"
+  title="Effect Swag"
+  description="Effect-branded merchandise for the community"
+>
+  <!-- Hero Section -->
+  <section class="relative w-full bg-zinc-950 pt-16 pb-16">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 items-center lg:grid-cols-2">
+        <!-- Left: Text content -->
+        <div class="flex flex-col gap-6 lg:pr-8">
+          <h1 class="text-[3.052rem] font-semibold leading-tight text-white md:text-[3.815rem]">
+            Show off your
+            <span class="effect-badge relative inline-block px-4 py-1.5 font-mono">
+              <span class="corner-bracket corner-tl corner-amber"></span>
+              <span class="corner-bracket corner-tr corner-amber"></span>
+              <span class="corner-bracket corner-bl corner-amber"></span>
+              <span class="corner-bracket corner-br corner-amber"></span>
+              Effect
+            </span>
+            style
+          </h1>
+          <p class="max-w-md text-xl text-zinc-400">
+            Explore a selection of Effect-branded items – designed for the community.
+          </p>
+          <div>
+            <a href="#products" class="merch-btn-primary group inline-flex items-center gap-2">
+              View all items
+              <CornerRightDown class="size-4" />
+            </a>
           </div>
         </div>
 
-        <div class="mx-auto w-full max-w-295 px-4">
-          <div class="grid grid-cols-1 gap-x-4 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-            {
-              products.map((product) => (
-                <div class="flex h-full flex-col">
-                  <div
-                    data-carousel
-                    class="group relative flex aspect-square select-none items-center justify-center overflow-hidden bg-zinc-100"
-                  >
-                    {product.data.images.map((img, i) => (
-                      <Image
-                        data-carousel-image
-                        src={getMerchImage(img)!}
-                        alt={product.data.name}
-                        loading={i === 0 ? "eager" : "lazy"}
-                        class:list={[
-                          "carousel-image pointer-events-none max-h-[70%] max-w-[70%] object-contain",
-                          { "is-active": i === 0 },
-                        ]}
-                      />
-                    ))}
+        <!-- Right: Product preview bento grid -->
+        <div class="mt-8 grid grid-cols-2 grid-rows-2 gap-3 lg:mt-0">
+          <!-- Hoodie - spans full height -->
+          <div
+            class="relative row-span-2 flex items-center justify-center overflow-hidden border border-zinc-800 bg-zinc-900/40 p-6"
+          >
+            <Image
+              src={getMerchImage("hoodie-1.avif")!}
+              alt="Effect hoodie"
+              class="max-h-full max-w-full object-contain"
+            />
+          </div>
+          <!-- Cap -->
+          <div
+            class="relative flex aspect-square items-center justify-center overflow-hidden p-4 transition-all duration-200 hover:shadow-lg hover:shadow-black/20"
+          >
+            <span class="corner-bracket corner-tl corner-zinc"></span>
+            <span class="corner-bracket corner-tr corner-zinc"></span>
+            <span class="corner-bracket corner-bl corner-zinc"></span>
+            <span class="corner-bracket corner-br corner-zinc"></span>
+            <Image
+              src={getMerchImage("cap-1.avif")!}
+              alt="Effect.orDie cap"
+              class="max-h-full max-w-full object-contain"
+            />
+          </div>
+          <!-- Tote -->
+          <div
+            class="relative flex aspect-square items-center justify-center overflow-hidden p-4 transition-all duration-200 hover:shadow-lg hover:shadow-black/20"
+          >
+            <span class="corner-bracket corner-tl corner-zinc"></span>
+            <span class="corner-bracket corner-tr corner-zinc"></span>
+            <span class="corner-bracket corner-bl corner-zinc"></span>
+            <span class="corner-bracket corner-br corner-zinc"></span>
+            <Image
+              src={getMerchImage("tote-1.avif")!}
+              alt="Effect tote bag"
+              class="max-h-full max-w-full object-contain"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-                    <button
-                      data-carousel-prev
-                      class="absolute left-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-zinc-400 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 md:flex"
-                      aria-label="Previous image"
-                    >
-                      <ChevronLeft class="size-8" />
-                    </button>
+  <!-- Products Section -->
+  <section id="products" class="relative z-70 w-full bg-zinc-100 pt-28 pb-32">
+    <div class="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
+      <div class="relative mx-auto h-full w-full max-w-295">
+        <div class="absolute inset-y-0 left-0 w-px bg-zinc-200"></div>
+        <div class="absolute inset-y-0 right-0 w-px bg-zinc-200"></div>
+      </div>
+    </div>
 
-                    <button
-                      data-carousel-next
-                      class="absolute right-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-zinc-400 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 md:flex"
-                      aria-label="Next image"
-                    >
-                      <ChevronRight class="size-8" />
-                    </button>
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 gap-x-4 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
+        {
+          products.map((product) => (
+            <div class="flex h-full flex-col">
+              <div
+                data-carousel
+                class="group relative flex aspect-square select-none items-center justify-center overflow-hidden bg-zinc-100"
+              >
+                {product.data.images.map((img, i) => (
+                  <Image
+                    data-carousel-image
+                    src={getMerchImage(img)!}
+                    alt={product.data.name}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    class:list={[
+                      "carousel-image pointer-events-none max-h-[70%] max-w-[70%] object-contain",
+                      { "is-active": i === 0 },
+                    ]}
+                  />
+                ))}
 
-                    <div class="absolute right-3 top-3" aria-hidden="true">
-                      <svg width="64" height="8" viewBox="86 86 755 87" fill="none">
-                        <polygon fill="#F2C994" points="86.1,172.6 136.5,86.2 186.8,172.6" />
-                        <polygon fill="#ED4642" points="131.6,172.6 182,86.2 232.3,172.6" />
-                        <polygon fill="#17BCB5" points="177.3,172.6 227.7,86.2 278,172.6" />
-                        <polygon fill="#DF392F" points="131.6,172.6 187,172.6 159.2,125.3" />
-                        <polygon fill="#16342F" points="176.9,172.6 232.2,172.6 204.8,125.4" />
-                        <polygon fill="#15291A" points="176.9,172.6 187.1,172.6 182,164.1" />
-                        <path
-                          fill="#222222"
-                          d="M354.1,95.6c-2.3-3-5.2-5.3-8.6-6.8c-3.5-1.8-7.4-2.8-11.3-2.6h-36.5v86.1h19.6v-27.8h17.3c3.9,0.1,7.7-0.7,11.3-2.2c3.3-1.5,6.3-3.7,8.6-6.4c2.4-2.8,4.3-6,5.6-9.4c1.2-3.5,1.8-7.2,1.9-10.9c0-3.6-0.8-7.2-2.3-10.5C358.7,101.7,356.4,98.7,354.1,95.6z M339.8,124.2c-1.5,1.8-3.7,2.9-6,3h-16.2v-23.7H333c1.2-0.1,2.4,0.1,3.4,0.8c1.1,0.8,2.3,1.1,3,2.2c1.1,1,1.9,2.3,2.3,3.8c0.5,1.7,0.7,3.5,0.8,5.3C342.5,119.3,341.7,122.3,339.8,124.2z"
-                        />
-                        <path
-                          fill="#222222"
-                          d="M426.7,135.9c1.8-1.7,3.3-3.8,4.5-6c1.2-2.1,2.1-4.4,2.6-6.8c0.8-2.4,1.2-5,1.1-7.5c0-3.6-0.8-7.2-2.3-10.5c-1.4-3.5-3.4-6.7-6-9.4c-2.5-2.9-5.5-5.2-9-6.8c-3.5-1.8-7.4-2.7-11.3-2.6h-38.8v86.1H388v-27.8h12.8l17.3,27.8h22.2l-19.5-32C423,139.2,425,137.7,426.7,135.9z M411.7,123.9c-1.3,2.1-3.6,3.3-6,3.4h-18.1l-0.4-23.3h17.7c2.5-0.1,4.8,1.1,6.4,3c2,2.3,3.1,5.2,3,8.3C414.3,119,413.6,121.6,411.7,123.9L411.7,123.9z"
-                        />
-                        <rect x="445.2" y="86.2" fill="#222222" width="19.9" height="85.8" />
-                        <polygon
-                          fill="#222222"
-                          points="529.4,136.6 489.5,86.2 474.1,86.2 474.1,172 494.1,172 494.1,123.1 533.6,172 549.3,172 549.3,86.2 529.4,86.2"
-                        />
-                        <polygon
-                          fill="#222222"
-                          points="554.2,103.5 580.6,103.5 580.6,172 600.5,172 600.5,103.5 626.5,103.5 626.5,86.2 554.2,86.2"
-                        />
-                        <polygon
-                          fill="#222222"
-                          points="631.3,172 651.3,172 651.3,138.1 682.9,138.1 682.9,122 651.3,122 651.3,103.5 689.6,103.5 689.6,86.2 631.3,86.2"
-                        />
-                        <path
-                          fill="#222222"
-                          d="M749.4,129.9c0.1,3.2-0.1,6.3-0.8,9.4c-0.4,2.8-1.4,5.5-3,7.9c-1.5,2.2-3.4,4.2-5.6,5.6c-2.6,1.6-5.6,2.4-8.7,2.2c-2.9,0-5.7-0.6-8.3-1.9c-2.2-1.5-4.2-3.4-5.6-5.7c-2.8-5.3-4.2-11.3-4.1-17.3v-44h-19.9v44c0,5.5,0.7,10.9,2.2,16.2c1.3,4.9,3.6,9.5,6.8,13.5c3.1,4,7.1,7.2,11.7,9.4c5.6,2.4,11.6,3.5,17.7,3.4c6.4,0,12.4-1.1,16.9-3.4c4.5-2.1,8.5-5.2,11.7-9c3.1-4,5.4-8.6,6.8-13.5c1.6-5.4,2.3-11,2.3-16.6v-44h-19.9v43.8H749.4z"
-                        />
-                        <polygon
-                          fill="#222222"
-                          points="799.8,154.7 799.8,86.2 779.9,86.2 779.9,172 779.9,172 841.2,172 841.2,154.7"
-                        />
-                      </svg>
-                    </div>
+                <button
+                  data-carousel-prev
+                  class="absolute left-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-zinc-400 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 md:flex"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft class="size-8" />
+                </button>
 
-                    <div class="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-                      {product.data.images.map((_, i) => (
-                        <button
-                          data-carousel-dot
-                          class:list={[
-                            "carousel-dot h-1.5 w-1.5 cursor-pointer rounded-full transition-colors",
-                            { "is-active": i === 0 },
-                          ]}
-                          aria-label={`Go to image ${i + 1}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                <button
+                  data-carousel-next
+                  class="absolute right-0 top-1/2 hidden h-16 w-10 -translate-y-1/2 cursor-pointer items-center justify-center text-zinc-400 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 md:flex"
+                  aria-label="Next image"
+                >
+                  <ChevronRight class="size-8" />
+                </button>
 
-                  <a
-                    href={product.data.buyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="mt-2 block w-full rounded-md border border-zinc-700 bg-zinc-900 py-4 text-center text-base font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-800"
-                  >
-                    Buy from {product.data.price}
-                  </a>
+                <div class="absolute right-3 top-3" aria-hidden="true">
+                  <svg width="64" height="8" viewBox="86 86 755 87" fill="none">
+                    <polygon fill="#F2C994" points="86.1,172.6 136.5,86.2 186.8,172.6" />
+                    <polygon fill="#ED4642" points="131.6,172.6 182,86.2 232.3,172.6" />
+                    <polygon fill="#17BCB5" points="177.3,172.6 227.7,86.2 278,172.6" />
+                    <polygon fill="#DF392F" points="131.6,172.6 187,172.6 159.2,125.3" />
+                    <polygon fill="#16342F" points="176.9,172.6 232.2,172.6 204.8,125.4" />
+                    <polygon fill="#15291A" points="176.9,172.6 187.1,172.6 182,164.1" />
+                    <path
+                      fill="#222222"
+                      d="M354.1,95.6c-2.3-3-5.2-5.3-8.6-6.8c-3.5-1.8-7.4-2.8-11.3-2.6h-36.5v86.1h19.6v-27.8h17.3c3.9,0.1,7.7-0.7,11.3-2.2c3.3-1.5,6.3-3.7,8.6-6.4c2.4-2.8,4.3-6,5.6-9.4c1.2-3.5,1.8-7.2,1.9-10.9c0-3.6-0.8-7.2-2.3-10.5C358.7,101.7,356.4,98.7,354.1,95.6z M339.8,124.2c-1.5,1.8-3.7,2.9-6,3h-16.2v-23.7H333c1.2-0.1,2.4,0.1,3.4,0.8c1.1,0.8,2.3,1.1,3,2.2c1.1,1,1.9,2.3,2.3,3.8c0.5,1.7,0.7,3.5,0.8,5.3C342.5,119.3,341.7,122.3,339.8,124.2z"
+                    />
+                    <path
+                      fill="#222222"
+                      d="M426.7,135.9c1.8-1.7,3.3-3.8,4.5-6c1.2-2.1,2.1-4.4,2.6-6.8c0.8-2.4,1.2-5,1.1-7.5c0-3.6-0.8-7.2-2.3-10.5c-1.4-3.5-3.4-6.7-6-9.4c-2.5-2.9-5.5-5.2-9-6.8c-3.5-1.8-7.4-2.7-11.3-2.6h-38.8v86.1H388v-27.8h12.8l17.3,27.8h22.2l-19.5-32C423,139.2,425,137.7,426.7,135.9z M411.7,123.9c-1.3,2.1-3.6,3.3-6,3.4h-18.1l-0.4-23.3h17.7c2.5-0.1,4.8,1.1,6.4,3c2,2.3,3.1,5.2,3,8.3C414.3,119,413.6,121.6,411.7,123.9L411.7,123.9z"
+                    />
+                    <rect x="445.2" y="86.2" fill="#222222" width="19.9" height="85.8" />
+                    <polygon
+                      fill="#222222"
+                      points="529.4,136.6 489.5,86.2 474.1,86.2 474.1,172 494.1,172 494.1,123.1 533.6,172 549.3,172 549.3,86.2 529.4,86.2"
+                    />
+                    <polygon
+                      fill="#222222"
+                      points="554.2,103.5 580.6,103.5 580.6,172 600.5,172 600.5,103.5 626.5,103.5 626.5,86.2 554.2,86.2"
+                    />
+                    <polygon
+                      fill="#222222"
+                      points="631.3,172 651.3,172 651.3,138.1 682.9,138.1 682.9,122 651.3,122 651.3,103.5 689.6,103.5 689.6,86.2 631.3,86.2"
+                    />
+                    <path
+                      fill="#222222"
+                      d="M749.4,129.9c0.1,3.2-0.1,6.3-0.8,9.4c-0.4,2.8-1.4,5.5-3,7.9c-1.5,2.2-3.4,4.2-5.6,5.6c-2.6,1.6-5.6,2.4-8.7,2.2c-2.9,0-5.7-0.6-8.3-1.9c-2.2-1.5-4.2-3.4-5.6-5.7c-2.8-5.3-4.2-11.3-4.1-17.3v-44h-19.9v44c0,5.5,0.7,10.9,2.2,16.2c1.3,4.9,3.6,9.5,6.8,13.5c3.1,4,7.1,7.2,11.7,9.4c5.6,2.4,11.6,3.5,17.7,3.4c6.4,0,12.4-1.1,16.9-3.4c4.5-2.1,8.5-5.2,11.7-9c3.1-4,5.4-8.6,6.8-13.5c1.6-5.4,2.3-11,2.3-16.6v-44h-19.9v43.8H749.4z"
+                    />
+                    <polygon
+                      fill="#222222"
+                      points="799.8,154.7 799.8,86.2 779.9,86.2 779.9,172 779.9,172 841.2,172 841.2,154.7"
+                    />
+                  </svg>
                 </div>
-              ))
-            }
-          </div>
 
-          <div class="mt-16 border-t border-zinc-200 pt-4 text-center">
-            <p class="text-sm text-zinc-700">
-              All orders are processed and fulfilled by{" "}
-              <Link href="https://www.printful.com">
-                <span class="inline-block underline hover:text-zinc-900 hover:no-underline">
-                  Printful
-                </span>.
-              </Link> Payments and profits go directly to Printful.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Effect in the Wild Section -->
-      <section class="relative w-full bg-zinc-950 py-4">
-        <div class="mx-auto w-full max-w-295 px-4">
-          <div class="grid grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-8">
-            <div class="flex flex-col items-start pt-16 md:pt-0">
-              <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
-                // Effect in the wild
-              </p>
-              <h2 class="text-[2.75rem] font-semibold leading-tighter text-zinc-200">
-                Got your Effect merch?
-              </h2>
-              <p class="mt-4 mb-6 max-w-lg text-xl text-zinc-400">Share it with the community!</p>
-              <div class="flex items-center gap-4">
-                <SocialLink variant="discord" class="text-zinc-400 hover:text-white" />
-                <SocialLink variant="twitter" class="text-zinc-400 hover:text-white" />
-                <SocialLink variant="linkedin" class="text-zinc-400 hover:text-white" />
-                <SocialLink variant="bluesky" class="text-zinc-400 hover:text-white" />
+                <div class="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+                  {product.data.images.map((_, i) => (
+                    <button
+                      data-carousel-dot
+                      class:list={[
+                        "carousel-dot h-1.5 w-1.5 cursor-pointer rounded-full transition-colors",
+                        { "is-active": i === 0 },
+                      ]}
+                      aria-label={`Go to image ${i + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div class="relative h-[300px] overflow-hidden md:h-[480px] lg:h-[640px]">
-              <Image
-                src={getMerchImage("wild-desert.avif")!}
-                alt="Effect cap in the Sahara desert"
-                class="h-full w-full object-cover object-bottom brightness-110"
-              />
+              <a
+                href={product.data.buyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-2 block w-full rounded-md border border-zinc-700 bg-zinc-900 py-4 text-center text-base font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-800"
+              >
+                Buy from {product.data.price}
+              </a>
             </div>
+          ))
+        }
+      </div>
+
+      <div class="mt-16 border-t border-zinc-200 pt-4 text-center">
+        <p class="text-sm text-zinc-700">
+          All orders are processed and fulfilled by{" "}
+          <Link href="https://www.printful.com">
+            <span class="inline-block underline hover:text-zinc-900 hover:no-underline">
+              Printful
+            </span>.
+          </Link> Payments and profits go directly to Printful.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Effect in the Wild Section -->
+  <section class="relative w-full bg-zinc-950 py-4">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-8">
+        <div class="flex flex-col items-start pt-16 md:pt-0">
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            // Effect in the wild
+          </p>
+          <h2 class="text-[2.75rem] font-semibold leading-tighter text-zinc-200">
+            Got your Effect merch?
+          </h2>
+          <p class="mt-4 mb-6 max-w-lg text-xl text-zinc-400">Share it with the community!</p>
+          <div class="flex items-center gap-4">
+            <SocialLink variant="discord" class="text-zinc-400 hover:text-white" />
+            <SocialLink variant="twitter" class="text-zinc-400 hover:text-white" />
+            <SocialLink variant="linkedin" class="text-zinc-400 hover:text-white" />
+            <SocialLink variant="bluesky" class="text-zinc-400 hover:text-white" />
           </div>
         </div>
-      </section>
-    </main>
 
-    <Footer />
-  </div>
-</BaseLayout>
+        <div class="relative h-[300px] overflow-hidden md:h-[480px] lg:h-[640px]">
+          <Image
+            src={getMerchImage("wild-desert.avif")!}
+            alt="Effect cap in the Sahara desert"
+            class="h-full w-full object-cover object-bottom brightness-110"
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+</PageLayout>
 
 <style>
   .effect-badge {

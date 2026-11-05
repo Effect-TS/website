@@ -1,0 +1,101 @@
+---
+import { ChevronDown } from "@lucide/astro"
+import type { DocsNavSection } from "@/lib/docs-sections"
+import { DOCS_VERSIONS, defaultDocsVersion } from "@/lib/versions"
+
+interface Props {
+  readonly section: DocsNavSection
+  readonly version?: string | undefined
+}
+
+const { section, version = defaultDocsVersion } = Astro.props
+
+const SECTION_LINKS: ReadonlyArray<{ key: DocsNavSection; label: string; href: string }> = [
+  { key: "onboarding", label: "Onboarding", href: `/docs/${version}` },
+  { key: "guides", label: "Guides", href: `/docs/${version}/guides` },
+  { key: "api", label: "Reference", href: `/docs/${version}/api` },
+]
+---
+
+<div
+  data-docs-subnav
+  class="h-(--secondary-nav-height) w-full border-b border-border bg-background/85 backdrop-blur-sm"
+>
+  <div class="mx-auto flex h-full w-full max-w-352 items-center gap-4 px-4">
+    <div class="relative md:hidden">
+      <details data-nav-menu class="group">
+        <summary
+          aria-label="Documentation version"
+          class="flex min-h-6 cursor-pointer list-none items-center gap-1 rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 font-mono text-xs font-semibold text-zinc-900 marker:hidden dark:border-zinc-700 dark:bg-zinc-900 dark:text-white [&::-webkit-details-marker]:hidden"
+        >
+          {version}
+          <ChevronDown
+            class="size-3 transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <ul
+          class="absolute top-full left-0 mt-2 grid min-w-24 gap-1.5 rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-md"
+        >
+          {
+            DOCS_VERSIONS.map(({ value, label }) => (
+              <li>
+                <a
+                  href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
+                  aria-label={`Effect ${label} documentation`}
+                  aria-current={version === value ? "page" : undefined}
+                  class="block rounded-md px-3 py-2 font-mono text-xs text-muted-foreground no-underline hover:bg-muted hover:text-foreground aria-[current=page]:bg-accent aria-[current=page]:font-semibold aria-[current=page]:text-foreground"
+                >
+                  {label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </details>
+    </div>
+
+    <div
+      role="group"
+      aria-label="Documentation version"
+      class="hidden shrink-0 gap-1 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900"
+    >
+      {
+        DOCS_VERSIONS.map(({ value, label }) => (
+          <a
+            href={section === "api" ? `/docs/${value}/api` : `/docs/${value}`}
+            aria-label={`Effect ${label} documentation`}
+            aria-current={version === value ? "page" : undefined}
+            class:list={[
+              "rounded-sm px-3 py-1 text-center font-mono text-xs transition-colors",
+              version === value
+                ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-700 dark:text-white"
+                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
+            ]}
+          >
+            {label}
+          </a>
+        ))
+      }
+    </div>
+
+    <div class="hidden h-4.5 w-px bg-zinc-300 md:block dark:bg-zinc-700" aria-hidden="true"></div>
+
+    <nav
+      aria-label="Documentation sections"
+      class="flex h-full min-w-0 items-center gap-6 overflow-x-auto"
+    >
+      {
+        SECTION_LINKS.map((link) => (
+          <a
+            href={link.href}
+            aria-current={link.key === section ? "page" : undefined}
+            class="flex h-full items-center border-b-2 border-transparent text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground aria-[current=page]:border-foreground aria-[current=page]:text-foreground"
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</div>

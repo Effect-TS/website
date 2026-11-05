@@ -1,3 +1,6 @@
+import type { DocsNavSection } from "@/lib/docs-sections"
+import { defaultDocsVersion } from "@/lib/docs-versions"
+
 export type NavigationSurface = "desktop" | "mobile"
 
 export type NavigationGroup = "primary" | "secondary" | "social"
@@ -17,9 +20,19 @@ interface NavigationLinkBase {
   readonly icon?: "discord" | "github" | "twitter"
 }
 
+export interface NavigationMenuEntry {
+  readonly id: string
+  readonly label: string
+  readonly description: string
+  readonly slug?: NavigationActiveSlug
+  readonly docsSection?: DocsNavSection
+  readonly href: `/${string}` | `https://${string}`
+}
+
 export interface InternalNavigationLink extends NavigationLinkBase {
   readonly kind: "internal"
   readonly href: `/${string}`
+  readonly menu?: ReadonlyArray<NavigationMenuEntry>
 }
 
 export interface ExternalNavigationLink extends NavigationLinkBase {
@@ -41,13 +54,102 @@ export type NavigationActiveSlug =
   | "playground"
   | "community"
   | "effect-days"
+  | "myths"
+  | "adoption-partners"
+  | "merch"
+
+const docsMenu: ReadonlyArray<NavigationMenuEntry> = [
+  {
+    id: "docs-onboarding",
+    label: "Onboarding",
+    description: "Core concepts, in order",
+    slug: "docs",
+    docsSection: "onboarding",
+    href: `/docs/${defaultDocsVersion}`,
+  },
+  {
+    id: "docs-guides",
+    label: "Guides",
+    description: "Each topic in more detail",
+    slug: "docs",
+    docsSection: "guides",
+    href: `/docs/${defaultDocsVersion}/guides`,
+  },
+  {
+    id: "docs-api",
+    label: "Reference",
+    description: "Packages, modules and exports",
+    slug: "api",
+    docsSection: "api",
+    href: `/docs/${defaultDocsVersion}/api`,
+  },
+  {
+    id: "motw",
+    label: "Module of the Week",
+    description: "One lesser-known module at a time",
+    slug: "motw",
+    href: "/module-of-the-week",
+  },
+  {
+    id: "podcast",
+    label: "Podcast",
+    description: "Engineers using Effect in production",
+    slug: "podcast",
+    href: "/podcast",
+  },
+  {
+    id: "workshops",
+    label: "Workshops",
+    description: "Recorded sessions on YouTube",
+    href: "https://www.youtube.com/playlist?list=PLDf3uQLaK2B9vHzUNyvOSvoMv61LW7792",
+  },
+  {
+    id: "myths",
+    label: "Myths",
+    description: "Common misconceptions",
+    slug: "myths",
+    href: "/myths",
+  },
+]
+
+const communityMenu: ReadonlyArray<NavigationMenuEntry> = [
+  {
+    id: "community-hub",
+    label: "Community Hub",
+    description: "Meetups, talks and events",
+    slug: "community",
+    href: "/community-hub",
+  },
+  {
+    id: "jobs",
+    label: "Jobs",
+    description: "Open roles using Effect",
+    slug: "jobs",
+    href: "/effect-jobs",
+  },
+  {
+    id: "adoption-partners",
+    label: "Adoption partners",
+    description: "Get help adopting Effect",
+    slug: "adoption-partners",
+    href: "/adoption-partners",
+  },
+  {
+    id: "merch",
+    label: "Merch",
+    description: "Effect-branded merchandise",
+    slug: "merch",
+    href: "/merch",
+  },
+]
 
 export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
   {
     id: "docs",
     kind: "internal",
     label: "Docs",
-    href: "/docs/v4",
+    href: `/docs/${defaultDocsVersion}`,
+    menu: docsMenu,
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
@@ -68,26 +170,11 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     surfaces: ["desktop", "mobile"],
   },
   {
-    id: "motw",
-    kind: "internal",
-    label: "Module of the Week",
-    href: "/module-of-the-week",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
-    id: "jobs",
-    kind: "internal",
-    label: "Jobs",
-    href: "/effect-jobs",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
     id: "community",
     kind: "internal",
     label: "Community",
     href: "/community-hub",
+    menu: communityMenu,
     group: "primary",
     surfaces: ["desktop", "mobile"],
   },
@@ -143,14 +230,51 @@ export const getNavigationLinks = (
   })
 }
 
-export const applyVersionToLinks = (
-  version: string,
-  links: ReadonlyArray<NavigationLink>,
-): ReadonlyArray<NavigationLink> => {
-  return links.map((link): NavigationLink => {
-    if (link.kind !== "internal") return link
-    if (link.id === "docs")
-      return { ...link, href: `/docs/${version}` as `/${string}` }
-    return link
-  })
+export interface NavigationContext {
+  readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly docsSection?: DocsNavSection | undefined
 }
+
+export interface NavigationEntryView {
+  readonly id: string
+  readonly label: string
+  readonly description: string
+  readonly href: string
+  readonly external: boolean
+  readonly active: boolean
+}
+
+export interface NavigationItemView {
+  readonly link: NavigationLink
+  readonly active: boolean
+  readonly entries: ReadonlyArray<NavigationEntryView>
+}
+
+// Resolves active state once, so components only render.
+export const buildNavigation = (
+  surface: NavigationSurface,
+  group: NavigationGroup,
+  { activeSlug, docsSection }: NavigationContext = {},
+): ReadonlyArray<NavigationItemView> =>
+  getNavigationLinks(surface, group).map((link): NavigationItemView => {
+    const menu = link.kind === "internal" ? (link.menu ?? []) : []
+    return {
+      link,
+      active:
+        activeSlug !== undefined &&
+        (link.id === activeSlug ||
+          menu.some((entry) => entry.slug === activeSlug)),
+      entries: menu.map((entry) => ({
+        id: entry.id,
+        label: entry.label,
+        description: entry.description,
+        href: entry.href,
+        external: entry.href.startsWith("https://"),
+        active:
+          entry.slug !== undefined &&
+          entry.slug === activeSlug &&
+          (entry.docsSection === undefined ||
+            entry.docsSection === docsSection),
+      })),
+    }
+  })

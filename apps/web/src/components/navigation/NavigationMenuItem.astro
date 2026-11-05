@@ -1,0 +1,112 @@
+---
+import { ArrowUpRight, ChevronDown } from "@lucide/astro"
+import type { NavigationItemView } from "@/lib/navigation"
+
+interface Props {
+  readonly item: NavigationItemView
+}
+
+const { item } = Astro.props
+---
+
+<div class="group/menu relative flex items-center">
+  <a
+    href={item.link.href}
+    aria-current={item.active ? "page" : undefined}
+    class="text-sm font-medium text-zinc-500 no-underline transition-colors hover:text-zinc-900 group-has-[details[open]]/menu:text-zinc-900 aria-[current=page]:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:group-has-[details[open]]/menu:text-white dark:aria-[current=page]:text-white"
+  >
+    {item.link.label}
+  </a>
+
+  <details data-nav-menu class="group/details">
+    <summary
+      aria-label={`${item.link.label} menu`}
+      class="flex size-6 cursor-pointer list-none items-center justify-center rounded-sm text-zinc-500 transition-colors marker:hidden hover:text-zinc-900 group-open/details:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:group-open/details:text-white [&::-webkit-details-marker]:hidden"
+    >
+      <ChevronDown
+        class="size-3.5 transition-transform group-open/details:rotate-180"
+        aria-hidden="true"
+      />
+    </summary>
+
+    <div class="absolute top-full -left-3 w-max pt-3">
+      <ul
+        class="grid grid-cols-2 gap-1.5 rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-md"
+      >
+        {
+          item.entries.map((entry) => (
+            <li class:list={["rounded-md hover:bg-muted", entry.active && "bg-accent"]}>
+              <a
+                href={entry.href}
+                target={entry.external ? "_blank" : undefined}
+                rel={entry.external ? "noopener noreferrer" : undefined}
+                aria-current={entry.active ? "page" : undefined}
+                class="flex flex-col rounded-md px-3 py-2 no-underline"
+              >
+                <span class="inline-flex items-center gap-1 text-sm font-medium text-foreground">
+                  {entry.label}
+                  {entry.external && <ArrowUpRight size={14} aria-hidden="true" />}
+                </span>
+                <span class="text-xs whitespace-nowrap text-muted-foreground">
+                  {entry.description}
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </details>
+</div>
+
+<script>
+  const OPEN_DELAY_MS = 100
+  const CLOSE_DELAY_MS = 250
+
+  const menus = document.querySelectorAll<HTMLDetailsElement>("details[data-nav-menu]")
+  const openMenus = () =>
+    document.querySelectorAll<HTMLDetailsElement>("details[data-nav-menu][open]")
+
+  const closeOutside = (target: EventTarget | null) => {
+    for (const menu of openMenus()) {
+      if (!(target instanceof Node) || !menu.contains(target)) menu.open = false
+    }
+  }
+
+  for (const menu of menus) {
+    const root = menu.parentElement
+    if (!root) continue
+    let timer: number | undefined
+
+    const schedule = (open: boolean, delay: number) => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        if (!open && menu.contains(document.activeElement)) return
+        menu.open = open
+      }, delay)
+    }
+
+    menu.addEventListener("toggle", () => {
+      if (!menu.open) return
+      for (const other of openMenus()) if (other !== menu) other.open = false
+    })
+
+    root.addEventListener("pointerenter", (event) => {
+      if (event.pointerType === "mouse") schedule(true, openMenus().length > 0 ? 0 : OPEN_DELAY_MS)
+    })
+    root.addEventListener("pointerleave", (event) => {
+      if (event.pointerType === "mouse") schedule(false, CLOSE_DELAY_MS)
+    })
+  }
+
+  document.addEventListener("pointerdown", (event) => closeOutside(event.target))
+  document.addEventListener("focusin", (event) => closeOutside(event.target))
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return
+    for (const menu of openMenus()) {
+      const hadFocus = menu.contains(document.activeElement)
+      menu.open = false
+      if (hadFocus) menu.querySelector("summary")?.focus()
+    }
+  })
+</script>
