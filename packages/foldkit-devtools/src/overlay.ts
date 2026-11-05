@@ -44,6 +44,10 @@ import {
 } from 'foldkit/html'
 import { defineMessageUnion } from 'foldkit/message'
 import { makeElement } from 'foldkit/runtime'
+import type {
+  DevToolsProgramList,
+  DevToolsPrograms,
+} from 'foldkit/devtools-host'
 import type { DevToolsMode, DevToolsPosition } from 'foldkit/runtime'
 import { defineTaggedUnion } from 'foldkit/schema'
 import { modifyFields } from 'foldkit/struct'
@@ -59,6 +63,7 @@ import * as OptionExt from './internal/optionExtensions.js'
 import { overlayStyles } from './overlay-styles.js'
 
 const SubmodelFilterListbox = Listbox.create<string>()
+const ProgramsListbox = Listbox.create<string>()
 
 // MODEL
 
@@ -91,6 +96,7 @@ const CopyState = defineTaggedUnion({
 
 const INSPECTOR_TABS_ID = 'dt-inspector'
 const SUBMODEL_FILTER_ID = 'dt-submodel-filter'
+const PROGRAMS_LISTBOX_ID = 'dt-programs'
 const FLATTEN_SWITCH_ID = 'dt-flatten-switch'
 const SCRUBBER_SLIDER_ID = 'dt-scrubber'
 
@@ -136,6 +142,11 @@ const Model = Schema.Struct({
   maybeSubmodelFilter: Schema.Option(Schema.String),
   isFlattened: Schema.Boolean,
   submodelFilterListbox: Listbox.Model,
+  programs: Schema.Array(
+    Schema.Struct({ id: Schema.Number, name: Schema.String }),
+  ),
+  selectedProgramId: Schema.Number,
+  programsListbox: Listbox.Model,
   expandedPaths: Schema.HashSet(Schema.String),
   changedPaths: Schema.HashSet(Schema.String),
   affectedPaths: Schema.HashSet(Schema.String),
@@ -221,6 +232,14 @@ const Message = defineMessageUnion({
     pausedAtIndex: Schema.Number,
   },
   GotSubmodelFilterMessage: { message: Listbox.Message },
+  GotProgramsMessage: { message: Listbox.Message },
+  ReceivedPrograms: {
+    programs: Schema.Array(
+      Schema.Struct({ id: Schema.Number, name: Schema.String }),
+    ),
+    selectedId: Schema.Number,
+  },
+  CompletedSelectProgram: {},
   GotScrubberSliderMessage: {
     message: Schema.suspend((): typeof Slider.Message => Slider.Message),
   },
@@ -466,6 +485,11 @@ class ShadowRootService extends Context.Service<
   ShadowRoot
 >()('foldkit/DevToolsShadowRoot') {}
 
+class ProgramsService extends Context.Service<
+  ProgramsService,
+  DevToolsPrograms
+>()('foldkit/DevToolsPrograms') {}
+
 export const LockScroll = Command.define('LockScroll', {
   messages: [Message.CompletedLockScroll],
   execute: lockScroll.pipe(Effect.as(Message.CompletedLockScroll())),
@@ -577,6 +601,17 @@ export const InspectLatest = Command.define('InspectLatest', {
   }),
 })
 
+export const SelectProgram = Command.define('SelectProgram', {
+  args: { id: Schema.Number },
+  messages: [Message.CompletedSelectProgram],
+  execute: ({ id }) =>
+    Effect.gen(function* () {
+      const programs = yield* ProgramsService
+      programs.select(id)
+      return Message.CompletedSelectProgram()
+    }),
+})
+
 export const Resume = Command.define('Resume', {
   messages: [Message.CompletedResume],
   execute: Effect.gen(function* () {
@@ -657,17 +692,45 @@ const makeUpdate = (
   store: DevToolsStore,
   shadow: ShadowRoot,
   mode: DevToolsMode,
+  programs: DevToolsPrograms,
 ) => {
   const provideContext = <A, E>(
-    effect: Effect.Effect<A, E, StoreService | ShadowRootService>,
+    effect: Effect.Effect<
+      A,
+      E,
+      StoreService | ShadowRootService | ProgramsService
+    >,
   ): Effect.Effect<A, E, never> =>
     effect.pipe(
       Effect.provideService(StoreService, store),
       Effect.provideService(ShadowRootService, shadow),
+      Effect.provideService(ProgramsService, programs),
     )
 
   const inspectLatest = Command.mapEffect(InspectLatest(), provideContext)
   const resume = Command.mapEffect(Resume(), provideContext)
+  const selectProgram = (id: number) =>
+    Command.mapEffect(SelectProgram({ id }), provideContext)
+  const foldPrograms = Update.foldChild({
+    update: ProgramsListbox.update,
+    read: (model: Model) => Option.some(model.programsListbox),
+    write: (model, nextProgramsListbox) =>
+      modifyFields(model, { programsListbox: () => nextProgramsListbox }),
+    toParentMessage: message => Message.GotProgramsMessage({ message }),
+    foldOutMessage: Listbox.OutMessage.match<
+      Update.Step<Model, Message>,
+      Listbox.OutMessage<string>
+    >({
+      Selected:
+        ({ value }) =>
+        model => ({
+          model,
+          commands: model.programs
+            .filter(program => `${program.id}` === value)
+            .map(program => selectProgram(program.id)),
+        }),
+    }),
+  })
   const clear = Command.mapEffect(Clear(), provideContext)
   const scrollToTop = Command.mapEffect(ScrollToTop(), provideContext)
 
@@ -897,6 +960,15 @@ const makeUpdate = (
       GotSubmodelFilterMessage: ({ message: listboxMessage }) =>
         foldSubmodelFilter(model, listboxMessage),
 
+      GotProgramsMessage: ({ message: programsMessage }) =>
+        foldPrograms(model, programsMessage),
+      ReceivedPrograms: ({ programs: nextPrograms, selectedId }) => ({
+        model: modifyFields(model, {
+          programs: () => nextPrograms,
+          selectedProgramId: () => selectedId,
+        }),
+      }),
+      CompletedSelectProgram: () => ({ model }),
       GotScrubberSliderMessage: ({ message: sliderMessage }) =>
         foldScrubberSlider(model, sliderMessage),
       TickedScrubFrame: () =>
@@ -957,7 +1029,11 @@ const makeUpdate = (
 
 // SUBSCRIPTION
 
-const makeOverlaySubscriptions = (store: DevToolsStore, shadow: ShadowRoot) => {
+const makeOverlaySubscriptions = (
+  store: DevToolsStore,
+  shadow: ShadowRoot,
+  programs: DevToolsPrograms,
+) => {
   const sliderSubscriptions = Slider.subscriptionsForRoot(() => shadow)
 
   const scrubberSubscriptions = Subscription.lift({
@@ -976,6 +1052,16 @@ const makeOverlaySubscriptions = (store: DevToolsStore, shadow: ShadowRoot) => {
     storeUpdates: Subscription.persistentEntry(
       SubscriptionRef.changes(store.stateRef).pipe(
         Stream.map(state => Message.ReceivedStoreUpdate(toDisplayState(state))),
+      ),
+    ),
+    programList: Subscription.persistentEntry(
+      programs.changes.pipe(
+        Stream.map(list =>
+          Message.ReceivedPrograms({
+            programs: list.items,
+            selectedId: list.selectedId,
+          }),
+        ),
       ),
     ),
     mobileBreakpoint: Subscription.persistentEntry(
@@ -2137,6 +2223,57 @@ const buildOverlayView = (
       ],
     )
 
+  const programsView = (model: Model): Html => {
+    const nameOf = (value: string): string =>
+      model.programs.find(program => `${program.id}` === value)?.name ?? value
+
+    return h.submodel({
+      slotId: 'programs-listbox',
+      model: model.programsListbox,
+      view: ProgramsListbox.view,
+      viewInputs: {
+        items: model.programs.map(program => `${program.id}`),
+        maybeSelectedValue: Option.some(`${model.selectedProgramId}`),
+        itemToConfig: item => ({
+          className: 'dt-filter-item',
+          content: h.div(
+            [h.Class('flex items-center gap-2')],
+            [checkIconView, h.span([], [nameOf(item)])],
+          ),
+        }),
+        buttonContent: h.span(
+          [h.Class('flex flex-1 items-center justify-between')],
+          [
+            h.span([], [nameOf(`${model.selectedProgramId}`)]),
+            h.svg(
+              [
+                h.AriaHidden(true),
+                h.Class('json-arrow shrink-0'),
+                h.Xmlns('http://www.w3.org/2000/svg'),
+                h.Fill('none'),
+                h.ViewBox('0 0 24 24'),
+                h.StrokeWidth('2'),
+                h.Stroke('currentColor'),
+              ],
+              [
+                h.path([
+                  h.D(CHEVRON_DOWN),
+                  h.StrokeLinecap('round'),
+                  h.StrokeLinejoin('round'),
+                ]),
+              ],
+            ),
+          ],
+        ),
+        buttonClassName: 'dt-filter-button',
+        itemsClassName: 'dt-filter-items',
+        className: 'dt-filter-wrapper',
+        backdropClassName: 'dt-filter-backdrop',
+      },
+      toParentMessage: message => Message.GotProgramsMessage({ message }),
+    })
+  }
+
   const submodelFilterView = (model: Model): Html => {
     const buttonLabel = Option.match(model.maybeSubmodelFilter, {
       onNone: () => 'All Messages',
@@ -2704,16 +2841,18 @@ const buildOverlayView = (
         ),
       ],
       [
-        ...Option.map(maybeBanner, banner =>
-          h.div(
-            [
-              h.Class(
-                'px-3 py-2 border-b text-sm text-dt-muted font-mono shrink-0 leading-snug',
+        ...(model.programs.length > 1
+          ? [programsView(model)]
+          : Option.map(maybeBanner, banner =>
+              h.div(
+                [
+                  h.Class(
+                    'px-3 py-2 border-b text-sm text-dt-muted font-mono shrink-0 leading-snug',
+                  ),
+                ],
+                [banner],
               ),
-            ],
-            [banner],
-          ),
-        ).pipe(Option.toArray),
+            ).pipe(Option.toArray)),
         headerView(model),
         contentView(model),
         footerView(model),
@@ -2835,11 +2974,18 @@ const createShadowContainer = (): Readonly<{
   return { container, shadow }
 }
 
+const SINGLE_PROGRAM: DevToolsPrograms = {
+  snapshot: (): DevToolsProgramList => ({ items: [], selectedId: -1 }),
+  changes: Stream.empty,
+  select: () => undefined,
+}
+
 export const createOverlay = (
   store: DevToolsStore,
   position: DevToolsPosition,
   mode: DevToolsMode,
   maybeBanner: Option.Option<string>,
+  programs: DevToolsPrograms = SINGLE_PROGRAM,
 ) =>
   Effect.gen(function* () {
     const { container, shadow } = yield* Effect.acquireRelease(
@@ -2883,6 +3029,9 @@ export const createOverlay = (
           submodelFilterListbox: Listbox.init({
             id: SUBMODEL_FILTER_ID,
           }),
+          programs: programs.snapshot().items,
+          selectedProgramId: programs.snapshot().selectedId,
+          programsListbox: Listbox.init({ id: PROGRAMS_LISTBOX_ID }),
           maybeInspectedModel: Option.none(),
           maybeInspectedMessage: Option.none(),
           expandedPaths: HashSet.empty(),
@@ -2915,10 +3064,10 @@ export const createOverlay = (
       Flags,
       flags,
       init,
-      update: makeUpdate(store, shadow, mode),
+      update: makeUpdate(store, shadow, mode, programs),
       view: makeView(position, mode, shadow, maybeBanner),
       container,
-      subscriptions: makeOverlaySubscriptions(store, shadow),
+      subscriptions: makeOverlaySubscriptions(store, shadow, programs),
       devTools: false,
       freezeModel: false,
     })

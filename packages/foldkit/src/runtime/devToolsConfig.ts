@@ -1,4 +1,4 @@
-import { Effect, Option, Schema, Scope, pipe } from 'effect'
+import { Effect, Option, Schema, Scope, type Stream, pipe } from 'effect'
 
 import type { DevToolsStore } from '../devTools/store.js'
 import { type Visibility, isVisible } from './visibility.js'
@@ -26,6 +26,24 @@ export type DevToolsModeConfig =
   | DevToolsMode
   | Readonly<{ development: DevToolsMode; production: DevToolsMode }>
 
+/** A Program that can be inspected in the overlay. */
+export type DevToolsProgram = Readonly<{ id: number; name: string }>
+
+/** The Programs on a page and which one the overlay shows. */
+export type DevToolsProgramList = Readonly<{
+  items: ReadonlyArray<DevToolsProgram>
+  selectedId: number
+}>
+
+/** Live view of every Program on the page. The overlay shows a dropdown when
+ *  `snapshot().items` holds more than one Program and calls `select` when the
+ *  user picks another. */
+export type DevToolsPrograms = Readonly<{
+  snapshot: () => DevToolsProgramList
+  changes: Stream.Stream<DevToolsProgramList>
+  select: (id: number) => void
+}>
+
 /**
  * Factory that mounts the in-browser DevTools overlay against a recording
  * store. The runtime keeps the store and the WebSocket bridge (so external
@@ -41,6 +59,7 @@ export type DevToolsOverlay = (
   position: DevToolsPosition,
   mode: DevToolsMode,
   maybeBanner: Option.Option<string>,
+  programs?: DevToolsPrograms,
 ) => Effect.Effect<void, never, Scope.Scope>
 
 /**

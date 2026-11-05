@@ -1,6 +1,11 @@
 export { DEVTOOLS_HOST_ID } from '../html/index.js'
 export { __setDevToolsOverlay } from '../runtime/devToolsConfig.js'
-export type { DevToolsOverlay } from '../runtime/devToolsConfig.js'
+export type {
+  DevToolsOverlay,
+  DevToolsProgram,
+  DevToolsProgramList,
+  DevToolsPrograms,
+} from '../runtime/devToolsConfig.js'
 
 export { INIT_INDEX, latestEntryIndex } from './store.js'
 
