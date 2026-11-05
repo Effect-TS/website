@@ -126,6 +126,31 @@ describe('server render of an Element', () => {
   })
 })
 
+describe('server render guards', () => {
+  it('refuses a view that authors the Element stamp', async () => {
+    const error = await Effect.runPromise(
+      Effect.flip(
+        renderToString(
+        {
+          Flags,
+          init,
+          view: (model: Model): Document => ({
+            title: '',
+            body: h.div([h.Attribute('data-foldkit-element', '')], [
+              String(model.count),
+            ]),
+          }),
+        },
+        { flags: { start: 1 }, buildId: BUILD_ID },
+        ),
+      ),
+    )
+    expect(String((error as { cause?: unknown }).cause)).toContain(
+      'data-foldkit-element',
+    )
+  })
+})
+
 describe('hydrating several Elements in one document', () => {
   it('adopts each root and keeps their state apart', async () => {
     mountPage(await renderRoot('program-1', 1), await renderRoot('program-2', 10))
@@ -147,6 +172,27 @@ describe('hydrating several Elements in one document', () => {
       expect(first.querySelector('.count')).toBe(firstCount)
       expect(second.querySelector('.count')).toBe(secondCount)
     } finally {
+      await Effect.runPromise(Fiber.interruptAll(fibers))
+    }
+  })
+
+  it('adopts the stamped roots without a hydration mismatch warning', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    mountPage(await renderRoot('program-1', 1), await renderRoot('program-2', 2))
+    const roots = [rootOf('program-1'), rootOf('program-2')]
+    const fibers = roots.map(startElement)
+    try {
+      await vi.waitFor(() => {
+        expect(roots.every(root => !root.hasAttribute('data-foldkit-app'))).toBe(
+          true,
+        )
+      })
+      expect(
+        roots.every(root => !root.hasAttribute('data-foldkit-element')),
+      ).toBe(true)
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
       await Effect.runPromise(Fiber.interruptAll(fibers))
     }
   })
