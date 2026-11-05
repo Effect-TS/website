@@ -1,0 +1,29 @@
+---
+import { ArrowRight, ArrowUpRight } from "@lucide/astro"
+
+interface Props {
+  readonly href: string
+  readonly class?: string | undefined
+}
+
+const { href, class: className } = Astro.props
+const external = href.startsWith("http")
+---
+
+<a
+  href={href}
+  {...external ? { target: "_blank", rel: "noopener noreferrer" } : {}}
+  class:list={[
+    "inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline",
+    className,
+  ]}
+>
+  <slot />
+  {
+    external ? (
+      <ArrowUpRight size={12} aria-hidden="true" />
+    ) : (
+      <ArrowRight size={12} aria-hidden="true" />
+    )
+  }
+</a>

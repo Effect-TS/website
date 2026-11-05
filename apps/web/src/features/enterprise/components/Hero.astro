@@ -1,0 +1,81 @@
+---
+import { ArrowDown } from "@lucide/astro"
+import ContactMenu from "./ContactMenu"
+import GridBackground from "@/components/GridBackground.astro"
+import ButtonLink from "@/components/ui/ButtonLink.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+import type { ContactMember } from "@/features/enterprise/domain"
+
+interface Props {
+  readonly members: ReadonlyArray<ContactMember>
+}
+
+const { members } = Astro.props
+
+const questions = [
+  { href: "#support", label: "Who can help us adopt and operate it?" },
+  { href: "#security", label: "What happens with a security issue?" },
+  { href: "#adoption-guide", label: "How do we propose it internally?" },
+]
+---
+
+<section class="relative w-full overflow-hidden">
+  <GridBackground />
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0"
+    style="background: linear-gradient(to bottom, var(--background) 0%, transparent 20%, transparent 60%, var(--background) 100%)"
+  >
+  </div>
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-x-0 top-0 h-100"
+    style="background: radial-gradient(ellipse 50% 80% at 50% -20%, var(--hero-glow-a) 0%, transparent 50%)"
+  >
+  </div>
+  <div
+    class="relative mx-auto grid w-full max-w-295 grid-cols-1 items-center gap-12 px-4 pt-32 pb-20 md:pt-40 md:pb-24 lg:grid-cols-12"
+  >
+    <div class="lg:col-span-7">
+      <Eyebrow class="mb-3">// Enterprise</Eyebrow>
+      <h1 class="text-4xl leading-tighter font-bold tracking-tight text-foreground md:text-5xl">
+        Effect for enterprise
+      </h1>
+      <p class="mt-4 max-w-xl text-lg text-muted-foreground">
+        Evaluate Effect with your team. Plan for production.
+        <br class="hidden lg:inline" />
+        Get help from the people building it.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <ContactMenu client:load members={members} variant="primary" size="lg" />
+        <ButtonLink href="#releases" size="lg">Review releases and support</ButtonLink>
+      </div>
+    </div>
+
+    <nav aria-label="On this page" class="lg:col-span-4 lg:col-start-9 lg:self-end">
+      <Eyebrow class="text-xs">This page answers</Eyebrow>
+      <ol class="mt-4 border-t border-border">
+        {
+          questions.map((question, index) => (
+            <li class="border-b border-border">
+              <a
+                href={question.href}
+                class="group flex items-baseline gap-4 py-3 text-sm text-prose-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
+              >
+                <span class="font-mono text-xs text-subtle-foreground">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span class="flex-1">{question.label}</span>
+                <ArrowDown
+                  size={14}
+                  class="shrink-0 text-subtle-foreground transition-colors group-hover:text-foreground"
+                  aria-hidden="true"
+                />
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+  </div>
+</section>

@@ -1,0 +1,49 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  readonly id: string
+  readonly eyebrow: string
+  readonly title: string
+  readonly subtitle?: string | undefined
+}
+
+const { id, eyebrow, title, subtitle } = Astro.props
+const hasAction = Astro.slots.has("action")
+const hasBelow = Astro.slots.has("below")
+---
+
+<section id={id} class="scroll-mt-16 border-t border-border">
+  <div class="mx-auto w-full max-w-295 px-4 py-24 md:pt-40">
+    <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div class="lg:w-1/2 lg:pr-4">
+        <Eyebrow class="mb-3">// {eyebrow}</Eyebrow>
+        <h2 class="text-2xl leading-tighter font-semibold text-foreground md:text-3xl">
+          {title}
+        </h2>
+        {
+          subtitle && (
+            <p class="mt-4 max-w-2xl text-lg text-pretty text-muted-foreground">{subtitle}</p>
+          )
+        }
+        {
+          hasBelow && (
+            <div class="mt-8">
+              <slot name="below" />
+            </div>
+          )
+        }
+      </div>
+      {
+        hasAction && (
+          <div class="shrink-0">
+            <slot name="action" />
+          </div>
+        )
+      }
+    </div>
+    <div class="mt-12">
+      <slot />
+    </div>
+  </div>
+</section>

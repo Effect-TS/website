@@ -1,0 +1,43 @@
+---
+import { getCollection } from "astro:content"
+import { getCompanyLogoUrl } from "@/lib/company-logo"
+
+interface Props {
+  readonly class?: string | undefined
+}
+
+const { class: className } = Astro.props
+const companies = (await getCollection("effectJobsLogos")).map((entry) => entry.data)
+---
+
+<ul class:list={["grid grid-cols-2 gap-px bg-border sm:grid-cols-3 md:grid-cols-6", className]}>
+  {
+    companies.map((company) => {
+      const logo = (
+        <img
+          src={getCompanyLogoUrl(company.logo) ?? company.logo}
+          alt={company.name}
+          style={`height: ${company.h ?? "20px"}; filter: ${company.invert ? "brightness(0) invert(1)" : "none"}`}
+          class="w-auto opacity-90"
+        />
+      )
+      return (
+        <li class="flex aspect-[5/2] items-center justify-center bg-background">
+          {company.url ? (
+            <a
+              href={company.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={company.name}
+              class="flex h-full w-full items-center justify-center px-4 transition-opacity hover:opacity-90"
+            >
+              {logo}
+            </a>
+          ) : (
+            logo
+          )}
+        </li>
+      )
+    })
+  }
+</ul>

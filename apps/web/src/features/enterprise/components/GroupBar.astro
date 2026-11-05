@@ -1,0 +1,21 @@
+---
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Props {
+  readonly id?: string | undefined
+  readonly class?: string | undefined
+}
+
+const { id, class: className } = Astro.props
+---
+
+<div
+  id={id}
+  class:list={[
+    "flex items-center justify-between gap-4 border border-border bg-card/60 px-6 py-2.5 md:px-8",
+    className,
+  ]}
+>
+  <Eyebrow as="h3" class="text-xs"><slot name="label" /></Eyebrow>
+  <slot />
+</div>

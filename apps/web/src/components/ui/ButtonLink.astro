@@ -1,0 +1,23 @@
+---
+import { buttonLinkVariants, type ButtonLinkVariantProps } from "./button-link"
+
+/** CTA button for Astro pages. Renders `<a>` with `href`, otherwise `<button>`. */
+interface Props extends ButtonLinkVariantProps {
+  readonly href?: string | undefined
+  readonly class?: string | undefined
+  readonly [attribute: string]: unknown
+}
+
+const { href, variant, size, class: className, ...attributes } = Astro.props
+const Tag = href ? "a" : "button"
+const external = href?.startsWith("http")
+---
+
+<Tag
+  {...href ? { href } : { type: "button" }}
+  {...external ? { target: "_blank", rel: "noopener noreferrer" } : {}}
+  {...attributes}
+  class:list={[buttonLinkVariants({ variant, size }), className]}
+>
+  <slot />
+</Tag>

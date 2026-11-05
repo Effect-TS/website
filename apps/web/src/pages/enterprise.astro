@@ -1,0 +1,32 @@
+---
+import AdoptionGuide from "@/features/enterprise/components/AdoptionGuide.astro"
+import Contact from "@/features/enterprise/components/Contact.astro"
+import ContactDialog from "@/features/enterprise/components/ContactDialog"
+import Facts from "@/features/enterprise/components/Facts.astro"
+import Faq from "@/features/enterprise/components/Faq.astro"
+import Hero from "@/features/enterprise/components/Hero.astro"
+import RealWorld from "@/features/enterprise/components/RealWorld.astro"
+import ReleaseManagement from "@/features/enterprise/components/ReleaseManagement.astro"
+import Security from "@/features/enterprise/components/Security.astro"
+import Support from "@/features/enterprise/components/Support.astro"
+import { loadEnterprisePage } from "@/features/enterprise/page"
+import PageLayout from "@/layouts/PageLayout.astro"
+
+const { members, currentVersion, downloads } = await loadEnterprisePage()
+---
+
+<PageLayout
+  title="Effect for enterprise"
+  description="Evaluate Effect with your team, plan your adoption, and get help from the people building it."
+>
+  <Hero members={members} />
+  <Facts currentVersion={currentVersion} />
+  <ReleaseManagement />
+  <RealWorld downloads={downloads} />
+  <Support members={members} />
+  <Security />
+  <AdoptionGuide />
+  <Faq />
+  <Contact members={members} />
+  <ContactDialog client:load />
+</PageLayout>

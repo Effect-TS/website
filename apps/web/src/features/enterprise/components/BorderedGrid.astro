@@ -1,0 +1,13 @@
+---
+interface Props {
+  readonly as?: "ul" | "div" | "dl"
+  readonly class?: string | undefined
+  readonly flush?: boolean
+}
+
+const { as: Tag = "ul", class: className, flush = false }: Props = Astro.props
+---
+
+<Tag class:list={["grid gap-px border border-border bg-border", flush && "border-t-0", className]}>
+  <slot />
+</Tag>
