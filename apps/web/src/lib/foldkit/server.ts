@@ -1,6 +1,12 @@
 import { Effect } from "effect"
 import { Server } from "foldkit/experimental"
-import { ApplicationTypeId, isApplication, type Slots } from "./application"
+import {
+  ApplicationTypeId,
+  ELEMENT_ATTRIBUTE,
+  isApplication,
+  isElement,
+  type Slots,
+} from "./application"
 
 /** The first application each page rendered, to refuse a second one. */
 const firstOnPage = new WeakMap<object, string>()
@@ -42,7 +48,8 @@ const claimPage = (context: unknown, name: string): void => {
  */
 export default {
   name: "foldkit",
-  check: async (Component: unknown) => isApplication(Component),
+  check: async (Component: unknown) =>
+    isApplication(Component) || isElement(Component),
   renderToStaticMarkup: async function (
     this: unknown,
     Component: unknown,
@@ -50,9 +57,12 @@ export default {
     slots: Slots,
     metadata?: { readonly displayName?: string },
   ): Promise<{ html: string }> {
+    if (isElement(Component)) {
+      return { html: `<div ${ELEMENT_ATTRIBUTE}></div>` }
+    }
     if (!isApplication(Component)) {
       throw new Error(
-        "The foldkit renderer needs a component from defineApplication.",
+        "The foldkit renderer needs a component from defineApplication or defineElement.",
       )
     }
     claimPage(this, metadata?.displayName ?? "a Foldkit application")

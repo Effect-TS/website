@@ -1,6 +1,6 @@
 import { Predicate, type Schema } from "effect"
 import type { Update } from "foldkit"
-import type { Document, HtmlBuilder } from "foldkit/html"
+import type { Document, Html, HtmlBuilder } from "foldkit/html"
 import type { Subscriptions } from "foldkit/subscription"
 import buildId from "virtual:foldkit/build-id"
 
@@ -80,3 +80,59 @@ export const defineApplication = <
 
 export const isApplication = (value: unknown): value is Application<unknown> =>
   Predicate.isFunction(value) && ApplicationTypeId in value
+
+export interface ElementSpec<
+  Props,
+  Model,
+  Message extends { _tag: string },
+  Flags,
+> {
+  /** Names the app in the DevTools picker, from its props. Defaults to the island's module name. */
+  readonly name?: string | ((props: Props) => string)
+  readonly Model: Schema.Codec<Model, any, unknown, unknown>
+  readonly Flags: Schema.Codec<Flags, any, never, never>
+  readonly init: (flags: Flags) => Update.Return<Model, Message>
+  readonly update: (
+    model: Model,
+    message: Message,
+  ) => Update.Return<Model, Message>
+  readonly view: (model: Model, h: HtmlBuilder<Message>) => Html
+  readonly subscriptions?: Subscriptions<Model, Message>
+  readonly flags: (props: Props) => Flags
+}
+
+/** Marks the empty container the server leaves for an element. */
+export const ELEMENT_ATTRIBUTE = "data-foldkit-element"
+
+export const ElementTypeId: unique symbol = Symbol.for(
+  "effect-website/foldkit/Element",
+)
+
+/**
+ * A Foldkit app that lives inside a page it does not own. The server renders
+ * an empty container and the browser starts the app in it with
+ * `Runtime.embed`, so a page can hold any number of them beside one
+ * `defineApplication`. They have no server-rendered HTML.
+ */
+export interface Element<Props> {
+  (props: Props): never
+  readonly [ElementTypeId]: ElementSpec<Props, any, any, any>
+}
+
+export const defineElement = <
+  Props,
+  Model,
+  Message extends { _tag: string },
+  Flags,
+>(
+  spec: ElementSpec<Props, Model, Message, Flags>,
+): Element<Props> =>
+  Object.assign(
+    (): never => {
+      throw new Error("A Foldkit element renders only through Astro.")
+    },
+    { [ElementTypeId]: spec },
+  )
+
+export const isElement = (value: unknown): value is Element<unknown> =>
+  Predicate.isFunction(value) && ElementTypeId in value
