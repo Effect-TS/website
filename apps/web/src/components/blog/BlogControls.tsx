@@ -4,7 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FileSearch,
-  Rss,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PostCard, type SerializedPost, type SerializedTag } from "./PostCard"
@@ -268,17 +267,6 @@ export default function BlogControls({
               className="h-3.5 w-3.5 self-center text-muted-foreground group-hover:text-foreground"
             />
           </button>
-          <a
-            href="/rss.xml"
-            aria-label="RSS feed"
-            className="group inline-flex items-baseline gap-1.5 font-mono text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <span>RSS</span>
-            <Rss
-              aria-hidden="true"
-              className="h-3.5 w-3.5 self-center text-muted-foreground group-hover:text-foreground"
-            />
-          </a>
         </div>
       </div>
 

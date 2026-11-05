@@ -1,6 +1,7 @@
 import type { APIContext } from "astro"
 import rss from "@astrojs/rss"
 import { getCollection, getEntries } from "astro:content"
+import { BLOG_FEED } from "@/lib/constants/blog-feed"
 
 export async function GET(context: APIContext) {
   const posts = await getCollection("blog")
@@ -22,7 +23,7 @@ export async function GET(context: APIContext) {
   )
 
   return rss({
-    title: "Effect Blog",
+    title: BLOG_FEED.title,
     description: "Releases, write-ups, and notes from the Effect team",
     site: context.site!,
     items,
