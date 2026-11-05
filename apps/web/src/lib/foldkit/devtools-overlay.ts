@@ -5,29 +5,25 @@ import {
   __setDevToolsOverlay,
 } from "foldkit/devtools-host"
 import { attachLayout } from "./devtools-layout"
-import { type AppChoices, devToolsRegistry } from "./devtools-registry"
+import { devToolsRegistry } from "./devtools-registry"
 import {
   hostShadowRoot,
   resumeApplication,
   useNativeTrigger,
 } from "./devtools-trigger"
 
-const withChoices = overlay as unknown as (
-  ...args: [...Parameters<DevToolsOverlay>, AppChoices]
-) => ReturnType<DevToolsOverlay>
-
-const registerApp: DevToolsOverlay = (store, position, mode, maybeBanner) =>
+const registerProgram: DevToolsOverlay = (store, position, mode, maybeBanner) =>
   Effect.gen(function* () {
     const runtimeScope = yield* Effect.scope
     let maybeMounted: Scope.Closeable | undefined
     let detachLayout: (() => void) | undefined
     const unregister = devToolsRegistry().register({
-      name: Option.getOrElse(maybeBanner, () => "Foldkit app"),
-      mount: (choices) => {
+      name: Option.getOrElse(maybeBanner, () => "Foldkit program"),
+      mount: (programs) => {
         const scope = Effect.runSync(Scope.make())
         maybeMounted = scope
         Effect.runFork(
-          withChoices(store, position, mode, maybeBanner, choices).pipe(
+          overlay(store, position, mode, maybeBanner, programs).pipe(
             Effect.tap(() =>
               Effect.sync(() => {
                 useNativeTrigger()
@@ -55,4 +51,4 @@ const registerApp: DevToolsOverlay = (store, position, mode, maybeBanner) =>
     yield* Scope.addFinalizer(runtimeScope, Effect.sync(unregister))
   })
 
-__setDevToolsOverlay(registerApp)
+__setDevToolsOverlay(registerProgram)

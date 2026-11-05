@@ -1,27 +1,19 @@
-/**
- * Foldkit shows one DevTools overlay per page: starting a second one removes
- * the first. This registry lets every app register, and keeps exactly one
- * overlay mounted for the selected app. It lives on `globalThis` because the
- * Astro toolbar and the page load separate copies of this module.
- */
-/** What the overlay's app dropdown needs. */
-export interface AppChoices {
-  readonly items: ReadonlyArray<{ readonly id: number; readonly name: string }>
-  readonly selectedId: number
-  readonly select: (id: number) => void
-}
+import { Effect, Queue, Stream } from "effect"
+import type {
+  DevToolsProgramList,
+  DevToolsPrograms,
+} from "foldkit/devtools-host"
 
-export interface RegisteredApp {
+export interface RegisteredProgram {
   readonly id: number
   readonly name: string
-  readonly mount: (choices: AppChoices) => void
+  readonly mount: (programs: DevToolsPrograms) => void
   readonly unmount: () => void
 }
 
 export interface DevToolsRegistry {
-  readonly apps: () => ReadonlyArray<RegisteredApp>
   readonly selectedId: () => number | null
-  readonly register: (app: Omit<RegisteredApp, "id">) => () => void
+  readonly register: (program: Omit<RegisteredProgram, "id">) => () => void
   readonly select: (id: number) => void
   readonly subscribe: (listener: () => void) => () => void
 }
@@ -29,65 +21,70 @@ export interface DevToolsRegistry {
 const KEY = Symbol.for("effect-website/foldkit/devtools-registry")
 
 const make = (): DevToolsRegistry => {
-  const apps: Array<RegisteredApp> = []
+  const programs: Array<RegisteredProgram> = []
   const listeners = new Set<() => void>()
   let nextId = 1
-  let selected: RegisteredApp | null = null
+  let selected: RegisteredProgram | null = null
   const notify = () => listeners.forEach((listener) => listener())
 
-  const activate = (app: RegisteredApp | null) => {
-    if (selected === app) {
+  const snapshot = (): DevToolsProgramList => ({
+    items: programs.map(({ id, name }) => ({ id, name })),
+    selectedId: selected?.id ?? -1,
+  })
+
+  const changes: Stream.Stream<DevToolsProgramList> =
+    Stream.callback<DevToolsProgramList>((queue) =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const listener = () => Queue.offerUnsafe(queue, snapshot())
+          listeners.add(listener)
+          listener()
+          return listener
+        }),
+        (listener) => Effect.sync(() => listeners.delete(listener)),
+      ),
+    )
+
+  const overlayPrograms: DevToolsPrograms = {
+    snapshot,
+    changes,
+    select: (id) => queueMicrotask(() => api.select(id)),
+  }
+
+  const activate = (program: RegisteredProgram | null) => {
+    if (selected === program) {
       return
     }
     selected?.unmount()
-    selected = app
-    mountSelected()
+    selected = program
+    selected?.mount(overlayPrograms)
     notify()
   }
 
-  const mountSelected = () => {
-    selected?.mount({
-      items: apps.map(({ id, name }) => ({ id, name })),
-      selectedId: selected.id,
-      select: (id) => queueMicrotask(() => api.select(id)),
-    })
-  }
-
-  const remountSelected = () => {
-    if (selected !== null) {
-      selected.unmount()
-      mountSelected()
-    }
-  }
-
   const api: DevToolsRegistry = {
-    apps: () => apps,
     selectedId: () => selected?.id ?? null,
-    register: (app) => {
-      const registered = { ...app, id: nextId++ }
-      apps.push(registered)
+    register: (program) => {
+      const registered = { ...program, id: nextId++ }
+      programs.push(registered)
       if (selected === null) {
         activate(registered)
       } else {
-        remountSelected()
         notify()
       }
       return () => {
-        apps.splice(apps.indexOf(registered), 1)
+        programs.splice(programs.indexOf(registered), 1)
         if (selected === registered) {
-          selected = null
           registered.unmount()
-          activate(apps[0] ?? null)
-        } else {
-          remountSelected()
+          selected = null
+          activate(programs[0] ?? null)
         }
         notify()
       }
     },
     select: (id) => {
-      const app = apps.find((candidate) => candidate.id === id)
-      if (app !== undefined) {
-        activate(app)
+      const program = programs.find((candidate) => candidate.id === id)
+      if (program !== undefined) {
+        activate(program)
       }
     },
     subscribe: (listener) => {
