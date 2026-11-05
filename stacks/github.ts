@@ -104,6 +104,20 @@ export default Alchemy.Stack(
         }),
     })
 
+    const publicReoClientId = yield* Config.option(
+      Config.String("PUBLIC_REO_CLIENT_ID"),
+    )
+
+    yield* Option.match(publicReoClientId, {
+      onNone: () => Effect.void,
+      onSome: (value) =>
+        GitHub.Variable("public-reo-client-id", {
+          ...repository,
+          name: "PUBLIC_REO_CLIENT_ID",
+          value,
+        }),
+    })
+
     return {
       apiTokenName: apiToken.name,
       repository: `${repository.owner}/${repository.repository}`,

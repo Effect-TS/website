@@ -10,5 +10,6 @@ await writeFile(
   `${JSON.stringify({
     PUBLIC_POSTHOG_API_HOST: process.env.PUBLIC_POSTHOG_API_HOST ?? "",
     PUBLIC_POSTHOG_KEY: process.env.PUBLIC_POSTHOG_KEY ?? "",
+    PUBLIC_REO_CLIENT_ID: process.env.PUBLIC_REO_CLIENT_ID ?? "",
   })}\n`,
 )

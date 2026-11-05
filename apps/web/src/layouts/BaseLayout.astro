@@ -3,7 +3,11 @@ import "../styles/global.css"
 
 import { Font } from "astro:assets"
 import { SEO } from "astro-seo"
-import { PUBLIC_POSTHOG_API_HOST, PUBLIC_POSTHOG_KEY } from "astro:env/client"
+import {
+  PUBLIC_POSTHOG_API_HOST,
+  PUBLIC_POSTHOG_KEY,
+  PUBLIC_REO_CLIENT_ID,
+} from "astro:env/client"
 import openGraphRendererVersion from "virtual:open-graph-renderer-version"
 
 import SkipLink from "@/components/SkipLink.astro"
@@ -129,6 +133,14 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
             posthog.init(PUBLIC_POSTHOG_KEY, {api_host:PUBLIC_POSTHOG_API_HOST, ui_host:'https://us.posthog.com', defaults:'2026-05-30', cookieless_mode:'always'})
           </script>
         </>
+      )
+    }
+
+    {
+      PUBLIC_REO_CLIENT_ID && (
+        <script is:inline define:vars={{ PUBLIC_REO_CLIENT_ID }}>
+          !function(){var e,t,n;e=PUBLIC_REO_CLIENT_ID,t=function(){Reo.init({clientID:PUBLIC_REO_CLIENT_ID,enableThirdPartyTracking:true})},(n=document.createElement("script")).src="https://static.reo.dev/"+e+"/reo.js",n.defer=!0,n.onload=t,document.head.appendChild(n)}();
+        </script>
       )
     }
 
