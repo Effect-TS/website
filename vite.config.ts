@@ -66,6 +66,9 @@ export default defineConfig({
           name: "web",
           root: "apps/web",
           include: ["test/**/*.test.ts"],
+          server: {
+            deps: { inline: ["foldkit", "@foldkit/ui", "@foldkit/devtools"] },
+          },
         },
       },
       "apps/!(web)",
