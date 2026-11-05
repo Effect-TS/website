@@ -3,6 +3,7 @@ import { Array, Data, Effect, Option, Predicate, Schema, pipe } from 'effect'
 import { HYDRATION_BUILD_ATTRIBUTE } from '../buildToken.js'
 import {
   FOLDKIT_APP_ATTRIBUTE,
+  FOLDKIT_ELEMENT_ATTRIBUTE,
   FOLDKIT_FLAGS_ATTRIBUTE,
 } from '../hydrationMarker.js'
 
@@ -319,14 +320,63 @@ export const hasServerRenderedMarkup = (ownerDocument: Document): boolean =>
       `[${FOLDKIT_FLAGS_ATTRIBUTE}]`,
   ) !== null
 
-export const findDocumentHydration = (
-  container: HTMLElement | null,
+const isElementRoot = (root: Element): boolean =>
+  root.hasAttribute(FOLDKIT_ELEMENT_ATTRIBUTE)
+
+// A refused Element contains only its own root: the rest of the page, and the
+// other Programs on it, keep running.
+export const containRefusedRoot = (root: HTMLElement): void => {
+  root.inert = true
+  root.setAttribute('inert', '')
+  root.setAttribute('aria-hidden', 'true')
+  root.setAttribute(REFUSED_ATTRIBUTE, '')
+}
+
+const containRefusal = (root: Element): void => {
+  if (root instanceof HTMLElement && isElementRoot(root)) {
+    containRefusedRoot(root)
+  } else {
+    containRefusedPage(root.ownerDocument)
+  }
+}
+
+/** Finds the server root an Element adopts. The container is that root: it
+ *  carries the Application and Element stamps. A container without the stamp
+ *  is a client-only boot, so this returns `undefined`. */
+export const findElementHydration = (
+  container: HTMLElement,
   isFlagsRequired: boolean,
 ): HydrationConfig | undefined => {
+  if (!container.hasAttribute(FOLDKIT_APP_ATTRIBUTE)) {
+    return undefined
+  }
   const stampedRoots = Array.fromIterable(
     document.querySelectorAll<HTMLElement>(`[${FOLDKIT_APP_ATTRIBUTE}]`),
   )
   assertRuntimeIdsAreUnique(stampedRoots)
+  if (!isElementRoot(container)) {
+    containRefusedPage(container.ownerDocument)
+    throw new Error(
+      '[foldkit] Runtime.hydrate received an Element whose container is the ' +
+        `root of a page-owning application, stamped with \`${FOLDKIT_APP_ATTRIBUTE}\` ` +
+        `but not \`${FOLDKIT_ELEMENT_ATTRIBUTE}\`.`,
+    )
+  }
+  return hydrationForRoot(container, isFlagsRequired)
+}
+
+export const findDocumentHydration = (
+  container: HTMLElement | null,
+  isFlagsRequired: boolean,
+): HydrationConfig | undefined => {
+  const allStampedRoots = Array.fromIterable(
+    document.querySelectorAll<HTMLElement>(`[${FOLDKIT_APP_ATTRIBUTE}]`),
+  )
+  assertRuntimeIdsAreUnique(allStampedRoots)
+  const stampedRoots = Array.filter(
+    allStampedRoots,
+    root => !isElementRoot(root),
+  )
   assertSinglePageApplication(stampedRoots)
   if (container !== null) {
     const stampedAncestor = container.closest<HTMLElement>(
@@ -401,6 +451,7 @@ export type ResolvedHydrationHandoff<Flags> = Readonly<{
  * stamped root.
  */
 export const resolveHydrationHandoff = <Flags, Resources>({
+  kind,
   bootMode,
   hydration,
   bootFlags,
@@ -412,6 +463,7 @@ export const resolveHydrationHandoff = <Flags, Resources>({
   buildId,
   provideResources,
 }: Readonly<{
+  kind: 'Application' | 'Element'
   bootMode: BootMode
   hydration: HydrationConfig | undefined
   bootFlags: Effect.Effect<Flags, never, Resources> | undefined
@@ -457,7 +509,7 @@ export const resolveHydrationHandoff = <Flags, Resources>({
       message: string,
       cause?: unknown,
     ): Effect.Effect<A> => {
-      containRefusedPage(root.ownerDocument)
+      containRefusal(root)
       return Effect.die(
         cause === undefined
           ? new Error(message)
@@ -502,9 +554,13 @@ export const resolveHydrationHandoff = <Flags, Resources>({
       // A hydrating client that finds no stamped root will not adopt
       // whatever the page holds, so the page is contained whether or not the
       // caller named a container.
-      containRefusedPage(
-        container === null ? document : container.ownerDocument,
-      )
+      if (kind === 'Element') {
+        containRefusedRoot(container)
+      } else {
+        containRefusedPage(
+          container === null ? document : container.ownerDocument,
+        )
+      }
       return yield* Effect.die(
         new Error(
           '[foldkit] Runtime.hydrate could not find a server-rendered ' +
@@ -529,7 +585,7 @@ export const resolveHydrationHandoff = <Flags, Resources>({
         maybeRequestedHydration.value.runtimeId,
       )
       if (skew !== undefined) {
-        containRefusedPage(maybeRequestedHydration.value.root.ownerDocument)
+        containRefusal(maybeRequestedHydration.value.root)
         return yield* Effect.die(skew)
       }
     }

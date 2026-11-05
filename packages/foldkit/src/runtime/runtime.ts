@@ -435,6 +435,7 @@ export const makeRuntime = <
 
         const { maybeHydrationRoot, resolveFlags } =
           yield* resolveHydrationHandoff({
+            kind,
             bootMode,
             hydration,
             bootFlags,

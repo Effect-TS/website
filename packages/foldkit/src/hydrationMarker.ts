@@ -9,3 +9,9 @@ export const FOLDKIT_APP_ATTRIBUTE = 'data-foldkit-app'
  *  running the client `flags` Effect, so both sides call `init` with the
  *  same value. */
 export const FOLDKIT_FLAGS_ATTRIBUTE = 'data-foldkit-flags'
+
+/** Attribute stamped, beside {@link FOLDKIT_APP_ATTRIBUTE}, on the server root
+ *  of an Element. Several Elements can share a document with each other and
+ *  with one Application, so their roots do not count toward the one
+ *  page-owning Application and a refused Element contains only its own root. */
+export const FOLDKIT_ELEMENT_ATTRIBUTE = 'data-foldkit-element'

@@ -47,15 +47,6 @@ export const __startProgram = (
     )
   }
 
-  if (bootMode === 'Hydrate' && internals.kind !== 'Application') {
-    return Effect.die(
-      new Error(
-        '[foldkit] Runtime.hydrate expects a program created by ' +
-          'makeApplication.',
-      ),
-    )
-  }
-
   return internals.startWith(
     Option.none(),
     preservedModel,
@@ -161,6 +152,9 @@ export type HydrateOptions = Readonly<{
  *  input do not activate same-document native links, forms, or controls.
  *  Containment leaves author-owned dialogs open without calling `close` or
  *  dispatching `cancel`.
+ *  An Element hydrates the root its container names, and a refusal contains
+ *  only that root, so a page can hydrate several Elements beside one
+ *  Application.
  *  Nothing is moved, so no custom element reconnects and no frame reloads.
  *  This is not a script, event, or embedded-document sandbox: existing
  *  capture-phase handlers, browser-generated top-layer events, timers, and
@@ -171,8 +165,13 @@ export type HydrateOptions = Readonly<{
  *
  * @experimental Server rendering and hydration are experimental while their
  * contracts settle. */
-export const hydrate = <P extends Ports | undefined, Flags, Resources>(
-  program: MakeRuntimeReturn<P, Flags, Resources, 'Application'>,
+export const hydrate = <
+  P extends Ports | undefined,
+  Flags,
+  Resources,
+  Kind extends 'Application' | 'Element',
+>(
+  program: MakeRuntimeReturn<P, Flags, Resources, Kind>,
   options?: HydrateOptions,
 ): void => {
   startProgram(

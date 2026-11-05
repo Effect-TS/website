@@ -1,6 +1,7 @@
 import { Option } from 'effect'
 
 import { HYDRATION_BUILD_ATTRIBUTE } from './buildToken.js'
+import { FOLDKIT_ELEMENT_ATTRIBUTE } from './hydrationMarker.js'
 import { controlledStatePropertyNames } from './controlledDomState.js'
 import {
   BOOLEAN_PROPERTIES,
@@ -58,6 +59,9 @@ import { dedupeSharedVNodes, patch } from './vdom.js'
 
 const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
 const HYDRATION_STAMP_ATTRIBUTE = 'data-foldkit-app'
+
+const isHandoffStamp = (name: string): boolean =>
+  name === HYDRATION_STAMP_ATTRIBUTE || name === FOLDKIT_ELEMENT_ATTRIBUTE
 
 const classListOf = (element: Element): Record<string, boolean> => {
   const classes: Record<string, boolean> = {}
@@ -352,7 +356,7 @@ export const __elementSignature = (element: Element, vnode: VNode): string => {
   for (const attribute of Array.from(element.attributes)) {
     const name = attribute.name
     if (
-      name === HYDRATION_STAMP_ATTRIBUTE ||
+      isHandoffStamp(name) ||
       name === 'class' ||
       name === 'style'
     ) {
@@ -430,7 +434,7 @@ const seedAdoptedState = (
   const attrs: Record<string, string> = {}
   for (const attribute of Array.from(element.attributes)) {
     const name = attribute.name
-    if (name === HYDRATION_STAMP_ATTRIBUTE) {
+    if (isHandoffStamp(name)) {
       continue
     }
     if (name === 'class' && classOwnedByModule) {

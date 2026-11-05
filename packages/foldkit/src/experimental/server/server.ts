@@ -40,6 +40,7 @@ import {
 } from '../../html/runtimeSingleton.js'
 import {
   FOLDKIT_APP_ATTRIBUTE,
+  FOLDKIT_ELEMENT_ATTRIBUTE,
   FOLDKIT_FLAGS_ATTRIBUTE,
 } from '../../hydrationMarker.js'
 import {
@@ -746,6 +747,7 @@ const assertRootIsNotDocumentStructure = (
 
 const RESERVED_HANDOFF_ATTRIBUTES: ReadonlySet<string> = new Set([
   FOLDKIT_APP_ATTRIBUTE,
+  FOLDKIT_ELEMENT_ATTRIBUTE,
   HYDRATION_BUILD_ATTRIBUTE,
   FOLDKIT_FLAGS_ATTRIBUTE,
   HYDRATION_KEY_ATTRIBUTE,
@@ -1144,6 +1146,9 @@ export type ApplicationConfig<Model, Message> = Readonly<{
 
 type CommonRenderOptions = Readonly<{
   runtimeId?: string
+  /** Stamps the root as an Element's, so it can share a document with other
+   *  Elements and one Application. */
+  isElement?: boolean
 }>
 
 /** Render options for output a client will hydrate, which is the default.
@@ -1463,6 +1468,9 @@ export function renderToString(
                 rootAttributes: {
                   [FOLDKIT_APP_ATTRIBUTE]: runtimeId,
                   [HYDRATION_BUILD_ATTRIBUTE]: buildId,
+                  ...(options?.isElement === true
+                    ? { [FOLDKIT_ELEMENT_ATTRIBUTE]: '' }
+                    : {}),
                 },
                 emitHydrationMarkers: true,
               }

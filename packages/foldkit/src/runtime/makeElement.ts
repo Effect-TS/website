@@ -11,6 +11,7 @@ import type {
   ElementCrashConfig,
 } from './crashUI.js'
 import type { DevToolsConfig } from './devToolsConfig.js'
+import { findElementHydration } from './hydrationHandoff.js'
 import type { ApplicationInit } from './makeApplication.js'
 import {
   type FlagsSchemaConfig,
@@ -205,6 +206,7 @@ export function makeElement<
   })
 
   const crash = toCrashConfig(config.crash)
+  const hydration = findElementHydration(container, hasFlags)
 
   const baseConfig = {
     kind: 'Element',
@@ -215,6 +217,7 @@ export function makeElement<
     ports: config.ports,
     ...(config.subscriptions && { subscriptions: config.subscriptions }),
     container,
+    ...(hydration && { hydration }),
     ...(Predicate.isNotUndefined(crash) && { crash }),
     ...(Predicate.isNotUndefined(config.slow) && {
       slow: config.slow,
