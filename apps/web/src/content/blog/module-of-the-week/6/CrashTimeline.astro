@@ -137,6 +137,7 @@ const at = (t: number, lane: number, end = t) =>
 
 <script>
   import {
+    createAnimations,
     createCallout,
     createStepper,
     createTraveler,
@@ -296,7 +297,7 @@ const at = (t: number, lane: number, end = t) =>
     const traveler = createTraveler(stage)
     // Stretches a bar or lifeline to step `to`, then reveals the new length
     // from where it ended. A span on the grid can't animate, but a clip can.
-    const growing = new Set<Animation>()
+    const { track, cancel: cancelGrowing } = createAnimations()
     const grow = (el: HTMLElement, from: number, to: number) => {
       const was = el.getBoundingClientRect()
       const wasOn = el.classList.contains("is-on")
@@ -310,19 +311,18 @@ const at = (t: number, lane: number, end = t) =>
         : now.height - (wasOn ? was.height : 0)
       if (added <= 0 || reduceMotion()) return
       const clip = across ? `inset(0 ${added}px 0 0)` : `inset(0 0 ${added}px 0)`
-      const anim = el.animate(
-        [
-          { clipPath: clip, opacity: 1 },
-          { clipPath: "inset(0)", opacity: 1 },
-        ],
-        {
-          duration: GROW_MS,
-          easing: "cubic-bezier(0.23, 1, 0.32, 1)",
-        },
+      return track(
+        el.animate(
+          [
+            { clipPath: clip, opacity: 1 },
+            { clipPath: "inset(0)", opacity: 1 },
+          ],
+          {
+            duration: GROW_MS,
+            easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+          },
+        ),
       )
-      growing.add(anim)
-      anim.onfinish = anim.oncancel = () => growing.delete(anim)
-      return anim.finished.catch(() => {})
     }
     const extend = (next: number) => {
       const [before, after] = lives as [HTMLElement, HTMLElement]
@@ -361,7 +361,7 @@ const at = (t: number, lane: number, end = t) =>
       advance,
       stop: () => {
         traveler.cancel()
-        for (const a of [...growing]) a.cancel()
+        cancelGrowing()
       },
     })
     new ResizeObserver(() => callout.place(anchorFor(Math.max(0, current - 1)))).observe(stage)

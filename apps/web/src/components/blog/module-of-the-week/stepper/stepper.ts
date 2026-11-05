@@ -215,6 +215,26 @@ export function createCallout(root: HTMLElement, stage: HTMLElement) {
 
 // Envelopes and the like, moving along a path of points on the stage. The
 // trip takes longer the farther it goes, unless `duration` says otherwise.
+// Tracks running animations. A tracked animation settles when it finishes or
+// is cancelled, so callers can await it without handling a rejection.
+export function createAnimations() {
+  const running = new Set<Animation>()
+  const track = (anim: Animation) =>
+    new Promise<void>((resolve) => {
+      running.add(anim)
+      const settle = () => {
+        running.delete(anim)
+        resolve()
+      }
+      anim.onfinish = settle
+      anim.oncancel = settle
+    })
+  const cancel = () => {
+    for (const a of [...running]) a.cancel()
+  }
+  return { track, cancel }
+}
+
 export function createTraveler(stage: HTMLElement) {
   const running = new Set<Animation>()
   const travel = (
