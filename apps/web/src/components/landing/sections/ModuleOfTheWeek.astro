@@ -18,15 +18,14 @@ const thumbnailOf = async ({ post, title }: Module) => {
         src: `https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`,
         href: `https://www.youtube.com/watch?v=${video.youtubeId}`,
         label: `Watch ${title} on YouTube (opens in a new tab)`,
-        external: true,
+        target: "_blank",
+        rel: "noopener noreferrer",
         duration: video.duration,
       }
     : {
         src: await openGraphImagePath(`/blog/${post.id}`, blogPostMetadata(post)),
         href: `/blog/${post.id}`,
         label: `Read ${title}`,
-        external: false,
-        duration: undefined,
       }
 }
 
@@ -73,7 +72,8 @@ const thumbnail = latest === undefined ? undefined : await thumbnailOf(latest)
           <article class="flex min-w-0 flex-col bg-zinc-950">
             <a
               href={thumbnail.href}
-              {...(thumbnail.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              target={thumbnail.target}
+              rel={thumbnail.rel}
               aria-label={thumbnail.label}
               class="group relative block aspect-video overflow-hidden bg-zinc-900"
             >
