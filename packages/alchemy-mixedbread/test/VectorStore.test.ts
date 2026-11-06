@@ -161,8 +161,6 @@ const makeClient = (
 }
 
 const session: ScopedPlanStatusSession = {
-  emit: () => Effect.void,
-  done: () => Effect.void,
   note: () => Effect.void,
 }
 

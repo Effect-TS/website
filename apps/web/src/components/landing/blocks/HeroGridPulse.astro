@@ -1,5 +1,7 @@
-<canvas data-hero-grid-pulse aria-hidden="true" class="pointer-events-none fixed left-0 z-5 hidden"
-></canvas>
+<canvas
+  data-hero-grid-pulse
+  aria-hidden="true"
+  class="pointer-events-none absolute top-0 left-0 z-5 hidden"></canvas>
 
 <script>
   const canvas = document.querySelector<HTMLCanvasElement>("[data-hero-grid-pulse]")
@@ -13,7 +15,6 @@
 
     // Canvas covers the hero only (not the viewport) to keep the fill cost low.
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    canvas.style.top = `${rect.top}px`
     canvas.style.width = `${W}px`
     canvas.style.height = `${H}px`
     canvas.classList.remove("hidden")
@@ -82,6 +83,7 @@
         requestAnimationFrame(tick)
       } else {
         canvas.style.display = "none"
+        canvas.setAttribute("data-complete", "")
         document.dispatchEvent(new CustomEvent("hero-grid-pulse-complete"))
       }
     }

@@ -67,8 +67,8 @@ const makeUpstashKVS = (url: string, token: Redacted.Redacted) =>
               }),
           }).pipe(Effect.asVoid),
         clear: Effect.void,
+        size: Effect.map(keys, (keys) => keys.length),
         keys,
-        size: keys.pipe(Effect.map((all) => all.length)),
       })
     }),
   )

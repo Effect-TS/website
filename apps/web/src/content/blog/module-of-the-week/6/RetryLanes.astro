@@ -254,6 +254,7 @@ const at = (t: number, lane: number, end = t) =>
 
 <script>
   import {
+    createAnimations,
     createCallout,
     createStepper,
     createTraveler,
@@ -449,12 +450,7 @@ const at = (t: number, lane: number, end = t) =>
     // The clip leaves room around a line for its label, which keeps to the
     // middle of the line and glides along as it grows.
     const traveler = createTraveler(stage)
-    const growing = new Set<Animation>()
-    const track = (anim: Animation) => {
-      growing.add(anim)
-      anim.onfinish = anim.oncancel = () => growing.delete(anim)
-      return anim.finished.catch(() => {})
-    }
+    const { track, cancel: cancelGrowing } = createAnimations()
     const grow = (el: HTMLElement, next: number) => {
       const label = el.querySelector<HTMLElement>(".rl6-line-label")
       const was = el.getBoundingClientRect()
@@ -553,7 +549,7 @@ const at = (t: number, lane: number, end = t) =>
       advance,
       stop: () => {
         traveler.cancel()
-        for (const a of [...growing]) a.cancel()
+        cancelGrowing()
       },
     })
     new ResizeObserver(() => {
