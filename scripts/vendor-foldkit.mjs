@@ -317,11 +317,7 @@ const commands = {
       ["exec", "tsc", "--noEmit", "-p", "apps/web"],
       "typecheck apps/web",
     )
-    run(
-      "pnpm",
-      ["exec", "vitest", "run", ...PACKAGES, "apps/web"],
-      "unit tests",
-    )
+    run("pnpm", ["exec", "vp", "test", "run"], "unit tests")
     console.log(
       "\nall checks pass. The e2e spec needs the dev server: PLAYGROUND_URL=... pnpm exec playwright test tutorial-pilot",
     )
