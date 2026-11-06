@@ -107,7 +107,7 @@ const config = defineConfig({
         },
       },
       watch: {
-        ignored: ["**/.astro/**", "**/.direnv/**"],
+        ignored: ["**/.astro/**", "**/.astro-cache/**", "**/.direnv/**"],
       },
     },
   },
