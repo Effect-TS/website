@@ -10,6 +10,9 @@ import {
 } from "effect"
 import { DEVTOOLS_HOST_ID } from "foldkit/devtools-host"
 import type {
+  DevToolsControllerPort,
+  DevToolsControllerEvent,
+  DevToolsControllerRequest,
   DevToolsProgramList,
   DevToolsPrograms,
   DevToolsStore,
@@ -104,7 +107,40 @@ const makePrograms = (initial: DevToolsProgramList) => {
   }
 }
 
-const startOverlay = (store: DevToolsStore, programs?: DevToolsPrograms) =>
+const makeController = () => {
+  const listeners = new Set<(request: DevToolsControllerRequest) => void>()
+  const events: Array<DevToolsControllerEvent> = []
+  const controller: DevToolsControllerPort = {
+    requests: Stream.callback<DevToolsControllerRequest>(queue =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const listener = (request: DevToolsControllerRequest) => {
+            Queue.offerUnsafe(queue, request)
+          }
+          listeners.add(listener)
+          return listener
+        }),
+        listener => Effect.sync(() => listeners.delete(listener)),
+      ),
+    ),
+    report: event => {
+      events.push(event)
+    },
+  }
+  return {
+    controller,
+    events,
+    request: (request: DevToolsControllerRequest) =>
+      listeners.forEach(listener => listener(request)),
+  }
+}
+
+const startOverlay = (
+  store: DevToolsStore,
+  programs?: DevToolsPrograms,
+  controller?: DevToolsControllerPort,
+  showBadge?: boolean,
+) =>
   Effect.runFork(
     Effect.scoped(
       Effect.gen(function* () {
@@ -114,6 +150,8 @@ const startOverlay = (store: DevToolsStore, programs?: DevToolsPrograms) =>
           "TimeTravel",
           Option.none(),
           programs,
+          controller,
+          showBadge === undefined ? undefined : { showBadge },
         )
         return yield* Effect.never
       }),
@@ -272,5 +310,161 @@ describe("Programs dropdown", () => {
         })
       },
     )
+  })
+})
+
+const withController = async (
+  options: Readonly<{
+    isOpen: boolean
+    storeState?: StoreState
+    resume?: Effect.Effect<void>
+    showBadge?: boolean
+  }>,
+  run: (harness: ReturnType<typeof makeController>) => Promise<void>,
+) => {
+  localStorage.setItem(
+    "foldkit-devtools",
+    JSON.stringify({ isOpen: options.isOpen, isFlattened: true }),
+  )
+  const stateRef = await Effect.runPromise(
+    SubscriptionRef.make(options.storeState ?? initialStoreState),
+  )
+  const harness = makeController()
+  const store = {
+    ...makeStore(stateRef),
+    ...(options.resume === undefined ? {} : { resume: options.resume }),
+  }
+  const fiber = startOverlay(
+    store,
+    undefined,
+    harness.controller,
+    options.showBadge,
+  )
+  try {
+    await vi.waitFor(() => {
+      if (options.isOpen) {
+        expect(overlayShadow().querySelector(".dt-panel")).not.toBeNull()
+      } else {
+        expect(overlayShadow()).toBeDefined()
+      }
+    })
+    await run(harness)
+  } finally {
+    await Effect.runPromise(Fiber.interrupt(fiber))
+  }
+}
+
+const panel = () => overlayShadow().querySelector(".dt-panel")
+const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
+
+describe("Controller", () => {
+  it("opens the Panel on request and reports Opened", async () => {
+    await withController({ isOpen: false }, async (harness) => {
+      expect(panel()).toBeNull()
+      harness.events.length = 0
+      await vi.waitFor(() => {
+        harness.request("Open")
+        expect(panel()).not.toBeNull()
+      })
+      expect(harness.events).toEqual([{ _tag: "Opened" }])
+    })
+  })
+
+  it("reports its starting state when it mounts", async () => {
+    await withController({ isOpen: true }, async (harness) => {
+      await vi.waitFor(() => {
+        expect(harness.events).toEqual([{ _tag: "Opened" }])
+      })
+    })
+    await withController({ isOpen: false }, async (harness) => {
+      await vi.waitFor(() => {
+        expect(harness.events).toEqual([{ _tag: "Closed" }])
+      })
+    })
+  })
+
+  it("closes the Panel on request and reports Closed", async () => {
+    await withController({ isOpen: true }, async (harness) => {
+      expect(panel()).not.toBeNull()
+      harness.events.length = 0
+      await vi.waitFor(() => {
+        harness.request("Close")
+        expect(panel()).toBeNull()
+      })
+      expect(harness.events).toEqual([{ _tag: "Closed" }])
+    })
+  })
+
+  it("reports nothing when the Panel is already in the requested state", async () => {
+    await withController({ isOpen: true }, async (harness) => {
+      harness.events.length = 0
+      harness.request("Open")
+      await settle()
+      expect(harness.events).toEqual([])
+    })
+  })
+
+  it("resumes a paused Program before it closes the Panel", async () => {
+    const resumed: Array<string> = []
+    await withController(
+      {
+        isOpen: true,
+        storeState: { ...initialStoreState, isPaused: true },
+        resume: Effect.sync(() => {
+          resumed.push("resume")
+        }),
+      },
+      async (harness) => {
+        await vi.waitFor(() => {
+          harness.request("Close")
+          expect(panel()).toBeNull()
+        })
+        expect(resumed.length).toBeGreaterThan(0)
+      },
+    )
+  })
+
+  it("does not resume a running Program", async () => {
+    const resumed: Array<string> = []
+    await withController(
+      {
+        isOpen: true,
+        resume: Effect.sync(() => {
+          resumed.push("resume")
+        }),
+      },
+      async (harness) => {
+        await vi.waitFor(() => {
+          harness.request("Close")
+          expect(panel()).toBeNull()
+        })
+        expect(resumed).toEqual([])
+      },
+    )
+  })
+
+  it("hides the Badge when showBadge is false", async () => {
+    await withController(
+      { isOpen: false, showBadge: false },
+      async () => {
+        await settle()
+        expect(overlayShadow().querySelector(".dt-badge")).toBeNull()
+      },
+    )
+  })
+
+  it("resumes a paused Program when the Overlay is torn down", async () => {
+    const resumed: Array<string> = []
+    await withController(
+      {
+        isOpen: true,
+        storeState: { ...initialStoreState, isPaused: true },
+        resume: Effect.sync(() => {
+          resumed.push("resume")
+        }),
+      },
+      async () => {},
+    )
+    expect(resumed.length).toBeGreaterThan(0)
   })
 })

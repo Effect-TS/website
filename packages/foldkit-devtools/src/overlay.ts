@@ -46,6 +46,8 @@ import { defineMessageUnion } from 'foldkit/message'
 import { makeElement } from 'foldkit/runtime'
 import type {
   DevToolsProgramList,
+  DevToolsControllerPort,
+  DevToolsOverlayOptions,
   DevToolsPrograms,
 } from 'foldkit/devtools-host'
 import type { DevToolsMode, DevToolsPosition } from 'foldkit/runtime'
@@ -186,6 +188,9 @@ const Flags = Schema.Struct({
 
 const Message = defineMessageUnion({
   ClickedToggle: {},
+  RequestedOpen: {},
+  RequestedClose: {},
+  CompletedReportController: {},
   ClickedSettingsToggle: {},
   ToggledFlatten: { isFlattened: Schema.Boolean },
   CompletedPersistDevToolsState: {},
@@ -490,6 +495,22 @@ class ProgramsService extends Context.Service<
   DevToolsPrograms
 >()('foldkit/DevToolsPrograms') {}
 
+class ControllerService extends Context.Service<
+  ControllerService,
+  DevToolsControllerPort
+>()('foldkit/DevToolsControllerPort') {}
+
+export const ReportController = Command.define('ReportController', {
+  args: { isOpen: Schema.Boolean },
+  messages: [Message.CompletedReportController],
+  execute: ({ isOpen }) =>
+    Effect.gen(function* () {
+      const controller = yield* ControllerService
+      controller.report({ _tag: isOpen ? 'Opened' : 'Closed' })
+      return Message.CompletedReportController()
+    }),
+})
+
 export const LockScroll = Command.define('LockScroll', {
   messages: [Message.CompletedLockScroll],
   execute: lockScroll.pipe(Effect.as(Message.CompletedLockScroll())),
@@ -693,22 +714,40 @@ const makeUpdate = (
   shadow: ShadowRoot,
   mode: DevToolsMode,
   programs: DevToolsPrograms,
+  controller: DevToolsControllerPort,
 ) => {
   const provideContext = <A, E>(
     effect: Effect.Effect<
       A,
       E,
-      StoreService | ShadowRootService | ProgramsService
+      StoreService | ShadowRootService | ProgramsService | ControllerService
     >,
   ): Effect.Effect<A, E, never> =>
     effect.pipe(
       Effect.provideService(StoreService, store),
       Effect.provideService(ShadowRootService, shadow),
       Effect.provideService(ProgramsService, programs),
+      Effect.provideService(ControllerService, controller),
     )
 
   const inspectLatest = Command.mapEffect(InspectLatest(), provideContext)
   const resume = Command.mapEffect(Resume(), provideContext)
+  const reportController = (isOpen: boolean) =>
+    Command.mapEffect(ReportController({ isOpen }), provideContext)
+  const setOpen = (model: Model, nextIsOpen: boolean): UpdateReturn => ({
+    model: modifyFields(model, { isOpen: () => nextIsOpen }),
+    commands: [
+      ...OptionExt.when(!nextIsOpen && model.isPaused, resume).pipe(
+        Option.toArray,
+      ),
+      ...Option.toArray(maybeToggleScrollLock(model.isMobile, nextIsOpen)),
+      PersistDevToolsState({
+        isOpen: nextIsOpen,
+        isFlattened: model.isFlattened,
+      }),
+      reportController(nextIsOpen),
+    ],
+  })
   const selectProgram = (id: number) =>
     Command.mapEffect(SelectProgram({ id }), provideContext)
   const foldPrograms = Update.foldChild({
@@ -741,21 +780,10 @@ const makeUpdate = (
 
   return (model: Model, message: Message) =>
     Message.match<UpdateReturn>(message, {
-      ClickedToggle: () => {
-        const nextIsOpen = !model.isOpen
-        return {
-          model: modifyFields(model, { isOpen: () => nextIsOpen }),
-          commands: [
-            ...Option.toArray(
-              maybeToggleScrollLock(model.isMobile, nextIsOpen),
-            ),
-            PersistDevToolsState({
-              isOpen: nextIsOpen,
-              isFlattened: model.isFlattened,
-            }),
-          ],
-        }
-      },
+      ClickedToggle: () => setOpen(model, !model.isOpen),
+      RequestedOpen: () => (model.isOpen ? { model } : setOpen(model, true)),
+      RequestedClose: () => (model.isOpen ? setOpen(model, false) : { model }),
+      CompletedReportController: () => ({ model }),
       ClickedSettingsToggle: () => ({
         model: modifyFields(model, {
           screen: currentScreen =>
@@ -1033,6 +1061,7 @@ const makeOverlaySubscriptions = (
   store: DevToolsStore,
   shadow: ShadowRoot,
   programs: DevToolsPrograms,
+  controller: DevToolsControllerPort,
 ) => {
   const sliderSubscriptions = Slider.subscriptionsForRoot(() => shadow)
 
@@ -1061,6 +1090,15 @@ const makeOverlaySubscriptions = (
             programs: list.items,
             selectedId: list.selectedId,
           }),
+        ),
+      ),
+    ),
+    controllerRequests: Subscription.persistentEntry(
+      controller.requests.pipe(
+        Stream.map(request =>
+          request === 'Open'
+            ? Message.RequestedOpen()
+            : Message.RequestedClose(),
         ),
       ),
     ),
@@ -1115,11 +1153,19 @@ const makeView = (
   mode: DevToolsMode,
   shadow: ShadowRoot,
   maybeBanner: Option.Option<string>,
+  showBadge: boolean,
 ): ((model: Model, h: HtmlBuilder<Message>) => Html) => {
   let viewWithBuilder: ((model: Model) => Html) | undefined
 
   return (model, h) => {
-    viewWithBuilder ??= buildOverlayView(position, mode, shadow, maybeBanner, h)
+    viewWithBuilder ??= buildOverlayView(
+      position,
+      mode,
+      shadow,
+      maybeBanner,
+      showBadge,
+      h,
+    )
     return viewWithBuilder(model)
   }
 }
@@ -1129,6 +1175,7 @@ const buildOverlayView = (
   mode: DevToolsMode,
   shadow: ShadowRoot,
   maybeBanner: Option.Option<string>,
+  showBadge: boolean,
   h: HtmlBuilder<Message>,
 ): ((model: Model) => Html) => {
   const lazyTreeNode = createKeyedLazy()
@@ -2871,7 +2918,7 @@ const buildOverlayView = (
           interactionBlocker(),
         ).pipe(Option.toArray),
         ...OptionExt.when(model.isOpen, panelView(model)).pipe(Option.toArray),
-        badgeView(model),
+        ...OptionExt.when(showBadge, badgeView(model)).pipe(Option.toArray),
       ],
     )
 }
@@ -2974,6 +3021,11 @@ const createShadowContainer = (): Readonly<{
   return { container, shadow }
 }
 
+const NO_CONTROLLER: DevToolsControllerPort = {
+  requests: Stream.empty,
+  report: () => undefined,
+}
+
 const SINGLE_PROGRAM: DevToolsPrograms = {
   snapshot: (): DevToolsProgramList => ({ items: [], selectedId: -1 }),
   changes: Stream.empty,
@@ -2986,6 +3038,8 @@ export const createOverlay = (
   mode: DevToolsMode,
   maybeBanner: Option.Option<string>,
   programs: DevToolsPrograms = SINGLE_PROGRAM,
+  controller: DevToolsControllerPort = NO_CONTROLLER,
+  options: DevToolsOverlayOptions = {},
 ) =>
   Effect.gen(function* () {
     const { container, shadow } = yield* Effect.acquireRelease(
@@ -3064,13 +3118,27 @@ export const createOverlay = (
       Flags,
       flags,
       init,
-      update: makeUpdate(store, shadow, mode, programs),
-      view: makeView(position, mode, shadow, maybeBanner),
+      update: makeUpdate(store, shadow, mode, programs, controller),
+      view: makeView(position, mode, shadow, maybeBanner, options.showBadge ?? true),
       container,
-      subscriptions: makeOverlaySubscriptions(store, shadow, programs),
+      subscriptions: makeOverlaySubscriptions(
+        store,
+        shadow,
+        programs,
+        controller,
+      ),
       devTools: false,
       freezeModel: false,
     })
+
+    yield* Effect.addFinalizer(() =>
+      SubscriptionRef.get(store.stateRef).pipe(
+        Effect.flatMap(state => (state.isPaused ? store.resume : Effect.void)),
+      ),
+    )
+
+    const { isOpen: startsOpen } = yield* readPersistedState
+    controller.report({ _tag: startsOpen ? 'Opened' : 'Closed' })
 
     yield* Effect.forkScoped(overlayRuntime.start())
   })

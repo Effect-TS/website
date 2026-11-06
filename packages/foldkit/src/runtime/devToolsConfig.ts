@@ -44,6 +44,24 @@ export type DevToolsPrograms = Readonly<{
   select: (id: number) => void
 }>
 
+/** What the page asks the Overlay to do with its Panel. */
+export type DevToolsControllerRequest = 'Open' | 'Close'
+
+/** What the Overlay reports after its Panel changes. */
+export type DevToolsControllerEvent = Readonly<
+  { _tag: 'Opened' } | { _tag: 'Closed' }
+>
+
+/** Port between the page and the Overlay. The Overlay subscribes to
+ *  `requests` and calls `report` after each Panel transition. */
+export type DevToolsControllerPort = Readonly<{
+  requests: Stream.Stream<DevToolsControllerRequest>
+  report: (event: DevToolsControllerEvent) => void
+}>
+
+/** Chrome options for the Overlay. `showBadge` defaults to `true`. */
+export type DevToolsOverlayOptions = Readonly<{ showBadge?: boolean }>
+
 /**
  * Factory that mounts the in-browser DevTools overlay against a recording
  * store. The runtime keeps the store and the WebSocket bridge (so external
@@ -60,6 +78,8 @@ export type DevToolsOverlay = (
   mode: DevToolsMode,
   maybeBanner: Option.Option<string>,
   programs?: DevToolsPrograms,
+  controller?: DevToolsControllerPort,
+  options?: DevToolsOverlayOptions,
 ) => Effect.Effect<void, never, Scope.Scope>
 
 /**

@@ -1,7 +1,11 @@
 export { DEVTOOLS_HOST_ID } from '../html/index.js'
 export { __setDevToolsOverlay } from '../runtime/devToolsConfig.js'
 export type {
+  DevToolsControllerPort,
+  DevToolsControllerEvent,
+  DevToolsControllerRequest,
   DevToolsOverlay,
+  DevToolsOverlayOptions,
   DevToolsProgram,
   DevToolsProgramList,
   DevToolsPrograms,
