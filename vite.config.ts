@@ -11,7 +11,7 @@ export default defineConfig({
     printWidth: 80,
     semi: false,
     sortPackageJson: false,
-    ignorePatterns: ["packages/foldkit/**", "packages/foldkit-devtools/**"],
+    ignorePatterns: ["packages/foldkit/**", "packages/devtools/**"],
   },
   lint: {
     plugins: ["typescript", "import"],
@@ -20,7 +20,7 @@ export default defineConfig({
       ".direnv",
       "dist",
       "packages/foldkit/**",
-      "packages/foldkit-devtools/**",
+      "packages/devtools/**",
     ],
     options: {
       typeAware: true,
