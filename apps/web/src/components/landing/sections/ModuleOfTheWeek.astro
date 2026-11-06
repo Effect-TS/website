@@ -1,85 +1,110 @@
 ---
-import { ArrowRight, ArrowUpRight, FileText } from "@lucide/astro"
-import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
-import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
-import { FormattedDate } from "@/components/ui/FormattedDate"
+import { ArrowRight, Play } from "@lucide/astro"
+import ModuleSummary from "@/components/landing/blocks/ModuleSummary.astro"
+import type { Module } from "@/features/module-of-the-week/domain"
 import { getLatestModules } from "@/features/module-of-the-week/http"
+import { blogPostMetadata } from "@/lib/blog-post"
+import { openGraphImagePath } from "@/lib/open-graph-image"
 
-const [latest, ...others] = await getLatestModules()
-const linkClass =
-  "group inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 no-underline transition-colors hover:text-white hover:no-underline"
+const [latest, ...older] = await getLatestModules()
+const recent = older.slice(0, 4)
+
+// Modules get their video a while after the blog post, so fall back to the
+// post's Open Graph image (and link to the post) until the video is out.
+const thumbnailOf = async ({ post, title }: Module) => {
+  const video = post.data.video
+  return video !== undefined
+    ? {
+        src: `https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`,
+        href: `https://www.youtube.com/watch?v=${video.youtubeId}`,
+        label: `Watch ${title} on YouTube (opens in a new tab)`,
+        external: true,
+        duration: video.duration,
+      }
+    : {
+        src: await openGraphImagePath(`/blog/${post.id}`, blogPostMetadata(post)),
+        href: `/blog/${post.id}`,
+        label: `Read ${title}`,
+        external: false,
+        duration: undefined,
+      }
+}
+
+const thumbnail = latest === undefined ? undefined : await thumbnailOf(latest)
 ---
 
 {
-  latest !== undefined && (
-    <section id="module-of-the-week" class="relative w-full py-24 md:pt-40 md:pb-24">
+  latest !== undefined && thumbnail !== undefined && (
+    <section
+      id="module-of-the-week"
+      aria-labelledby="module-of-the-week-heading"
+      class="relative w-full py-24 md:pt-40 md:pb-24"
+    >
       <div class="mx-auto w-full max-w-295 px-4">
-        <div class="mb-12">
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
-            // Module of the Week
-          </p>
-          <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
-            One Effect module, every week
-          </h2>
-          <p class="mt-5 max-w-lg text-lg leading-relaxed text-zinc-400">
-            Each module starts as a blog post, gets walked through live at Effect Office Hours, and
-            ends up as a standalone video.
-          </p>
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+              // Module of the Week
+            </p>
+            <h2
+              id="module-of-the-week-heading"
+              class="text-2xl leading-tighter font-semibold text-white md:text-3xl"
+            >
+              One Effect module, every week
+            </h2>
+          </div>
           <a
             href="/module-of-the-week"
-            class="mt-6 inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-white no-underline transition-colors hover:border-zinc-500 hover:bg-zinc-800 hover:no-underline"
+            class="group inline-flex items-center gap-2 self-start rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white no-underline transition-colors hover:border-zinc-500 hover:bg-zinc-800 hover:no-underline lg:self-auto"
           >
-            <span>All modules</span>
-            <ArrowRight class="size-4" aria-hidden="true" />
+            All modules
+            <ArrowRight
+              class="size-4 transition-transform motion-safe:group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
           </a>
         </div>
-        <div class="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
-          <ModuleCard
-            post={latest.post}
-            entry={latest.number}
-            layout="stacked"
-            class="lg:col-span-7 lg:self-start"
-          />
-          <ol class="flex flex-col lg:col-span-5">
-            {others.slice(0, 4).map(({ post, number, title }) => (
-              <li class="border-t border-zinc-800 first:border-t-0 py-5 first:pt-0 first:lg:pt-3">
-                <div class="flex items-center gap-2 font-mono text-xs">
-                  <span class="font-medium text-white tabular-nums">
-                    {String(number).padStart(2, "0")}
-                  </span>
-                  {post.data.packageName && (
-                    <>
-                      <span aria-hidden="true" class="h-3 w-px bg-zinc-700" />
-                      <span class="truncate text-zinc-400">from "{post.data.packageName}"</span>
-                    </>
-                  )}
-                  <FormattedDate
-                    date={post.data.date}
-                    className="ml-auto shrink-0 text-zinc-400 tabular-nums"
-                  />
-                </div>
-                <h3 class="mt-2 text-lg leading-snug font-semibold text-white">{title}</h3>
-                <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-                  {post.data.video && (
-                    <a
-                      href={`https://www.youtube.com/watch?v=${post.data.video.youtubeId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class={linkClass}
-                    >
-                      <YouTubeLogo class="size-4" aria-hidden="true" />
-                      Video
-                      <ArrowUpRight class="size-3.5" aria-hidden="true" />
-                    </a>
-                  )}
-                  <a href={`/blog/${post.id}`} class={linkClass}>
-                    <FileText class="size-4" aria-hidden="true" />
-                    Blog post
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ol>
+        <div
+          class:list={[
+            "mt-12 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800",
+            recent.length > 0 && "lg:grid-cols-2",
+          ]}
+        >
+          <article class="flex min-w-0 flex-col bg-zinc-950">
+            <a
+              href={thumbnail.href}
+              {...(thumbnail.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              aria-label={thumbnail.label}
+              class="group relative block aspect-video overflow-hidden bg-zinc-900"
+            >
+              <img
+                src={thumbnail.src}
+                alt=""
+                loading="lazy"
+                width="1280"
+                height="720"
+                class="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.02]"
+              />
+              {thumbnail.duration !== undefined && (
+                <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums transition-colors group-hover:bg-zinc-950">
+                  <Play class="size-3 fill-current" aria-hidden="true" />
+                  {thumbnail.duration}
+                </span>
+              )}
+            </a>
+            <div class="flex flex-1 flex-col gap-4 border-t border-zinc-800 p-5 lg:px-6">
+              <ModuleSummary module={latest} featured />
+            </div>
+          </article>
+          {recent.length > 0 && (
+            <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 lg:auto-rows-fr">
+              {recent.map((module) => (
+                <article class="flex flex-col justify-between gap-3 bg-zinc-950 p-5 lg:px-6">
+                  <ModuleSummary module={module} />
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
