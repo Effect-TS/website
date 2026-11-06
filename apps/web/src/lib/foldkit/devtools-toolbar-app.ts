@@ -1,17 +1,29 @@
+import { Effect, Stream } from "effect"
 import { defineToolbarApp } from "astro/toolbar"
-import { trigger } from "./devtools-trigger"
+import { devToolsRegistry } from "./devtools-registry"
 
 /**
- * The toolbar button toggles the DevTools panel and mirrors its state. With
- * several apps the panel carries a tab strip; see `devtools-layout.ts`.
+ * The toolbar button opens and closes the DevTools panel through the
+ * Controller and mirrors its state. With several apps the panel carries a tab
+ * strip; see `devtools-layout.ts`.
  */
 export default defineToolbarApp({
   init: (_canvas, app) => {
+    const { controller } = devToolsRegistry()
     app.onToggled(({ state }) => {
-      if (trigger.isOpen() !== state) {
-        trigger.toggle()
+      if (controller.snapshot().isOpen !== state) {
+        if (state) {
+          controller.open()
+        } else {
+          controller.close()
+        }
       }
     })
-    trigger.subscribe((isOpen) => app.toggleState({ state: isOpen }))
+    app.toggleState({ state: controller.snapshot().isOpen })
+    Effect.runFork(
+      Stream.runForEach(controller.changes, (event) =>
+        Effect.sync(() => app.toggleState({ state: event._tag === "Opened" })),
+      ),
+    )
   },
 })
