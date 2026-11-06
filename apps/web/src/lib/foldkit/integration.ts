@@ -1,7 +1,7 @@
 import type { AstroIntegration } from "astro"
 import { randomUUID } from "node:crypto"
 import { fileURLToPath } from "node:url"
-import { foldkitDevDependencies } from "./dev-dependencies"
+import { foldkitBundled, foldkitDevDependencies } from "./dev-dependencies"
 import { foldkitBuildId } from "./build-id"
 import { foldkitPlugins } from "./plugins"
 
@@ -67,6 +67,7 @@ export const foldkit = (options: FoldkitOptions = {}): AstroIntegration => {
             },
             plugins: [
               foldkitDevDependencies(options.preBundle ?? []),
+              foldkitBundled(),
               foldkitBuildId(buildId),
               ...foldkitPlugins(),
             ],

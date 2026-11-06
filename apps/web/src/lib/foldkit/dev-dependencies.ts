@@ -66,3 +66,23 @@ export const foldkitDevDependencies = (
     },
   }),
 })
+
+const BUNDLED_FOLDKIT = ["foldkit", "@foldkit/ui", "@foldkit/devtools"]
+
+/**
+ * Bundles Foldkit and its UI package into every server-side build. Foldkit
+ * keeps its render state in a module singleton, so a second copy that the
+ * `prerender` environment loads from `node_modules` cannot see the first.
+ * Astro's `prerender` environment ignores the legacy `ssr.noExternal` option.
+ *
+ * Needed while `foldkit` is a linked workspace package, which Vite bundles
+ * while `@foldkit/ui` stays external. Remove it when consuming from the
+ * registry.
+ */
+export const foldkitBundled = (): Plugin => ({
+  name: "foldkit:bundled",
+  configEnvironment: (name) =>
+    name === "client"
+      ? undefined
+      : { resolve: { noExternal: BUNDLED_FOLDKIT } },
+})
