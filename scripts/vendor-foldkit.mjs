@@ -310,13 +310,13 @@ const commands = {
       ["-r", ...BUILD_FILTERS.flatMap((f) => ["--filter", f]), "build"],
       "build foldkit and devtools",
     )
-    for (const project of [...PACKAGES, "apps/web"]) {
-      run(
-        "pnpm",
-        ["exec", "tsc", "--noEmit", "-p", project],
-        `typecheck ${project}`,
-      )
-    }
+    // The build typechecks package sources. Upstream types its tests with
+    // TypeScript 7, so only vitest runs them here.
+    run(
+      "pnpm",
+      ["exec", "tsc", "--noEmit", "-p", "apps/web"],
+      "typecheck apps/web",
+    )
     run(
       "pnpm",
       ["exec", "vitest", "run", ...PACKAGES, "apps/web"],
