@@ -4,7 +4,8 @@
  * Foldkit while this repo carries its own changes on top.
  *
  *   pnpm vendor:foldkit status            where we are, what upstream has
- *   pnpm vendor:foldkit update [tag]      import a release, merge it, check it
+ *   pnpm vendor:foldkit update [tag] [--no-check]
+ *                                          import a release, merge it, check it
  *   pnpm vendor:foldkit check             build, typecheck, test
  *   pnpm vendor:foldkit patch [file]      our changes, ready for an upstream PR
  *   pnpm vendor:foldkit verify            vendor branch equals the upstream tag
@@ -20,7 +21,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-const UPSTREAM = "https://github.com/foldkit/foldkit.git"
+const UPSTREAM =
+  process.env.VENDOR_FOLDKIT_UPSTREAM ??
+  "https://github.com/foldkit/foldkit.git"
 const BRANCH = "vendor/foldkit"
 const TAG_PREFIX = "foldkit@"
 const PACKAGES = ["packages/foldkit", "packages/devtools"]
@@ -257,7 +260,9 @@ const commands = {
     }
   },
 
-  update(requested) {
+  update(...args) {
+    const requested = args.find((arg) => !arg.startsWith("--"))
+    const skipCheck = args.includes("--no-check")
     if (!branchExists()) {
       fail("no vendor branch. Run: pnpm vendor:foldkit init <tag>")
     }
@@ -290,6 +295,10 @@ const commands = {
         "\nFix them, then:\n  git add <files> && git commit --no-edit\n  pnpm vendor:foldkit check",
       )
       process.exit(1)
+    }
+    if (skipCheck) {
+      console.log("merged. Skipped checks (--no-check).")
+      return
     }
     commands.check()
   },
