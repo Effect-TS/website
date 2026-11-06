@@ -52,17 +52,16 @@ export default {
       Object.entries(slots).map(([name, html]) => [name, String(html)]),
     )
     const rendered = await Effect.runPromise(
-      Server.renderToString(
+      Server.renderElementToString(
         {
           Flags: spec.Flags,
           init: spec.init,
-          view: (model, h) => ({ title: "", body: spec.view(model, h) }),
+          view: spec.view,
         },
         {
           flags: spec.flags({ props, slots: plainSlots }),
           buildId: spec.buildId,
           runtimeId: nextRuntimeId(this),
-          isElement: true,
         },
       ),
     )

@@ -29,6 +29,7 @@ import {
 import { beginRender, createBoundaryRegistry } from '../../html/boundary.js'
 import {
   type Document,
+  type Html,
   type HtmlBuilder,
   __htmlBuilder as htmlBuilderFor,
   textDirectionToAttribute,
@@ -387,7 +388,9 @@ const traversableContent = (
       Predicate.hasProperty(content, 'childNodes')
     ) {
       /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
-      return content as Readonly<{ childNodes: ReadonlyArray<Parse5ChildNode> }>
+      return content as Readonly<{
+        childNodes: ReadonlyArray<Parse5ChildNode>
+      }>
     }
   }
   return element
@@ -1139,16 +1142,14 @@ export type ApplicationConfig<Model, Message> = Readonly<{
 
 // Shared by both render shapes. `runtimeId` names the application in the root
 // stamp and Flags payload; it defaults to `'app'` and must be non-empty. It
-// also keys the preserved Model and scroll position. A document
-// may contain one hydratable root. Template injection and hydration refuse a
-// second root whether it carries the same id or a distinct one because runtime
-// ids do not divide ownership of document metadata and navigation listeners.
+// also keys the preserved Model and scroll position. A document may contain
+// one page-owning Application root and any number of Element roots. Every root
+// needs its own runtime id; hydration refuses a duplicate id, and refuses a
+// second Application root, because only an Application owns document metadata
+// and navigation listeners.
 
 type CommonRenderOptions = Readonly<{
   runtimeId?: string
-  /** Stamps the root as an Element's, so it can share a document with other
-   *  Elements and one Application. */
-  isElement?: boolean
 }>
 
 /** Render options for output a client will hydrate, which is the default.
@@ -1185,8 +1186,9 @@ export type StaticRenderOptions = CommonRenderOptions &
 /** Options for {@link renderToString}. `runtimeId` names the application in the
  *  root stamp and Flags payload; it defaults to `'app'` and must be non-empty.
  *  A nondefault `runtimeId` changes the root stamp and the keys used for Flags,
- *  Model, and scroll preservation. It does not permit a second hydratable
- *  application in one document.
+ *  Model, and scroll preservation. It does not permit a second Application in
+ *  one document. Render an Element with {@link renderElementToString} to share
+ *  a document with other roots.
  *
  *  A hydratable render (the default) uses the build identity compiled by
  *  `@foldkit/vite-plugin`. Pass `isHydratable: false` for static markup that
@@ -1386,19 +1388,31 @@ export function renderToString<Model, Message>(
   options?: RenderOptions,
 ): Effect.Effect<RenderedApplication, RenderError>
 export function renderToString(
-  config: Readonly<{
-    Flags?: Schema.Codec<unknown, any, never, never>
-    routing?: unknown
-    init: (...initArguments: ReadonlyArray<any>) => InitReturn<unknown, any>
-    view: (model: any, h: HtmlBuilder<any>) => Document
-  }>,
-  options?: RenderOptions &
-    Readonly<{
-      url?: string
-      flags?: unknown
-    }>,
+  config: ImplementationConfig,
+  options?: ImplementationOptions,
 ): Effect.Effect<RenderedApplication, RenderError> {
-  return Effect.gen(function* () {
+  return renderRoot(config, options, false)
+}
+
+type ImplementationConfig = Readonly<{
+  Flags?: Schema.Codec<unknown, any, never, never>
+  routing?: unknown
+  init: (...initArguments: ReadonlyArray<any>) => InitReturn<unknown, any>
+  view: (model: any, h: HtmlBuilder<any>) => Document
+}>
+
+type ImplementationOptions = RenderOptions &
+  Readonly<{
+    url?: string
+    flags?: unknown
+  }>
+
+const renderRoot = (
+  config: ImplementationConfig,
+  options: ImplementationOptions | undefined,
+  isElement: boolean,
+): Effect.Effect<RenderedApplication, RenderError> =>
+  Effect.gen(function* () {
     const runtimeId = options?.runtimeId ?? DEFAULT_RUNTIME_ID
     if (runtimeId === '') {
       return yield* Effect.fail(
@@ -1468,9 +1482,7 @@ export function renderToString(
                 rootAttributes: {
                   [FOLDKIT_APP_ATTRIBUTE]: runtimeId,
                   [HYDRATION_BUILD_ATTRIBUTE]: buildId,
-                  ...(options?.isElement === true
-                    ? { [FOLDKIT_ELEMENT_ATTRIBUTE]: '' }
-                    : {}),
+                  ...(isElement ? { [FOLDKIT_ELEMENT_ATTRIBUTE]: '' } : {}),
                 },
                 emitHydrationMarkers: true,
               }
@@ -1520,4 +1532,76 @@ export function renderToString(
       ...(resolvedOgUrl !== undefined ? { ogUrl: resolvedOgUrl } : {}),
     }
   })
+
+/** Server-side subset of a `makeElement` config with Flags. The view returns
+ *  `Html`, and an Element has no `routing`.
+ *
+ * @experimental Ships from `foldkit/experimental/server`; expect breaking changes while the API settles.
+ */
+export type ElementConfigWithFlags<Model, Message, Flags> = Readonly<{
+  Flags: Schema.Codec<Flags, any, never, never>
+  init: (flags: Flags) => InitReturn<Model, Message>
+  view: (model: Model, h: HtmlBuilder<Message>) => Html
+}>
+
+/** Server-side subset of a `makeElement` config without Flags.
+ *
+ * @experimental Ships from `foldkit/experimental/server`; expect breaking changes while the API settles.
+ */
+export type ElementConfig<Model, Message> = Readonly<{
+  init: () => InitReturn<Model, Message>
+  view: (model: Model, h: HtmlBuilder<Message>) => Html
+}>
+
+/** The server render of one Element: the root markup and, when the Element
+ *  declares Flags, their payload script. An Element has no `Document` fields,
+ *  because it never owns the page head.
+ *
+ * @experimental Ships from `foldkit/experimental/server`; expect breaking changes while the API settles.
+ */
+export type RenderedElement = Readonly<{ html: string }>
+
+/**
+ * Renders a `makeElement`-shaped config to an HTML string on the server.
+ *
+ * The root carries the Element stamp, so it shares a document with other
+ * Elements and one Application. See {@link RenderOptions} for `runtimeId`,
+ * `buildId`, and `isHydratable`. Give each Element in a document its own
+ * `runtimeId`. The result has no `title`, `lang`, `dir`, `canonical`, or
+ * `ogUrl`: an Element never owns the page head.
+ *
+ * @example
+ * ```typescript
+ * const renderedElement = yield* Server.renderElementToString(config, {
+ *   flags: { start: 1 },
+ *   runtimeId: 'counter-1',
+ * })
+ * ```
+ *
+ * @experimental Ships from `foldkit/experimental/server`; expect breaking changes while the API settles.
+ */
+export function renderElementToString<Model, Message, Flags>(
+  config: ElementConfigWithFlags<Model, Message, Flags>,
+  options: RenderFlagsOptions<Flags>,
+): Effect.Effect<RenderedElement, RenderError>
+export function renderElementToString<Model, Message>(
+  config: ElementConfig<Model, Message>,
+  options?: RenderOptions,
+): Effect.Effect<RenderedElement, RenderError>
+export function renderElementToString(
+  config: Readonly<{
+    Flags?: Schema.Codec<unknown, any, never, never>
+    init: (...initArguments: ReadonlyArray<any>) => InitReturn<unknown, any>
+    view: (model: any, h: HtmlBuilder<any>) => Html
+  }>,
+  options?: RenderOptions & Readonly<{ flags?: unknown }>,
+): Effect.Effect<RenderedElement, RenderError> {
+  return renderRoot(
+    {
+      ...config,
+      view: (model, h) => ({ title: '', body: config.view(model, h) }),
+    },
+    options,
+    true,
+  ).pipe(Effect.map(({ html }) => ({ html })))
 }

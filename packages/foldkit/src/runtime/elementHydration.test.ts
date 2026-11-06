@@ -1,7 +1,10 @@
 import { Effect, Fiber, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { renderToString } from '../experimental/server/server.js'
+import {
+  renderElementToString,
+  renderToString,
+} from '../experimental/server/server.js'
 import type { Document } from '../html/index.js'
 import { __htmlBuilder } from '../html/index.js'
 import { defineMessageUnion } from '../message/index.js'
@@ -44,20 +47,28 @@ const view = (model: Model): Document => ({
 })
 
 const serverConfig = { Flags, init, view }
+const elementServerConfig = {
+  Flags,
+  init,
+  view: (model: Model) => view(model).body,
+}
 
 const renderRoot = (
   runtimeId: string,
   start: number,
   options?: Readonly<{ isElement?: boolean; buildId?: string }>,
-): Promise<string> =>
-  Effect.runPromise(
-    renderToString(serverConfig, {
-      flags: { start },
-      buildId: options?.buildId ?? BUILD_ID,
-      runtimeId,
-      isElement: options?.isElement ?? true,
-    }),
+): Promise<string> => {
+  const renderOptions = {
+    flags: { start },
+    buildId: options?.buildId ?? BUILD_ID,
+    runtimeId,
+  }
+  return Effect.runPromise(
+    options?.isElement === false
+      ? renderToString(serverConfig, renderOptions)
+      : renderElementToString(elementServerConfig, renderOptions),
   ).then(rendered => rendered.html)
+}
 
 const mountPage = (...sections: ReadonlyArray<string>): void => {
   document.body.innerHTML = sections
@@ -66,9 +77,7 @@ const mountPage = (...sections: ReadonlyArray<string>): void => {
 }
 
 const rootOf = (id: string): HTMLElement => {
-  const root = document.querySelector<HTMLElement>(
-    `[data-foldkit-app="${id}"]`,
-  )
+  const root = document.querySelector<HTMLElement>(`[data-foldkit-app="${id}"]`)
   if (root === null) {
     throw new Error(`no root ${id}`)
   }
@@ -131,17 +140,18 @@ describe('server render guards', () => {
     const error = await Effect.runPromise(
       Effect.flip(
         renderToString(
-        {
-          Flags,
-          init,
-          view: (model: Model): Document => ({
-            title: '',
-            body: h.div([h.Attribute('data-foldkit-element', '')], [
-              String(model.count),
-            ]),
-          }),
-        },
-        { flags: { start: 1 }, buildId: BUILD_ID },
+          {
+            Flags,
+            init,
+            view: (model: Model): Document => ({
+              title: '',
+              body: h.div(
+                [h.Attribute('data-foldkit-element', '')],
+                [String(model.count)],
+              ),
+            }),
+          },
+          { flags: { start: 1 }, buildId: BUILD_ID },
         ),
       ),
     )
@@ -153,7 +163,10 @@ describe('server render guards', () => {
 
 describe('hydrating several Elements in one document', () => {
   it('adopts each root and keeps their state apart', async () => {
-    mountPage(await renderRoot('program-1', 1), await renderRoot('program-2', 10))
+    mountPage(
+      await renderRoot('program-1', 1),
+      await renderRoot('program-2', 10),
+    )
     const first = rootOf('program-1')
     const second = rootOf('program-2')
     const firstCount = first.querySelector('.count')
@@ -178,14 +191,17 @@ describe('hydrating several Elements in one document', () => {
 
   it('adopts the stamped roots without a hydration mismatch warning', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    mountPage(await renderRoot('program-1', 1), await renderRoot('program-2', 2))
+    mountPage(
+      await renderRoot('program-1', 1),
+      await renderRoot('program-2', 2),
+    )
     const roots = [rootOf('program-1'), rootOf('program-2')]
     const fibers = roots.map(startElement)
     try {
       await vi.waitFor(() => {
-        expect(roots.every(root => !root.hasAttribute('data-foldkit-app'))).toBe(
-          true,
-        )
+        expect(
+          roots.every(root => !root.hasAttribute('data-foldkit-app')),
+        ).toBe(true)
       })
       expect(
         roots.every(root => !root.hasAttribute('data-foldkit-element')),
@@ -277,21 +293,22 @@ describe('refusing an Element', () => {
 
   it('contains the page when an Element container is an Application root', async () => {
     mountPage(await renderRoot('foldkit', 1, { isElement: false }))
-    expect(() =>
-      makeFlagsElement(rootOf('foldkit')),
-    ).toThrow('whose container is the root of a page-owning application')
+    expect(() => makeFlagsElement(rootOf('foldkit'))).toThrow(
+      'whose container is the root of a page-owning application',
+    )
     expect(document.body.hasAttribute('data-foldkit-refused')).toBe(true)
   })
 
   it('throws when two roots share a runtime id', async () => {
-    mountPage(await renderRoot('program-1', 1), await renderRoot('program-1', 2))
+    mountPage(
+      await renderRoot('program-1', 1),
+      await renderRoot('program-1', 2),
+    )
     const container = document.querySelector<HTMLElement>(
       '[data-foldkit-app="program-1"]',
     )
     expect(container).not.toBeNull()
-    expect(() =>
-      makeFlagsElement(container as HTMLElement),
-    ).toThrow()
+    expect(() => makeFlagsElement(container as HTMLElement)).toThrow()
   })
 })
 
