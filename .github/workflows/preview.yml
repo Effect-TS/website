@@ -109,10 +109,6 @@ jobs:
 
       - name: Deploy Cloudflare preview
         run: |
-          # Alchemy expects the prerender image-service modules, which Astro
-          # omits when every route is reused. Keep the content/asset caches,
-          # but render pages afresh until that incremental-build path is fixed.
-          rm -f apps/web/.astro-cache/incremental-build.json
           stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
           vp exec alchemy deploy --stage "$stage" --yes
         env:

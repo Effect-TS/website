@@ -52,7 +52,9 @@ const config = defineConfig({
   cacheDir: fileURLToPath(cacheDir),
 
   experimental: {
-    incrementalBuild: true,
+    // Alchemy currently requires prerender image-service modules that Astro
+    // omits when every route is reused. Keep full builds until compatible.
+    incrementalBuild: false,
     svgOptimizer: svgoOptimizer(),
   },
 
