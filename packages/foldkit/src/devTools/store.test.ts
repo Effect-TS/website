@@ -1,0 +1,1151 @@
+import {
+  Array,
+  Effect,
+  HashSet,
+  Match,
+  Number,
+  Option,
+  Schema,
+  SubscriptionRef,
+  pipe,
+} from 'effect'
+import { describe, expect, it, vi } from 'vitest'
+
+import { defineMessageUnion } from '../message/index.js'
+import { modifyFields } from '../struct/index.js'
+import {
+  type Bridge,
+  type CommandRecord,
+  type DevToolsStore,
+  computeDiff,
+  createDevToolsStore,
+} from './store.js'
+
+const hasPath = (paths: HashSet.HashSet<string>, path: string) =>
+  HashSet.has(paths, path)
+
+describe('computeDiff', () => {
+  it('returns empty diff for identical references', () => {
+    const model = { count: 0 }
+    const { changedPaths, affectedPaths } = computeDiff(model, model)
+
+    expect(HashSet.size(changedPaths)).toBe(0)
+    expect(HashSet.size(affectedPaths)).toBe(0)
+  })
+
+  it('returns empty diff for structurally identical objects', () => {
+    const { changedPaths } = computeDiff({ count: 5 }, { count: 5 })
+
+    expect(HashSet.size(changedPaths)).toBe(0)
+  })
+
+  it('detects changed primitive fields', () => {
+    const { changedPaths, affectedPaths } = computeDiff(
+      { count: 0 },
+      { count: 1 },
+    )
+
+    expect(hasPath(changedPaths, 'root.count')).toBe(true)
+    expect(hasPath(affectedPaths, 'root')).toBe(true)
+  })
+
+  it('detects nested field changes', () => {
+    const { changedPaths, affectedPaths } = computeDiff(
+      { user: { name: 'Alice', age: 30 } },
+      { user: { name: 'Bob', age: 30 } },
+    )
+
+    expect(hasPath(changedPaths, 'root.user.name')).toBe(true)
+    expect(hasPath(changedPaths, 'root.user.age')).toBe(false)
+    expect(hasPath(affectedPaths, 'root.user')).toBe(true)
+    expect(hasPath(affectedPaths, 'root')).toBe(true)
+  })
+
+  it('detects array element changes', () => {
+    const { changedPaths } = computeDiff(
+      { items: [1, 2, 3] },
+      { items: [1, 99, 3] },
+    )
+
+    expect(hasPath(changedPaths, 'root.items.1')).toBe(true)
+    expect(hasPath(changedPaths, 'root.items.0')).toBe(false)
+    expect(hasPath(changedPaths, 'root.items.2')).toBe(false)
+  })
+
+  it('detects added fields', () => {
+    const { changedPaths } = computeDiff({ a: 1 }, { a: 1, b: 2 })
+
+    expect(hasPath(changedPaths, 'root.b')).toBe(true)
+    expect(hasPath(changedPaths, 'root.a')).toBe(false)
+  })
+
+  it('handles Option transitions', () => {
+    const { changedPaths, affectedPaths } = computeDiff(
+      { value: Option.none() },
+      { value: Option.some(42) },
+    )
+
+    expect(hasPath(changedPaths, 'root.value.value')).toBe(true)
+    expect(hasPath(affectedPaths, 'root.value')).toBe(true)
+  })
+
+  it('detects removed fields', () => {
+    const { changedPaths, affectedPaths } = computeDiff(
+      { a: 1, b: 2 },
+      { a: 1 },
+    )
+
+    expect(hasPath(changedPaths, 'root.b')).toBe(true)
+    expect(hasPath(changedPaths, 'root.a')).toBe(false)
+    expect(hasPath(affectedPaths, 'root')).toBe(true)
+  })
+
+  it('detects removed record keys in nested records', () => {
+    const { changedPaths } = computeDiff(
+      { todos: { '1': 'buy milk', '2': 'walk dog' } },
+      { todos: { '1': 'buy milk' } },
+    )
+
+    expect(hasPath(changedPaths, 'root.todos.2')).toBe(true)
+    expect(hasPath(changedPaths, 'root.todos.1')).toBe(false)
+  })
+
+  it('detects removed array elements', () => {
+    const { changedPaths, affectedPaths } = computeDiff(
+      { items: [1, 2, 3] },
+      { items: [1] },
+    )
+
+    expect(hasPath(changedPaths, 'root.items.1')).toBe(true)
+    expect(hasPath(changedPaths, 'root.items.2')).toBe(true)
+    expect(hasPath(changedPaths, 'root.items.0')).toBe(false)
+    expect(hasPath(affectedPaths, 'root.items')).toBe(true)
+  })
+})
+
+const initialModel = { count: 0 }
+
+const CounterModel = Schema.Struct({ count: Schema.Number })
+
+const CounterMessage = defineMessageUnion({
+  ClickedIncrement: {},
+  ClickedDecrement: {},
+})
+
+const counterReplay = (model: unknown, message: unknown): unknown => {
+  const counterModel = Schema.decodeUnknownSync(CounterModel)(model)
+
+  return pipe(
+    message,
+    Schema.decodeUnknownSync(CounterMessage),
+    Match.value,
+    Match.tagsExhaustive({
+      ClickedIncrement: () =>
+        modifyFields(counterModel, { count: Number.increment }),
+      ClickedDecrement: () =>
+        modifyFields(counterModel, { count: Number.decrement }),
+    }),
+  )
+}
+
+const makeBridge = (
+  overrides?: Partial<Bridge>,
+): Readonly<{ bridge: Bridge; rendered: Array<unknown> }> => {
+  const rendered: Array<unknown> = []
+
+  const bridge: Bridge = {
+    replay: counterReplay,
+    render: (model: unknown) =>
+      Effect.sync(() => {
+        rendered.push(model)
+      }),
+    markRenderPending: Effect.void,
+    ...overrides,
+  }
+
+  return { bridge, rendered }
+}
+
+const clickedIncrement = CounterMessage.ClickedIncrement()
+const clickedDecrement = CounterMessage.ClickedDecrement()
+
+const run = <A>(effect: Effect.Effect<A>): A => Effect.runSync(effect)
+
+const getState = (store: DevToolsStore) =>
+  run(SubscriptionRef.get(store.stateRef))
+
+const pendingCommand = (
+  id: number,
+  name: string,
+  args?: Record<string, unknown>,
+): CommandRecord =>
+  args === undefined
+    ? { id, name, maybeSubmodelPath: Option.none() }
+    : { id, name, args, maybeSubmodelPath: Option.none() }
+
+const makeStore = (
+  overrides?: Partial<Bridge>,
+  maxEntries?: number,
+  keyframeInterval?: number,
+) => {
+  const { bridge, rendered } = makeBridge(overrides)
+  const store = run(
+    createDevToolsStore(
+      bridge,
+      maxEntries === undefined && keyframeInterval === undefined
+        ? undefined
+        : {
+            ...(maxEntries === undefined ? {} : { maxEntries }),
+            ...(keyframeInterval === undefined ? {} : { keyframeInterval }),
+          },
+    ),
+  )
+  run(store.recordInit(initialModel, []))
+  return { bridge, store, rendered }
+}
+
+const recordIncrements = (store: DevToolsStore, count: number) =>
+  pipe(
+    Array.range(1, count),
+    Effect.forEach(index =>
+      store.recordMessage(
+        clickedIncrement,
+        { count: index - 1 },
+        { count: index },
+        [],
+        true,
+      ),
+    ),
+    run,
+  )
+
+describe('DevToolsStore', () => {
+  describe('recordInit', () => {
+    it('stores the initial model as the first keyframe', () => {
+      const { store } = makeStore()
+
+      const state = getState(store)
+      expect(state.entries.length).toBe(0)
+      expect(run(store.getModelAtIndex(0))).toEqual(initialModel)
+    })
+  })
+
+  describe('recordMessage', () => {
+    it('records messages and replays to compute models', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 0 },
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 1 },
+          { count: 2 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedDecrement,
+          { count: 2 },
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+
+      const state = getState(store)
+      expect(state.entries.length).toBe(3)
+      expect(run(store.getModelAtIndex(0))).toEqual({ count: 1 })
+      expect(run(store.getModelAtIndex(1))).toEqual({ count: 2 })
+      expect(run(store.getModelAtIndex(2))).toEqual({ count: 1 })
+    })
+
+    it('records Command names and args', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [
+            pendingCommand(0, 'FetchData', { id: 7 }),
+            pendingCommand(1, 'LockScroll'),
+            pendingCommand(2, 'FocusButton'),
+          ],
+          true,
+        ),
+      )
+
+      const entry = pipe(getState(store).entries, Array.head, Option.getOrThrow)
+      expect(entry.commands).toEqual([
+        pendingCommand(0, 'FetchData', { id: 7 }),
+        pendingCommand(1, 'LockScroll'),
+        pendingCommand(2, 'FocusButton'),
+      ])
+    })
+
+    it('attributes only the resolved Command when names and args match', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [
+            pendingCommand(3, 'FetchData', { id: 7 }),
+            pendingCommand(4, 'FetchData', { id: 7 }),
+          ],
+          true,
+        ),
+      )
+      run(store.recordResolvedCommand(4, ['GotEditorMessage']))
+
+      const entry = pipe(getState(store).entries, Array.head, Option.getOrThrow)
+      expect(entry.commands).toEqual([
+        pendingCommand(3, 'FetchData', { id: 7 }),
+        {
+          id: 4,
+          name: 'FetchData',
+          args: { id: 7 },
+          maybeSubmodelPath: Option.some(['GotEditorMessage']),
+        },
+      ])
+    })
+
+    it('attributes init Commands and distinguishes resolved top-level results', () => {
+      const { store } = makeStore()
+      run(
+        store.recordInit(initialModel, [
+          pendingCommand(5, 'FetchData'),
+          pendingCommand(6, 'LockScroll'),
+        ]),
+      )
+
+      run(store.recordResolvedCommand(5, ['GotPanelMessage']))
+      run(store.recordResolvedCommand(6, []))
+
+      expect(getState(store).initCommands).toEqual([
+        {
+          id: 5,
+          name: 'FetchData',
+          maybeSubmodelPath: Option.some(['GotPanelMessage']),
+        },
+        {
+          id: 6,
+          name: 'LockScroll',
+          maybeSubmodelPath: Option.some([]),
+        },
+      ])
+    })
+
+    it('leaves the store unchanged when a Command origin was evicted', () => {
+      const { store } = makeStore(undefined, 1, 1)
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [pendingCommand(7, 'FetchData')],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 1 },
+          { count: 2 },
+          [],
+          true,
+        ),
+      )
+
+      const before = getState(store)
+      run(store.recordResolvedCommand(7, ['GotChildMessage']))
+      expect(getState(store)).toBe(before)
+    })
+
+    it('stores message tags', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedDecrement,
+          { count: 1 },
+          { count: 0 },
+          [],
+          true,
+        ),
+      )
+
+      const state = getState(store)
+      expect(state.entries[0]?.tag).toBe('ClickedIncrement')
+      expect(state.entries[1]?.tag).toBe('ClickedDecrement')
+    })
+  })
+
+  describe('updateLatestModel', () => {
+    it('updates maybeLatestModel without appending an entry or keyframe', () => {
+      const { store } = makeStore()
+      const stateBefore = getState(store)
+
+      run(store.updateLatestModel({ count: 42 }))
+
+      const stateAfter = getState(store)
+      expect(stateAfter.entries.length).toBe(0)
+      expect(stateAfter.keyframes).toEqual(stateBefore.keyframes)
+      expect(Option.getOrThrow(stateAfter.maybeLatestModel)).toEqual({
+        count: 42,
+      })
+    })
+
+    it('feeds the latest-model fast path on top of recorded entries', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(store.updateLatestModel({ count: 99 }))
+
+      const state = getState(store)
+      const latestIndex = state.startIndex + state.entries.length - 1
+      expect(run(store.getModelAtIndex(latestIndex))).toEqual({ count: 99 })
+    })
+  })
+
+  describe('keyframes', () => {
+    it('creates keyframes at interval boundaries for fast replay', () => {
+      const { bridge, store } = makeStore()
+      const replaySpy = vi.spyOn(bridge, 'replay')
+
+      recordIncrements(store, 35)
+      replaySpy.mockClear()
+
+      const model = run(store.getModelAtIndex(33))
+      expect(model).toEqual({ count: 34 })
+      expect(replaySpy).toHaveBeenCalledTimes(3)
+    })
+
+    it('snapshots every entry when keyframeInterval is 1, never replaying', () => {
+      const { bridge, store } = makeStore(undefined, undefined, 1)
+      const replaySpy = vi.spyOn(bridge, 'replay')
+
+      recordIncrements(store, 35)
+      replaySpy.mockClear()
+
+      expect(run(store.getModelAtIndex(0))).toEqual({ count: 1 })
+      expect(run(store.getModelAtIndex(17))).toEqual({ count: 18 })
+      expect(run(store.getModelAtIndex(34))).toEqual({ count: 35 })
+      expect(replaySpy).not.toHaveBeenCalled()
+    })
+
+    it('replays from init keyframe for early indices', () => {
+      const { bridge, store } = makeStore()
+      const replaySpy = vi.spyOn(bridge, 'replay')
+
+      recordIncrements(store, 35)
+      replaySpy.mockClear()
+
+      const model = run(store.getModelAtIndex(5))
+      expect(model).toEqual({ count: 6 })
+      expect(replaySpy).toHaveBeenCalledTimes(6)
+    })
+
+    it('skips replay entirely when reading the latest recorded model', () => {
+      const { bridge, store } = makeStore()
+      const replaySpy = vi.spyOn(bridge, 'replay')
+
+      recordIncrements(store, 35)
+      replaySpy.mockClear()
+
+      const latestIndex = 34
+      const model = run(store.getModelAtIndex(latestIndex))
+      expect(model).toEqual({ count: 35 })
+      expect(replaySpy).not.toHaveBeenCalled()
+    })
+
+    it('preserves the latest-model fast path across eviction', () => {
+      const { bridge, store } = makeStore(undefined, 50)
+      const replaySpy = vi.spyOn(bridge, 'replay')
+
+      recordIncrements(store, 55)
+      replaySpy.mockClear()
+
+      const state = getState(store)
+      const latestIndex = state.startIndex + state.entries.length - 1
+      const model = run(store.getModelAtIndex(latestIndex))
+      expect(model).toEqual({ count: 55 })
+      expect(replaySpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('eviction', () => {
+    it('evicts oldest segment when exceeding max entries', () => {
+      const { store } = makeStore(undefined, 50)
+
+      recordIncrements(store, 55)
+
+      const state = getState(store)
+      expect(state.startIndex).toBe(31)
+      expect(state.entries.length).toBe(24)
+
+      const model = run(store.getModelAtIndex(40))
+      expect(model).toEqual({ count: 41 })
+    })
+
+    it('auto-resumes when paused index is evicted', () => {
+      let markedPendingCount = 0
+      const { store } = makeStore(
+        {
+          markRenderPending: Effect.sync(() => {
+            markedPendingCount += 1
+          }),
+        },
+        50,
+      )
+
+      recordIncrements(store, 10)
+      run(store.jumpTo(5))
+      expect(getState(store).isPaused).toBe(true)
+
+      recordIncrements(store, 45)
+
+      expect(getState(store).isPaused).toBe(false)
+      expect(markedPendingCount).toBe(1)
+    })
+  })
+
+  describe('time travel', () => {
+    it('renders the initial model when jumping to init', () => {
+      const { store, rendered } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 1 },
+          { count: 2 },
+          [],
+          true,
+        ),
+      )
+
+      run(store.jumpTo(-1))
+
+      const state = getState(store)
+      expect(state.isPaused).toBe(true)
+      expect(state.pausedAtIndex).toBe(-1)
+      expect(rendered[rendered.length - 1]).toEqual(initialModel)
+    })
+
+    it('preserves init pause through eviction', () => {
+      const { store } = makeStore(undefined, 50)
+
+      run(store.jumpTo(-1))
+      expect(getState(store).isPaused).toBe(true)
+
+      recordIncrements(store, 55)
+
+      const state = getState(store)
+      expect(state.isPaused).toBe(true)
+      expect(state.pausedAtIndex).toBe(-1)
+    })
+
+    it('renders the historical model when jumping', () => {
+      const { store, rendered } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 1 },
+          { count: 2 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 2 },
+          { count: 3 },
+          [],
+          true,
+        ),
+      )
+
+      run(store.jumpTo(1))
+
+      const state = getState(store)
+      expect(state.isPaused).toBe(true)
+      expect(state.pausedAtIndex).toBe(1)
+      expect(rendered[rendered.length - 1]).toEqual({ count: 2 })
+    })
+
+    it('preserves history recorded while the historical view renders', () => {
+      let maybeStore: DevToolsStore | null = null
+      const bridge: Bridge = {
+        replay: counterReplay,
+        render: () =>
+          Effect.suspend(() => {
+            if (maybeStore === null) {
+              return Effect.die('Expected the store to be installed')
+            }
+            return maybeStore.recordMessage(
+              clickedIncrement,
+              initialModel,
+              { count: 1 },
+              [],
+              true,
+            )
+          }),
+        markRenderPending: Effect.void,
+      }
+      const store = run(createDevToolsStore(bridge, { keyframeInterval: 1 }))
+      maybeStore = store
+      run(store.recordInit(initialModel, []))
+
+      run(store.jumpTo(-1))
+
+      const state = getState(store)
+      expect(state.entries).toHaveLength(1)
+      expect(state.maybeLatestModel).toEqual(Option.some({ count: 1 }))
+      expect(state.isPaused).toBe(true)
+      expect(state.pausedAtIndex).toBe(-1)
+    })
+
+    it('repaints live when the jump target is evicted during rendering', () => {
+      let maybeStore: DevToolsStore | null = null
+      let markedPendingCount = 0
+      const bridge: Bridge = {
+        replay: counterReplay,
+        render: () =>
+          Effect.suspend(() => {
+            if (maybeStore === null) {
+              return Effect.die('Expected the store to be installed')
+            }
+            return maybeStore.recordMessage(
+              clickedIncrement,
+              { count: 1 },
+              { count: 2 },
+              [],
+              true,
+            )
+          }),
+        markRenderPending: Effect.sync(() => {
+          markedPendingCount += 1
+        }),
+      }
+      const store = run(
+        createDevToolsStore(bridge, {
+          maxEntries: 1,
+          keyframeInterval: 1,
+        }),
+      )
+      maybeStore = store
+      run(store.recordInit(initialModel, []))
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+
+      run(store.jumpTo(0))
+
+      const state = getState(store)
+      expect(state.startIndex).toBe(1)
+      expect(state.entries).toHaveLength(1)
+      expect(state.isPaused).toBe(false)
+      expect(markedPendingCount).toBe(1)
+    })
+
+    it('resumes when a jump target is evicted from another paused view', () => {
+      let maybeStore: DevToolsStore | null = null
+      let isRecordingDuringRender = false
+      let markedPendingCount = 0
+      const bridge: Bridge = {
+        replay: counterReplay,
+        render: () => {
+          if (!isRecordingDuringRender) {
+            return Effect.void
+          }
+          return Effect.suspend(() => {
+            if (maybeStore === null) {
+              return Effect.die('Expected the store to be installed')
+            }
+            return maybeStore.recordMessage(
+              clickedIncrement,
+              { count: 1 },
+              { count: 2 },
+              [],
+              true,
+            )
+          })
+        },
+        markRenderPending: Effect.sync(() => {
+          markedPendingCount += 1
+        }),
+      }
+      const store = run(
+        createDevToolsStore(bridge, {
+          maxEntries: 1,
+          keyframeInterval: 1,
+        }),
+      )
+      maybeStore = store
+      run(store.recordInit(initialModel, []))
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(store.jumpTo(-1))
+      expect(getState(store).isPaused).toBe(true)
+
+      isRecordingDuringRender = true
+      run(store.jumpTo(0))
+
+      const state = getState(store)
+      expect(state.startIndex).toBe(1)
+      expect(state.entries).toHaveLength(1)
+      expect(state.isPaused).toBe(false)
+      expect(markedPendingCount).toBe(1)
+    })
+
+    it('returns the resolved model so callers skip a second resolution', () => {
+      const { bridge, store, rendered } = makeStore()
+      const replaySpy = vi.spyOn(bridge, 'replay')
+
+      recordIncrements(store, 35)
+      replaySpy.mockClear()
+
+      const midSegmentIndex = 5
+      const returnedModel = run(store.jumpTo(midSegmentIndex))
+
+      expect(returnedModel).toEqual({ count: 6 })
+      expect(returnedModel).toEqual(rendered[rendered.length - 1])
+
+      const replaysForOneResolution = replaySpy.mock.calls.length
+      expect(replaysForOneResolution).toBeGreaterThan(0)
+
+      replaySpy.mockClear()
+      expect(run(store.getModelAtIndex(midSegmentIndex))).toEqual(returnedModel)
+      expect(replaySpy).toHaveBeenCalledTimes(replaysForOneResolution)
+    })
+
+    it('exits paused state on resume and marks the render pending', () => {
+      let markedPendingCount = 0
+      const { store } = makeStore({
+        markRenderPending: Effect.sync(() => {
+          markedPendingCount += 1
+        }),
+      })
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+
+      run(store.jumpTo(0))
+      expect(getState(store).isPaused).toBe(true)
+
+      run(store.resume)
+      expect(getState(store).isPaused).toBe(false)
+      expect(markedPendingCount).toBe(1)
+    })
+  })
+
+  describe('getMessageAtIndex', () => {
+    it('returns the message at a valid index', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedDecrement,
+          { count: 1 },
+          { count: 0 },
+          [],
+          true,
+        ),
+      )
+
+      const message = run(store.getMessageAtIndex(1))
+      expect(message).toEqual(Option.some(clickedDecrement))
+    })
+
+    it('returns none for the init index', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+
+      const message = run(store.getMessageAtIndex(-1))
+      expect(message).toEqual(Option.none())
+    })
+
+    it('returns none for an out-of-range index', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+
+      const message = run(store.getMessageAtIndex(99))
+      expect(message).toEqual(Option.none())
+    })
+
+    it('applies startIndex offset after eviction', () => {
+      const { store } = makeStore(undefined, 50)
+
+      recordIncrements(store, 55)
+
+      const state = getState(store)
+      const lastIndex = state.startIndex + state.entries.length - 1
+
+      const message = run(store.getMessageAtIndex(lastIndex))
+      expect(message).toEqual(Option.some(clickedIncrement))
+    })
+  })
+
+  describe('isModelChanged', () => {
+    it('stores false when the model did not change', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          false,
+        ),
+      )
+
+      const state = getState(store)
+      expect(state.entries[0]?.isModelChanged).toBe(false)
+    })
+
+    it('stores false when reference changed but values are identical', () => {
+      const { store } = makeStore()
+
+      const before = { count: 5 }
+      const after = { count: 5 }
+
+      run(store.recordMessage(clickedIncrement, before, after, [], true))
+
+      const state = getState(store)
+      expect(state.entries[0]?.isModelChanged).toBe(false)
+    })
+
+    it('stores true when values actually differ', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 0 },
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+
+      const state = getState(store)
+      expect(state.entries[0]?.isModelChanged).toBe(true)
+    })
+  })
+
+  describe('clear', () => {
+    it('resets all state when live', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 1 },
+          { count: 2 },
+          [],
+          true,
+        ),
+      )
+
+      run(store.clear)
+
+      const state = getState(store)
+      expect(state.entries.length).toBe(0)
+      expect(state.startIndex).toBe(0)
+      expect(state.isPaused).toBe(false)
+    })
+
+    it('is a no-op while paused', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          { count: 1 },
+          { count: 2 },
+          [],
+          true,
+        ),
+      )
+      run(store.jumpTo(0))
+
+      run(store.clear)
+
+      const state = getState(store)
+      expect(state.entries.length).toBe(2)
+      expect(state.isPaused).toBe(true)
+      expect(state.pausedAtIndex).toBe(0)
+    })
+  })
+
+  describe('attachRenderedMounts', () => {
+    it('attaches starts to init when no entries are recorded yet', () => {
+      const { store } = makeStore()
+
+      run(
+        store.attachRenderedMounts(
+          [{ name: 'MountA' }, { name: 'MountB' }],
+          [],
+        ),
+      )
+
+      const state = getState(store)
+      expect(state.initMountStarts).toEqual([
+        { name: 'MountA' },
+        { name: 'MountB' },
+      ])
+      expect(state.entries.length).toBe(0)
+    })
+
+    it('attaches starts and ends to the latest entry', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.attachRenderedMounts([{ name: 'MountA' }], [{ name: 'MountB' }]),
+      )
+
+      const state = getState(store)
+      expect(state.entries[0]?.mountStarts).toEqual([{ name: 'MountA' }])
+      expect(state.entries[0]?.mountEnds).toEqual([{ name: 'MountB' }])
+    })
+
+    it('attaches to the most recent entry, not earlier ones', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.recordMessage(
+          clickedDecrement,
+          { count: 1 },
+          { count: 0 },
+          [],
+          true,
+        ),
+      )
+      run(store.attachRenderedMounts([{ name: 'MountA' }], []))
+
+      const state = getState(store)
+      expect(state.entries[0]?.mountStarts).toEqual([])
+      expect(state.entries[0]?.mountEnds).toEqual([])
+      expect(state.entries[1]?.mountStarts).toEqual([{ name: 'MountA' }])
+    })
+
+    it('appends to existing entries on repeat calls', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(store.attachRenderedMounts([{ name: 'MountA' }], []))
+      run(
+        store.attachRenderedMounts([{ name: 'MountB' }], [{ name: 'MountC' }]),
+      )
+
+      const state = getState(store)
+      expect(state.entries[0]?.mountStarts).toEqual([
+        { name: 'MountA' },
+        { name: 'MountB' },
+      ])
+      expect(state.entries[0]?.mountEnds).toEqual([{ name: 'MountC' }])
+    })
+
+    it('is a no-op when both arrays are empty', () => {
+      const { store } = makeStore()
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      const stateBefore = getState(store)
+
+      run(store.attachRenderedMounts([], []))
+
+      const stateAfter = getState(store)
+      expect(stateAfter).toBe(stateBefore)
+    })
+
+    it('preserves args on mount records through both init and entry attachment', () => {
+      const { store } = makeStore()
+
+      run(
+        store.attachRenderedMounts(
+          [{ name: 'AnchorPopover', args: { buttonId: 'home' } }],
+          [],
+        ),
+      )
+
+      const initState = getState(store)
+      expect(initState.initMountStarts).toEqual([
+        { name: 'AnchorPopover', args: { buttonId: 'home' } },
+      ])
+
+      run(
+        store.recordMessage(
+          clickedIncrement,
+          initialModel,
+          { count: 1 },
+          [],
+          true,
+        ),
+      )
+      run(
+        store.attachRenderedMounts(
+          [{ name: 'AnchorPopover', args: { buttonId: 'cart' } }],
+          [{ name: 'AnchorPopover', args: { buttonId: 'home' } }],
+        ),
+      )
+
+      const entryState = getState(store)
+      expect(entryState.entries[0]?.mountStarts).toEqual([
+        { name: 'AnchorPopover', args: { buttonId: 'cart' } },
+      ])
+      expect(entryState.entries[0]?.mountEnds).toEqual([
+        { name: 'AnchorPopover', args: { buttonId: 'home' } },
+      ])
+    })
+  })
+})

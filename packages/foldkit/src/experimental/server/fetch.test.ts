@@ -1,0 +1,170 @@
+// @vitest-environment node
+import { expect } from 'vitest'
+
+import { describe, it } from '@effect/vitest'
+
+import { Rendered, Responded } from './entry.js'
+import { handleRequest } from './fetch.js'
+
+const TEMPLATE =
+  '<!doctype html><html><head><title>Old</title></head>' +
+  '<body><div id="root"></div></body></html>'
+
+const ORIGIN = 'http://localhost:3000'
+
+const renderPage = async (request: Request) =>
+  Rendered({
+    html:
+      '<main data-foldkit-app="app" data-foldkit-build="fixture">' +
+      `${new URL(request.url).pathname}</main>`,
+    title: 'Page',
+  })
+
+const handle = (request: Request) =>
+  handleRequest(request, { renderPage, template: TEMPLATE })
+
+describe('handleRequest', () => {
+  it('renders a page request into the template', async () => {
+    const response = await handle(new Request(`${ORIGIN}/about`))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe(
+      'text/html; charset=utf-8',
+    )
+    expect(await response.text()).toContain('>/about</main>')
+  })
+
+  it('renders a page request through a document renderer', async () => {
+    const applications: Array<
+      Awaited<ReturnType<typeof renderPage>>['application']
+    > = []
+    const response = await handleRequest(new Request(`${ORIGIN}/document`), {
+      renderPage,
+      renderDocument: application => {
+        applications.push(application)
+        return `<!doctype html><title>${application.title}</title>${application.html}`
+      },
+    })
+
+    expect(applications).toHaveLength(1)
+    expect(await response.text()).toContain('>/document</main>')
+  })
+
+  it('requires exactly one document source before calling the entry', async () => {
+    const calls: Array<string> = []
+    const trackedRenderPage = async (request: Request) => {
+      calls.push(request.url)
+      return renderPage(request)
+    }
+    const request = new Request(`${ORIGIN}/invalid-document-source`)
+
+    await expect(
+      Reflect.apply(handleRequest, undefined, [
+        request,
+        {
+          renderPage: trackedRenderPage,
+          renderDocument: () => '<!doctype html>',
+          template: TEMPLATE,
+        },
+      ]),
+    ).rejects.toThrow(/requires exactly one document source/)
+    await expect(
+      Reflect.apply(handleRequest, undefined, [
+        request,
+        { renderPage: trackedRenderPage },
+      ]),
+    ).rejects.toThrow(/requires exactly one document source/)
+    expect(calls).toEqual([])
+  })
+
+  it('refuses TRACE instead of forwarding it to the entry', async () => {
+    const request = new Request(ORIGIN)
+    Object.defineProperty(request, 'method', { value: 'TRACE' })
+    const response = await handle(request)
+
+    expect(response.status).toBe(405)
+    expect(response.headers.get('allow')).toBe(
+      'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS',
+    )
+  })
+
+  it('hands the entry the Request.url the platform constructed', async () => {
+    const seen: Array<string> = []
+    const response = await handleRequest(
+      new Request('https://app.example/about'),
+      {
+        renderPage: request => {
+          seen.push(request.url)
+          return renderPage(request)
+        },
+        template: TEMPLATE,
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(seen).toEqual(['https://app.example/about'])
+  })
+
+  it('does not answer a missing hashed asset with the application shell', async () => {
+    const response = await handle(new Request(`${ORIGIN}/assets/stale-hash.js`))
+
+    expect(response.status).toBe(404)
+    expect(await response.text()).toBe('')
+  })
+
+  it('negotiates HTML on a deep link and declares Vary', async () => {
+    const page = await handle(
+      new Request(`${ORIGIN}/counter/42`, {
+        headers: { accept: 'text/html' },
+      }),
+    )
+    expect(page.status).toBe(200)
+    expect(page.headers.get('vary')).toContain('Accept')
+    expect(page.headers.get('vary')).toContain('Sec-Fetch-Dest')
+
+    const refused = await handle(
+      new Request(`${ORIGIN}/counter/42`, {
+        headers: { accept: 'application/json' },
+      }),
+    )
+    expect(refused.status).toBe(404)
+    expect(refused.headers.get('vary')).toContain('Accept')
+  })
+
+  it('returns a complete Response from the entry unchanged', async () => {
+    const response = await handleRequest(new Request(`${ORIGIN}/gone`), {
+      renderPage: async () => Responded(Response.redirect(`${ORIGIN}/`, 302)),
+      template: TEMPLATE,
+    })
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe(`${ORIGIN}/`)
+  })
+
+  it('omits the body of a HEAD request', async () => {
+    const response = await handle(new Request(`${ORIGIN}/`, { method: 'HEAD' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('')
+  })
+
+  it('cancels a streamed response body for HEAD', async () => {
+    let isCanceled = false
+    const body = new ReadableStream({
+      cancel() {
+        isCanceled = true
+      },
+    })
+    const response = await handleRequest(
+      new Request(`${ORIGIN}/`, { method: 'HEAD' }),
+      {
+        renderPage: async () => Responded(new Response(body)),
+        template: TEMPLATE,
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('')
+    expect(isCanceled).toBe(true)
+  })
+})
