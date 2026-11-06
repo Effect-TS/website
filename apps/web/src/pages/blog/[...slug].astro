@@ -13,6 +13,7 @@ import { FormattedDate } from "@/components/ui/FormattedDate"
 import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import PageLayout from "@/layouts/PageLayout.astro"
+import { blogPostMetadata } from "@/lib/blog-post"
 import { BLOG_FEED } from "@/lib/constants/blog-feed"
 import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
 
@@ -114,8 +115,7 @@ const shareShellClass =
 ---
 
 <PageLayout
-  title={`${post.data.title} | Effect Blog`}
-  description={post.data.excerpt}
+  {...blogPostMetadata(post)}
   activeSlug={isSeriesPost ? "motw" : "blog"}
   feed={isSeriesPost ? MODULE_FEED : BLOG_FEED}
   themeable
