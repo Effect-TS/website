@@ -1,0 +1,467 @@
+import { Effect, Exit, Queue, Schema, Stream } from 'effect'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import * as Command from '../command/index.js'
+import { type Html, __htmlBuilder } from '../html/index.js'
+import { defineMessageUnion } from '../message/index.js'
+import * as Mount from '../mount/index.js'
+import * as Port from '../port/index.js'
+import { modifyFields } from '../struct/index.js'
+import * as Subscription from '../subscription/subscription.js'
+import type * as Update from '../update/index.js'
+import { makeApplication } from './makeApplication.js'
+import { makeElement } from './makeElement.js'
+import { embed } from './start.js'
+
+const Message = defineMessageUnion({
+  ChangedStep: { step: Schema.Number },
+  ClickedIncrement: {},
+  CompletedReportCount: {},
+  CompletedTrackHost: {},
+  Ticked: {},
+})
+type Message = typeof Message.Type
+
+const Model = Schema.Struct({ count: Schema.Number, step: Schema.Number })
+type Model = typeof Model.Type
+
+const ports = {
+  inbound: {
+    stepChanged: Port.inbound(Schema.NumberFromString.check(Schema.isFinite())),
+  },
+  outbound: { countChanged: Port.outbound(Schema.Number) },
+}
+
+const ReportCount = Command.define('ReportCount', {
+  args: { count: Schema.Number },
+  messages: [Message.CompletedReportCount],
+  execute: ({ count }) =>
+    Port.emit(ports.outbound.countChanged, count).pipe(
+      Effect.as(Message.CompletedReportCount()),
+    ),
+})
+
+const update = (model: Model, message: Message) =>
+  Message.match<Update.Return<Model, Message>>(message, {
+    ChangedStep: ({ step }) => ({
+      model: modifyFields(model, { step: () => step }),
+    }),
+    ClickedIncrement: () => {
+      const count = model.count + model.step
+      return {
+        model: modifyFields(model, { count: () => count }),
+        commands: [ReportCount({ count })],
+      }
+    },
+    CompletedReportCount: () => ({ model }),
+    CompletedTrackHost: () => ({ model }),
+    Ticked: () => ({ model }),
+  })
+
+let isTickStreamActive = false
+let isMountActive = false
+
+const TICK_INTERVAL_MS = 5
+const FLAGS_STARTUP_FAILURE = 'flags blew up on embed startup'
+
+const subscriptions = Subscription.make<Model, Message>()(_entry => ({
+  hostStep: Port.subscriptionEntry(ports.inbound.stepChanged, step =>
+    Message.ChangedStep({ step }),
+  ),
+  tick: Subscription.persistentEntry(
+    Stream.callback<Message>(queue =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          isTickStreamActive = true
+          return setInterval(() => {
+            Queue.offerUnsafe(queue, Message.Ticked())
+          }, TICK_INTERVAL_MS)
+        }),
+        intervalId =>
+          Effect.sync(() => {
+            clearInterval(intervalId)
+            isTickStreamActive = false
+          }),
+      ).pipe(Effect.flatMap(() => Effect.never)),
+    ),
+  ),
+}))
+
+const TrackHost = Mount.define('TrackHost', {
+  messages: [Message.CompletedTrackHost],
+  execute: () =>
+    Effect.gen(function* () {
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          isMountActive = true
+        }),
+        () =>
+          Effect.sync(() => {
+            isMountActive = false
+          }),
+      )
+      return Message.CompletedTrackHost()
+    }),
+})
+
+const h = __htmlBuilder<Message>()
+
+const view = (model: Model): Html =>
+  h.div(
+    [h.OnMount(TrackHost())],
+    [
+      h.button([h.OnClick(Message.ClickedIncrement())], ['increment']),
+      h.div([], [`count:${model.count}`]),
+      h.div([], [`step:${model.step}`]),
+    ],
+  )
+
+let container: HTMLElement
+
+const makeWidget = (
+  initCommands: ReadonlyArray<Command.Command<Message>> = [],
+) =>
+  makeElement({
+    Model,
+    init: () => ({ model: { count: 0, step: 1 }, commands: initCommands }),
+    update,
+    view,
+    subscriptions,
+    ports,
+    container,
+  })
+
+beforeEach(() => {
+  isTickStreamActive = false
+  isMountActive = false
+  container = document.createElement('div')
+  container.id = 'app'
+  document.body.appendChild(container)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  document.body.innerHTML = ''
+})
+
+const awaitBodyText = (text: string): Promise<void> =>
+  vi.waitFor(() => {
+    expect(document.body.textContent).toContain(text)
+  })
+
+const clickIncrement = (): void => {
+  const button = document.body.querySelector('button')
+  expect(button).not.toBeNull()
+  button?.click()
+}
+
+describe('embed', () => {
+  it('renders the app and drives update through an inbound Port send', async () => {
+    const handle = embed(makeWidget())
+
+    try {
+      await awaitBodyText('step:1')
+
+      const sendExit = handle.ports.stepChanged.send('5')
+      expect(Exit.isSuccess(sendExit)).toBe(true)
+
+      await awaitBodyText('step:5')
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('applies sends issued immediately after embed, before the runtime is live', async () => {
+    const handle = embed(makeWidget())
+
+    try {
+      handle.ports.stepChanged.send('7')
+      await awaitBodyText('step:7')
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('delivers outbound emissions to every subscriber in order, and unsubscribe detaches one listener', async () => {
+    const handle = embed(makeWidget())
+    const received: Array<string> = []
+
+    try {
+      handle.ports.countChanged.subscribe(count => {
+        received.push(`first:${count}`)
+      })
+      const unsubscribeSecond = handle.ports.countChanged.subscribe(count => {
+        received.push(`second:${count}`)
+      })
+
+      await awaitBodyText('count:0')
+      clickIncrement()
+      await vi.waitFor(() => {
+        expect(received).toEqual(['first:1', 'second:1'])
+      })
+
+      unsubscribeSecond()
+      clickIncrement()
+      await vi.waitFor(() => {
+        expect(received).toEqual(['first:1', 'second:1', 'first:2'])
+      })
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('delivers init Command emissions to a listener subscribed right after embed', async () => {
+    const handle = embed(makeWidget([ReportCount({ count: 0 })]))
+    const received: Array<number> = []
+
+    try {
+      handle.ports.countChanged.subscribe(count => {
+        received.push(count)
+      })
+
+      await vi.waitFor(() => {
+        expect(received).toEqual([0])
+      })
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('keeps other listeners and the app alive when a listener throws', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+    const handle = embed(makeWidget())
+    const received: Array<number> = []
+
+    try {
+      handle.ports.countChanged.subscribe(() => {
+        throw new Error('listener boom')
+      })
+      handle.ports.countChanged.subscribe(count => {
+        received.push(count)
+      })
+
+      await awaitBodyText('count:0')
+      clickIncrement()
+
+      await vi.waitFor(() => {
+        expect(received).toEqual([1])
+      })
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[foldkit] An outbound port listener threw:',
+        expect.any(Error),
+      )
+      await awaitBodyText('count:1')
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('rejects an invalid inbound value with a typed Exit and keeps the app working', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+    const handle = embed(makeWidget())
+
+    try {
+      await awaitBodyText('step:1')
+
+      const invalidExit = handle.ports.stepChanged.send('not a number')
+      expect(Exit.isFailure(invalidExit)).toBe(true)
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[foldkit] Inbound port "stepChanged" rejected a value:',
+        expect.anything(),
+      )
+
+      const validExit = handle.ports.stepChanged.send('9')
+      expect(Exit.isSuccess(validExit)).toBe(true)
+      await awaitBodyText('step:9')
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('seeds the initial model from flags', async () => {
+    const Flags = Schema.Struct({ initialCount: Schema.Number })
+
+    const handle = embed(
+      makeElement({
+        Model,
+        Flags,
+        flags: Effect.succeed({ initialCount: 41 }),
+        init: flags => ({ model: { count: flags.initialCount, step: 1 } }),
+        update,
+        view,
+        subscriptions,
+        ports,
+        container,
+      }),
+    )
+
+    try {
+      await awaitBodyText('count:41')
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('logs a flags failure Cause and leaves the container blank', async () => {
+    const Flags = Schema.Struct({ initialCount: Schema.Number })
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+
+    const handle = embed(
+      makeElement({
+        Model,
+        Flags,
+        flags: Effect.sync((): { initialCount: number } => {
+          throw new Error(FLAGS_STARTUP_FAILURE)
+        }),
+        init: flags => ({ model: { count: flags.initialCount, step: 1 } }),
+        update,
+        view,
+        subscriptions,
+        ports,
+        container,
+      }),
+    )
+
+    try {
+      await vi.waitFor(() => {
+        expect(
+          [...consoleLogSpy.mock.calls, ...consoleErrorSpy.mock.calls]
+            .flat()
+            .map(String)
+            .join('\n'),
+        ).toContain(FLAGS_STARTUP_FAILURE)
+      })
+      expect(container.childNodes.length).toBe(0)
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('dispose stops Subscriptions, releases Mounts, removes the rendered DOM, and restores the container', async () => {
+    const handle = embed(makeWidget())
+
+    await awaitBodyText('count:0')
+    expect(isTickStreamActive).toBe(true)
+    expect(isMountActive).toBe(true)
+
+    handle.dispose()
+
+    await vi.waitFor(() => {
+      expect(isTickStreamActive).toBe(false)
+      expect(isMountActive).toBe(false)
+      expect(document.body.textContent).not.toContain('count:0')
+    })
+    expect(document.getElementById('app')).toBe(container)
+    expect(container.childNodes.length).toBe(0)
+  })
+
+  it('does not log when dispose interrupts a live embed', async () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+    const handle = embed(makeWidget())
+
+    await awaitBodyText('count:0')
+    consoleLogSpy.mockClear()
+    consoleErrorSpy.mockClear()
+
+    handle.dispose()
+
+    await vi.waitFor(() => {
+      expect(isTickStreamActive).toBe(false)
+    })
+    expect(consoleLogSpy).not.toHaveBeenCalled()
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+  })
+
+  it('dispose is idempotent and silences the handle afterwards', async () => {
+    const handle = embed(makeWidget())
+
+    await awaitBodyText('count:0')
+    handle.dispose()
+    handle.dispose()
+
+    await vi.waitFor(() => {
+      expect(isTickStreamActive).toBe(false)
+    })
+
+    const sendExit = handle.ports.stepChanged.send('3')
+    expect(Exit.isSuccess(sendExit)).toBe(true)
+    const unsubscribe = handle.ports.countChanged.subscribe(() => {})
+    unsubscribe()
+  })
+
+  it('throws when a program is embedded twice without disposing', async () => {
+    const element = makeWidget()
+    const handle = embed(element)
+
+    try {
+      await awaitBodyText('count:0')
+      expect(() => embed(element)).toThrow(/already embedded/)
+    } finally {
+      handle.dispose()
+    }
+  })
+
+  it('supports dispose immediately followed by a fresh embed of the same program', async () => {
+    const element = makeWidget()
+
+    const firstHandle = embed(element)
+    await awaitBodyText('count:0')
+    firstHandle.dispose()
+
+    const secondHandle = embed(element)
+    try {
+      await awaitBodyText('count:0')
+      const sendExit = secondHandle.ports.stepChanged.send('4')
+      expect(Exit.isSuccess(sendExit)).toBe(true)
+      await awaitBodyText('step:4')
+    } finally {
+      secondHandle.dispose()
+    }
+  })
+
+  it('works with a makeApplication program', async () => {
+    const handle = embed(
+      makeApplication({
+        Model,
+        init: () => ({ model: { count: 0, step: 1 } }),
+        update,
+        view: model => ({ title: 'Widget', body: view(model) }),
+        subscriptions,
+        ports,
+        container,
+      }),
+    )
+    const received: Array<number> = []
+
+    try {
+      handle.ports.countChanged.subscribe(count => {
+        received.push(count)
+      })
+
+      await awaitBodyText('count:0')
+      handle.ports.stepChanged.send('10')
+      await awaitBodyText('step:10')
+
+      clickIncrement()
+      await vi.waitFor(() => {
+        expect(received).toEqual([10])
+      })
+    } finally {
+      handle.dispose()
+    }
+
+    await vi.waitFor(() => {
+      expect(isTickStreamActive).toBe(false)
+    })
+  })
+})

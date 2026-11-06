@@ -1,0 +1,113 @@
+import { Array, Effect, Number, Schema } from 'effect'
+
+import * as Command from '../../command/index.js'
+import type { Html, HtmlBuilder } from '../../html/index.js'
+import { defineMessageUnion } from '../../message/index.js'
+import { modifyFields } from '../../struct/index.js'
+import type * as Update from '../../update/index.js'
+
+// MODEL
+
+export const Model = Schema.Struct({
+  count: Schema.Number,
+  log: Schema.Array(Schema.Number),
+})
+export type Model = typeof Model.Type
+
+// MESSAGE
+
+export const Message = defineMessageUnion({
+  ClickedIncrement: {},
+  ClickedDecrement: {},
+  ClickedFetch: {},
+  ClickedFetchById: { id: Schema.Number },
+  Ticked: {},
+  PolledCount: {},
+  StartedThreeFetches: {},
+  StartedTwoFetchesById: {},
+  StartedMixedFetches: {},
+  SucceededFetchCount: { count: Schema.Number },
+  FailedFetchCount: { error: Schema.String },
+})
+
+export type Message = typeof Message.Type
+
+// COMMAND
+
+export const FetchCount = Command.define('FetchCount', {
+  messages: [Message.SucceededFetchCount, Message.FailedFetchCount],
+  execute: Effect.sync(() => Message.SucceededFetchCount({ count: 0 })),
+})
+
+export const FetchCountById = Command.define('FetchCountById', {
+  args: { id: Schema.Number },
+  messages: [Message.SucceededFetchCount, Message.FailedFetchCount],
+  execute: ({ id }) =>
+    Effect.sync(() => Message.SucceededFetchCount({ count: id })),
+})
+
+// INIT
+
+export const initialModel: Model = { count: 0, log: [] }
+
+// UPDATE
+
+export const update = (model: Model, message: Message) =>
+  Message.match<Update.Return<Model, Message>>(message, {
+    ClickedIncrement: () => ({
+      model: modifyFields(model, { count: Number.increment }),
+    }),
+    ClickedDecrement: () => ({
+      model: modifyFields(model, { count: Number.decrement }),
+    }),
+    ClickedFetch: () => ({ model, commands: [FetchCount()] }),
+    ClickedFetchById: ({ id }) => ({
+      model,
+      commands: [FetchCountById({ id })],
+    }),
+    Ticked: () => ({ model: modifyFields(model, { count: Number.increment }) }),
+    PolledCount: () => ({ model, commands: [FetchCount()] }),
+    StartedThreeFetches: () => ({
+      model,
+      commands: [FetchCount(), FetchCount(), FetchCount()],
+    }),
+    StartedTwoFetchesById: () => ({
+      model,
+      commands: [FetchCountById({ id: 5 }), FetchCountById({ id: 5 })],
+    }),
+    StartedMixedFetches: () => ({
+      model,
+      commands: [
+        FetchCount(),
+        FetchCount(),
+        FetchCountById({ id: 99 }),
+        FetchCountById({ id: 99 }),
+      ],
+    }),
+    SucceededFetchCount: ({ count }) => ({
+      model: modifyFields(model, {
+        count: () => count,
+        log: Array.append(count),
+      }),
+    }),
+    FailedFetchCount: () => ({ model }),
+  })
+
+// VIEW
+
+export const view = (model: Model, h: HtmlBuilder<Message>): Html => {
+  return h.div(
+    [],
+    [
+      h.span([h.Role('status')], [`count: ${model.count}`]),
+      h.button(
+        [h.OnClick(Message.StartedThreeFetches()), h.Role('button')],
+        ['Start three fetches'],
+      ),
+      h.button(
+        [h.OnClick(Message.StartedTwoFetchesById()), h.Role('button')],
+        ['Start two fetches by id'],
+      ),
+    ],
+  )
+}
