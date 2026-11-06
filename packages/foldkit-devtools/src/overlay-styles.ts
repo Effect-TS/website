@@ -633,6 +633,10 @@ ul {
 
 /* Panel */
 .dt-panel {
+  top: var(--dt-panel-top, auto);
+  right: var(--dt-panel-right, auto);
+  bottom: var(--dt-panel-bottom, auto);
+  left: var(--dt-panel-left, auto);
   width: 360px;
   height: 480px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -640,23 +644,29 @@ ul {
 }
 /* Panel positions */
 .dt-panel-br {
-  bottom: 16px;
-  right: 28px;
+  bottom: var(--dt-panel-bottom, 16px);
+  right: var(--dt-panel-right, 28px);
 }
 .dt-panel-bl {
-  bottom: 16px;
-  left: 28px;
+  bottom: var(--dt-panel-bottom, 16px);
+  left: var(--dt-panel-left, 28px);
 }
 .dt-panel-tr {
-  top: 16px;
-  right: 28px;
+  top: var(--dt-panel-top, 16px);
+  right: var(--dt-panel-right, 28px);
 }
 .dt-panel-tl {
-  top: 16px;
-  left: 28px;
+  top: var(--dt-panel-top, 16px);
+  left: var(--dt-panel-left, 28px);
 }
 .dt-panel-wide {
   width: 720px;
+}
+[data-dt-handle] {
+  cursor: grab;
+}
+[data-dt-handle]:active {
+  cursor: grabbing;
 }
 .dt-message-pane {
   width: 320px;

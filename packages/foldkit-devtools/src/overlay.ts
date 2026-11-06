@@ -2493,7 +2493,7 @@ const buildOverlayView = (
     )
 
     return h.header(
-      [h.Class(headerClass)],
+      [h.Class(headerClass), h.DataAttribute('dt-handle', '')],
       [
         status,
         ...Option.toArray(maybeAction),
@@ -2896,6 +2896,7 @@ const buildOverlayView = (
                   h.Class(
                     'px-3 py-2 border-b text-sm text-dt-muted font-mono shrink-0 leading-snug',
                   ),
+                  h.DataAttribute('dt-handle', ''),
                 ],
                 [banner],
               ),
@@ -3139,6 +3140,10 @@ export const createOverlay = (
 
     const { isOpen: startsOpen } = yield* readPersistedState
     controller.report({ _tag: startsOpen ? 'Opened' : 'Closed' })
+
+    if (options.placement !== undefined) {
+      yield* options.placement({ host: shadow.host as HTMLElement, shadow })
+    }
 
     yield* Effect.forkScoped(overlayRuntime.start())
   })

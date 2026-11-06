@@ -59,8 +59,27 @@ export type DevToolsControllerPort = Readonly<{
   report: (event: DevToolsControllerEvent) => void
 }>
 
+/** Nodes a Placement receives. They live as long as the Overlay. */
+export type DevToolsPlacementTarget = Readonly<{
+  host: HTMLElement
+  shadow: ShadowRoot
+}>
+
+/**
+ * Host-owned rule for where the Panel sits. It runs in the Overlay's Scope.
+ * The Panel reads `--dt-panel-top`, `--dt-panel-right`, `--dt-panel-bottom`,
+ * and `--dt-panel-left` from the host element, with corner defaults. The
+ * Panel header carries `data-dt-handle` for drag.
+ */
+export type DevToolsPlacement = (
+  target: DevToolsPlacementTarget,
+) => Effect.Effect<void, never, Scope.Scope>
+
 /** Chrome options for the Overlay. `showBadge` defaults to `true`. */
-export type DevToolsOverlayOptions = Readonly<{ showBadge?: boolean }>
+export type DevToolsOverlayOptions = Readonly<{
+  showBadge?: boolean
+  placement?: DevToolsPlacement
+}>
 
 /**
  * Factory that mounts the in-browser DevTools overlay against a recording

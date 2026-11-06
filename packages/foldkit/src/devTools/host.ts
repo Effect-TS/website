@@ -6,6 +6,8 @@ export type {
   DevToolsControllerRequest,
   DevToolsOverlay,
   DevToolsOverlayOptions,
+  DevToolsPlacement,
+  DevToolsPlacementTarget,
   DevToolsProgram,
   DevToolsProgramList,
   DevToolsPrograms,
