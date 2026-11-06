@@ -3,12 +3,11 @@ import type {
   DevToolsControllerPort,
   DevToolsPrograms,
 } from "foldkit/devtools-host"
+import { astroPlacement } from "../../src/lib/foldkit/devtools-placement.ts"
 import { afterEach, assert, beforeEach, test, vi } from "vite-plus/test"
 
 const calls = vi.hoisted(() => ({
   overlay: [] as Array<{ options: unknown; closed: boolean }>,
-  attach: 0,
-  detach: 0,
 }))
 
 vi.mock("@foldkit/devtools/vite", () => ({
@@ -24,21 +23,10 @@ vi.mock("@foldkit/devtools/vite", () => ({
     }),
 }))
 
-vi.mock("../../src/lib/foldkit/devtools-layout.ts", () => ({
-  attachLayout: () => {
-    calls.attach++
-    return () => {
-      calls.detach++
-    }
-  },
-}))
-
 const styles: Array<{ id: string }> = []
 
 beforeEach(() => {
   calls.overlay.length = 0
-  calls.attach = 0
-  calls.detach = 0
   styles.length = 0
   vi.stubGlobal("document", {
     getElementById: (id: string) =>
@@ -65,18 +53,19 @@ const start = async () => {
   return program
 }
 
-test("mount starts the Overlay without a Badge and attaches the layout", async () => {
+test("mount starts the Overlay without a Badge and with the Astro Placement", async () => {
   await start()
   assert.strictEqual(calls.overlay.length, 1)
-  assert.deepEqual(calls.overlay[0]?.options, { showBadge: false })
-  assert.strictEqual(calls.attach, 1)
+  assert.deepEqual(calls.overlay[0]?.options, {
+    showBadge: false,
+    placement: astroPlacement,
+  })
   assert.strictEqual(styles.length, 1)
 })
 
-test("unmount detaches the layout and closes the Overlay scope", async () => {
+test("unmount closes the Overlay scope", async () => {
   const program = await start()
   program.unmount()
-  assert.strictEqual(calls.detach, 1)
   assert.strictEqual(calls.overlay[0]?.closed, true)
 })
 
@@ -89,5 +78,5 @@ test("unmount without a mount does nothing", async () => {
     "Development" as never,
     Option.none(),
   ).unmount()
-  assert.strictEqual(calls.detach, 0)
+  assert.strictEqual(calls.overlay.length, 0)
 })
