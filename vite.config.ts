@@ -71,7 +71,7 @@ export default defineConfig({
           },
         },
       },
-      "apps/!(web)",
+      "apps/!(web|web-probe)",
       "packages/*",
     ],
   },
