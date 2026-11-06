@@ -1,0 +1,159 @@
+---
+pagefind: false
+title: This Week in Effect - 143
+excerpt: "Effect LSP adds 16 new rules and tsrs --lint support. Effect v4 gains an exact Rational type and OpenRPC document generation. New Effect Days speakers revealed!"
+date: 2026-11-09
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week in Effect, your weekly roundup of news from the Effect community and ecosystem.
+
+**Recent major announcements:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026](https://www.effect.website/effect-days) ✨
+
+## Technology
+
+- More news coming to the Effect LSP: 16 new rules and `tsrs --lint` support!
+
+<Tweet id="2117330070842782057" />
+
+<Tweet id="2117933990246232387" />
+
+### Effect v4 updates.
+
+New additions in RPC, Schema and persistence alongside the usual round of fixes.
+
+- **Additions**: Added an exact `Rational` numeric type alongside `BigDecimal`, OpenRPC document generation for RPC groups, and a per-offer `deduplicate` mode with `untilExecuted` for `PersistedQueue`. XML start-element events can now include opt-in source positions, `Schema.TaggedUnion` and `Schema.brand` derive their `Iso` types from the member `Iso`, and RPC handlers can fail with their middleware's errors. `Command.validate` can now fail with domain errors, and completed cluster requests can be cleaned up by retention.
+
+- **Performance**: Large RPC groups are cheaper to type-check in `RpcClient` and `AtomRpc`, `SchemaBinary` encodes large `Uint8Array` payloads faster, and `TestClock` is built faster and with less memory.
+
+- **Cluster & workflow**: Fixed interrupted defecting cluster requests stalling other entities. Transient persistence failures are now retried for durable clocks, durable deferreds and child workflow starts, and `layerMemory` replay finalizers are deferred after a defect.
+
+- **AI & MCP**: Improved Anthropic support for web fetch and code execution results, including encrypted results, tool search deferral, containers without skills and documents without citations. Fixed OpenAI shell tool results and commentary messages in structured output, streamed shell tool call IDs in stored chats, and empty streamed content deltas in OpenRouter. On the MCP side, requests are now traced with the OpenTelemetry MCP semantic conventions, tool parameters and results go through their JSON codec, and stdio protocols are no longer shared across servers. The Skills extension is restricted to protocol `2026-07-28`.
+
+- **HTTP, SQL & platform**: Bun servers now close connections after the graceful shutdown timeout, and Bun and Deno servers answer 503 instead of 404 when they have no app. Fixed Bun filesystem writes ignoring the cursor after a seek and child-process interruption hanging on backpressured stdin. Also fixed `NodeHttpServer` leaving unupgraded upgrade connections open, crashes when collecting encoded Node streams. `HttpClient.withScope` now scopes by execution instead of request. `PgClient` keeps typed SQL errors when the server ends a session in a transaction, MySQL statement cancellation and pool waits are interruptible, and `SqlClient` driver services stay in the requirements when `SqlClient` is provided. Migration guidance now covers SQL driver clients no longer extending `SqlClient`.
+
+- **Core & Schema fixes**: The audit continued with `Effect` race losers now interrupted as soon as the race settles, zero-capacity queues keeping backpressure after batch offers, sliding queues with zero capacity waking waiting takers, `RcMap` measuring idle time on its maker's clock, and `ScopedCache` finalizers no longer retaining requester spans. Also fixed capped fixed-window rate limits, leading U+FEFF in encoded strings, JavaScriptCore `Error` metadata in `Equal` and `Hash`, parser sentinels shared across module copies in Schema, and `SchemaBinary` accepting non-numbers in `f64` runs. Stopped idle OTLP log and trace exporters from keeping a timer pending.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Add String.hasNonWhitespace predicate](https://github.com/Effect-TS/effect/pull/10341) (Feature, next-minor)
+- [Add Yaml.parseAll and return Result from Yaml.parse](https://github.com/Effect-TS/effect/pull/10271) (Feature, next-minor)
+- [Feat(effect): add Supervisor for observing fiber lifecycles](https://github.com/Effect-TS/effect/pull/10258) (Feature, next-minor)
+- [Make McpSchema.InputRequired a schema class](https://github.com/Effect-TS/effect/pull/10368) (Bug Fix, next-minor)
+
+### Effect AI
+
+- [Accept null service_tier and tool_calls in openai-compat responses](https://github.com/Effect-TS/effect/pull/10371) (Bug Fix, next-minor)
+
+### Effect OpenTelemetry
+
+- [Support OpenTelemetry SDK 3.x in @effect/opentelemetry](https://github.com/Effect-TS/effect/pull/10339) (Improvement, next-minor)
+
+## Community Highlights
+
+- 🚀
+
+<Tweet id="2117972494481334709" />
+
+- [Poor Man's Effect-like DI](https://dev.to/khraks_mamtsov/poor-mans-effect-like-di-l80) blog post by Max Khramtsov.
+
+- [live-comments](https://github.com/BicameralAI/live-comments) - code comments that cite the ticket or doc behind each business rule and stay in sync with their sources, so your agents don't make up the rules. Built on Effect. By BicameralAI.
+
+- [effetch-query](https://github.com/monarcode/effetch-query) - effectful queries and mutations for Effect 4, inspired by TanStack Query, cached, kept fresh, and typed end to end. By monarcode.
+
+- [graft](https://github.com/graftland/graft) - a hot-swappable plugin framework for Effect that loads, replaces and unloads plugins in a running process, with each plugin getting its own Scope. By graftland.
+
+- [strider](https://github.com/usestrider/strider) - browser automation for Effect: scripts, tests and agents that drive Chromium, Firefox or WebKit. By usestrider.
+
+- [return](https://github.com/chr33s/return) - a minimal file-based router for Effect 4.1 that generates an `HttpApi` from `route.ts` files. By chr33s.
+
+## Effect Job Opportunities
+
+[Explore Effect jobs →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Community Events
+
+- New [Effect Days](https://effect.website/effect-days) speakers revealed: **John De Goes** & **Rhys Sullivan**.
+
+  <Tweet id="2117587605114044786" />
+
+  <Tweet id="2118707931977765026" />
+
+- Effect Miami is scheduled for tonight!
+
+  <Tweet id="2115123951181471775" />
+
+- [Effect Warsaw #2](https://luma.com/k5o7m2pg) is coming up on November 17!
+
+  <Tweet id="2108246661642285217" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Team Content Update
+
+- Effect Office Hours 53 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/QItFNN9cu8Y?si=cput6W8fEyB_seOs"
+  title="Effect Office Hours 53 🔥"
+/>
+
+- Software engineering in the AI era // Cause & Effect 10
+
+<YouTube
+  id="https://www.youtube.com/embed/rAE_2kiEfvA?si=kju-pGKudYGzIAoI"
+  title="Software engineering in the AI era // Cause & Effect 10"
+/>
+
+- Community Review: add McpTask for long-running Tools // Office Hours 51
+
+<YouTube
+  id="https://www.youtube.com/embed/ugEBQBL1TtA?si=-omAso6SQK8v-q8E"
+  title="Community Review: add McpTask for long-running Tools // Office Hours 51"
+/>
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## New to Effect?
+
+Effect is a TypeScript library for building reliable applications, with built-in concurrency, cancellation, and safe resource management. Explore the [documentation](/docs/getting-started/introduction/) and [installation](/docs/getting-started/installation/) guide below to get started.
+
+_Effect Community Team_
