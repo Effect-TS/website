@@ -1,5 +1,8 @@
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
+import * as Schema from "effect/Schema"
 
 const KEY_PREFIX = "hidden_files_"
 // Mixedbread documents 8 KiB per metadata value and 128 KiB per object.
@@ -44,13 +47,20 @@ export const encode = (
         )
   })
 
-export const decode = (metadata: unknown): ReadonlyArray<string> => {
-  if (typeof metadata !== "object" || metadata === null) return []
-  return Object.entries(metadata)
-    .filter(
-      (entry): entry is [string, string] =>
-        isKey(entry[0]) && typeof entry[1] === "string",
-    )
-    .flatMap(([, value]) => value.split(",").filter((id) => id !== ""))
-    .sort()
-}
+const Metadata = Schema.Record(Schema.String, Schema.Unknown)
+const decodeMetadata = Schema.decodeUnknownOption(Metadata)
+
+export const decode = (metadata: unknown): ReadonlyArray<string> =>
+  decodeMetadata(metadata).pipe(
+    Option.match({
+      onNone: () => [],
+      onSome: (record) =>
+        Object.entries(record)
+          .flatMap(([key, value]) =>
+            isKey(key) && Predicate.isString(value)
+              ? value.split(",").filter((id) => id !== "")
+              : [],
+          )
+          .sort(),
+    }),
+  )

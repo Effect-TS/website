@@ -11,6 +11,8 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
+const productionStoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
+
 // Each stage counts in its own rate-limit namespace, so a preview cannot use up
 // the production limit. Namespaces are numbers.
 const rateLimitNamespaceId = (stage: string): number => {
@@ -20,9 +22,9 @@ const rateLimitNamespaceId = (stage: string): number => {
 }
 
 const Website = (
-  // The store a preview searches next to production. Undefined outside previews
+  // The store a preview searches next to production. None outside previews
   // whose search content changed.
-  overlayStoreId: Output.Output<string> | undefined,
+  overlayStoreId: Option.Option<Output.Output<string>>,
   searchApiKey: Config.Config<Redacted.Redacted<string>>,
 ) =>
   Cloudflare.Website.Astro(
@@ -91,10 +93,11 @@ const Website = (
         },
         env: {
           MXBAI_API_KEY: searchApiKey,
-          MXBAI_VECTOR_STORE_ID: Config.Redacted("MXBAI_VECTOR_STORE_ID"),
-          ...(overlayStoreId === undefined
-            ? {}
-            : { MXBAI_OVERLAY_STORE_ID: overlayStoreId }),
+          MXBAI_VECTOR_STORE_ID: productionStoreId,
+          ...Option.match(overlayStoreId, {
+            onNone: () => ({}),
+            onSome: (id) => ({ MXBAI_OVERLAY_STORE_ID: id }),
+          }),
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
           DB: motwVote,
@@ -130,7 +133,7 @@ export default Alchemy.Stack(
       "MXBAI_PREVIEW_STORE_ENABLED",
     ).pipe(Config.withDefault(false))
     const sha = yield* Config.String("WEBSITE_REVISION")
-    let overlayStoreId: Output.Output<string> | undefined
+    let overlayStoreId = Option.none<Output.Output<string>>()
     let searchApiKey = Config.Redacted("MXBAI_API_KEY")
     // Set when the preview has its own search store, to the synchronization
     // the preview comment waits for.
@@ -158,7 +161,7 @@ export default Alchemy.Stack(
         command: `vp exec mixedbread sync --pr ${pullRequest.value} --sha ${sha}`,
         env: {
           MXBAI_VECTOR_STORE_ID: store.id,
-          MXBAI_PRODUCTION_STORE_ID: Config.Redacted("MXBAI_VECTOR_STORE_ID"),
+          MXBAI_PRODUCTION_STORE_ID: productionStoreId,
         },
         memo: {
           include: [
@@ -178,7 +181,7 @@ export default Alchemy.Stack(
       })
       // The Worker only needs the store's ID, so the website builds while the
       // store synchronizes.
-      overlayStoreId = store.id
+      overlayStoreId = Option.some(store.id)
       searchSynchronized = synchronization.hash.input
       // The production search key is scoped to the production store. Mixedbread
       // only issues API keys from its web app, so previews share a key created

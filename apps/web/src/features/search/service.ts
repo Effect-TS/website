@@ -18,11 +18,7 @@ import {
   SearchError,
   StoreSearchResponse,
 } from "./domain"
-import { searchScope } from "./scope"
-
-// A preview store changes only when a push syncs it, so a short cache keeps
-// the extra request off most searches.
-const OVERLAY_CACHE_MS = 30_000
+import { cacheOverlay, searchScope } from "./scope"
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
@@ -203,40 +199,23 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
-    let overlayCache:
-      | { readonly at: number; readonly metadata: unknown }
-      | undefined
-
-    const overlayMetadata = (id: string) =>
-      Effect.tryPromise({
-        try: async (signal) => {
-          const now = Date.now()
-          if (
-            overlayCache !== undefined &&
-            now - overlayCache.at < OVERLAY_CACHE_MS
-          ) {
-            return overlayCache.metadata
-          }
-          const store = await mxbai.stores.retrieve(id, { signal })
-          overlayCache = { at: now, metadata: store.metadata }
-          return store.metadata
-        },
-        catch: (cause) => new SearchError({ cause }),
-      })
+    const overlay = yield* Option.match(overlayStoreId, {
+      onNone: () => Effect.succeed(Effect.succeedNone),
+      onSome: (redacted) => {
+        const id = Redacted.value(redacted)
+        return cacheOverlay(
+          Effect.tryPromise({
+            try: (signal) => mxbai.stores.retrieve(id, { signal }),
+            catch: (cause) => new SearchError({ cause }),
+          }).pipe(Effect.map((store) => ({ id, metadata: store.metadata }))),
+        )
+      },
+    })
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const production = Redacted.value(storeId)
-      const scope = yield* Option.match(overlayStoreId, {
-        onNone: () => Effect.succeed(searchScope({ production })),
-        onSome: (overlay) =>
-          overlayMetadata(Redacted.value(overlay)).pipe(
-            Effect.map((metadata) =>
-              searchScope({
-                production,
-                overlay: { id: Redacted.value(overlay), metadata },
-              }),
-            ),
-          ),
+      const scope = searchScope({
+        production: Redacted.value(storeId),
+        overlay: yield* overlay,
       })
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
