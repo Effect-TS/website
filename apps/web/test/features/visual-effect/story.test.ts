@@ -1,3 +1,4 @@
+import { Tabs } from "@foldkit/ui"
 import { Option } from "effect"
 import { Command, given, message, model, story } from "foldkit/story"
 import { expect, test } from "vite-plus/test"
@@ -465,4 +466,81 @@ test("a reset clears what hover and time left behind", () => {
   ).model
   expect(cleared.expiredNotifications).toEqual([])
   expect(cleared.maybeHighlightTarget).toEqual(Option.none())
+})
+
+test("selecting a category tab selects its first example", () => {
+  story(
+    update,
+    given(first),
+    message(
+      Message.GotCategoryTabsMessage({
+        message: Tabs.Message.SelectedTab({ index: 1, value: "schedule" }),
+      }),
+    ),
+    Command.resolveAll(
+      [Tabs.FocusTab, Tabs.Message.CompletedFocusTab()],
+      [StopRun, Message.CompletedStopRun()],
+      [HighlightSnippet, HIGHLIGHT_FAILED],
+    ),
+    model((current) => {
+      expect(current.category).toBe("schedule")
+      expect(current.exampleKey).toBe("schedule/0")
+    }),
+  )
+})
+
+test("selecting an example tab selects that example", () => {
+  story(
+    update,
+    given(first),
+    message(
+      Message.GotExampleTabsMessage({
+        message: Tabs.Message.SelectedTab({ index: 2, value: "concurrency/2" }),
+      }),
+    ),
+    Command.resolveAll(
+      [Tabs.FocusTab, Tabs.Message.CompletedFocusTab()],
+      [StopRun, Message.CompletedStopRun()],
+      [HighlightSnippet, HIGHLIGHT_FAILED],
+    ),
+    model((current) => expect(current.exampleKey).toBe("concurrency/2")),
+  )
+})
+
+test("selecting a control tab changes the control, and keeps its own focus", () => {
+  story(
+    update,
+    given(first),
+    message(
+      Message.GotControlTabsMessage({
+        controlId: "concurrency",
+        message: Tabs.Message.SelectedTab({ index: 2, value: "unbounded" }),
+      }),
+    ),
+    Command.resolveAll(
+      [Tabs.FocusTab, Tabs.Message.CompletedFocusTab()],
+      [StopRun, Message.CompletedStopRun()],
+      [HighlightSnippet, HIGHLIGHT_FAILED],
+    ),
+    model((current) => {
+      expect(current.controls["concurrency/0"]).toEqual({
+        concurrency: "unbounded",
+      })
+      expect(Object.keys(current.controlTabs)).toEqual([
+        "concurrency/0:concurrency",
+      ])
+    }),
+  )
+})
+
+test("a strip reports whether more tabs wait on the right", () => {
+  const moved = update(
+    update(
+      first,
+      Message.ChangedStripFade({ strip: "Categories", canScrollRight: true }),
+    ).model,
+    Message.ChangedStripFade({ strip: "Examples", canScrollRight: true }),
+  ).model
+  expect(moved.categoriesCanScrollRight).toBe(true)
+  expect(moved.examplesCanScrollRight).toBe(true)
 })

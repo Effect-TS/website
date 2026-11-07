@@ -1,12 +1,17 @@
+import { Tabs } from "@foldkit/ui"
 import { Schema } from "effect"
 import { defineMessageUnion } from "foldkit/message"
 import { FinalizerEvent, HighlightRect, NodeTarget, Outcome } from "./domain"
 import { StyledLines } from "./highlight"
-import { Category } from "./model"
+import { Category, Strip } from "./model"
 
 export const Message = defineMessageUnion({
   ClickedCategory: { category: Category },
   ClickedExample: { key: Schema.String },
+  GotCategoryTabsMessage: { message: Tabs.Message },
+  GotExampleTabsMessage: { message: Tabs.Message },
+  GotControlTabsMessage: { controlId: Schema.String, message: Tabs.Message },
+  ChangedStripFade: { strip: Strip, canScrollRight: Schema.Boolean },
   /** Starts, stops or resets, depending on the run. */
   ClickedHeader: {},
   ChangedControl: { controlId: Schema.String, value: Schema.String },

@@ -1,9 +1,9 @@
+import { Tabs } from "@foldkit/ui"
 import { Array, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
-import { EXAMPLES_CATALOG } from "../../catalog/index"
-import { CATEGORIES, controlValueOf, entriesOf, findEntry } from "../catalog"
+import { controlValueOf, findEntry } from "../catalog"
 import { Message } from "../message"
-import type { Model } from "../model"
+import { controlTabsId, controlTabsKey, type Model } from "../model"
 import { stepKeyOf } from "../catalog"
 import { idle, isNotificationVisible } from "../domain"
 import { configView } from "./config"
@@ -13,79 +13,10 @@ import { arrowRight } from "./icons"
 import { nodeView } from "./node"
 import { sameTarget, type NodeTarget, type Notification } from "../domain"
 import { snippetView } from "./snippet"
+import { categoryTabsView, exampleTabsView } from "./tabs"
 import { timelineView } from "./timeline"
 
 type Builder = HtmlBuilder<Message>
-
-const categoryTabs = (model: Model, h: Builder): Html =>
-  h.div(
-    [
-      h.Role("tablist"),
-      h.AriaLabel("Categories"),
-      h.Class(
-        "scrollbar-hide flex overflow-x-auto overscroll-x-contain bg-zinc-950/90 select-none",
-      ),
-    ],
-    Array.map(CATEGORIES, (category) =>
-      h.keyed("button")(
-        category,
-        [
-          h.Type("button"),
-          h.Role("tab"),
-          h.AriaSelected(category === model.category),
-          h.OnClick(Message.ClickedCategory({ category })),
-          h.Class(
-            `min-w-fit flex-1 shrink-0 cursor-pointer px-4 py-3 font-mono text-sm tracking-wide whitespace-nowrap uppercase transition-colors md:px-6 md:text-base ${
-              category === model.category
-                ? "bg-zinc-900 font-medium text-white"
-                : "text-zinc-400 hover:text-white"
-            }`,
-          ),
-        ],
-        [EXAMPLES_CATALOG[category].label],
-      ),
-    ),
-  )
-
-const exampleTabs = (model: Model, h: Builder): Html =>
-  h.div(
-    [
-      h.Role("tablist"),
-      h.AriaLabel("Examples"),
-      h.Class(
-        "scrollbar-hide flex items-center overflow-x-auto overscroll-x-contain border-y border-zinc-800 bg-zinc-950 select-none",
-      ),
-    ],
-    Array.map(entriesOf(model.category), ({ key, example }) =>
-      h.keyed("button")(
-        key,
-        [
-          h.Type("button"),
-          h.Role("tab"),
-          h.AriaSelected(key === model.exampleKey),
-          h.OnClick(Message.ClickedExample({ key })),
-          h.Class(
-            `min-w-fit flex-1 shrink-0 cursor-pointer px-3 py-2 font-mono text-sm whitespace-nowrap transition-colors ${
-              key === model.exampleKey
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
-            }`,
-          ),
-        ],
-        [
-          h.span([], [example.title]),
-          ...(example.subtitle === undefined
-            ? []
-            : [
-                h.span(
-                  [h.Class("ml-1 text-zinc-400")],
-                  [`(${example.subtitle})`],
-                ),
-              ]),
-        ],
-      ),
-    ),
-  )
 
 /** A notification shows until its time is up, and again on hover when it may. */
 const visibilityFor =
@@ -185,7 +116,14 @@ const surfaceView = (model: Model, h: Builder): Html =>
           headerView(example, model.run, h),
           configView(
             example,
-            (control) => controlValueOf(model.controls, key, control),
+            {
+              exampleKey: key,
+              valueOf: (control) =>
+                controlValueOf(model.controls, key, control),
+              tabsOf: (control) =>
+                model.controlTabs[controlTabsKey(key, control.id)] ??
+                Tabs.init({ id: controlTabsId(key, control.id) }),
+            },
             isDied,
             h,
           ),
@@ -207,21 +145,10 @@ export const view = (model: Model, h: Builder): Html =>
   h.div(
     [h.Class("border-r border-zinc-800 shadow-2xl shadow-black/20")],
     [
-      h.div([h.Class("relative")], [categoryTabs(model, h)]),
-      h.div(
-        [h.Class("w-full")],
-        [
-          h.div(
-            [h.Class("flex flex-col")],
-            [
-              h.div([h.Class("relative")], [exampleTabs(model, h)]),
-              h.div(
-                [h.Class("overflow-x-auto p-3 lg:p-4")],
-                [surfaceView(model, h)],
-              ),
-            ],
-          ),
-        ],
+      categoryTabsView(
+        model,
+        exampleTabsView(model, surfaceView(model, h), h),
+        h,
       ),
     ],
   )

@@ -9,6 +9,7 @@ import {
   testId,
   text,
 } from "foldkit/scene"
+import { Tabs } from "@foldkit/ui"
 import { Option } from "effect"
 import { test } from "vite-plus/test"
 import {
@@ -24,11 +25,30 @@ import {
 import {
   AnimateNode,
   MeasureWidth,
+  ScrollStrip,
 } from "../../../src/features/visual-effect/program/mount.ts"
 import { findEntry } from "../../../src/features/visual-effect/program/catalog.ts"
 import { view } from "../../../src/features/visual-effect/program/view/index.ts"
 
 const start = init({ defaultLines: [] }).model
+
+/** A click on a tab moves focus to it. The Command answers with the Tabs' own Message. */
+const tabFocused = Command.resolve(
+  Tabs.FocusTab,
+  Tabs.Message.CompletedFocusTab(),
+)
+
+/** The two tab strips mount once. They report whether they can scroll. */
+const strips = Mount.resolveAll(
+  [
+    ScrollStrip({ strip: "Categories" }),
+    Message.ChangedStripFade({ strip: "Categories", canScrollRight: false }),
+  ],
+  [
+    ScrollStrip({ strip: "Examples" }),
+    Message.ChangedStripFade({ strip: "Examples", canScrollRight: false }),
+  ],
+)
 
 const nodeCount = (key: string): number =>
   Option.match(findEntry(key), {
@@ -69,6 +89,7 @@ test("a click on the header starts the example with its control values", () => {
   scene(
     { update, view },
     given(start),
+    strips,
     nodes("concurrency/0"),
     click(role("button", { name: "Run Effect.all" })),
     Command.expectHas(
@@ -86,6 +107,7 @@ test("a run shows its steps, and the header offers to stop it", () => {
   scene(
     { update, view },
     given(start),
+    strips,
     nodes("concurrency/0"),
     click(role("button", { name: "Run Effect.all" })),
     Command.resolveAll([
@@ -106,8 +128,10 @@ test("a tab changes the example", () => {
   scene(
     { update, view },
     given(start),
+    strips,
     nodes("concurrency/0"),
     click(role("tab", { name: "Effect.race" })),
+    tabFocused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
@@ -116,6 +140,7 @@ test("a tab changes the example", () => {
     ...switched("concurrency/0", "concurrency/1"),
     expect(role("button", { name: "Run Effect.race" })).toExist(),
     click(role("tab", { name: "Schedule" })),
+    tabFocused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
@@ -131,9 +156,11 @@ test("a control option changes the snippet", () => {
   scene(
     { update, view },
     given(start),
+    strips,
     nodes("concurrency/0"),
     expect(text(/const result = Effect\.all\(\[nyc/)).toExist(),
-    click(role("radio", { name: "unbounded" })),
+    click(role("tab", { name: "unbounded" })),
+    tabFocused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
@@ -147,9 +174,11 @@ test("a schedule example shows a timeline and no finalizers", () => {
   scene(
     { update, view },
     given(start),
+    strips,
     nodes("concurrency/0"),
     expect(testId("visual-effect-timeline")).toBeAbsent(),
     click(role("tab", { name: "Schedule" })),
+    tabFocused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
@@ -166,8 +195,10 @@ test("a scope example shows finalizers and no timeline", () => {
   scene(
     { update, view },
     given(start),
+    strips,
     nodes("concurrency/0"),
     click(role("tab", { name: "Scope" })),
+    tabFocused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,

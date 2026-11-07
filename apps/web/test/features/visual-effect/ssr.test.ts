@@ -41,8 +41,8 @@ test("the server renders every step node and the result node", async () => {
 
 test("the server renders the control with its first option chosen", async () => {
   const { html } = await render()
-  assert.include(html, 'role="radiogroup"')
-  assert.include(html, 'aria-checked="true"')
+  assert.include(html, 'aria-label="Concurrency"')
+  assert.include(html, 'aria-selected="true"')
   assert.include(html, "sequential")
 })
 

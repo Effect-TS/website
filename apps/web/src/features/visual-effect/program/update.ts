@@ -1,4 +1,5 @@
-import { Option, Record } from "effect"
+import { Tabs } from "@foldkit/ui"
+import { Option, Record, Schema } from "effect"
 import { Update } from "foldkit"
 import { modifyFields } from "foldkit/struct"
 import {
@@ -29,7 +30,15 @@ import {
   type RunState,
 } from "./domain"
 import { Message } from "./message"
-import { initialModel, type Flags, type Model } from "./model"
+import { CategoryTabs, ControlTabs, ExampleTabs } from "./tabs"
+import {
+  Category,
+  controlTabsId,
+  controlTabsKey,
+  initialModel,
+  type Flags,
+  type Model,
+} from "./model"
 import {
   snippetResultTargetKey,
   toStepSnippetTargetKey,
@@ -175,20 +184,114 @@ const hasTimeline = (model: Model): boolean =>
     onSome: ({ example }) => example.features.timeline,
   })
 
+const selectCategory = (
+  model: Model,
+  category: Model["category"],
+): UpdateReturn =>
+  reset({ ...model, category, exampleKey: firstKeyOf(category) })
+
+const selectExample = (model: Model, key: string): UpdateReturn =>
+  Option.match(findEntry(key), {
+    onNone: () => ({ model }),
+    onSome: ({ category }) => reset({ ...model, category, exampleKey: key }),
+  })
+
+type Step = Update.Step<Model, Message>
+
+const isCategory = Schema.is(Category)
+
+const foldCategoryTabs = Update.foldChild({
+  update: CategoryTabs.update,
+  read: (model: Model) => Option.some(model.categoryTabs),
+  write: (model, categoryTabs) =>
+    modifyFields(model, { categoryTabs: () => categoryTabs }),
+  toParentMessage: (message) => Message.GotCategoryTabsMessage({ message }),
+  foldOutMessage: Tabs.OutMessage.match<Step>({
+    Selected:
+      ({ value }) =>
+      (model) =>
+        isCategory(value) ? selectCategory(model, value) : { model },
+  }),
+})
+
+const foldExampleTabs = Update.foldChild({
+  update: ExampleTabs.update,
+  read: (model: Model) => Option.some(model.exampleTabs),
+  write: (model, exampleTabs) =>
+    modifyFields(model, { exampleTabs: () => exampleTabs }),
+  toParentMessage: (message) => Message.GotExampleTabsMessage({ message }),
+  foldOutMessage: Tabs.OutMessage.match<Step>({
+    Selected:
+      ({ value }) =>
+      (model) =>
+        selectExample(model, value),
+  }),
+})
+
+const changeControl = (
+  model: Model,
+  controlId: string,
+  value: string,
+): UpdateReturn =>
+  controlValuesOf(model)[controlId] === value
+    ? { model }
+    : reset(
+        modifyFields(model, {
+          controls: (controls) => ({
+            ...controls,
+            [model.exampleKey]: {
+              ...controls[model.exampleKey],
+              [controlId]: value,
+            },
+          }),
+        }),
+      )
+
+const foldControlTabs = Update.foldChildAt({
+  update: ControlTabs.update,
+  readAt: (model: Model, controlId: string) =>
+    Option.some(
+      model.controlTabs[controlTabsKey(model.exampleKey, controlId)] ??
+        Tabs.init({ id: controlTabsId(model.exampleKey, controlId) }),
+    ),
+  writeAt: (model, controlId, controlTabs) =>
+    modifyFields(model, {
+      controlTabs: (all) => ({
+        ...all,
+        [controlTabsKey(model.exampleKey, controlId)]: controlTabs,
+      }),
+    }),
+  toParentMessage: (controlId, message) =>
+    Message.GotControlTabsMessage({ controlId, message }),
+  foldOutMessage: (controlId) =>
+    Tabs.OutMessage.match<Step>({
+      Selected:
+        ({ value }) =>
+        (model) =>
+          changeControl(model, controlId, value),
+    }),
+})
+
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
-    ClickedCategory: ({ category }) =>
-      reset({
-        ...model,
-        category,
-        exampleKey: firstKeyOf(category),
-      }),
-    ClickedExample: ({ key }) =>
-      Option.match(findEntry(key), {
-        onNone: () => ({ model }),
-        onSome: ({ category }) =>
-          reset({ ...model, category, exampleKey: key }),
-      }),
+    ClickedCategory: ({ category }) => selectCategory(model, category),
+    ClickedExample: ({ key }) => selectExample(model, key),
+    GotCategoryTabsMessage: ({ message: tabsMessage }) =>
+      foldCategoryTabs(model, tabsMessage),
+    GotExampleTabsMessage: ({ message: tabsMessage }) =>
+      foldExampleTabs(model, tabsMessage),
+    GotControlTabsMessage: ({ controlId, message: tabsMessage }) =>
+      foldControlTabs(model, controlId, tabsMessage),
+    ChangedStripFade: ({ strip, canScrollRight }) => ({
+      model:
+        strip === "Categories"
+          ? modifyFields(model, {
+              categoriesCanScrollRight: () => canScrollRight,
+            })
+          : modifyFields(model, {
+              examplesCanScrollRight: () => canScrollRight,
+            }),
+    }),
     ClickedHeader: () => {
       if (isRunning(model)) {
         return { model, commands: [StopRun()] }
@@ -208,19 +311,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       }
     },
     ChangedControl: ({ controlId, value }) =>
-      controlValuesOf(model)[controlId] === value
-        ? { model }
-        : reset(
-            modifyFields(model, {
-              controls: (controls) => ({
-                ...controls,
-                [model.exampleKey]: {
-                  ...controls[model.exampleKey],
-                  [controlId]: value,
-                },
-              }),
-            }),
-          ),
+      changeControl(model, controlId, value),
     StartedRun: ({ runId, at }) =>
       isCurrent(model, runId) && model.run._tag === "Idle"
         ? {

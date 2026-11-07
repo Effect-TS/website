@@ -1,3 +1,4 @@
+import { Tabs } from "@foldkit/ui"
 import { Option, Schema } from "effect"
 import { Highlighted, StyledLines } from "./highlight"
 import { DEFAULT_KEY, DEFAULT_CATEGORY } from "./catalog"
@@ -19,7 +20,26 @@ export const Category = Schema.Literals([
   "scope",
 ])
 
+export const CATEGORY_TABS_ID = "visual-effect-categories"
+export const EXAMPLE_TABS_ID = "visual-effect-examples"
+
+export const controlTabsKey = (exampleKey: string, controlId: string): string =>
+  `${exampleKey}:${controlId}`
+
+export const controlTabsId = (exampleKey: string, controlId: string): string =>
+  `visual-effect-control-${exampleKey.replace("/", "-")}-${controlId}`
+
+export const Strip = Schema.Literals(["Categories", "Examples"])
+export type Strip = typeof Strip.Type
+
 export const Model = Schema.Struct({
+  categoryTabs: Tabs.Model,
+  exampleTabs: Tabs.Model,
+  /** The tabs of each control, by example and control. They hold only keyboard focus. */
+  controlTabs: Schema.Record(Schema.String, Tabs.Model),
+  /** Whether a tab strip has more tabs to the right, so it shows a fade. */
+  categoriesCanScrollRight: Schema.Boolean,
+  examplesCanScrollRight: Schema.Boolean,
   category: Category,
   /** The example on show. Only this one ever has state: a switch resets the others. */
   exampleKey: Schema.String,
@@ -64,6 +84,11 @@ export const Flags = Schema.Struct({
 export type Flags = typeof Flags.Type
 
 export const initialModel: Model = {
+  categoryTabs: Tabs.init({ id: CATEGORY_TABS_ID }),
+  controlTabs: {},
+  exampleTabs: Tabs.init({ id: EXAMPLE_TABS_ID }),
+  categoriesCanScrollRight: false,
+  examplesCanScrollRight: false,
   category: DEFAULT_CATEGORY,
   exampleKey: DEFAULT_KEY,
   controls: {},
