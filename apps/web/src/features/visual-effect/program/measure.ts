@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect"
+import { Array, Effect, Option, Order, pipe } from "effect"
 import type { HighlightRect, OffsetRange } from "./domain"
 
 export const SNIPPET_ID = "visual-effect-snippet"
@@ -16,34 +16,41 @@ export const measureHighlight = (
   Effect.callback((resume) => {
     const frame = requestAnimationFrame(() => {
       const container = document.getElementById(SNIPPET_ID)
-      if (container === null || ranges.length === 0) {
+      if (container === null || Array.isReadonlyArrayEmpty(ranges)) {
         resume(Effect.succeed(Option.none()))
         return
       }
-      const matched = Array.from(
-        container.querySelectorAll<HTMLElement>("span[data-start][data-end]"),
-      ).filter((span) => {
-        const start = Number(span.dataset.start)
-        const end = Number(span.dataset.end)
-        return (
-          Number.isFinite(start) &&
-          Number.isFinite(end) &&
-          ranges.some((range) =>
-            start === end
-              ? start >= range.startOffset && start < range.endOffset
-              : start < range.endOffset && end > range.startOffset,
+      const matched = pipe(
+        Array.fromIterable(
+          container.querySelectorAll<HTMLElement>("span[data-start][data-end]"),
+        ),
+        Array.filter((span) => {
+          const start = Number(span.dataset.start)
+          const end = Number(span.dataset.end)
+          return (
+            Number.isFinite(start) &&
+            Number.isFinite(end) &&
+            Array.some(ranges, (range) =>
+              start === end
+                ? start >= range.startOffset && start < range.endOffset
+                : start < range.endOffset && end > range.startOffset,
+            )
           )
-        )
-      })
-      if (matched.length === 0) {
+        }),
+      )
+      if (!Array.isReadonlyArrayNonEmpty(matched)) {
         resume(Effect.succeed(Option.none()))
         return
       }
-      const boxes = matched.map((span) => span.getBoundingClientRect())
-      const left = Math.min(...boxes.map((box) => box.left))
-      const top = Math.min(...boxes.map((box) => box.top))
-      const right = Math.max(...boxes.map((box) => box.right))
-      const bottom = Math.max(...boxes.map((box) => box.bottom))
+      const boxes = Array.map(matched, (span) => span.getBoundingClientRect())
+      const smallest = (pick: (box: DOMRect) => number) =>
+        Array.min(Order.Number)(Array.map(boxes, pick))
+      const largest = (pick: (box: DOMRect) => number) =>
+        Array.max(Order.Number)(Array.map(boxes, pick))
+      const left = smallest((box) => box.left)
+      const top = smallest((box) => box.top)
+      const right = largest((box) => box.right)
+      const bottom = largest((box) => box.bottom)
       const origin = container.getBoundingClientRect()
       resume(
         Effect.succeed(

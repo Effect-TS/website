@@ -24,13 +24,13 @@ import {
 } from "./motion"
 
 const widthStream = (element: Element) =>
-  Stream.callback<typeof Message.ChangedContainerWidth.Type>((queue) =>
+  Stream.callback<typeof Message.UpdatedContainerWidth.Type>((queue) =>
     Effect.acquireRelease(
       Effect.sync(() => {
         const observer = new ResizeObserver(() => {
           Queue.offerUnsafe(
             queue,
-            Message.ChangedContainerWidth({
+            Message.UpdatedContainerWidth({
               width: (element as HTMLElement).offsetWidth,
             }),
           )
@@ -38,7 +38,7 @@ const widthStream = (element: Element) =>
         observer.observe(element)
         Queue.offerUnsafe(
           queue,
-          Message.ChangedContainerWidth({
+          Message.UpdatedContainerWidth({
             width: (element as HTMLElement).offsetWidth,
           }),
         )
@@ -50,7 +50,7 @@ const widthStream = (element: Element) =>
 
 /** Tells the Program how wide the panel is, now and whenever it resizes. */
 export const MeasureWidth = Mount.defineStream("MeasureWidth", {
-  messages: [Message.ChangedContainerWidth],
+  messages: [Message.UpdatedContainerWidth],
   execute: ({ element }) => widthStream(element),
 })
 
@@ -76,7 +76,7 @@ export const AnimateNode = Mount.define("AnimateNode", {
 const DRAG_THRESHOLD_PX = 6
 
 const stripStream = (element: HTMLElement, strip: Strip) =>
-  Stream.callback<typeof Message.ChangedStripFade.Type>((queue) =>
+  Stream.callback<typeof Message.UpdatedStripFade.Type>((queue) =>
     Effect.acquireRelease(
       Effect.sync(() => {
         const drag = {
@@ -94,7 +94,7 @@ const stripStream = (element: HTMLElement, strip: Strip) =>
             canScrollRight = next
             Queue.offerUnsafe(
               queue,
-              Message.ChangedStripFade({ strip, canScrollRight: next }),
+              Message.UpdatedStripFade({ strip, canScrollRight: next }),
             )
           }
         }
@@ -162,7 +162,7 @@ const stripStream = (element: HTMLElement, strip: Strip) =>
 /** Lets a tab strip scroll by drag, and tells the Program whether it has more tabs on the right. */
 export const ScrollStrip = Mount.defineStream("ScrollStrip", {
   args: { strip: Strip },
-  messages: [Message.ChangedStripFade],
+  messages: [Message.UpdatedStripFade],
   execute: ({ element, strip }) => stripStream(element as HTMLElement, strip),
 })
 

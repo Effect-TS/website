@@ -42,7 +42,7 @@ const tokensView = (lines: StyledLines, h: Builder): Html =>
  * The tokens when they belong to this source, plain source until then. Both
  * have the same line height, so the box does not move when tokens arrive.
  */
-export const snippetView = (
+export const view = (
   source: string,
   maybeHighlighted: Option.Option<{
     readonly source: string

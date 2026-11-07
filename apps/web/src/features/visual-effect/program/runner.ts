@@ -1,4 +1,5 @@
 import {
+  Array,
   Clock,
   Context,
   Duration,
@@ -19,7 +20,10 @@ import type { ExampleDefinition } from "../model/example-definition"
 import { Message } from "./message"
 import { outcomeOf } from "./outcome"
 
-/** What a run says happened. A Subscription hands these to the Program. */
+/**
+ * What a run says happened. A Subscription hands these to the Program.
+ * NOTE: Module state, because a run fiber outlives the Command that started it.
+ */
 export const events = Effect.runSync(Queue.unbounded<Message>())
 
 const emit = (message: Message): void => {
@@ -30,13 +34,19 @@ const millisOf = (nanos: bigint): number => Number(nanos / 1_000_000n)
 
 const DEFAULT_NOTIFICATION = Duration.seconds(2)
 
-/** A stopped run still releases its finalizers, so a fiber outlives its stop. */
+/**
+ * A stopped run still releases its finalizers, so a fiber outlives its stop.
+ * NOTE: Module state, because the Commands StartRun and StopRun share it.
+ */
 const fibers = new Map<number, Fiber.Fiber<unknown, unknown>>()
 
 const stepIndexOf = (
   example: ExampleDefinition,
   details: ExampleStep["Service"],
-): number => example.steps.indexOf(details.step)
+): number =>
+  Array.findFirstIndex(example.steps, (step) => step === details.step).pipe(
+    Option.getOrElse(() => -1),
+  )
 
 export const run = (
   runId: number,
@@ -139,7 +149,7 @@ export const run = (
           finalizerCount += 1
           const id = `finalizer-${registrationIndex}`
           emit(
-            Message.ChangedFinalizers({
+            Message.UpdatedFinalizers({
               runId,
               event: {
                 _tag: "Registered",
@@ -155,7 +165,7 @@ export const run = (
       run: (id, effect) =>
         Effect.gen(function* () {
           emit(
-            Message.ChangedFinalizers({
+            Message.UpdatedFinalizers({
               runId,
               event: {
                 _tag: "Started",
@@ -166,7 +176,7 @@ export const run = (
           )
           const exit = yield* Effect.exit(effect)
           emit(
-            Message.ChangedFinalizers({
+            Message.UpdatedFinalizers({
               runId,
               event: {
                 _tag: "Finished",
@@ -183,14 +193,15 @@ export const run = (
     const services = Tracer.Tracer.context(tracer).pipe(
       Context.add(ControlSnapshot, {
         get: (atom) => {
-          const control = example.controls.find(
+          const control = Array.findFirst(
+            example.controls,
             (candidate) => candidate.atom === atom,
           )
-          return (
-            control === undefined
-              ? undefined
-              : (controls[control.id] ?? control.initialValue)
-          ) as never
+          // NOTE: Every control atom holds a string, but the reader is generic over the atom.
+          return Option.match(control, {
+            onNone: () => undefined,
+            onSome: ({ id, initialValue }) => controls[id] ?? initialValue,
+          }) as never
         },
       }),
       Context.add(Notifications, { notify }),

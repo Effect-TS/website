@@ -59,11 +59,11 @@ const optionFocused = Command.resolve(
 const strips = Mount.resolveAll(
   [
     ScrollStrip({ strip: "Categories" }),
-    Message.ChangedStripFade({ strip: "Categories", canScrollRight: false }),
+    Message.UpdatedStripFade({ strip: "Categories", canScrollRight: false }),
   ],
   [
     ScrollStrip({ strip: "Examples" }),
-    Message.ChangedStripFade({ strip: "Examples", canScrollRight: false }),
+    Message.UpdatedStripFade({ strip: "Examples", canScrollRight: false }),
   ],
   [AnimateHeader, Message.CompletedAnimateHeader()],
 )
@@ -175,7 +175,7 @@ test("a tab changes the example", () => {
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
     ...switched("concurrency/1", "schedule/0"),
-    Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
+    Mount.resolve(MeasureWidth, Message.UpdatedContainerWidth({ width: 800 })),
     expect(role("button", { name: /Run Effect.retry/ })).toExist(),
   )
 })
@@ -230,7 +230,7 @@ test("a schedule example shows a timeline and no finalizers", () => {
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
     ...switched("concurrency/0", "schedule/0"),
-    Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
+    Mount.resolve(MeasureWidth, Message.UpdatedContainerWidth({ width: 800 })),
     expect(testId("visual-effect-timeline")).toExist(),
     expect(testId("visual-effect-finalizers")).toBeAbsent(),
   )
@@ -250,7 +250,7 @@ test("a scope example shows finalizers and no timeline", () => {
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
     ...switched("concurrency/0", "scope/0"),
-    Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
+    Mount.resolve(MeasureWidth, Message.UpdatedContainerWidth({ width: 800 })),
     Mount.resolve(PulseChevrons, Message.CompletedPulseChevrons()),
     expect(testId("visual-effect-finalizers")).toExist(),
     expect(testId("visual-effect-timeline")).toBeAbsent(),

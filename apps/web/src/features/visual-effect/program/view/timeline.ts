@@ -93,7 +93,7 @@ const segmentView = (segment: SegmentLayout, index: number, h: Builder): Html =>
     ],
   )
 
-export const timelineView = (model: Model, h: Builder): Html => {
+export const view = (model: Model, h: Builder): Html => {
   const layout = layoutTimeline({
     run: model.run,
     segments: model.timeline,

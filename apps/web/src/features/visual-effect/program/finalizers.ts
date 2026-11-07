@@ -1,4 +1,4 @@
-import { Array } from "effect"
+import { Array, Option } from "effect"
 import type { FinalizerEntry, FinalizerPanel } from "./domain"
 
 export const FINALIZER_CARD_WIDTH = 200
@@ -11,6 +11,11 @@ export interface FinalizerLayout {
   readonly zIndex: number
   readonly isRunning: boolean
 }
+
+const indexOf = (entries: ReadonlyArray<FinalizerEntry>, id: string): number =>
+  Array.findFirstIndex(entries, (entry) => entry.id === id).pipe(
+    Option.getOrElse(() => 0),
+  )
 
 /**
  * Pending finalizers queue on the left, the running one sits in the middle,
@@ -42,7 +47,7 @@ export const layoutFinalizers = (
       }
     }
     if (entry.phase === "Pending") {
-      const index = pending.findIndex(({ id }) => id === entry.id)
+      const index = indexOf(pending, entry.id)
       return {
         entry,
         x: index * SPACING + MARGIN,
@@ -50,8 +55,8 @@ export const layoutFinalizers = (
         isRunning: false,
       }
     }
-    const index = completed.findIndex(({ id }) => id === entry.id)
-    const rightOffset = (completed.length - 1 - index) * SPACING + MARGIN
+    const index = indexOf(completed, entry.id)
+    const rightOffset = (Array.length(completed) - 1 - index) * SPACING + MARGIN
     return {
       entry,
       x: containerWidth - rightOffset - FINALIZER_CARD_WIDTH,

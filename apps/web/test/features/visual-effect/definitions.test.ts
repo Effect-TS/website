@@ -1,10 +1,9 @@
+import { settle, start, withNotification } from "./run.ts"
 import { expect, test } from "vite-plus/test"
 import {
   describe,
   idle,
   isNotificationVisible,
-  settle,
-  start,
 } from "../../../src/features/visual-effect/program/domain.ts"
 import { glitchText } from "../../../src/features/visual-effect/program/view/node.ts"
 import { EXAMPLES_CATALOG } from "../../../src/features/visual-effect/catalog/index.ts"
@@ -103,15 +102,13 @@ test("a screen reader hears each state in words", () => {
   expect(describe(idle)).toBe("not run")
   expect(describe(start(0))).toBe("running")
   expect(
-    describe(settle(start(0), { _tag: "Succeeded", value: shown }, 0, 1)),
+    describe(settle(start(0), { _tag: "Succeeded", value: shown }, 1)),
   ).toBe("succeeded with 65°")
-  expect(
-    describe(settle(start(0), { _tag: "Failed", error: shown }, 0, 1)),
-  ).toBe("failed with 65°")
-  expect(describe(settle(start(0), { _tag: "Interrupted" }, 0, 1))).toBe(
-    "stopped",
+  expect(describe(settle(start(0), { _tag: "Failed", error: shown }, 1))).toBe(
+    "failed with 65°",
   )
-  expect(
-    describe(settle(start(0), { _tag: "Died", defect: shown }, 0, 1)),
-  ).toBe("died with 65°")
+  expect(describe(settle(start(0), { _tag: "Interrupted" }, 1))).toBe("stopped")
+  expect(describe(settle(start(0), { _tag: "Died", defect: shown }, 1))).toBe(
+    "died with 65°",
+  )
 })

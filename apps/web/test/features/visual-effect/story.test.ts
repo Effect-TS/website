@@ -22,6 +22,22 @@ import {
 } from "../../../src/features/visual-effect/program/update.ts"
 import type { Model } from "../../../src/features/visual-effect/program/model.ts"
 
+const OPTIONS = ["sequential", "numbered", "unbounded"]
+
+/** The learner picks an option of the concurrency control. */
+const choose = (value: string) =>
+  Message.GotControlGroupMessage({
+    controlId: "concurrency",
+    message: RadioGroup.Message.SelectedOption({
+      index: OPTIONS.indexOf(value),
+      value,
+    }),
+  })
+const focused = Command.resolve(
+  RadioGroup.FocusOption,
+  RadioGroup.Message.CompletedFocusOption(),
+)
+
 const headerMoved = Command.resolve(
   ChangeHeader,
   Message.CompletedAnimateHeader(),
@@ -184,7 +200,7 @@ test("a late Message for a stopped run still lands: its finalizers go on", () =>
   const stopped = running(first)
   const next = update(
     stopped,
-    Message.ChangedFinalizers({
+    Message.UpdatedFinalizers({
       runId: 0,
       event: {
         _tag: "Registered",
@@ -220,9 +236,8 @@ test("a category or example change resets, and a control change too", () => {
   story(
     update,
     given(running()),
-    message(
-      Message.ChangedControl({ controlId: "concurrency", value: "unbounded" }),
-    ),
+    message(choose("unbounded")),
+    focused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(HighlightSnippet, HIGHLIGHT_FAILED),
     nodeMoved,
@@ -250,9 +265,8 @@ test("a control set to its current value does nothing", () => {
   story(
     update,
     given(first),
-    message(
-      Message.ChangedControl({ controlId: "concurrency", value: "sequential" }),
-    ),
+    message(choose("sequential")),
+    focused,
     Command.expectNone(),
   )
 })
@@ -376,9 +390,8 @@ test("a control change asks for the tokens of the new snippet", () => {
   story(
     update,
     given(first),
-    message(
-      Message.ChangedControl({ controlId: "concurrency", value: "unbounded" }),
-    ),
+    message(choose("unbounded")),
+    focused,
     Command.expectHas(
       HighlightSnippet({
         language: "typescript",
@@ -576,9 +589,9 @@ test("a strip reports whether more tabs wait on the right", () => {
   const moved = update(
     update(
       first,
-      Message.ChangedStripFade({ strip: "Categories", canScrollRight: true }),
+      Message.UpdatedStripFade({ strip: "Categories", canScrollRight: true }),
     ).model,
-    Message.ChangedStripFade({ strip: "Examples", canScrollRight: true }),
+    Message.UpdatedStripFade({ strip: "Examples", canScrollRight: true }),
   ).model
   expect(moved.categoriesCanScrollRight).toBe(true)
   expect(moved.examplesCanScrollRight).toBe(true)

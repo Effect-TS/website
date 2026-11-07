@@ -47,7 +47,7 @@ const strip = (
     ],
   )
 
-export const categoryTabsView = (model: Model, panel: Html, h: Builder): Html =>
+export const categories = (model: Model, panel: Html, h: Builder): Html =>
   h.submodel({
     slotId: CATEGORY_TABS_ID,
     model: model.categoryTabs,
@@ -100,11 +100,7 @@ export const categoryTabsView = (model: Model, panel: Html, h: Builder): Html =>
     toParentMessage: (message) => Message.GotCategoryTabsMessage({ message }),
   })
 
-export const exampleTabsView = (
-  model: Model,
-  panel: Html,
-  h: Builder,
-): Html => {
+export const examples = (model: Model, panel: Html, h: Builder): Html => {
   const entries = entriesOf(model.category)
   return h.submodel({
     slotId: EXAMPLE_TABS_ID,
@@ -125,9 +121,10 @@ export const exampleTabsView = (
               "from-zinc-950",
               model.examplesCanScrollRight,
               Array.map(render.tabs, (tab) => {
-                const example = entries.find(
+                const example = Array.findFirst(
+                  entries,
                   ({ key }) => key === tab.value,
-                )?.example
+                ).pipe(Option.map(({ example }) => example))
                 return h.keyed("button")(
                   tab.value,
                   [
@@ -141,15 +138,30 @@ export const exampleTabsView = (
                     ),
                   ],
                   [
-                    h.span([], [example?.title ?? tab.value]),
-                    ...(example?.subtitle === undefined
-                      ? []
-                      : [
+                    h.span(
+                      [],
+                      [
+                        Option.match(example, {
+                          onNone: () => tab.value,
+                          onSome: ({ title }) => title,
+                        }),
+                      ],
+                    ),
+                    ...Option.match(
+                      Option.flatMapNullishOr(
+                        example,
+                        ({ subtitle }) => subtitle,
+                      ),
+                      {
+                        onNone: () => [],
+                        onSome: (subtitle) => [
                           h.span(
                             [h.Class("ml-1 text-zinc-400")],
-                            [`(${example.subtitle})`],
+                            [`(${subtitle})`],
                           ),
-                        ]),
+                        ],
+                      },
+                    ),
                   ],
                 )
               }),

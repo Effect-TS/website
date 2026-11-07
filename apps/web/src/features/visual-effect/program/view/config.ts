@@ -79,13 +79,13 @@ const controlView = (
     ],
   )
 
-export const configView = (
+export const view = (
   example: ExampleDefinition,
   input: ControlInput,
   isDied: boolean,
   h: Builder,
 ): Html =>
-  example.controls.length === 0
+  Array.isReadonlyArrayEmpty(example.controls)
     ? h.empty
     : h.section(
         [

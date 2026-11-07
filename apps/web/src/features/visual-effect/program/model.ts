@@ -81,8 +81,6 @@ export const Model = Schema.Struct({
   containerWidth: Schema.Number,
   /** Gives each notification an id. */
   notificationCount: Schema.Number,
-  /** The first click unlocks audio, because a browser needs a gesture. */
-  isSoundUnlocked: Schema.Boolean,
 })
 export type Model = typeof Model.Type
 
@@ -118,5 +116,4 @@ export const initialModel: Model = {
   expiredNotifications: [],
   containerWidth: 0,
   notificationCount: 0,
-  isSoundUnlocked: false,
 }

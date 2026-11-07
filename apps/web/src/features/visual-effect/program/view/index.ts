@@ -6,16 +6,16 @@ import { Message } from "../message"
 import { controlGroupId, controlGroupKey, type Model } from "../model"
 import { stepKeyOf } from "../catalog"
 import { describe, idle, isNotificationVisible } from "../domain"
-import { configView } from "./config"
+import * as Config from "./config"
 import { RESULT_ID } from "../motion"
-import { headerView } from "./header"
-import { finalizersView } from "./finalizers"
+import * as Header from "./header"
+import * as Finalizers from "./finalizers"
 import { arrowRight } from "./icons"
-import { nodeView } from "./node"
+import * as Node from "./node"
 import { sameTarget, type NodeTarget, type Notification } from "../domain"
-import { snippetView } from "./snippet"
-import { categoryTabsView, exampleTabsView } from "./tabs"
-import { timelineView } from "./timeline"
+import * as Snippet from "./snippet"
+import * as Strips from "./tabs"
+import * as Timeline from "./timeline"
 
 type Builder = HtmlBuilder<Message>
 
@@ -47,7 +47,7 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
           h.div(
             [h.Class("flex items-center justify-start gap-6")],
             [
-              ...(example.steps.length === 0
+              ...(Array.isReadonlyArrayEmpty(example.steps)
                 ? []
                 : [
                     h.div(
@@ -57,7 +57,7 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                           stepKeyOf(model.exampleKey, index),
                           [],
                           [
-                            nodeView(
+                            Node.view(
                               {
                                 id: stepKeyOf(model.exampleKey, index),
                                 state:
@@ -82,7 +82,7 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                       [arrowRight(h, { className: "size-6", isFilled: true })],
                     ),
                   ]),
-              nodeView(
+              Node.view(
                 {
                   id: RESULT_ID,
                   state: model.run,
@@ -116,7 +116,7 @@ const surfaceView = (model: Model, h: Builder): Html =>
           ),
         ],
         [
-          headerView(
+          Header.view(
             example,
             model.run,
             model.hasInteracted,
@@ -131,7 +131,7 @@ const surfaceView = (model: Model, h: Builder): Html =>
                 : `${example.title} ${describe(model.run)}`,
             ],
           ),
-          configView(
+          Config.view(
             example,
             {
               exampleKey: key,
@@ -145,9 +145,9 @@ const surfaceView = (model: Model, h: Builder): Html =>
             h,
           ),
           nodesView(model, isDied, h),
-          example.features.finalizers ? finalizersView(model, h) : h.empty,
-          example.features.timeline ? timelineView(model, h) : h.empty,
-          snippetView(
+          example.features.finalizers ? Finalizers.view(model, h) : h.empty,
+          example.features.timeline ? Timeline.view(model, h) : h.empty,
+          Snippet.view(
             example.code.resolve(model.controls[key] ?? {}).source,
             model.maybeHighlighted,
             {
@@ -165,9 +165,9 @@ export const view = (model: Model, h: Builder): Html =>
   h.div(
     [h.Class("border-r border-zinc-800 shadow-2xl shadow-black/20")],
     [
-      categoryTabsView(
+      Strips.categories(
         model,
-        exampleTabsView(model, surfaceView(model, h), h),
+        Strips.examples(model, surfaceView(model, h), h),
         h,
       ),
     ],

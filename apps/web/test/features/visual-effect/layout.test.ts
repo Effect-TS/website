@@ -1,9 +1,9 @@
+import { settle, start, withNotification } from "./run.ts"
 import { Option } from "effect"
 import { expect, test } from "vite-plus/test"
 import {
   emptyFinalizerPanel,
   idle,
-  start,
   type FinalizerPanel,
   type TimelineSegment,
 } from "../../../src/features/visual-effect/program/domain.ts"

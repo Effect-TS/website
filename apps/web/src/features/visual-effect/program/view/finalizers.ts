@@ -192,7 +192,7 @@ const chevronRow = (h: Builder): Html =>
     ),
   )
 
-export const finalizersView = (model: Model, h: Builder): Html =>
+export const view = (model: Model, h: Builder): Html =>
   h.section(
     [
       h.DataAttribute("testid", "visual-effect-finalizers"),

@@ -1,4 +1,4 @@
-import { Array, Option } from "effect"
+import { Array, Number, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import { AnimateNode, ShakeBubble } from "../mount"
 import { Message } from "../message"
@@ -130,23 +130,22 @@ const arrowClass = (tone: Tone): string => {
   }
 }
 
-const GLITCH_CHARSET = "@#$%&*/=-+?!~<>\\|"
+const GLITCH_CHARSET = Array.fromIterable("@#$%&*/=-+?!~<>\\|")
 const GLITCH_MIN_LENGTH = 6
 const GLITCH_MAX_LENGTH = 16
 
 /** The same notification always garbles the same way, so the view stays pure. */
 export const glitchText = (notification: Notification): string => {
-  const length = Math.min(
-    Math.max(
-      Array.fromIterable(notification.message).length,
-      GLITCH_MIN_LENGTH,
-    ),
-    GLITCH_MAX_LENGTH,
-  )
+  const length = Number.clamp({
+    minimum: GLITCH_MIN_LENGTH,
+    maximum: GLITCH_MAX_LENGTH,
+  })(Array.length(Array.fromIterable(notification.message)))
   let seed = notification.id + 1
   return Array.makeBy(length, () => {
     seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
-    return GLITCH_CHARSET[seed % GLITCH_CHARSET.length] ?? "#"
+    return Array.get(GLITCH_CHARSET, seed % Array.length(GLITCH_CHARSET)).pipe(
+      Option.getOrElse(() => "#"),
+    )
   }).join("")
 }
 
@@ -224,7 +223,7 @@ export interface NodeInput {
  * A node. CSS gives it the colour, scale and opacity of its state. The Mount
  * adds the springs, the jitter and the flash, and reads `data-state`.
  */
-export const nodeView = (
+export const view = (
   { id, state, label, target, isNotificationVisible }: NodeInput,
   h: Builder,
 ): Html =>

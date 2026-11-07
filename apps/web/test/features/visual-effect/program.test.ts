@@ -1,3 +1,4 @@
+import { settle, start, withNotification } from "./run.ts"
 import { Option, Schema } from "effect"
 import { expect, test } from "vite-plus/test"
 import {
@@ -12,9 +13,6 @@ import {
   emptyFinalizerPanel,
   idle,
   reduceFinalizerPanel,
-  settle,
-  start,
-  withNotification,
   type FinalizerEvent,
   type RunState,
   type TimelineSegment,
@@ -56,7 +54,7 @@ test("example keys are unique and the same on every load", () => {
 
 test("a run that ended keeps the notification it showed and can reset", () => {
   const running = withNotification(start(100), notification)
-  const ended = settle(running, { _tag: "Succeeded", value: shown }, 100, 350)
+  const ended = settle(running, { _tag: "Succeeded", value: shown }, 350)
   expect(ended).toMatchObject({
     _tag: "Succeeded",
     durationMs: 250,
@@ -70,11 +68,9 @@ test("a run that ended keeps the notification it showed and can reset", () => {
 
 test("every outcome maps to its own state", () => {
   const run = start(0)
-  expect(settle(run, { _tag: "Failed", error: shown }, 0, 5)._tag).toBe(
-    "Failed",
-  )
-  expect(settle(run, { _tag: "Interrupted" }, 0, 5)._tag).toBe("Interrupted")
-  expect(settle(run, { _tag: "Died", defect: shown }, 0, 5)._tag).toBe("Died")
+  expect(settle(run, { _tag: "Failed", error: shown }, 5)._tag).toBe("Failed")
+  expect(settle(run, { _tag: "Interrupted" }, 5)._tag).toBe("Interrupted")
+  expect(settle(run, { _tag: "Died", defect: shown }, 5)._tag).toBe("Died")
 })
 
 test("an idle state takes no notification", () => {
@@ -83,7 +79,7 @@ test("an idle state takes no notification", () => {
 
 test("the timeline alternates running and waiting, and ignores a repeat", () => {
   const running: RunState = start(100)
-  const ended = settle(running, { _tag: "Succeeded", value: shown }, 100, 400)
+  const ended = settle(running, { _tag: "Succeeded", value: shown }, 400)
   const first = advanceTimeline([], running, 50)
   expect(first).toEqual([
     { kind: "Running", startedAt: 50, maybeEndedAt: Option.none() },

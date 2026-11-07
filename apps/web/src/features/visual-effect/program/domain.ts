@@ -70,44 +70,6 @@ export type Outcome = typeof Outcome.Type
 export const notificationOf = (state: RunState): Option.Option<Notification> =>
   state._tag === "Idle" ? Option.none() : state.maybeNotification
 
-export const withNotification = (
-  state: RunState,
-  notification: Notification,
-): RunState =>
-  state._tag === "Idle"
-    ? state
-    : { ...state, maybeNotification: Option.some(notification) }
-
-export const start = (startedAt: number): RunState => ({
-  _tag: "Running",
-  startedAt,
-  maybeNotification: Option.none(),
-})
-
-/** Ends a run. The notification the run showed stays. */
-export const settle = (
-  previous: RunState,
-  outcome: Outcome,
-  startedAt: number,
-  endedAt: number,
-): RunState => {
-  const ended = {
-    endedAt,
-    durationMs: endedAt - startedAt,
-    maybeNotification: notificationOf(previous),
-  }
-  switch (outcome._tag) {
-    case "Succeeded":
-      return { _tag: "Succeeded", value: outcome.value, ...ended }
-    case "Failed":
-      return { _tag: "Failed", error: outcome.error, ...ended }
-    case "Interrupted":
-      return { _tag: "Interrupted", ...ended }
-    case "Died":
-      return { _tag: "Died", defect: outcome.defect, ...ended }
-  }
-}
-
 export const TimelineSegment = Schema.Struct({
   kind: Schema.Literals(["Running", "Waiting"]),
   startedAt: Schema.Number,
@@ -138,7 +100,7 @@ export const advanceTimeline = (
   }
   const at = step._tag === "Running" ? step.startedAt : step.endedAt
   return [
-    ...segments.slice(0, -1),
+    ...Array.dropRight(segments, 1),
     { ...last.value, maybeEndedAt: Option.some(at) },
     { kind, startedAt: at, maybeEndedAt: Option.none() },
   ]
@@ -297,7 +259,8 @@ export const isNotificationVisible = (
   expired: ReadonlyArray<number>,
   isHovered: boolean,
 ): boolean =>
-  !expired.includes(notification.id) || (notification.showOnHover && isHovered)
+  !Array.contains(expired, notification.id) ||
+  (notification.showOnHover && isHovered)
 
 /** What a screen reader says about a state, such as "succeeded with 65°". */
 export const describe = (state: RunState): string => {

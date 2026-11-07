@@ -14,14 +14,13 @@ export const Message = defineMessageUnion({
     controlId: Schema.String,
     message: RadioGroup.Message,
   },
-  ChangedStripFade: { strip: Strip, canScrollRight: Schema.Boolean },
+  UpdatedStripFade: { strip: Strip, canScrollRight: Schema.Boolean },
   /** Starts, stops or resets, depending on the run. */
   ClickedHeader: {},
   EnteredHeader: {},
   LeftHeader: {},
   PressedHeader: {},
   ReleasedHeader: {},
-  ChangedControl: { controlId: Schema.String, value: Schema.String },
   /** The next Messages come from the run that `runId` names. A reset makes the old ones stale. */
   StartedRun: { runId: Schema.Number, at: Schema.Number },
   StartedStep: {
@@ -44,9 +43,9 @@ export const Message = defineMessageUnion({
     durationMs: Schema.Number,
     showOnHover: Schema.Boolean,
   },
-  ChangedFinalizers: { runId: Schema.Number, event: FinalizerEvent },
+  UpdatedFinalizers: { runId: Schema.Number, event: FinalizerEvent },
   TickedClock: { at: Schema.Number },
-  ChangedContainerWidth: { width: Schema.Number },
+  UpdatedContainerWidth: { width: Schema.Number },
   HoveredNode: { target: NodeTarget },
   LeftNode: {},
   ElapsedHighlightDelay: { token: Schema.Number },

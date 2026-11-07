@@ -1,3 +1,4 @@
+import { Array } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 
 /** Lucide paths, so the icons match the rest of the site. */
@@ -61,7 +62,7 @@ const icon =
           ? []
           : [h.Width(String(options.size)), h.Height(String(options.size))]),
       ],
-      shapes.map((shape) => shapeView(h, shape)),
+      Array.map(shapes, (shape) => shapeView(h, shape)),
     )
 
 export const play = icon([

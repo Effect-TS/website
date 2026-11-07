@@ -97,7 +97,7 @@ test("an example that never ends reports an interrupt when it is stopped", async
   expect(ended).toHaveLength(1)
   expect(ended[0]).toMatchObject({ outcome: { _tag: "Interrupted" } })
   const phases = messages.flatMap((message) =>
-    message._tag === "ChangedFinalizers" ? [message.event._tag] : [],
+    message._tag === "UpdatedFinalizers" ? [message.event._tag] : [],
   )
   expect(phases).toEqual(["Registered", "Started", "Finished"])
 })

@@ -15,6 +15,7 @@ export interface Registry<Input> {
 }
 
 export const makeRegistry = <Input>(): Registry<Input> => {
+  // NOTE: Mutable on purpose. A Mount adds a driver and a Command reaches it later, and neither can pass a value to the other.
   const drivers = new Map<string, Driver<Input>>()
   return {
     register: (id, driver) => {

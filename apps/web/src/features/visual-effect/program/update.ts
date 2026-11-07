@@ -1,5 +1,5 @@
 import { RadioGroup, Tabs } from "@foldkit/ui"
-import { Option, Record, Schema } from "effect"
+import { Array, Number, Option, Record, Schema } from "effect"
 import { Update } from "foldkit"
 import { modifyFields } from "foldkit/struct"
 import {
@@ -24,13 +24,11 @@ import {
   idle,
   type NodeTarget,
   reduceFinalizerPanel,
-  settle,
-  start,
-  withNotification,
   type RunState,
 } from "./domain"
 import { Message } from "./message"
 import { motionCommands } from "./motion-commands"
+import { RunMessage, advance } from "./run-machine"
 import { CategoryTabs, ControlGroup, ExampleTabs } from "./tabs"
 import {
   Category,
@@ -96,12 +94,12 @@ export const init = ({ defaultLines }: Flags): UpdateReturn => {
   const model = Option.match(snippetOf(initialModel), {
     onNone: () => initialModel,
     onSome: ({ source }) =>
-      defaultLines.length === 0
+      Array.isReadonlyArrayEmpty(defaultLines)
         ? initialModel
-        : {
-            ...initialModel,
-            maybeHighlighted: Option.some({ source, lines: defaultLines }),
-          },
+        : modifyFields(initialModel, {
+            maybeHighlighted: () =>
+              Option.some({ source, lines: defaultLines }),
+          }),
   })
   return { model, commands: highlightCommands(model) }
 }
@@ -111,8 +109,8 @@ const controlValuesOf = (model: Model): Record<string, string> =>
   Option.match(entryOf(model), {
     onNone: () => ({}),
     onSome: ({ key, example }) =>
-      Object.fromEntries(
-        example.controls.map((control) => [
+      Record.fromEntries(
+        Array.map(example.controls, (control) => [
           control.id,
           controlValueOf(model.controls, key, control),
         ]),
@@ -123,6 +121,38 @@ const controlValuesOf = (model: Model): Record<string, string> =>
  * Drops the run and everything it showed. A new `runId` makes the Messages of
  * the run that was there stale, and `StopRun` interrupts it.
  */
+interface Shown {
+  readonly maybeStepIndex: Option.Option<number>
+  readonly message: string
+  readonly durationMs: number
+  readonly showOnHover: boolean
+}
+
+/** Gives the notification an id, puts it on its step or on the run, and starts its timer. */
+const showNotification = (
+  model: Model,
+  { maybeStepIndex, message, durationMs, showOnHover }: Shown,
+): UpdateReturn => {
+  const notification = {
+    id: model.notificationCount,
+    message,
+    durationMs,
+    showOnHover,
+  }
+  const notified = RunMessage.Notified({ notification })
+  const counted = modifyFields(model, {
+    notificationCount: Number.increment,
+  })
+  return {
+    commands: [WaitNotification({ id: notification.id, durationMs })],
+    model: Option.match(maybeStepIndex, {
+      onNone: () =>
+        modifyFields(counted, { run: (run) => advance(run, notified) }),
+      onSome: (stepIndex) => advanceStep(counted, stepIndex, notified),
+    }),
+  }
+}
+
 const reset = (model: Model): UpdateReturn => {
   const next = modifyFields(model, {
     runId: (runId) => runId + 1,
@@ -164,20 +194,24 @@ const withTimeline = (
     : model
 }
 
-const setStep = (model: Model, stepIndex: number, step: RunState): Model =>
-  withTimeline(
+const stepOf = (model: Model, stepIndex: number): RunState =>
+  model.steps[stepKeyOf(model.exampleKey, stepIndex)] ?? idle
+
+/** Tells a step what happened. The run machine decides what the step becomes. */
+const advanceStep = (
+  model: Model,
+  stepIndex: number,
+  message: RunMessage,
+): Model => {
+  const step = advance(stepOf(model, stepIndex), message)
+  return withTimeline(
     modifyFields(model, {
-      steps: (steps) => ({
-        ...steps,
-        [stepKeyOf(model.exampleKey, stepIndex)]: step,
-      }),
+      steps: Record.set(stepKeyOf(model.exampleKey, stepIndex), step),
     }),
     stepIndex,
     step,
   )
-
-const stepOf = (model: Model, stepIndex: number): RunState =>
-  model.steps[stepKeyOf(model.exampleKey, stepIndex)] ?? idle
+}
 
 const hasTimeline = (model: Model): boolean =>
   Option.match(entryOf(model), {
@@ -189,12 +223,23 @@ const selectCategory = (
   model: Model,
   category: Model["category"],
 ): UpdateReturn =>
-  reset({ ...model, category, exampleKey: firstKeyOf(category) })
+  reset(
+    modifyFields(model, {
+      category: () => category,
+      exampleKey: () => firstKeyOf(category),
+    }),
+  )
 
 const selectExample = (model: Model, key: string): UpdateReturn =>
   Option.match(findEntry(key), {
     onNone: () => ({ model }),
-    onSome: ({ category }) => reset({ ...model, category, exampleKey: key }),
+    onSome: ({ category }) =>
+      reset(
+        modifyFields(model, {
+          category: () => category,
+          exampleKey: () => key,
+        }),
+      ),
   })
 
 type Step = Update.Step<Model, Message>
@@ -295,7 +340,7 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
     ReleasedHeader: () => ({
       model: modifyFields(model, { headerPointer: () => "Over" }),
     }),
-    ChangedStripFade: ({ strip, canScrollRight }) => ({
+    UpdatedStripFade: ({ strip, canScrollRight }) => ({
       model:
         strip === "Categories"
           ? modifyFields(model, {
@@ -324,13 +369,11 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
         ],
       }
     },
-    ChangedControl: ({ controlId, value }) =>
-      changeControl(model, controlId, value),
     StartedRun: ({ runId, at }) =>
       isCurrent(model, runId) && model.run._tag === "Idle"
         ? {
             model: modifyFields(model, {
-              run: () => start(at),
+              run: (run) => advance(run, RunMessage.Started({ at })),
               clock: () => (hasTimeline(model) ? at : 0),
               steps: () => ({}),
               timeline: () => [],
@@ -341,66 +384,28 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
         : { model },
     StartedStep: ({ runId, stepIndex, at }) =>
       isCurrent(model, runId) && isRunning(model)
-        ? { model: setStep(model, stepIndex, start(at)) }
+        ? { model: advanceStep(model, stepIndex, RunMessage.Started({ at })) }
         : { model },
     EndedStep: ({ runId, stepIndex, at, outcome }) => {
       if (!isCurrent(model, runId)) {
         return { model }
       }
-      const previous = stepOf(model, stepIndex)
       return {
-        model: setStep(
-          model,
-          stepIndex,
-          settle(previous, outcome, startedAtOf(previous, at), at),
-        ),
+        model: advanceStep(model, stepIndex, RunMessage.Ended({ at, outcome })),
       }
     },
     EndedRun: ({ runId, at, outcome }) =>
       isCurrent(model, runId) && model.run._tag === "Running"
         ? {
             model: modifyFields(model, {
-              run: (run) => settle(run, outcome, startedAtOf(run, at), at),
+              run: (run) => advance(run, RunMessage.Ended({ at, outcome })),
               clock: () => 0,
             }),
           }
         : { model },
-    ShowedNotification: ({
-      runId,
-      maybeStepIndex,
-      message: text,
-      durationMs,
-      showOnHover,
-    }) => {
-      if (!isCurrent(model, runId)) {
-        return { model }
-      }
-      const notification = {
-        id: model.notificationCount,
-        message: text,
-        durationMs,
-        showOnHover,
-      }
-      const counted = modifyFields(model, {
-        notificationCount: (count) => count + 1,
-      })
-      return {
-        commands: [WaitNotification({ id: notification.id, durationMs })],
-        model: Option.match(maybeStepIndex, {
-          onNone: () =>
-            modifyFields(counted, {
-              run: (run) => withNotification(run, notification),
-            }),
-          onSome: (stepIndex) =>
-            setStep(
-              counted,
-              stepIndex,
-              withNotification(stepOf(counted, stepIndex), notification),
-            ),
-        }),
-      }
-    },
-    ChangedFinalizers: ({ runId, event }) =>
+    ShowedNotification: ({ runId, ...shown }) =>
+      isCurrent(model, runId) ? showNotification(model, shown) : { model },
+    UpdatedFinalizers: ({ runId, event }) =>
       isCurrent(model, runId)
         ? {
             model: modifyFields(model, {
@@ -412,7 +417,7 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
       isRunning(model)
         ? { model: modifyFields(model, { clock: () => at }) }
         : { model },
-    ChangedContainerWidth: ({ width }) => ({
+    UpdatedContainerWidth: ({ width }) => ({
       model: modifyFields(model, { containerWidth: () => width }),
     }),
     HoveredNode: ({ target }) => {
@@ -468,6 +473,7 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
       })
       return { model: next, commands: measureCommands(next) }
     },
+    // NOTE: A failed highlight leaves the plain source on screen, which is the fallback.
     FailedHighlightSnippet: () => ({ model }),
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),
@@ -483,7 +489,7 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
 export const update = (model: Model, message: Message): UpdateReturn => {
   const result = updateModel(model, message)
   const moves = motionCommands(model, result.model)
-  return moves.length === 0
+  return Array.isReadonlyArrayEmpty(moves)
     ? result
     : { model: result.model, commands: [...(result.commands ?? []), ...moves] }
 }
