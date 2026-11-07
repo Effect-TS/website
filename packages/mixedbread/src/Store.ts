@@ -1,4 +1,5 @@
 import MixedbreadClient, { NotFoundError } from "@mixedbread/sdk"
+import { HiddenFiles } from "@website/domain"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
@@ -39,7 +40,8 @@ export interface StoreClient {
   readonly recordPreviewSync: (
     store: MixedbreadClient.Store,
     options: PreviewSyncOptions,
-  ) => Effect.Effect<void, UnknownError>
+    hidden?: ReadonlyArray<string>,
+  ) => Effect.Effect<void, InvalidStoreError | UnknownError>
   readonly resolve: (
     options: SyncOptions,
   ) => Effect.Effect<MixedbreadClient.Store, InvalidStoreError | UnknownError>
@@ -188,12 +190,29 @@ export function makeStoreClient(options: {
 
   const recordPreviewSync: StoreClient["recordPreviewSync"] = Effect.fn(
     "Store.recordPreviewSync",
-  )(function* (store, sync) {
+  )(function* (store, sync, hidden) {
     const currentMetadata = isRecord(store.metadata) ? store.metadata : {}
+    const kept = Object.fromEntries(
+      Object.entries(currentMetadata).filter(
+        ([key]) => hidden === undefined || !HiddenFiles.isKey(key),
+      ),
+    )
+    const hiddenMetadata =
+      hidden === undefined
+        ? {}
+        : yield* HiddenFiles.encode(hidden).pipe(
+            Effect.mapError(
+              (cause) =>
+                new InvalidStoreError({
+                  message: `Preview store ${store.name} cannot hide ${cause.count} production files: ${cause.length} characters exceed the metadata budget`,
+                  cause,
+                }),
+            ),
+          )
     yield* Effect.tryPromise({
       try: () =>
         client.stores.update(store.id, {
-          metadata: { ...currentMetadata, ...metadata(sync) },
+          metadata: { ...kept, ...metadata(sync), ...hiddenMetadata },
         }),
       catch: (cause) => new UnknownError({ cause }),
     })
