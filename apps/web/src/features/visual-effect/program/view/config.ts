@@ -1,25 +1,25 @@
-import type { Tabs } from "@foldkit/ui"
-import { Array } from "effect"
+import type { RadioGroup } from "@foldkit/ui"
+import { Array, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import type {
   AnyExampleControl,
   ExampleDefinition,
 } from "../../model/example-definition"
 import { Message } from "../message"
-import { controlTabsId } from "../model"
-import { ControlTabs } from "../tabs"
+import { controlGroupId } from "../model"
+import { ControlGroup } from "../tabs"
 
 type Builder = HtmlBuilder<Message>
 
 export interface ControlInput {
   readonly exampleKey: string
   readonly valueOf: (control: AnyExampleControl) => string
-  readonly tabsOf: (control: AnyExampleControl) => Tabs.Model
+  readonly groupOf: (control: AnyExampleControl) => RadioGroup.Model
 }
 
 const controlView = (
   control: AnyExampleControl,
-  { exampleKey, valueOf, tabsOf }: ControlInput,
+  { exampleKey, valueOf, groupOf }: ControlInput,
   h: Builder,
 ): Html =>
   h.keyed("div")(
@@ -35,41 +35,46 @@ const controlView = (
         [control.label],
       ),
       h.submodel({
-        slotId: controlTabsId(exampleKey, control.id),
-        model: tabsOf(control),
-        view: ControlTabs.view,
+        slotId: controlGroupId(exampleKey, control.id),
+        model: groupOf(control),
+        view: ControlGroup.view,
         viewInputs: {
-          tabs: control.options,
-          selectedValue: valueOf(control),
+          options: control.options,
+          selectedValue: Option.some(valueOf(control)),
           ariaLabel: control.label,
+          orientation: "Horizontal",
           toView: (render) =>
             h.div(
               [
-                ...(render.tablist as ReadonlyArray<never>),
+                ...(render.group as ReadonlyArray<never>),
                 h.Class(
                   "flex w-fit flex-wrap rounded-lg border border-neutral-700/30 bg-neutral-800/50 p-1",
                 ),
               ],
-              Array.map(render.tabs, (tab) =>
+              Array.map(render.options, (option) =>
                 h.keyed("button")(
-                  tab.value,
+                  option.value,
                   [
-                    ...tab.tab,
+                    ...(option.option as ReadonlyArray<never>),
                     h.Class(
                       `cursor-pointer rounded-md px-3 py-1.5 text-center font-mono text-sm transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
-                        tab.isActive
+                        option.isSelected
                           ? "bg-neutral-700/80 font-semibold text-white shadow-md"
                           : "font-normal text-neutral-400 hover:text-neutral-300"
                       }`,
                     ),
                   ],
-                  [tab.value],
+                  [
+                    h.span(option.label as ReadonlyArray<never>, [
+                      option.value,
+                    ]),
+                  ],
                 ),
               ),
             ),
         },
         toParentMessage: (message) =>
-          Message.GotControlTabsMessage({ controlId: control.id, message }),
+          Message.GotControlGroupMessage({ controlId: control.id, message }),
       }),
     ],
   )

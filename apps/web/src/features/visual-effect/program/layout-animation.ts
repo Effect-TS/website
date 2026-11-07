@@ -3,9 +3,9 @@ import { SPRINGS } from "@/lib/animation"
 
 /**
  * Springs for the parts that move on their own: finalizer cards slide along
- * the panel, and the highlight box slides along the code. Each reads its target
- * from data attributes and writes styles. Everything here runs in the browser,
- * behind a Mount.
+ * the panel, and the highlight box slides along the code. Each gets its target
+ * from `apply` and writes styles. Everything here runs in the browser. A Mount
+ * creates each one, and a Command changes its target.
  */
 
 const prefersReducedMotion = (): boolean =>
@@ -35,8 +35,22 @@ const FLASH_BACKGROUND: Record<string, string> = {
     "radial-gradient(ellipse at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%)",
 }
 
+export interface CardInput {
+  readonly x: number
+  readonly scale: number
+  readonly phase: string
+}
+
+export interface CardAnimation {
+  readonly apply: (input: CardInput) => void
+  readonly dispose: () => void
+}
+
 /** A finalizer card. `root` is the positioned wrapper. */
-export const startCardAnimation = (root: HTMLElement): (() => void) => {
+export const startCardAnimation = (
+  root: HTMLElement,
+  initial: CardInput,
+): CardAnimation => {
   const card = part(root, "card")
   const iconPulse = part(root, "icon-pulse")
   const cardPulse = part(root, "card-pulse")
@@ -44,9 +58,9 @@ export const startCardAnimation = (root: HTMLElement): (() => void) => {
   const isReduced = prefersReducedMotion()
   const controls: Array<AnimationPlaybackControls> = []
   const pulses: Array<AnimationPlaybackControls> = []
-  let phase = root.getAttribute("data-phase") ?? "Pending"
-  let x = numberOf(root, "data-x", 0)
-  let scale = numberOf(root, "data-scale", 1)
+  let phase = initial.phase
+  let x = initial.x
+  let scale = initial.scale
 
   const place = (): void => {
     root.style.transform = `translateX(${x}px) scale(${scale})`
@@ -107,62 +121,58 @@ export const startCardAnimation = (root: HTMLElement): (() => void) => {
     )
   }
 
-  const observer = new MutationObserver(() => {
-    const nextX = numberOf(root, "data-x", x)
-    const nextScale = numberOf(root, "data-scale", scale)
-    if (nextX !== x || nextScale !== scale) {
-      x = nextX
-      scale = nextScale
-      controls.push(
-        isReduced
-          ? animate(root, { x, scale }, { duration: 0.08 })
-          : animate(
-              root,
-              { x, scale },
-              { type: "spring", visualDuration: 0.5, bounce: 0 },
-            ),
-      )
-    }
-    const nextPhase = root.getAttribute("data-phase") ?? phase
-    if (nextPhase !== phase) {
-      phase = nextPhase
-      syncPulses()
-      flashOnCompletion(nextPhase)
-    }
-  })
-  observer.observe(root, {
-    attributes: true,
-    attributeFilter: ["data-x", "data-scale", "data-phase"],
-  })
-
-  return () => {
-    observer.disconnect()
-    stopAll(controls)
-    stopAll(pulses)
+  return {
+    apply: (next) => {
+      if (next.x !== x || next.scale !== scale) {
+        x = next.x
+        scale = next.scale
+        controls.push(
+          isReduced
+            ? animate(root, { x, scale }, { duration: 0.08 })
+            : animate(
+                root,
+                { x, scale },
+                { type: "spring", visualDuration: 0.5, bounce: 0 },
+              ),
+        )
+      }
+      if (next.phase !== phase) {
+        phase = next.phase
+        syncPulses()
+        flashOnCompletion(phase)
+      }
+    },
+    dispose: () => {
+      stopAll(controls)
+      stopAll(pulses)
+    },
   }
 }
 
-/** The box over the code a node stands for. It slides, and fades with `data-visible`. */
-export const startHighlightAnimation = (root: HTMLElement): (() => void) => {
+export interface HighlightInput {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly isVisible: boolean
+}
+
+export interface HighlightAnimation {
+  readonly apply: (input: HighlightInput) => void
+  readonly dispose: () => void
+}
+
+/** The box over the code a node stands for. It slides, and fades in and out. */
+export const startHighlightAnimation = (
+  root: HTMLElement,
+  initial: HighlightInput,
+): HighlightAnimation => {
   const isReduced = prefersReducedMotion()
   const controls: Array<AnimationPlaybackControls> = []
-  let isShown = false
 
-  const sync = (): void => {
-    const target = {
-      x: numberOf(root, "data-x", 0),
-      y: numberOf(root, "data-y", 0),
-      width: numberOf(root, "data-width", 0),
-      height: numberOf(root, "data-height", 0),
-    }
-    const isVisible = root.getAttribute("data-visible") === "true"
+  const apply = ({ isVisible, ...target }: HighlightInput): void => {
     const options = isReduced ? ({ duration: 0.12 } as const) : SPRINGS.default
-    if (!isShown) {
-      root.style.transform = `translate(${target.x}px, ${target.y}px)`
-      root.style.width = `${target.width}px`
-      root.style.height = `${target.height}px`
-      isShown = true
-    } else if (isVisible) {
+    if (isVisible) {
       controls.push(animate(root, target, { ...options, type: "spring" }))
     }
     controls.push(
@@ -173,24 +183,14 @@ export const startHighlightAnimation = (root: HTMLElement): (() => void) => {
       ),
     )
   }
-  root.style.opacity = "0"
-  sync()
 
-  const observer = new MutationObserver(sync)
-  observer.observe(root, {
-    attributes: true,
-    attributeFilter: [
-      "data-x",
-      "data-y",
-      "data-width",
-      "data-height",
-      "data-visible",
-    ],
-  })
-  return () => {
-    observer.disconnect()
-    stopAll(controls)
-  }
+  root.style.opacity = "0"
+  root.style.transform = `translate(${initial.x}px, ${initial.y}px)`
+  root.style.width = `${initial.width}px`
+  root.style.height = `${initial.height}px`
+  apply(initial)
+
+  return { apply, dispose: () => stopAll(controls) }
 }
 
 /** The chevrons around "FINALIZERS" fade in turn. */

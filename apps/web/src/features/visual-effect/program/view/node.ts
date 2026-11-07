@@ -150,14 +150,27 @@ export const glitchText = (notification: Notification): string => {
   }).join("")
 }
 
-const bubbleView = (notification: Notification, tone: Tone, h: Builder): Html =>
+/** Comes in with a fade and a scale, and goes out the same way. Failure and death bubbles also shake. */
+const bubbleView = (
+  notification: Notification,
+  tone: Tone,
+  isVisible: boolean,
+  h: Builder,
+): Html =>
   h.keyed("div")(
     `bubble-${notification.id}`,
     [
       h.Role("status"),
-      ...(tone === "info" ? [] : [h.OnMount(ShakeBubble({ tone }))]),
+      h.AriaHidden(!isVisible),
+      ...(tone === "info"
+        ? []
+        : [h.OnMount(ShakeBubble({ id: notification.id, tone, isVisible }))]),
       h.Class(
-        `pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 max-w-[220px] -translate-x-1/2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap ${bubbleClass(tone)}`,
+        `pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 max-w-[220px] -translate-x-1/2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-[opacity,scale] duration-150 ease-out ${
+          isVisible
+            ? "scale-100 opacity-100 starting:scale-90 starting:opacity-0"
+            : "scale-90 opacity-0"
+        } ${bubbleClass(tone)}`,
       ),
     ],
     [
@@ -193,14 +206,14 @@ const notificationView = (
     Option.all({ tone: toneOf(state), notification: notificationOf(state) }),
     {
       onNone: () => [],
-      onSome: ({ tone, notification }) =>
-        isNotificationVisible(notification)
-          ? [bubbleView(notification, tone, h)]
-          : [],
+      onSome: ({ tone, notification }) => [
+        bubbleView(notification, tone, isNotificationVisible(notification), h),
+      ],
     },
   )
 
 export interface NodeInput {
+  readonly id: string
   readonly state: RunState
   readonly label: string
   readonly target: NodeTarget
@@ -212,7 +225,7 @@ export interface NodeInput {
  * adds the springs, the jitter and the flash, and reads `data-state`.
  */
 export const nodeView = (
-  { state, label, target, isNotificationVisible }: NodeInput,
+  { id, state, label, target, isNotificationVisible }: NodeInput,
   h: Builder,
 ): Html =>
   h.div(
@@ -220,7 +233,7 @@ export const nodeView = (
       h.Role("group"),
       h.AriaLabel(`${label}: ${describe(state)}`),
       h.DataAttribute("state", state._tag),
-      h.OnMount(AnimateNode()),
+      h.OnMount(AnimateNode({ id, tag: state._tag })),
       h.OnMouseEnter(Message.HoveredNode({ target })),
       h.OnMouseLeave(Message.LeftNode()),
     ],

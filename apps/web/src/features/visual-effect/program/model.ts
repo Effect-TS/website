@@ -1,5 +1,6 @@
-import { Tabs } from "@foldkit/ui"
+import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Option, Schema } from "effect"
+import { PointerSchema } from "./motion"
 import { Highlighted, StyledLines } from "./highlight"
 import { DEFAULT_KEY, DEFAULT_CATEGORY } from "./catalog"
 import {
@@ -23,10 +24,12 @@ export const Category = Schema.Literals([
 export const CATEGORY_TABS_ID = "visual-effect-categories"
 export const EXAMPLE_TABS_ID = "visual-effect-examples"
 
-export const controlTabsKey = (exampleKey: string, controlId: string): string =>
-  `${exampleKey}:${controlId}`
+export const controlGroupKey = (
+  exampleKey: string,
+  controlId: string,
+): string => `${exampleKey}:${controlId}`
 
-export const controlTabsId = (exampleKey: string, controlId: string): string =>
+export const controlGroupId = (exampleKey: string, controlId: string): string =>
   `visual-effect-control-${exampleKey.replace("/", "-")}-${controlId}`
 
 export const Strip = Schema.Literals(["Categories", "Examples"])
@@ -35,10 +38,12 @@ export type Strip = typeof Strip.Type
 export const Model = Schema.Struct({
   categoryTabs: Tabs.Model,
   exampleTabs: Tabs.Model,
-  /** The tabs of each control, by example and control. They hold only keyboard focus. */
-  controlTabs: Schema.Record(Schema.String, Tabs.Model),
+  /** The radio group of each control, by example and control. They hold only keyboard focus. */
+  controlGroups: Schema.Record(Schema.String, RadioGroup.Model),
   /** Once the learner uses the button, it stops wiggling. */
   hasInteracted: Schema.Boolean,
+  /** Where the pointer is on the button. The button springs to it. */
+  headerPointer: PointerSchema,
   /** Whether a tab strip has more tabs to the right, so it shows a fade. */
   categoriesCanScrollRight: Schema.Boolean,
   examplesCanScrollRight: Schema.Boolean,
@@ -89,9 +94,10 @@ export type Flags = typeof Flags.Type
 
 export const initialModel: Model = {
   categoryTabs: Tabs.init({ id: CATEGORY_TABS_ID }),
-  controlTabs: {},
+  controlGroups: {},
   exampleTabs: Tabs.init({ id: EXAMPLE_TABS_ID }),
   hasInteracted: false,
+  headerPointer: "Away",
   categoriesCanScrollRight: false,
   examplesCanScrollRight: false,
   category: DEFAULT_CATEGORY,

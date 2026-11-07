@@ -1,12 +1,13 @@
-import { Tabs } from "@foldkit/ui"
+import { RadioGroup } from "@foldkit/ui"
 import { Array, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import { controlValueOf, findEntry } from "../catalog"
 import { Message } from "../message"
-import { controlTabsId, controlTabsKey, type Model } from "../model"
+import { controlGroupId, controlGroupKey, type Model } from "../model"
 import { stepKeyOf } from "../catalog"
 import { describe, idle, isNotificationVisible } from "../domain"
 import { configView } from "./config"
+import { RESULT_ID } from "../motion"
 import { headerView } from "./header"
 import { finalizersView } from "./finalizers"
 import { arrowRight } from "./icons"
@@ -58,6 +59,7 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                           [
                             nodeView(
                               {
+                                id: stepKeyOf(model.exampleKey, index),
                                 state:
                                   model.steps[
                                     stepKeyOf(model.exampleKey, index)
@@ -82,6 +84,7 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                   ]),
               nodeView(
                 {
+                  id: RESULT_ID,
                   state: model.run,
                   label: "result",
                   target: { _tag: "Result" },
@@ -113,7 +116,13 @@ const surfaceView = (model: Model, h: Builder): Html =>
           ),
         ],
         [
-          headerView(example, model.run, model.hasInteracted, h),
+          headerView(
+            example,
+            model.run,
+            model.hasInteracted,
+            model.headerPointer,
+            h,
+          ),
           h.div(
             [h.Role("status"), h.AriaLive("polite"), h.Class("sr-only")],
             [
@@ -128,9 +137,9 @@ const surfaceView = (model: Model, h: Builder): Html =>
               exampleKey: key,
               valueOf: (control) =>
                 controlValueOf(model.controls, key, control),
-              tabsOf: (control) =>
-                model.controlTabs[controlTabsKey(key, control.id)] ??
-                Tabs.init({ id: controlTabsId(key, control.id) }),
+              groupOf: (control) =>
+                model.controlGroups[controlGroupKey(key, control.id)] ??
+                RadioGroup.init({ id: controlGroupId(key, control.id) }),
             },
             isDied,
             h,

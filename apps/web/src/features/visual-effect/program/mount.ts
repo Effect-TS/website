@@ -1,15 +1,27 @@
 import { Effect, Queue, Schema, Stream } from "effect"
 import { Mount } from "foldkit"
 import { startAnimation } from "./animation"
-import { startBubbleShake } from "./bubble-animation"
+import { startBubble } from "./bubble-animation"
 import {
   startCardAnimation,
   startChevronPulse,
   startHighlightAnimation,
 } from "./layout-animation"
 import { startHeaderAnimation } from "./header-animation"
+import { FinalizerPhase } from "./domain"
 import { Message } from "./message"
 import { Strip } from "./model"
+import {
+  HEADER_ID,
+  HIGHLIGHT_ID,
+  NodeTagSchema,
+  PointerSchema,
+  bubbles,
+  cards,
+  header,
+  highlights,
+  nodes,
+} from "./motion"
 
 const widthStream = (element: Element) =>
   Stream.callback<typeof Message.ChangedContainerWidth.Type>((queue) =>
@@ -42,13 +54,22 @@ export const MeasureWidth = Mount.defineStream("MeasureWidth", {
   execute: ({ element }) => widthStream(element),
 })
 
-/** Animates a node from its `data-state`. It lives as long as the node. */
+/** Starts the animation of a node. It lives as long as the node. A Command gives it each new state. */
 export const AnimateNode = Mount.define("AnimateNode", {
+  args: { id: Schema.String, tag: NodeTagSchema },
   messages: [Message.CompletedAnimateNode],
-  execute: ({ element }) =>
+  execute: ({ element, id, tag }) =>
     Effect.acquireRelease(
-      Effect.sync(() => startAnimation(element as HTMLElement)),
-      (animation) => Effect.sync(() => animation.dispose()),
+      Effect.sync(() => {
+        const animation = startAnimation(element as HTMLElement, tag)
+        const unregister = nodes.register(id, animation)
+        return { animation, unregister }
+      }),
+      ({ animation, unregister }) =>
+        Effect.sync(() => {
+          unregister()
+          animation.dispose()
+        }),
     ).pipe(Effect.as(Message.CompletedAnimateNode())),
 })
 
@@ -145,44 +166,106 @@ export const ScrollStrip = Mount.defineStream("ScrollStrip", {
   execute: ({ element, strip }) => stripStream(element as HTMLElement, strip),
 })
 
-/** Animates the play, stop and reset button from its `data-state`. */
+/** Starts the animation of the play, stop and reset button. A Command gives it each new state. */
 export const AnimateHeader = Mount.define("AnimateHeader", {
+  args: {
+    tag: NodeTagSchema,
+    hasInteracted: Schema.Boolean,
+    pointer: PointerSchema,
+  },
   messages: [Message.CompletedAnimateHeader],
-  execute: ({ element }) =>
+  execute: ({ element, tag, hasInteracted, pointer }) =>
     Effect.acquireRelease(
-      Effect.sync(() => startHeaderAnimation(element as HTMLElement)),
-      (animation) => Effect.sync(() => animation.dispose()),
+      Effect.sync(() => {
+        const animation = startHeaderAnimation(element as HTMLElement, {
+          tag,
+          hasInteracted,
+          pointer,
+        })
+        const unregister = header.register(HEADER_ID, animation)
+        return { animation, unregister }
+      }),
+      ({ animation, unregister }) =>
+        Effect.sync(() => {
+          unregister()
+          animation.dispose()
+        }),
     ).pipe(Effect.as(Message.CompletedAnimateHeader())),
 })
 
-/** Shakes a failure or death bubble when it appears. */
+/** Starts the shake of a failure or death bubble. A Command tells it when the bubble shows or hides. */
 export const ShakeBubble = Mount.define("ShakeBubble", {
-  args: { tone: Schema.Literals(["failure", "death"]) },
+  args: {
+    id: Schema.Number,
+    tone: Schema.Literals(["failure", "death"]),
+    isVisible: Schema.Boolean,
+  },
   messages: [Message.CompletedShakeBubble],
-  execute: ({ element, tone }) =>
+  execute: ({ element, id, tone, isVisible }) =>
     Effect.acquireRelease(
-      Effect.sync(() => startBubbleShake(element as HTMLElement, tone)),
-      (stop) => Effect.sync(stop),
+      Effect.sync(() => {
+        const animation = startBubble(element as HTMLElement, tone, isVisible)
+        const unregister = bubbles.register(String(id), animation)
+        return { animation, unregister }
+      }),
+      ({ animation, unregister }) =>
+        Effect.sync(() => {
+          unregister()
+          animation.dispose()
+        }),
     ).pipe(Effect.as(Message.CompletedShakeBubble())),
 })
 
-/** Slides a finalizer card to its place with a spring, and pulses it while it runs. */
+/** Starts the spring of a finalizer card. A Command gives it each new place and phase. */
 export const AnimateFinalizerCard = Mount.define("AnimateFinalizerCard", {
+  args: {
+    id: Schema.String,
+    x: Schema.Number,
+    scale: Schema.Number,
+    phase: FinalizerPhase,
+  },
   messages: [Message.CompletedAnimateFinalizerCard],
-  execute: ({ element }) =>
+  execute: ({ element, id, x, scale, phase }) =>
     Effect.acquireRelease(
-      Effect.sync(() => startCardAnimation(element as HTMLElement)),
-      (stop) => Effect.sync(stop),
+      Effect.sync(() => {
+        const animation = startCardAnimation(element as HTMLElement, {
+          x,
+          scale,
+          phase,
+        })
+        const unregister = cards.register(id, animation)
+        return { animation, unregister }
+      }),
+      ({ animation, unregister }) =>
+        Effect.sync(() => {
+          unregister()
+          animation.dispose()
+        }),
     ).pipe(Effect.as(Message.CompletedAnimateFinalizerCard())),
 })
 
-/** Slides the highlight box along the code with a spring. */
+/** Starts the spring of the highlight box. A Command gives it each new target. */
 export const AnimateHighlight = Mount.define("AnimateHighlight", {
+  args: {
+    x: Schema.Number,
+    y: Schema.Number,
+    width: Schema.Number,
+    height: Schema.Number,
+    isVisible: Schema.Boolean,
+  },
   messages: [Message.CompletedAnimateHighlight],
-  execute: ({ element }) =>
+  execute: ({ element, ...input }) =>
     Effect.acquireRelease(
-      Effect.sync(() => startHighlightAnimation(element as HTMLElement)),
-      (stop) => Effect.sync(stop),
+      Effect.sync(() => {
+        const animation = startHighlightAnimation(element as HTMLElement, input)
+        const unregister = highlights.register(HIGHLIGHT_ID, animation)
+        return { animation, unregister }
+      }),
+      ({ animation, unregister }) =>
+        Effect.sync(() => {
+          unregister()
+          animation.dispose()
+        }),
     ).pipe(Effect.as(Message.CompletedAnimateHighlight())),
 })
 

@@ -4,15 +4,18 @@ import {
   click,
   expect,
   given,
+  keydown,
   role,
   scene,
   testId,
   text,
 } from "foldkit/scene"
-import { Tabs } from "@foldkit/ui"
+import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Option } from "effect"
 import { test } from "vite-plus/test"
 import {
+  ChangeHeader,
+  ChangeNode,
   HighlightSnippet,
   StartRun,
   StopRun,
@@ -38,6 +41,18 @@ const start = init({ defaultLines: [] }).model
 const tabFocused = Command.resolve(
   Tabs.FocusTab,
   Tabs.Message.CompletedFocusTab(),
+)
+
+const headerMoved = Command.resolve(
+  ChangeHeader,
+  Message.CompletedAnimateHeader(),
+)
+const nodeMoved = Command.resolve(ChangeNode, Message.CompletedAnimateNode())
+
+/** A click on an option moves focus to it. The Command answers with the group's own Message. */
+const optionFocused = Command.resolve(
+  RadioGroup.FocusOption,
+  RadioGroup.Message.CompletedFocusOption(),
 )
 
 /** The two tab strips and the header button mount once. */
@@ -103,6 +118,7 @@ test("a click on the header starts the example with its control values", () => {
       }),
     ),
     Command.resolve(StartRun, Message.CompletedStartRun()),
+    headerMoved,
   )
 })
 
@@ -121,6 +137,15 @@ test("a run shows its steps, and the header offers to stop it", () => {
       }),
       Message.StartedRun({ runId: 0, at: 100 }),
     ]),
+    Command.resolve(
+      ChangeHeader({ tag: "Idle", hasInteracted: true, pointer: "Away" }),
+      Message.CompletedAnimateHeader(),
+    ),
+    Command.resolve(
+      ChangeHeader({ tag: "Running", hasInteracted: true, pointer: "Away" }),
+      Message.CompletedAnimateHeader(),
+    ),
+    nodeMoved,
     expect(role("button", { name: "Stop Effect.all" })).toExist(),
     click(role("button", { name: "Stop Effect.all" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
@@ -162,14 +187,31 @@ test("a control option changes the snippet", () => {
     strips,
     nodes("concurrency/0"),
     expect(text(/const result = Effect\.all\(\[nyc/)).toExist(),
-    click(role("tab", { name: "unbounded" })),
-    tabFocused,
+    click(role("radio", { name: "unbounded" })),
+    optionFocused,
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
     expect(text(/concurrency: "unbounded"/)).toExist(),
+  )
+})
+
+test("the arrow keys move through the options of a control", () => {
+  scene(
+    { update, view },
+    given(start),
+    strips,
+    nodes("concurrency/0"),
+    keydown(role("radio", { name: "sequential" }), "ArrowRight"),
+    optionFocused,
+    Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(
+      HighlightSnippet,
+      Message.FailedHighlightSnippet({ message: "none" }),
+    ),
+    expect(role("radio", { name: "numbered", checked: true })).toExist(),
   )
 })
 

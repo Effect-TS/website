@@ -1,4 +1,4 @@
-import { Tabs } from "@foldkit/ui"
+import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Schema } from "effect"
 import { defineMessageUnion } from "foldkit/message"
 import { FinalizerEvent, HighlightRect, NodeTarget, Outcome } from "./domain"
@@ -10,10 +10,17 @@ export const Message = defineMessageUnion({
   ClickedExample: { key: Schema.String },
   GotCategoryTabsMessage: { message: Tabs.Message },
   GotExampleTabsMessage: { message: Tabs.Message },
-  GotControlTabsMessage: { controlId: Schema.String, message: Tabs.Message },
+  GotControlGroupMessage: {
+    controlId: Schema.String,
+    message: RadioGroup.Message,
+  },
   ChangedStripFade: { strip: Strip, canScrollRight: Schema.Boolean },
   /** Starts, stops or resets, depending on the run. */
   ClickedHeader: {},
+  EnteredHeader: {},
+  LeftHeader: {},
+  PressedHeader: {},
+  ReleasedHeader: {},
   ChangedControl: { controlId: Schema.String, value: Schema.String },
   /** The next Messages come from the run that `runId` names. A reset makes the old ones stale. */
   StartedRun: { runId: Schema.Number, at: Schema.Number },

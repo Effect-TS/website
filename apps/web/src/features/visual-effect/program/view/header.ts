@@ -2,6 +2,7 @@ import type { Html, HtmlBuilder } from "foldkit/html"
 import type { ExampleDefinition } from "../../model/example-definition"
 import { canReset, type RunState } from "../domain"
 import { Message } from "../message"
+import type { Pointer } from "../header-animation"
 import { AnimateHeader } from "../mount"
 import { play, rotateCcw, square } from "./icons"
 
@@ -48,6 +49,7 @@ export const headerView = (
   example: ExampleDefinition,
   state: RunState,
   hasInteracted: boolean,
+  pointer: Pointer,
   h: Builder,
 ): Html => {
   const isDied = state._tag === "Died"
@@ -55,8 +57,11 @@ export const headerView = (
     [
       h.Type("button"),
       h.DataAttribute("state", state._tag),
-      h.DataAttribute("interacted", String(hasInteracted)),
-      h.OnMount(AnimateHeader()),
+      h.OnMount(AnimateHeader({ tag: state._tag, hasInteracted, pointer })),
+      h.OnMouseEnter(Message.EnteredHeader()),
+      h.OnMouseLeave(Message.LeftHeader()),
+      h.OnMouseDown(Message.PressedHeader()),
+      h.OnMouseUp(Message.ReleasedHeader()),
       h.OnClick(Message.ClickedHeader()),
       h.AriaLabel(`${actionOf(state)} ${example.title}`),
       h.Class(

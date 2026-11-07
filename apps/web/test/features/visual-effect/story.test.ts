@@ -1,8 +1,12 @@
-import { Tabs } from "@foldkit/ui"
+import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Option } from "effect"
 import { Command, given, message, model, story } from "foldkit/story"
 import { expect, test } from "vite-plus/test"
 import {
+  ChangeBubble,
+  ChangeHeader,
+  ChangeHighlight,
+  ChangeNode,
   HighlightSnippet,
   MeasureHighlight,
   StartRun,
@@ -17,6 +21,20 @@ import {
   update,
 } from "../../../src/features/visual-effect/program/update.ts"
 import type { Model } from "../../../src/features/visual-effect/program/model.ts"
+
+const headerMoved = Command.resolve(
+  ChangeHeader,
+  Message.CompletedAnimateHeader(),
+)
+const nodeMoved = Command.resolve(ChangeNode, Message.CompletedAnimateNode())
+const highlightMoved = Command.resolve(
+  ChangeHighlight,
+  Message.CompletedAnimateHighlight(),
+)
+const bubbleMoved = Command.resolve(
+  ChangeBubble,
+  Message.CompletedShakeBubble(),
+)
 
 const HIGHLIGHT_FAILED = Message.FailedHighlightSnippet({ message: "none" })
 
@@ -50,6 +68,7 @@ test("the first click starts the example with its control values", () => {
       }),
     ),
     Command.resolve(StartRun, Message.CompletedStartRun()),
+    headerMoved,
     model((current) => expect(current.run._tag).toBe("Idle")),
   )
 })
@@ -59,8 +78,11 @@ test("the run reports in and the Model follows", () => {
     update,
     given(first),
     message(Message.StartedRun({ runId: 0, at: 100 })),
+    nodeMoved,
+    headerMoved,
     model((current) => expect(current.run._tag).toBe("Running")),
     message(Message.StartedStep({ runId: 0, stepIndex: 0, at: 110 })),
+    nodeMoved,
     model((current) =>
       expect(current.steps["concurrency/0:0"]?._tag).toBe("Running"),
     ),
@@ -72,6 +94,7 @@ test("the run reports in and the Model follows", () => {
         outcome: { _tag: "Succeeded", value: shown },
       }),
     ),
+    nodeMoved,
     model((current) =>
       expect(current.steps["concurrency/0:0"]).toMatchObject({
         _tag: "Succeeded",
@@ -85,6 +108,8 @@ test("the run reports in and the Model follows", () => {
         outcome: { _tag: "Succeeded", value: shown },
       }),
     ),
+    nodeMoved,
+    headerMoved,
     model((current) =>
       expect(current.run).toMatchObject({
         _tag: "Succeeded",
@@ -101,10 +126,13 @@ test("a click while the run goes stops it, and the run says how it ended", () =>
     message(Message.ClickedHeader()),
     Command.expectHas(StopRun()),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    headerMoved,
     model((current) => expect(current.run._tag).toBe("Running")),
     message(
       Message.EndedRun({ runId: 0, at: 500, outcome: { _tag: "Interrupted" } }),
     ),
+    nodeMoved,
+    headerMoved,
     model((current) => expect(current.run._tag).toBe("Interrupted")),
   )
 })
@@ -124,6 +152,8 @@ test("a click after the run ended resets it", () => {
     message(Message.ClickedHeader()),
     Command.expectHas(StopRun()),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    nodeMoved,
+    headerMoved,
     model((current) => {
       expect(current.run._tag).toBe("Idle")
       expect(current.runId).toBe(1)
@@ -176,6 +206,7 @@ test("a category or example change resets, and a control change too", () => {
     Command.expectHas(StopRun()),
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(HighlightSnippet, HIGHLIGHT_FAILED),
+    headerMoved,
     model((current) => {
       expect(current.exampleKey).toBe(FINALIZER_KEY)
       expect(current.category).toBe("scope")
@@ -194,6 +225,8 @@ test("a category or example change resets, and a control change too", () => {
     ),
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(HighlightSnippet, HIGHLIGHT_FAILED),
+    nodeMoved,
+    headerMoved,
     model((current) => {
       expect(current.controls["concurrency/0"]).toEqual({
         concurrency: "unbounded",
@@ -209,6 +242,7 @@ test("a category or example change resets, and a control change too", () => {
       }),
     ),
     Command.resolve(StartRun, Message.CompletedStartRun()),
+    headerMoved,
   )
 })
 
@@ -377,6 +411,7 @@ test("hovering a node marks its code and asks where it sits", () => {
         maybeRect: Option.some({ x: 1, y: 2, width: 3, height: 4 }),
       }),
     ),
+    highlightMoved,
     model((current) =>
       expect(current.maybeHighlightRect).toEqual(
         Option.some({ x: 1, y: 2, width: 3, height: 4 }),
@@ -508,18 +543,21 @@ test("selecting an example tab selects that example", () => {
   )
 })
 
-test("selecting a control tab changes the control, and keeps its own focus", () => {
+test("selecting a control option changes the control, and keeps its own focus", () => {
   story(
     update,
     given(first),
     message(
-      Message.GotControlTabsMessage({
+      Message.GotControlGroupMessage({
         controlId: "concurrency",
-        message: Tabs.Message.SelectedTab({ index: 2, value: "unbounded" }),
+        message: RadioGroup.Message.SelectedOption({
+          index: 2,
+          value: "unbounded",
+        }),
       }),
     ),
     Command.resolveAll(
-      [Tabs.FocusTab, Tabs.Message.CompletedFocusTab()],
+      [RadioGroup.FocusOption, RadioGroup.Message.CompletedFocusOption()],
       [StopRun, Message.CompletedStopRun()],
       [HighlightSnippet, HIGHLIGHT_FAILED],
     ),
@@ -527,7 +565,7 @@ test("selecting a control tab changes the control, and keeps its own focus", () 
       expect(current.controls["concurrency/0"]).toEqual({
         concurrency: "unbounded",
       })
-      expect(Object.keys(current.controlTabs)).toEqual([
+      expect(Object.keys(current.controlGroups)).toEqual([
         "concurrency/0:concurrency",
       ])
     }),

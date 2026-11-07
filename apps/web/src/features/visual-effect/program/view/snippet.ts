@@ -76,12 +76,12 @@ export const snippetView = (
               h.div(
                 [
                   h.AriaHidden(true),
-                  h.OnMount(AnimateHighlight()),
-                  h.DataAttribute("x", String(rect.x)),
-                  h.DataAttribute("y", String(rect.y)),
-                  h.DataAttribute("width", String(rect.width)),
-                  h.DataAttribute("height", String(rect.height)),
-                  h.DataAttribute("visible", String(highlight.isVisible)),
+                  h.OnMount(
+                    AnimateHighlight({
+                      ...rect,
+                      isVisible: highlight.isVisible,
+                    }),
+                  ),
                   h.Class(
                     "pointer-events-none absolute top-0 left-0 z-10 rounded-md border border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] shadow-[0_0_14px_rgba(56,189,248,0.3)]",
                   ),

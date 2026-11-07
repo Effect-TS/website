@@ -6,6 +6,7 @@ import {
   layoutFinalizers,
   type FinalizerLayout,
 } from "../finalizers"
+import { cardScale } from "../motion-commands"
 import { AnimateFinalizerCard, MeasureWidth, PulseChevrons } from "../mount"
 import type { Message } from "../message"
 import type { Model } from "../model"
@@ -86,10 +87,14 @@ const cardView = (
   h.keyed("div")(
     entry.id,
     [
-      h.OnMount(AnimateFinalizerCard()),
-      h.DataAttribute("x", String(x)),
-      h.DataAttribute("scale", String(isRunning ? 1.05 : 1)),
-      h.DataAttribute("phase", entry.phase),
+      h.OnMount(
+        AnimateFinalizerCard({
+          id: entry.id,
+          x,
+          scale: cardScale(isRunning),
+          phase: entry.phase,
+        }),
+      ),
       h.Class("absolute top-[18px]"),
       h.Style({ zIndex: String(zIndex) }),
     ],

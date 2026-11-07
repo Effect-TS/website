@@ -1,6 +1,6 @@
 import { animate, type AnimationPlaybackControls } from "motion"
 
-/** A failure or a death bubble shakes when it appears. */
+/** A failure or a death bubble shakes each time it shows. */
 export type ShakeTone = "failure" | "death"
 
 interface Shake {
@@ -97,4 +97,29 @@ export const startBubbleShake = (
       control.stop()
     }
   }
+}
+
+export interface BubbleAnimation {
+  readonly apply: (isVisible: boolean) => void
+  readonly dispose: () => void
+}
+
+/** Shakes the bubble when it shows, at first or again later. A Mount creates it, and a Command shows or hides it. */
+export const startBubble = (
+  element: HTMLElement,
+  tone: ShakeTone,
+  isVisible: boolean,
+): BubbleAnimation => {
+  let stop: () => void = () => undefined
+  let wasVisible = false
+  const apply = (next: boolean): void => {
+    if (next === wasVisible) {
+      return
+    }
+    wasVisible = next
+    stop()
+    stop = next ? startBubbleShake(element, tone) : () => undefined
+  }
+  apply(isVisible)
+  return { apply, dispose: () => stop() }
 }

@@ -9,9 +9,9 @@ import { COLORS, SHADOW_COLORS, SPRINGS, TIMINGS, VFX } from "@/lib/animation"
 
 /**
  * The look of a node that CSS cannot give: springs, jitter, shake, glitch and
- * flash. One `Animation` drives one node. It reads the state from the node's
- * `data-state` and writes styles on the node's parts. Everything here runs in
- * the browser, behind a Mount.
+ * flash. One `Animation` drives one node. It gets the state from `apply` and
+ * writes styles on the node's parts. Everything here runs in the browser.
+ * A Mount creates it, and a Command changes its state.
  */
 
 export type NodeTag =
@@ -110,20 +110,29 @@ const makeMotion = (): Motion => ({
 })
 
 export interface Animation {
+  readonly apply: (tag: NodeTag) => void
   readonly dispose: () => void
 }
 
+const noAnimation: Animation = {
+  apply: () => undefined,
+  dispose: () => undefined,
+}
+
 /** Starts the animation of the node. `root` holds the node's parts. */
-export const startAnimation = (root: HTMLElement): Animation => {
+export const startAnimation = (
+  root: HTMLElement,
+  initial: NodeTag,
+): Animation => {
   const outer = part(root, NODE_PARTS.outer)
   const container = part(root, NODE_PARTS.container)
   const content = part(root, NODE_PARTS.content)
   if (outer === null || container === null || content === null) {
-    return { dispose: () => undefined }
+    return noAnimation
   }
 
   const values = makeMotion()
-  let tag = readTag(root)
+  let tag = initial
   let previousTag: NodeTag = tag
   let cleanup: () => void = () => undefined
 
@@ -222,23 +231,20 @@ export const startAnimation = (root: HTMLElement): Animation => {
   }
 
   // The server markup already has the Idle look, so nothing is written until the state changes.
-  const observer = new MutationObserver(() => {
-    const next = readTag(root)
-    if (next === tag) {
-      return
-    }
-    previousTag = tag
-    tag = next
-    apply()
-  })
-  observer.observe(root, { attributes: true, attributeFilter: ["data-state"] })
   if (tag !== "Idle") {
     apply()
   }
 
   return {
+    apply: (next) => {
+      if (next === tag) {
+        return
+      }
+      previousTag = tag
+      tag = next
+      apply()
+    },
     dispose: () => {
-      observer.disconnect()
       if (blurTimer !== undefined) {
         clearTimeout(blurTimer)
       }
@@ -247,20 +253,6 @@ export const startAnimation = (root: HTMLElement): Animation => {
         unsubscribe()
       }
     },
-  }
-}
-
-const readTag = (root: Element): NodeTag => {
-  const value = root.getAttribute("data-state")
-  switch (value) {
-    case "Running":
-    case "Succeeded":
-    case "Failed":
-    case "Died":
-    case "Interrupted":
-      return value
-    default:
-      return "Idle"
   }
 }
 

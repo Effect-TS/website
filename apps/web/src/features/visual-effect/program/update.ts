@@ -1,4 +1,4 @@
-import { Tabs } from "@foldkit/ui"
+import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Option, Record, Schema } from "effect"
 import { Update } from "foldkit"
 import { modifyFields } from "foldkit/struct"
@@ -30,11 +30,12 @@ import {
   type RunState,
 } from "./domain"
 import { Message } from "./message"
-import { CategoryTabs, ControlTabs, ExampleTabs } from "./tabs"
+import { motionCommands } from "./motion-commands"
+import { CategoryTabs, ControlGroup, ExampleTabs } from "./tabs"
 import {
   Category,
-  controlTabsId,
-  controlTabsKey,
+  controlGroupId,
+  controlGroupKey,
   initialModel,
   type Flags,
   type Model,
@@ -247,24 +248,24 @@ const changeControl = (
         }),
       )
 
-const foldControlTabs = Update.foldChildAt({
-  update: ControlTabs.update,
+const foldControlGroup = Update.foldChildAt({
+  update: ControlGroup.update,
   readAt: (model: Model, controlId: string) =>
     Option.some(
-      model.controlTabs[controlTabsKey(model.exampleKey, controlId)] ??
-        Tabs.init({ id: controlTabsId(model.exampleKey, controlId) }),
+      model.controlGroups[controlGroupKey(model.exampleKey, controlId)] ??
+        RadioGroup.init({ id: controlGroupId(model.exampleKey, controlId) }),
     ),
-  writeAt: (model, controlId, controlTabs) =>
+  writeAt: (model, controlId, controlGroups) =>
     modifyFields(model, {
-      controlTabs: (all) => ({
+      controlGroups: (all) => ({
         ...all,
-        [controlTabsKey(model.exampleKey, controlId)]: controlTabs,
+        [controlGroupKey(model.exampleKey, controlId)]: controlGroups,
       }),
     }),
   toParentMessage: (controlId, message) =>
-    Message.GotControlTabsMessage({ controlId, message }),
+    Message.GotControlGroupMessage({ controlId, message }),
   foldOutMessage: (controlId) =>
-    Tabs.OutMessage.match<Step>({
+    RadioGroup.OutMessage.match<Step>({
       Selected:
         ({ value }) =>
         (model) =>
@@ -272,7 +273,7 @@ const foldControlTabs = Update.foldChildAt({
     }),
 })
 
-export const update = (model: Model, message: Message): UpdateReturn =>
+const updateModel = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
     ClickedCategory: ({ category }) => selectCategory(model, category),
     ClickedExample: ({ key }) => selectExample(model, key),
@@ -280,8 +281,20 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       foldCategoryTabs(model, tabsMessage),
     GotExampleTabsMessage: ({ message: tabsMessage }) =>
       foldExampleTabs(model, tabsMessage),
-    GotControlTabsMessage: ({ controlId, message: tabsMessage }) =>
-      foldControlTabs(model, controlId, tabsMessage),
+    GotControlGroupMessage: ({ controlId, message: tabsMessage }) =>
+      foldControlGroup(model, controlId, tabsMessage),
+    EnteredHeader: () => ({
+      model: modifyFields(model, { headerPointer: () => "Over" }),
+    }),
+    LeftHeader: () => ({
+      model: modifyFields(model, { headerPointer: () => "Away" }),
+    }),
+    PressedHeader: () => ({
+      model: modifyFields(model, { headerPointer: () => "Pressed" }),
+    }),
+    ReleasedHeader: () => ({
+      model: modifyFields(model, { headerPointer: () => "Over" }),
+    }),
     ChangedStripFade: ({ strip, canScrollRight }) => ({
       model:
         strip === "Categories"
@@ -465,3 +478,12 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     CompletedAnimateHighlight: () => ({ model }),
     CompletedPulseChevrons: () => ({ model }),
   })
+
+/** Runs the update, then adds the Commands that move the parts of the screen the Model change affects. */
+export const update = (model: Model, message: Message): UpdateReturn => {
+  const result = updateModel(model, message)
+  const moves = motionCommands(model, result.model)
+  return moves.length === 0
+    ? result
+    : { model: result.model, commands: [...(result.commands ?? []), ...moves] }
+}
