@@ -1,28 +1,9 @@
-import { Effect, Queue, Schema, Stream } from "effect"
+import { Effect, Queue, Stream } from "effect"
 import { Mount } from "foldkit"
-import { startAnimation } from "./drivers/animation"
-import { startBubble } from "./drivers/bubble-animation"
-import {
-  startCardAnimation,
-  startChevronPulse,
-  startHighlightAnimation,
-} from "./drivers/layout-animation"
-import { startHeaderAnimation } from "./drivers/header-animation"
-import { FinalizerPhase } from "./domain"
+import { startChevronPulse } from "./drivers/layout-animation"
 import { Message } from "./message"
 import { Strip } from "./model"
 import { dragScroll, watchRightEdge } from "./drivers/strip"
-import {
-  HEADER_ID,
-  HIGHLIGHT_ID,
-  NodeTagSchema,
-  PointerSchema,
-  bubbles,
-  cards,
-  header,
-  highlights,
-  nodes,
-} from "./motion"
 
 const widthStream = (element: Element) =>
   Stream.callback<typeof Message.UpdatedContainerWidth.Type>((queue) =>
@@ -55,25 +36,6 @@ export const MeasureWidth = Mount.defineStream("MeasureWidth", {
   execute: ({ element }) => widthStream(element),
 })
 
-/** Starts the animation of a node. It lives as long as the node. A Command gives it each new state. */
-export const AnimateNode = Mount.define("AnimateNode", {
-  args: { id: Schema.String, tag: NodeTagSchema },
-  messages: [Message.CompletedAnimateNode],
-  execute: ({ element, id, tag }) =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        const animation = startAnimation(element as HTMLElement, tag)
-        const unregister = nodes.register(id, animation)
-        return { animation, unregister }
-      }),
-      ({ animation, unregister }) =>
-        Effect.sync(() => {
-          unregister()
-          animation.dispose()
-        }),
-    ).pipe(Effect.as(Message.CompletedAnimateNode())),
-})
-
 const stripStream = (element: HTMLElement, strip: Strip) =>
   Stream.callback<typeof Message.UpdatedStripFade.Type>((queue) =>
     Effect.acquireRelease(
@@ -101,109 +63,6 @@ export const ScrollStrip = Mount.defineStream("ScrollStrip", {
   execute: ({ element, strip }) => stripStream(element as HTMLElement, strip),
 })
 
-/** Starts the animation of the play, stop and reset button. A Command gives it each new state. */
-export const AnimateHeader = Mount.define("AnimateHeader", {
-  args: {
-    tag: NodeTagSchema,
-    hasInteracted: Schema.Boolean,
-    pointer: PointerSchema,
-  },
-  messages: [Message.CompletedAnimateHeader],
-  execute: ({ element, tag, hasInteracted, pointer }) =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        const animation = startHeaderAnimation(element as HTMLElement, {
-          tag,
-          hasInteracted,
-          pointer,
-        })
-        const unregister = header.register(HEADER_ID, animation)
-        return { animation, unregister }
-      }),
-      ({ animation, unregister }) =>
-        Effect.sync(() => {
-          unregister()
-          animation.dispose()
-        }),
-    ).pipe(Effect.as(Message.CompletedAnimateHeader())),
-})
-
-/** Starts the shake of a failure or death bubble. A Command tells it when the bubble shows or hides. */
-export const ShakeBubble = Mount.define("ShakeBubble", {
-  args: {
-    id: Schema.Number,
-    tone: Schema.Literals(["failure", "death"]),
-    isVisible: Schema.Boolean,
-  },
-  messages: [Message.CompletedShakeBubble],
-  execute: ({ element, id, tone, isVisible }) =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        const animation = startBubble(element as HTMLElement, tone, isVisible)
-        const unregister = bubbles.register(String(id), animation)
-        return { animation, unregister }
-      }),
-      ({ animation, unregister }) =>
-        Effect.sync(() => {
-          unregister()
-          animation.dispose()
-        }),
-    ).pipe(Effect.as(Message.CompletedShakeBubble())),
-})
-
-/** Starts the spring of a finalizer card. A Command gives it each new place and phase. */
-export const AnimateFinalizerCard = Mount.define("AnimateFinalizerCard", {
-  args: {
-    id: Schema.String,
-    x: Schema.Number,
-    scale: Schema.Number,
-    phase: FinalizerPhase,
-  },
-  messages: [Message.CompletedAnimateFinalizerCard],
-  execute: ({ element, id, x, scale, phase }) =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        const animation = startCardAnimation(element as HTMLElement, {
-          x,
-          scale,
-          phase,
-        })
-        const unregister = cards.register(id, animation)
-        return { animation, unregister }
-      }),
-      ({ animation, unregister }) =>
-        Effect.sync(() => {
-          unregister()
-          animation.dispose()
-        }),
-    ).pipe(Effect.as(Message.CompletedAnimateFinalizerCard())),
-})
-
-/** Starts the spring of the highlight box. A Command gives it each new target. */
-export const AnimateHighlight = Mount.define("AnimateHighlight", {
-  args: {
-    x: Schema.Number,
-    y: Schema.Number,
-    width: Schema.Number,
-    height: Schema.Number,
-    isVisible: Schema.Boolean,
-  },
-  messages: [Message.CompletedAnimateHighlight],
-  execute: ({ element, ...input }) =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        const animation = startHighlightAnimation(element as HTMLElement, input)
-        const unregister = highlights.register(HIGHLIGHT_ID, animation)
-        return { animation, unregister }
-      }),
-      ({ animation, unregister }) =>
-        Effect.sync(() => {
-          unregister()
-          animation.dispose()
-        }),
-    ).pipe(Effect.as(Message.CompletedAnimateHighlight())),
-})
-
 /** Pulses the chevrons of the finalizer panel. */
 export const PulseChevrons = Mount.define("PulseChevrons", {
   messages: [Message.CompletedPulseChevrons],
@@ -213,3 +72,9 @@ export const PulseChevrons = Mount.define("PulseChevrons", {
       (stop) => Effect.sync(stop),
     ).pipe(Effect.as(Message.CompletedPulseChevrons())),
 })
+
+export { AnimateNode } from "./targets/node"
+export { AnimateHeader } from "./targets/header"
+export { ShakeBubble } from "./targets/bubble"
+export { AnimateHighlight } from "./targets/highlight"
+export { AnimateFinalizerCard } from "./targets/card"

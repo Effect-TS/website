@@ -1,6 +1,5 @@
 import { Option } from "effect"
 import { expect, test } from "vite-plus/test"
-import { makeRegistry } from "../../../src/features/visual-effect/program/registry.ts"
 import { motionCommands } from "../../../src/features/visual-effect/program/motion-commands.ts"
 import { Message } from "../../../src/features/visual-effect/program/message.ts"
 import type { Model } from "../../../src/features/visual-effect/program/model.ts"
@@ -107,34 +106,4 @@ test("a failure bubble shakes again when it comes back, and not before", () => {
       ({ name }) => name === "ChangeBubble",
     ),
   ).toEqual([])
-})
-
-test("a registry finds a driver by id until it is removed", () => {
-  const registry = makeRegistry<number>()
-  const seen: Array<number> = []
-  const remove = registry.register("a", {
-    apply: (value) => seen.push(value),
-    dispose: () => undefined,
-  })
-  registry.apply("a", 1)
-  registry.apply("b", 2)
-  remove()
-  registry.apply("a", 3)
-  expect(seen).toEqual([1])
-})
-
-test("an old driver does not remove the driver that replaced it", () => {
-  const registry = makeRegistry<number>()
-  const seen: Array<string> = []
-  const removeOld = registry.register("a", {
-    apply: () => seen.push("old"),
-    dispose: () => undefined,
-  })
-  registry.register("a", {
-    apply: () => seen.push("new"),
-    dispose: () => undefined,
-  })
-  removeOld()
-  registry.apply("a", 1)
-  expect(seen).toEqual(["new"])
 })

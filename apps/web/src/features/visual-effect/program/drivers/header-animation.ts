@@ -1,4 +1,4 @@
-import { stopAll } from "./node-motion"
+import { stopAll, type NodeTag } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 
 /**
@@ -17,18 +17,10 @@ const part = (root: Element, name: string): HTMLElement | null =>
 const prefersReducedMotion = (): boolean =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-export type Tag =
-  | "Idle"
-  | "Running"
-  | "Succeeded"
-  | "Failed"
-  | "Interrupted"
-  | "Died"
-
 export type Pointer = "Away" | "Over" | "Pressed"
 
 export interface HeaderInput {
-  readonly tag: Tag
+  readonly tag: NodeTag
   readonly hasInteracted: boolean
   readonly pointer: Pointer
 }
@@ -43,7 +35,7 @@ const filterOf = (blur: number): string => `blur(${blur}px)`
 
 /** How the new icon arrives. */
 const arrival = (
-  tag: Tag,
+  tag: NodeTag,
   isHovered: boolean,
   isReduced: boolean,
 ): Keyframes => {

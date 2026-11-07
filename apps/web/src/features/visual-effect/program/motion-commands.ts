@@ -19,6 +19,8 @@ import { findEntry, stepKeyOf } from "./catalog"
 import { layoutFinalizers } from "./finalizers"
 import type { Model } from "./model"
 import { RESULT_ID } from "./motion"
+import { CardKey } from "./targets/card"
+import { NodeKey } from "./targets/node"
 
 type Commands = ReadonlyArray<
   | ReturnType<typeof ChangeBubble>
@@ -43,12 +45,12 @@ const nodeCommands = (previous: Model, next: Model): Commands => {
     const after = next.steps[key] ?? idle
     return before._tag === after._tag
       ? []
-      : [ChangeNode({ id: key, tag: after._tag })]
+      : [ChangeNode({ id: NodeKey.make(key), tag: after._tag })]
   })
   const result =
     previous.run._tag === next.run._tag
       ? []
-      : [ChangeNode({ id: RESULT_ID, tag: next.run._tag })]
+      : [ChangeNode({ id: NodeKey.make(RESULT_ID), tag: next.run._tag })]
   return [...steps, ...result]
 }
 
@@ -80,7 +82,14 @@ const cardCommands = (previous: Model, next: Model): Commands => {
         cardScale(was.value.isRunning) === scale &&
         was.value.entry.phase === entry.phase
         ? []
-        : [ChangeCard({ id: entry.id, x, scale, phase: entry.phase })]
+        : [
+            ChangeCard({
+              id: CardKey.make(entry.id),
+              x,
+              scale,
+              phase: entry.phase,
+            }),
+          ]
     },
   )
 }

@@ -1,4 +1,4 @@
-import { Array } from "effect"
+import { Array, Schema } from "effect"
 import {
   motionValue,
   springValue,
@@ -9,13 +9,18 @@ import { SPRINGS } from "@/lib/animation"
 
 /** What the parts of a node share: its names, sizes, ranges and spring values. */
 
-export type NodeTag =
-  | "Idle"
-  | "Running"
-  | "Succeeded"
-  | "Failed"
-  | "Died"
-  | "Interrupted"
+export const NODE_TAGS = [
+  "Idle",
+  "Running",
+  "Succeeded",
+  "Failed",
+  "Died",
+  "Interrupted",
+] as const
+
+export const NodeTagSchema = Schema.Literals(NODE_TAGS)
+
+export type NodeTag = typeof NodeTagSchema.Type
 
 export const NODE_PARTS = {
   outer: "outer",
