@@ -4,13 +4,19 @@ import { Flags, Model } from "./model"
 import { subscriptions } from "./subscription"
 import { init, update } from "./update"
 import { view } from "./view"
+import type { StyledLines } from "./highlight"
 
-export const ExamplesApp = defineProgram<{}, Model, Message, Flags>({
+export interface Props {
+  /** The default snippet, highlighted on the server. */
+  readonly defaultLines: StyledLines
+}
+
+export const ExamplesApp = defineProgram<Props, Model, Message, Flags>({
   Model,
   Flags,
   init,
   update,
   view,
   subscriptions,
-  flags: () => ({}),
+  flags: ({ props }) => ({ defaultLines: props.defaultLines }),
 })

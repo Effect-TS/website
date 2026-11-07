@@ -11,6 +11,7 @@ import {
 } from "foldkit/scene"
 import { test } from "vite-plus/test"
 import {
+  HighlightSnippet,
   StartRun,
   StopRun,
 } from "../../../src/features/visual-effect/program/command.ts"
@@ -22,7 +23,7 @@ import {
 import { MeasureWidth } from "../../../src/features/visual-effect/program/mount.ts"
 import { view } from "../../../src/features/visual-effect/program/view/index.ts"
 
-const start = init({}).model
+const start = init({ defaultLines: [] }).model
 
 test("a click on the header starts the example with its control values", () => {
   scene(
@@ -65,9 +66,17 @@ test("a tab changes the example", () => {
     given(start),
     click(role("tab", { name: "Effect.race" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(
+      HighlightSnippet,
+      Message.FailedHighlightSnippet({ message: "none" }),
+    ),
     expect(role("button", { name: "Run Effect.race" })).toExist(),
     click(role("tab", { name: "Schedule" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(
+      HighlightSnippet,
+      Message.FailedHighlightSnippet({ message: "none" }),
+    ),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(role("button", { name: /Run Effect.retry/ })).toExist(),
   )
@@ -80,6 +89,10 @@ test("a control option changes the snippet", () => {
     expect(text(/const result = Effect\.all\(\[nyc/)).toExist(),
     click(role("radio", { name: "unbounded" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(
+      HighlightSnippet,
+      Message.FailedHighlightSnippet({ message: "none" }),
+    ),
     expect(text(/concurrency: "unbounded"/)).toExist(),
   )
 })
@@ -91,6 +104,10 @@ test("a schedule example shows a timeline and no finalizers", () => {
     expect(testId("visual-effect-timeline")).toBeAbsent(),
     click(role("tab", { name: "Schedule" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(
+      HighlightSnippet,
+      Message.FailedHighlightSnippet({ message: "none" }),
+    ),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(testId("visual-effect-timeline")).toExist(),
     expect(testId("visual-effect-finalizers")).toBeAbsent(),
@@ -103,6 +120,10 @@ test("a scope example shows finalizers and no timeline", () => {
     given(start),
     click(role("tab", { name: "Scope" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(
+      HighlightSnippet,
+      Message.FailedHighlightSnippet({ message: "none" }),
+    ),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(testId("visual-effect-finalizers")).toExist(),
     expect(testId("visual-effect-timeline")).toBeAbsent(),

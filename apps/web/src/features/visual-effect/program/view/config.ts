@@ -47,7 +47,7 @@ const controlView = (
                 }),
               ),
               h.Class(
-                `cursor-pointer rounded-md px-3 py-1.5 text-center font-mono transition-colors ${
+                `cursor-pointer rounded-md px-3 py-1.5 text-center font-mono text-sm transition-colors ${
                   option === value
                     ? "bg-neutral-700/80 font-semibold text-white shadow-md"
                     : "font-normal text-neutral-400 hover:text-neutral-300"

@@ -2,9 +2,11 @@ import { Option } from "effect"
 import { Command, given, message, model, story } from "foldkit/story"
 import { expect, test } from "vite-plus/test"
 import {
+  HighlightSnippet,
   StartRun,
   StopRun,
 } from "../../../src/features/visual-effect/program/command.ts"
+import { allExample } from "../../../src/features/visual-effect/catalog/effect-all.tsx"
 import { Message } from "../../../src/features/visual-effect/program/message.ts"
 import {
   init,
@@ -12,7 +14,16 @@ import {
 } from "../../../src/features/visual-effect/program/update.ts"
 import type { Model } from "../../../src/features/visual-effect/program/model.ts"
 
-const first = init({}).model
+const HIGHLIGHT_FAILED = Message.FailedHighlightSnippet({ message: "none" })
+
+/** The first view with its snippet already highlighted, as the server leaves it. */
+const first = update(
+  init({ defaultLines: [] }).model,
+  Message.HighlightedSnippet({
+    source: allExample.code.resolve({}).source,
+    lines: [],
+  }),
+).model
 const shown = { size: "Small", text: "ok" } as const
 
 /** A Model after `StartedRun`, so a run is going. */
@@ -160,6 +171,7 @@ test("a category or example change resets, and a control change too", () => {
     message(Message.ClickedCategory({ category: "scope" })),
     Command.expectHas(StopRun()),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(HighlightSnippet, HIGHLIGHT_FAILED),
     model((current) => {
       expect(current.exampleKey).toBe(FINALIZER_KEY)
       expect(current.category).toBe("scope")
@@ -167,6 +179,7 @@ test("a category or example change resets, and a control change too", () => {
     }),
     message(Message.ClickedExample({ key: "scope/1" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(HighlightSnippet, HIGHLIGHT_FAILED),
     model((current) => expect(current.exampleKey).toBe("scope/1")),
   )
   story(
@@ -176,6 +189,7 @@ test("a category or example change resets, and a control change too", () => {
       Message.ChangedControl({ controlId: "concurrency", value: "unbounded" }),
     ),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Command.resolve(HighlightSnippet, HIGHLIGHT_FAILED),
     model((current) => {
       expect(current.controls["concurrency/0"]).toEqual({
         concurrency: "unbounded",
@@ -294,4 +308,48 @@ test("a timeline example follows the clock and builds segments from its steps", 
 
 test("a plain example keeps the clock at zero", () => {
   expect(running().clock).toBe(0)
+})
+
+test("the server leaves tokens for the default snippet, so no request goes out", () => {
+  const lines = [
+    [{ content: "const", start: 0, end: 5, style: { color: "red" } }],
+  ]
+  const booted = init({ defaultLines: lines })
+  expect(booted.commands).toEqual([])
+  expect(booted.model.maybeHighlighted).toEqual(
+    Option.some({ source: allExample.code.resolve({}).source, lines }),
+  )
+})
+
+test("without tokens the browser asks for them", () => {
+  const booted = init({ defaultLines: [] })
+  expect(booted.commands?.map(({ name }) => name)).toEqual(["HighlightSnippet"])
+})
+
+test("tokens for a snippet that is no longer on show are dropped", () => {
+  const stale = update(
+    first,
+    Message.HighlightedSnippet({ source: "something else", lines: [] }),
+  ).model
+  expect(stale).toEqual(first)
+})
+
+test("a control change asks for the tokens of the new snippet", () => {
+  story(
+    update,
+    given(first),
+    message(
+      Message.ChangedControl({ controlId: "concurrency", value: "unbounded" }),
+    ),
+    Command.expectHas(
+      HighlightSnippet({
+        language: "typescript",
+        source: allExample.code.resolve({ concurrency: "unbounded" }).source,
+      }),
+    ),
+    Command.resolveAll(
+      [StopRun, Message.CompletedStopRun()],
+      [HighlightSnippet, HIGHLIGHT_FAILED],
+    ),
+  )
 })

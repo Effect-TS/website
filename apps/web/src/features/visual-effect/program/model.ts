@@ -1,4 +1,5 @@
-import { Schema } from "effect"
+import { Option, Schema } from "effect"
+import { Highlighted, StyledLines } from "./highlight"
 import { DEFAULT_KEY, DEFAULT_CATEGORY } from "./catalog"
 import {
   FinalizerPanel,
@@ -34,6 +35,8 @@ export const Model = Schema.Struct({
   clock: Schema.Number,
   timeline: Schema.Array(TimelineSegment),
   finalizers: FinalizerPanel,
+  /** The snippet source the tokens belong to. Until they match what is on show, the view prints plain source. */
+  maybeHighlighted: Schema.Option(Highlighted),
   /** Width of the panel on show, in px. The browser measures it after hydration. */
   containerWidth: Schema.Number,
   /** Gives each notification an id. */
@@ -43,8 +46,10 @@ export const Model = Schema.Struct({
 })
 export type Model = typeof Model.Type
 
-/** What the server knows. It is nothing: the first view does not depend on a request. */
-export const Flags = Schema.Struct({})
+/** What the server knows: the tokens of the default snippet, so the first paint is highlighted. */
+export const Flags = Schema.Struct({
+  defaultLines: StyledLines,
+})
 export type Flags = typeof Flags.Type
 
 export const initialModel: Model = {
@@ -57,6 +62,7 @@ export const initialModel: Model = {
   clock: 0,
   timeline: [],
   finalizers: emptyFinalizerPanel,
+  maybeHighlighted: Option.none(),
   containerWidth: 0,
   notificationCount: 0,
   isSoundUnlocked: false,

@@ -162,6 +162,7 @@ const surfaceView = (model: Model, h: Builder): Html =>
           example.features.timeline ? timelineView(model, h) : h.empty,
           snippetView(
             example.code.resolve(model.controls[key] ?? {}).source,
+            model.maybeHighlighted,
             h,
           ),
         ],

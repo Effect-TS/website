@@ -1,7 +1,7 @@
 import { Option, Record } from "effect"
 import { Update } from "foldkit"
 import { modifyFields } from "foldkit/struct"
-import { StartRun, StopRun } from "./command"
+import { HighlightSnippet, StartRun, StopRun } from "./command"
 import {
   controlValueOf,
   findEntry,
@@ -25,10 +25,38 @@ import { initialModel, type Flags, type Model } from "./model"
 
 type UpdateReturn = Update.Return<Model, Message>
 
-export const init = (_flags: Flags): UpdateReturn => ({ model: initialModel })
-
 const entryOf = (model: Model): Option.Option<CatalogEntry> =>
   findEntry(model.exampleKey)
+
+/** The snippet on show, for the control values the learner chose. */
+const snippetOf = (model: Model) =>
+  Option.map(entryOf(model), ({ key, example }) =>
+    example.code.resolve(model.controls[key] ?? {}),
+  )
+
+/** Tokens arrive late: until they match the snippet on show, the view prints plain source. */
+const highlightCommands = (model: Model) =>
+  Option.match(snippetOf(model), {
+    onNone: () => [],
+    onSome: ({ language, source }) =>
+      Option.exists(model.maybeHighlighted, (shown) => shown.source === source)
+        ? []
+        : [HighlightSnippet({ language, source })],
+  })
+
+export const init = ({ defaultLines }: Flags): UpdateReturn => {
+  const model = Option.match(snippetOf(initialModel), {
+    onNone: () => initialModel,
+    onSome: ({ source }) =>
+      defaultLines.length === 0
+        ? initialModel
+        : {
+            ...initialModel,
+            maybeHighlighted: Option.some({ source, lines: defaultLines }),
+          },
+  })
+  return { model, commands: highlightCommands(model) }
+}
 
 /** Every control of the example on show, with the learner's choice or the initial value. */
 const controlValuesOf = (model: Model): Record<string, string> =>
@@ -47,17 +75,17 @@ const controlValuesOf = (model: Model): Record<string, string> =>
  * Drops the run and everything it showed. A new `runId` makes the Messages of
  * the run that was there stale, and `StopRun` interrupts it.
  */
-const reset = (model: Model): UpdateReturn => ({
-  model: modifyFields(model, {
+const reset = (model: Model): UpdateReturn => {
+  const next = modifyFields(model, {
     runId: (runId) => runId + 1,
     run: () => idle,
     steps: () => ({}),
     clock: () => 0,
     timeline: () => [],
     finalizers: () => emptyFinalizerPanel,
-  }),
-  commands: [StopRun()],
-})
+  })
+  return { model: next, commands: [StopRun(), ...highlightCommands(next)] }
+}
 
 const isCurrent = (model: Model, runId: number): boolean =>
   model.runId === runId
@@ -240,6 +268,15 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     ChangedContainerWidth: ({ width }) => ({
       model: modifyFields(model, { containerWidth: () => width }),
     }),
+    HighlightedSnippet: ({ source, lines }) =>
+      Option.exists(snippetOf(model), (shown) => shown.source === source)
+        ? {
+            model: modifyFields(model, {
+              maybeHighlighted: () => Option.some({ source, lines }),
+            }),
+          }
+        : { model },
+    FailedHighlightSnippet: () => ({ model }),
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),
   })

@@ -16,7 +16,10 @@ const config = {
 
 const render = () =>
   Effect.runPromise(
-    Server.renderToString(config, { flags: {}, buildId: "build-a" }),
+    Server.renderToString(config, {
+      flags: { defaultLines: [] },
+      buildId: "build-a",
+    }),
   )
 
 test("the server renders the default example, idle, into hydratable HTML", async () => {
