@@ -33,6 +33,7 @@ export const Message = defineMessageUnion({
   },
   ChangedFinalizers: { runId: Schema.Number, event: FinalizerEvent },
   TickedClock: { at: Schema.Number },
+  ChangedContainerWidth: { width: Schema.Number },
   CompletedStartRun: {},
   CompletedStopRun: {},
 })

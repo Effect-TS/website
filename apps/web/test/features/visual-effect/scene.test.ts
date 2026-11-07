@@ -1,4 +1,14 @@
-import { Command, click, expect, given, role, scene, text } from "foldkit/scene"
+import {
+  Command,
+  Mount,
+  click,
+  expect,
+  given,
+  role,
+  scene,
+  testId,
+  text,
+} from "foldkit/scene"
 import { test } from "vite-plus/test"
 import {
   StartRun,
@@ -9,6 +19,7 @@ import {
   init,
   update,
 } from "../../../src/features/visual-effect/program/update.ts"
+import { MeasureWidth } from "../../../src/features/visual-effect/program/mount.ts"
 import { view } from "../../../src/features/visual-effect/program/view/index.ts"
 
 const start = init({}).model
@@ -57,6 +68,7 @@ test("a tab changes the example", () => {
     expect(role("button", { name: "Run Effect.race" })).toExist(),
     click(role("tab", { name: "Schedule" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
+    Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(role("button", { name: /Run Effect.retry/ })).toExist(),
   )
 })
@@ -69,5 +81,30 @@ test("a control option changes the snippet", () => {
     click(role("radio", { name: "unbounded" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
     expect(text(/concurrency: "unbounded"/)).toExist(),
+  )
+})
+
+test("a schedule example shows a timeline and no finalizers", () => {
+  scene(
+    { update, view },
+    given(start),
+    expect(testId("visual-effect-timeline")).toBeAbsent(),
+    click(role("tab", { name: "Schedule" })),
+    Command.resolve(StopRun, Message.CompletedStopRun()),
+    Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
+    expect(testId("visual-effect-timeline")).toExist(),
+    expect(testId("visual-effect-finalizers")).toBeAbsent(),
+  )
+})
+
+test("a scope example shows finalizers and no timeline", () => {
+  scene(
+    { update, view },
+    given(start),
+    click(role("tab", { name: "Scope" })),
+    Command.resolve(StopRun, Message.CompletedStopRun()),
+    Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
+    expect(testId("visual-effect-finalizers")).toExist(),
+    expect(testId("visual-effect-timeline")).toBeAbsent(),
   )
 })

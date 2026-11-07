@@ -237,6 +237,9 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       isRunning(model)
         ? { model: modifyFields(model, { clock: () => at }) }
         : { model },
+    ChangedContainerWidth: ({ width }) => ({
+      model: modifyFields(model, { containerWidth: () => width }),
+    }),
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),
   })

@@ -105,3 +105,20 @@ export const sparkle = icon([
 ])
 
 export const chevronRight = icon([path("m9 18 6-6-6-6")])
+
+export const check = icon([path("M20 6 9 17l-5-5")])
+
+export const octagonMinus = icon([
+  path(
+    "M2.586 16.726A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2h6.624a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586z",
+  ),
+  path("M8 12h8"),
+])
+
+export const triangleAlert = icon([
+  path(
+    "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+  ),
+  path("M12 9v4"),
+  path("M12 17h.01"),
+])

@@ -34,6 +34,8 @@ export const Model = Schema.Struct({
   clock: Schema.Number,
   timeline: Schema.Array(TimelineSegment),
   finalizers: FinalizerPanel,
+  /** Width of the panel on show, in px. The browser measures it after hydration. */
+  containerWidth: Schema.Number,
   /** Gives each notification an id. */
   notificationCount: Schema.Number,
   /** The first click unlocks audio, because a browser needs a gesture. */
@@ -55,6 +57,7 @@ export const initialModel: Model = {
   clock: 0,
   timeline: [],
   finalizers: emptyFinalizerPanel,
+  containerWidth: 0,
   notificationCount: 0,
   isSoundUnlocked: false,
 }

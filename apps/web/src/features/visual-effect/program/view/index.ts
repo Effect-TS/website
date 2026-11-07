@@ -8,9 +8,11 @@ import { stepKeyOf } from "../catalog"
 import { idle } from "../domain"
 import { configView } from "./config"
 import { headerView } from "./header"
+import { finalizersView } from "./finalizers"
 import { arrowRight } from "./icons"
 import { nodeView } from "./node"
 import { snippetView } from "./snippet"
+import { timelineView } from "./timeline"
 
 type Builder = HtmlBuilder<Message>
 
@@ -156,6 +158,8 @@ const surfaceView = (model: Model, h: Builder): Html =>
             h,
           ),
           nodesView(model, isDied, h),
+          example.features.finalizers ? finalizersView(model, h) : h.empty,
+          example.features.timeline ? timelineView(model, h) : h.empty,
           snippetView(
             example.code.resolve(model.controls[key] ?? {}).source,
             h,
