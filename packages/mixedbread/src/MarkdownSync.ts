@@ -143,3 +143,34 @@ export function markdownSyncArguments(options: {
     options.metadata,
   ]
 }
+
+// Production stores a runner path such as
+// `/home/runner/work/website/website/.data/mixedbread/documentation/v4/a.mdx`.
+// The part from `.data/mixedbread/` on identifies the same document from any
+// checkout directory.
+export function markdownOverlayKey(externalId: string): string {
+  const index = externalId.indexOf(".data/mixedbread/")
+  return index === -1 ? externalId : externalId.slice(index)
+}
+
+export function markdownOverlayArguments(options: {
+  readonly filePaths: ReadonlyArray<string>
+  readonly metadata: string
+  readonly storeId: string
+}): ReadonlyArray<string> {
+  return [
+    "exec",
+    "mxbai",
+    "store",
+    "sync",
+    options.storeId,
+    ...options.filePaths,
+    "--yes",
+    "--strategy",
+    "fast",
+    "--max-chunk-size",
+    "500",
+    "--metadata",
+    options.metadata,
+  ]
+}

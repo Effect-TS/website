@@ -102,7 +102,7 @@ const isCopying = (store: Store): boolean =>
   store.copy_state?.role === "target" && store.status === "in_progress"
 
 const COPY_POLL_INTERVAL = "2 seconds"
-const COPY_TIMEOUT = "20 minutes"
+const COPY_TIMEOUT = "40 minutes"
 
 // The settings the copy carries over and that `createStore` would otherwise
 // set from `config`. Mixedbread applies `save_content: true` and no
