@@ -161,7 +161,7 @@ export function makeStoreClient(options: {
       Effect.mapError(
         (cause) =>
           new InvalidStoreError({
-            message: `Preview store ${store.name} cannot hide ${cause.count} production files: ${cause.length} characters exceed the metadata budget`,
+            message: `Preview store ${store.name} cannot hide its production files: ${cause.message}`,
             cause,
           }),
       ),
