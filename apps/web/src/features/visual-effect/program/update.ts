@@ -1,7 +1,14 @@
 import { Option, Record } from "effect"
 import { Update } from "foldkit"
 import { modifyFields } from "foldkit/struct"
-import { HighlightSnippet, StartRun, StopRun } from "./command"
+import {
+  HighlightSnippet,
+  MeasureHighlight,
+  StartRun,
+  StopRun,
+  WaitHighlightDelay,
+  WaitNotification,
+} from "./command"
 import {
   controlValueOf,
   findEntry,
@@ -14,6 +21,7 @@ import {
   canReset,
   emptyFinalizerPanel,
   idle,
+  type NodeTarget,
   reduceFinalizerPanel,
   settle,
   start,
@@ -22,6 +30,10 @@ import {
 } from "./domain"
 import { Message } from "./message"
 import { initialModel, type Flags, type Model } from "./model"
+import {
+  snippetResultTargetKey,
+  toStepSnippetTargetKey,
+} from "../model/snippet-highlights"
 
 type UpdateReturn = Update.Return<Model, Message>
 
@@ -42,6 +54,32 @@ const highlightCommands = (model: Model) =>
       Option.exists(model.maybeHighlighted, (shown) => shown.source === source)
         ? []
         : [HighlightSnippet({ language, source })],
+  })
+
+/** The code a node stands for, as ranges of the snippet on show. */
+const rangesOf = (model: Model, target: NodeTarget) =>
+  Option.match(entryOf(model), {
+    onNone: () => [],
+    onSome: ({ key, example }) => {
+      const snippet = example.code.resolve(model.controls[key] ?? {})
+      const targetKey =
+        target._tag === "Result"
+          ? Option.some(snippetResultTargetKey)
+          : Option.map(
+              Option.fromNullishOr(example.steps[target.index]),
+              (step) => toStepSnippetTargetKey(step.id),
+            )
+      return Option.match(targetKey, {
+        onNone: () => [],
+        onSome: (found) => snippet.highlightsByTarget[found] ?? [],
+      })
+    },
+  })
+
+const measureCommands = (model: Model) =>
+  Option.match(model.maybeHighlightTarget, {
+    onNone: () => [],
+    onSome: (target) => [MeasureHighlight({ ranges: rangesOf(model, target) })],
   })
 
 export const init = ({ defaultLines }: Flags): UpdateReturn => {
@@ -83,6 +121,9 @@ const reset = (model: Model): UpdateReturn => {
     clock: () => 0,
     timeline: () => [],
     finalizers: () => emptyFinalizerPanel,
+    expiredNotifications: () => [],
+    maybeHighlightTarget: () => Option.none(),
+    maybeHighlightRect: () => Option.none(),
   })
   return { model: next, commands: [StopRun(), ...highlightCommands(next)] }
 }
@@ -239,6 +280,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         notificationCount: (count) => count + 1,
       })
       return {
+        commands: [WaitNotification({ id: notification.id, durationMs })],
         model: Option.match(maybeStepIndex, {
           onNone: () =>
             modifyFields(counted, {
@@ -268,14 +310,57 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     ChangedContainerWidth: ({ width }) => ({
       model: modifyFields(model, { containerWidth: () => width }),
     }),
-    HighlightedSnippet: ({ source, lines }) =>
-      Option.exists(snippetOf(model), (shown) => shown.source === source)
+    HoveredNode: ({ target }) => {
+      const next = modifyFields(model, {
+        maybeHovered: () => Option.some(target),
+        maybeHighlightTarget: () => Option.some(target),
+        hoverToken: (token) => token + 1,
+      })
+      return { model: next, commands: measureCommands(next) }
+    },
+    LeftNode: () => {
+      const next = modifyFields(model, {
+        maybeHovered: () => Option.none(),
+        hoverToken: (token) => token + 1,
+      })
+      return {
+        model: next,
+        commands: [WaitHighlightDelay({ token: next.hoverToken })],
+      }
+    },
+    ElapsedHighlightDelay: ({ token }) =>
+      token === model.hoverToken
         ? {
             model: modifyFields(model, {
-              maybeHighlighted: () => Option.some({ source, lines }),
+              maybeHighlightTarget: () => Option.none(),
+              maybeHighlightRect: () => Option.none(),
             }),
           }
         : { model },
+    ExpiredNotification: ({ id }) => ({
+      model: modifyFields(model, {
+        expiredNotifications: (expired) => [...expired, id],
+      }),
+    }),
+    MeasuredHighlight: ({ maybeRect }) =>
+      Option.isSome(model.maybeHighlightTarget)
+        ? {
+            model: modifyFields(model, {
+              maybeHighlightRect: () => maybeRect,
+            }),
+          }
+        : { model },
+    HighlightedSnippet: ({ source, lines }) => {
+      if (
+        !Option.exists(snippetOf(model), (shown) => shown.source === source)
+      ) {
+        return { model }
+      }
+      const next = modifyFields(model, {
+        maybeHighlighted: () => Option.some({ source, lines }),
+      })
+      return { model: next, commands: measureCommands(next) }
+    },
     FailedHighlightSnippet: () => ({ model }),
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),

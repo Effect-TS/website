@@ -1,4 +1,6 @@
 import { expect, test } from "vite-plus/test"
+import { isNotificationVisible } from "../../../src/features/visual-effect/program/domain.ts"
+import { glitchText } from "../../../src/features/visual-effect/program/view/node.ts"
 import { EXAMPLES_CATALOG } from "../../../src/features/visual-effect/catalog/index.ts"
 import { allExample } from "../../../src/features/visual-effect/catalog/effect-all.tsx"
 import { EmojiResult } from "../../../src/features/visual-effect/ui/results/emoji.tsx"
@@ -58,4 +60,34 @@ test("every control starts on one of its options", () => {
       }
     }
   }
+})
+
+const notification = {
+  id: 3,
+  message: "hi",
+  durationMs: 2000,
+  showOnHover: false,
+}
+
+test("a notification shows until it expires, and comes back on hover only when it may", () => {
+  expect(isNotificationVisible(notification, [], false)).toBe(true)
+  expect(isNotificationVisible(notification, [3], false)).toBe(false)
+  expect(isNotificationVisible(notification, [3], true)).toBe(false)
+  expect(
+    isNotificationVisible({ ...notification, showOnHover: true }, [3], true),
+  ).toBe(true)
+  expect(
+    isNotificationVisible({ ...notification, showOnHover: true }, [3], false),
+  ).toBe(false)
+})
+
+test("a death notification garbles the same way every time, and between 6 and 16 characters", () => {
+  expect(glitchText(notification)).toBe(glitchText(notification))
+  expect(glitchText(notification)).toHaveLength(6)
+  expect(glitchText({ ...notification, message: "x".repeat(40) })).toHaveLength(
+    16,
+  )
+  expect(glitchText({ ...notification, id: 4 })).not.toBe(
+    glitchText(notification),
+  )
 })

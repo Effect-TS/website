@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { defineMessageUnion } from "foldkit/message"
-import { FinalizerEvent, Outcome } from "./domain"
+import { FinalizerEvent, HighlightRect, NodeTarget, Outcome } from "./domain"
 import { StyledLines } from "./highlight"
 import { Category } from "./model"
 
@@ -35,6 +35,11 @@ export const Message = defineMessageUnion({
   ChangedFinalizers: { runId: Schema.Number, event: FinalizerEvent },
   TickedClock: { at: Schema.Number },
   ChangedContainerWidth: { width: Schema.Number },
+  HoveredNode: { target: NodeTarget },
+  LeftNode: {},
+  ElapsedHighlightDelay: { token: Schema.Number },
+  ExpiredNotification: { id: Schema.Number },
+  MeasuredHighlight: { maybeRect: Schema.Option(HighlightRect) },
   HighlightedSnippet: { source: Schema.String, lines: StyledLines },
   FailedHighlightSnippet: { message: Schema.String },
   CompletedStartRun: {},

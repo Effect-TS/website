@@ -1,6 +1,8 @@
 import { Array, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
+import type { HighlightRect } from "../domain"
 import type { StyledLines } from "../highlight"
+import { SNIPPET_ID } from "../measure"
 import type { Message } from "../message"
 
 type Builder = HtmlBuilder<Message>
@@ -45,13 +47,17 @@ export const snippetView = (
     readonly source: string
     readonly lines: StyledLines
   }>,
+  maybeRect: Option.Option<HighlightRect>,
   h: Builder,
 ): Html =>
   h.div(
     [h.Class("overflow-x-auto")],
     [
       h.div(
-        [h.Class("relative min-w-full bg-background px-6 py-5")],
+        [
+          h.Id(SNIPPET_ID),
+          h.Class("relative min-w-full bg-background px-6 py-5"),
+        ],
         [
           Option.match(maybeHighlighted, {
             onNone: () => plainView(source, h),
@@ -59,6 +65,24 @@ export const snippetView = (
               shown.source === source
                 ? tokensView(shown.lines, h)
                 : plainView(source, h),
+          }),
+          Option.match(maybeRect, {
+            onNone: () => h.empty,
+            onSome: (rect) =>
+              h.div(
+                [
+                  h.AriaHidden(true),
+                  h.Class(
+                    "pointer-events-none absolute top-0 left-0 z-10 rounded-md border border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] shadow-[0_0_14px_rgba(56,189,248,0.3)] transition-[transform,width,height] duration-200 ease-out",
+                  ),
+                  h.Style({
+                    transform: `translate(${rect.x}px, ${rect.y}px)`,
+                    width: `${rect.width}px`,
+                    height: `${rect.height}px`,
+                  }),
+                ],
+                [],
+              ),
           }),
         ],
       ),

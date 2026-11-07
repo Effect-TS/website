@@ -257,3 +257,44 @@ export const reduceFinalizerPanel = (
       return emptyFinalizerPanel
   }
 }
+
+/** The node the pointer is on. A step is named by its place in the example. */
+export const NodeTarget = Schema.Union([
+  Schema.TaggedStruct("Step", { index: Schema.Number }),
+  Schema.TaggedStruct("Result", {}),
+])
+export type NodeTarget = typeof NodeTarget.Type
+
+export const sameTarget = (first: NodeTarget, second: NodeTarget): boolean =>
+  first._tag === "Step"
+    ? second._tag === "Step" && first.index === second.index
+    : second._tag === "Result"
+
+/** The box that marks the code a node stands for, in px from the snippet's corner. */
+export const HighlightRect = Schema.Struct({
+  x: Schema.Number,
+  y: Schema.Number,
+  width: Schema.Number,
+  height: Schema.Number,
+})
+export type HighlightRect = typeof HighlightRect.Type
+
+export const OffsetRange = Schema.Struct({
+  startOffset: Schema.Number,
+  endOffset: Schema.Number,
+})
+export type OffsetRange = typeof OffsetRange.Type
+
+/** How long the highlight stays after the pointer leaves a node. */
+export const HIGHLIGHT_HIDE_DELAY_MS = 500
+
+/** A timer cannot wait longer than this: past it the browser fires at once. */
+export const MAX_TIMER_MS = 2_147_483_647
+
+/** A notification is visible until its time is up. Then it comes back while the node is hovered. */
+export const isNotificationVisible = (
+  notification: Notification,
+  expired: ReadonlyArray<number>,
+  isHovered: boolean,
+): boolean =>
+  !expired.includes(notification.id) || (notification.showOnHover && isHovered)

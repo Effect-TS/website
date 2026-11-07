@@ -3,6 +3,8 @@ import { Highlighted, StyledLines } from "./highlight"
 import { DEFAULT_KEY, DEFAULT_CATEGORY } from "./catalog"
 import {
   FinalizerPanel,
+  HighlightRect,
+  NodeTarget,
   RunState,
   TimelineSegment,
   emptyFinalizerPanel,
@@ -37,6 +39,15 @@ export const Model = Schema.Struct({
   finalizers: FinalizerPanel,
   /** The snippet source the tokens belong to. Until they match what is on show, the view prints plain source. */
   maybeHighlighted: Schema.Option(Highlighted),
+  /** The node under the pointer. */
+  maybeHovered: Schema.Option(NodeTarget),
+  /** The node whose code is marked. It stays a moment after the pointer leaves. */
+  maybeHighlightTarget: Schema.Option(NodeTarget),
+  /** Counts pointer moves, so an old hide timer cannot hide a newer highlight. */
+  hoverToken: Schema.Number,
+  maybeHighlightRect: Schema.Option(HighlightRect),
+  /** Notifications whose time is up. */
+  expiredNotifications: Schema.Array(Schema.Number),
   /** Width of the panel on show, in px. The browser measures it after hydration. */
   containerWidth: Schema.Number,
   /** Gives each notification an id. */
@@ -63,6 +74,11 @@ export const initialModel: Model = {
   timeline: [],
   finalizers: emptyFinalizerPanel,
   maybeHighlighted: Option.none(),
+  maybeHovered: Option.none(),
+  maybeHighlightTarget: Option.none(),
+  hoverToken: 0,
+  maybeHighlightRect: Option.none(),
+  expiredNotifications: [],
   containerWidth: 0,
   notificationCount: 0,
   isSoundUnlocked: false,

@@ -3,8 +3,11 @@ import { Command, given, message, model, story } from "foldkit/story"
 import { expect, test } from "vite-plus/test"
 import {
   HighlightSnippet,
+  MeasureHighlight,
   StartRun,
   StopRun,
+  WaitHighlightDelay,
+  WaitNotification,
 } from "../../../src/features/visual-effect/program/command.ts"
 import { allExample } from "../../../src/features/visual-effect/catalog/effect-all.tsx"
 import { Message } from "../../../src/features/visual-effect/program/message.ts"
@@ -352,4 +355,114 @@ test("a control change asks for the tokens of the new snippet", () => {
       [HighlightSnippet, HIGHLIGHT_FAILED],
     ),
   )
+})
+
+const resultTarget = { _tag: "Result" } as const
+
+test("hovering a node marks its code and asks where it sits", () => {
+  const ranges = allExample.code.resolve({}).highlightsByTarget.result ?? []
+  story(
+    update,
+    given(first),
+    message(Message.HoveredNode({ target: resultTarget })),
+    Command.expectHas(MeasureHighlight({ ranges })),
+    model((current) => {
+      expect(current.maybeHighlightTarget).toEqual(Option.some(resultTarget))
+      expect(current.maybeHovered).toEqual(Option.some(resultTarget))
+    }),
+    Command.resolve(
+      MeasureHighlight,
+      Message.MeasuredHighlight({
+        maybeRect: Option.some({ x: 1, y: 2, width: 3, height: 4 }),
+      }),
+    ),
+    model((current) =>
+      expect(current.maybeHighlightRect).toEqual(
+        Option.some({ x: 1, y: 2, width: 3, height: 4 }),
+      ),
+    ),
+  )
+})
+
+test("the mark stays a moment after the pointer leaves, and a new hover keeps it", () => {
+  const left = update(
+    update(first, Message.HoveredNode({ target: resultTarget })).model,
+    Message.LeftNode(),
+  )
+  expect(left.commands?.map(({ name }) => name)).toEqual(["WaitHighlightDelay"])
+  expect(left.model.maybeHovered).toEqual(Option.none())
+  expect(left.model.maybeHighlightTarget).toEqual(Option.some(resultTarget))
+  const step = { _tag: "Step", index: 0 } as const
+  const hoveredAgain = update(
+    left.model,
+    Message.HoveredNode({ target: step }),
+  ).model
+  const late = update(
+    hoveredAgain,
+    Message.ElapsedHighlightDelay({ token: 2 }),
+  ).model
+  expect(late.maybeHighlightTarget).toEqual(Option.some(step))
+})
+
+test("the mark goes when its timer is the last one", () => {
+  story(
+    update,
+    given(first),
+    message(Message.HoveredNode({ target: resultTarget })),
+    Command.resolve(
+      MeasureHighlight,
+      Message.MeasuredHighlight({ maybeRect: Option.none() }),
+    ),
+    message(Message.LeftNode()),
+    Command.resolve(
+      WaitHighlightDelay,
+      Message.ElapsedHighlightDelay({ token: 2 }),
+    ),
+    model((current) => {
+      expect(current.maybeHighlightTarget).toEqual(Option.none())
+      expect(current.maybeHighlightRect).toEqual(Option.none())
+    }),
+  )
+})
+
+test("a measure that comes back after the mark went is dropped", () => {
+  const measured = update(
+    first,
+    Message.MeasuredHighlight({
+      maybeRect: Option.some({ x: 1, y: 1, width: 1, height: 1 }),
+    }),
+  ).model
+  expect(measured.maybeHighlightRect).toEqual(Option.none())
+})
+
+test("a notification starts its timer, and expires into the list", () => {
+  story(
+    update,
+    given(running()),
+    message(
+      Message.ShowedNotification({
+        runId: 0,
+        maybeStepIndex: Option.none(),
+        message: "hi",
+        durationMs: 2000,
+        showOnHover: true,
+      }),
+    ),
+    Command.expectHas(WaitNotification({ id: 0, durationMs: 2000 })),
+    Command.resolve(WaitNotification, Message.ExpiredNotification({ id: 0 })),
+    model((current) => expect(current.expiredNotifications).toEqual([0])),
+  )
+})
+
+test("a reset clears what hover and time left behind", () => {
+  const dirty = update(
+    update(first, Message.HoveredNode({ target: resultTarget })).model,
+    Message.ExpiredNotification({ id: 4 }),
+  ).model
+  const cleared = update(
+    dirty,
+    Message.ClickedExample({ key: "concurrency/1" }),
+  ).model
+  expect(cleared.expiredNotifications).toEqual([])
+  expect(cleared.maybeHighlightTarget).toEqual(Option.none())
 })

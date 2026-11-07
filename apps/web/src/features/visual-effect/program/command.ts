@@ -1,6 +1,8 @@
 import { Effect, Option, Schema } from "effect"
 import { Command } from "foldkit"
 import { findEntry } from "./catalog"
+import { HIGHLIGHT_HIDE_DELAY_MS, MAX_TIMER_MS, OffsetRange } from "./domain"
+import { measureHighlight } from "./measure"
 import { highlight } from "./highlight"
 import type { SnippetLanguage } from "../model/snippet-highlights"
 import { Message } from "./message"
@@ -36,5 +38,34 @@ export const HighlightSnippet = Command.define("HighlightSnippet", {
           Message.FailedHighlightSnippet({ message: error.message }),
         ),
       ),
+    ),
+})
+
+/** Hides the highlight a moment after the pointer left, unless a newer move came first. */
+export const WaitHighlightDelay = Command.define("WaitHighlightDelay", {
+  args: { token: Schema.Number },
+  messages: [Message.ElapsedHighlightDelay],
+  execute: ({ token }) =>
+    Effect.sleep(HIGHLIGHT_HIDE_DELAY_MS).pipe(
+      Effect.as(Message.ElapsedHighlightDelay({ token })),
+    ),
+})
+
+export const WaitNotification = Command.define("WaitNotification", {
+  args: { id: Schema.Number, durationMs: Schema.Number },
+  messages: [Message.ExpiredNotification],
+  execute: ({ id, durationMs }) =>
+    Effect.sleep(Math.min(durationMs, MAX_TIMER_MS)).pipe(
+      Effect.as(Message.ExpiredNotification({ id })),
+    ),
+})
+
+/** Measures the code the ranges mark. The browser knows where the tokens sit. */
+export const MeasureHighlight = Command.define("MeasureHighlight", {
+  args: { ranges: Schema.Array(OffsetRange) },
+  messages: [Message.MeasuredHighlight],
+  execute: ({ ranges }) =>
+    measureHighlight(ranges).pipe(
+      Effect.map((maybeRect) => Message.MeasuredHighlight({ maybeRect })),
     ),
 })

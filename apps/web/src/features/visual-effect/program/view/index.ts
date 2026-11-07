@@ -5,12 +5,13 @@ import { CATEGORIES, controlValueOf, entriesOf, findEntry } from "../catalog"
 import { Message } from "../message"
 import type { Model } from "../model"
 import { stepKeyOf } from "../catalog"
-import { idle } from "../domain"
+import { idle, isNotificationVisible } from "../domain"
 import { configView } from "./config"
 import { headerView } from "./header"
 import { finalizersView } from "./finalizers"
 import { arrowRight } from "./icons"
 import { nodeView } from "./node"
+import { sameTarget, type NodeTarget, type Notification } from "../domain"
 import { snippetView } from "./snippet"
 import { timelineView } from "./timeline"
 
@@ -86,6 +87,18 @@ const exampleTabs = (model: Model, h: Builder): Html =>
     ),
   )
 
+/** A notification shows until its time is up, and again on hover when it may. */
+const visibilityFor =
+  (model: Model, target: NodeTarget) =>
+  (notification: Notification): boolean =>
+    isNotificationVisible(
+      notification,
+      model.expiredNotifications,
+      Option.exists(model.maybeHovered, (hovered) =>
+        sameTarget(hovered, target),
+      ),
+    )
+
 const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
   Option.match(findEntry(model.exampleKey), {
     onNone: () => h.empty,
@@ -113,9 +126,18 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                           [],
                           [
                             nodeView(
-                              model.steps[stepKeyOf(model.exampleKey, index)] ??
-                                idle,
-                              step.label,
+                              {
+                                state:
+                                  model.steps[
+                                    stepKeyOf(model.exampleKey, index)
+                                  ] ?? idle,
+                                label: step.label,
+                                target: { _tag: "Step", index },
+                                isNotificationVisible: visibilityFor(model, {
+                                  _tag: "Step",
+                                  index,
+                                }),
+                              },
                               h,
                             ),
                           ],
@@ -127,7 +149,17 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                       [arrowRight(h, { className: "size-6", isFilled: true })],
                     ),
                   ]),
-              nodeView(model.run, "result", h),
+              nodeView(
+                {
+                  state: model.run,
+                  label: "result",
+                  target: { _tag: "Result" },
+                  isNotificationVisible: visibilityFor(model, {
+                    _tag: "Result",
+                  }),
+                },
+                h,
+              ),
             ],
           ),
         ],
@@ -163,6 +195,7 @@ const surfaceView = (model: Model, h: Builder): Html =>
           snippetView(
             example.code.resolve(model.controls[key] ?? {}).source,
             model.maybeHighlighted,
+            model.maybeHighlightRect,
             h,
           ),
         ],

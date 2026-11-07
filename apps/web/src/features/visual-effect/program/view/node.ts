@@ -1,8 +1,9 @@
-import { Array } from "effect"
+import { Array, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import { AnimateNode } from "../mount"
-import type { Message } from "../message"
-import type { RunState } from "../domain"
+import { Message } from "../message"
+import type { Notification, NodeTarget, RunState } from "../domain"
+import { notificationOf } from "../domain"
 import { octagonAlert, skull, sparkle } from "./icons"
 
 type Builder = HtmlBuilder<Message>
@@ -92,13 +93,133 @@ const runningOverlay = (state: RunState, h: Builder): ReadonlyArray<Html> =>
       ]
     : []
 
+type Tone = "info" | "failure" | "death"
+
+const toneOf = (state: RunState): Option.Option<Tone> => {
+  switch (state._tag) {
+    case "Running":
+      return Option.some("info")
+    case "Failed":
+      return Option.some("failure")
+    case "Died":
+      return Option.some("death")
+    default:
+      return Option.none()
+  }
+}
+
+const bubbleClass = (tone: Tone): string => {
+  switch (tone) {
+    case "info":
+      return "bg-sky-500 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35),0_4px_16px_rgba(14,165,233,0.35)]"
+    case "failure":
+      return "bg-red-500 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35),0_4px_16px_rgba(239,68,68,0.35)]"
+    case "death":
+      return "bg-black/95 text-red-500 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.55),0_10px_30px_rgba(0,0,0,0.45),0_4px_16px_rgba(220,38,38,0.18)]"
+  }
+}
+
+const arrowClass = (tone: Tone): string => {
+  switch (tone) {
+    case "info":
+      return "bg-sky-500"
+    case "failure":
+      return "bg-red-500"
+    case "death":
+      return "bg-black/95"
+  }
+}
+
+const GLITCH_CHARSET = "@#$%&*/=-+?!~<>\\|"
+const GLITCH_MIN_LENGTH = 6
+const GLITCH_MAX_LENGTH = 16
+
+/** The same notification always garbles the same way, so the view stays pure. */
+export const glitchText = (notification: Notification): string => {
+  const length = Math.min(
+    Math.max(
+      Array.fromIterable(notification.message).length,
+      GLITCH_MIN_LENGTH,
+    ),
+    GLITCH_MAX_LENGTH,
+  )
+  let seed = notification.id + 1
+  return Array.makeBy(length, () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
+    return GLITCH_CHARSET[seed % GLITCH_CHARSET.length] ?? "#"
+  }).join("")
+}
+
+const bubbleView = (notification: Notification, tone: Tone, h: Builder): Html =>
+  h.div(
+    [
+      h.Role("status"),
+      h.Class(
+        `pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 max-w-[220px] -translate-x-1/2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap ${bubbleClass(tone)}`,
+      ),
+    ],
+    [
+      tone === "death"
+        ? h.span(
+            [
+              h.AriaLabel(notification.message),
+              h.Class(
+                "inline-block font-bold tracking-[0.08em] text-red-500 uppercase",
+              ),
+            ],
+            [h.span([h.AriaHidden(true)], [glitchText(notification)])],
+          )
+        : h.span([], [notification.message]),
+      h.div(
+        [
+          h.Class(
+            `absolute top-full left-1/2 size-3 -translate-x-1/2 -translate-y-1.5 rotate-45 rounded-[2px] ${arrowClass(tone)}`,
+          ),
+        ],
+        [],
+      ),
+    ],
+  )
+
+/** A bubble above the node. A node shows it for its notification, and shows it again on hover when it may. */
+const notificationView = (
+  state: RunState,
+  isNotificationVisible: (notification: Notification) => boolean,
+  h: Builder,
+): ReadonlyArray<Html> =>
+  Option.match(
+    Option.all({ tone: toneOf(state), notification: notificationOf(state) }),
+    {
+      onNone: () => [],
+      onSome: ({ tone, notification }) =>
+        isNotificationVisible(notification)
+          ? [bubbleView(notification, tone, h)]
+          : [],
+    },
+  )
+
+export interface NodeInput {
+  readonly state: RunState
+  readonly label: string
+  readonly target: NodeTarget
+  readonly isNotificationVisible: (notification: Notification) => boolean
+}
+
 /**
  * A node. CSS gives it the colour, scale and opacity of its state. The Mount
  * adds the springs, the jitter and the flash, and reads `data-state`.
  */
-export const nodeView = (state: RunState, label: string, h: Builder): Html =>
+export const nodeView = (
+  { state, label, target, isNotificationVisible }: NodeInput,
+  h: Builder,
+): Html =>
   h.div(
-    [h.DataAttribute("state", state._tag), h.OnMount(AnimateNode())],
+    [
+      h.DataAttribute("state", state._tag),
+      h.OnMount(AnimateNode()),
+      h.OnMouseEnter(Message.HoveredNode({ target })),
+      h.OnMouseLeave(Message.LeftNode()),
+    ],
     [
       h.div(
         [
@@ -106,6 +227,7 @@ export const nodeView = (state: RunState, label: string, h: Builder): Html =>
           h.Class("relative flex h-14 w-14 items-center justify-center"),
         ],
         [
+          ...notificationView(state, isNotificationVisible, h),
           h.div(
             [
               h.DataAttribute("node", "container"),
