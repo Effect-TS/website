@@ -15,19 +15,31 @@
  * commit each, at upstream paths. `update` adds a commit there and merges it
  * into the current branch, so git reports a conflict only where our edits
  * overlap upstream's.
+ *
+ * The script knows nothing about the apps that use the packages. After a
+ * build, `check` runs the root script `vendor:verify` when it exists. Put
+ * your own typecheck, tests, or e2e runs there.
+ *
+ * Environment:
+ *   VENDOR_FOLDKIT_UPSTREAM   upstream git URL
+ *   VENDOR_FOLDKIT_BRANCH     vendor branch name (default vendor/foldkit)
+ *   VENDOR_FOLDKIT_PACKAGES   comma-separated vendored paths
+ *                             (default packages/foldkit,packages/devtools)
  */
 import { execFileSync, spawnSync } from "node:child_process"
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 const UPSTREAM =
   process.env.VENDOR_FOLDKIT_UPSTREAM ??
   "https://github.com/foldkit/foldkit.git"
-const BRANCH = "vendor/foldkit"
+const BRANCH = process.env.VENDOR_FOLDKIT_BRANCH ?? "vendor/foldkit"
 const TAG_PREFIX = "foldkit@"
-const PACKAGES = ["packages/foldkit", "packages/devtools"]
-const BUILD_FILTERS = ["foldkit", "@foldkit/devtools"]
+const PACKAGES = (
+  process.env.VENDOR_FOLDKIT_PACKAGES ?? "packages/foldkit,packages/devtools"
+).split(",")
+const TAG_PATTERN = new RegExp(`^${TAG_PREFIX}\\d+\\.\\d+\\.\\d+$`)
 
 /** Integration files that adapt upstream to this workspace. They are ours. */
 const SHIM_FILES = [
@@ -92,9 +104,9 @@ const latestTag = () => {
   const tags = output
     .split("\n")
     .map((line) => line.split("\t")[1]?.replace("refs/tags/", ""))
-    .filter((tag) => tag !== undefined && /^foldkit@\d+\.\d+\.\d+$/.test(tag))
+    .filter((tag) => tag !== undefined && TAG_PATTERN.test(tag))
   if (tags.length === 0) {
-    fail("no foldkit@x.y.z tags found upstream")
+    fail(`no ${TAG_PREFIX}x.y.z tags found upstream`)
   }
   return tags.sort(compareVersions).at(-1)
 }
@@ -107,7 +119,10 @@ const vendoredTag = () => {
     return null
   }
   const subject = git(["log", "-1", "--format=%s", BRANCH])
-  return subject.match(/(foldkit@\d+\.\d+\.\d+)$/)?.[1] ?? null
+  return subject.split(" ").at(-1) !== undefined &&
+    TAG_PATTERN.test(subject.split(" ").at(-1))
+    ? subject.split(" ").at(-1)
+    : null
 }
 
 const isAncestor = (ancestor, descendant) =>
@@ -122,6 +137,14 @@ const requireCleanTree = () => {
 
 const repoRoot = git(["rev-parse", "--show-toplevel"])
 process.chdir(repoRoot)
+
+const packageNames = () =>
+  PACKAGES.map(
+    (path) => JSON.parse(readFileSync(`${path}/package.json`, "utf8")).name,
+  )
+
+const hasRootScript = (name) =>
+  Boolean(JSON.parse(readFileSync("package.json", "utf8")).scripts?.[name])
 
 /**
  * Clones the release into a temp directory, hashes every file into our object
@@ -231,7 +254,9 @@ const commands = {
 
   init(tag) {
     if (tag === undefined || !tag.startsWith(TAG_PREFIX)) {
-      fail("usage: init foldkit@x.y.z (the release this tree was copied from)")
+      fail(
+        `usage: init ${TAG_PREFIX}x.y.z (the release this tree was copied from)`,
+      )
     }
     if (branchExists()) {
       fail(`${BRANCH} exists already`)
@@ -307,20 +332,17 @@ const commands = {
     run("pnpm", ["install"], "pnpm install")
     run(
       "pnpm",
-      ["-r", ...BUILD_FILTERS.flatMap((f) => ["--filter", f]), "build"],
-      "build foldkit and devtools",
+      ["-r", ...packageNames().flatMap((name) => ["--filter", name]), "build"],
+      "build the vendored packages",
     )
-    // The build typechecks package sources. Upstream types its tests with
-    // TypeScript 7, so only vitest runs them here.
-    run(
-      "pnpm",
-      ["exec", "tsc", "--noEmit", "-p", "apps/web"],
-      "typecheck apps/web",
-    )
-    run("pnpm", ["exec", "vp", "test", "run"], "unit tests")
-    console.log(
-      "\nall checks pass. The e2e spec needs the dev server: PLAYGROUND_URL=... pnpm exec playwright test tutorial-pilot",
-    )
+    if (hasRootScript("vendor:verify")) {
+      run("pnpm", ["run", "vendor:verify"], "pnpm run vendor:verify")
+    } else {
+      console.log(
+        "\nno vendor:verify script in the root package.json. Skipped.",
+      )
+    }
+    console.log("\nall checks pass.")
   },
 
   patch(file) {
