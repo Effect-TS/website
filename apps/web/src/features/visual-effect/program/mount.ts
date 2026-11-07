@@ -1,6 +1,7 @@
 import { Effect, Queue, Stream } from "effect"
 import { Mount } from "foldkit"
 import { startAnimation } from "./animation"
+import { startHeaderAnimation } from "./header-animation"
 import { Message } from "./message"
 import { Strip } from "./model"
 
@@ -136,4 +137,14 @@ export const ScrollStrip = Mount.defineStream("ScrollStrip", {
   args: { strip: Strip },
   messages: [Message.ChangedStripFade],
   execute: ({ element, strip }) => stripStream(element as HTMLElement, strip),
+})
+
+/** Animates the play, stop and reset button from its `data-state`. */
+export const AnimateHeader = Mount.define("AnimateHeader", {
+  messages: [Message.CompletedAnimateHeader],
+  execute: ({ element }) =>
+    Effect.acquireRelease(
+      Effect.sync(() => startHeaderAnimation(element as HTMLElement)),
+      (animation) => Effect.sync(() => animation.dispose()),
+    ).pipe(Effect.as(Message.CompletedAnimateHeader())),
 })

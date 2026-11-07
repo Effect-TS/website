@@ -37,6 +37,8 @@ export const Model = Schema.Struct({
   exampleTabs: Tabs.Model,
   /** The tabs of each control, by example and control. They hold only keyboard focus. */
   controlTabs: Schema.Record(Schema.String, Tabs.Model),
+  /** Once the learner uses the button, it stops wiggling. */
+  hasInteracted: Schema.Boolean,
   /** Whether a tab strip has more tabs to the right, so it shows a fade. */
   categoriesCanScrollRight: Schema.Boolean,
   examplesCanScrollRight: Schema.Boolean,
@@ -87,6 +89,7 @@ export const initialModel: Model = {
   categoryTabs: Tabs.init({ id: CATEGORY_TABS_ID }),
   controlTabs: {},
   exampleTabs: Tabs.init({ id: EXAMPLE_TABS_ID }),
+  hasInteracted: false,
   categoriesCanScrollRight: false,
   examplesCanScrollRight: false,
   category: DEFAULT_CATEGORY,

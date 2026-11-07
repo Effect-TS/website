@@ -293,19 +293,20 @@ export const update = (model: Model, message: Message): UpdateReturn =>
             }),
     }),
     ClickedHeader: () => {
-      if (isRunning(model)) {
-        return { model, commands: [StopRun()] }
+      const used = modifyFields(model, { hasInteracted: () => true })
+      if (isRunning(used)) {
+        return { model: used, commands: [StopRun()] }
       }
-      if (canReset(model.run)) {
-        return reset(model)
+      if (canReset(used.run)) {
+        return reset(used)
       }
       return {
-        model,
+        model: used,
         commands: [
           StartRun({
-            runId: model.runId,
-            key: model.exampleKey,
-            controls: controlValuesOf(model),
+            runId: used.runId,
+            key: used.exampleKey,
+            controls: controlValuesOf(used),
           }),
         ],
       }
@@ -456,4 +457,5 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),
     CompletedAnimateNode: () => ({ model }),
+    CompletedAnimateHeader: () => ({ model }),
   })

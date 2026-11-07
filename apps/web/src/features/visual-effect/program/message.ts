@@ -50,5 +50,6 @@ export const Message = defineMessageUnion({
   CompletedStartRun: {},
   CompletedStopRun: {},
   CompletedAnimateNode: {},
+  CompletedAnimateHeader: {},
 })
 export type Message = typeof Message.Type

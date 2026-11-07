@@ -113,7 +113,7 @@ const surfaceView = (model: Model, h: Builder): Html =>
           ),
         ],
         [
-          headerView(example, model.run, h),
+          headerView(example, model.run, model.hasInteracted, h),
           configView(
             example,
             {

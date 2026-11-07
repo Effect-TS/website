@@ -23,6 +23,7 @@ import {
   update,
 } from "../../../src/features/visual-effect/program/update.ts"
 import {
+  AnimateHeader,
   AnimateNode,
   MeasureWidth,
   ScrollStrip,
@@ -38,7 +39,7 @@ const tabFocused = Command.resolve(
   Tabs.Message.CompletedFocusTab(),
 )
 
-/** The two tab strips mount once. They report whether they can scroll. */
+/** The two tab strips and the header button mount once. */
 const strips = Mount.resolveAll(
   [
     ScrollStrip({ strip: "Categories" }),
@@ -48,6 +49,7 @@ const strips = Mount.resolveAll(
     ScrollStrip({ strip: "Examples" }),
     Message.ChangedStripFade({ strip: "Examples", canScrollRight: false }),
   ],
+  [AnimateHeader, Message.CompletedAnimateHeader()],
 )
 
 const nodeCount = (key: string): number =>

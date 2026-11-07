@@ -544,3 +544,13 @@ test("a strip reports whether more tabs wait on the right", () => {
   expect(moved.categoriesCanScrollRight).toBe(true)
   expect(moved.examplesCanScrollRight).toBe(true)
 })
+
+test("the header button stops wiggling once it is used", () => {
+  expect(first.hasInteracted).toBe(false)
+  const used = update(first, Message.ClickedHeader())
+  expect(used.model.hasInteracted).toBe(true)
+  expect(
+    update(used.model, Message.ClickedCategory({ category: "scope" })).model
+      .hasInteracted,
+  ).toBe(true)
+})
