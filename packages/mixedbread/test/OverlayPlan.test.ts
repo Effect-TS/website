@@ -40,10 +40,10 @@ test("uploads changed and new files, and hides replaced and deleted production f
   assert.deepEqual([...plan.hidden].sort(), ["p2", "p3"])
 })
 
-test("keeps production files that match, with or without the sha256 prefix", () => {
+test("keeps production files that match", () => {
   const plan = planOverlay(
     [{ externalId: "api-reference/v4/a.mxjson", fileHash: "abc" }],
-    [remote("p1", "api-reference/v4/a.mxjson", "sha256:abc")],
+    [remote("p1", "api-reference/v4/a.mxjson", "abc")],
     2,
   )
 

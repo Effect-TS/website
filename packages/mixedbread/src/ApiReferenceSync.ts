@@ -9,12 +9,6 @@ export interface RemoteFileIdentity {
   readonly status?: string
 }
 
-// The Mixedbread CLI stores hashes as `sha256:<hex>`; the API reference sync
-// stores bare hex.
-const sameHash = (remote: unknown, local: string): boolean =>
-  typeof remote === "string" &&
-  remote.replace(/^sha256:/, "") === local.replace(/^sha256:/, "")
-
 export function reconcileApiReferenceFiles<
   T extends LocalFileIdentity,
   R extends RemoteFileIdentity,
@@ -42,7 +36,7 @@ export function reconcileApiReferenceFiles<
       typeof metadata !== "object" ||
       metadata === null ||
       !("file_hash" in metadata) ||
-      !sameHash(metadata.file_hash, fileHash) ||
+      metadata.file_hash !== fileHash ||
       !("version" in metadata) ||
       metadata.version !== version ||
       file.status === "failed" ||
