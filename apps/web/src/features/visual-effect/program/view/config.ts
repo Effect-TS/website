@@ -46,7 +46,7 @@ const controlView = (
           toView: (render) =>
             h.div(
               [
-                ...(render.group as ReadonlyArray<never>),
+                ...render.group,
                 h.Class(
                   "flex w-fit flex-wrap rounded-lg border border-neutral-700/30 bg-neutral-800/50 p-1",
                 ),
@@ -55,7 +55,7 @@ const controlView = (
                 h.keyed("button")(
                   option.value,
                   [
-                    ...(option.option as ReadonlyArray<never>),
+                    ...option.option,
                     h.Class(
                       `cursor-pointer rounded-md px-3 py-1.5 text-center font-mono text-sm transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
                         option.isSelected
@@ -64,11 +64,7 @@ const controlView = (
                       }`,
                     ),
                   ],
-                  [
-                    h.span(option.label as ReadonlyArray<never>, [
-                      option.value,
-                    ]),
-                  ],
+                  [h.span(option.label, [option.value])],
                 ),
               ),
             ),

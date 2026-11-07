@@ -1,3 +1,5 @@
+import { Array } from "effect"
+import { stopAll } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 import { SPRINGS } from "@/lib/animation"
 
@@ -19,10 +21,9 @@ const numberOf = (element: Element, name: string, fallback: number): number => {
 const part = (root: Element, name: string): HTMLElement | null =>
   root.querySelector<HTMLElement>(`[data-layout="${name}"]`)
 
-const stopAll = (controls: Array<AnimationPlaybackControls>): void => {
-  for (const control of controls) {
-    control.stop()
-  }
+/** Stops the controls and empties the list. */
+const stopAndClear = (controls: Array<AnimationPlaybackControls>): void => {
+  stopAll(controls)
   controls.length = 0
 }
 
@@ -82,7 +83,7 @@ export const startCardAnimation = (
   }
 
   const syncPulses = (): void => {
-    stopAll(pulses)
+    stopAndClear(pulses)
     if (phase !== "Running" || isReduced) {
       return
     }
@@ -143,8 +144,8 @@ export const startCardAnimation = (
       }
     },
     dispose: () => {
-      stopAll(controls)
-      stopAll(pulses)
+      stopAndClear(controls)
+      stopAndClear(pulses)
     },
   }
 }
@@ -190,7 +191,7 @@ export const startHighlightAnimation = (
   root.style.height = `${initial.height}px`
   apply(initial)
 
-  return { apply, dispose: () => stopAll(controls) }
+  return { apply, dispose: () => stopAndClear(controls) }
 }
 
 /** The chevrons around "FINALIZERS" fade in turn. */
@@ -198,19 +199,21 @@ export const startChevronPulse = (root: HTMLElement): (() => void) => {
   if (prefersReducedMotion()) {
     return () => undefined
   }
-  const controls = Array.from(
-    root.querySelectorAll<HTMLElement>('[data-layout="chevron"]'),
-  ).map((chevron) =>
-    animate(
-      chevron,
-      { opacity: [0.2, 1, 0.2] },
-      {
-        duration: 2,
-        repeat: Infinity,
-        delay: numberOf(chevron, "data-index", 0) * 0.15,
-        ease: "easeInOut",
-      },
+  const controls = Array.map(
+    Array.fromIterable(
+      root.querySelectorAll<HTMLElement>('[data-layout="chevron"]'),
     ),
+    (chevron) =>
+      animate(
+        chevron,
+        { opacity: [0.2, 1, 0.2] },
+        {
+          duration: 2,
+          repeat: Infinity,
+          delay: numberOf(chevron, "data-index", 0) * 0.15,
+          ease: "easeInOut",
+        },
+      ),
   )
-  return () => stopAll(controls)
+  return () => stopAndClear(controls)
 }

@@ -1,4 +1,4 @@
-import { Array } from "effect"
+import { Array, Match } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 
 /** Lucide paths, so the icons match the rest of the site. */
@@ -28,22 +28,15 @@ interface IconOptions {
   readonly size?: number
 }
 
-const shapeView = <M>(h: HtmlBuilder<M>, shape: Shape): Html => {
-  switch (shape._tag) {
-    case "Path":
-      return h.path([h.D(shape.d)])
-    case "Circle":
-      return h.circle([h.Cx(shape.cx), h.Cy(shape.cy), h.R(shape.r)])
-    case "Rect":
-      return h.rect([
-        h.X(shape.x),
-        h.Y(shape.y),
-        h.Width(shape.width),
-        h.Height(shape.height),
-        h.Rx(shape.rx),
-      ])
-  }
-}
+const shapeView = <M>(h: HtmlBuilder<M>, shape: Shape): Html =>
+  Match.value(shape).pipe(
+    Match.tagsExhaustive({
+      Path: ({ d }) => h.path([h.D(d)]),
+      Circle: ({ cx, cy, r }) => h.circle([h.Cx(cx), h.Cy(cy), h.R(r)]),
+      Rect: ({ x, y, width, height, rx }) =>
+        h.rect([h.X(x), h.Y(y), h.Width(width), h.Height(height), h.Rx(rx)]),
+    }),
+  )
 
 const icon =
   (shapes: ReadonlyArray<Shape>) =>

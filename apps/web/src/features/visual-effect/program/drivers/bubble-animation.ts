@@ -1,3 +1,4 @@
+import { stopAll } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 
 /** A failure or a death bubble shakes each time it shows. */
@@ -93,9 +94,7 @@ export const startBubbleShake = (
   return () => {
     isActive = false
     clearTimeout(timer)
-    for (const control of controls) {
-      control.stop()
-    }
+    stopAll(controls)
   }
 }
 

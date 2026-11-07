@@ -1,5 +1,5 @@
 import { Array, Option } from "effect"
-import type { Html, HtmlBuilder } from "foldkit/html"
+import type { ChildAttribute, Html, HtmlBuilder } from "foldkit/html"
 import { EXAMPLES_CATALOG, type ExampleCategory } from "../../catalog/index"
 import { CATEGORIES, entriesOf } from "../catalog"
 import { Message } from "../message"
@@ -14,7 +14,7 @@ const focusRing =
 
 /** A strip that scrolls by drag, with a fade where more tabs wait on the right. */
 const strip = (
-  attributes: ReadonlyArray<unknown>,
+  attributes: ReadonlyArray<ChildAttribute>,
   which: "Categories" | "Examples",
   className: string,
   fadeClassName: string,
@@ -27,7 +27,7 @@ const strip = (
     [
       h.div(
         [
-          ...(attributes as ReadonlyArray<never>),
+          ...attributes,
           h.OnMount(ScrollStrip({ strip: which })),
           h.Class(className),
         ],
@@ -86,10 +86,10 @@ export const categories = (model: Model, panel: Html, h: Builder): Html =>
             ),
             h.div(
               [
-                ...(Option.match(Array.get(render.tabs, render.activeIndex), {
+                ...Option.match(Array.get(render.tabs, render.activeIndex), {
                   onNone: () => [],
                   onSome: ({ panel: attributes }) => attributes,
-                }) as ReadonlyArray<never>),
+                }),
                 h.Class("w-full"),
               ],
               [panel],
@@ -169,10 +169,10 @@ export const examples = (model: Model, panel: Html, h: Builder): Html => {
             ),
             h.div(
               [
-                ...(Option.match(Array.get(render.tabs, render.activeIndex), {
+                ...Option.match(Array.get(render.tabs, render.activeIndex), {
                   onNone: () => [],
                   onSome: ({ panel: attributes }) => attributes,
-                }) as ReadonlyArray<never>),
+                }),
                 h.Class("overflow-x-auto p-3 lg:p-4"),
               ],
               [panel],

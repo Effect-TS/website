@@ -1,3 +1,4 @@
+import { stopAll } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 
 /**
@@ -172,9 +173,7 @@ export const startHeaderAnimation = (
     },
     dispose: () => {
       wiggling?.stop()
-      for (const control of controls) {
-        control.stop()
-      }
+      stopAll(controls)
     },
   }
 }

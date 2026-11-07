@@ -413,9 +413,9 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
             }),
           }
         : { model },
-    TickedClock: ({ at }) =>
+    TickedClock: ({ deltaTime }) =>
       isRunning(model)
-        ? { model: modifyFields(model, { clock: () => at }) }
+        ? { model: modifyFields(model, { clock: Number.sum(deltaTime) }) }
         : { model },
     UpdatedContainerWidth: ({ width }) => ({
       model: modifyFields(model, { containerWidth: () => width }),

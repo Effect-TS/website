@@ -44,7 +44,7 @@ export const Message = defineMessageUnion({
     showOnHover: Schema.Boolean,
   },
   UpdatedFinalizers: { runId: Schema.Number, event: FinalizerEvent },
-  TickedClock: { at: Schema.Number },
+  TickedClock: { deltaTime: Schema.Number },
   UpdatedContainerWidth: { width: Schema.Number },
   HoveredNode: { target: NodeTarget },
   LeftNode: {},

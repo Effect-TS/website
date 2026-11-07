@@ -1,16 +1,17 @@
 import { Effect, Queue, Schema, Stream } from "effect"
 import { Mount } from "foldkit"
-import { startAnimation } from "./animation"
-import { startBubble } from "./bubble-animation"
+import { startAnimation } from "./drivers/animation"
+import { startBubble } from "./drivers/bubble-animation"
 import {
   startCardAnimation,
   startChevronPulse,
   startHighlightAnimation,
-} from "./layout-animation"
-import { startHeaderAnimation } from "./header-animation"
+} from "./drivers/layout-animation"
+import { startHeaderAnimation } from "./drivers/header-animation"
 import { FinalizerPhase } from "./domain"
 import { Message } from "./message"
 import { Strip } from "./model"
+import { dragScroll, watchRightEdge } from "./drivers/strip"
 import {
   HEADER_ID,
   HIGHLIGHT_ID,
@@ -73,86 +74,20 @@ export const AnimateNode = Mount.define("AnimateNode", {
     ).pipe(Effect.as(Message.CompletedAnimateNode())),
 })
 
-const DRAG_THRESHOLD_PX = 6
-
 const stripStream = (element: HTMLElement, strip: Strip) =>
   Stream.callback<typeof Message.UpdatedStripFade.Type>((queue) =>
     Effect.acquireRelease(
       Effect.sync(() => {
-        const drag = {
-          pointerId: -1,
-          startX: 0,
-          startScrollLeft: 0,
-          moved: false,
-        }
-        let canScrollRight: boolean | undefined = undefined
-
-        const report = (): void => {
-          const next =
-            element.scrollLeft < element.scrollWidth - element.clientWidth - 1
-          if (next !== canScrollRight) {
-            canScrollRight = next
-            Queue.offerUnsafe(
-              queue,
-              Message.UpdatedStripFade({ strip, canScrollRight: next }),
-            )
-          }
-        }
-        const onPointerDown = (event: PointerEvent): void => {
-          if (event.button !== 0) return
-          drag.pointerId = event.pointerId
-          drag.startX = event.clientX
-          drag.startScrollLeft = element.scrollLeft
-          drag.moved = false
-        }
-        const onPointerMove = (event: PointerEvent): void => {
-          if (drag.pointerId !== event.pointerId) return
-          const delta = event.clientX - drag.startX
-          if (!drag.moved && Math.abs(delta) > DRAG_THRESHOLD_PX) {
-            drag.moved = true
-            element.setPointerCapture(event.pointerId)
-          }
-          if (drag.moved) {
-            element.scrollLeft = drag.startScrollLeft - delta
-          }
-        }
-        const onPointerEnd = (event: PointerEvent): void => {
-          if (drag.pointerId !== event.pointerId) return
-          if (element.hasPointerCapture(event.pointerId)) {
-            element.releasePointerCapture(event.pointerId)
-          }
-          drag.pointerId = -1
-        }
-        /** A drag is not a click on the tab it ends on. */
-        const onClickCapture = (event: MouseEvent): void => {
-          if (drag.moved) {
-            event.preventDefault()
-            event.stopPropagation()
-            drag.moved = false
-          }
-        }
-
-        const resize = new ResizeObserver(report)
-        const mutation = new MutationObserver(report)
-        resize.observe(element)
-        mutation.observe(element, { childList: true, subtree: true })
-        element.addEventListener("pointerdown", onPointerDown)
-        element.addEventListener("pointermove", onPointerMove)
-        element.addEventListener("pointerup", onPointerEnd)
-        element.addEventListener("pointercancel", onPointerEnd)
-        element.addEventListener("click", onClickCapture, true)
-        element.addEventListener("scroll", report)
-        report()
-
+        const stopDrag = dragScroll(element)
+        const stopWatching = watchRightEdge(element, (canScrollRight) =>
+          Queue.offerUnsafe(
+            queue,
+            Message.UpdatedStripFade({ strip, canScrollRight }),
+          ),
+        )
         return () => {
-          resize.disconnect()
-          mutation.disconnect()
-          element.removeEventListener("pointerdown", onPointerDown)
-          element.removeEventListener("pointermove", onPointerMove)
-          element.removeEventListener("pointerup", onPointerEnd)
-          element.removeEventListener("pointercancel", onPointerEnd)
-          element.removeEventListener("click", onClickCapture, true)
-          element.removeEventListener("scroll", report)
+          stopDrag()
+          stopWatching()
         }
       }),
       (dispose) => Effect.sync(dispose),

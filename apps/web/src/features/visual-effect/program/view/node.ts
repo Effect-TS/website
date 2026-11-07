@@ -1,4 +1,4 @@
-import { Array, Number, Option } from "effect"
+import { Array, Match, Number, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import { AnimateNode, ShakeBubble } from "../mount"
 import { Message } from "../message"
@@ -9,22 +9,17 @@ import { octagonAlert, skull, sparkle } from "./icons"
 type Builder = HtmlBuilder<Message>
 
 /** The container of a node. Each state has its own colour, scale and opacity. */
-const containerClass = (state: RunState): string => {
-  switch (state._tag) {
-    case "Idle":
-      return "scale-100 bg-black opacity-60"
-    case "Running":
-      return "scale-95 bg-blue-500 opacity-100"
-    case "Succeeded":
-      return "scale-100 bg-green-700 opacity-100"
-    case "Failed":
-      return "scale-100 bg-red-500 opacity-100"
-    case "Died":
-      return "scale-100 bg-red-900 opacity-100"
-    case "Interrupted":
-      return "scale-100 bg-orange-500 opacity-100"
-  }
-}
+const containerClass = (state: RunState): string =>
+  Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Idle: () => "scale-100 bg-black opacity-60",
+      Running: () => "scale-95 bg-blue-500 opacity-100",
+      Succeeded: () => "scale-100 bg-green-700 opacity-100",
+      Failed: () => "scale-100 bg-red-500 opacity-100",
+      Died: () => "scale-100 bg-red-900 opacity-100",
+      Interrupted: () => "scale-100 bg-orange-500 opacity-100",
+    }),
+  )
 
 const borderClass = (state: RunState): string =>
   state._tag === "Died"
@@ -38,29 +33,28 @@ const shadowClass = (state: RunState): string =>
 
 const SHIMMER_COUNT = 6
 
-const contentView = (state: RunState, h: Builder): Html => {
-  switch (state._tag) {
-    case "Idle":
-      return sparkle(h, {
-        className: "text-neutral-200",
-        isFilled: true,
-        size: 28,
-      })
-    case "Running":
-      return h.empty
-    case "Succeeded":
-      return h.div(
-        [h.Class(state.value.size === "Large" ? "text-2xl" : "text-lg")],
-        [state.value.text],
-      )
-    case "Failed":
-      return skull(h, { className: "fill-white text-red-500", size: 34 })
-    case "Died":
-      return skull(h, { className: "fill-red-600 text-red-900", size: 34 })
-    case "Interrupted":
-      return octagonAlert(h, { className: "text-white", size: 28 })
-  }
-}
+const contentView = (state: RunState, h: Builder): Html =>
+  Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Idle: () =>
+        sparkle(h, {
+          className: "text-neutral-200",
+          isFilled: true,
+          size: 28,
+        }),
+      Running: () => h.empty,
+      Succeeded: ({ value }) =>
+        h.div(
+          [h.Class(value.size === "Large" ? "text-2xl" : "text-lg")],
+          [value.text],
+        ),
+      Failed: () =>
+        skull(h, { className: "fill-white text-red-500", size: 34 }),
+      Died: () =>
+        skull(h, { className: "fill-red-600 text-red-900", size: 34 }),
+      Interrupted: () => octagonAlert(h, { className: "text-white", size: 28 }),
+    }),
+  )
 
 const shimmerView = (index: number, h: Builder): Html =>
   h.keyed("div")(
@@ -95,18 +89,17 @@ const runningOverlay = (state: RunState, h: Builder): ReadonlyArray<Html> =>
 
 type Tone = "info" | "failure" | "death"
 
-const toneOf = (state: RunState): Option.Option<Tone> => {
-  switch (state._tag) {
-    case "Running":
-      return Option.some("info")
-    case "Failed":
-      return Option.some("failure")
-    case "Died":
-      return Option.some("death")
-    default:
-      return Option.none()
-  }
-}
+const toneOf = (state: RunState): Option.Option<Tone> =>
+  Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Running: () => Option.some<Tone>("info"),
+      Failed: () => Option.some<Tone>("failure"),
+      Died: () => Option.some<Tone>("death"),
+      Idle: () => Option.none(),
+      Succeeded: () => Option.none(),
+      Interrupted: () => Option.none(),
+    }),
+  )
 
 const bubbleClass = (tone: Tone): string => {
   switch (tone) {

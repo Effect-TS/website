@@ -344,7 +344,10 @@ test("a timeline example follows the clock and builds segments from its steps", 
     Message.StartedStep({ runId: base.runId, stepIndex: 0, at: 1000 }),
   ).model
   expect(stepStarted.timeline).toHaveLength(1)
-  const ticked = update(stepStarted, Message.TickedClock({ at: 1200 })).model
+  const ticked = update(
+    stepStarted,
+    Message.TickedClock({ deltaTime: 200 }),
+  ).model
   expect(ticked.clock).toBe(1200)
   const ended = update(
     ticked,
@@ -355,7 +358,9 @@ test("a timeline example follows the clock and builds segments from its steps", 
     }),
   ).model
   expect(ended.clock).toBe(0)
-  expect(update(ended, Message.TickedClock({ at: 1600 })).model.clock).toBe(0)
+  expect(
+    update(ended, Message.TickedClock({ deltaTime: 100 })).model.clock,
+  ).toBe(0)
 })
 
 test("a plain example keeps the clock at zero", () => {

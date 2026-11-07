@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
-import type { CardInput, HighlightInput } from "./layout-animation"
-import type { HeaderInput } from "./header-animation"
-import type { NodeTag } from "./animation"
+import type { CardInput, HighlightInput } from "./drivers/layout-animation"
+import type { HeaderInput } from "./drivers/header-animation"
+import type { NodeTag } from "./drivers/animation"
 import { makeRegistry } from "./registry"
 
 export const NodeTagSchema = Schema.Literals([

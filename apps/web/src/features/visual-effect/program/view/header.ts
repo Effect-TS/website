@@ -1,46 +1,45 @@
 import { Button } from "@foldkit/ui"
+import { Match } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import type { ExampleDefinition } from "../../model/example-definition"
 import { canReset, type RunState } from "../domain"
 import { Message } from "../message"
-import type { Pointer } from "../header-animation"
+import type { Pointer } from "../drivers/header-animation"
 import { AnimateHeader } from "../mount"
 import { play, rotateCcw, square } from "./icons"
 
 type Builder = HtmlBuilder<Message>
 
-const tileClass = (state: RunState): string => {
-  switch (state._tag) {
-    case "Running":
-      return "bg-blue-500"
-    case "Idle":
-    case "Succeeded":
-      return "bg-green-700"
-    case "Failed":
-      return "bg-red-500"
-    case "Interrupted":
-      return "bg-orange-500"
-    case "Died":
-      return "bg-red-800"
-  }
-}
+const tileClass = (state: RunState): string =>
+  Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Running: () => "bg-blue-500",
+      Idle: () => "bg-green-700",
+      Succeeded: () => "bg-green-700",
+      Failed: () => "bg-red-500",
+      Interrupted: () => "bg-orange-500",
+      Died: () => "bg-red-800",
+    }),
+  )
 
 const iconView = (state: RunState, h: Builder): Html => {
-  switch (state._tag) {
-    case "Running":
-      return square(h, { className: "size-5", isFilled: true })
-    case "Succeeded":
-    case "Failed":
-    case "Died":
-    case "Interrupted":
-      return rotateCcw(h, { className: "-mr-px size-5", strokeWidth: "3" })
-    case "Idle":
-      return play(h, {
-        className: "-mr-px size-5",
-        isFilled: true,
-        strokeWidth: "1",
-      })
-  }
+  const reset = () =>
+    rotateCcw(h, { className: "-mr-px size-5", strokeWidth: "3" })
+  return Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Running: () => square(h, { className: "size-5", isFilled: true }),
+      Succeeded: reset,
+      Failed: reset,
+      Died: reset,
+      Interrupted: reset,
+      Idle: () =>
+        play(h, {
+          className: "-mr-px size-5",
+          isFilled: true,
+          strokeWidth: "1",
+        }),
+    }),
+  )
 }
 
 const actionOf = (state: RunState): "Stop" | "Reset" | "Run" =>

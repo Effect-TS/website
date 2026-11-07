@@ -10,6 +10,6 @@ export const subscriptions = Subscription.make<Model, Message>()(() => ({
   /** The timeline of an example follows the clock while the run goes. StartedRun sets the clock only for a timeline example. */
   clock: Subscription.animationFrameEntry({
     isActive: (model) => model.run._tag === "Running" && model.clock !== 0,
-    toMessage: () => Message.TickedClock({ at: Date.now() }),
+    toMessage: (deltaTime) => Message.TickedClock({ deltaTime }),
   }),
 }))

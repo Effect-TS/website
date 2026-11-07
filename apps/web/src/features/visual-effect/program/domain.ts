@@ -1,4 +1,4 @@
-import { Array, Option, Schema } from "effect"
+import { Array, Match, Option, Schema } from "effect"
 
 /** Times are epoch milliseconds, so a Model survives JSON and a test can write them. */
 export const ResultDisplay = Schema.Struct({
@@ -166,59 +166,56 @@ export type FinalizerEvent = typeof FinalizerEvent.Type
 export const reduceFinalizerPanel = (
   panel: FinalizerPanel,
   event: FinalizerEvent,
-): FinalizerPanel => {
-  switch (event._tag) {
-    case "RunStarted":
-      return { status: "Active", finalizers: [] }
-    case "Registered":
-      return {
+): FinalizerPanel =>
+  Match.value(event).pipe(
+    Match.tagsExhaustive({
+      RunStarted: (): FinalizerPanel => ({ status: "Active", finalizers: [] }),
+      Registered: (registered): FinalizerPanel => ({
         ...panel,
         finalizers: [
           ...panel.finalizers,
           {
-            id: event.id,
-            label: event.label,
-            registrationIndex: event.registrationIndex,
-            registeredAt: event.at,
+            id: registered.id,
+            label: registered.label,
+            registrationIndex: registered.registrationIndex,
+            registeredAt: registered.at,
             phase: "Pending",
             maybeStartedAt: Option.none(),
             maybeEndedAt: Option.none(),
           },
         ],
-      }
-    case "Started":
-      return {
+      }),
+      Started: (started): FinalizerPanel => ({
         status: "Releasing",
         finalizers: Array.map(panel.finalizers, (entry) =>
-          entry.id === event.id
+          entry.id === started.id
             ? {
                 ...entry,
                 phase: "Running" as const,
-                maybeStartedAt: Option.some(event.at),
+                maybeStartedAt: Option.some(started.at),
               }
             : entry,
         ),
-      }
-    case "Finished": {
-      const finalizers = Array.map(panel.finalizers, (entry) =>
-        entry.id === event.id
-          ? {
-              ...entry,
-              phase: event.phase,
-              maybeEndedAt: Option.some(event.at),
-            }
-          : entry,
-      )
-      const isReleasing = Array.some(
-        finalizers,
-        ({ phase }) => phase === "Pending" || phase === "Running",
-      )
-      return { status: isReleasing ? "Releasing" : "Released", finalizers }
-    }
-    case "Reset":
-      return emptyFinalizerPanel
-  }
-}
+      }),
+      Finished: (finished): FinalizerPanel => {
+        const finalizers = Array.map(panel.finalizers, (entry) =>
+          entry.id === finished.id
+            ? {
+                ...entry,
+                phase: finished.phase,
+                maybeEndedAt: Option.some(finished.at),
+              }
+            : entry,
+        )
+        const isReleasing = Array.some(
+          finalizers,
+          ({ phase }) => phase === "Pending" || phase === "Running",
+        )
+        return { status: isReleasing ? "Releasing" : "Released", finalizers }
+      },
+      Reset: () => emptyFinalizerPanel,
+    }),
+  )
 
 /** The node the pointer is on. A step is named by its place in the example. */
 export const NodeTarget = Schema.Union([
@@ -263,19 +260,14 @@ export const isNotificationVisible = (
   (notification.showOnHover && isHovered)
 
 /** What a screen reader says about a state, such as "succeeded with 65°". */
-export const describe = (state: RunState): string => {
-  switch (state._tag) {
-    case "Idle":
-      return "not run"
-    case "Running":
-      return "running"
-    case "Succeeded":
-      return `succeeded with ${state.value.text}`
-    case "Failed":
-      return `failed with ${state.error.text}`
-    case "Interrupted":
-      return "stopped"
-    case "Died":
-      return `died with ${state.defect.text}`
-  }
-}
+export const describe = (state: RunState): string =>
+  Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Idle: () => "not run",
+      Running: () => "running",
+      Succeeded: ({ value }) => `succeeded with ${value.text}`,
+      Failed: ({ error }) => `failed with ${error.text}`,
+      Interrupted: () => "stopped",
+      Died: ({ defect }) => `died with ${defect.text}`,
+    }),
+  )
