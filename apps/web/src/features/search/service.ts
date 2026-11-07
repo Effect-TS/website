@@ -18,7 +18,7 @@ import {
   SearchError,
   StoreSearchResponse,
 } from "./domain"
-import { cacheOverlay, searchScope } from "./scope"
+import { cacheScope, previewScope, productionScope } from "./scope"
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
@@ -199,24 +199,26 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
-    const overlay = yield* Option.match(overlayStoreId, {
-      onNone: () => Effect.succeed(Effect.succeedNone),
-      onSome: (redacted) => {
-        const id = Redacted.value(redacted)
-        return cacheOverlay(
-          Effect.tryPromise({
+    const production = Redacted.value(storeId)
+    const scope = yield* cacheScope(
+      Option.match(overlayStoreId, {
+        onNone: () => Effect.succeed(productionScope(production)),
+        onSome: (redacted) => {
+          const id = Redacted.value(redacted)
+          return Effect.tryPromise({
             try: (signal) => mxbai.stores.retrieve(id, { signal }),
             catch: (cause) => new SearchError({ cause }),
-          }).pipe(Effect.map((store) => ({ id, metadata: store.metadata }))),
-        )
-      },
-    })
+          }).pipe(
+            Effect.map((store) =>
+              previewScope(production, { id, metadata: store.metadata }),
+            ),
+          )
+        },
+      }),
+    )
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const scope = searchScope({
-        production: Redacted.value(storeId),
-        overlay: yield* overlay,
-      })
+      const storeScope = yield* scope
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
@@ -224,7 +226,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
               query,
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
-              ...scope,
+              ...storeScope,
             },
             { signal },
           ),
