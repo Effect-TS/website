@@ -3,7 +3,7 @@ import type { Html, HtmlBuilder } from "foldkit/html"
 import { AnimateNode, ShakeBubble } from "../mount"
 import { Message } from "../message"
 import type { Notification, NodeTarget, RunState } from "../domain"
-import { notificationOf } from "../domain"
+import { describe, notificationOf } from "../domain"
 import { octagonAlert, skull, sparkle } from "./icons"
 
 type Builder = HtmlBuilder<Message>
@@ -217,6 +217,8 @@ export const nodeView = (
 ): Html =>
   h.div(
     [
+      h.Role("group"),
+      h.AriaLabel(`${label}: ${describe(state)}`),
       h.DataAttribute("state", state._tag),
       h.OnMount(AnimateNode()),
       h.OnMouseEnter(Message.HoveredNode({ target })),

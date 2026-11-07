@@ -36,7 +36,9 @@ test("the server renders every step node and the result node", async () => {
   for (const label of ["nyc", "berlin", "tokyo", "london", "result"]) {
     assert.include(html, `<span>${label}</span>`)
   }
-  assert.strictEqual(html.split('<div data-state="Idle"').length - 1, 5)
+  assert.strictEqual(html.split('role="group"').length - 1, 5)
+  assert.include(html, 'aria-label="nyc: not run"')
+  assert.include(html, 'aria-label="result: not run"')
 })
 
 test("the server renders the control with its first option chosen", async () => {

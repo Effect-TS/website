@@ -1,5 +1,11 @@
 import { expect, test } from "vite-plus/test"
-import { isNotificationVisible } from "../../../src/features/visual-effect/program/domain.ts"
+import {
+  describe,
+  idle,
+  isNotificationVisible,
+  settle,
+  start,
+} from "../../../src/features/visual-effect/program/domain.ts"
 import { glitchText } from "../../../src/features/visual-effect/program/view/node.ts"
 import { EXAMPLES_CATALOG } from "../../../src/features/visual-effect/catalog/index.ts"
 import { allExample } from "../../../src/features/visual-effect/catalog/effect-all.tsx"
@@ -90,4 +96,22 @@ test("a death notification garbles the same way every time, and between 6 and 16
   expect(glitchText({ ...notification, id: 4 })).not.toBe(
     glitchText(notification),
   )
+})
+
+test("a screen reader hears each state in words", () => {
+  const shown = { size: "Small", text: "65°" } as const
+  expect(describe(idle)).toBe("not run")
+  expect(describe(start(0))).toBe("running")
+  expect(
+    describe(settle(start(0), { _tag: "Succeeded", value: shown }, 0, 1)),
+  ).toBe("succeeded with 65°")
+  expect(
+    describe(settle(start(0), { _tag: "Failed", error: shown }, 0, 1)),
+  ).toBe("failed with 65°")
+  expect(describe(settle(start(0), { _tag: "Interrupted" }, 0, 1))).toBe(
+    "stopped",
+  )
+  expect(
+    describe(settle(start(0), { _tag: "Died", defect: shown }, 0, 1)),
+  ).toBe("died with 65°")
 })

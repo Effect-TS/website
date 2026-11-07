@@ -5,7 +5,7 @@ import { controlValueOf, findEntry } from "../catalog"
 import { Message } from "../message"
 import { controlTabsId, controlTabsKey, type Model } from "../model"
 import { stepKeyOf } from "../catalog"
-import { idle, isNotificationVisible } from "../domain"
+import { describe, idle, isNotificationVisible } from "../domain"
 import { configView } from "./config"
 import { headerView } from "./header"
 import { finalizersView } from "./finalizers"
@@ -114,6 +114,14 @@ const surfaceView = (model: Model, h: Builder): Html =>
         ],
         [
           headerView(example, model.run, model.hasInteracted, h),
+          h.div(
+            [h.Role("status"), h.AriaLive("polite"), h.Class("sr-only")],
+            [
+              model.run._tag === "Idle"
+                ? ""
+                : `${example.title} ${describe(model.run)}`,
+            ],
+          ),
           configView(
             example,
             {

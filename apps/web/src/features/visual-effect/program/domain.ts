@@ -298,3 +298,21 @@ export const isNotificationVisible = (
   isHovered: boolean,
 ): boolean =>
   !expired.includes(notification.id) || (notification.showOnHover && isHovered)
+
+/** What a screen reader says about a state, such as "succeeded with 65°". */
+export const describe = (state: RunState): string => {
+  switch (state._tag) {
+    case "Idle":
+      return "not run"
+    case "Running":
+      return "running"
+    case "Succeeded":
+      return `succeeded with ${state.value.text}`
+    case "Failed":
+      return `failed with ${state.error.text}`
+    case "Interrupted":
+      return "stopped"
+    case "Died":
+      return `died with ${state.defect.text}`
+  }
+}
