@@ -96,7 +96,9 @@ export const useFinalizerPanel = () => {
 // Example Controls
 // =============================================================================
 
-export const useControlWrite = <A,>(control: ExampleControl<A>) => {
+export const useControlWrite = <A extends string>(
+  control: ExampleControl<A>,
+) => {
   const example = useExampleDefinition()
   const current = useAtomValue(control.atom)
   const set = useAtomSet(control.atom)

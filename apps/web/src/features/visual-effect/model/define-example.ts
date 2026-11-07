@@ -15,6 +15,7 @@ import {
   type BaseBuildContext,
   type CodeDefinitionOptions,
   type CodeSnippetSelectorOptions,
+  type ControlValueMap,
   type ControlValues,
   type ExampleControl,
   type ExampleDefinition,
@@ -25,7 +26,7 @@ import {
   type StepDefinition,
 } from "./example-definition"
 import { resolveSnippetDefinition } from "./snippet-definition"
-import { toStepSnippetTargetKey } from "./snippet-highlights"
+import { toStepSnippetTargetKey, type CodeSnippet } from "./snippet-highlights"
 
 class DuplicateExampleControlIdError extends Error {
   constructor(exampleLabel: string, controlId: string) {
@@ -92,7 +93,7 @@ export const defineExample = <const Features extends ExampleFeatureInput = {}>(
     },
   )
 
-  const registerControl = <A>(
+  const registerControl = <A extends string>(
     control: RegisterControlOptions<A>,
   ): ExampleControl<A> => {
     const normalizedControlId = control.id.trim()
@@ -119,6 +120,7 @@ export const defineExample = <const Features extends ExampleFeatureInput = {}>(
       label: control.label,
       description: control.description,
       initialValue: control.initialValue,
+      options: control.options,
       atom,
       render: () =>
         React.createElement(control.render, { control: registeredControl }),
@@ -130,7 +132,7 @@ export const defineExample = <const Features extends ExampleFeatureInput = {}>(
     return registeredControl
   }
 
-  const readControl = <A>(
+  const readControl = <A extends string>(
     control: ExampleControl<A>,
   ): Effect.Effect<A, never, ControlSnapshot> => {
     return ControlSnapshot.useSync((snapshot) => snapshot.get(control.atom))
@@ -185,6 +187,18 @@ export const defineExample = <const Features extends ExampleFeatureInput = {}>(
     (selectorDefinition) => typeof selectorDefinition === "function",
   )
 
+  const resolveCode = (values: ControlValueMap): CodeSnippet =>
+    resolveSnippetDefinition({
+      codeDefinition: codeDefinitionOptions,
+      selectorsByTarget,
+      resultHighlightDefinition,
+      controlValues: {
+        get: <A extends string>(control: ExampleControl<A>): A =>
+          (values[control.id] as A | undefined) ?? control.initialValue,
+      },
+      exampleLabel: options.label,
+    })
+
   const codeAtom =
     hasDynamicCode || hasDynamicResultHighlight || hasDynamicStepHighlight
       ? Atom.make((get) => {
@@ -218,7 +232,7 @@ export const defineExample = <const Features extends ExampleFeatureInput = {}>(
     steps,
     controls,
     program,
-    code: { atom: codeAtom },
+    code: { atom: codeAtom, resolve: resolveCode },
     features: {
       finalizers: options.features?.finalizers === true,
       timeline: options.features?.timeline === true,

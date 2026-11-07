@@ -1,4 +1,4 @@
-import { RenderableResult } from "../../model/domain"
+import { RenderableResult, type ResultDisplay } from "../../model/domain"
 
 export const Emoji = {
   Achilles: "🏃‍♂️",
@@ -29,6 +29,9 @@ export class EmojiResult extends RenderableResult {
   constructor(emoji: EmojiKey) {
     super()
     this.emoji = Emoji[emoji]
+  }
+  display(): ResultDisplay {
+    return { size: "Large", text: this.emoji }
   }
   render(): React.ReactNode {
     return <div className="text-2xl">{this.emoji}</div>

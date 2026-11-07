@@ -83,6 +83,7 @@ export const addFinalizerExample = defineExample({
       label: "Outcome",
       description: "Changing the outcome resets the current run.",
       initialValue: "succeed",
+      options: PROGRAM_OUTCOMES,
       render: ProgramOutcomeControl,
     })
 

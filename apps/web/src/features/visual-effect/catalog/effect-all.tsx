@@ -83,6 +83,7 @@ export const allExample = defineExample({
       label: "Concurrency",
       description: "Changing mode resets the current run.",
       initialValue: "sequential",
+      options: CONCURRENCY_OPTIONS,
       render: ConcurrencyModeControl,
     })
 

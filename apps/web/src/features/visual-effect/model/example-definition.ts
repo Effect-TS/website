@@ -104,31 +104,37 @@ export interface AnyExampleControl {
   readonly id: string
   readonly label: string
   readonly description: string | undefined
-  readonly initialValue: unknown
+  readonly initialValue: string
+  readonly options: ReadonlyArray<string>
   readonly atom: Atom.Atom<unknown>
   readonly render: () => React.ReactNode
 }
 
-export interface ExampleControl<A> extends AnyExampleControl {
+export interface ExampleControl<A extends string> extends AnyExampleControl {
   readonly initialValue: A
+  readonly options: ReadonlyArray<A>
   readonly atom: Atom.Writable<A>
 }
 
-export interface RegisterControlOptions<A> {
+export interface RegisterControlOptions<A extends string> {
   readonly id: string
   readonly label: string
   readonly description?: string | undefined
   readonly initialValue: A
+  readonly options: ReadonlyArray<A>
   readonly render: React.ComponentType<ControlRenderProps<A>>
 }
 
-export interface ControlRenderProps<A> {
+export interface ControlRenderProps<A extends string> {
   readonly control: ExampleControl<A>
 }
 
 export interface ControlValues {
-  readonly get: <A>(control: ExampleControl<A>) => A
+  readonly get: <A extends string>(control: ExampleControl<A>) => A
 }
+
+/** Control values by control id. A missing id means the initial value. */
+export type ControlValueMap = Readonly<Record<string, string>>
 
 export class ControlSnapshot extends Context.Service<
   ControlSnapshot,
@@ -137,6 +143,7 @@ export class ControlSnapshot extends Context.Service<
 
 export interface CodeSnippetDefinition {
   readonly atom: Atom.Atom<CodeSnippet>
+  readonly resolve: (values: ControlValueMap) => CodeSnippet
 }
 
 export type CodeDefinitionOptions =
@@ -199,10 +206,10 @@ export type BaseBuildContext<Features extends ExampleFeatureInput> = {
     ) => RenderableEffect<A, E, R>
   }
   readonly controls: {
-    readonly register: <A>(
+    readonly register: <A extends string>(
       input: RegisterControlOptions<A>,
     ) => ExampleControl<A>
-    readonly read: <A>(
+    readonly read: <A extends string>(
       control: ExampleControl<A>,
     ) => Effect.Effect<A, never, ExampleEnvironment>
   }

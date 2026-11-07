@@ -6,6 +6,12 @@ import { constFalse, constTrue } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 
+/** What a result shows, as data. The view decides the markup. */
+export interface ResultDisplay {
+  readonly size: "Large" | "Small"
+  readonly text: string
+}
+
 const RenderableResultSymbol = Symbol.for("renderable-result")
 
 export abstract class RenderableResult {
@@ -16,6 +22,8 @@ export abstract class RenderableResult {
   }
 
   abstract render(): React.ReactNode
+
+  abstract display(): ResultDisplay
 }
 
 export interface VisualEffectNotification {
