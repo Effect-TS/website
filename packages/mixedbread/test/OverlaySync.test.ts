@@ -1,11 +1,11 @@
 import * as Effect from "effect/Effect"
 import { assert, test } from "vite-plus/test"
 import { HiddenFiles } from "@website/domain"
-import { planOverlay } from "../src/ApiReferenceSync.ts"
 import {
-  markdownOverlayArguments,
   markdownOverlayKey,
+  markdownSyncArguments,
 } from "../src/MarkdownSync.ts"
+import { planOverlay } from "../src/OverlaySync.ts"
 
 const remote = (
   id: string,
@@ -126,9 +126,9 @@ test("keys markdown files by their path below the staging directory", () => {
   )
 })
 
-test("syncs only the changed markdown files into a preview store", () => {
-  const args = markdownOverlayArguments({
-    filePaths: ["/w/.data/mixedbread/documentation/a.mdx"],
+test("syncs only the given markdown files", () => {
+  const args = markdownSyncArguments({
+    filePatterns: ["/w/.data/mixedbread/documentation/a.mdx"],
     metadata: "{}",
     storeId: "store",
   })
@@ -141,5 +141,5 @@ test("syncs only the changed markdown files into a preview store", () => {
     "store",
     "/w/.data/mixedbread/documentation/a.mdx",
   ])
-  assert.isFalse(args.some((arg) => arg.includes("**")))
+  assert.equal(args[6], "--yes")
 })

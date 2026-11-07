@@ -1,4 +1,4 @@
-import MixedbreadClient, { NotFoundError } from "@mixedbread/sdk"
+import MixedbreadClient from "@mixedbread/sdk"
 import { HiddenFiles } from "@website/domain"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -11,7 +11,11 @@ import type {
   PreviewSyncOptions,
   SyncOptions,
 } from "./Config.ts"
-import { InvalidStoreError, UnknownError } from "./Error.ts"
+import {
+  FailedToDeleteError,
+  InvalidStoreError,
+  UnknownError,
+} from "./Error.ts"
 
 export const StoreMetadata = Schema.Struct({
   lifecycle: Schema.Literal("pull-request-preview"),
@@ -22,15 +26,16 @@ export const StoreMetadata = Schema.Struct({
 export type StoreMetadata = typeof StoreMetadata.Type
 export type StoreMetadataEncoded = typeof StoreMetadata.Encoded
 
-// A copy normally finishes within minutes.
-const COPY_TIMEOUT = "20 minutes"
-
 export const StoreFileMetadata = Schema.Struct({
   file_hash: Schema.String,
   version: Schema.Int,
 })
 
 export interface StoreClient {
+  readonly deleteFile: (
+    storeId: string,
+    file: MixedbreadClient.Stores.StoreFile,
+  ) => Effect.Effect<void, FailedToDeleteError>
   readonly deletePreview: (
     options: DeleteOptions,
   ) => Effect.Effect<void, InvalidStoreError | UnknownError>
@@ -40,7 +45,7 @@ export interface StoreClient {
   readonly recordPreviewSync: (
     store: MixedbreadClient.Store,
     options: PreviewSyncOptions,
-    hidden?: ReadonlyArray<string>,
+    hidden: ReadonlyArray<string>,
   ) => Effect.Effect<void, InvalidStoreError | UnknownError>
   readonly resolve: (
     options: SyncOptions,
@@ -53,8 +58,6 @@ export function makeStoreClient(options: {
   readonly storePrefix: string
 }): StoreClient {
   const { client, repository, storePrefix } = options
-  const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === "object" && value !== null && !Array.isArray(value)
   const decodeMetadata = Schema.decodeUnknownEffect(StoreMetadata)
   const storeName = (pullRequest: number): string =>
     `${storePrefix}${pullRequest}`
@@ -110,6 +113,13 @@ export function makeStoreClient(options: {
       }),
     ).pipe(Stream.withSpan("Store.listFiles"))
 
+  const deleteFile: StoreClient["deleteFile"] = (storeId, file) =>
+    Effect.tryPromise({
+      try: () =>
+        client.stores.files.delete(file.id, { store_identifier: storeId }),
+      catch: (cause) => new FailedToDeleteError({ file, cause }),
+    }).pipe(Effect.asVoid)
+
   const find = Effect.fn("Store.find")(function* (name: string) {
     const cursor = yield* Effect.tryPromise({
       try: () => client.stores.list({ q: name, limit: 100 }),
@@ -121,61 +131,12 @@ export function makeStoreClient(options: {
     ).pipe(Stream.run(Sink.find((store) => store.name === name)))
   })
 
-  const exists = (storeId: string) =>
-    Effect.tryPromise({
-      try: () => client.stores.retrieve(storeId),
-      catch: (cause) => new UnknownError({ cause }),
-    }).pipe(
-      Effect.as(true),
-      Effect.catchIf(
-        (error) => error.cause instanceof NotFoundError,
-        () => Effect.succeed(false),
-      ),
-    )
-
   const resolve: StoreClient["resolve"] = Effect.fn("Store.resolve")(
     function* (sync) {
-      const retrieve = Effect.tryPromise({
+      const store = yield* Effect.tryPromise({
         try: () => client.stores.retrieve(sync.storeId),
         catch: (cause) => new UnknownError({ cause }),
       })
-      let store = yield* retrieve
-      // Preview stores are copied from production, and neither side of a
-      // copy accepts file changes until it finishes.
-      if (store.copy_state?.status === "in_progress") {
-        const copy = store.copy_state
-        yield* Effect.log(
-          `Waiting for the copy involving store ${store.name} to finish (${copy.role} of a copy with store ${copy.peer_store_id}, started ${copy.started_at})`,
-        )
-        const wait = Effect.gen(function* () {
-          while (store.copy_state?.status === "in_progress") {
-            // A preview deleted mid-copy leaves the source reporting the copy
-            // long after its target is gone; nothing is left to wait for.
-            if (
-              store.copy_state.role === "source" &&
-              !(yield* exists(store.copy_state.peer_store_id))
-            ) {
-              yield* Effect.logWarning(
-                `Store ${store.name} still reports a copy into deleted store ${store.copy_state.peer_store_id}; synchronizing anyway`,
-              )
-              return
-            }
-            yield* Effect.sleep("5 seconds")
-            store = yield* retrieve
-          }
-        })
-        yield* wait.pipe(
-          Effect.timeoutOrElse({
-            duration: COPY_TIMEOUT,
-            orElse: () =>
-              Effect.fail(
-                new InvalidStoreError({
-                  message: `Timed out after ${COPY_TIMEOUT} waiting for the copy involving store ${store.name} (peer ${store.copy_state?.peer_store_id}) to finish`,
-                }),
-              ),
-          }),
-        )
-      }
       if (sync.kind === "preview") {
         if (store.name !== storeName(sync.pullRequest)) {
           return yield* new InvalidStoreError({
@@ -191,24 +152,20 @@ export function makeStoreClient(options: {
   const recordPreviewSync: StoreClient["recordPreviewSync"] = Effect.fn(
     "Store.recordPreviewSync",
   )(function* (store, sync, hidden) {
-    const currentMetadata = isRecord(store.metadata) ? store.metadata : {}
     const kept = Object.fromEntries(
-      Object.entries(currentMetadata).filter(
-        ([key]) => hidden === undefined || !HiddenFiles.isKey(key),
+      Object.entries(
+        Predicate.isObject(store.metadata) ? store.metadata : {},
+      ).filter(([key]) => !HiddenFiles.isKey(key)),
+    )
+    const hiddenMetadata = yield* HiddenFiles.encode(hidden).pipe(
+      Effect.mapError(
+        (cause) =>
+          new InvalidStoreError({
+            message: `Preview store ${store.name} cannot hide ${cause.count} production files: ${cause.length} characters exceed the metadata budget`,
+            cause,
+          }),
       ),
     )
-    const hiddenMetadata =
-      hidden === undefined
-        ? {}
-        : yield* HiddenFiles.encode(hidden).pipe(
-            Effect.mapError(
-              (cause) =>
-                new InvalidStoreError({
-                  message: `Preview store ${store.name} cannot hide ${cause.count} production files: ${cause.length} characters exceed the metadata budget`,
-                  cause,
-                }),
-            ),
-          )
     yield* Effect.tryPromise({
       try: () =>
         client.stores.update(store.id, {
@@ -235,5 +192,5 @@ export function makeStoreClient(options: {
     yield* Effect.log(`Deleted preview store: ${store.value.id}`)
   })
 
-  return { deletePreview, listFiles, recordPreviewSync, resolve }
+  return { deleteFile, deletePreview, listFiles, recordPreviewSync, resolve }
 }

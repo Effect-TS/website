@@ -12,13 +12,17 @@ import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import * as ChildProcess from "effect/process/ChildProcess"
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner"
-import { planOverlay, syncApiReference } from "./ApiReferenceSync.ts"
-import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
+import { syncApiReference } from "./ApiReferenceSync.ts"
+import {
+  generateApiReferenceFiles,
+  type LocalFile,
+} from "./ApiReferenceFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
   DEFAULT_API_REFERENCE_DIRECTORY,
   DEFAULT_DOCUMENTATION_DIRECTORY,
   type DeleteOptions,
+  type PreviewSyncOptions,
   type SyncOptions,
   type SyncScope,
   UPLOAD_CONCURRENCY,
@@ -30,13 +34,13 @@ import {
   UnknownError,
 } from "./Error.ts"
 import {
-  markdownOverlayArguments,
   markdownOverlayKey,
   markdownSyncArguments,
   markdownSyncMetadata,
   stageBlog,
   stageDocumentation,
 } from "./MarkdownSync.ts"
+import { planOverlay, type ProductionFile } from "./OverlaySync.ts"
 import { makeStoreClient } from "./Store.ts"
 
 type MixedbreadError =
@@ -55,9 +59,8 @@ const DocumentationFileMetadata = Schema.Struct({
 export class Mixedbread extends Context.Service<
   Mixedbread,
   {
-    readonly syncStore: (
-      options: SyncOptions,
-      scope?: SyncScope,
+    readonly syncPreview: (
+      options: PreviewSyncOptions,
     ) => Effect.Effect<void, MixedbreadError>
     readonly syncProduction: (
       revision: string,
@@ -116,17 +119,56 @@ export class Mixedbread extends Context.Service<
       return yield* digest.digestHex(Digest.sha256, bytes)
     })
 
+    const documentationPattern = `${documentationStageDir}/**/*.{md,mdx}`
+    const blogPattern = `${blogStageDir}/**/*.mdx`
+
+    const requireStoreId = (
+      name: string,
+      storeId: Option.Option<Redacted.Redacted<string>>,
+      purpose: string,
+    ) =>
+      Option.match(storeId, {
+        onNone: () =>
+          Effect.fail(
+            new InvalidStoreError({
+              message: `${name} is required when ${purpose}`,
+            }),
+          ),
+        onSome: (id) => Effect.succeed(Redacted.value(id)),
+      })
+
+    const stageMarkdown = Effect.fn("Mixedbread.stageMarkdown")(function* () {
+      yield* Effect.all(
+        [
+          stageDocumentation({
+            contentDir,
+            stageDir: documentationStageDir,
+          }).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+          ),
+          stageBlog({
+            contentDir: blogContentDir,
+            stageDir: blogStageDir,
+          }).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+          ),
+        ],
+        { concurrency: "unbounded", discard: true },
+      )
+    })
+
     const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (
       storeId: string,
       options: SyncOptions,
+      filePatterns: ReadonlyArray<string>,
     ) {
-      const metadata = markdownSyncMetadata(options, version)
       const command = ChildProcess.make(
         "pnpm",
         markdownSyncArguments({
-          blogStageDir,
-          documentationStageDir,
-          metadata,
+          filePatterns,
+          metadata: markdownSyncMetadata(options, version),
           storeId,
         }),
         {
@@ -141,7 +183,7 @@ export class Mixedbread extends Context.Service<
         .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
       if (exitCode !== 0) {
         return yield* new FailedToIndexError({
-          externalId: `${documentationStageDir}, ${blogStageDir}`,
+          externalId: filePatterns.join(", "),
           cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
         })
       }
@@ -167,13 +209,7 @@ export class Mixedbread extends Context.Service<
       yield* Effect.forEach(
         legacyFiles,
         Effect.fnUntraced(function* (file) {
-          yield* Effect.tryPromise({
-            try: () =>
-              client.stores.files.delete(file.id, {
-                store_identifier: storeId,
-              }),
-            catch: (cause) => new FailedToDeleteError({ file, cause }),
-          })
+          yield* stores.deleteFile(storeId, file)
           yield* Effect.log(
             `Deleted legacy documentation file: ${file.external_id}`,
           )
@@ -187,93 +223,54 @@ export class Mixedbread extends Context.Service<
 
     const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(
       function* (storeId: string, options: SyncOptions) {
-        yield* Effect.all(
-          [
-            stageDocumentation({
-              contentDir,
-              stageDir: documentationStageDir,
-            }).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
-            ),
-            stageBlog({
-              contentDir: blogContentDir,
-              stageDir: blogStageDir,
-            }).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
-            ),
-          ],
-          {
-            concurrency: "unbounded",
-            discard: true,
-          },
-        )
-        yield* syncMarkdown(storeId, options)
+        yield* stageMarkdown()
+        yield* syncMarkdown(storeId, options, [
+          documentationPattern,
+          blogPattern,
+        ])
         yield* deleteLegacyDocumentation(storeId)
       },
     )
 
+    const syncApiReferenceFiles = (
+      store: MixedbreadClient.Store,
+      options: SyncOptions,
+      files: ReadonlyArray<LocalFile>,
+    ) =>
+      syncApiReference({
+        branch,
+        client,
+        files,
+        store,
+        stores,
+        sync: options,
+        version,
+      })
+
     const syncApiReferenceStore = Effect.fn("Mixedbread.syncApiReferenceStore")(
-      function* (
-        store: MixedbreadClient.Store,
-        options: SyncOptions,
-        production?: MixedbreadClient.Store,
-      ) {
-        const files = yield* apiReferenceFiles()
-        return yield* syncApiReference({
-          branch,
-          client,
-          files,
-          ...(production === undefined ? {} : { production }),
-          store,
-          stores,
-          sync: options,
-          version,
-        })
+      function* (store: MixedbreadClient.Store, options: SyncOptions) {
+        yield* syncApiReferenceFiles(store, options, yield* apiReferenceFiles())
       },
     )
 
-    const stageMarkdown = Effect.fn("Mixedbread.stageMarkdown")(function* () {
-      yield* Effect.all(
-        [
-          stageDocumentation({
-            contentDir,
-            stageDir: documentationStageDir,
-          }).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-          ),
-          stageBlog({
-            contentDir: blogContentDir,
-            stageDir: blogStageDir,
-          }).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-          ),
-        ],
-        { concurrency: "unbounded", discard: true },
-      )
-    })
+    const isApiReference = (file: ProductionFile) =>
+      file.external_id?.startsWith("api-reference/") === true
 
-    // Uploads the markdown files that differ from production to the preview
-    // store and returns the production files the preview must hide.
+    // Uploads the staged markdown files that differ from production to the
+    // preview store and returns the production files the preview must hide.
     const syncMarkdownOverlay = Effect.fn("Mixedbread.syncMarkdownOverlay")(
       function* (
         store: MixedbreadClient.Store,
-        production: MixedbreadClient.Store,
-        options: SyncOptions,
+        production: ReadonlyArray<MixedbreadClient.Stores.StoreFile>,
+        options: PreviewSyncOptions,
       ) {
         yield* stageMarkdown()
-        const globs = yield* Effect.all(
-          [
-            fs.glob(`${documentationStageDir}/**/*.{md,mdx}`),
-            fs.glob(`${blogStageDir}/**/*.mdx`),
-          ],
+        const staged = yield* Effect.all(
+          [fs.glob(documentationPattern), fs.glob(blogPattern)],
           { concurrency: "unbounded" },
         ).pipe(Effect.mapError((cause) => new UnknownError({ cause })))
         const local = yield* Effect.forEach(
-          globs.flat(),
+          staged.flat(),
           Effect.fnUntraced(function* (filePath) {
             const bytes = yield* fs
               .readFile(filePath)
@@ -287,163 +284,109 @@ export class Mixedbread extends Context.Service<
           }),
           { concurrency: "unbounded" },
         )
-        const productionFiles = (yield* Stream.runCollect(
-          stores.listFiles(production.id),
-        ))
-          .filter(
-            (file) =>
-              file.external_id !== null &&
-              file.external_id !== undefined &&
-              !file.external_id.startsWith("api-reference/"),
-          )
-          .map((file) => ({
-            ...file,
-            external_id: markdownOverlayKey(file.external_id ?? ""),
-          }))
-        const plan = planOverlay(local, productionFiles, version)
+        const plan = planOverlay(
+          local,
+          production
+            .filter((file) => !isApiReference(file))
+            .map((file) => ({
+              ...file,
+              external_id: markdownOverlayKey(file.external_id ?? ""),
+            })),
+          version,
+        )
         yield* Effect.log(
           `Markdown overlay for ${store.name}: ${plan.upload.length} files to upload, ${plan.hidden.length} production files hidden, ${local.length - plan.upload.length} unchanged`,
         )
+
+        // Drop what an earlier push uploaded and production now matches.
+        const uploading = new Set(plan.upload.map((file) => file.externalId))
+        const leftovers = (yield* Stream.runCollect(
+          stores.listFiles(store.id),
+        )).filter(
+          (file) =>
+            !isApiReference(file) &&
+            !uploading.has(markdownOverlayKey(file.external_id ?? "")),
+        )
+        yield* Effect.forEach(
+          leftovers,
+          (file) => stores.deleteFile(store.id, file),
+          { concurrency: UPLOAD_CONCURRENCY, discard: true },
+        )
+
         if (plan.upload.length > 0) {
-          const command = ChildProcess.make(
-            "pnpm",
-            markdownOverlayArguments({
-              filePaths: plan.upload.map((file) => file.path),
-              metadata: markdownSyncMetadata(options, version),
-              storeId: store.id,
-            }),
-            {
-              env: { MXBAI_API_KEY: Redacted.value(apiKey) },
-              extendEnv: true,
-              stdout: "inherit",
-              stderr: "inherit",
-            },
-          )
-          const exitCode = yield* childProcesses
-            .exitCode(command)
-            .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-          if (exitCode !== 0) {
-            return yield* new FailedToIndexError({
-              externalId: `${documentationStageDir}, ${blogStageDir}`,
-              cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
-            })
-          }
-        } else {
-          // Nothing differs from production now; drop what an earlier push
-          // uploaded.
-          const leftovers = (yield* Stream.runCollect(
-            stores.listFiles(store.id),
-          )).filter((file) => !file.external_id?.startsWith("api-reference/"))
-          yield* Effect.forEach(
-            leftovers,
-            Effect.fnUntraced(function* (file) {
-              yield* Effect.tryPromise({
-                try: () =>
-                  client.stores.files.delete(file.id, {
-                    store_identifier: store.id,
-                  }),
-                catch: (cause) => new FailedToDeleteError({ file, cause }),
-              })
-            }),
-            { concurrency: UPLOAD_CONCURRENCY },
+          yield* syncMarkdown(
+            store.id,
+            options,
+            plan.upload.map((file) => file.path),
           )
         }
         return plan.hidden
       },
     )
 
-    const syncOverlay = Effect.fn("Mixedbread.syncOverlay")(function* (
-      store: MixedbreadClient.Store,
-      options: SyncOptions & { readonly kind: "preview" },
-      productionId: string,
+    // A preview store holds only what differs from production. Production
+    // files it replaces or deletes are listed in the store's metadata.
+    const syncPreview = Effect.fn("Mixedbread.syncPreview")(function* (
+      options: PreviewSyncOptions,
     ) {
-      const production = yield* Effect.tryPromise({
-        try: () => client.stores.retrieve(productionId),
-        catch: (cause) => new UnknownError({ cause }),
-      })
-      yield* Effect.log(
-        `Production store ${production.name}: ${production.file_counts?.total ?? "?"} files, ${production.usage_bytes} bytes, ${production.usage_tokens} tokens, copy_state ${production.copy_state?.status ?? "none"}`,
+      const productionId = yield* requireStoreId(
+        "MXBAI_PRODUCTION_STORE_ID",
+        productionStoreId,
+        "synchronizing a preview",
       )
-      const [markdownHidden, apiReferenceHidden] = yield* Effect.all(
+      const store = yield* stores.resolve(options)
+      const production = yield* Stream.runCollect(
+        stores.listFiles(productionId),
+      )
+      const apiReference = yield* apiReferenceFiles()
+      const apiReferencePlan = planOverlay(
+        apiReference,
+        production.filter(isApiReference),
+        version,
+      )
+      const [markdownHidden] = yield* Effect.all(
         [
           syncMarkdownOverlay(store, production, options),
-          syncApiReferenceStore(store, options, production),
+          syncApiReferenceFiles(store, options, apiReferencePlan.upload),
         ],
         { concurrency: "unbounded" },
       )
-      const hidden = [...markdownHidden, ...apiReferenceHidden]
+      const hidden = [...markdownHidden, ...apiReferencePlan.hidden]
       yield* stores.recordPreviewSync(store, options, hidden)
       yield* Effect.log(
         `Preview store ${store.name} hides ${hidden.length} production files`,
       )
     })
 
-    const syncStore = Effect.fn("Mixedbread.syncStore")(function* (
-      options: SyncOptions,
+    const syncProduction = Effect.fn("Mixedbread.syncProduction")(function* (
+      revision: string,
       scope: SyncScope = "all",
     ) {
-      const store = yield* stores.resolve(options)
-
-      if (options.kind === "preview" && Option.isSome(productionStoreId)) {
-        if (scope !== "all") {
-          return yield* new InvalidStoreError({
-            message: `Overlay synchronization needs scope "all", received "${scope}"`,
-          })
-        }
-        yield* syncOverlay(
-          store,
-          options,
-          Redacted.value(productionStoreId.value),
-        )
-        return
-      }
-
-      const synchronizations = [
-        ...(scope === "all" || scope === "markdown"
-          ? [syncMarkdownStore(store.id, options)]
-          : []),
-        ...(scope === "all" || scope === "api-reference"
-          ? [syncApiReferenceStore(store, options)]
-          : []),
-      ]
-      yield* Effect.all(synchronizations, {
-        concurrency: "unbounded",
-        discard: true,
-      })
-
-      if (options.kind === "preview") {
-        yield* stores.recordPreviewSync(store, options)
-      }
-
-      yield* Effect.log(
-        `${options.kind === "preview" ? "Preview" : "Production"} store synchronized (${scope}): ${store.id}`,
+      const storeId = yield* requireStoreId(
+        "MXBAI_VECTOR_STORE_ID",
+        configuredStoreId,
+        "synchronizing production",
       )
+      const options: SyncOptions = { kind: "production", revision, storeId }
+      const store = yield* stores.resolve(options)
+      yield* Effect.all(
+        [
+          ...(scope === "all" || scope === "markdown"
+            ? [syncMarkdownStore(store.id, options)]
+            : []),
+          ...(scope === "all" || scope === "api-reference"
+            ? [syncApiReferenceStore(store, options)]
+            : []),
+        ],
+        { concurrency: "unbounded", discard: true },
+      )
+      yield* Effect.log(`Production store synchronized (${scope}): ${store.id}`)
     })
 
     const deleteStore = stores.deletePreview
 
-    const syncProduction = (revision: string, scope: SyncScope = "all") =>
-      Option.match(configuredStoreId, {
-        onNone: () =>
-          Effect.fail(
-            new InvalidStoreError({
-              message:
-                "MXBAI_VECTOR_STORE_ID is required when synchronizing production",
-            }),
-          ),
-        onSome: (storeId) =>
-          syncStore(
-            {
-              kind: "production",
-              revision,
-              storeId: Redacted.value(storeId),
-            },
-            scope,
-          ),
-      })
-
     return {
-      syncStore,
+      syncPreview,
       syncProduction,
       deleteStore,
     } as const

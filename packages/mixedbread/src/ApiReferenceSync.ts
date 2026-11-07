@@ -52,59 +52,17 @@ export function reconcileApiReferenceFiles<
   return { changedFiles, staleFiles }
 }
 
-export interface ProductionFile {
-  readonly id: string
-  readonly external_id?: string | null
-  readonly metadata?: unknown
-  readonly status?: string
-}
-
-export interface OverlayPlan<L extends LocalFileIdentity> {
-  readonly upload: ReadonlyArray<L>
-  readonly hidden: ReadonlyArray<string>
-}
-
-// A preview store holds only what differs from production. Production files
-// that the pull request replaces or deletes are hidden at search time.
-export function planOverlay<L extends LocalFileIdentity>(
-  local: ReadonlyArray<L>,
-  production: ReadonlyArray<ProductionFile>,
-  version: number,
-): OverlayPlan<L> {
-  const { changedFiles, staleFiles } = reconcileApiReferenceFiles(
-    local,
-    production,
-    version,
-  )
-  const replaced = new Set(changedFiles.map((file) => file.externalId))
-  return {
-    upload: changedFiles,
-    hidden: [
-      ...production.filter(
-        (file) =>
-          file.external_id !== null &&
-          file.external_id !== undefined &&
-          replaced.has(file.external_id),
-      ),
-      ...staleFiles,
-    ].map((file) => file.id),
-  }
-}
-
 export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
   function* (options: {
     readonly branch: string
     readonly client: MixedbreadClient
     readonly files: ReadonlyArray<LocalFile>
-    // A preview store keeps only what differs from this store.
-    readonly production?: MixedbreadClient.Store
     readonly store: MixedbreadClient.Store
     readonly stores: StoreClient
     readonly sync: SyncOptions
     readonly version: number
   }) {
-    const { branch, client, files, production, store, stores, sync, version } =
-      options
+    const { branch, client, files, store, stores, sync, version } = options
     const duplicateIds = Map.groupBy(files, (file) => file.externalId)
       .entries()
       .filter(([, duplicates]) => duplicates.length > 1)
@@ -118,28 +76,13 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
       })
     }
 
-    const listApiReferenceFiles = (storeId: string) =>
-      Stream.runCollect(stores.listFiles(storeId)).pipe(
-        Effect.map((storeFiles) =>
-          storeFiles.filter((file) =>
-            file.external_id?.startsWith("api-reference/"),
-          ),
-        ),
-      )
-    const reference = production ?? store
-    const referenceFiles = yield* listApiReferenceFiles(reference.id)
-    const overlay =
-      production === undefined
-        ? undefined
-        : planOverlay(files, referenceFiles, version)
-    const remoteFiles =
-      overlay === undefined
-        ? referenceFiles
-        : yield* listApiReferenceFiles(store.id)
+    const remoteFiles = (yield* Stream.runCollect(
+      stores.listFiles(store.id),
+    )).filter((file) => file.external_id?.startsWith("api-reference/"))
     const { changedFiles, staleFiles } = reconcileApiReferenceFiles<
       LocalFile,
       MixedbreadClient.Stores.StoreFile
-    >(overlay === undefined ? files : overlay.upload, remoteFiles, version)
+    >(files, remoteFiles, version)
     const unchanged = files.length - changedFiles.length
     yield* Effect.log(
       changedFiles.length === 0
@@ -150,13 +93,7 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
     yield* Effect.forEach(
       staleFiles,
       Effect.fnUntraced(function* (file) {
-        yield* Effect.tryPromise({
-          try: () =>
-            client.stores.files.delete(file.id, {
-              store_identifier: store.id,
-            }),
-          catch: (cause) => new FailedToDeleteError({ file, cause }),
-        })
+        yield* stores.deleteFile(store.id, file)
         yield* Effect.log(
           `Deleted stale API reference file: ${file.external_id}`,
         )
@@ -258,7 +195,6 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
       }),
       { concurrency: UPLOAD_CONCURRENCY },
     )
-    return overlay?.hidden ?? []
   },
 )
 import MixedbreadClient from "@mixedbread/sdk"
@@ -272,7 +208,6 @@ import {
   UPLOAD_CONCURRENCY,
 } from "./Config.ts"
 import {
-  FailedToDeleteError,
   FailedToIndexError,
   FileInProgressError,
   fileInProgressConflict,
