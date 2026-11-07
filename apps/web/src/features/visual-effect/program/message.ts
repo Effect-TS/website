@@ -39,5 +39,6 @@ export const Message = defineMessageUnion({
   FailedHighlightSnippet: { message: Schema.String },
   CompletedStartRun: {},
   CompletedStopRun: {},
+  CompletedAnimateNode: {},
 })
 export type Message = typeof Message.Type

@@ -1,4 +1,6 @@
+import { Array } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
+import { AnimateNode } from "../mount"
 import type { Message } from "../message"
 import type { RunState } from "../domain"
 import { octagonAlert, skull, sparkle } from "./icons"
@@ -33,9 +35,7 @@ const shadowClass = (state: RunState): string =>
     ? "shadow-[0_2px_4px_rgba(0,0,0,0.4),0_0_24px_rgba(59,130,246,0.2)]"
     : "shadow-[0_2px_4px_rgba(0,0,0,0.4)]"
 
-/** A node is as wide as its result, and 56px wide for everything else. */
-const widthClass = (state: RunState): string =>
-  state._tag === "Succeeded" ? "min-w-14 w-fit px-3" : "w-14"
+const SHIMMER_COUNT = 6
 
 const contentView = (state: RunState, h: Builder): Html => {
   switch (state._tag) {
@@ -61,22 +61,75 @@ const contentView = (state: RunState, h: Builder): Html => {
   }
 }
 
+const shimmerView = (index: number, h: Builder): Html =>
+  h.keyed("div")(
+    `shimmer-${index}`,
+    [
+      h.DataAttribute("node", "shimmer"),
+      h.Class(
+        "absolute top-0 bottom-0 left-0 w-[200%] mix-blend-lighten blur-xs bg-[linear-gradient(90deg,transparent_0%,transparent_40%,rgba(255,255,255,0.1)_45%,rgba(255,255,255,0.5)_50%,rgba(255,255,255,0.1)_55%,transparent_60%,transparent_100%)]",
+      ),
+      h.Style({ transform: "translateX(-66%)" }),
+    ],
+    [],
+  )
+
+/** The parts a Running node adds: a pulsing ring and a shimmer that sweeps over it. */
+const runningOverlay = (state: RunState, h: Builder): ReadonlyArray<Html> =>
+  state._tag === "Running"
+    ? [
+        h.keyed("div")(
+          "ring",
+          [
+            h.DataAttribute("node", "ring"),
+            h.Class(
+              "pointer-events-none absolute inset-0 rounded-lg ring-1 ring-[rgba(100,200,255,0.8)] ring-inset",
+            ),
+          ],
+          [],
+        ),
+        ...Array.makeBy(SHIMMER_COUNT, (index) => shimmerView(index, h)),
+      ]
+    : []
+
+/**
+ * A node. CSS gives it the colour, scale and opacity of its state. The Mount
+ * adds the springs, the jitter and the flash, and reads `data-state`.
+ */
 export const nodeView = (state: RunState, label: string, h: Builder): Html =>
   h.div(
-    [h.DataAttribute("state", state._tag)],
+    [h.DataAttribute("state", state._tag), h.OnMount(AnimateNode())],
     [
       h.div(
-        [h.Class("relative flex h-14 items-center justify-center")],
+        [
+          h.DataAttribute("node", "outer"),
+          h.Class("relative flex h-14 w-14 items-center justify-center"),
+        ],
         [
           h.div(
             [
+              h.DataAttribute("node", "container"),
               h.Class(
-                `relative h-14 cursor-auto overflow-hidden rounded-lg transition-[background-color,opacity,transform] duration-100 ${widthClass(state)} ${containerClass(state)} ${borderClass(state)} ${shadowClass(state)}`,
+                `relative h-14 w-14 cursor-auto overflow-hidden rounded-lg transition-[background-color,opacity,scale] duration-100 ${containerClass(state)} ${borderClass(state)} ${shadowClass(state)}`,
               ),
             ],
             [
-              h.div(
+              ...runningOverlay(state, h),
+              h.keyed("div")(
+                "flash",
                 [
+                  h.DataAttribute("node", "flash"),
+                  h.Class(
+                    "pointer-events-none absolute inset-0 bg-white/80 mix-blend-overlay",
+                  ),
+                  h.Style({ opacity: "0" }),
+                ],
+                [],
+              ),
+              h.keyed("div")(
+                "content",
+                [
+                  h.DataAttribute("node", "content"),
                   h.Class(
                     "absolute inset-0 flex items-center justify-center py-2 font-mono font-bold text-white",
                   ),

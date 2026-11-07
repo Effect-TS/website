@@ -279,4 +279,5 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     FailedHighlightSnippet: () => ({ model }),
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),
+    CompletedAnimateNode: () => ({ model }),
   })

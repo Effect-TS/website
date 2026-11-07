@@ -9,6 +9,7 @@ import {
   testId,
   text,
 } from "foldkit/scene"
+import { Option } from "effect"
 import { test } from "vite-plus/test"
 import {
   HighlightSnippet,
@@ -20,15 +21,55 @@ import {
   init,
   update,
 } from "../../../src/features/visual-effect/program/update.ts"
-import { MeasureWidth } from "../../../src/features/visual-effect/program/mount.ts"
+import {
+  AnimateNode,
+  MeasureWidth,
+} from "../../../src/features/visual-effect/program/mount.ts"
+import { findEntry } from "../../../src/features/visual-effect/program/catalog.ts"
 import { view } from "../../../src/features/visual-effect/program/view/index.ts"
 
 const start = init({ defaultLines: [] }).model
+
+const nodeCount = (key: string): number =>
+  Option.match(findEntry(key), {
+    onNone: () => 0,
+    onSome: ({ example }) => example.steps.length + 1,
+  })
+
+const mount = (count: number) =>
+  Array.from(
+    { length: count },
+    () => [AnimateNode, Message.CompletedAnimateNode()] as const,
+  )
+
+/** Every node of an example mounts its animation: the steps and the result. */
+const nodes = (key: string) => Mount.resolveAll(...mount(nodeCount(key)))
+
+/**
+ * Switching examples keeps the nodes both have, ends the ones that are gone and
+ * mounts the ones that are new.
+ */
+const switched = (from: string, to: string) => [
+  ...(nodeCount(from) > nodeCount(to)
+    ? [
+        Mount.expectEnded(
+          ...Array.from(
+            { length: nodeCount(from) - nodeCount(to) },
+            () => AnimateNode,
+          ),
+        ),
+      ]
+    : []),
+  ...(nodeCount(to) > nodeCount(from)
+    ? [Mount.resolveAll(...mount(nodeCount(to) - nodeCount(from)))]
+    : []),
+]
 
 test("a click on the header starts the example with its control values", () => {
   scene(
     { update, view },
     given(start),
+    nodes("concurrency/0"),
     click(role("button", { name: "Run Effect.all" })),
     Command.expectHas(
       StartRun({
@@ -45,6 +86,7 @@ test("a run shows its steps, and the header offers to stop it", () => {
   scene(
     { update, view },
     given(start),
+    nodes("concurrency/0"),
     click(role("button", { name: "Run Effect.all" })),
     Command.resolveAll([
       StartRun({
@@ -64,12 +106,14 @@ test("a tab changes the example", () => {
   scene(
     { update, view },
     given(start),
+    nodes("concurrency/0"),
     click(role("tab", { name: "Effect.race" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
+    ...switched("concurrency/0", "concurrency/1"),
     expect(role("button", { name: "Run Effect.race" })).toExist(),
     click(role("tab", { name: "Schedule" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
@@ -77,6 +121,7 @@ test("a tab changes the example", () => {
       HighlightSnippet,
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
+    ...switched("concurrency/1", "schedule/0"),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(role("button", { name: /Run Effect.retry/ })).toExist(),
   )
@@ -86,6 +131,7 @@ test("a control option changes the snippet", () => {
   scene(
     { update, view },
     given(start),
+    nodes("concurrency/0"),
     expect(text(/const result = Effect\.all\(\[nyc/)).toExist(),
     click(role("radio", { name: "unbounded" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
@@ -101,6 +147,7 @@ test("a schedule example shows a timeline and no finalizers", () => {
   scene(
     { update, view },
     given(start),
+    nodes("concurrency/0"),
     expect(testId("visual-effect-timeline")).toBeAbsent(),
     click(role("tab", { name: "Schedule" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
@@ -108,6 +155,7 @@ test("a schedule example shows a timeline and no finalizers", () => {
       HighlightSnippet,
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
+    ...switched("concurrency/0", "schedule/0"),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(testId("visual-effect-timeline")).toExist(),
     expect(testId("visual-effect-finalizers")).toBeAbsent(),
@@ -118,12 +166,14 @@ test("a scope example shows finalizers and no timeline", () => {
   scene(
     { update, view },
     given(start),
+    nodes("concurrency/0"),
     click(role("tab", { name: "Scope" })),
     Command.resolve(StopRun, Message.CompletedStopRun()),
     Command.resolve(
       HighlightSnippet,
       Message.FailedHighlightSnippet({ message: "none" }),
     ),
+    ...switched("concurrency/0", "scope/0"),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
     expect(testId("visual-effect-finalizers")).toExist(),
     expect(testId("visual-effect-timeline")).toBeAbsent(),

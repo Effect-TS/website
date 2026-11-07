@@ -1,5 +1,6 @@
 import { Effect, Queue, Stream } from "effect"
 import { Mount } from "foldkit"
+import { startAnimation } from "./animation"
 import { Message } from "./message"
 
 const widthStream = (element: Element) =>
@@ -31,4 +32,14 @@ const widthStream = (element: Element) =>
 export const MeasureWidth = Mount.defineStream("MeasureWidth", {
   messages: [Message.ChangedContainerWidth],
   execute: ({ element }) => widthStream(element),
+})
+
+/** Animates a node from its `data-state`. It lives as long as the node. */
+export const AnimateNode = Mount.define("AnimateNode", {
+  messages: [Message.CompletedAnimateNode],
+  execute: ({ element }) =>
+    Effect.acquireRelease(
+      Effect.sync(() => startAnimation(element as HTMLElement)),
+      (animation) => Effect.sync(() => animation.dispose()),
+    ).pipe(Effect.as(Message.CompletedAnimateNode())),
 })
