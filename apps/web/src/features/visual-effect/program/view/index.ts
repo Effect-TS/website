@@ -133,7 +133,10 @@ const surfaceView = (model: Model, h: Builder): Html =>
           snippetView(
             example.code.resolve(model.controls[key] ?? {}).source,
             model.maybeHighlighted,
-            model.maybeHighlightRect,
+            {
+              maybeRect: model.maybeHighlightRect,
+              isVisible: model.isHighlightVisible,
+            },
             h,
           ),
         ],

@@ -132,7 +132,7 @@ const reset = (model: Model): UpdateReturn => {
     finalizers: () => emptyFinalizerPanel,
     expiredNotifications: () => [],
     maybeHighlightTarget: () => Option.none(),
-    maybeHighlightRect: () => Option.none(),
+    isHighlightVisible: () => false,
   })
   return { model: next, commands: [StopRun(), ...highlightCommands(next)] }
 }
@@ -425,7 +425,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         ? {
             model: modifyFields(model, {
               maybeHighlightTarget: () => Option.none(),
-              maybeHighlightRect: () => Option.none(),
+              isHighlightVisible: () => false,
             }),
           }
         : { model },
@@ -438,7 +438,9 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       Option.isSome(model.maybeHighlightTarget)
         ? {
             model: modifyFields(model, {
-              maybeHighlightRect: () => maybeRect,
+              maybeHighlightRect: (last) =>
+                Option.orElse(maybeRect, () => last),
+              isHighlightVisible: () => Option.isSome(maybeRect),
             }),
           }
         : { model },
@@ -458,4 +460,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     CompletedStopRun: () => ({ model }),
     CompletedAnimateNode: () => ({ model }),
     CompletedAnimateHeader: () => ({ model }),
+    CompletedShakeBubble: () => ({ model }),
+    CompletedAnimateFinalizerCard: () => ({ model }),
+    CompletedAnimateHighlight: () => ({ model }),
+    CompletedPulseChevrons: () => ({ model }),
   })

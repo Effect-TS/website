@@ -26,6 +26,7 @@ import {
   AnimateHeader,
   AnimateNode,
   MeasureWidth,
+  PulseChevrons,
   ScrollStrip,
 } from "../../../src/features/visual-effect/program/mount.ts"
 import { findEntry } from "../../../src/features/visual-effect/program/catalog.ts"
@@ -208,6 +209,7 @@ test("a scope example shows finalizers and no timeline", () => {
     ),
     ...switched("concurrency/0", "scope/0"),
     Mount.resolve(MeasureWidth, Message.ChangedContainerWidth({ width: 800 })),
+    Mount.resolve(PulseChevrons, Message.CompletedPulseChevrons()),
     expect(testId("visual-effect-finalizers")).toExist(),
     expect(testId("visual-effect-timeline")).toBeAbsent(),
   )

@@ -421,7 +421,7 @@ test("the mark goes when its timer is the last one", () => {
     ),
     model((current) => {
       expect(current.maybeHighlightTarget).toEqual(Option.none())
-      expect(current.maybeHighlightRect).toEqual(Option.none())
+      expect(current.isHighlightVisible).toBe(false)
     }),
   )
 })
@@ -434,6 +434,7 @@ test("a measure that comes back after the mark went is dropped", () => {
     }),
   ).model
   expect(measured.maybeHighlightRect).toEqual(Option.none())
+  expect(measured.isHighlightVisible).toBe(false)
 })
 
 test("a notification starts its timer, and expires into the list", () => {

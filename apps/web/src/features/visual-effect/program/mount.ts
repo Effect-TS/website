@@ -1,6 +1,12 @@
-import { Effect, Queue, Stream } from "effect"
+import { Effect, Queue, Schema, Stream } from "effect"
 import { Mount } from "foldkit"
 import { startAnimation } from "./animation"
+import { startBubbleShake } from "./bubble-animation"
+import {
+  startCardAnimation,
+  startChevronPulse,
+  startHighlightAnimation,
+} from "./layout-animation"
 import { startHeaderAnimation } from "./header-animation"
 import { Message } from "./message"
 import { Strip } from "./model"
@@ -147,4 +153,45 @@ export const AnimateHeader = Mount.define("AnimateHeader", {
       Effect.sync(() => startHeaderAnimation(element as HTMLElement)),
       (animation) => Effect.sync(() => animation.dispose()),
     ).pipe(Effect.as(Message.CompletedAnimateHeader())),
+})
+
+/** Shakes a failure or death bubble when it appears. */
+export const ShakeBubble = Mount.define("ShakeBubble", {
+  args: { tone: Schema.Literals(["failure", "death"]) },
+  messages: [Message.CompletedShakeBubble],
+  execute: ({ element, tone }) =>
+    Effect.acquireRelease(
+      Effect.sync(() => startBubbleShake(element as HTMLElement, tone)),
+      (stop) => Effect.sync(stop),
+    ).pipe(Effect.as(Message.CompletedShakeBubble())),
+})
+
+/** Slides a finalizer card to its place with a spring, and pulses it while it runs. */
+export const AnimateFinalizerCard = Mount.define("AnimateFinalizerCard", {
+  messages: [Message.CompletedAnimateFinalizerCard],
+  execute: ({ element }) =>
+    Effect.acquireRelease(
+      Effect.sync(() => startCardAnimation(element as HTMLElement)),
+      (stop) => Effect.sync(stop),
+    ).pipe(Effect.as(Message.CompletedAnimateFinalizerCard())),
+})
+
+/** Slides the highlight box along the code with a spring. */
+export const AnimateHighlight = Mount.define("AnimateHighlight", {
+  messages: [Message.CompletedAnimateHighlight],
+  execute: ({ element }) =>
+    Effect.acquireRelease(
+      Effect.sync(() => startHighlightAnimation(element as HTMLElement)),
+      (stop) => Effect.sync(stop),
+    ).pipe(Effect.as(Message.CompletedAnimateHighlight())),
+})
+
+/** Pulses the chevrons of the finalizer panel. */
+export const PulseChevrons = Mount.define("PulseChevrons", {
+  messages: [Message.CompletedPulseChevrons],
+  execute: ({ element }) =>
+    Effect.acquireRelease(
+      Effect.sync(() => startChevronPulse(element as HTMLElement)),
+      (stop) => Effect.sync(stop),
+    ).pipe(Effect.as(Message.CompletedPulseChevrons())),
 })

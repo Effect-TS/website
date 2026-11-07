@@ -1,6 +1,6 @@
 import { Array, Option } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
-import { AnimateNode } from "../mount"
+import { AnimateNode, ShakeBubble } from "../mount"
 import { Message } from "../message"
 import type { Notification, NodeTarget, RunState } from "../domain"
 import { notificationOf } from "../domain"
@@ -151,9 +151,11 @@ export const glitchText = (notification: Notification): string => {
 }
 
 const bubbleView = (notification: Notification, tone: Tone, h: Builder): Html =>
-  h.div(
+  h.keyed("div")(
+    `bubble-${notification.id}`,
     [
       h.Role("status"),
+      ...(tone === "info" ? [] : [h.OnMount(ShakeBubble({ tone }))]),
       h.Class(
         `pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 max-w-[220px] -translate-x-1/2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap ${bubbleClass(tone)}`,
       ),

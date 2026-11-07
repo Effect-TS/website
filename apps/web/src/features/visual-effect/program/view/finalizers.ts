@@ -6,7 +6,7 @@ import {
   layoutFinalizers,
   type FinalizerLayout,
 } from "../finalizers"
-import { MeasureWidth } from "../mount"
+import { AnimateFinalizerCard, MeasureWidth, PulseChevrons } from "../mount"
 import type { Message } from "../message"
 import type { Model } from "../model"
 import {
@@ -86,15 +86,17 @@ const cardView = (
   h.keyed("div")(
     entry.id,
     [
-      h.Class("absolute top-[18px] transition-transform duration-500 ease-out"),
-      h.Style({
-        zIndex: String(zIndex),
-        transform: `translateX(${x}px) scale(${isRunning ? 1.05 : 1})`,
-      }),
+      h.OnMount(AnimateFinalizerCard()),
+      h.DataAttribute("x", String(x)),
+      h.DataAttribute("scale", String(isRunning ? 1.05 : 1)),
+      h.DataAttribute("phase", entry.phase),
+      h.Class("absolute top-[18px]"),
+      h.Style({ zIndex: String(zIndex) }),
     ],
     [
       h.div(
         [
+          h.DataAttribute("layout", "card"),
           h.Class(
             `relative flex h-[52px] items-center gap-3 rounded-lg border px-4 py-3 shadow-lg shadow-black/40 ${cardClass(entry.phase)}`,
           ),
@@ -107,7 +109,49 @@ const cardView = (
                 `relative flex size-6 items-center justify-center rounded border ${iconClass(entry.phase)}`,
               ),
             ],
-            [phaseIcon(entry.phase, h)],
+            [
+              ...(entry.phase === "Running"
+                ? [
+                    h.div(
+                      [
+                        h.DataAttribute("layout", "icon-pulse"),
+                        h.Class("absolute inset-0 rounded"),
+                        h.Style({
+                          background:
+                            "radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, transparent 70%)",
+                          opacity: "0.35",
+                        }),
+                      ],
+                      [],
+                    ),
+                  ]
+                : []),
+              phaseIcon(entry.phase, h),
+            ],
+          ),
+          ...(entry.phase === "Running"
+            ? [
+                h.div(
+                  [
+                    h.DataAttribute("layout", "card-pulse"),
+                    h.Class("pointer-events-none absolute inset-0 rounded-lg"),
+                    h.Style({
+                      opacity: "0",
+                      background:
+                        "radial-gradient(ellipse at center, rgba(59, 130, 246, 0.18) 0%, transparent 70%)",
+                    }),
+                  ],
+                  [],
+                ),
+              ]
+            : []),
+          h.div(
+            [
+              h.DataAttribute("layout", "flash"),
+              h.Class("pointer-events-none absolute inset-0 rounded-lg"),
+              h.Style({ opacity: "0" }),
+            ],
+            [],
           ),
           h.div(
             [h.Class("relative z-10 min-w-0")],
@@ -134,8 +178,9 @@ const chevronRow = (h: Builder): Html =>
       h.keyed("span")(
         `chevron-${index}`,
         [
-          h.Class("animate-pulse"),
-          h.Style({ animationDelay: `${index * 150}ms` }),
+          h.DataAttribute("layout", "chevron"),
+          h.DataAttribute("index", String(index)),
+          h.Style({ opacity: "0.2" }),
         ],
         [chevronRight(h, { className: "size-4", strokeWidth: "2.5" })],
       ),
@@ -159,6 +204,7 @@ export const finalizersView = (model: Model, h: Builder): Html =>
         [
           h.div(
             [
+              h.OnMount(PulseChevrons()),
               h.Class(
                 "absolute inset-0 flex items-center justify-center text-neutral-700",
               ),

@@ -3,6 +3,7 @@ import type { Html, HtmlBuilder } from "foldkit/html"
 import type { HighlightRect } from "../domain"
 import type { StyledLines } from "../highlight"
 import { SNIPPET_ID } from "../measure"
+import { AnimateHighlight } from "../mount"
 import type { Message } from "../message"
 
 type Builder = HtmlBuilder<Message>
@@ -47,7 +48,10 @@ export const snippetView = (
     readonly source: string
     readonly lines: StyledLines
   }>,
-  maybeRect: Option.Option<HighlightRect>,
+  highlight: {
+    readonly maybeRect: Option.Option<HighlightRect>
+    readonly isVisible: boolean
+  },
   h: Builder,
 ): Html =>
   h.div(
@@ -66,20 +70,22 @@ export const snippetView = (
                 ? tokensView(shown.lines, h)
                 : plainView(source, h),
           }),
-          Option.match(maybeRect, {
+          Option.match(highlight.maybeRect, {
             onNone: () => h.empty,
             onSome: (rect) =>
               h.div(
                 [
                   h.AriaHidden(true),
+                  h.OnMount(AnimateHighlight()),
+                  h.DataAttribute("x", String(rect.x)),
+                  h.DataAttribute("y", String(rect.y)),
+                  h.DataAttribute("width", String(rect.width)),
+                  h.DataAttribute("height", String(rect.height)),
+                  h.DataAttribute("visible", String(highlight.isVisible)),
                   h.Class(
-                    "pointer-events-none absolute top-0 left-0 z-10 rounded-md border border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] shadow-[0_0_14px_rgba(56,189,248,0.3)] transition-[transform,width,height] duration-200 ease-out",
+                    "pointer-events-none absolute top-0 left-0 z-10 rounded-md border border-[rgba(56,189,248,0.6)] bg-[rgba(56,189,248,0.15)] shadow-[0_0_14px_rgba(56,189,248,0.3)]",
                   ),
-                  h.Style({
-                    transform: `translate(${rect.x}px, ${rect.y}px)`,
-                    width: `${rect.width}px`,
-                    height: `${rect.height}px`,
-                  }),
+                  h.Style({ opacity: "0" }),
                 ],
                 [],
               ),

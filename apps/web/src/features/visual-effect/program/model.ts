@@ -67,7 +67,9 @@ export const Model = Schema.Struct({
   maybeHighlightTarget: Schema.Option(NodeTarget),
   /** Counts pointer moves, so an old hide timer cannot hide a newer highlight. */
   hoverToken: Schema.Number,
+  /** The last box measured. It stays after the mark goes, so it can fade out. */
   maybeHighlightRect: Schema.Option(HighlightRect),
+  isHighlightVisible: Schema.Boolean,
   /** Notifications whose time is up. */
   expiredNotifications: Schema.Array(Schema.Number),
   /** Width of the panel on show, in px. The browser measures it after hydration. */
@@ -106,6 +108,7 @@ export const initialModel: Model = {
   maybeHighlightTarget: Option.none(),
   hoverToken: 0,
   maybeHighlightRect: Option.none(),
+  isHighlightVisible: false,
   expiredNotifications: [],
   containerWidth: 0,
   notificationCount: 0,
