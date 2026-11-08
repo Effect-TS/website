@@ -1,4 +1,4 @@
-import { settle, start, withNotification } from "./run.ts"
+import { settle, start } from "./run.ts"
 import { Option } from "effect"
 import { expect, test } from "vite-plus/test"
 import {

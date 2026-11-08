@@ -10,7 +10,6 @@ import {
   WaitHighlightDelay,
   WaitNotification,
 } from "../../../src/features/visual-effect/program/command.ts"
-import { ChangeBubble } from "../../../src/features/visual-effect/program/targets/bubble.ts"
 import { ChangeHeader } from "../../../src/features/visual-effect/program/targets/header.ts"
 import { ChangeHighlight } from "../../../src/features/visual-effect/program/targets/highlight.ts"
 import { ChangeNode } from "../../../src/features/visual-effect/program/targets/node.ts"
@@ -46,10 +45,6 @@ const nodeMoved = Command.resolve(ChangeNode, Message.CompletedChangeNode())
 const highlightMoved = Command.resolve(
   ChangeHighlight,
   Message.CompletedChangeHighlight(),
-)
-const bubbleMoved = Command.resolve(
-  ChangeBubble,
-  Message.CompletedChangeBubble(),
 )
 
 const HIGHLIGHT_FAILED = Message.FailedHighlightSnippet({ message: "none" })

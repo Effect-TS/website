@@ -6,6 +6,7 @@ import {
   given,
   keydown,
   role,
+  Subscription,
   scene,
   testId,
   text,
@@ -133,18 +134,21 @@ test("a run shows its steps, and the header offers to stop it", () => {
     strips,
     nodes("concurrency/0"),
     click(role("button", { name: "Run Effect.all" })),
-    Command.resolveAll([
-      StartRun({
-        runId: 0,
-        key: "concurrency/0",
-        controls: { concurrency: "sequential" },
-      }),
-      Message.StartedRun({ runId: 0, at: 100 }),
-    ]),
-    Command.resolve(
-      ChangeHeader({ tag: "Idle", hasInteracted: true, pointer: "Away" }),
-      Message.CompletedChangeHeader(),
+    Command.resolveAll(
+      [
+        StartRun({
+          runId: 0,
+          key: "concurrency/0",
+          controls: { concurrency: "sequential" },
+        }),
+        Message.CompletedStartRun(),
+      ],
+      [
+        ChangeHeader({ tag: "Idle", hasInteracted: true, pointer: "Away" }),
+        Message.CompletedChangeHeader(),
+      ],
     ),
+    Subscription.emit(Message.StartedRun({ runId: 0, at: 100 })),
     Command.resolve(
       ChangeHeader({ tag: "Running", hasInteracted: true, pointer: "Away" }),
       Message.CompletedChangeHeader(),

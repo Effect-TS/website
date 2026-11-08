@@ -91,7 +91,7 @@ test("a run reports the steps its example declares", async () => {
       message._tag === "StartedStep" ? [message.stepIndex] : [],
     ),
   )
-  expect([...indexes].sort()).toEqual([0, 1, 2, 3])
+  expect([...indexes].sort((a, b) => a - b)).toEqual([0, 1, 2, 3])
 })
 
 test("an example that never ends reports an interrupt when it is stopped", async () => {
