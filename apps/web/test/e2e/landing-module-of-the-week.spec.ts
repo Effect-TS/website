@@ -46,7 +46,7 @@ const expectToOpen = async (
   })
 }
 
-test("desktop features the latest module beside the four before it", async ({
+test("desktop features the latest module above the four before it", async ({
   page,
 }) => {
   const section = await open(page, desktop)
@@ -62,35 +62,26 @@ test("desktop features the latest module beside the four before it", async ({
   await expect(articles).toHaveCount(5)
   const featured = articles.first()
   const recent = await articles.all().then((all) => all.slice(1))
+  const featuredBox = await box(featured)
+  const recentBoxes = await Promise.all(recent.map(box))
+  const right = ({ x, width }: { x: number; width: number }) => x + width
+  const gridRight = Math.max(...[featuredBox, ...recentBoxes].map(right))
 
   // "All modules" sits on the heading's row, flush with the grid's right edge.
   const headingBox = await box(heading)
   const buttonBox = await box(allModules)
-  const lastRecentBox = await box(recent[3]!)
-  expect(buttonBox.x).toBeGreaterThan(headingBox.x + headingBox.width)
+  expect(buttonBox.x).toBeGreaterThan(right(headingBox))
   expect(buttonBox.y).toBeLessThan(headingBox.y + headingBox.height)
   expect(buttonBox.y + buttonBox.height).toBeGreaterThan(headingBox.y)
-  expect(
-    Math.abs(
-      buttonBox.x + buttonBox.width - (lastRecentBox.x + lastRecentBox.width),
-    ),
-  ).toBeLessThanOrEqual(2)
+  expect(Math.abs(right(buttonBox) - gridRight)).toBeLessThanOrEqual(2)
 
-  // Two columns: the featured module on the left, the rest stacked on the right.
-  const featuredBox = await box(featured)
-  for (const article of recent) {
-    const rect = await box(article)
-    expect(rect.x).toBeGreaterThanOrEqual(featuredBox.x + featuredBox.width)
+  // The featured module spans the grid; the four before it are listed below.
+  expect(Math.abs(right(featuredBox) - gridRight)).toBeLessThanOrEqual(2)
+  for (const rect of recentBoxes) {
+    expect(rect.y).toBeGreaterThanOrEqual(
+      featuredBox.y + featuredBox.height - 2,
+    )
   }
-  const firstRecentBox = await box(recent[0]!)
-  expect(Math.abs(firstRecentBox.y - featuredBox.y)).toBeLessThanOrEqual(2)
-  expect(
-    Math.abs(
-      lastRecentBox.y +
-        lastRecentBox.height -
-        (featuredBox.y + featuredBox.height),
-    ),
-  ).toBeLessThanOrEqual(2)
 
   // Newest first, numbered consecutively.
   const latest = await entryNumber(featured)
