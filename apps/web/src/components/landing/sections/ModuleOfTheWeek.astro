@@ -9,7 +9,7 @@ const recent = older.slice(0, 4)
 // Every module is a card that opens its blog post: `ModuleSummary` stretches
 // the Blog post link over the card, so each card must be positioned.
 const cardClass =
-  "group/card relative flex min-w-0 flex-col bg-zinc-950 transition-colors hover:bg-zinc-900/60 has-[a:focus-visible]:bg-zinc-900/60"
+  "group/card relative flex min-w-0 flex-col gap-4 bg-zinc-950 p-5 transition-colors hover:bg-zinc-900/60 has-[a:focus-visible]:bg-zinc-900/60 lg:px-6"
 ---
 
 {
@@ -43,19 +43,14 @@ const cardClass =
             />
           </a>
         </div>
-        <div
-          class:list={[
-            "mt-12 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800",
-            recent.length > 0 && "lg:grid-cols-2",
-          ]}
-        >
-          <article class:list={[cardClass, "justify-between gap-10 p-6 lg:gap-12 lg:p-8"]}>
+        <div class="mt-12 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800">
+          <article class:list={[cardClass, "lg:py-6"]}>
             <ModuleSummary module={latest} featured />
           </article>
           {recent.length > 0 && (
-            <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 lg:auto-rows-fr">
+            <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 md:grid-cols-2 lg:grid-cols-4">
               {recent.map((module) => (
-                <article class:list={[cardClass, "justify-between gap-3 p-5 lg:px-6"]}>
+                <article class:list={[cardClass, "justify-between"]}>
                   <ModuleSummary module={module} />
                 </article>
               ))}
