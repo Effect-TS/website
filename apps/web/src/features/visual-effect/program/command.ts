@@ -69,9 +69,3 @@ export const MeasureHighlight = Command.define("MeasureHighlight", {
       Effect.map((maybeRect) => Message.MeasuredHighlight({ maybeRect })),
     ),
 })
-
-export { ChangeNode } from "./targets/node"
-export { ChangeBubble } from "./targets/bubble"
-export { ChangeHighlight } from "./targets/highlight"
-export { ChangeHeader } from "./targets/header"
-export { ChangeCard } from "./targets/card"

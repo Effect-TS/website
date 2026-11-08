@@ -1,12 +1,5 @@
 import { Array, Option, Record } from "effect"
 import {
-  ChangeBubble,
-  ChangeCard,
-  ChangeHeader,
-  ChangeHighlight,
-  ChangeNode,
-} from "./command"
-import {
   idle,
   isNotificationVisible,
   notificationOf,
@@ -19,8 +12,11 @@ import { findEntry, stepKeyOf } from "./catalog"
 import { layoutFinalizers } from "./finalizers"
 import type { Model } from "./model"
 import { RESULT_ID } from "./motion"
-import { CardKey } from "./targets/card"
-import { NodeKey } from "./targets/node"
+import { BubbleKey, ChangeBubble } from "./targets/bubble"
+import { CardKey, ChangeCard } from "./targets/card"
+import { ChangeHeader } from "./targets/header"
+import { ChangeHighlight } from "./targets/highlight"
+import { ChangeNode, NodeKey } from "./targets/node"
 
 type Commands = ReadonlyArray<
   | ReturnType<typeof ChangeBubble>
@@ -159,7 +155,7 @@ const bubbleCommands = (previous: Model, next: Model): Commands => {
           was,
           (old) => isShown(previous, target, old) !== isVisible,
         )
-          ? [ChangeBubble({ id: notification.id, isVisible })]
+          ? [ChangeBubble({ id: BubbleKey.make(notification.id), isVisible })]
           : []
       },
     }),

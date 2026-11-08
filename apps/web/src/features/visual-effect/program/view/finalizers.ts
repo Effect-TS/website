@@ -7,8 +7,8 @@ import {
   type FinalizerLayout,
 } from "../finalizers"
 import { cardScale } from "../motion-commands"
-import { AnimateFinalizerCard, MeasureWidth, PulseChevrons } from "../mount"
-import { CardKey } from "../targets/card"
+import { MeasureWidth, PulseChevrons } from "../mount"
+import { AnimateFinalizerCard, CardKey } from "../targets/card"
 import type { Message } from "../message"
 import type { Model } from "../model"
 import {

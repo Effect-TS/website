@@ -33,10 +33,10 @@ export const AnimateHeader = Mount.define("AnimateHeader", {
 /** Gives the play, stop and reset button its new state. */
 export const ChangeHeader = Command.define("ChangeHeader", {
   args: input,
-  messages: [Message.CompletedAnimateHeader],
+  messages: [Message.CompletedChangeHeader],
   execute: (next) =>
     afterRender.pipe(
       Effect.andThen(Effect.sync(() => slot.send(next))),
-      Effect.as(Message.CompletedAnimateHeader()),
+      Effect.as(Message.CompletedChangeHeader()),
     ),
 })

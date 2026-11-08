@@ -5,13 +5,16 @@ import { Message } from "../message"
 import { afterRender } from "../motion"
 import { acquireDriver, makeTable } from "../target"
 
+export const BubbleKey = Schema.Number.pipe(Schema.brand("BubbleKey"))
+export type BubbleKey = typeof BubbleKey.Type
+
 // NOTE: Module state on purpose. A Mount fills it and a Command reads it. See `target.ts`.
-const table = makeTable<number, boolean>()
+const table = makeTable<BubbleKey, boolean>()
 
 /** Starts the shake of a failure or death bubble. A Command tells it when the bubble shows or hides. */
 export const ShakeBubble = Mount.define("ShakeBubble", {
   args: {
-    id: Schema.Number,
+    id: BubbleKey,
     isVisible: Schema.Boolean,
   },
   messages: [Message.CompletedShakeBubble],
@@ -25,11 +28,11 @@ export const ShakeBubble = Mount.define("ShakeBubble", {
 
 /** Shows or hides the shake of a bubble. */
 export const ChangeBubble = Command.define("ChangeBubble", {
-  args: { id: Schema.Number, isVisible: Schema.Boolean },
-  messages: [Message.CompletedShakeBubble],
+  args: { id: BubbleKey, isVisible: Schema.Boolean },
+  messages: [Message.CompletedChangeBubble],
   execute: ({ id, isVisible }) =>
     afterRender.pipe(
       Effect.andThen(Effect.sync(() => table.send(id, isVisible))),
-      Effect.as(Message.CompletedShakeBubble()),
+      Effect.as(Message.CompletedChangeBubble()),
     ),
 })

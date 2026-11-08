@@ -3,10 +3,6 @@ import { Option } from "effect"
 import { Command, given, message, model, story } from "foldkit/story"
 import { expect, test } from "vite-plus/test"
 import {
-  ChangeBubble,
-  ChangeHeader,
-  ChangeHighlight,
-  ChangeNode,
   HighlightSnippet,
   MeasureHighlight,
   StartRun,
@@ -14,6 +10,10 @@ import {
   WaitHighlightDelay,
   WaitNotification,
 } from "../../../src/features/visual-effect/program/command.ts"
+import { ChangeBubble } from "../../../src/features/visual-effect/program/targets/bubble.ts"
+import { ChangeHeader } from "../../../src/features/visual-effect/program/targets/header.ts"
+import { ChangeHighlight } from "../../../src/features/visual-effect/program/targets/highlight.ts"
+import { ChangeNode } from "../../../src/features/visual-effect/program/targets/node.ts"
 import { allExample } from "../../../src/features/visual-effect/catalog/effect-all.tsx"
 import { Message } from "../../../src/features/visual-effect/program/message.ts"
 import {
@@ -40,16 +40,16 @@ const focused = Command.resolve(
 
 const headerMoved = Command.resolve(
   ChangeHeader,
-  Message.CompletedAnimateHeader(),
+  Message.CompletedChangeHeader(),
 )
-const nodeMoved = Command.resolve(ChangeNode, Message.CompletedAnimateNode())
+const nodeMoved = Command.resolve(ChangeNode, Message.CompletedChangeNode())
 const highlightMoved = Command.resolve(
   ChangeHighlight,
-  Message.CompletedAnimateHighlight(),
+  Message.CompletedChangeHighlight(),
 )
 const bubbleMoved = Command.resolve(
   ChangeBubble,
-  Message.CompletedShakeBubble(),
+  Message.CompletedChangeBubble(),
 )
 
 const HIGHLIGHT_FAILED = Message.FailedHighlightSnippet({ message: "none" })

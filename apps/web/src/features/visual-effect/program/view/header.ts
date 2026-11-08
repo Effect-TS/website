@@ -5,7 +5,7 @@ import type { ExampleDefinition } from "../../model/example-definition"
 import { canReset, type RunState } from "../domain"
 import { Message } from "../message"
 import type { Pointer } from "../motion"
-import { AnimateHeader } from "../mount"
+import { AnimateHeader } from "../targets/header"
 import { play, rotateCcw, square } from "./icons"
 
 type Builder = HtmlBuilder<Message>

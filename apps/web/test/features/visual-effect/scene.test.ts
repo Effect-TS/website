@@ -14,8 +14,6 @@ import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Option } from "effect"
 import { test } from "vite-plus/test"
 import {
-  ChangeHeader,
-  ChangeNode,
   HighlightSnippet,
   StartRun,
   StopRun,
@@ -26,12 +24,18 @@ import {
   update,
 } from "../../../src/features/visual-effect/program/update.ts"
 import {
-  AnimateHeader,
-  AnimateNode,
   MeasureWidth,
   PulseChevrons,
   ScrollStrip,
 } from "../../../src/features/visual-effect/program/mount.ts"
+import {
+  AnimateHeader,
+  ChangeHeader,
+} from "../../../src/features/visual-effect/program/targets/header.ts"
+import {
+  AnimateNode,
+  ChangeNode,
+} from "../../../src/features/visual-effect/program/targets/node.ts"
 import { findEntry } from "../../../src/features/visual-effect/program/catalog.ts"
 import { view } from "../../../src/features/visual-effect/program/view/index.ts"
 
@@ -45,9 +49,9 @@ const tabFocused = Command.resolve(
 
 const headerMoved = Command.resolve(
   ChangeHeader,
-  Message.CompletedAnimateHeader(),
+  Message.CompletedChangeHeader(),
 )
-const nodeMoved = Command.resolve(ChangeNode, Message.CompletedAnimateNode())
+const nodeMoved = Command.resolve(ChangeNode, Message.CompletedChangeNode())
 
 /** A click on an option moves focus to it. The Command answers with the group's own Message. */
 const optionFocused = Command.resolve(
@@ -139,11 +143,11 @@ test("a run shows its steps, and the header offers to stop it", () => {
     ]),
     Command.resolve(
       ChangeHeader({ tag: "Idle", hasInteracted: true, pointer: "Away" }),
-      Message.CompletedAnimateHeader(),
+      Message.CompletedChangeHeader(),
     ),
     Command.resolve(
       ChangeHeader({ tag: "Running", hasInteracted: true, pointer: "Away" }),
-      Message.CompletedAnimateHeader(),
+      Message.CompletedChangeHeader(),
     ),
     nodeMoved,
     expect(role("button", { name: "Stop Effect.all" })).toExist(),

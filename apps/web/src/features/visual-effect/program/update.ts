@@ -478,10 +478,15 @@ const updateModel = (model: Model, message: Message): UpdateReturn =>
     CompletedStartRun: () => ({ model }),
     CompletedStopRun: () => ({ model }),
     CompletedAnimateNode: () => ({ model }),
+    CompletedChangeNode: () => ({ model }),
     CompletedAnimateHeader: () => ({ model }),
+    CompletedChangeHeader: () => ({ model }),
     CompletedShakeBubble: () => ({ model }),
+    CompletedChangeBubble: () => ({ model }),
     CompletedAnimateFinalizerCard: () => ({ model }),
+    CompletedChangeCard: () => ({ model }),
     CompletedAnimateHighlight: () => ({ model }),
+    CompletedChangeHighlight: () => ({ model }),
     CompletedPulseChevrons: () => ({ model }),
   })
 

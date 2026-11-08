@@ -72,9 +72,3 @@ export const PulseChevrons = Mount.define("PulseChevrons", {
       (stop) => Effect.sync(stop),
     ).pipe(Effect.as(Message.CompletedPulseChevrons())),
 })
-
-export { AnimateNode } from "./targets/node"
-export { AnimateHeader } from "./targets/header"
-export { ShakeBubble } from "./targets/bubble"
-export { AnimateHighlight } from "./targets/highlight"
-export { AnimateFinalizerCard } from "./targets/card"

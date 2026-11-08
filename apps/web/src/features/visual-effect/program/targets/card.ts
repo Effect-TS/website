@@ -38,10 +38,10 @@ export const AnimateFinalizerCard = Mount.define("AnimateFinalizerCard", {
 /** Moves a finalizer card to its new place and phase. */
 export const ChangeCard = Command.define("ChangeCard", {
   args: input,
-  messages: [Message.CompletedAnimateFinalizerCard],
+  messages: [Message.CompletedChangeCard],
   execute: ({ id, ...next }) =>
     afterRender.pipe(
       Effect.andThen(Effect.sync(() => table.send(id, next))),
-      Effect.as(Message.CompletedAnimateFinalizerCard()),
+      Effect.as(Message.CompletedChangeCard()),
     ),
 })

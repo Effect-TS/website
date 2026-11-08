@@ -34,10 +34,10 @@ export const AnimateHighlight = Mount.define("AnimateHighlight", {
 /** Moves the highlight box to its new target, or fades it. */
 export const ChangeHighlight = Command.define("ChangeHighlight", {
   args: input,
-  messages: [Message.CompletedAnimateHighlight],
+  messages: [Message.CompletedChangeHighlight],
   execute: (next) =>
     afterRender.pipe(
       Effect.andThen(Effect.sync(() => slot.send(next))),
-      Effect.as(Message.CompletedAnimateHighlight()),
+      Effect.as(Message.CompletedChangeHighlight()),
     ),
 })

@@ -3,7 +3,7 @@ import type { Html, HtmlBuilder } from "foldkit/html"
 import type { HighlightRect } from "../domain"
 import type { StyledLines } from "../highlight"
 import { SNIPPET_ID } from "../measure"
-import { AnimateHighlight } from "../mount"
+import { AnimateHighlight } from "../targets/highlight"
 import type { Message } from "../message"
 
 type Builder = HtmlBuilder<Message>

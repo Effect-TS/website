@@ -30,10 +30,10 @@ export const AnimateNode = Mount.define("AnimateNode", {
 /** Moves a node to its new state. */
 export const ChangeNode = Command.define("ChangeNode", {
   args: input,
-  messages: [Message.CompletedAnimateNode],
+  messages: [Message.CompletedChangeNode],
   execute: ({ id, tag }) =>
     afterRender.pipe(
       Effect.andThen(Effect.sync(() => table.send(id, tag))),
-      Effect.as(Message.CompletedAnimateNode()),
+      Effect.as(Message.CompletedChangeNode()),
     ),
 })

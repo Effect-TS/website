@@ -1,5 +1,7 @@
+import { Effect } from "effect"
 import { expect, test } from "vite-plus/test"
 import {
+  acquireDriver,
   makeSlot,
   makeTable,
 } from "../../../src/features/visual-effect/program/target.ts"
@@ -49,4 +51,22 @@ test("an old driver does not remove the driver that replaced it", () => {
   removeOld()
   table.send("a", 1)
   expect(seen).toEqual(["new:1"])
+})
+
+test("acquireDriver registers the driver, then removes and disposes it on release", async () => {
+  const seen: Array<string> = []
+  const slot = makeSlot<number>()
+  const driver = {
+    apply: (input: number) => seen.push(`apply:${input}`),
+    dispose: () => seen.push("dispose"),
+  }
+  await Effect.runPromise(
+    Effect.scoped(
+      acquireDriver({} as Element, () => driver, slot.register).pipe(
+        Effect.tap(() => Effect.sync(() => slot.send(1))),
+      ),
+    ),
+  )
+  slot.send(2)
+  expect(seen).toEqual(["apply:1", "dispose"])
 })
