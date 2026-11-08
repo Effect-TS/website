@@ -1,9 +1,12 @@
 import { settle, start, withNotification } from "./run.ts"
+import { Option } from "effect"
 import { expect, test } from "vite-plus/test"
 import {
   describe,
   idle,
   isNotificationVisible,
+  isShownOn,
+  type NodeTarget,
 } from "../../../src/features/visual-effect/program/domain.ts"
 import { glitchText } from "../../../src/features/visual-effect/program/view/node.ts"
 import { EXAMPLES_CATALOG } from "../../../src/features/visual-effect/catalog/index.ts"
@@ -84,6 +87,21 @@ test("a notification shows until it expires, and comes back on hover only when i
   expect(
     isNotificationVisible({ ...notification, showOnHover: true }, [3], false),
   ).toBe(false)
+})
+
+test("hovering a node brings back its own expired notification only", () => {
+  const hoverable = { ...notification, showOnHover: true }
+  const model = (hovered: boolean) => ({
+    expiredNotifications: [3],
+    maybeHovered: hovered
+      ? Option.some<NodeTarget>({ _tag: "Result" })
+      : Option.none<NodeTarget>(),
+  })
+  expect(isShownOn(model(true), { _tag: "Result" }, hoverable)).toBe(true)
+  expect(isShownOn(model(false), { _tag: "Result" }, hoverable)).toBe(false)
+  expect(isShownOn(model(true), { _tag: "Step", index: 0 }, hoverable)).toBe(
+    false,
+  )
 })
 
 test("a death notification garbles the same way every time, and between 6 and 16 characters", () => {

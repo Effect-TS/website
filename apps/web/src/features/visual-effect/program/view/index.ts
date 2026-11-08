@@ -5,31 +5,18 @@ import { controlValueOf, findEntry } from "../catalog"
 import { Message } from "../message"
 import { controlGroupId, controlGroupKey, type Model } from "../model"
 import { stepKeyOf } from "../catalog"
-import { describe, idle, isNotificationVisible } from "../domain"
+import { describe, idle, isShownOn } from "../domain"
 import * as Config from "./config"
 import { RESULT_ID } from "../motion"
 import * as Header from "./header"
 import * as Finalizers from "./finalizers"
 import { arrowRight } from "./icons"
 import * as Node from "./node"
-import { sameTarget, type NodeTarget, type Notification } from "../domain"
 import * as Snippet from "./snippet"
 import * as Strips from "./tabs"
 import * as Timeline from "./timeline"
 
 type Builder = HtmlBuilder<Message>
-
-/** A notification shows until its time is up, and again on hover when it may. */
-const visibilityFor =
-  (model: Model, target: NodeTarget) =>
-  (notification: Notification): boolean =>
-    isNotificationVisible(
-      notification,
-      model.expiredNotifications,
-      Option.exists(model.maybeHovered, (hovered) =>
-        sameTarget(hovered, target),
-      ),
-    )
 
 const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
   Option.match(findEntry(model.exampleKey), {
@@ -66,10 +53,12 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                                   ] ?? idle,
                                 label: step.label,
                                 target: { _tag: "Step", index },
-                                isNotificationVisible: visibilityFor(model, {
-                                  _tag: "Step",
-                                  index,
-                                }),
+                                isNotificationVisible: (notification) =>
+                                  isShownOn(
+                                    model,
+                                    { _tag: "Step", index },
+                                    notification,
+                                  ),
                               },
                               h,
                             ),
@@ -88,9 +77,8 @@ const nodesView = (model: Model, isDied: boolean, h: Builder): Html =>
                   state: model.run,
                   label: "result",
                   target: { _tag: "Result" },
-                  isNotificationVisible: visibilityFor(model, {
-                    _tag: "Result",
-                  }),
+                  isNotificationVisible: (notification) =>
+                    isShownOn(model, { _tag: "Result" }, notification),
                 },
                 h,
               ),

@@ -1,11 +1,11 @@
 import { Array, Option, Record } from "effect"
 import {
   idle,
-  isNotificationVisible,
+  cardScale,
+  isShownOn,
   notificationOf,
   sameTarget,
   type NodeTarget,
-  type Notification,
   type RunState,
 } from "./domain"
 import { findEntry, stepKeyOf } from "./catalog"
@@ -25,8 +25,6 @@ type Commands = ReadonlyArray<
   | ReturnType<typeof ChangeCard>
   | ReturnType<typeof ChangeHighlight>
 >
-
-export const cardScale = (isRunning: boolean): number => (isRunning ? 1.05 : 1)
 
 const nodeCommands = (previous: Model, next: Model): Commands => {
   if (previous.exampleKey !== next.exampleKey) {
@@ -123,17 +121,6 @@ const slotsOf = (model: Model): ReadonlyArray<Slot> =>
     ],
   })
 
-const isShown = (
-  model: Model,
-  target: NodeTarget,
-  notification: Notification,
-) =>
-  isNotificationVisible(
-    notification,
-    model.expiredNotifications,
-    Option.exists(model.maybeHovered, (hovered) => sameTarget(hovered, target)),
-  )
-
 const shakes = (state: RunState): boolean =>
   state._tag === "Failed" || state._tag === "Died"
 
@@ -150,10 +137,10 @@ const bubbleCommands = (previous: Model, next: Model): Commands => {
           Option.flatMap(({ state: old }) => notificationOf(old)),
           Option.filter(({ id }) => id === notification.id),
         )
-        const isVisible = isShown(next, target, notification)
+        const isVisible = isShownOn(next, target, notification)
         return Option.exists(
           was,
-          (old) => isShown(previous, target, old) !== isVisible,
+          (old) => isShownOn(previous, target, old) !== isVisible,
         )
           ? [ChangeBubble({ id: BubbleKey.make(notification.id), isVisible })]
           : []

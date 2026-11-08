@@ -259,6 +259,24 @@ export const isNotificationVisible = (
   !Array.contains(expired, notification.id) ||
   (notification.showOnHover && isHovered)
 
+/** The notification rule for one node: the node is hovered when it is the Model's hovered target. */
+export const isShownOn = (
+  model: {
+    readonly expiredNotifications: ReadonlyArray<number>
+    readonly maybeHovered: Option.Option<NodeTarget>
+  },
+  target: NodeTarget,
+  notification: Notification,
+): boolean =>
+  isNotificationVisible(
+    notification,
+    model.expiredNotifications,
+    Option.exists(model.maybeHovered, (hovered) => sameTarget(hovered, target)),
+  )
+
+/** The finalizer card grows while its run is going. */
+export const cardScale = (isRunning: boolean): number => (isRunning ? 1.05 : 1)
+
 /** What a screen reader says about a state, such as "succeeded with 65°". */
 export const describe = (state: RunState): string =>
   Match.value(state).pipe(

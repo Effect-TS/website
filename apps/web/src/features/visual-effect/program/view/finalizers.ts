@@ -1,12 +1,11 @@
 import { Array } from "effect"
 import type { Html, HtmlBuilder } from "foldkit/html"
-import type { FinalizerEntry } from "../domain"
+import { cardScale, type FinalizerEntry } from "../domain"
 import {
   FINALIZER_CARD_WIDTH,
   layoutFinalizers,
   type FinalizerLayout,
 } from "../finalizers"
-import { cardScale } from "../motion-commands"
 import { MeasureWidth, PulseChevrons } from "../mount"
 import { AnimateFinalizerCard, CardKey } from "../targets/card"
 import type { Message } from "../message"
