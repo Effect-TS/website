@@ -1,3 +1,4 @@
+import type { RunSession } from "./runner"
 import { RadioGroup, Tabs } from "@foldkit/ui"
 import { Array, Number, Option, Record, Schema } from "effect"
 import { Update } from "foldkit"
@@ -43,7 +44,7 @@ import {
   toStepSnippetTargetKey,
 } from "../model/snippet-highlights"
 
-type UpdateReturn = Update.Return<Model, Message>
+type UpdateReturn = Update.Return<Model, Message, RunSession>
 
 const entryOf = (model: Model): Option.Option<CatalogEntry> =>
   findEntry(model.exampleKey)
@@ -242,7 +243,7 @@ const selectExample = (model: Model, key: string): UpdateReturn =>
       ),
   })
 
-type Step = Update.Step<Model, Message>
+type Step = Update.Step<Model, Message, RunSession>
 
 const isCategory = Schema.is(Category)
 

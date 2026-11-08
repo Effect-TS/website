@@ -6,7 +6,7 @@ import { measureHighlight } from "./measure"
 import { highlight } from "./highlight"
 import type { SnippetLanguage } from "../model/snippet-highlights"
 import { Message } from "./message"
-import * as Runner from "./runner"
+import { RunSession } from "./runner"
 
 export const StartRun = Command.define("StartRun", {
   args: {
@@ -16,15 +16,23 @@ export const StartRun = Command.define("StartRun", {
   },
   messages: [Message.CompletedStartRun],
   execute: ({ runId, key, controls }) =>
-    Option.match(findEntry(key), {
-      onNone: () => Effect.void,
-      onSome: ({ example }) => Runner.start(runId, example, controls),
-    }).pipe(Effect.as(Message.CompletedStartRun())),
+    Effect.gen(function* () {
+      const session = yield* RunSession
+      yield* Option.match(findEntry(key), {
+        onNone: () => Effect.void,
+        onSome: ({ example }) => session.start(runId, example, controls),
+      })
+      return Message.CompletedStartRun()
+    }),
 })
 
 export const StopRun = Command.define("StopRun", {
   messages: [Message.CompletedStopRun],
-  execute: Runner.stop.pipe(Effect.as(Message.CompletedStopRun())),
+  execute: Effect.gen(function* () {
+    const session = yield* RunSession
+    yield* session.stop
+    return Message.CompletedStopRun()
+  }),
 })
 
 export const HighlightSnippet = Command.define("HighlightSnippet", {

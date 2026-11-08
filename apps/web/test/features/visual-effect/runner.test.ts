@@ -4,7 +4,7 @@ import { expect, test } from "vite-plus/test"
 import { ENTRIES } from "../../../src/features/visual-effect/program/catalog.ts"
 import type { Message } from "../../../src/features/visual-effect/program/message.ts"
 import {
-  events,
+  RunSession,
   run,
 } from "../../../src/features/visual-effect/program/runner.ts"
 
@@ -18,8 +18,15 @@ const runToEnd = (
     seen.some(({ _tag }) => _tag === "EndedRun"),
 ): Promise<ReadonlyArray<Message>> =>
   Effect.gen(function* () {
-    yield* Queue.clear(events)
-    const fiber = yield* Effect.forkChild(run(7, entry.example, controls))
+    const events = yield* Queue.unbounded<Message>()
+    const fiber = yield* Effect.forkChild(
+      run(
+        (message) => Queue.offerUnsafe(events, message),
+        7,
+        entry.example,
+        controls,
+      ),
+    )
     const seen: Array<Message> = []
     for (let second = 0; second < MAX_VIRTUAL_SECONDS; second += 1) {
       yield* Effect.yieldNow
@@ -101,3 +108,41 @@ test("an example that never ends reports an interrupt when it is stopped", async
   )
   expect(phases).toEqual(["Registered", "Started", "Finished"])
 })
+
+test(
+  "two sessions keep their runs and events apart",
+  { timeout: 15_000 },
+  async () => {
+    const entry = ENTRIES.find(({ key }) => key === "scope/0")
+    if (entry === undefined) throw new Error("Missing example")
+    const eventsOf = (session: (typeof RunSession)["Service"]) =>
+      Queue.clear(session.events).pipe(
+        Effect.map((messages) => messages.map(({ _tag }) => _tag)),
+      )
+    const result = await Effect.gen(function* () {
+      const first = yield* Effect.service(RunSession).pipe(
+        Effect.provide(RunSession.layer),
+      )
+      const second = yield* Effect.service(RunSession).pipe(
+        Effect.provide(RunSession.layer),
+      )
+      yield* first.start(1, entry.example, { outcome: "interrupt" })
+      yield* second.start(1, entry.example, { outcome: "interrupt" })
+      yield* Effect.sleep("50 millis")
+      yield* first.stop
+      const seenFirst: Array<string> = []
+      for (
+        let tick = 0;
+        tick < 100 && !seenFirst.includes("EndedRun");
+        tick += 1
+      ) {
+        yield* Effect.sleep("100 millis")
+        seenFirst.push(...(yield* eventsOf(first)))
+      }
+      return { first: seenFirst, second: yield* eventsOf(second) }
+    }).pipe(Effect.scoped, Effect.runPromise)
+    expect(result.first).toContain("EndedRun")
+    expect(result.second).toContain("StartedRun")
+    expect(result.second).not.toContain("EndedRun")
+  },
+)

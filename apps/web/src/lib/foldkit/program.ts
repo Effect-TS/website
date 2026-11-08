@@ -1,4 +1,4 @@
-import { Predicate, type Schema } from "effect"
+import { Predicate, type Layer, type Schema } from "effect"
 import type { Update } from "foldkit"
 import type { Html, HtmlBuilder } from "foldkit/html"
 import type { Subscriptions } from "foldkit/subscription"
@@ -22,13 +22,15 @@ export interface ProgramSpec<
   readonly name?: string | ((props: Props) => string)
   readonly Model: Schema.Codec<Model, any, unknown, unknown>
   readonly Flags: Schema.Codec<Flags, any, never, never>
-  readonly init: (flags: Flags) => Update.Return<Model, Message>
+  readonly init: (flags: Flags) => Update.Return<Model, Message, any>
   readonly update: (
     model: Model,
     message: Message,
-  ) => Update.Return<Model, Message>
+  ) => Update.Return<Model, Message, any>
   readonly view: (model: Model, h: HtmlBuilder<Message>) => Html
-  readonly subscriptions?: Subscriptions<Model, Message>
+  readonly subscriptions?: Subscriptions<Model, Message, any>
+  /** Services this Program's Commands and Subscriptions use. Each Program builds its own. */
+  readonly resources?: Layer.Layer<any>
   /**
    * Builds the first Flags from what Astro knows at render time. The server
    * embeds them in the HTML and the client reads them back, so they must not

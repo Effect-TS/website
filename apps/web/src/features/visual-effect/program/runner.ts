@@ -5,6 +5,7 @@ import {
   Duration,
   Effect,
   Fiber,
+  Layer,
   Option,
   Queue,
   Tracer,
@@ -19,26 +20,11 @@ import { classifyFinalizerExit } from "../runtime/finalizers"
 import type { ExampleDefinition } from "../model/example-definition"
 import { Message } from "./message"
 import { outcomeOf } from "./outcome"
-
-/**
- * What a run says happened. A Subscription hands these to the Program.
- * NOTE: Module state, because a run fiber outlives the Command that started it.
- */
-export const events = Effect.runSync(Queue.unbounded<Message>())
-
-const emit = (message: Message): void => {
-  Queue.offerUnsafe(events, message)
-}
+import { observeSteps } from "./step-tracer"
 
 const millisOf = (nanos: bigint): number => Number(nanos / 1_000_000n)
 
 const DEFAULT_NOTIFICATION = Duration.seconds(2)
-
-/**
- * A stopped run still releases its finalizers, so a fiber outlives its stop.
- * NOTE: Module state, because the Commands StartRun and StopRun share it.
- */
-const fibers = new Map<number, Fiber.Fiber<unknown, unknown>>()
 
 const stepIndexOf = (
   example: ExampleDefinition,
@@ -49,6 +35,7 @@ const stepIndexOf = (
   )
 
 export const run = (
+  emit: (message: Message) => void,
   runId: number,
   example: ExampleDefinition,
   controls: Readonly<Record<string, string>>,
@@ -58,60 +45,27 @@ export const run = (
     const clock = yield* Clock.Clock
     let finalizerCount = 0
 
-    const tracer = Tracer.make({
-      span(options) {
-        const span = baseTracer.span(options)
-        const details = Context.getOrUndefined(span.annotations, ExampleStep)
-        if (details === undefined) {
-          return span
-        }
+    const tracer = observeSteps(baseTracer, {
+      start: (details, startTime) => {
         const stepIndex = stepIndexOf(example, details)
         emit(
           Message.StartedStep({
             runId,
             stepIndex,
-            at: millisOf(options.startTime),
+            at: millisOf(startTime),
           }),
         )
-        return {
-          _tag: span._tag,
-          name: span.name,
-          spanId: span.spanId,
-          traceId: span.traceId,
-          parent: span.parent,
-          annotations: span.annotations,
-          get status() {
-            return span.status
-          },
-          get attributes() {
-            return span.attributes
-          },
-          links: span.links,
-          sampled: span.sampled,
-          kind: span.kind,
-          end(endTime, exit) {
-            span.end(endTime, exit)
-            emit(
-              Message.EndedStep({
-                runId,
-                stepIndex,
-                at: millisOf(endTime),
-                outcome: outcomeOf(exit),
-              }),
-            )
-          },
-          attribute(key, value) {
-            span.attribute(key, value)
-          },
-          event(name, startTime, attributes) {
-            span.event(name, startTime, attributes)
-          },
-          addLinks(links) {
-            span.addLinks(links)
-          },
+        return (endTime, exit) => {
+          emit(
+            Message.EndedStep({
+              runId,
+              stepIndex,
+              at: millisOf(endTime),
+              outcome: outcomeOf(exit),
+            }),
+          )
         }
       },
-      context: baseTracer.context,
     })
 
     const notify: (typeof Notifications.Service)["notify"] = (
@@ -227,26 +181,56 @@ export const run = (
     )
   })
 
-export const start = (
-  runId: number,
-  example: ExampleDefinition,
-  controls: Readonly<Record<string, string>>,
-): Effect.Effect<void> =>
-  Effect.sync(() => {
-    if (fibers.has(runId)) {
-      return
-    }
-    const fiber = Effect.runFork(
-      run(runId, example, controls).pipe(
-        Effect.ensuring(Effect.sync(() => fibers.delete(runId))),
-      ),
-    )
-    fibers.set(runId, fiber)
-  })
-
-/** Interrupts every run. The finalizers of a run go on after this returns. */
-export const stop: Effect.Effect<void> = Effect.sync(() => {
-  for (const fiber of fibers.values()) {
-    Effect.runFork(Fiber.interrupt(fiber))
+/**
+ * The runs of one Program. Its Commands start and stop runs, and its
+ * Subscription reads `events`. A Program provides its own session through
+ * `resources`, so two Programs on a page never share runs.
+ */
+export class RunSession extends Context.Service<
+  RunSession,
+  {
+    /** What the runs say happened. The Messages carry a `runId`, so a late one is ignored. */
+    readonly events: Queue.Queue<Message>
+    readonly start: (
+      runId: number,
+      example: ExampleDefinition,
+      controls: Readonly<Record<string, string>>,
+    ) => Effect.Effect<void>
+    /** Interrupts every run. The finalizers of a run go on after this returns. */
+    readonly stop: Effect.Effect<void>
   }
-})
+>()("RunSession") {
+  static readonly layer = Layer.effect(
+    RunSession,
+    Effect.gen(function* () {
+      const events = yield* Queue.unbounded<Message>()
+      const emit = (message: Message): void => {
+        Queue.offerUnsafe(events, message)
+      }
+      // A stopped run still releases its finalizers, so a fiber outlives its stop.
+      const fibers = new Map<number, Fiber.Fiber<unknown, unknown>>()
+      const stop = Effect.sync(() => {
+        for (const fiber of fibers.values()) {
+          Effect.runFork(Fiber.interrupt(fiber))
+        }
+      })
+      yield* Effect.addFinalizer(() => stop)
+      return RunSession.of({
+        events,
+        stop,
+        start: (runId, example, controls) =>
+          Effect.sync(() => {
+            if (fibers.has(runId)) {
+              return
+            }
+            const fiber = Effect.runFork(
+              run(emit, runId, example, controls).pipe(
+                Effect.ensuring(Effect.sync(() => fibers.delete(runId))),
+              ),
+            )
+            fibers.set(runId, fiber)
+          }),
+      })
+    }),
+  )
+}

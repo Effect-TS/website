@@ -42,6 +42,7 @@ export default (element: HTMLElement) =>
         ...(spec.subscriptions === undefined
           ? {}
           : { subscriptions: spec.subscriptions }),
+        ...(spec.resources === undefined ? {} : { resources: spec.resources }),
         container,
         devTools: {
           banner:
