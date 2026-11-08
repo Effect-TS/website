@@ -5,6 +5,7 @@ import { Message } from "../message"
 import { afterRender } from "../motion"
 import { acquireDriver, makeTable } from "../target"
 
+// NOTE: Module state on purpose. A Mount fills it and a Command reads it. See `target.ts`.
 const table = makeTable<number, boolean>()
 
 /** Starts the shake of a failure or death bubble. A Command tells it when the bubble shows or hides. */
@@ -17,7 +18,8 @@ export const ShakeBubble = Mount.define("ShakeBubble", {
   messages: [Message.CompletedShakeBubble],
   execute: ({ element, id, tone, isVisible }) =>
     acquireDriver(
-      () => startBubble(element as HTMLElement, tone, isVisible),
+      element,
+      (host) => startBubble(host, tone, isVisible),
       (driver) => table.register(id, driver),
     ).pipe(Effect.as(Message.CompletedShakeBubble())),
 })

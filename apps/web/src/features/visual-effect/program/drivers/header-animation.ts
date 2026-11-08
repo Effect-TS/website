@@ -1,3 +1,4 @@
+import type { HeaderInput } from "../targets/header"
 import { stopAll, type NodeTag } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 
@@ -16,14 +17,6 @@ const part = (root: Element, name: string): HTMLElement | null =>
 
 const prefersReducedMotion = (): boolean =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches
-
-export type Pointer = "Away" | "Over" | "Pressed"
-
-export interface HeaderInput {
-  readonly tag: NodeTag
-  readonly hasInteracted: boolean
-  readonly pointer: Pointer
-}
 
 interface Keyframes {
   readonly from: Record<string, string | number>

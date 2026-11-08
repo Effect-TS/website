@@ -4,7 +4,7 @@ import type { Html, HtmlBuilder } from "foldkit/html"
 import type { ExampleDefinition } from "../../model/example-definition"
 import { canReset, type RunState } from "../domain"
 import { Message } from "../message"
-import type { Pointer } from "../drivers/header-animation"
+import type { Pointer } from "../motion"
 import { AnimateHeader } from "../mount"
 import { play, rotateCcw, square } from "./icons"
 

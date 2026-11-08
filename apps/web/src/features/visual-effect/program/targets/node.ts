@@ -12,6 +12,7 @@ export type NodeKey = typeof NodeKey.Type
 
 const input = { id: NodeKey, tag: NodeTagSchema }
 
+// NOTE: Module state on purpose. A Mount fills it and a Command reads it. See `target.ts`.
 const table = makeTable<NodeKey, NodeTag>()
 
 /** Starts the animation of a node. It lives as long as the node. A Command gives it each new state. */
@@ -20,7 +21,8 @@ export const AnimateNode = Mount.define("AnimateNode", {
   messages: [Message.CompletedAnimateNode],
   execute: ({ element, id, tag }) =>
     acquireDriver(
-      () => startAnimation(element as HTMLElement, tag),
+      element,
+      (host) => startAnimation(host, tag),
       (driver) => table.register(id, driver),
     ).pipe(Effect.as(Message.CompletedAnimateNode())),
 })

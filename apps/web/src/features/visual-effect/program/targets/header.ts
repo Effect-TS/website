@@ -1,6 +1,5 @@
 import { Effect, Schema } from "effect"
 import { Command, Mount } from "foldkit"
-import type { HeaderInput } from "../drivers/header-animation"
 import { startHeaderAnimation } from "../drivers/header-animation"
 import { Message } from "../message"
 import { NodeTagSchema } from "../drivers/node-motion"
@@ -13,6 +12,10 @@ const input = {
   pointer: PointerSchema,
 }
 
+const HeaderInput = Schema.Struct(input)
+export type HeaderInput = typeof HeaderInput.Type
+
+// NOTE: Module state on purpose. A Mount fills it and a Command reads it. See `target.ts`.
 const slot = makeSlot<HeaderInput>()
 
 /** Starts the animation of the play, stop and reset button. A Command gives it each new state. */
@@ -21,7 +24,8 @@ export const AnimateHeader = Mount.define("AnimateHeader", {
   messages: [Message.CompletedAnimateHeader],
   execute: ({ element, ...initial }) =>
     acquireDriver(
-      () => startHeaderAnimation(element as HTMLElement, initial),
+      element,
+      (host) => startHeaderAnimation(host, initial),
       slot.register,
     ).pipe(Effect.as(Message.CompletedAnimateHeader())),
 })

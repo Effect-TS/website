@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect"
 
 export const PointerSchema = Schema.Literals(["Away", "Over", "Pressed"])
+export type Pointer = typeof PointerSchema.Type
 
 export const RESULT_ID = "result"
 

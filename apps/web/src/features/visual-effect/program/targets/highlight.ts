@@ -1,6 +1,5 @@
 import { Effect, Schema } from "effect"
 import { Command, Mount } from "foldkit"
-import type { HighlightInput } from "../drivers/layout-animation"
 import { startHighlightAnimation } from "../drivers/layout-animation"
 import { Message } from "../message"
 import { afterRender } from "../motion"
@@ -14,6 +13,10 @@ const input = {
   isVisible: Schema.Boolean,
 }
 
+const HighlightInput = Schema.Struct(input)
+export type HighlightInput = typeof HighlightInput.Type
+
+// NOTE: Module state on purpose. A Mount fills it and a Command reads it. See `target.ts`.
 const slot = makeSlot<HighlightInput>()
 
 /** Starts the spring of the highlight box. A Command gives it each new target. */
@@ -22,7 +25,8 @@ export const AnimateHighlight = Mount.define("AnimateHighlight", {
   messages: [Message.CompletedAnimateHighlight],
   execute: ({ element, ...initial }) =>
     acquireDriver(
-      () => startHighlightAnimation(element as HTMLElement, initial),
+      element,
+      (host) => startHighlightAnimation(host, initial),
       slot.register,
     ).pipe(Effect.as(Message.CompletedAnimateHighlight())),
 })

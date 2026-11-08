@@ -1,4 +1,6 @@
 import { Array } from "effect"
+import type { CardInput } from "../targets/card"
+import type { HighlightInput } from "../targets/highlight"
 import { stopAll } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 import { SPRINGS } from "@/lib/animation"
@@ -34,12 +36,6 @@ const FLASH_BACKGROUND: Record<string, string> = {
     "radial-gradient(ellipse at center, rgba(245, 158, 11, 0.3) 0%, transparent 70%)",
   Failed:
     "radial-gradient(ellipse at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%)",
-}
-
-export interface CardInput {
-  readonly x: number
-  readonly scale: number
-  readonly phase: string
 }
 
 export interface CardAnimation {
@@ -148,14 +144,6 @@ export const startCardAnimation = (
       stopAndClear(pulses)
     },
   }
-}
-
-export interface HighlightInput {
-  readonly x: number
-  readonly y: number
-  readonly width: number
-  readonly height: number
-  readonly isVisible: boolean
 }
 
 export interface HighlightAnimation {

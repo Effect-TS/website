@@ -73,12 +73,13 @@ export const makeTable = <Key, Input>(): Table<Key, Input> => {
 
 /** Starts a driver, registers it, and removes and disposes it when the Mount ends. */
 export const acquireDriver = <Driven extends { readonly dispose: () => void }>(
-  start: () => Driven,
+  element: Element,
+  start: (element: HTMLElement) => Driven,
   register: (driver: Driven) => () => void,
 ) =>
   Effect.acquireRelease(
     Effect.sync(() => {
-      const driver = start()
+      const driver = start(element as HTMLElement)
       return { driver, unregister: register(driver) }
     }),
     ({ driver, unregister }) =>

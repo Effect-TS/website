@@ -1,7 +1,6 @@
 import { Effect, Schema } from "effect"
 import { Command, Mount } from "foldkit"
 import { FinalizerPhase } from "../domain"
-import type { CardInput } from "../drivers/layout-animation"
 import { startCardAnimation } from "../drivers/layout-animation"
 import { Message } from "../message"
 import { afterRender } from "../motion"
@@ -10,13 +9,18 @@ import { acquireDriver, makeTable } from "../target"
 export const CardKey = Schema.String.pipe(Schema.brand("CardKey"))
 export type CardKey = typeof CardKey.Type
 
-const input = {
-  id: CardKey,
+const motion = {
   x: Schema.Number,
   scale: Schema.Number,
   phase: FinalizerPhase,
 }
 
+const CardInput = Schema.Struct(motion)
+export type CardInput = typeof CardInput.Type
+
+const input = { id: CardKey, ...motion }
+
+// NOTE: Module state on purpose. A Mount fills it and a Command reads it. See `target.ts`.
 const table = makeTable<CardKey, CardInput>()
 
 /** Starts the spring of a finalizer card. A Command gives it each new place and phase. */
@@ -25,7 +29,8 @@ export const AnimateFinalizerCard = Mount.define("AnimateFinalizerCard", {
   messages: [Message.CompletedAnimateFinalizerCard],
   execute: ({ element, id, ...initial }) =>
     acquireDriver(
-      () => startCardAnimation(element as HTMLElement, initial),
+      element,
+      (host) => startCardAnimation(host, initial),
       (driver) => table.register(id, driver),
     ).pipe(Effect.as(Message.CompletedAnimateFinalizerCard())),
 })
