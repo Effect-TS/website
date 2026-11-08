@@ -3,6 +3,12 @@ import { ArrowUpRight } from "@lucide/astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
 import type { Module } from "@/features/module-of-the-week/domain"
 
+/**
+ * The metadata, title and links of one module. Rendered directly into a
+ * positioned card: the Blog post link stretches over the whole card, so
+ * clicking anywhere on it opens the post, while the Video link sits above
+ * that layer and keeps its own destination.
+ */
 interface Props {
   readonly module: Module
   /** The latest module: a larger title and its excerpt. */
@@ -15,8 +21,13 @@ const video = post.data.video
 
 const linkClass =
   "group/link inline-flex items-center gap-1 text-sm text-zinc-400 no-underline transition-colors hover:text-white hover:no-underline"
-const arrowClass =
-  "size-3.5 transition-transform motion-safe:group-hover/link:translate-x-0.5 motion-safe:group-hover/link:-translate-y-0.5"
+const arrowClass = "size-3.5 transition-transform"
+// The Blog post arrow answers a hover anywhere on the card, the Video arrow
+// only its own link.
+const cardArrowClass =
+  "motion-safe:group-hover/card:translate-x-0.5 motion-safe:group-hover/card:-translate-y-0.5"
+const linkArrowClass =
+  "motion-safe:group-hover/link:translate-x-0.5 motion-safe:group-hover/link:-translate-y-0.5"
 ---
 
 <div class="flex items-baseline justify-between gap-4 font-mono text-xs text-zinc-400">
@@ -26,39 +37,49 @@ const arrowClass =
   </div>
   <FormattedDate date={post.data.date} className="shrink-0 whitespace-nowrap tabular-nums" />
 </div>
-<div>
+<div class:list={[featured && "max-w-prose"]}>
   <h3
     class:list={[
-      "leading-snug font-semibold text-balance text-white",
-      featured ? "text-lg" : "text-base",
+      "font-semibold text-balance text-white transition-colors group-hover/card:text-zinc-100",
+      featured
+        ? "text-2xl leading-tight tracking-tight md:text-3xl lg:text-4xl"
+        : "text-base leading-snug",
     ]}
   >
     {title}
   </h3>
   {
     featured && (
-      <p class="mt-2 text-base leading-relaxed text-pretty text-zinc-400">{post.data.excerpt}</p>
+      <p class="mt-4 text-base leading-relaxed text-pretty text-zinc-400 lg:text-lg">
+        {post.data.excerpt}
+      </p>
     )
   }
 </div>
-<div class:list={["flex flex-wrap items-center gap-x-4 gap-y-2", featured && "mt-auto pt-2"]}>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
   {
     video && (
       <a
         href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
         target="_blank"
         rel="noopener noreferrer"
-        class={linkClass}
+        class:list={[linkClass, "relative z-10"]}
       >
         Video
         <span class="sr-only">: {title} on YouTube (opens in a new tab)</span>
-        <ArrowUpRight class={arrowClass} aria-hidden="true" />
+        <ArrowUpRight class:list={[arrowClass, linkArrowClass]} aria-hidden="true" />
       </a>
     )
   }
-  <a href={`/blog/${post.id}`} class={linkClass}>
+  <a
+    href={`/blog/${post.id}`}
+    class:list={[
+      linkClass,
+      "group-hover/card:text-white after:absolute after:inset-0 after:content-['']",
+    ]}
+  >
     Blog post
     <span class="sr-only">: {title}</span>
-    <ArrowUpRight class={arrowClass} aria-hidden="true" />
+    <ArrowUpRight class:list={[arrowClass, cardArrowClass]} aria-hidden="true" />
   </a>
 </div>

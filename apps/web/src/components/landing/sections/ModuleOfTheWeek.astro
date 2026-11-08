@@ -1,39 +1,19 @@
 ---
-import { ArrowRight, Play } from "@lucide/astro"
+import { ArrowRight } from "@lucide/astro"
 import ModuleSummary from "@/components/landing/blocks/ModuleSummary.astro"
-import type { Module } from "@/features/module-of-the-week/domain"
 import { getLatestModules } from "@/features/module-of-the-week/http"
-import { blogPostMetadata } from "@/lib/blog-post"
-import { openGraphImagePath } from "@/lib/open-graph-image"
 
 const [latest, ...older] = await getLatestModules()
 const recent = older.slice(0, 4)
 
-// Modules get their video a while after the blog post, so fall back to the
-// post's Open Graph image (and link to the post) until the video is out.
-const thumbnailOf = async ({ post, title }: Module) => {
-  const video = post.data.video
-  return video !== undefined
-    ? {
-        src: `https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`,
-        href: `https://www.youtube.com/watch?v=${video.youtubeId}`,
-        label: `Watch ${title} on YouTube (opens in a new tab)`,
-        target: "_blank",
-        rel: "noopener noreferrer",
-        duration: video.duration,
-      }
-    : {
-        src: await openGraphImagePath(`/blog/${post.id}`, blogPostMetadata(post)),
-        href: `/blog/${post.id}`,
-        label: `Read ${title}`,
-      }
-}
-
-const thumbnail = latest === undefined ? undefined : await thumbnailOf(latest)
+// Every module is a card that opens its blog post: `ModuleSummary` stretches
+// the Blog post link over the card, so each card must be positioned.
+const cardClass =
+  "group/card relative flex min-w-0 flex-col bg-zinc-950 transition-colors hover:bg-zinc-900/60 has-[a:focus-visible]:bg-zinc-900/60"
 ---
 
 {
-  latest !== undefined && thumbnail !== undefined && (
+  latest !== undefined && (
     <section
       id="module-of-the-week"
       aria-labelledby="module-of-the-week-heading"
@@ -69,37 +49,13 @@ const thumbnail = latest === undefined ? undefined : await thumbnailOf(latest)
             recent.length > 0 && "lg:grid-cols-2",
           ]}
         >
-          <article class="flex min-w-0 flex-col bg-zinc-950">
-            <a
-              href={thumbnail.href}
-              target={thumbnail.target}
-              rel={thumbnail.rel}
-              aria-label={thumbnail.label}
-              class="group relative block aspect-video overflow-hidden bg-zinc-900"
-            >
-              <img
-                src={thumbnail.src}
-                alt=""
-                loading="lazy"
-                width="1280"
-                height="720"
-                class="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.02]"
-              />
-              {thumbnail.duration !== undefined && (
-                <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums transition-colors group-hover:bg-zinc-950">
-                  <Play class="size-3 fill-current" aria-hidden="true" />
-                  {thumbnail.duration}
-                </span>
-              )}
-            </a>
-            <div class="flex flex-1 flex-col gap-4 border-t border-zinc-800 p-5 lg:px-6">
-              <ModuleSummary module={latest} featured />
-            </div>
+          <article class:list={[cardClass, "justify-between gap-10 p-6 lg:gap-12 lg:p-8"]}>
+            <ModuleSummary module={latest} featured />
           </article>
           {recent.length > 0 && (
             <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 lg:auto-rows-fr">
               {recent.map((module) => (
-                <article class="flex flex-col justify-between gap-3 bg-zinc-950 p-5 lg:px-6">
+                <article class:list={[cardClass, "justify-between gap-3 p-5 lg:px-6"]}>
                   <ModuleSummary module={module} />
                 </article>
               ))}
