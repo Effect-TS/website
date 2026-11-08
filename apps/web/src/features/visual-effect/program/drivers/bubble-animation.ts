@@ -1,8 +1,5 @@
-import { stopAll } from "./node-motion"
+import { prefersReducedMotion, stopAll } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
-
-/** A failure or a death bubble shakes each time it shows. */
-export type ShakeTone = "failure" | "death"
 
 interface Shake {
   readonly stepCount: number
@@ -15,42 +12,28 @@ interface Shake {
   readonly startDelayMs: number
 }
 
-const SHAKES: Record<ShakeTone, Shake> = {
-  failure: {
-    stepCount: 6,
-    stepDurationSec: 0.05,
-    returnDurationSec: 0.12,
-    xRangePx: 10,
-    yRangePx: 8,
-    rotationRangeDeg: 5,
-    baseYPx: -2,
-    startDelayMs: 120,
-  },
-  death: {
-    stepCount: 6,
-    stepDurationSec: 0.05,
-    returnDurationSec: 0.12,
-    xRangePx: 10,
-    yRangePx: 8,
-    rotationRangeDeg: 5,
-    baseYPx: -2,
-    startDelayMs: 120,
-  },
+/** A failure or a death bubble shakes each time it shows. */
+const SHAKE: Shake = {
+  stepCount: 6,
+  stepDurationSec: 0.05,
+  returnDurationSec: 0.12,
+  xRangePx: 10,
+  yRangePx: 8,
+  rotationRangeDeg: 5,
+  baseYPx: -2,
+  startDelayMs: 120,
 }
 
 const randomBetween = (min: number, max: number): number =>
   min + Math.random() * (max - min)
 
-export const startBubbleShake = (
-  element: HTMLElement,
-  tone: ShakeTone,
-): (() => void) => {
-  const shake = SHAKES[tone]
+export const startBubbleShake = (element: HTMLElement): (() => void) => {
+  const shake = SHAKE
   const place = (x: number, y: number, rotate: number): string =>
     `translate(${x}px, ${y}px) rotate(${rotate}deg)`
   element.style.transform = place(0, shake.baseYPx, 0)
 
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (prefersReducedMotion()) {
     return () => undefined
   }
 
@@ -106,7 +89,6 @@ export interface BubbleAnimation {
 /** Shakes the bubble when it shows, at first or again later. A Mount creates it, and a Command shows or hides it. */
 export const startBubble = (
   element: HTMLElement,
-  tone: ShakeTone,
   isVisible: boolean,
 ): BubbleAnimation => {
   let stop: () => void = () => undefined
@@ -117,7 +99,7 @@ export const startBubble = (
     }
     wasVisible = next
     stop()
-    stop = next ? startBubbleShake(element, tone) : () => undefined
+    stop = next ? startBubbleShake(element) : () => undefined
   }
   apply(isVisible)
   return { apply, dispose: () => stop() }

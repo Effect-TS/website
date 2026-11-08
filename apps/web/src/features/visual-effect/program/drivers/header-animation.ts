@@ -1,5 +1,5 @@
 import type { HeaderInput } from "../targets/header"
-import { stopAll, type NodeTag } from "./node-motion"
+import { prefersReducedMotion, stopAll, type NodeTag } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 
 /**
@@ -14,9 +14,6 @@ const WIGGLE = [0, -8, 8, -6, 6, -3, 3, 0]
 
 const part = (root: Element, name: string): HTMLElement | null =>
   root.querySelector<HTMLElement>(`[data-header="${name}"]`)
-
-const prefersReducedMotion = (): boolean =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
 interface Keyframes {
   readonly from: Record<string, string | number>

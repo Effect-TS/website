@@ -1,7 +1,7 @@
 import { Array } from "effect"
 import type { CardInput } from "../targets/card"
 import type { HighlightInput } from "../targets/highlight"
-import { stopAll } from "./node-motion"
+import { prefersReducedMotion, stopAll } from "./node-motion"
 import { animate, type AnimationPlaybackControls } from "motion"
 import { SPRINGS } from "@/lib/animation"
 
@@ -11,9 +11,6 @@ import { SPRINGS } from "@/lib/animation"
  * from `apply` and writes styles. Everything here runs in the browser. A Mount
  * creates each one, and a Command changes its target.
  */
-
-const prefersReducedMotion = (): boolean =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
 const numberOf = (element: Element, name: string, fallback: number): number => {
   const value = Number(element.getAttribute(name))

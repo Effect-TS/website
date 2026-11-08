@@ -12,14 +12,13 @@ const table = makeTable<number, boolean>()
 export const ShakeBubble = Mount.define("ShakeBubble", {
   args: {
     id: Schema.Number,
-    tone: Schema.Literals(["failure", "death"]),
     isVisible: Schema.Boolean,
   },
   messages: [Message.CompletedShakeBubble],
-  execute: ({ element, id, tone, isVisible }) =>
+  execute: ({ element, id, isVisible }) =>
     acquireDriver(
       element,
-      (host) => startBubble(host, tone, isVisible),
+      (host) => startBubble(host, isVisible),
       (driver) => table.register(id, driver),
     ).pipe(Effect.as(Message.CompletedShakeBubble())),
 })

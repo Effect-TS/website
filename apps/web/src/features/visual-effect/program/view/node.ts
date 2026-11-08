@@ -157,7 +157,7 @@ const bubbleView = (
       h.AriaHidden(!isVisible),
       ...(tone === "info"
         ? []
-        : [h.OnMount(ShakeBubble({ id: notification.id, tone, isVisible }))]),
+        : [h.OnMount(ShakeBubble({ id: notification.id, isVisible }))]),
       h.Class(
         `pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 max-w-[220px] -translate-x-1/2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-[opacity,scale] duration-150 ease-out ${
           isVisible
