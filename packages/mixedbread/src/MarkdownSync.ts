@@ -121,8 +121,7 @@ export function markdownSyncMetadata(
 }
 
 export function markdownSyncArguments(options: {
-  readonly blogStageDir: string
-  readonly documentationStageDir: string
+  readonly filePatterns: ReadonlyArray<string>
   readonly metadata: string
   readonly storeId: string
 }): ReadonlyArray<string> {
@@ -132,8 +131,7 @@ export function markdownSyncArguments(options: {
     "store",
     "sync",
     options.storeId,
-    `${options.documentationStageDir}/**/*.{md,mdx}`,
-    `${options.blogStageDir}/**/*.mdx`,
+    ...options.filePatterns,
     "--yes",
     "--strategy",
     "fast",
@@ -142,4 +140,13 @@ export function markdownSyncArguments(options: {
     "--metadata",
     options.metadata,
   ]
+}
+
+// Production stores a runner path such as
+// `/home/runner/work/website/website/.data/mixedbread/documentation/v4/a.mdx`.
+// The part from `.data/mixedbread/` on identifies the same document from any
+// checkout directory.
+export function markdownOverlayKey(externalId: string): string {
+  const index = externalId.indexOf(".data/mixedbread/")
+  return index === -1 ? externalId : externalId.slice(index)
 }

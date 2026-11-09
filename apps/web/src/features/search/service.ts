@@ -6,6 +6,7 @@ import * as ConfigProvider from "effect/ConfigProvider"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
 import type { SearchResult } from "./domain"
@@ -17,11 +18,15 @@ import {
   SearchError,
   StoreSearchResponse,
 } from "./domain"
+import { cacheScope, previewScope, productionScope } from "./scope"
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
     const apiKey = yield* Config.Redacted("MXBAI_API_KEY")
     const storeId = yield* Config.Redacted("MXBAI_VECTOR_STORE_ID")
+    const overlayStoreId = yield* Config.option(
+      Config.Redacted("MXBAI_OVERLAY_STORE_ID"),
+    )
 
     const mxbai = new Mixedbread({ apiKey: Redacted.value(apiKey) })
 
@@ -194,7 +199,26 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return Array.from(grouped.values())
     }
 
+    const production = Redacted.value(storeId)
+    const scope = yield* cacheScope(
+      Option.match(overlayStoreId, {
+        onNone: () => Effect.succeed(productionScope(production)),
+        onSome: (redacted) => {
+          const id = Redacted.value(redacted)
+          return Effect.tryPromise({
+            try: (signal) => mxbai.stores.retrieve(id, { signal }),
+            catch: (cause) => new SearchError({ cause }),
+          }).pipe(
+            Effect.map((store) =>
+              previewScope(production, { id, metadata: store.metadata }),
+            ),
+          )
+        },
+      }),
+    )
+
     const search = Effect.fn("Search.search")(function* (query: string) {
+      const storeScope = yield* scope
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
@@ -202,7 +226,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
               query,
               top_k: 20,
               search_options: { rerank: true, return_metadata: true },
-              store_identifiers: [Redacted.value(storeId)],
+              ...storeScope,
             },
             { signal },
           ),
@@ -227,6 +251,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
         ConfigProvider.fromUnknown({
           MXBAI_API_KEY: getSecret("MXBAI_API_KEY"),
           MXBAI_VECTOR_STORE_ID: getSecret("MXBAI_VECTOR_STORE_ID"),
+          MXBAI_OVERLAY_STORE_ID: getSecret("MXBAI_OVERLAY_STORE_ID"),
         }),
       ),
     ),
