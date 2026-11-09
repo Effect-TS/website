@@ -13,9 +13,11 @@ interface Props {
   readonly module: Module
   /** The latest module: a larger title and its excerpt. */
   readonly featured?: boolean | undefined
+  /** Off when the card's heading is already shown elsewhere, as in the hero's title card. */
+  readonly showTitle?: boolean | undefined
 }
 
-const { module, featured = false } = Astro.props
+const { module, featured = false, showTitle = true } = Astro.props
 const { post, number, title } = module
 const video = post.data.video
 
@@ -38,17 +40,23 @@ const linkArrowClass =
   <FormattedDate date={post.data.date} className="shrink-0 whitespace-nowrap tabular-nums" />
 </div>
 <div>
-  <h3
-    class:list={[
-      "leading-snug font-semibold text-balance text-white",
-      featured ? "text-lg" : "text-base",
-    ]}
-  >
-    {title}
-  </h3>
+  {
+    showTitle && (
+      <h3
+        class:list={[
+          "leading-snug font-semibold text-balance text-white",
+          featured ? "text-lg" : "text-base",
+        ]}
+      >
+        {title}
+      </h3>
+    )
+  }
   {
     featured && (
-      <p class="mt-2 text-base leading-relaxed text-pretty text-zinc-400">{post.data.excerpt}</p>
+      <p class:list={["text-base leading-relaxed text-pretty text-zinc-400", showTitle && "mt-2"]}>
+        {post.data.excerpt}
+      </p>
     )
   }
 </div>
