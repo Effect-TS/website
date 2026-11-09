@@ -35,15 +35,14 @@ New additions in RPC, Schema and persistence alongside the usual round of fixes.
 
 - **Additions**: Added an exact `Rational` numeric type alongside `BigDecimal`, OpenRPC document generation for RPC groups, and a per-offer `deduplicate` mode with `untilExecuted` for `PersistedQueue`. XML start-element events can now include opt-in source positions, `Schema.TaggedUnion` and `Schema.brand` derive their `Iso` types from the member `Iso`, and RPC handlers can fail with their middleware's errors. `Command.validate` can now fail with domain errors, and completed cluster requests can be cleaned up by retention.
 
-- **Performance**: Large RPC groups are cheaper to type-check in `RpcClient` and `AtomRpc`, `SchemaBinary` encodes large `Uint8Array` payloads faster, and `TestClock` is built faster and with less memory.
+- **Performance**: Large RPC groups are cheaper to type-check in `RpcClient` and `AtomRpc`, `SchemaBinary` encodes large `Uint8Array` payloads faster, `Base64`, `Base64Url` and `Hex` use the native `Uint8Array` methods when the runtime provides them, and `TestClock` is built faster and with less memory.
 
 - **Cluster & workflow**: Fixed interrupted defecting cluster requests stalling other entities. Transient persistence failures are now retried for durable clocks, durable deferreds and child workflow starts, and `layerMemory` replay finalizers are deferred after a defect.
-
 - **AI & MCP**: Improved Anthropic support for web fetch and code execution results, including encrypted results, tool search deferral, containers without skills and documents without citations. Fixed OpenAI shell tool results and commentary messages in structured output, streamed shell tool call IDs in stored chats, and empty streamed content deltas in OpenRouter. On the MCP side, requests are now traced with the OpenTelemetry MCP semantic conventions, tool parameters and results go through their JSON codec, and stdio protocols are no longer shared across servers. The Skills extension is restricted to protocol `2026-07-28`.
 
-- **HTTP, SQL & platform**: Bun servers now close connections after the graceful shutdown timeout, and Bun and Deno servers answer 503 instead of 404 when they have no app. Fixed Bun filesystem writes ignoring the cursor after a seek and child-process interruption hanging on backpressured stdin. Also fixed `NodeHttpServer` leaving unupgraded upgrade connections open, crashes when collecting encoded Node streams. `HttpClient.withScope` now scopes by execution instead of request. `PgClient` keeps typed SQL errors when the server ends a session in a transaction, MySQL statement cancellation and pool waits are interruptible, and `SqlClient` driver services stay in the requirements when `SqlClient` is provided. Migration guidance now covers SQL driver clients no longer extending `SqlClient`.
+- **HTTP, SQL & platform**: Bun servers now close connections after the graceful shutdown timeout, and Bun and Deno servers answer 503 instead of 404 when they have no app. Fixed Bun filesystem writes ignoring the cursor after a seek and child-process interruption hanging on backpressured stdin. Also fixed `NodeHttpServer` leaving unupgraded upgrade connections open, crashes when collecting encoded Node streams, and `HttpClient.withScope` now scoping by execution instead of request. `PgClient` keeps typed SQL errors when the server ends a session in a transaction, MySQL statement cancellation and pool waits are interruptible, and `SqlClient` driver services stay in the requirements when `SqlClient` is provided. Migration guidance now covers SQL driver clients no longer extending `SqlClient`.
 
-- **Core & Schema fixes**: The audit continued with `Effect` race losers now interrupted as soon as the race settles, zero-capacity queues keeping backpressure after batch offers, sliding queues with zero capacity waking waiting takers, `RcMap` measuring idle time on its maker's clock, and `ScopedCache` finalizers no longer retaining requester spans. Also fixed capped fixed-window rate limits, leading U+FEFF in encoded strings, JavaScriptCore `Error` metadata in `Equal` and `Hash`, parser sentinels shared across module copies in Schema, and `SchemaBinary` accepting non-numbers in `f64` runs. Stopped idle OTLP log and trace exporters from keeping a timer pending.
+- **Core & Schema fixes**: The audit continued with `Effect` race losers now interrupted as soon as the race settles, zero-capacity queues keeping backpressure after batch offers, sliding queues with zero capacity waking waiting takers, `RcMap` measuring idle time on its maker's clock, and `ScopedCache` finalizers no longer retaining requester spans. Also fixed capped fixed-window rate limits, leading U+FEFF in encoded strings, JavaScriptCore `Error` metadata in `Equal` and `Hash`, parser sentinels shared across module copies in Schema, and `SchemaBinary` accepting non-numbers in `f64` runs. `Schema.toEquivalence` and `Schema.toFormatter` now derive consistently from the decoded type side, including records with transformed keys, and imported JSON Schema `contentSchema` annotations that contain references are omitted to avoid dangling references. Also fixed effects hanging when `Scheduler.MaxOpsBeforeYield` is set to 1 or 2, `Request` equality depending on field order, and idle OTLP log and trace exporters keeping a timer pending.
 
 You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
 
@@ -57,6 +56,8 @@ Other technical updates from the past week.
 - [Add Yaml.parseAll and return Result from Yaml.parse](https://github.com/Effect-TS/effect/pull/10271) (Feature, next-minor)
 - [Feat(effect): add Supervisor for observing fiber lifecycles](https://github.com/Effect-TS/effect/pull/10258) (Feature, next-minor)
 - [Make McpSchema.InputRequired a schema class](https://github.com/Effect-TS/effect/pull/10368) (Bug Fix, next-minor)
+- [Add PathFilter module, PathFilter-based FileSystem.glob and IgnoreFile parsers](https://github.com/Effect-TS/effect/pull/10274) (Feature, next-minor)
+- [Harden and extend Yaml parsing and add Yaml.stringify](https://github.com/Effect-TS/effect/pull/10287) (Improvement, next-minor)
 
 ### Effect AI
 
@@ -91,6 +92,12 @@ Other technical updates from the past week.
 - [strider](https://github.com/usestrider/strider) - browser automation for Effect: scripts, tests and agents that drive Chromium, Firefox or WebKit. By usestrider.
 
 - [return](https://github.com/chr33s/return) - a minimal file-based router for Effect 4.1 that generates an `HttpApi` from `route.ts` files. By chr33s.
+
+- [feeblo](https://github.com/G3root/feeblo) - an open-source customer feedback platform with feature request boards, a public roadmap and changelog, an embeddable widget, and a Public API with MCP tools, built on Effect. By G3root.
+
+- [pyfect](https://github.com/tylergibbs1/pyfect) - Effect for Python: typed errors and dependencies, a fiber runtime with structured concurrency, and layers, checked by pyright. By tylergibbs1.
+
+- [mail-router](https://github.com/astronautfa/mail-router) - a Cloudflare Email Routing Worker that forwards each inbound message to multiple destinations, deployed with Alchemy and built on Effect. By astronautfa.
 
 ## Effect Job Opportunities
 
