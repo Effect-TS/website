@@ -13,9 +13,11 @@ interface Props {
   readonly module: Module
   /** The latest module: a wider band with its excerpt and the links beside it. */
   readonly featured?: boolean | undefined
+  /** A narrow card at lg: the date moves under the number and package name. */
+  readonly compact?: boolean | undefined
 }
 
-const { module, featured = false } = Astro.props
+const { module, featured = false, compact = false } = Astro.props
 const { post, number, title } = module
 const video = post.data.video
 
@@ -33,8 +35,8 @@ const linkArrowClass =
 <div
   class:list={[
     "flex items-baseline justify-between gap-4 font-mono text-xs text-zinc-400",
-    // Quarter-width cards have no room for the date beside the package name.
-    !featured && "lg:flex-col lg:items-start lg:gap-1",
+    // Stretching keeps the number/package row inside the card so it truncates.
+    compact && "lg:flex-col lg:items-stretch lg:gap-1",
   ]}
 >
   <div class="flex min-w-0 items-baseline gap-3">
@@ -74,7 +76,7 @@ const linkArrowClass =
           class:list={[linkClass, "relative z-10"]}
         >
           Video
-          <span class="font-mono text-xs text-zinc-500 tabular-nums transition-colors group-hover/link:text-zinc-300">
+          <span class="font-mono text-xs text-zinc-400 tabular-nums transition-colors group-hover/link:text-zinc-300">
             {video.duration}
           </span>
           <span class="sr-only">: {title} on YouTube (opens in a new tab)</span>

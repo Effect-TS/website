@@ -6,6 +6,19 @@ import { getLatestModules } from "@/features/module-of-the-week/http"
 const [latest, ...older] = await getLatestModules()
 const recent = older.slice(0, 4)
 
+// The recent modules fill a row at lg, so the column count follows how many
+// there are; at md an odd one out spans both columns. Otherwise the grid's
+// border-coloured background would show through the unused cells.
+const recentColumns = {
+  1: "lg:grid-cols-1",
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-4",
+}[recent.length]
+const lastSpansRow = recent.length % 2 === 1
+// Three or four cards across leave no room for the date beside the package.
+const compact = recent.length >= 3
+
 // Every module is a card that opens its blog post: `ModuleSummary` stretches
 // the Blog post link over the card, so each card must be positioned.
 const cardClass =
@@ -48,10 +61,21 @@ const cardClass =
             <ModuleSummary module={latest} featured />
           </article>
           {recent.length > 0 && (
-            <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 md:grid-cols-2 lg:grid-cols-4">
-              {recent.map((module) => (
-                <article class:list={[cardClass, "justify-between"]}>
-                  <ModuleSummary module={module} />
+            <div
+              class:list={[
+                "grid min-w-0 grid-cols-1 gap-px bg-zinc-800 md:grid-cols-2",
+                recentColumns,
+              ]}
+            >
+              {recent.map((module, index) => (
+                <article
+                  class:list={[
+                    cardClass,
+                    "justify-between",
+                    lastSpansRow && index === recent.length - 1 && "md:col-span-2 lg:col-span-1",
+                  ]}
+                >
+                  <ModuleSummary module={module} compact={compact} />
                 </article>
               ))}
             </div>
