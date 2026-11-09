@@ -111,6 +111,7 @@ const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
     let done = rows.map(() => false)
     let away = false
     let rung = false
+    let checkedPending = false
     // While an arrow draws
     let busy = false
     // Bumped on reset, so an arrow that's still drawing knows to stop
@@ -133,13 +134,20 @@ const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
       const finished = done.every(Boolean)
       for (const [i, row] of rows.entries()) {
         const current = !away && !busy && !finished && i === at
+        const pending = current && checkedPending && i === DOORBELL_AT && !done[i]
         row.classList.toggle("is-current", current)
+        row.classList.toggle("is-pending", pending)
+        row.classList.toggle("has-pending-label", checkedPending && i === DOORBELL_AT)
         row.classList.toggle("is-ticked", done[i]!)
+        row.querySelector(".rc7-already")!.textContent =
+          checkedPending && i === DOORBELL_AT ? "not done" : "already done"
         row.querySelector("[data-rc7-sr]")!.textContent = done[i]
           ? " (ticked)"
-          : current
-            ? " (next)"
-            : ""
+          : pending
+            ? " (not done)"
+            : current
+              ? " (next)"
+              : ""
       }
       for (const [i, dd] of amounts.entries()) {
         dd.replaceChildren(done[i] ? AMOUNTS[i]! : "–")
@@ -224,6 +232,12 @@ const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
       if (busy || done.every(Boolean)) return
       if (away) return comeBack()
       if (done[at]) return void skip(at)
+      if (at === DOORBELL_AT && rung && !checkedPending) {
+        checkedPending = true
+        caption.textContent = "Step 3 is not done. Click Step to add the flour."
+        render()
+        return
+      }
       if (at === DOORBELL_AT && !rung) ring()
       else void cook(at)
     })
@@ -238,6 +252,7 @@ const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
       done = rows.map(() => false)
       away = busy = false
       rung = false
+      checkedPending = false
       caption.textContent = "Click Step to start cooking"
       render()
     })
@@ -252,6 +267,7 @@ const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
     --rc7-line: #d4d4d8;
     --rc7-surface: #ffffff;
     --rc7-ok: #15803d;
+    --rc7-pending: #e69f00;
     --rc7-egg: #f3e7d3;
     --rc7-ease: cubic-bezier(0.23, 1, 0.32, 1);
     --st-ink: var(--rc7-ink);
@@ -332,6 +348,19 @@ const bowl = ["eggs", "milk", "flour", "whisked", "pancakes"]
   /* The one being read back */
   .rc7 .rc7-row.is-read {
     border-color: var(--rc7-ok);
+  }
+  .rc7 .rc7-row.is-pending {
+    border-color: var(--rc7-pending);
+    background: color-mix(in oklab, var(--rc7-pending) 12%, var(--rc7-surface));
+  }
+  .rc7-row.is-pending .rc7-tick {
+    border-color: var(--rc7-pending);
+  }
+  .rc7-row.has-pending-label .rc7-already {
+    color: var(--rc7-pending);
+  }
+  .rc7-row.is-pending .rc7-already {
+    opacity: 1;
   }
   /* Checking the tick before skipping the step */
   .rc7-row.is-checking .rc7-tick {

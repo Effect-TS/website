@@ -22,46 +22,27 @@ import RecipeVisual from "./RecipeVisual.astro"
 import ReplayVisual from "./ReplayVisual.astro"
 import SleepingVisual from "./SleepingVisual.astro"
 
-In the [previous installment](/blog/module-of-the-week/cluster-idempotency) of Module of the Week, we finally stopped Dad from telling the same joke twice. It took idempotency keys, a transaction, an inbox table, an outbox table, and a loop that checked all of them every 500 milliseconds.
+In the [previous installment](/blog/module-of-the-week/cluster-idempotency) of Module of the Week, we finally got Dad to stop telling the same joke twice, but we made a mess of his code. Most of it is now about surviving crashes instead of telling jokes. We need to write down the result of each step he takes, then read it all back after a crash to find out where he got to.
 
-It works. I'm proud of it. I never want to write it again.
+It works, but I'm not proud of it. And I never want to write anything like it again.
 
-This week, we're going to delete most of it.
+This week we're bringing in Effect Workflow, and most of that code is going in the bin.
 
 By the end of this post, you'll know:
 
 <ol class="[&>li]:my-0 [&>li>p]:my-0">
-  <li>What a workflow is, and how it remembers what it already did</li>
-  <li>How to break work into activities, and what belongs inside one</li>
-  <li>How a workflow can wait for an hour without tying up a runner</li>
+  <li>What a workflow is, and how it remembers what it's done</li>
+  <li>How to split work into activities</li>
+  <li>Why a workflow doesn't need to be running to be in progress</li>
 </ol>
 
-## The Collapsed Block
+## Note to Self
 
-Remember the code we hid at the end of Part 4? Here's what was inside:
+Remember the [code we hid at the end of Part 4](/blog/module-of-the-week/cluster-idempotency#transactional-handlers)? If you were brave enough to expand it, you'll know there wasn't much joke-telling in there. It was more than eighty lines of bookkeeping, all to answer one question: _after a crash, what did I already do?_
 
-<ul class="[&>li]:my-0 [&>li>p]:my-0">
-  <li>
-    A `dad_inbox` table, so messages could be saved in the same transaction that
-    marked them processed
-  </li>
-  <li>
-    A `dad_jokes` table, so a joke could be written down before it was posted
-  </li>
-  <li>A `posted` flag, so Dad could tell which jokes made it to Slack</li>
-  <li>
-    A loop, every 500 milliseconds, to post anything left over from a crash
-  </li>
-  <li>`keepAlive` calls, so Dad wouldn't fall asleep with work still to do</li>
-</ul>
+What we really want is for something else to do that bookkeeping for us.
 
-Every one of those lines exists to answer the same question: _after a crash, what did I already do?_
-
-Now imagine Dad gets a new feature. Say he should check whether anyone laughed. That's another step, so it needs another flag, another "did I already do this?" check, and another branch in the loop. Every step we add comes with its own bookkeeping, and the bookkeeping is the part that's easy to get wrong.
-
-What we really want is for something else to remember what Dad has already done.
-
-<DadSays>I don't need a to-do list. I need a done list.</DadSays>
+<DadSays>My memory's fine. It's remembering that's the problem.</DadSays>
 
 ## Recipes
 
@@ -69,30 +50,28 @@ Let's forget about computers for a minute and make pancakes.
 
 You've got a recipe with five steps. Halfway through, the doorbell rings. You answer it, sign for a package, and come back to the kitchen. Where do you start?
 
-If you've been ticking off each step as you finish it, it's easy. You start at the top of the recipe again, but before you do each step, you check whether it's ticked. If it is, you skip it. The first step without a tick is where you pick up.
+If you've been ticking off each step as you go, it's easy. Go back to the top of the recipe and work your way down, skipping anything with a tick. The first step without a tick mark is where you pick back up.
 
 Click **Step** to work through the recipe, and keep an ear out for the doorbell.
 
 <RecipeVisual />
 
-Without the ticks, you'd have no idea how far you got. You'd start again from the top, do every step again, and end up with six eggs in the bowl.
+Without the ticks, you might still figure out where you left off. But now you're inspecting the batter and trying to remember how many eggs you cracked. Writing it down as you go makes coming back much easier.
 
-The recipe is the same either way. So is the doorbell. The only difference is that you wrote down what you'd finished.
-
-That's a **workflow**: a list of steps, plus a journal of which steps are done.
+We've just described a **durable workflow**: a program that saves the result of each step so it can recover from an interruption without repeating work.
 
 ## Dad's Recipe
 
-Before we write any code, let's write Dad's recipe out in plain English. When a batch of messages comes in, he:
+Dad's recipe has just two steps. When a batch of messages arrives, he:
 
 <ol class="[&>li]:my-0 [&>li>p]:my-0">
-  <li>Writes a joke he hasn't told in this chat</li>
-  <li>Posts it</li>
+  <li>Comes up with a joke he hasn't told before</li>
+  <li>Posts it to the chat</li>
 </ol>
 
-That's the whole thing. Here it is as a workflow:
+Let's turn that into a durable workflow. We'll start by giving it a name and defining the data it receives.
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false title="workflow.ts"
 import { Schema } from "effect"
 import { Workflow } from "effect/workflow"
 
@@ -102,34 +81,46 @@ const Message = Schema.Struct({
   text: Schema.String,
 })
 
+// Dad couldn't come up with a joke
+export class JokeError extends Schema.TaggedError<JokeError>()("JokeError", {
+  cause: Schema.Defect(),
+}) {}
+
 export const TellJoke = Workflow.make("TellJoke", {
   payload: {
     // Which chat, and the batch of messages the joke is about
     chat: Schema.String,
     messages: Schema.Array(Message),
   },
+  error: JokeError,
   // Same batch, same execution
   idempotencyKey: ({ chat, messages }) => `${chat}/${messages[0]!.messageId}`,
 })
 ```
 
-`Workflow.make` looks a lot like `Entity.make`. There's a name, and a schema for the payload, which cluster uses to save the payload to the database.
+Like `Entity.make`, `Workflow.make` takes a name and schemas describing the data it needs to save. Our workflow receives a chat ID and a batch of messages. If it fails, the `JokeError` schema describes the error to save.
 
-The new part is `idempotencyKey`. Every time you run `TellJoke`, Workflow turns the key into an **execution ID**. Run it twice with the same key and you get the same execution, not a second one. It's the elevator button from [Part 4](/blog/module-of-the-week/cluster-idempotency#idempotency) again. Press it as many times as you like and you still get one elevator.
+The `idempotencyKey` tells Workflow when two calls should count as the same run. Workflow combines this key with the workflow's name to produce an **execution ID**. Call `TellJoke` again with the same key and it refers to the execution we already started. It's the elevator button from [Part 4](/blog/module-of-the-week/cluster-idempotency#idempotency) again. Pressing it twice still calls one elevator.
 
-<ReaderAsks>Why only the first message's ID? Why not all of them?</ReaderAsks>
+<ReaderAsks>
+  Why use only the first message's ID? Couldn't we sort all the IDs and join
+  them together?
+</ReaderAsks>
 
-Because Slack's IDs never change, and neither does which message came first in a batch. We'll see why that matters when we hook Dad up to the workflow.
+We could, but Dad might crash after saving the workflow and before acknowledging the messages. Those messages would be delivered again, possibly with a few new ones joining the batch. If we included every ID in the key, those additions would cause Dad to start another workflow.
+
+Using the first message's ID gives Dad the same key either way, so he gets back to the workflow he already started. That workflow keeps its original batch, though, so Dad will acknowledge any new messages without including them in the joke.
 
 ## Activities
 
-Each step in the recipe becomes an **activity**: an effect with a name, whose result goes in the journal.
+An **activity** is a named effect whose result gets saved to the workflow's journal. When the workflow runs again, it can reuse that result instead of running the effect again. We'll use one activity for each step in Dad's recipe.
 
 ```ts showLineNumbers=false
 import { Effect, Schema } from "effect"
 import { ClusterSchema } from "effect/cluster"
 import { SqlClient } from "effect/sql"
 import { Activity } from "effect/workflow"
+import { JokeError, TellJoke } from "./workflow"
 
 export const TellJokeLayer = TellJoke.toLayer(
   Effect.fn(function* ({ chat, messages }) {
@@ -137,24 +128,38 @@ export const TellJokeLayer = TellJoke.toLayer(
     const slack = yield* Chat
     const sql = yield* SqlClient.SqlClient
 
-    // Step 1: write a joke he hasn't told in this chat
+    // Step 1: Write a joke
     const joke = yield* Activity.make({
+      // The name of the activity
       name: "WriteJoke",
-      // The journal saves the joke, so it needs a schema
+      // The journal saves the joke...
       success: Schema.String,
+      // ...or why there isn't one
+      error: JokeError,
+      // The logic the activity runs
       execute: Effect.gen(function* () {
-        const notebook = yield* sql<{ joke: string }>`
+        // Every joke Dad has already told in this chat
+        const told = yield* sql<{ joke: string }>`
           SELECT joke FROM dad_jokes WHERE chat = ${chat}
         `
+
+        // A fresh joke based on the input messages
         const joke = yield* punGenerator.generate(messages, {
-          told: new Set(notebook.map((row) => row.joke)),
+          told: new Set(told.map((row) => row.joke)),
         })
+
+        // Write it down, so he never tells it in this chat again
         yield* sql`INSERT INTO dad_jokes ${sql.insert({ chat, joke })}`
+
+        // The activity result which is persisted to the journal
         return joke
-      }).pipe(Effect.orDie),
+      }).pipe(
+        // Anything that goes wrong becomes a JokeError
+        Effect.mapError((cause) => new JokeError({ cause })),
+      ),
     }).annotate(ClusterSchema.WithTransaction, true)
 
-    // Step 2: tell it
+    // Step 2: Tell the joke
     yield* Activity.make({
       name: "PostJoke",
       execute: slack.reply(chat, joke),
@@ -163,50 +168,40 @@ export const TellJokeLayer = TellJoke.toLayer(
 )
 ```
 
-Two activities, run in order. Compare that to the collapsed block from last week.
+Dad now writes a joke and posts it in two activities, one after the other. The bookkeeping we hid in that collapsed code block last week is mostly taken care of for us.
 
-`WriteJoke` is worth a closer look. The pun generator is random. Ask it about the same messages twice and you'll get two different jokes. Last week, that's exactly why Dad had to write each joke down in `dad_jokes` before posting it.
+In the `WriteJoke` activity, Dad reads the jokes he's already told, asks the generator for a new one, and adds it to `dad_jokes`. The chosen joke is then saved as the activity's result, and once saved, the workflow can reuse it without re-running the logic associated with the activity.
 
-An activity's result goes in the journal, so `WriteJoke` only ever comes up with one joke per execution. After a crash, Dad doesn't ask for a new one. He reads the one he already wrote.
+But what if Dad crashes after inserting the joke into `dad_jokes`, before the activity's result is saved? On the next attempt, he'd treat that joke as one he'd already told and choose another, even though he never posted it.
 
-The `WithTransaction` annotation should look familiar from Part 4. It runs the activity inside the same transaction that writes its result to the journal. Either the joke goes in `dad_jokes` _and_ in the journal, or neither happens. The same rule from Part 4 applies, too: `dad_jokes` has to live in the same database as cluster's tables.
+That's why we add the `WithTransaction` annotation. It saves the joke in `dad_jokes` and the activity's result in the journal as one transaction. If Dad crashes before the transaction commits, neither write takes effect, so he can safely try again. If it commits, both records are saved and the workflow can reuse the joke. As in Part 4, this requires the `dad_jokes` table to be in the same database that is used by the cluster.
 
-<DadSays>
-  I never forget a joke. I just write it down. Same thing, really.
-</DadSays>
+<DadSays>I only told half the joke. I wasn't ready to commit.</DadSays>
 
 ## Replaying
 
-So how does Dad pick up where he left off after a crash? This is the part people usually get wrong, so let's go slowly.
+What happens if the workflow is interrupted before it finishes?
 
-<ReaderAsks>
-  I'm guessing the workflow saves which line it was on, and jumps back there?
-</ReaderAsks>
+When it starts again, Workflow **replays** the function, running it from the beginning and reusing saved activity results as it goes. It's the same approach we took with the pancake recipe. Start at the top, check what's already done, and carry on with what remains.
 
-That would be nice, but JavaScript can't jump into the middle of a function. So a workflow does something simpler. It runs again, **from the top**.
-
-Every activity checks the journal before it does anything. If the journal already has a result for it, the activity returns that result straight away, without running. If not, it runs for real, and its result goes in the journal.
-
-Click **Step** to run the workflow, and keep stepping after the crash.
+Click **Step** to follow the workflow through a crash and restart. Watch which lines run again and which results come from the journal.
 
 <ReplayVisual />
 
-After a crash, the workflow ran from the top again. `WriteJoke` was in the journal, so it handed back the same joke without asking the pun generator. Only the steps that hadn't finished actually ran.
+Dad crashed after `WriteJoke` saved its result, before `PostJoke` had a chance to run. On replay, `WriteJoke` returned the saved joke without running its logic again. `PostJoke` had no result in the journal yet, so it posted that joke to the chat and saved its own result.
 
-This has one consequence you need to remember.
+However, reading the clock wasn't wrapped in an activity, so the workflow read it again and got a new time. If we'd left the pun generator outside `WriteJoke`, it would have run again too, potentially giving Dad a different joke.
 
 <Aside type="caution" title="Everything outside an activity runs again">
-  <p>
-    Code outside an activity runs again on every replay. If you call
-    `Math.random()` or read the clock outside an activity, the replay can take a
-    different path from the first run. Anything random, and anything that
-    touches the outside world, goes inside an activity.
-  </p>
+  Keep database queries, network calls, and anything that produces a random or
+  time-dependent value inside activities. Code outside them runs again during
+  replay. If that code produces a different value, it can change what the
+  workflow does next.
 </Aside>
 
-## Hooking Dad Up
+## Starting the Workflow
 
-Now let's give Dad's entity its job back. All he does now is collect a batch, start a workflow, and reply to the messages in the batch:
+We have a workflow that can write and post a joke. Now Dad's entity needs to pass it some messages. He still collects them until the chat has been quiet for 2.5 seconds, then calls `TellJoke.execute` with the batch:
 
 ```ts showLineNumbers=false collapse={8-15}
 export const DadLayer = Dad.toLayerQueue(
@@ -249,9 +244,11 @@ export const DadLayer = Dad.toLayerQueue(
 )
 ```
 
-The inbox table is gone, and so are the outbox, the polling loop, and the `keepAlive` calls. Dad's messages are still persisted, and they still use Slack's `ts` as their primary key, so Slack's retries are still caught. The `WithTransaction` annotation moved off `NewMessage` and onto `WriteJoke`, the only step that writes to our database.
+The `discard: true` option lets Dad acknowledge the messages as soon as the workflow is saved, without waiting for it to finish. Those acknowledgements tell Cluster that he's handled the messages. The workflow takes care of writing and posting the joke from there.
 
-Workflow does need an engine to run on, and since we already have a cluster, we'll use that:
+That replaces the inbox and outbox tables, polling loop, and `keepAlive` calls from Part 4. Incoming messages are still persisted by Cluster, with Slack's `ts` as their primary key to catch duplicate deliveries. We've also moved `WithTransaction` from the `NewMessage` handler to `WriteJoke`, where we now write to `dad_jokes`.
+
+To run the workflow on our existing cluster, we provide `ClusterWorkflowEngine.layer` alongside the entity and workflow implementations:
 
 ```ts showLineNumbers=false
 const MainLayer = Layer.mergeAll(DadLayer, TellJokeLayer).pipe(
@@ -262,32 +259,20 @@ const MainLayer = Layer.mergeAll(DadLayer, TellJokeLayer).pipe(
 )
 ```
 
-Let's do one last crash, between `execute` and the replies. The workflow is saved, but none of the messages are marked processed.
+## Adding Features
 
-Cluster delivers the batch to Dad again, just like in Part 3. Dad calls `TellJoke.execute` again, and the first message in the batch is the same as before, so the idempotency key is the same, and so is the execution ID. Workflow sees it's already running that execution and doesn't start a second one. Dad replies, the batch is marked processed, and there's still only one joke in the chat.
+Now that Workflow handles the bookkeeping, let's give Dad another feature: **if nobody laughs within an hour, he explains the joke.**
 
-That's why we keyed on the first message. Persisted messages from Part 3 make sure the batch comes back after a crash. Idempotency keys from Part 4 make sure it only starts one workflow.
+With last week's code, we'd need to store when Dad should check for laughs, arrange for that check to run, and track whether he'd already posted an explanation. We'd spend much of our time figuring out how to recover each part after a crash.
 
-<Aside title="Squeezing into a batch">
-  <p>
-    If a new message arrives while Dad is restarting, it can end up in the
-    redelivered batch. That batch has the same key, so the message gets marked
-    processed without being part of the joke. Dad can live with that. He's
-    ignored worse. Ask Sebastian.
-  </p>
-</Aside>
+Here, we can add the steps directly to the workflow:
 
-## Sleeping
-
-So far, Workflow has mostly replaced code we already had. Now let's use it for something that would have been a real pain last week.
-
-Dad has a new rule: **if nobody laughs within an hour, he explains the joke.**
-
-```ts showLineNumbers=false collapse={8-26}
+```ts showLineNumbers=false collapse={9-28}
 import { Effect, Schema } from "effect"
 import { ClusterSchema } from "effect/cluster"
 import { SqlClient } from "effect/sql"
 import { Activity, DurableClock } from "effect/workflow"
+import { JokeError, TellJoke } from "./workflow"
 
 export const TellJokeLayer = TellJoke.toLayer(
   Effect.fn(function* ({ chat, messages }) {
@@ -295,23 +280,24 @@ export const TellJokeLayer = TellJoke.toLayer(
     const slack = yield* Chat
     const sql = yield* SqlClient.SqlClient
 
-    // Step 1: write a joke he hasn't told in this chat
+    // Step 1: Write a joke
     const joke = yield* Activity.make({
       name: "WriteJoke",
       success: Schema.String,
+      error: JokeError,
       execute: Effect.gen(function* () {
-        const notebook = yield* sql<{ joke: string }>`
+        const told = yield* sql<{ joke: string }>`
           SELECT joke FROM dad_jokes WHERE chat = ${chat}
         `
         const joke = yield* punGenerator.generate(messages, {
-          told: new Set(notebook.map((row) => row.joke)),
+          told: new Set(told.map((row) => row.joke)),
         })
         yield* sql`INSERT INTO dad_jokes ${sql.insert({ chat, joke })}`
         return joke
-      }).pipe(Effect.orDie),
+      }).pipe(Effect.mapError((cause) => new JokeError({ cause }))),
     }).annotate(ClusterSchema.WithTransaction, true)
 
-    // Step 2: tell it, and keep the Slack message's ts
+    // Step 2: Tell the joke
     const ts = yield* Activity.make({
       name: "PostJoke",
       success: Schema.String,
@@ -319,7 +305,10 @@ export const TellJokeLayer = TellJoke.toLayer(
     })
 
     // Step 3: give the room an hour
-    yield* DurableClock.sleep({ name: "WaitForLaughs", duration: "1 hour" })
+    yield* DurableClock.sleep({
+      name: "WaitForLaughs",
+      duration: "1 hour",
+    })
 
     // Step 4: count the laughs
     const laughs = yield* Activity.make({
@@ -343,7 +332,7 @@ export const TellJokeLayer = TellJoke.toLayer(
 )
 ```
 
-That's three more steps, and none of them need a table or a flag. `ExplainJoke` is random, just like `WriteJoke`, so it goes inside an activity too.
+The new code follows what we want Dad to do: wait an hour, count the laughs, and explain the joke if there aren't any. Last week, we'd have needed code to work out which of those steps had finished if the workflow was interrupted. Now we can rely on the workflow's journal to track that for us.
 
 <ReaderAsks>
   Doesn't sleeping for an hour tie up a runner? What if it crashes in the
@@ -358,18 +347,14 @@ Click **Step** to run the workflow, and keep stepping.
 
 <SleepingVisual />
 
-While Dad was asleep, nothing was running. All that was left of him was a row in the journal with a time on it. When that time came, the workflow ran from the top, the same as after a crash, and the sleep came back from the journal as done.
-
-<DadSays>If you have to explain it, it's still funny. To me.</DadSays>
+While Dad was asleep, nothing was running. When the wake-up message arrived, the workflow replayed from the beginning. The journal supplied the earlier results, and Dad continued by counting the laughs.
 
 <Aside title="Short naps stay in memory">
-  <p>
-    A durable sleep costs a database write and a scheduled message, so
-    `DurableClock.sleep` only goes durable for sleeps over 60 seconds. Shorter
-    ones run in memory as an ordinary activity. You can change the cutoff with
-    `inMemoryThreshold`. It's also why Dad's 2.5 second wait for the chat to go
-    quiet didn't need to be durable at all.
-  </p>
+  A durable sleep costs a database write and a scheduled message, so
+  `DurableClock.sleep` only goes durable for sleeps over 60 seconds. Shorter
+  ones run in memory as an ordinary activity. You can change the cutoff with
+  `inMemoryThreshold`. It's also why Dad's 2.5 second wait for the chat to go
+  quiet didn't need to be durable at all.
 </Aside>
 
 ## Wrapping up
@@ -378,21 +363,17 @@ That's it for this week! To recap what we've learned:
 
 <ul class="[&>li]:my-0 [&>li>p]:my-0">
   <li>
-    A workflow is a list of steps plus a journal. After a crash, it runs from
-    the top and skips anything the journal already has a result for.
+    Workflows recover from interruptions by replaying and reusing saved activity
+    results.
   </li>
   <li>
-    Activities are the steps. Anything random, and anything that touches the
-    outside world, belongs inside one.
+    Keep randomness and interactions with the outside world inside activities.
   </li>
   <li>
-    `DurableClock.sleep` lets a workflow wait for an hour, or a month, without
-    anything running.
+    Durable sleeps suspend the workflow until a scheduled message wakes it up.
   </li>
 </ul>
 
 All of the code from this post is [on GitHub](https://github.com/Effect-TS/office-hours/tree/main/packages/module-of-the-week/src/0007-cluster-workflow), if you'd like to try to catch Dad laughing at his own jokes.
-
-Next time, Dad's been asked for a joke of the day. One joke, every morning at 9am, in `#general`. How hard can that be? We have three runners, so the answer is three jokes at 9:00am. We'll look at how to make sure exactly one Dad shows up.
 
 Until then, Happy Effecting!

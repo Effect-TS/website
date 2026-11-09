@@ -60,7 +60,7 @@ export function drawArrow(options: {
   stacked: boolean
   className: string
   readBack?: boolean
-  gutter?: number
+  gutter?: number | undefined
 }) {
   const { stage, layer, back, stacked, className } = options
   const readBack = options.readBack ?? back
