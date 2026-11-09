@@ -48,7 +48,7 @@ const expectToOpen = async (
   })
 }
 
-test("desktop features the latest module above the four before it", async ({
+test("desktop features the latest module beside the four before it", async ({
   page,
 }) => {
   const section = await open(page, desktop)
@@ -67,23 +67,26 @@ test("desktop features the latest module above the four before it", async ({
   const featuredBox = await box(featured)
   const recentBoxes = await Promise.all(recent.map(box))
   const right = ({ x, width }: { x: number; width: number }) => x + width
+  const bottom = ({ y, height }: { y: number; height: number }) => y + height
   const gridRight = Math.max(...[featuredBox, ...recentBoxes].map(right))
 
   // "All modules" sits on the heading's row, flush with the grid's right edge.
   const headingBox = await box(heading)
   const buttonBox = await box(allModules)
   expect(buttonBox.x).toBeGreaterThan(right(headingBox))
-  expect(buttonBox.y).toBeLessThan(headingBox.y + headingBox.height)
-  expect(buttonBox.y + buttonBox.height).toBeGreaterThan(headingBox.y)
+  expect(buttonBox.y).toBeLessThan(bottom(headingBox))
+  expect(bottom(buttonBox)).toBeGreaterThan(headingBox.y)
   expect(Math.abs(right(buttonBox) - gridRight)).toBeLessThanOrEqual(2)
 
-  // The featured module spans the grid; the four before it are listed below.
-  expect(Math.abs(right(featuredBox) - gridRight)).toBeLessThanOrEqual(2)
+  // Two columns: the featured module on the left for the full height, the
+  // four before it stacked on the right between the same top and bottom.
   for (const rect of recentBoxes) {
-    expect(rect.y).toBeGreaterThanOrEqual(
-      featuredBox.y + featuredBox.height - 2,
-    )
+    expect(rect.x).toBeGreaterThanOrEqual(right(featuredBox))
   }
+  expect(Math.abs(recentBoxes[0]!.y - featuredBox.y)).toBeLessThanOrEqual(2)
+  expect(
+    Math.abs(bottom(recentBoxes[3]!) - bottom(featuredBox)),
+  ).toBeLessThanOrEqual(2)
 
   // Newest first, numbered consecutively.
   const latest = await entryNumber(featured)
@@ -91,10 +94,39 @@ test("desktop features the latest module above the four before it", async ({
     expect(await entryNumber(article)).toBe(latest - index - 1)
   }
 
-  // The featured module leads with its title and description, not an image.
-  await expect(section.locator("img")).toHaveCount(0)
-  await expect(featured.getByRole("heading", { level: 3 })).toBeVisible()
-  await expect(featured.locator("p")).not.toHaveCount(0)
+  // The featured module leads with a 16:9 visual the width of the card, and
+  // its metadata, title and description follow beneath it.
+  const visual = featured.locator(":scope > *").first()
+  const visualBox = await box(visual)
+  expect(visualBox.width).toBeGreaterThanOrEqual(featuredBox.width - 2)
+  expect(visualBox.width / visualBox.height).toBeGreaterThan(1.7)
+  expect(visualBox.width / visualBox.height).toBeLessThan(1.85)
+  const title = featured.getByRole("heading", { level: 3 })
+  await expect(title).toBeVisible()
+  expect((await box(title)).y).toBeGreaterThanOrEqual(bottom(visualBox))
+  expect(
+    (await box(featured.getByText(/^\d+$/).first())).y,
+  ).toBeGreaterThanOrEqual(bottom(visualBox))
+  const paragraphs = await Promise.all(
+    await featured
+      .locator("p")
+      .all()
+      .then((all) => all.map(box)),
+  )
+  expect(paragraphs.some((rect) => rect.y >= bottom(visualBox))).toBe(true)
+
+  // With a video the visual is its YouTube thumbnail; without one it is a
+  // text title card naming the module. Never an unrelated Open Graph image.
+  await expect(section.locator('img[src*="/og/"]')).toHaveCount(0)
+  if ((await featured.getByRole("link", { name: /^Video/ }).count()) > 0) {
+    await expect(visual.locator("img")).toHaveAttribute(
+      "src",
+      /^https:\/\/i\.ytimg\.com\//,
+    )
+  } else {
+    await expect(section.locator("img")).toHaveCount(0)
+    await expect(visual).toContainText((await title.textContent())!.trim())
+  }
 })
 
 test("every module links to its blog post and, when it has one, its video", async ({
@@ -268,9 +300,7 @@ test("mobile stacks the modules in one column without overflowing", async ({
   }
 })
 
-test("a long package name stays inside its card in the four-up row", async ({
-  page,
-}) => {
+test("a long package name stays inside its card", async ({ page }) => {
   const section = await open(page, narrowDesktop)
   const recent = await section
     .getByRole("article")
@@ -278,7 +308,7 @@ test("a long package name stays inside its card in the four-up row", async ({
     .then((all) => all.slice(1))
   expect(recent).toHaveLength(4)
   for (const article of recent) {
-    // The longest package in the series so far, in every compact card.
+    // The longest package in the series so far, in every recent card.
     await article
       .getByText(/^from "/)
       .evaluate(
@@ -299,40 +329,63 @@ test("a long package name stays inside its card in the four-up row", async ({
   }
 })
 
-test("video durations keep readable contrast at rest", async ({ page }) => {
+test("small text in the modules keeps readable contrast at rest", async ({
+  page,
+}) => {
   const section = await open(page, desktop)
-  const durations = section
-    .getByRole("link", { name: /^Video/ })
-    .getByText(/^\s*\d+:\d{2}(?::\d{2})?\s*$/)
-  expect(await durations.count()).toBeGreaterThan(0)
-  const ratios = await durations.evaluateAll((nodes) => {
+  // Every element under 14px with text of its own: numbers, packages, dates,
+  // durations and any badge. Rendered over the card they sit in.
+  const ratios = await section.getByRole("article").evaluateAll((articles) => {
     const channel = (value: number) => {
       const c = value / 255
       return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
     }
     // Computed colors come back in oklch; paint them to read sRGB bytes.
     const context = document.createElement("canvas").getContext("2d")!
-    const luminance = (color: string) => {
-      context.fillStyle = color
-      context.fillRect(0, 0, 1, 1)
+    const luminance = (...layers: ReadonlyArray<string>) => {
+      context.clearRect(0, 0, 1, 1)
+      for (const layer of layers) {
+        context.fillStyle = layer
+        context.fillRect(0, 0, 1, 1)
+      }
       const [r, g, b] = context.getImageData(0, 0, 1, 1).data
       return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!)
     }
-    const backgroundOf = (node: Element) => {
+    const backgrounds = (node: Element) => {
+      const layers: Array<string> = []
       for (let el: Element | null = node; el; el = el.parentElement) {
         const { backgroundColor } = getComputedStyle(el)
-        if (!/rgba\(.*,\s*0\)$/.test(backgroundColor)) return backgroundColor
+        if (!/rgba\(.*,\s*0\)$/.test(backgroundColor))
+          layers.unshift(backgroundColor)
       }
-      return "rgb(255, 255, 255)"
+      return layers
     }
-    return nodes.map((node) => {
-      const text = luminance(getComputedStyle(node).color)
-      const background = luminance(backgroundOf(node))
-      const [light, dark] =
-        text > background ? [text, background] : [background, text]
-      return Number(((light + 0.05) / (dark + 0.05)).toFixed(2))
-    })
+    return articles
+      .flatMap((article) => [...article.querySelectorAll("*")])
+      .filter(
+        (node) =>
+          parseFloat(getComputedStyle(node).fontSize) < 14 &&
+          [...node.childNodes].some(
+            (child) =>
+              child.nodeType === Node.TEXT_NODE &&
+              child.textContent!.trim() !== "",
+          ) &&
+          node.getClientRects().length > 0,
+      )
+      .map((node) => {
+        const text = luminance(getComputedStyle(node).color)
+        const background = luminance(...backgrounds(node))
+        const [light, dark] =
+          text > background ? [text, background] : [background, text]
+        return {
+          text: node.textContent!.trim().slice(0, 30),
+          ratio: Number(((light + 0.05) / (dark + 0.05)).toFixed(2)),
+        }
+      })
   })
+  expect(ratios.length).toBeGreaterThan(0)
   // WCAG AA for small text.
-  for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5)
+  for (const { text, ratio } of ratios) {
+    expect(ratio, text).toBeGreaterThanOrEqual(4.5)
+  }
 })
