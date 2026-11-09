@@ -1,24 +1,16 @@
 ---
-import { ArrowRight } from "@lucide/astro"
+import { ArrowRight, Play } from "@lucide/astro"
 import ModuleSummary from "@/components/landing/blocks/ModuleSummary.astro"
 import { getLatestModules } from "@/features/module-of-the-week/http"
 
 const [latest, ...older] = await getLatestModules()
 const recent = older.slice(0, 4)
-
-// Three or four cards across leave no room for the date beside the package.
-const compact = recent.length >= 3
+const video = latest?.post.data.video
 
 // Every module is a card that opens its blog post: `ModuleSummary` stretches
 // the Blog post link over the card, so each card must be positioned.
 const cardClass =
-  "group/card relative flex min-w-0 flex-col gap-4 bg-zinc-950 p-5 transition-colors hover:bg-zinc-900/60 has-[a:focus-visible]:bg-zinc-900/60 lg:px-6"
-
-// The recent modules share one row at lg, one column per card, and at md an odd
-// one out spans both columns (`md:max-lg:last:odd:col-span-2`). Otherwise the grid's
-// border-coloured background would show through the unused cells.
-const recentGridClass =
-  "grid min-w-0 grid-cols-1 gap-px bg-zinc-800 md:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr lg:grid-cols-none"
+  "group/card relative flex min-w-0 flex-col bg-zinc-950 transition-colors hover:bg-zinc-900/60 has-[a:focus-visible]:bg-zinc-900/60"
 ---
 
 {
@@ -52,15 +44,61 @@ const recentGridClass =
             />
           </a>
         </div>
-        <div class="mt-12 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800">
-          <article class:list={[cardClass, "lg:py-6"]}>
-            <ModuleSummary module={latest} featured />
+        <div
+          class:list={[
+            "mt-12 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800",
+            recent.length > 0 && "lg:grid-cols-2",
+          ]}
+        >
+          <article class={cardClass}>
+            {video !== undefined ? (
+              // The video's thumbnail. It sits above the card's Blog post
+              // layer so it keeps its own destination.
+              <a
+                href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Watch ${latest.title} on YouTube (opens in a new tab)`}
+                class="relative z-10 block aspect-video overflow-hidden bg-zinc-900"
+              >
+                <img
+                  src={`https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`}
+                  alt=""
+                  loading="lazy"
+                  width="1280"
+                  height="720"
+                  class="h-full w-full object-cover"
+                />
+                <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums">
+                  <Play class="size-3 fill-current" aria-hidden="true" />
+                  {video.duration}
+                </span>
+              </a>
+            ) : (
+              // Until the video is out, a title card in the thumbnail's place.
+              // The card already opens the post and names the module below,
+              // so this is decorative.
+              <div
+                aria-hidden="true"
+                class="flex aspect-video flex-col justify-end bg-zinc-900 bg-[radial-gradient(120%_90%_at_85%_0%,var(--color-zinc-800),transparent_60%)] p-6 lg:p-8"
+              >
+                <p class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                  Module of the Week #{latest.number}
+                </p>
+                <p class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance text-white md:text-4xl">
+                  {latest.title}
+                </p>
+              </div>
+            )}
+            <div class="flex flex-1 flex-col gap-4 border-t border-zinc-800 p-5 lg:px-6">
+              <ModuleSummary module={latest} featured />
+            </div>
           </article>
           {recent.length > 0 && (
-            <div class={recentGridClass}>
+            <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 lg:auto-rows-fr">
               {recent.map((module) => (
-                <article class:list={[cardClass, "justify-between md:max-lg:last:odd:col-span-2"]}>
-                  <ModuleSummary module={module} compact={compact} />
+                <article class:list={[cardClass, "justify-between gap-3 p-5 lg:px-6"]}>
+                  <ModuleSummary module={module} />
                 </article>
               ))}
             </div>

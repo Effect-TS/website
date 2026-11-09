@@ -11,13 +11,11 @@ import type { Module } from "@/features/module-of-the-week/domain"
  */
 interface Props {
   readonly module: Module
-  /** The latest module: a wider band with its excerpt and the links beside it. */
+  /** The latest module: a larger title and its excerpt. */
   readonly featured?: boolean | undefined
-  /** A narrow card at lg: the date moves under the number and package name. */
-  readonly compact?: boolean | undefined
 }
 
-const { module, featured = false, compact = false } = Astro.props
+const { module, featured = false } = Astro.props
 const { post, number, title } = module
 const video = post.data.video
 
@@ -32,68 +30,52 @@ const linkArrowClass =
   "motion-safe:group-hover/link:translate-x-0.5 motion-safe:group-hover/link:-translate-y-0.5"
 ---
 
-<div
-  class:list={[
-    "flex items-baseline justify-between gap-4 font-mono text-xs text-zinc-400",
-    // Stretching keeps the number/package row inside the card so it truncates.
-    compact && "lg:flex-col lg:items-stretch lg:gap-1",
-  ]}
->
+<div class="flex items-baseline justify-between gap-4 font-mono text-xs text-zinc-400">
   <div class="flex min-w-0 items-baseline gap-3">
     <span class="shrink-0 font-medium tabular-nums">{String(number).padStart(2, "0")}</span>
     {post.data.packageName && <span class="truncate">from "{post.data.packageName}"</span>}
   </div>
   <FormattedDate date={post.data.date} className="shrink-0 whitespace-nowrap tabular-nums" />
 </div>
-<div
-  class:list={[
-    "flex flex-col gap-4",
-    featured && "lg:flex-row lg:items-end lg:justify-between lg:gap-8",
-  ]}
->
-  <div class:list={[featured && "max-w-prose"]}>
-    <h3
-      class:list={[
-        "leading-snug font-semibold text-balance text-white",
-        featured ? "text-xl md:text-2xl" : "text-base",
-      ]}
-    >
-      {title}
-    </h3>
-    {
-      featured && (
-        <p class="mt-2 text-base leading-relaxed text-pretty text-zinc-400">{post.data.excerpt}</p>
-      )
-    }
-  </div>
-  <div class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
-    {
-      video && (
-        <a
-          href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          class:list={[linkClass, "relative z-10"]}
-        >
-          Video
-          <span class="font-mono text-xs text-zinc-400 tabular-nums transition-colors group-hover/link:text-zinc-300">
-            {video.duration}
-          </span>
-          <span class="sr-only">: {title} on YouTube (opens in a new tab)</span>
-          <ArrowUpRight class:list={[arrowClass, linkArrowClass]} aria-hidden="true" />
-        </a>
-      )
-    }
-    <a
-      href={`/blog/${post.id}`}
-      class:list={[
-        linkClass,
-        "group-hover/card:text-white after:absolute after:inset-0 after:content-['']",
-      ]}
-    >
-      Blog post
-      <span class="sr-only">: {title}</span>
-      <ArrowUpRight class:list={[arrowClass, cardArrowClass]} aria-hidden="true" />
-    </a>
-  </div>
+<div>
+  <h3
+    class:list={[
+      "leading-snug font-semibold text-balance text-white",
+      featured ? "text-lg" : "text-base",
+    ]}
+  >
+    {title}
+  </h3>
+  {
+    featured && (
+      <p class="mt-2 text-base leading-relaxed text-pretty text-zinc-400">{post.data.excerpt}</p>
+    )
+  }
+</div>
+<div class:list={["flex flex-wrap items-center gap-x-4 gap-y-2", featured && "mt-auto pt-2"]}>
+  {
+    video && (
+      <a
+        href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class:list={[linkClass, "relative z-10"]}
+      >
+        Video
+        <span class="sr-only">: {title} on YouTube (opens in a new tab)</span>
+        <ArrowUpRight class:list={[arrowClass, linkArrowClass]} aria-hidden="true" />
+      </a>
+    )
+  }
+  <a
+    href={`/blog/${post.id}`}
+    class:list={[
+      linkClass,
+      "group-hover/card:text-white after:absolute after:inset-0 after:content-['']",
+    ]}
+  >
+    Blog post
+    <span class="sr-only">: {title}</span>
+    <ArrowUpRight class:list={[arrowClass, cardArrowClass]} aria-hidden="true" />
+  </a>
 </div>
