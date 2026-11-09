@@ -4,6 +4,8 @@ test.use({ contextOptions: { reducedMotion: "reduce" } })
 
 const desktop = { width: 1280, height: 900 }
 const mobile = { width: 390, height: 844 }
+// The narrowest width at which the recent modules form a four-up row.
+const narrowDesktop = { width: 1024, height: 900 }
 
 const open = async (page: Page, viewport: typeof desktop) => {
   await page.setViewportSize(viewport)
@@ -264,4 +266,73 @@ test("mobile stacks the modules in one column without overflowing", async ({
     expect(rect.y).toBeGreaterThanOrEqual(previousBottom - 2)
     previousBottom = rect.y + rect.height
   }
+})
+
+test("a long package name stays inside its card in the four-up row", async ({
+  page,
+}) => {
+  const section = await open(page, narrowDesktop)
+  const recent = await section
+    .getByRole("article")
+    .all()
+    .then((all) => all.slice(1))
+  expect(recent).toHaveLength(4)
+  for (const article of recent) {
+    // The longest package in the series so far, in every compact card.
+    await article
+      .getByText(/^from "/)
+      .evaluate(
+        (node) => (node.textContent = 'from "effect/unstable/persistence"'),
+      )
+    const articleBox = await onScreen(article)
+    const overflow = await article.evaluate((node) =>
+      Math.max(
+        node.scrollWidth - node.clientWidth,
+        ...[...node.querySelectorAll("*")].map(
+          (child) =>
+            child.getBoundingClientRect().right -
+            node.getBoundingClientRect().right,
+        ),
+      ),
+    )
+    expect(overflow, `card at x=${articleBox.x}`).toBeLessThanOrEqual(1)
+  }
+})
+
+test("video durations keep readable contrast at rest", async ({ page }) => {
+  const section = await open(page, desktop)
+  const durations = section
+    .getByRole("link", { name: /^Video/ })
+    .getByText(/^\s*\d+:\d{2}(?::\d{2})?\s*$/)
+  expect(await durations.count()).toBeGreaterThan(0)
+  const ratios = await durations.evaluateAll((nodes) => {
+    const channel = (value: number) => {
+      const c = value / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    // Computed colors come back in oklch; paint them to read sRGB bytes.
+    const context = document.createElement("canvas").getContext("2d")!
+    const luminance = (color: string) => {
+      context.fillStyle = color
+      context.fillRect(0, 0, 1, 1)
+      const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+      return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!)
+    }
+    const backgroundOf = (node: Element) => {
+      for (let el: Element | null = node; el; el = el.parentElement) {
+        const { backgroundColor } = getComputedStyle(el)
+        if (!/rgba\(.*,\s*0\)$/.test(backgroundColor)) return backgroundColor
+      }
+      return "rgb(255, 255, 255)"
+    }
+    return nodes.map((node) => {
+      const text = luminance(getComputedStyle(node).color)
+      const background = luminance(backgroundOf(node))
+      const [light, dark] =
+        text > background ? [text, background] : [background, text]
+      return Number(((light + 0.05) / (dark + 0.05)).toFixed(2))
+    })
+  })
+  // WCAG AA for small text.
+  for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5)
 })
