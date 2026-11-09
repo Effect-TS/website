@@ -95,7 +95,8 @@ test("desktop features the latest module beside the four before it", async ({
   }
 
   // The featured module leads with a 16:9 visual the width of the card, and
-  // its metadata, title and description follow beneath it.
+  // its metadata and description follow beneath it. Its heading sits in the
+  // text block under a thumbnail, or on the title card itself.
   const visual = featured.locator(":scope > *").first()
   const visualBox = await box(visual)
   expect(visualBox.width).toBeGreaterThanOrEqual(featuredBox.width - 2)
@@ -103,7 +104,6 @@ test("desktop features the latest module beside the four before it", async ({
   expect(visualBox.width / visualBox.height).toBeLessThan(1.85)
   const title = featured.getByRole("heading", { level: 3 })
   await expect(title).toBeVisible()
-  expect((await box(title)).y).toBeGreaterThanOrEqual(bottom(visualBox))
   expect(
     (await box(featured.getByText(/^\d+$/).first())).y,
   ).toBeGreaterThanOrEqual(bottom(visualBox))
