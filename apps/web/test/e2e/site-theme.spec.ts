@@ -232,6 +232,68 @@ test("dark photo and logo surfaces keep their contrast in light mode", async ({
   ).toBeLessThan(0.1)
 })
 
+// Job logos are contributor-supplied files drawn straight onto the card, so a
+// white-only or black-only mark disappears in one theme. Read from a real
+// screenshot: every logo must paint pixels that differ from its card.
+for (const theme of ["light", "dark"] as const) {
+  test(`every job logo is visible on its card (${theme})`, async ({ page }) => {
+    await storeTheme(page, theme)
+    await page.goto("/effect-jobs", { waitUntil: "networkidle" })
+
+    const logos = await page
+      .getByRole("link", { name: /^Company: / })
+      .locator("img")
+      .evaluateAll((images) =>
+        Promise.all(
+          images.map(async (image) => {
+            await (image as HTMLImageElement).decode()
+            const box = image.getBoundingClientRect()
+            return {
+              company: image.closest("a")!.querySelector("p")!.textContent!,
+              x: Math.round(box.x + scrollX),
+              y: Math.round(box.y + scrollY),
+              width: Math.round(box.width),
+              height: Math.round(box.height),
+            }
+          }),
+        ),
+      )
+    expect(logos.length).toBeGreaterThan(0)
+
+    const screenshot = await page.screenshot({ fullPage: true })
+    const invisible = await page.evaluate(
+      async ({ png, logos }) => {
+        const shot = new Image()
+        shot.src = `data:image/png;base64,${png}`
+        await shot.decode()
+        const canvas = document.createElement("canvas")
+        canvas.width = shot.width
+        canvas.height = shot.height
+        const context = canvas.getContext("2d", { willReadFrequently: true })!
+        context.drawImage(shot, 0, 0)
+        return logos
+          .filter(({ x, y, width, height }) => {
+            // The card pads its logo, so the pixel just left of it is bare card.
+            const [r, g, b] = context.getImageData(x - 4, y, 1, 1).data
+            const pixels = context.getImageData(x, y, width, height).data
+            let painted = 0
+            for (let i = 0; i < pixels.length; i += 4) {
+              const difference =
+                Math.abs(pixels[i]! - r!) +
+                Math.abs(pixels[i + 1]! - g!) +
+                Math.abs(pixels[i + 2]! - b!)
+              if (difference > 48) painted++
+            }
+            return painted < (width * height) / 100
+          })
+          .map((logo) => logo.company)
+      },
+      { png: screenshot.toString("base64"), logos },
+    )
+    expect(invisible).toEqual([])
+  })
+}
+
 /** Focus the control once and assert the browser treats it as keyboard focus. */
 const focusControl = async (page: Page, selector: string) => {
   const control = page.locator(selector).first()
