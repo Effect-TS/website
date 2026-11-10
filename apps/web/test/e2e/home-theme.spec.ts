@@ -2,31 +2,31 @@ import { expect, test, type Page } from "playwright/test"
 
 test.use({ contextOptions: { reducedMotion: "reduce" } })
 
-const chooseTheme = async (page: Page, name: "Dark" | "Light" | "System") => {
-  await page
+type ThemeName = "Dark" | "Light" | "System"
+
+const themeTrigger = (page: Page) =>
+  page
     .getByRole("button", { name: "Change theme", exact: true })
     .filter({ visible: true })
-    .click()
-  await page
-    .getByRole("menu", { name: "Theme" })
-    .getByRole("menuitemradio", { name, exact: true })
-    .click()
+
+const themeMenu = (page: Page) => page.getByRole("menu", { name: "Theme" })
+
+const themeItem = (page: Page, name: ThemeName) =>
+  themeMenu(page).getByRole("menuitemradio", { name, exact: true })
+
+const chooseTheme = async (page: Page, name: ThemeName) => {
+  await themeTrigger(page).click()
+  await themeItem(page, name).click()
 }
 
-const chooseThemeByKeyboard = async (
-  page: Page,
-  name: "Dark" | "Light" | "System",
-) => {
-  const trigger = page
-    .getByRole("button", { name: "Change theme", exact: true })
-    .filter({ visible: true })
+const chooseThemeByKeyboard = async (page: Page, name: ThemeName) => {
+  const trigger = themeTrigger(page)
   await expect(trigger).toBeVisible()
   await trigger.focus()
   await page.keyboard.press("ArrowDown")
-  const menu = page.getByRole("menu", { name: "Theme" })
-  await menu.getByRole("menuitemradio", { name, exact: true }).focus()
+  await themeItem(page, name).focus()
   await page.keyboard.press("Enter")
-  await expect(menu).toBeHidden()
+  await expect(themeMenu(page)).toBeHidden()
   await expect(trigger).toBeFocused()
 }
 
