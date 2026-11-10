@@ -87,7 +87,6 @@ const effectJobs = defineCollection({
     note: z.string().optional(),
     logo: z.string().optional(),
     payRange: z.string().optional(),
-    description: z.string().optional(),
   }),
 })
 
