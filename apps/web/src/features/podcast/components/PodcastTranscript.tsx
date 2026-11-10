@@ -321,7 +321,7 @@ export function PodcastTranscript() {
                       </code>
                       <span
                         className={cn(
-                          "min-w-0 flex-1 text-sm leading-relaxed text-prose-foreground",
+                          "min-w-0 flex-1 text-sm leading-relaxed",
                           isActive
                             ? "text-foreground"
                             : "text-muted-foreground group-hover:text-foreground",

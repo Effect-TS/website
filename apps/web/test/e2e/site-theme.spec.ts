@@ -92,7 +92,8 @@ test("the broken-light pages still render dark when dark is stored", async ({
   }
 })
 
-// One route per layout: PageLayout, EffectDaysLayout and a BaseLayout page.
+// Every layout (PageLayout, EffectDaysLayout, a BaseLayout page) plus the
+// routes themed last and the standalone visual frame.
 const layoutRoutes = [
   "/effect-jobs",
   "/effect-days",
@@ -297,10 +298,6 @@ test("the active footer link stays readable in light mode", async ({
 }) => {
   await storeTheme(page, "light")
   await page.goto("/effect-days", { waitUntil: "networkidle" })
-  const activeLink = page
-    .locator("footer a", { hasText: "Effect Days" })
-    .first()
-  await activeLink.scrollIntoViewIfNeeded()
   expect(
     await colourLightness(page, 'footer a:has-text("Effect Days")', "color"),
   ).toBeLessThan(0.5)

@@ -25,8 +25,9 @@ export default function ThemeToggle({
 
   const theme = useAtomValue(themeAtom)
   const selectTheme = useAtomSet(selectThemeAtom)
-  // Mounting keeps the prefers-color-scheme listener alive wherever the
-  // toggle is rendered, so "System" follows live OS changes on every page.
+  // The layout's inline script already follows live OS changes while "System"
+  // is stored. Mounting adds the atom's own listener, which fades the switch
+  // and keeps `isDarkAtom` current for the components that read it.
   // (Mount rather than read: the atom touches `window`, which SSR lacks.)
   useAtomMount(isDarkAtom)
 
