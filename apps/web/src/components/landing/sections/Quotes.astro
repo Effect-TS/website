@@ -37,7 +37,8 @@ interface Quote {
 // collide across the page: `dark` is the variant published for dark
 // backgrounds, `light` the one for light backgrounds. `mono` marks are
 // published as plain glyphs and are inlined to take the theme's text colour.
-// A mark with only a dark variant falls back to the company name in light mode.
+// A mark with only a dark variant keeps its published artwork on a small dark
+// tile in light mode instead of being recoloured.
 type QuoteLogoDefinition = {
   readonly className: string
   readonly lightClassName?: string
@@ -64,7 +65,7 @@ const QUOTE_BY_LOGO_ID: Record<QuoteLogo, QuoteLogoDefinition> = {
     // The publisher's full-colour lockup is stacked (cloud above the wordmark).
     lightClassName: "h-7 w-auto",
   },
-  // No published light-background variant has been obtained yet.
+  // No published light-background variant has been obtained; see the tile below.
   masterclass: {
     dark: MasterclassLogo,
     className: "h-2.5 w-auto",
@@ -223,7 +224,7 @@ const copies = [0, 1, 2] as const
                         />
                       ) : (
                         <>
-                          {definition.light ? (
+                          {definition.light && (
                             <Image
                               src={definition.light}
                               alt={quote.company}
@@ -233,17 +234,22 @@ const copies = [0, 1, 2] as const
                               ]}
                               loading="lazy"
                             />
-                          ) : (
-                            <span class="font-mono text-xs font-medium tracking-wider uppercase dark:hidden">
-                              {quote.company}
-                            </span>
                           )}
-                          <Image
-                            src={definition.dark}
-                            alt={quote.company}
-                            class:list={[definition.className, "hidden dark:block"]}
-                            loading="lazy"
-                          />
+                          <span
+                            class:list={[
+                              "flex items-center",
+                              definition.light
+                                ? "hidden dark:flex"
+                                : "rounded-sm bg-zinc-950 px-2 py-1.5 dark:bg-transparent dark:p-0",
+                            ]}
+                          >
+                            <Image
+                              src={definition.dark}
+                              alt={quote.company}
+                              class={definition.className}
+                              loading="lazy"
+                            />
+                          </span>
                         </>
                       )}
                     </div>

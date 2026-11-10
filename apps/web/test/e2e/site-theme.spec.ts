@@ -151,3 +151,42 @@ for (const route of layoutRoutes) {
     expect(result.log[0]!.at).toBeLessThan(result.firstPaintAt!)
   })
 }
+
+/** Relative luminance of an element's own text colour. */
+const textLightness = (page: Page, selector: string) =>
+  page
+    .locator(selector)
+    .first()
+    .evaluate((element) => {
+      const canvas = document.createElement("canvas")
+      canvas.width = canvas.height = 1
+      const context = canvas.getContext("2d", { willReadFrequently: true })!
+      context.fillStyle = getComputedStyle(element).color
+      context.fillRect(0, 0, 1, 1)
+      const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+      const channel = (v: number) =>
+        v / 255 <= 0.03928
+          ? v / 255 / 12.92
+          : ((v / 255 + 0.055) / 1.055) ** 2.4
+      return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!)
+    })
+
+// Photo captions and white-only partner artwork sit on surfaces that stay dark
+// in both themes; light mode must not turn them dark-on-dark or white-on-white.
+test("dark photo and logo surfaces keep their contrast in light mode", async ({
+  page,
+}) => {
+  await storeTheme(page, "light")
+  await page.goto("/effect-days", { waitUntil: "networkidle" })
+  expect(await textLightness(page, "#speakers h3")).toBeGreaterThan(0.5)
+  expect(
+    await backgroundLightness(page, "#sponsors a[aria-label$='visit website']"),
+  ).toBeLessThan(0.1)
+  await page.goto("/effect-jobs", { waitUntil: "networkidle" })
+  expect(
+    await backgroundLightness(
+      page,
+      "ul[aria-label='Teams running Effect in production'] li",
+    ),
+  ).toBeLessThan(0.1)
+})

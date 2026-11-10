@@ -20,7 +20,8 @@ import XLogo from "@/assets/company-logos/x-logo.svg"
 // internal ids never collide across the page. `dark` is the variant published
 // for dark backgrounds and `light` the one for light backgrounds. `mono` marks
 // are published as plain black/white glyphs and are inlined so they take the
-// theme's text colour. A mark without a light variant is shown in dark mode only.
+// theme's text colour. A mark without a light variant keeps its published
+// artwork on a small dark tile in light mode instead of being recoloured.
 type SocialProofLogo = {
   readonly name: string
   readonly className: string
@@ -51,7 +52,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
     className: "h-5 w-auto translate-y-0.5",
   },
   { name: "T3", dark: T3LogoLight, light: T3LogoDark, className: "h-4 w-auto" },
-  // No published light-background variant has been obtained yet.
+  // No published light-background variant has been obtained; see the tile above.
   { name: "MasterClass", dark: MasterclassLogo, className: "h-4 w-auto" },
 ]
 ---
@@ -107,7 +108,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
         <ul class="flex flex-wrap items-end justify-center gap-x-8 gap-y-5 text-foreground">
           {
             SOCIAL_PROOF_LOGOS.map((logo) => (
-              <li class:list={["items-end", logo.light || logo.mono ? "flex" : "hidden dark:flex"]}>
+              <li class="flex items-end">
                 {logo.mono ? (
                   <logo.mono class={logo.className} role="img" aria-label={logo.name} />
                 ) : (
@@ -119,11 +120,19 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
                         class:list={[logo.lightClassName ?? logo.className, "dark:hidden"]}
                       />
                     )}
-                    <Image
-                      src={logo.dark}
-                      alt={logo.name}
-                      class:list={[logo.className, logo.light && "hidden dark:block"]}
-                    />
+                    <span
+                      class:list={[
+                        "flex items-center",
+                        !logo.light &&
+                          "rounded-sm bg-zinc-950 px-2.5 py-1.5 dark:bg-transparent dark:p-0",
+                      ]}
+                    >
+                      <Image
+                        src={logo.dark}
+                        alt={logo.name}
+                        class:list={[logo.className, logo.light && "hidden dark:block"]}
+                      />
+                    </span>
                   </>
                 )}
               </li>
