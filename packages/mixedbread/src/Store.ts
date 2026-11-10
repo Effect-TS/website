@@ -1,4 +1,4 @@
-import MixedbreadClient from "@mixedbread/sdk"
+import MixedbreadClient, { NotFoundError } from "@mixedbread/sdk"
 import { HiddenFiles } from "@website/domain"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -115,10 +115,19 @@ export function makeStoreClient(options: {
 
   const deleteFile: StoreClient["deleteFile"] = (storeId, file) =>
     Effect.tryPromise({
-      try: () =>
-        client.stores.files.delete(file.id, { store_identifier: storeId }),
+      // A file that is already gone counts as deleted, so a sync that an
+      // earlier run interrupted can still clean up after it.
+      try: async () => {
+        try {
+          await client.stores.files.delete(file.id, {
+            store_identifier: storeId,
+          })
+        } catch (cause) {
+          if (!(cause instanceof NotFoundError)) throw cause
+        }
+      },
       catch: (cause) => new FailedToDeleteError({ file, cause }),
-    }).pipe(Effect.asVoid)
+    })
 
   const find = Effect.fn("Store.find")(function* (name: string) {
     const cursor = yield* Effect.tryPromise({
