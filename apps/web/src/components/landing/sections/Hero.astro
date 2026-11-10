@@ -7,14 +7,20 @@ import GridBackground from "@/components/GridBackground.astro"
 import HeroCommandPanel from "../blocks/HeroCommandPanel.astro"
 import HeroGridPulse from "../blocks/HeroGridPulse.astro"
 import CloudflareLogo from "@/assets/company-logos/Cloudflare_logo_horizontal_wht 1.png"
-import OpencodeLogo from "@/assets/company-logos/opencode-wordmark-dark.svg"
+import OpencodeLogoDark from "@/assets/company-logos/opencode-wordmark-dark.svg"
+import OpencodeLogoLight from "@/assets/company-logos/opencode-wordmark-light.svg"
 import MasterclassLogo from "@/assets/company-logos/masterclass-noM.svg"
 import T3Logo from "@/assets/company-logos/t3.svg"
 import XLogo from "@/assets/company-logos/x-logo.svg"
 
+// `src` is the dark-theme asset. White-on-transparent marks set `monochrome`
+// and are rendered black in the light theme; brands that publish a dedicated
+// light-background variant supply it as `lightSrc` instead.
 const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
   readonly name: string
   readonly src: ImageMetadata
+  readonly lightSrc?: ImageMetadata
+  readonly monochrome?: boolean
   readonly alt: string
   readonly className: string
   readonly style?: string
@@ -22,6 +28,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
   {
     name: "Cloudflare",
     src: CloudflareLogo,
+    monochrome: true,
     alt: "Cloudflare",
     className: "w-auto",
     style: "height:22px",
@@ -29,13 +36,15 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
   {
     name: "X",
     src: XLogo,
+    monochrome: true,
     alt: "X",
     className: "w-auto",
     style: "height:20px;transform:translateY(2px)",
   },
   {
     name: "opencode",
-    src: OpencodeLogo,
+    src: OpencodeLogoDark,
+    lightSrc: OpencodeLogoLight,
     alt: "opencode",
     className: "w-auto",
     style: "height:20px;transform:translateY(2px)",
@@ -43,6 +52,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
   {
     name: "T3",
     src: T3Logo,
+    monochrome: true,
     alt: "T3",
     className: "w-auto",
     style: "height:16px",
@@ -50,6 +60,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
   {
     name: "MasterClass",
     src: MasterclassLogo,
+    monochrome: true,
     alt: "MasterClass",
     className: "w-auto",
     style: "height:16px",
@@ -105,14 +116,29 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
         <p class="font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
           // In production at
         </p>
-        {/* The logo assets are white-on-transparent; render them black in the light theme. */}
-        <ul
-          class="flex flex-wrap items-end justify-center gap-x-8 gap-y-5 brightness-0 dark:brightness-100"
-        >
+        <ul class="flex flex-wrap items-end justify-center gap-x-8 gap-y-5">
           {
             SOCIAL_PROOF_LOGOS.map((logo) => (
-              <li class="flex items-end">
-                <Image src={logo.src} alt={logo.alt} class={logo.className} style={logo.style} />
+              <li
+                class:list={[
+                  "flex items-end",
+                  logo.monochrome && "brightness-0 dark:brightness-100",
+                ]}
+              >
+                {logo.lightSrc && (
+                  <Image
+                    src={logo.lightSrc}
+                    alt={logo.alt}
+                    class:list={[logo.className, "dark:hidden"]}
+                    style={logo.style}
+                  />
+                )}
+                <Image
+                  src={logo.src}
+                  alt={logo.alt}
+                  class:list={[logo.className, logo.lightSrc && "hidden dark:block"]}
+                  style={logo.style}
+                />
               </li>
             ))
           }
