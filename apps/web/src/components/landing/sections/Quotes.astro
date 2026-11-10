@@ -5,7 +5,7 @@ import { Image } from "astro:assets"
 import { ChevronLeft, ChevronRight } from "@lucide/astro"
 import AstroLogoDark from "@/assets/logos/astro/astro-logo-dark.svg"
 import AstroLogoLightGradient from "@/assets/logos/astro/astro-logo-light-gradient.svg"
-import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.svg"
+import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.png"
 import CloudflareLogoWhite from "@/assets/logos/cloudflare/cloudflare-logo-white.svg"
 import MasterclassLogo from "@/assets/logos/masterclass/Masterclass.svg"
 import SpikoLogo from "@/assets/logos/spiko/Spiko.svg"
@@ -33,45 +33,53 @@ interface Quote {
   readonly logo: QuoteLogo
 }
 
-// `dark` is the brand's variant for dark backgrounds and `light` the one for
-// light backgrounds. Monochrome wordmarks have no `light` variant and are drawn
-// with `currentColor`. Raster marks that work on both themes use `image`.
+// Fixed-colour marks are rendered as images so their internal svg ids never
+// collide across the page: `dark` is the variant published for dark
+// backgrounds, `light` the one for light backgrounds. `mono` marks are
+// published as plain glyphs and are inlined to take the theme's text colour.
+// A mark with only a dark variant falls back to the company name in light mode.
 type QuoteLogoDefinition = {
   readonly className: string
-  /** Size for the light variant when its lockup has different proportions. */
   readonly lightClassName?: string
 } & (
-  | { readonly dark: SvgComponent; readonly light?: SvgComponent; readonly image?: undefined }
-  | { readonly image: ImageMetadata; readonly dark?: undefined; readonly light?: undefined }
+  | {
+      readonly dark: ImageMetadata
+      readonly light?: ImageMetadata
+      readonly mono?: undefined
+    }
+  | { readonly mono: SvgComponent; readonly dark?: undefined; readonly light?: undefined }
 )
 
 const QUOTE_BY_LOGO_ID: Record<QuoteLogo, QuoteLogoDefinition> = {
+  // Astro's press kit asks for at least 24px in digital use.
   astro: {
     dark: AstroLogoLightGradient,
     light: AstroLogoDark,
-    className: "h-4 w-auto",
+    className: "h-6 w-auto",
   },
   cloudflare: {
     dark: CloudflareLogoWhite,
     light: CloudflareLogoColor,
     className: "h-4 w-auto max-w-24",
-    // The published full-colour lockup is stacked (cloud above the wordmark).
+    // The publisher's full-colour lockup is stacked (cloud above the wordmark).
     lightClassName: "h-7 w-auto",
   },
+  // No published light-background variant has been obtained yet (see /credits).
   masterclass: {
     dark: MasterclassLogo,
     className: "h-2.5 w-auto",
   },
   spiko: {
-    dark: SpikoLogo,
+    mono: SpikoLogo,
     className: "h-4 w-auto",
   },
   "total-typescript": {
-    image: TotalTypeScriptLogo,
+    dark: TotalTypeScriptLogo,
+    light: TotalTypeScriptLogo,
     className: "h-4 w-auto",
   },
   twitter: {
-    dark: TwitterLogo,
+    mono: TwitterLogo,
     className: "h-4 w-auto",
   },
   "union-build": {
@@ -207,32 +215,34 @@ const copies = [0, 1, 2] as const
                     <div class="h-px flex-1 bg-[linear-gradient(to_right,transparent,var(--border-strong))]" />
 
                     <div class="flex shrink-0 items-center text-foreground">
-                      {definition.image ? (
-                        <Image
-                          src={definition.image}
-                          alt={quote.company}
+                      {definition.mono ? (
+                        <definition.mono
                           class={definition.className}
-                          loading="lazy"
+                          role="img"
+                          aria-label={quote.company}
                         />
                       ) : (
                         <>
-                          {definition.light && (
-                            <definition.light
+                          {definition.light ? (
+                            <Image
+                              src={definition.light}
+                              alt={quote.company}
                               class:list={[
                                 definition.lightClassName ?? definition.className,
                                 "dark:hidden",
                               ]}
-                              role="img"
-                              aria-label={quote.company}
+                              loading="lazy"
                             />
+                          ) : (
+                            <span class="font-mono text-xs font-medium tracking-wider uppercase dark:hidden">
+                              {quote.company}
+                            </span>
                           )}
-                          <definition.dark
-                            class:list={[
-                              definition.className,
-                              definition.light && "hidden dark:block",
-                            ]}
-                            role="img"
-                            aria-label={quote.company}
+                          <Image
+                            src={definition.dark}
+                            alt={quote.company}
+                            class:list={[definition.className, "hidden dark:block"]}
+                            loading="lazy"
                           />
                         </>
                       )}

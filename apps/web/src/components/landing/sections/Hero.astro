@@ -1,11 +1,13 @@
 ---
+import type { ImageMetadata } from "astro"
 import type { SvgComponent } from "astro/types"
+import { Image } from "astro:assets"
 import { ArrowRight } from "@lucide/astro"
 
 import GridBackground from "@/components/GridBackground.astro"
 import HeroCommandPanel from "../blocks/HeroCommandPanel.astro"
 import HeroGridPulse from "../blocks/HeroGridPulse.astro"
-import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.svg"
+import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.png"
 import CloudflareLogoWhite from "@/assets/logos/cloudflare/cloudflare-logo-white.svg"
 import OpencodeLogoDark from "@/assets/company-logos/opencode-wordmark-dark.svg"
 import OpencodeLogoLight from "@/assets/company-logos/opencode-wordmark-light.svg"
@@ -14,18 +16,23 @@ import T3LogoDark from "@/assets/company-logos/t3-dark.svg"
 import T3LogoLight from "@/assets/company-logos/t3-light.svg"
 import XLogo from "@/assets/company-logos/x-logo.svg"
 
-// Every mark is the brand's own artwork. `dark` is the variant for dark
-// backgrounds; `light` the variant for light backgrounds. Marks without a
-// `light` variant are monochrome wordmarks drawn with `currentColor`, so they
-// take the foreground colour of the current theme.
-interface SocialProofLogo {
+// Every mark is the brand's own artwork, rendered as an image so the files'
+// internal ids never collide across the page. `dark` is the variant published
+// for dark backgrounds and `light` the one for light backgrounds. `mono` marks
+// are published as plain black/white glyphs and are inlined so they take the
+// theme's text colour. A mark without a light variant is shown in dark mode only.
+type SocialProofLogo = {
   readonly name: string
-  readonly dark: SvgComponent
-  readonly light?: SvgComponent
   readonly className: string
-  /** Size for the light variant when its lockup has different proportions. */
   readonly lightClassName?: string
-}
+} & (
+  | {
+      readonly dark: ImageMetadata
+      readonly light?: ImageMetadata
+      readonly mono?: undefined
+    }
+  | { readonly mono: SvgComponent; readonly dark?: undefined; readonly light?: undefined }
+)
 
 const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
   {
@@ -33,10 +40,10 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
     dark: CloudflareLogoWhite,
     light: CloudflareLogoColor,
     className: "h-[22px] w-auto",
-    // The published full-colour lockup is stacked (cloud above the wordmark).
+    // The publisher's full-colour lockup is stacked (cloud above the wordmark).
     lightClassName: "h-10 w-auto",
   },
-  { name: "X", dark: XLogo, className: "h-5 w-auto translate-y-0.5" },
+  { name: "X", mono: XLogo, className: "h-5 w-auto translate-y-0.5" },
   {
     name: "opencode",
     dark: OpencodeLogoDark,
@@ -44,6 +51,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
     className: "h-5 w-auto translate-y-0.5",
   },
   { name: "T3", dark: T3LogoLight, light: T3LogoDark, className: "h-4 w-auto" },
+  // No published light-background variant has been obtained yet (see /credits).
   { name: "MasterClass", dark: MasterclassLogo, className: "h-4 w-auto" },
 ]
 ---
@@ -98,24 +106,28 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
         </p>
         <ul class="flex flex-wrap items-end justify-center gap-x-8 gap-y-5 text-foreground">
           {
-            SOCIAL_PROOF_LOGOS.map(
-              ({ name, dark: Dark, light: Light, className, lightClassName }) => (
-                <li class="flex items-end">
-                  {Light && (
-                    <Light
-                      class:list={[lightClassName ?? className, "dark:hidden"]}
-                      role="img"
-                      aria-label={name}
+            SOCIAL_PROOF_LOGOS.map((logo) => (
+              <li class:list={["items-end", logo.light || logo.mono ? "flex" : "hidden dark:flex"]}>
+                {logo.mono ? (
+                  <logo.mono class={logo.className} role="img" aria-label={logo.name} />
+                ) : (
+                  <>
+                    {logo.light && (
+                      <Image
+                        src={logo.light}
+                        alt={logo.name}
+                        class:list={[logo.lightClassName ?? logo.className, "dark:hidden"]}
+                      />
+                    )}
+                    <Image
+                      src={logo.dark}
+                      alt={logo.name}
+                      class:list={[logo.className, logo.light && "hidden dark:block"]}
                     />
-                  )}
-                  <Dark
-                    class:list={[className, Light && "hidden dark:block"]}
-                    role="img"
-                    aria-label={name}
-                  />
-                </li>
-              ),
-            )
+                  </>
+                )}
+              </li>
+            ))
           }
         </ul>
       </div>

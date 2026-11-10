@@ -12,8 +12,9 @@ interface Credit {
 
 // Third-party marks shown on this site. Each entry names where the artwork
 // came from, the terms it was published under, and whether we changed it.
-// Trademarks belong to their owners; showing a mark here does not imply
-// endorsement of Effect by that company.
+// The full text of every licence that requires a notice follows the list.
+// Trademarks belong to their owners; a licence on an artwork file is not a
+// trademark permission, and showing a mark here does not imply endorsement.
 const CREDITS: ReadonlyArray<Credit> = [
   {
     name: "Yarn kitten logo",
@@ -31,12 +32,9 @@ const CREDITS: ReadonlyArray<Credit> = [
   {
     name: "OpenCode wordmark",
     owner: "Anomaly",
-    source: {
-      label: "opencode.ai/brand",
-      href: "https://opencode.ai/brand",
-    },
+    source: { label: "opencode.ai/brand", href: "https://opencode.ai/brand" },
     licence: {
-      label: "MIT (anomalyco/opencode repository); brand guidelines apply",
+      label: "MIT (anomalyco/opencode); brand guidelines apply",
       href: "https://github.com/anomalyco/opencode/blob/dev/LICENSE",
     },
     note: "Light and dark variants used unmodified, each on the background it is published for.",
@@ -46,25 +44,24 @@ const CREDITS: ReadonlyArray<Credit> = [
     owner: "Astro",
     source: { label: "astro.build/press", href: "https://astro.build/press/" },
     licence: { label: "Astro press kit usage guidance", href: "https://astro.build/press/" },
-    note: "“Logo on light” and “Gradient logo on dark” variants used unmodified.",
+    note: "“Logo on light” and “Gradient logo on dark” variants used unmodified, at the 24px minimum size.",
   },
   {
     name: "Cloudflare logo",
     owner: "Cloudflare, Inc.",
     source: {
-      label:
-        "cloudflare.com/press-kit (white) and Wikimedia Commons, Cloudflare_Logo.svg (full colour)",
+      label: "cloudflare.com/press-kit (single-colour white SVG and full-colour PNG)",
       href: "https://www.cloudflare.com/press-kit/",
     },
     licence: {
       label: "Cloudflare brand guidelines",
       href: "https://www.cloudflare.com/trademark/",
     },
-    note: "Artwork and colours unchanged; CSS classes in the files were rewritten as inline fill attributes.",
+    note: "Artwork and colours unchanged. In the white SVG the CSS classes were rewritten as inline fill attributes.",
   },
   {
     name: "T3 logo",
-    owner: "T3 OSS",
+    owner: "T3 OSS (Shoubhit Dash)",
     source: {
       label: "github.com/t3-oss/create-t3-app, www/public/images",
       href: "https://github.com/t3-oss/create-t3-app/tree/main/www/public/images",
@@ -74,12 +71,15 @@ const CREDITS: ReadonlyArray<Credit> = [
   },
   {
     name: "Union logo",
-    owner: "Union Labs",
+    owner: "Union.fi Labs, Inc.",
     source: {
       label: "github.com/unionlabs/union, site/public",
       href: "https://github.com/unionlabs/union/tree/main/site/public",
     },
-    licence: { label: "Apache License 2.0", href: "https://github.com/unionlabs/union" },
+    licence: {
+      label: "MIT (from the MIT / Apache-2.0 dual licence)",
+      href: "https://github.com/unionlabs/union/blob/main/LICENSE-MIT",
+    },
     note: "Black and white variants used unmodified.",
   },
   {
@@ -101,14 +101,27 @@ const CREDITS: ReadonlyArray<Credit> = [
     owner: "X Corp.",
     source: { label: "X brand toolkit", href: "https://about.x.com/en/who-we-are/brand-toolkit" },
     licence: { label: "X brand toolkit", href: "https://about.x.com/en/who-we-are/brand-toolkit" },
-    note: "Monochrome mark drawn in the page text colour, black on light and white on dark as published.",
+    note: "Published black/white glyph drawn in the page text colour, black on light and white on dark.",
+  },
+  {
+    name: "Brand icons (GitHub, Discord, X, YouTube, LinkedIn, Bluesky, Spotify, npm)",
+    owner: "Font Awesome Free, Brands set",
+    source: {
+      label: "fontawesome.com, via the iconify fa7-brands set",
+      href: "https://github.com/iconify/icon-sets",
+    },
+    licence: {
+      label: "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      href: "https://creativecommons.org/licenses/by/4.0/",
+    },
+    note: "Paths unmodified; drawn in the page text colour.",
   },
   {
     name: "MasterClass wordmark",
     owner: "MasterClass",
     source: { label: "masterclass.com", href: "https://www.masterclass.com/" },
     licence: { label: "MasterClass", href: "https://www.masterclass.com/" },
-    note: "Monochrome wordmark drawn in the page text colour, black on light and white on dark.",
+    note: "The white wordmark is shown in dark mode only. No published light-background variant has been obtained, so light mode shows the name as text rather than a recoloured mark.",
   },
   {
     name: "Total TypeScript mark",
@@ -117,12 +130,63 @@ const CREDITS: ReadonlyArray<Credit> = [
     licence: { label: "Total TypeScript", href: "https://www.totaltypescript.com/" },
     note: "Used unmodified in both themes.",
   },
+  {
+    name: "Bun, pnpm and Deno marks",
+    owner: "Respective projects",
+    source: { label: "bun.sh, pnpm.io, deno.com", href: "https://bun.sh" },
+    licence: { label: "Respective brand guidelines", href: "https://bun.sh" },
+    note: "Paths and colours unchanged; a full-canvas clip path with no visual effect was removed from each file.",
+  },
+]
+
+const mitLicence = (holder: string) => `MIT License
+
+Copyright (c) ${holder}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`
+
+const NOTICES: ReadonlyArray<{ readonly title: string; readonly text: string }> = [
+  {
+    title: "Yarn kitten logo (CC BY 4.0)",
+    text: "Yarn logo by the Yarn contributors, from https://github.com/yarnpkg/assets, licensed under the Creative Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/. The file used is yarn-kitten-circle.svg with the artwork unmodified.",
+  },
+  {
+    title: "Font Awesome Free brand icons (CC BY 4.0)",
+    text: "Brand icons are from Font Awesome Free by Dave Gandy and Fonticons, Inc., https://fontawesome.com, licensed under the Creative Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/. Paths unmodified.",
+  },
+  {
+    title: "OpenCode wordmark (MIT)",
+    text: `${mitLicence("2025 opencode")}
+
+OpenCode and the OpenCode logo are trademarks of Anomaly; the MIT licence does not grant trademark rights. Usage follows https://opencode.ai/brand.`,
+  },
+  { title: "T3 logo (MIT)", text: mitLicence("2022 Shoubhit Dash") },
+  {
+    title: "Union logo (MIT, from the MIT / Apache-2.0 dual licence)",
+    text: mitLicence("2024 Union.fi Labs, Inc."),
+  },
 ]
 ---
 
 <PageLayout
   title="Credits | Effect"
-  description="Third-party logos and artwork shown on effect.website, with their sources and licences."
+  description="Third-party logos and artwork shown on effect.website, with their sources, licences and notices."
   themeable
 >
   <section class="relative pt-16 pb-12 md:pt-24 md:pb-16">
@@ -134,12 +198,13 @@ const CREDITS: ReadonlyArray<Credit> = [
       <p class="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
         Logos shown on this site belong to their owners and are used to identify the companies and
         projects they refer to. This page records where each mark came from, the terms it was
-        published under, and whether we changed it.
+        published under, whether we changed it, and the full text of every licence that asks for a
+        notice.
       </p>
     </div>
   </section>
 
-  <section class="pb-24 md:pb-32">
+  <section class="pb-16 md:pb-24">
     <div class="mx-auto w-full max-w-295 px-4">
       <ul class="m-0 max-w-3xl list-none divide-y divide-border border-y border-border p-0">
         {
@@ -175,6 +240,26 @@ const CREDITS: ReadonlyArray<Credit> = [
           ))
         }
       </ul>
+    </div>
+  </section>
+
+  <section id="notices" class="pb-24 md:pb-32">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <h2 class="text-2xl leading-tighter font-semibold text-foreground">Licence notices</h2>
+      <div class="mt-6 max-w-3xl space-y-4">
+        {
+          NOTICES.map((notice) => (
+            <details class="group rounded-md border border-border bg-card">
+              <summary class="cursor-pointer list-none px-5 py-4 text-base font-medium text-foreground">
+                {notice.title}
+              </summary>
+              <pre class="m-0 overflow-x-auto border-t border-border px-5 py-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-prose-foreground">
+                {notice.text}
+              </pre>
+            </details>
+          ))
+        }
+      </div>
     </div>
   </section>
 </PageLayout>
