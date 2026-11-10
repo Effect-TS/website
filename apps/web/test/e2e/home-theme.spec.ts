@@ -1,11 +1,8 @@
-import { expect, test } from "playwright/test"
+import { expect, test, type Page } from "playwright/test"
 
 test.use({ contextOptions: { reducedMotion: "reduce" } })
 
-const chooseTheme = async (
-  page: import("playwright/test").Page,
-  name: "Dark" | "Light" | "System",
-) => {
+const chooseTheme = async (page: Page, name: "Dark" | "Light" | "System") => {
   await page
     .getByRole("button", { name: "Change theme", exact: true })
     .filter({ visible: true })
@@ -14,6 +11,23 @@ const chooseTheme = async (
     .getByRole("menu", { name: "Theme" })
     .getByRole("menuitemradio", { name, exact: true })
     .click()
+}
+
+const chooseThemeByKeyboard = async (
+  page: Page,
+  name: "Dark" | "Light" | "System",
+) => {
+  const trigger = page
+    .getByRole("button", { name: "Change theme", exact: true })
+    .filter({ visible: true })
+  await expect(trigger).toBeVisible()
+  await trigger.focus()
+  await page.keyboard.press("ArrowDown")
+  const menu = page.getByRole("menu", { name: "Theme" })
+  await menu.getByRole("menuitemradio", { name, exact: true }).focus()
+  await page.keyboard.press("Enter")
+  await expect(menu).toBeHidden()
+  await expect(trigger).toBeFocused()
 }
 
 test("home page follows the theme chosen elsewhere on the site", async ({
@@ -41,19 +55,49 @@ test("home page offers the theme menu on desktop and mobile", async ({
   await page.goto("/", { waitUntil: "networkidle" })
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
 
-  const trigger = page
-    .getByRole("button", { name: "Change theme", exact: true })
-    .filter({ visible: true })
-  await expect(trigger).toBeVisible()
-  await trigger.focus()
-  await page.keyboard.press("ArrowDown")
-  const menu = page.getByRole("menu", { name: "Theme" })
-  await menu.getByRole("menuitemradio", { name: "Light", exact: true }).focus()
-  await page.keyboard.press("Enter")
-  await expect(menu).toBeHidden()
-  await expect(trigger).toBeFocused()
+  await chooseThemeByKeyboard(page, "Light")
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(trigger).toBeVisible()
+  await chooseThemeByKeyboard(page, "Dark")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await page.reload({ waitUntil: "networkidle" })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+})
+
+test("home page paints in the stored theme without flashing the other one", async ({
+  page,
+}) => {
+  // Runs before any page script: store the preference and record every
+  // theme the document ever reports, with the time it was applied.
+  await page.addInitScript(() => {
+    localStorage.setItem("theme", JSON.stringify("light"))
+    const log: Array<{ theme: string; at: number }> = []
+    Object.assign(window, { __themeLog: log })
+    // <html> does not exist yet when this runs, so watch the document.
+    new MutationObserver(() => {
+      const theme = document.documentElement?.dataset.theme
+      if (theme !== undefined && log.at(-1)?.theme !== theme) {
+        log.push({ theme, at: performance.now() })
+      }
+    }).observe(document, { attributes: true, childList: true, subtree: true })
+  })
+
+  await page.goto("/", { waitUntil: "load" })
+
+  const result = await page.evaluate(() => {
+    const [firstPaint] = performance.getEntriesByType("paint")
+    return {
+      log: (
+        window as unknown as {
+          __themeLog: Array<{ theme: string; at: number }>
+        }
+      ).__themeLog,
+      firstPaintAt: firstPaint?.startTime,
+    }
+  })
+
+  expect(result.log.map((entry) => entry.theme)).toEqual(["light"])
+  expect(result.firstPaintAt).toBeDefined()
+  expect(result.log[0]!.at).toBeLessThan(result.firstPaintAt!)
 })

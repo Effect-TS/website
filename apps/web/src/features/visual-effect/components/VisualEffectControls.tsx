@@ -37,10 +37,12 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
   const subtitle = example.subtitle
 
   const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "var(--border)"
+  // The defect state drops the header back to the page surface so the red
+  // border carries the signal; both themes keep the text tokens readable.
   const headerBackground = isDied
     ? isHovered
-      ? "rgba(24, 24, 27, 0.5)"
-      : "rgba(0, 0, 0, 0.5)"
+      ? "var(--card)"
+      : "var(--background)"
     : isHovered
       ? "var(--border-strong)"
       : "var(--muted)"

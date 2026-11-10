@@ -26,7 +26,7 @@ const palettes: Record<SnippetColorScheme, SnippetPalette> = {
   light: {
     foreground: "#3f3f46", // zinc-700
     keyword: "#7c3aed", // violet-600
-    string: "#059669", // emerald-600
+    string: "#047857", // emerald-700, 4.5:1 on white at 14px
     comment: "#71717a", // zinc-500
     identifier: "#18181b", // zinc-900
     number: "#b45309", // amber-700
