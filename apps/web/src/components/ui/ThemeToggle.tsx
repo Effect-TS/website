@@ -72,7 +72,7 @@ export default function ThemeToggle({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Change theme"
-        className={`flex items-center justify-center transition-colors ${className}`}
+        className={`flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground ${className}`}
       >
         <Sun size={20} className="dark:hidden" aria-hidden="true" />
         <Moon size={20} className="hidden dark:block" aria-hidden="true" />

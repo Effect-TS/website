@@ -1,4 +1,5 @@
 import { expect, test } from "playwright/test"
+import { storeTheme } from "./theme-helpers.ts"
 
 test.use({ contextOptions: { reducedMotion: "reduce" } })
 
@@ -27,9 +28,7 @@ for (const theme of ["light", "dark"] as const) {
   test(`production logos keep their size after selecting Bun (${theme})`, async ({
     page,
   }) => {
-    await page.addInitScript((stored) => {
-      localStorage.setItem("theme", JSON.stringify(stored))
-    }, theme)
+    await storeTheme(page, theme)
     await page.goto("/", { waitUntil: "networkidle" })
 
     const selector = page.locator("effect-hero-command").first()

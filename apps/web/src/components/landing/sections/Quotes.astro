@@ -1,8 +1,6 @@
 ---
-import type { ImageMetadata } from "astro"
-import type { SvgComponent } from "astro/types"
-import { Image } from "astro:assets"
 import { ChevronLeft, ChevronRight } from "@lucide/astro"
+import ThemedLogo, { type ThemedLogoDefinition } from "../blocks/ThemedLogo.astro"
 import AstroLogoDark from "@/assets/logos/astro/astro-logo-dark.svg"
 import AstroLogoLightGradient from "@/assets/logos/astro/astro-logo-light-gradient.svg"
 import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.png"
@@ -33,25 +31,7 @@ interface Quote {
   readonly logo: QuoteLogo
 }
 
-// Fixed-colour marks are rendered as images so their internal svg ids never
-// collide across the page: `dark` is the variant published for dark
-// backgrounds, `light` the one for light backgrounds. `mono` marks are
-// published as plain glyphs and are inlined to take the theme's text colour.
-// A mark with only a dark variant keeps its published artwork on a small dark
-// tile in light mode instead of being recoloured.
-type QuoteLogoDefinition = {
-  readonly className: string
-  readonly lightClassName?: string
-} & (
-  | {
-      readonly dark: ImageMetadata
-      readonly light?: ImageMetadata
-      readonly mono?: undefined
-    }
-  | { readonly mono: SvgComponent; readonly dark?: undefined; readonly light?: undefined }
-)
-
-const QUOTE_BY_LOGO_ID: Record<QuoteLogo, QuoteLogoDefinition> = {
+const QUOTE_BY_LOGO_ID: Record<QuoteLogo, ThemedLogoDefinition> = {
   // Astro's press kit asks for at least 24px in digital use.
   astro: {
     dark: AstroLogoLightGradient,
@@ -216,42 +196,11 @@ const copies = [0, 1, 2] as const
                     <div class="h-px flex-1 bg-[linear-gradient(to_right,transparent,var(--border-strong))]" />
 
                     <div class="flex shrink-0 items-center text-foreground">
-                      {definition.mono ? (
-                        <definition.mono
-                          class={definition.className}
-                          role="img"
-                          aria-label={quote.company}
-                        />
-                      ) : (
-                        <>
-                          {definition.light && (
-                            <Image
-                              src={definition.light}
-                              alt={quote.company}
-                              class:list={[
-                                definition.lightClassName ?? definition.className,
-                                "dark:hidden",
-                              ]}
-                              loading="lazy"
-                            />
-                          )}
-                          <span
-                            class:list={[
-                              "flex items-center",
-                              definition.light
-                                ? "hidden dark:flex"
-                                : "rounded-sm bg-zinc-950 px-2 py-1.5 dark:bg-transparent dark:p-0",
-                            ]}
-                          >
-                            <Image
-                              src={definition.dark}
-                              alt={quote.company}
-                              class={definition.className}
-                              loading="lazy"
-                            />
-                          </span>
-                        </>
-                      )}
+                      <ThemedLogo
+                        logo={definition}
+                        name={quote.company}
+                        tilePadding="px-2 py-1.5"
+                      />
                     </div>
                   </div>
                 </article>
