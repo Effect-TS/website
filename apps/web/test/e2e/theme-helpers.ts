@@ -41,6 +41,10 @@ export const expectLightWithoutFlash = async (page: Page, route: string) => {
   })
 
   await page.goto(route, { waitUntil: "load" })
+  // `load` can fire before the first frame is painted.
+  await page.waitForFunction(
+    () => performance.getEntriesByType("paint").length > 0,
+  )
 
   const result = await page.evaluate(() => ({
     log: (
