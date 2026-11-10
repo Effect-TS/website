@@ -191,19 +191,12 @@ test("dark photo and logo surfaces keep their contrast in light mode", async ({
   ).toBeLessThan(0.1)
 })
 
-/** Relative luminance of an element's focus outline once it is keyboard-focused
- *  and its colour transition has settled. */
-const focusOutlineLightness = (page: Page, selector: string) =>
+/** Relative luminance of an element's current outline colour. */
+const outlineLightness = (page: Page, selector: string) =>
   page
     .locator(selector)
     .first()
-    .evaluate(async (element) => {
-      ;(element as HTMLElement).focus()
-      if (!element.matches(":focus-visible")) return -1
-      await new Promise((resolve) => {
-        element.addEventListener("transitionend", resolve, { once: true })
-        setTimeout(resolve, 500)
-      })
+    .evaluate((element) => {
       const canvas = document.createElement("canvas")
       canvas.width = canvas.height = 1
       const context = canvas.getContext("2d", { willReadFrequently: true })!
@@ -217,20 +210,37 @@ const focusOutlineLightness = (page: Page, selector: string) =>
       return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!)
     })
 
+/** Focus the control once and assert the browser treats it as keyboard focus. */
+const focusControl = async (page: Page, selector: string) => {
+  const control = page.locator(selector).first()
+  await control.evaluate((element) => (element as HTMLElement).focus())
+  expect(
+    await control.evaluate((element) => element.matches(":focus-visible")),
+  ).toBe(true)
+}
+
 // The sponsor cells and speaker links are the only controls on surfaces that
-// stay dark in light mode (the company grid holds plain images).
+// stay dark in light mode (the company grid holds plain images). The outline
+// colour transitions, so the assertion retries until it settles rather than
+// waiting on any transition event.
 test("controls on dark surfaces keep a light focus ring in light mode", async ({
   page,
 }) => {
   await storeTheme(page, "light")
   await page.goto("/effect-days", { waitUntil: "networkidle" })
-  expect(
-    await focusOutlineLightness(page, "#speakers a[aria-label$='on X']"),
-  ).toBeGreaterThan(0.9)
-  expect(
-    await focusOutlineLightness(
-      page,
-      "#sponsors a[aria-label$='visit website']",
-    ),
-  ).toBeGreaterThan(0.9)
+
+  const speakerLink = "#speakers a[aria-label$='on X']"
+  await focusControl(page, speakerLink)
+  await expect
+    .poll(() => outlineLightness(page, speakerLink))
+    .toBeGreaterThan(0.9)
+
+  // Hovering first starts the cell's background transition, which must not
+  // satisfy or disturb the outline check.
+  const sponsorLink = "#sponsors a[aria-label$='visit website']"
+  await page.locator(sponsorLink).first().hover()
+  await focusControl(page, sponsorLink)
+  await expect
+    .poll(() => outlineLightness(page, sponsorLink))
+    .toBeGreaterThan(0.9)
 })
