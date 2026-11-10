@@ -32,14 +32,14 @@ const TIMELINE_CONFIG = {
 } as const
 
 const TIMELINE_COLORS = {
-  backgroundLine: "var(--color-zinc-700)",
-  cursorActive: "var(--color-white)",
-  cursorInactive: "var(--color-neutral-500)",
-  gapActive: "var(--color-neutral-500)",
-  gapInactive: "var(--color-neutral-600)",
+  backgroundLine: "var(--border-strong)",
+  cursorActive: "var(--foreground)",
+  cursorInactive: "var(--subtle-foreground)",
+  gapActive: "var(--subtle-foreground)",
+  gapInactive: "var(--border-strong)",
   runningActive: "var(--color-blue-400)",
   runningInactive: "var(--color-blue-500)",
-  tickMark: "var(--color-zinc-700)",
+  tickMark: "var(--border-strong)",
 } as const
 
 export function VisualEffectScheduleTimeline() {
@@ -72,7 +72,7 @@ export function VisualEffectScheduleTimeline() {
   )
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-950/80">
+    <div className="border-b border-border bg-background/80">
       <div
         ref={containerRef}
         className="relative w-full overflow-hidden"
@@ -220,7 +220,7 @@ export function VisualEffectScheduleTimeline() {
                     }}
                   >
                     <motion.div
-                      className="rounded border border-neutral-700 bg-neutral-900/90 px-2 py-0.5 font-mono text-xs whitespace-nowrap text-neutral-300"
+                      className="rounded border border-border-strong bg-card/90 px-2 py-0.5 font-mono text-xs whitespace-nowrap text-prose-foreground"
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{

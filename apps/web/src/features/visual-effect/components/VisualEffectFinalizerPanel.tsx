@@ -22,12 +22,12 @@ export function VisualEffectFinalizerPanel() {
   )
 
   return (
-    <section className="border-b border-zinc-800 bg-zinc-950/80 px-4 py-4">
+    <section className="border-b border-border bg-background/80 px-4 py-4">
       <div
         ref={containerRef}
-        className="relative h-[88px] overflow-hidden rounded-xl border border-dashed border-neutral-700/80"
+        className="relative h-[88px] overflow-hidden rounded-xl border border-dashed border-border-strong/80"
       >
-        <div className="absolute inset-0 flex items-center justify-center text-neutral-700">
+        <div className="absolute inset-0 flex items-center justify-center text-subtle-foreground">
           <div className="flex items-center gap-2 font-mono text-sm tracking-[0.28em]">
             <AnimatedChevronRow />
             <span>FINALIZERS</span>
@@ -89,7 +89,7 @@ export function VisualEffectFinalizerPanel() {
 
 function AnimatedChevronRow() {
   return (
-    <div className="flex gap-1 text-neutral-600">
+    <div className="flex gap-1 text-subtle-foreground">
       {[0, 1, 2].map((index) => (
         <motion.span
           key={index}

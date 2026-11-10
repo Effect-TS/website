@@ -14,16 +14,19 @@ import {
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly version?: string | undefined
+  /** Defaults to the sections that already support light mode. */
+  readonly showThemeToggle?: boolean | undefined
 }
 
 const { activeSlug, version } = Astro.props
 
 const showThemeToggle =
-  activeSlug === "playground" ||
-  activeSlug === "docs" ||
-  activeSlug === "api" ||
-  activeSlug === "blog" ||
-  activeSlug === "motw"
+  Astro.props.showThemeToggle ??
+  (activeSlug === "playground" ||
+    activeSlug === "docs" ||
+    activeSlug === "api" ||
+    activeSlug === "blog" ||
+    activeSlug === "motw")
 
 const withVersion = (links: ReadonlyArray<NavigationLink>) =>
   version === undefined
