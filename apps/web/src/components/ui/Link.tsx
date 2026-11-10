@@ -57,7 +57,7 @@ function Link({
   const activeClass = active
     ? {
         nav: "border-white text-white",
-        footer: "border-transparent text-white dark:text-white",
+        footer: "border-transparent text-foreground",
         inline: "",
         subtle: "text-white",
         icon: "text-white",

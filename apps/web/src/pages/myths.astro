@@ -238,7 +238,11 @@ const MYTHS: Myth[] = [
 const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
 ---
 
-<PageLayout title="Effect Myths" description="Addressing common misconceptions about Effect.">
+<PageLayout
+  themeable
+  title="Effect Myths"
+  description="Addressing common misconceptions about Effect."
+>
   {/* Hero */}
   <section class="hero-section relative overflow-hidden pb-20 md:pb-28">
     <GridBackground />
@@ -250,18 +254,18 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
 
     <div class="relative z-10 mx-auto w-full max-w-295 px-4">
       <p
-        class="pt-16 pb-1 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase md:pt-20"
+        class="pt-16 pb-1 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase md:pt-20"
       >
         // Effect Myths
       </p>
 
       <div class="mt-2 max-w-4xl pb-4">
         <h1
-          class="text-4xl leading-tight font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
+          class="text-4xl leading-tight font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl"
         >
           Myths about Effect
         </h1>
-        <p class="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-400 md:text-xl">
+        <p class="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
           Addressing common misconceptions about Effect.
         </p>
       </div>
@@ -279,9 +283,9 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                 >
                   <a
                     href={`#${myth.id}`}
-                    class="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 px-4 py-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:border-white hover:text-white"
+                    class="flex w-full items-center justify-center gap-2 rounded-md border border-border-strong px-4 py-2 font-mono text-sm tracking-wider text-prose-foreground uppercase transition-colors hover:border-foreground hover:text-foreground"
                   >
-                    <span class="text-zinc-400">{String(i + 1).padStart(2, "0")}</span>
+                    <span class="text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
                     <span>{myth.short}</span>
                   </a>
                 </li>
@@ -301,9 +305,11 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                 >
                   <a
                     href={`#${myth.id}`}
-                    class="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 px-4 py-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:border-white hover:text-white"
+                    class="flex w-full items-center justify-center gap-2 rounded-md border border-border-strong px-4 py-2 font-mono text-sm tracking-wider text-prose-foreground uppercase transition-colors hover:border-foreground hover:text-foreground"
                   >
-                    <span class="text-zinc-400">{String(globalIdx + 1).padStart(2, "0")}</span>
+                    <span class="text-muted-foreground">
+                      {String(globalIdx + 1).padStart(2, "0")}
+                    </span>
                     <span>{myth.short}</span>
                   </a>
                 </li>
@@ -333,12 +339,12 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
       const modulesSection = fnsV?.sections.find((s) => s.items)
 
       const fnChipClass =
-        "pointer-events-auto inline-flex cursor-pointer items-center rounded-md border border-zinc-700 px-2 py-0.5 font-mono text-sm text-zinc-300 transition-colors hover:border-white hover:text-white"
+        "pointer-events-auto inline-flex cursor-pointer items-center rounded-md border border-border-strong px-2 py-0.5 font-mono text-sm text-prose-foreground transition-colors hover:border-foreground hover:text-foreground"
       const listChipClass =
-        "inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/40 px-2 py-0.5 font-mono text-[0.75rem] text-zinc-200 transition-colors hover:border-white hover:bg-zinc-900 hover:text-white"
+        "inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-card/40 px-2 py-0.5 font-mono text-[0.75rem] text-foreground transition-colors hover:border-foreground hover:bg-card hover:text-foreground"
 
       return (
-        <section id={myth.id} class="relative border-t border-zinc-800">
+        <section id={myth.id} class="relative border-t border-border">
           <div class="mx-auto w-full max-w-295 px-4">
             {fnsV ? (
               /* fns special layout: 2-row, full width */
@@ -348,33 +354,35 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                   style="align-items: last baseline"
                 >
                   <div class="md:col-span-6 md:pr-16">
-                    <p class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+                    <p class="mb-4 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
                       // Myth {String(idx + 1).padStart(2, "00")}
                     </p>
-                    <h2 class="border-l-2 border-zinc-700 pl-5 text-xl leading-snug font-medium tracking-tight text-zinc-400 italic md:text-2xl">
+                    <h2 class="border-l-2 border-border-strong pl-5 text-xl leading-snug font-medium tracking-tight text-muted-foreground italic md:text-2xl">
                       "{myth.title}"
                     </h2>
                   </div>
                   <div class="md:col-span-6">
                     {myth.body.map((p, pi) => (
-                      <p class={`text-base leading-relaxed text-zinc-300${pi > 0 ? " mt-4" : ""}`}>
+                      <p
+                        class={`text-base leading-relaxed text-prose-foreground${pi > 0 ? " mt-4" : ""}`}
+                      >
                         {p}
                       </p>
                     ))}
                   </div>
                 </div>
 
-                <div class="mt-12 rounded-md border border-zinc-800 bg-zinc-900/40 p-6 md:mt-16">
+                <div class="mt-12 rounded-md border border-border bg-card/40 p-6 md:mt-16">
                   <div class="flex flex-col gap-8">
                     {fnsSection && (
                       <div class="flex flex-col gap-4">
-                        <p class="font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
+                        <p class="font-mono text-xs font-medium tracking-wider text-prose-foreground uppercase">
                           {fnsSection.title}
                         </p>
                         <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
                           {fnsSection.groups!.map((group) => (
                             <div class="flex flex-col gap-2">
-                              <p class="font-mono text-[0.65rem] tracking-wider text-zinc-400 uppercase">
+                              <p class="font-mono text-[0.65rem] tracking-wider text-muted-foreground uppercase">
                                 {group.label}
                               </p>
                               <ul class="flex flex-wrap gap-1.5">
@@ -397,8 +405,8 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                       </div>
                     )}
                     {modulesSection && (
-                      <div class="flex flex-col gap-4 border-t border-zinc-800 pt-8">
-                        <p class="font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
+                      <div class="flex flex-col gap-4 border-t border-border pt-8">
+                        <p class="font-mono text-xs font-medium tracking-wider text-prose-foreground uppercase">
                           {modulesSection.title}
                         </p>
                         <ul class="flex flex-wrap gap-1.5">
@@ -427,10 +435,10 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                 <div
                   class={`md:col-span-7 ${isReversed ? "md:col-start-6 md:pl-16" : "md:col-start-1 md:pr-16"}`}
                 >
-                  <p class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+                  <p class="mb-4 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
                     // Myth {String(idx + 1).padStart(2, "00")}
                   </p>
-                  <h2 class="border-l-2 border-zinc-700 pl-5 text-xl leading-snug font-medium tracking-tight text-zinc-400 italic md:text-2xl">
+                  <h2 class="border-l-2 border-border-strong pl-5 text-xl leading-snug font-medium tracking-tight text-muted-foreground italic md:text-2xl">
                     "{myth.title}"
                   </h2>
                   {myth.body.map((p, pi) => {
@@ -440,25 +448,27 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                       const rest = match ? match[2] : ""
                       return (
                         <div class="mt-10">
-                          <p class="text-lg leading-snug font-semibold text-white">{lead}</p>
+                          <p class="text-lg leading-snug font-semibold text-foreground">{lead}</p>
                           {rest && (
-                            <p class="mt-3 text-base leading-relaxed text-zinc-300">{rest}</p>
+                            <p class="mt-3 text-base leading-relaxed text-prose-foreground">
+                              {rest}
+                            </p>
                           )}
                         </div>
                       )
                     }
-                    return <p class="mt-4 text-base leading-relaxed text-zinc-300">{p}</p>
+                    return <p class="mt-4 text-base leading-relaxed text-prose-foreground">{p}</p>
                   })}
                   {myth.lists?.map((list) => (
                     <div class="mt-8">
-                      <p class="mb-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
+                      <p class="mb-4 font-mono text-xs font-medium tracking-wider text-prose-foreground uppercase">
                         {list.title}
                       </p>
                       {list.groups ? (
                         <div class="space-y-3">
                           {list.groups.map((group) => (
                             <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-                              <p class="w-28 shrink-0 font-mono text-[0.7rem] tracking-wider text-zinc-400 uppercase">
+                              <p class="w-28 shrink-0 font-mono text-[0.7rem] tracking-wider text-muted-foreground uppercase">
                                 {group.label}
                               </p>
                               <ul class="flex flex-1 flex-wrap gap-2">
@@ -503,12 +513,12 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                   class={`md:col-span-5 ${isReversed ? "md:col-start-1 md:row-start-1" : "md:col-start-8"}`}
                 >
                   {statV && (
-                    <div class="relative flex aspect-square flex-col justify-between rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
-                      <p class="font-mono text-xs tracking-wider text-zinc-400 uppercase">
+                    <div class="relative flex aspect-square flex-col justify-between rounded-md border border-border bg-card/40 p-8">
+                      <p class="font-mono text-xs tracking-wider text-muted-foreground uppercase">
                         {statV.label}
                       </p>
                       <p
-                        class={`font-mono font-bold tracking-tight ${statV.striken ? "text-zinc-400 line-through decoration-zinc-300 decoration-4" : "text-white"}`}
+                        class={`font-mono font-bold tracking-tight ${statV.striken ? "text-muted-foreground line-through decoration-prose-foreground decoration-4" : "text-foreground"}`}
                         style="font-size: clamp(4rem, 10vw, 7rem); line-height: 1"
                       >
                         {statV.value}
@@ -516,59 +526,59 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                       {statV.chips ? (
                         <ul class="flex flex-wrap gap-1.5">
                           {statV.chips.map((chip) => (
-                            <li class="inline-flex items-center rounded-md border border-zinc-700 px-2 py-0.5 font-mono text-[0.7rem] text-zinc-300">
+                            <li class="inline-flex items-center rounded-md border border-border-strong px-2 py-0.5 font-mono text-[0.7rem] text-prose-foreground">
                               {chip}
                             </li>
                           ))}
                         </ul>
                       ) : statV.sublabel ? (
-                        <p class="text-sm text-zinc-300">{statV.sublabel}</p>
+                        <p class="text-sm text-prose-foreground">{statV.sublabel}</p>
                       ) : null}
                     </div>
                   )}
                   {compareV && (
-                    <div class="relative flex aspect-square items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
+                    <div class="relative flex aspect-square items-center justify-center rounded-md border border-border bg-card/40 p-8">
                       <div class="flex flex-col items-center gap-3 font-mono text-xl md:text-3xl">
-                        <span class="text-white">{compareV.left}</span>
-                        <span class="text-4xl font-bold text-zinc-400 md:text-6xl">
+                        <span class="text-foreground">{compareV.left}</span>
+                        <span class="text-4xl font-bold text-muted-foreground md:text-6xl">
                           {compareV.relation}
                         </span>
-                        <span class="text-white">{compareV.right}</span>
+                        <span class="text-foreground">{compareV.right}</span>
                       </div>
                     </div>
                   )}
                   {chartV && (
-                    <div class="relative flex aspect-square flex-col justify-center gap-6 rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
-                      <p class="font-mono text-xs tracking-wider text-zinc-400 uppercase">
+                    <div class="relative flex aspect-square flex-col justify-center gap-6 rounded-md border border-border bg-card/40 p-8">
+                      <p class="font-mono text-xs tracking-wider text-muted-foreground uppercase">
                         {chartV.title}
                       </p>
                       <div class="flex flex-col gap-5">
                         {chartV.bars.map((bar) => (
                           <div class="space-y-1.5">
                             <div class="flex items-baseline justify-between">
-                              <p class="font-mono text-[0.7rem] tracking-wider text-zinc-300 uppercase">
+                              <p class="font-mono text-[0.7rem] tracking-wider text-prose-foreground uppercase">
                                 {bar.label}
                               </p>
                               <p
-                                class={`font-mono text-sm tabular-nums ${bar.emphasis ? "font-bold text-white" : "text-zinc-300"}`}
+                                class={`font-mono text-sm tabular-nums ${bar.emphasis ? "font-bold text-foreground" : "text-prose-foreground"}`}
                               >
                                 {bar.value}
                               </p>
                             </div>
-                            <div class="h-2 w-full overflow-hidden rounded-sm bg-zinc-800">
+                            <div class="h-2 w-full overflow-hidden rounded-sm bg-muted">
                               <div
-                                class={`h-full ${bar.emphasis ? "bg-white" : "bg-zinc-600"}`}
+                                class={`h-full ${bar.emphasis ? "bg-primary" : "bg-border-strong"}`}
                                 style={`width: ${bar.pct}%`}
                               />
                             </div>
                           </div>
                         ))}
                       </div>
-                      {chartV.note && <p class="text-sm text-zinc-300">{chartV.note}</p>}
+                      {chartV.note && <p class="text-sm text-prose-foreground">{chartV.note}</p>}
                     </div>
                   )}
                   {logosV && (
-                    <div class="relative flex aspect-square flex-col justify-center rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
+                    <div class="relative flex aspect-square flex-col justify-center rounded-md border border-border bg-card/40 p-8">
                       <div class="grid grid-cols-3 items-center gap-x-8 gap-y-6">
                         {logosV.items.map((logo) => (
                           <img
@@ -582,7 +592,7 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
                     </div>
                   )}
                   {codeV && (
-                    <pre class="overflow-x-auto rounded-md border border-zinc-800 bg-zinc-900/40 px-5 py-4 font-mono text-sm text-zinc-300">
+                    <pre class="overflow-x-auto rounded-md border border-border bg-card/40 px-5 py-4 font-mono text-sm text-prose-foreground">
                       {codeV.lines.join("\n")}
                     </pre>
                   )}
@@ -600,7 +610,7 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
   .hero-glow {
     background: radial-gradient(
       ellipse 50% 80% at 50% -20%,
-      rgba(255, 255, 255, 0.1) 0%,
+      var(--hero-glow-a) 0%,
       transparent 50%
     );
   }

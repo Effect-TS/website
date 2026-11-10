@@ -18,6 +18,8 @@ interface Props {
   readonly forceDark?: boolean | undefined
   readonly ogImageVersion?: string | undefined
   readonly feed?: { readonly title: string; readonly href: string } | undefined
+  /** Keep the page out of search results (standalone embeds). */
+  readonly noindex?: boolean | undefined
 }
 
 const {
@@ -26,6 +28,7 @@ const {
   forceDark = false,
   ogImageVersion,
   feed,
+  noindex = false,
 } = Astro.props
 
 const getOgImagePath = () => {
@@ -75,6 +78,7 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    {noindex && <meta name="robots" content="noindex" />}
 
     {/* Tint Firefox's initial canvas before first paint (bug 1488384). */}
     <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />
@@ -154,6 +158,11 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
         }
         document.documentElement.classList.toggle("dark", isDark)
         document.documentElement.dataset.theme = isDark ? "dark" : "light"
+        if (stored === "system") {
+          window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (event) {
+            document.documentElement.classList.toggle("dark", event.matches)
+          })
+        }
         new MutationObserver(function () {
           var dark = document.documentElement.classList.contains("dark")
           document.documentElement.dataset.theme = dark ? "dark" : "light"

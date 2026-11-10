@@ -92,7 +92,16 @@ test("the broken-light pages still render dark when dark is stored", async ({
 })
 
 // One route per layout: PageLayout, EffectDaysLayout and a BaseLayout page.
-const layoutRoutes = ["/effect-jobs", "/effect-days", "/merch"]
+const layoutRoutes = [
+  "/effect-jobs",
+  "/effect-days",
+  "/merch",
+  "/podcast/episodes/effectifying-opencode-with-kit-langton",
+  "/myths",
+  "/privacy",
+  "/adoption-partners/ziverge",
+  "/visuals/persisted-queue",
+]
 
 test("a theme chosen on one extended page follows the visitor across layouts", async ({
   page,
