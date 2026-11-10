@@ -16,6 +16,11 @@ const forcedDarkRoutes = [
   "/effect-days/about-livorno",
   "/effect-days/code-of-conduct",
   "/effect-days/refund-policy",
+  "/podcast",
+  "/podcast/episodes/effectifying-opencode-with-kit-langton",
+  "/myths",
+  "/privacy",
+  "/adoption-partners/ziverge",
 ]
 
 // Pages that already honour the stored theme at the document level but paint
@@ -196,4 +201,44 @@ test("controls on dark surfaces keep a light focus ring in light mode", async ({
   await expect
     .poll(() => colourLightness(page, sponsorLink, "outlineColor"))
     .toBeGreaterThan(0.9)
+})
+
+// Already renders light and dark; what it lacks is a way to switch.
+test("the 404 page offers the theme menu", async ({ page }) => {
+  await storeTheme(page, "light")
+  await page.goto("/this-route-does-not-exist", { waitUntil: "networkidle" })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await expect(themeTrigger(page)).toBeVisible()
+})
+
+// Standalone visual frames are embedded inside themed pages, so they follow the
+// stored preference like any other page instead of a fixed palette. They have
+// no navigation and therefore no theme menu of their own.
+for (const theme of ["light", "dark"] as const) {
+  test(`the persisted-queue visual follows a stored ${theme} preference`, async ({
+    page,
+  }) => {
+    await storeTheme(page, theme)
+    await page.goto("/visuals/persisted-queue", { waitUntil: "networkidle" })
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme)
+    const lightness = await backgroundLightness(page, "main")
+    if (theme === "light") expect(lightness).toBeGreaterThan(0.5)
+    else expect(lightness).toBeLessThan(0.5)
+  })
+}
+
+// The footer marks the current section's link active; on Effect Days pages the
+// active class must read against the light footer too.
+test("the active footer link stays readable in light mode", async ({
+  page,
+}) => {
+  await storeTheme(page, "light")
+  await page.goto("/effect-days", { waitUntil: "networkidle" })
+  const activeLink = page
+    .locator("footer a", { hasText: "Effect Days" })
+    .first()
+  await activeLink.scrollIntoViewIfNeeded()
+  expect(
+    await colourLightness(page, 'footer a:has-text("Effect Days")', "color"),
+  ).toBeLessThan(0.5)
 })
