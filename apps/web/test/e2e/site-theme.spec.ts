@@ -190,3 +190,47 @@ test("dark photo and logo surfaces keep their contrast in light mode", async ({
     ),
   ).toBeLessThan(0.1)
 })
+
+/** Relative luminance of an element's focus outline once it is keyboard-focused
+ *  and its colour transition has settled. */
+const focusOutlineLightness = (page: Page, selector: string) =>
+  page
+    .locator(selector)
+    .first()
+    .evaluate(async (element) => {
+      ;(element as HTMLElement).focus()
+      if (!element.matches(":focus-visible")) return -1
+      await new Promise((resolve) => {
+        element.addEventListener("transitionend", resolve, { once: true })
+        setTimeout(resolve, 500)
+      })
+      const canvas = document.createElement("canvas")
+      canvas.width = canvas.height = 1
+      const context = canvas.getContext("2d", { willReadFrequently: true })!
+      context.fillStyle = getComputedStyle(element).outlineColor
+      context.fillRect(0, 0, 1, 1)
+      const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+      const channel = (v: number) =>
+        v / 255 <= 0.03928
+          ? v / 255 / 12.92
+          : ((v / 255 + 0.055) / 1.055) ** 2.4
+      return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!)
+    })
+
+// The sponsor cells and speaker links are the only controls on surfaces that
+// stay dark in light mode (the company grid holds plain images).
+test("controls on dark surfaces keep a light focus ring in light mode", async ({
+  page,
+}) => {
+  await storeTheme(page, "light")
+  await page.goto("/effect-days", { waitUntil: "networkidle" })
+  expect(
+    await focusOutlineLightness(page, "#speakers a[aria-label$='on X']"),
+  ).toBeGreaterThan(0.9)
+  expect(
+    await focusOutlineLightness(
+      page,
+      "#sponsors a[aria-label$='visit website']",
+    ),
+  ).toBeGreaterThan(0.9)
+})
