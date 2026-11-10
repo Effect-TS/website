@@ -1,0 +1,180 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro"
+import Eyebrow from "@/components/ui/Eyebrow.astro"
+
+interface Credit {
+  readonly name: string
+  readonly owner: string
+  readonly source: { readonly label: string; readonly href: string }
+  readonly licence: { readonly label: string; readonly href: string }
+  readonly note: string
+}
+
+// Third-party marks shown on this site. Each entry names where the artwork
+// came from, the terms it was published under, and whether we changed it.
+// Trademarks belong to their owners; showing a mark here does not imply
+// endorsement of Effect by that company.
+const CREDITS: ReadonlyArray<Credit> = [
+  {
+    name: "Yarn kitten logo",
+    owner: "Yarn contributors",
+    source: {
+      label: "github.com/yarnpkg/assets, yarn-kitten-circle.svg",
+      href: "https://github.com/yarnpkg/assets/blob/master/yarn-kitten-circle.svg",
+    },
+    licence: {
+      label: "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      href: "https://creativecommons.org/licenses/by/4.0/",
+    },
+    note: "Used unmodified.",
+  },
+  {
+    name: "OpenCode wordmark",
+    owner: "Anomaly",
+    source: {
+      label: "opencode.ai/brand",
+      href: "https://opencode.ai/brand",
+    },
+    licence: {
+      label: "MIT (anomalyco/opencode repository); brand guidelines apply",
+      href: "https://github.com/anomalyco/opencode/blob/dev/LICENSE",
+    },
+    note: "Light and dark variants used unmodified, each on the background it is published for.",
+  },
+  {
+    name: "Astro logo",
+    owner: "Astro",
+    source: { label: "astro.build/press", href: "https://astro.build/press/" },
+    licence: { label: "Astro press kit usage guidance", href: "https://astro.build/press/" },
+    note: "“Logo on light” and “Gradient logo on dark” variants used unmodified.",
+  },
+  {
+    name: "Cloudflare logo",
+    owner: "Cloudflare, Inc.",
+    source: {
+      label:
+        "cloudflare.com/press-kit (white) and Wikimedia Commons, Cloudflare_Logo.svg (full colour)",
+      href: "https://www.cloudflare.com/press-kit/",
+    },
+    licence: {
+      label: "Cloudflare brand guidelines",
+      href: "https://www.cloudflare.com/trademark/",
+    },
+    note: "Artwork and colours unchanged; CSS classes in the files were rewritten as inline fill attributes.",
+  },
+  {
+    name: "T3 logo",
+    owner: "T3 OSS",
+    source: {
+      label: "github.com/t3-oss/create-t3-app, www/public/images",
+      href: "https://github.com/t3-oss/create-t3-app/tree/main/www/public/images",
+    },
+    licence: { label: "MIT", href: "https://github.com/t3-oss/create-t3-app/blob/main/LICENSE" },
+    note: "Light and dark variants used unmodified.",
+  },
+  {
+    name: "Union logo",
+    owner: "Union Labs",
+    source: {
+      label: "github.com/unionlabs/union, site/public",
+      href: "https://github.com/unionlabs/union/tree/main/site/public",
+    },
+    licence: { label: "Apache License 2.0", href: "https://github.com/unionlabs/union" },
+    note: "Black and white variants used unmodified.",
+  },
+  {
+    name: "Vercel logotype",
+    owner: "Vercel, Inc.",
+    source: { label: "vercel.com/brand press kit", href: "https://vercel.com/brand" },
+    licence: { label: "Vercel brand guidelines", href: "https://vercel.com/brand" },
+    note: "Light and dark variants used unmodified.",
+  },
+  {
+    name: "Spiko wordmark",
+    owner: "Spiko",
+    source: { label: "spiko.io/spiko-logo.svg", href: "https://www.spiko.io/spiko-logo.svg" },
+    licence: { label: "Spiko", href: "https://www.spiko.io/" },
+    note: "Used unmodified; the mark is published as currentColor and takes the page text colour.",
+  },
+  {
+    name: "X logo",
+    owner: "X Corp.",
+    source: { label: "X brand toolkit", href: "https://about.x.com/en/who-we-are/brand-toolkit" },
+    licence: { label: "X brand toolkit", href: "https://about.x.com/en/who-we-are/brand-toolkit" },
+    note: "Monochrome mark drawn in the page text colour, black on light and white on dark as published.",
+  },
+  {
+    name: "MasterClass wordmark",
+    owner: "MasterClass",
+    source: { label: "masterclass.com", href: "https://www.masterclass.com/" },
+    licence: { label: "MasterClass", href: "https://www.masterclass.com/" },
+    note: "Monochrome wordmark drawn in the page text colour, black on light and white on dark.",
+  },
+  {
+    name: "Total TypeScript mark",
+    owner: "Matt Pocock",
+    source: { label: "totaltypescript.com", href: "https://www.totaltypescript.com/" },
+    licence: { label: "Total TypeScript", href: "https://www.totaltypescript.com/" },
+    note: "Used unmodified in both themes.",
+  },
+]
+---
+
+<PageLayout
+  title="Credits | Effect"
+  description="Third-party logos and artwork shown on effect.website, with their sources and licences."
+  themeable
+>
+  <section class="relative pt-16 pb-12 md:pt-24 md:pb-16">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <Eyebrow class="mb-3">// Credits</Eyebrow>
+      <h1 class="text-3xl leading-tighter font-bold text-foreground md:text-4xl">
+        Third-party artwork
+      </h1>
+      <p class="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
+        Logos shown on this site belong to their owners and are used to identify the companies and
+        projects they refer to. This page records where each mark came from, the terms it was
+        published under, and whether we changed it.
+      </p>
+    </div>
+  </section>
+
+  <section class="pb-24 md:pb-32">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <ul class="m-0 max-w-3xl list-none divide-y divide-border border-y border-border p-0">
+        {
+          CREDITS.map((credit) => (
+            <li class="grid gap-2 py-5 md:grid-cols-[14rem_1fr] md:gap-6">
+              <div>
+                <h2 class="text-base font-semibold text-foreground">{credit.name}</h2>
+                <p class="text-sm text-muted-foreground">{credit.owner}</p>
+              </div>
+              <dl class="m-0 grid gap-1 text-sm">
+                <div class="flex gap-2">
+                  <dt class="shrink-0 text-muted-foreground">Source</dt>
+                  <dd class="m-0">
+                    <a href={credit.source.href} target="_blank" rel="noopener noreferrer">
+                      {credit.source.label}
+                    </a>
+                  </dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="shrink-0 text-muted-foreground">Terms</dt>
+                  <dd class="m-0">
+                    <a href={credit.licence.href} target="_blank" rel="noopener noreferrer">
+                      {credit.licence.label}
+                    </a>
+                  </dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="shrink-0 text-muted-foreground">Changes</dt>
+                  <dd class="m-0 text-prose-foreground">{credit.note}</dd>
+                </div>
+              </dl>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+</PageLayout>
