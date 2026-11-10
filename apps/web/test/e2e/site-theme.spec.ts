@@ -240,6 +240,21 @@ test("dark photo and logo surfaces keep their contrast in light mode", async ({
   ).toBeLessThan(0.1)
 })
 
+for (const theme of ["light", "dark"] as const) {
+  test(`the privacy contact link reacts to hover (${theme})`, async ({
+    page,
+  }) => {
+    await storeTheme(page, theme)
+    await page.goto("/privacy", { waitUntil: "networkidle" })
+    const link = page.getByRole("link", { name: "contact@effectful.co" })
+    const underline = () =>
+      link.evaluate((element) => getComputedStyle(element).textDecorationColor)
+    const resting = await underline()
+    await link.hover()
+    await expect.poll(underline).not.toBe(resting)
+  })
+}
+
 // Job logos are contributor-supplied files drawn straight onto the card, so a
 // white-only or black-only mark disappears in one theme. Read from a real
 // screenshot: every logo must paint pixels that differ from its card.
