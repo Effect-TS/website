@@ -223,6 +223,14 @@ test("dark photo and logo surfaces keep their contrast in light mode", async ({
   expect(
     await backgroundLightness(page, "#sponsors a[aria-label$='visit website']"),
   ).toBeLessThan(0.1)
+  await page.goto("/community-hub", { waitUntil: "networkidle" })
+  expect(
+    await colourLightness(
+      page,
+      "img[alt='Effect meetup in Hamburg'] ~ p",
+      "color",
+    ),
+  ).toBeGreaterThan(0.5)
   await page.goto("/effect-jobs", { waitUntil: "networkidle" })
   expect(
     await backgroundLightness(
