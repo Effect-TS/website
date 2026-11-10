@@ -77,7 +77,7 @@ export function PodcastGuestCard() {
             rel="noopener noreferrer"
             aria-label="Subscribe to Effect on YouTube"
           >
-            <YouTubeLogo className="mr-1 size-6 [&_.youtube-body]:fill-red-500 [&_.youtube-play]:fill-foreground" />
+            <YouTubeLogo className="mr-1 size-6 [&_.youtube-body]:fill-red-500 [&_.youtube-play]:fill-white" />
             <span className="text-sm group-hover:underline group-hover:underline-offset-2">
               YouTube
             </span>
@@ -89,7 +89,7 @@ export function PodcastGuestCard() {
 }
 
 // White-on-transparent marks sit on a small dark tile in light mode; marks
-// drawn with currentColor (Spiko, Zendesk) take the text colour directly.
+// drawn with currentColor (OpenCode, Spiko, Warp, Zendesk) take the text colour directly.
 function DarkTile({ children }: { readonly children: ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-sm bg-zinc-950 px-1.5 py-1 dark:bg-transparent dark:p-0">
@@ -113,11 +113,7 @@ function CompanyLogo({ company }: { readonly company: string }) {
         </DarkTile>
       )
     case "opencode":
-      return (
-        <DarkTile>
-          <OpenCodeLogo className="h-4 w-auto" />
-        </DarkTile>
-      )
+      return <OpenCodeLogo className="h-4 w-auto" />
     case "openrouter":
       return (
         <DarkTile>
@@ -143,11 +139,7 @@ function CompanyLogo({ company }: { readonly company: string }) {
         </DarkTile>
       )
     case "warp":
-      return (
-        <DarkTile>
-          <WarpLogo className="h-4 w-auto" />
-        </DarkTile>
-      )
+      return <WarpLogo className="h-4 w-auto" />
     case "zendesk":
       return <ZendeskLogo className="h-4 w-auto" />
     case "ziverge":

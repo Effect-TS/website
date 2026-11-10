@@ -124,6 +124,31 @@ test("a theme chosen on one extended page follows the visitor across layouts", a
   }
 })
 
+// An explicit choice made after "System" must win over later OS changes,
+// in both directions, on a page with the menu and on a route without one.
+test("an explicit choice made after System ignores later OS changes", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" })
+  await page.goto("/podcast", { waitUntil: "networkidle" })
+  await chooseTheme(page, "System")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+
+  await chooseTheme(page, "Light")
+  await page.emulateMedia({ colorScheme: "dark" })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await page.goto("/visuals/persisted-queue", { waitUntil: "networkidle" })
+  await page.emulateMedia({ colorScheme: "light" })
+  await page.emulateMedia({ colorScheme: "dark" })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+
+  await page.goto("/podcast", { waitUntil: "networkidle" })
+  await chooseTheme(page, "System")
+  await chooseTheme(page, "Dark")
+  await page.emulateMedia({ colorScheme: "light" })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+})
+
 for (const route of layoutRoutes) {
   test(`${route} paints in the stored theme without flashing the other one`, async ({
     page,

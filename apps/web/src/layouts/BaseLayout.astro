@@ -78,7 +78,6 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    {noindex && <meta name="robots" content="noindex" />}
 
     {/* Tint Firefox's initial canvas before first paint (bug 1488384). */}
     <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />
@@ -158,11 +157,13 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
         }
         document.documentElement.classList.toggle("dark", isDark)
         document.documentElement.dataset.theme = isDark ? "dark" : "light"
-        if (stored === "system") {
-          window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (event) {
-            document.documentElement.classList.toggle("dark", event.matches)
-          })
-        }
+        // Follow live OS changes only while "system" is still the stored
+        // choice; an explicit choice made later must win over the OS.
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (event) {
+          var current = localStorage.getItem("theme")
+          if (current) { try { current = JSON.parse(current) } catch (_) {} }
+          if (current === "system") document.documentElement.classList.toggle("dark", event.matches)
+        })
         new MutationObserver(function () {
           var dark = document.documentElement.classList.contains("dark")
           document.documentElement.dataset.theme = dark ? "dark" : "light"
@@ -175,6 +176,7 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
 
     <SEO
       title={title}
+      noindex={noindex}
       canonical={canonicalUrl}
       openGraph={{
         basic: {
