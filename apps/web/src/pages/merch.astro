@@ -22,20 +22,22 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
 ---
 
 <BaseLayout title="Effect Swag" description="Effect-branded merchandise for the community">
-  <div class="relative min-h-screen bg-zinc-950 text-white antialiased">
+  <div class="relative min-h-screen bg-background text-foreground antialiased">
     <DitheredOverlay />
     <GridRails />
 
-    <Navigation />
+    <Navigation showThemeToggle />
 
     <main id={PAGE_TITLE_ID} class="relative w-full">
       <!-- Hero Section -->
-      <section class="relative w-full bg-zinc-950 pt-16 pb-16">
+      <section class="relative w-full bg-background pt-16 pb-16">
         <div class="mx-auto w-full max-w-295 px-4">
           <div class="grid grid-cols-1 items-center lg:grid-cols-2">
             <!-- Left: Text content -->
             <div class="flex flex-col gap-6 lg:pr-8">
-              <h1 class="text-[3.052rem] font-semibold leading-tight text-white md:text-[3.815rem]">
+              <h1
+                class="text-[3.052rem] font-semibold leading-tight text-foreground md:text-[3.815rem]"
+              >
                 Show off your
                 <span class="effect-badge relative inline-block px-4 py-1.5 font-mono">
                   <span class="corner-bracket corner-tl corner-amber"></span>
@@ -46,7 +48,7 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
                 </span>
                 style
               </h1>
-              <p class="max-w-md text-xl text-zinc-400">
+              <p class="max-w-md text-xl text-muted-foreground">
                 Explore a selection of Effect-branded items – designed for the community.
               </p>
               <div>
@@ -61,7 +63,7 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
             <div class="mt-8 grid grid-cols-2 grid-rows-2 gap-3 lg:mt-0">
               <!-- Hoodie - spans full height -->
               <div
-                class="relative row-span-2 flex items-center justify-center overflow-hidden border border-zinc-800 bg-zinc-900/40 p-6"
+                class="relative row-span-2 flex items-center justify-center overflow-hidden border border-border bg-card/40 p-6"
               >
                 <Image
                   src={getMerchImage("hoodie-1.avif")!}
@@ -230,22 +232,29 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
       </section>
 
       <!-- Effect in the Wild Section -->
-      <section class="relative w-full bg-zinc-950 py-4">
+      <section class="relative w-full bg-background py-4">
         <div class="mx-auto w-full max-w-295 px-4">
           <div class="grid grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-8">
             <div class="flex flex-col items-start pt-16 md:pt-0">
-              <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+              <p
+                class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase"
+              >
                 // Effect in the wild
               </p>
-              <h2 class="text-[2.75rem] font-semibold leading-tighter text-zinc-200">
+              <h2 class="text-[2.75rem] font-semibold leading-tighter text-foreground">
                 Got your Effect merch?
               </h2>
-              <p class="mt-4 mb-6 max-w-lg text-xl text-zinc-400">Share it with the community!</p>
+              <p class="mt-4 mb-6 max-w-lg text-xl text-muted-foreground">
+                Share it with the community!
+              </p>
               <div class="flex items-center gap-4">
-                <SocialLink variant="discord" class="text-zinc-400 hover:text-white" />
-                <SocialLink variant="twitter" class="text-zinc-400 hover:text-white" />
-                <SocialLink variant="linkedin" class="text-zinc-400 hover:text-white" />
-                <SocialLink variant="bluesky" class="text-zinc-400 hover:text-white" />
+                <SocialLink variant="discord" class="text-muted-foreground hover:text-foreground" />
+                <SocialLink variant="twitter" class="text-muted-foreground hover:text-foreground" />
+                <SocialLink
+                  variant="linkedin"
+                  class="text-muted-foreground hover:text-foreground"
+                />
+                <SocialLink variant="bluesky" class="text-muted-foreground hover:text-foreground" />
               </div>
             </div>
 
@@ -312,7 +321,7 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
     border-color: rgba(251, 191, 36, 0.5);
   }
   .corner-zinc {
-    border-color: rgba(63, 63, 70, 0.8);
+    border-color: var(--border-strong);
   }
 
   .merch-btn-primary {
@@ -321,14 +330,14 @@ function getMerchImage(filename: string): ImageMetadata | undefined {
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
     border-radius: 0.375rem;
-    background-color: rgb(255 255 255);
-    color: rgb(24 24 27);
+    background-color: var(--primary);
+    color: var(--primary-foreground);
     font-size: 1rem;
     font-weight: 500;
     transition: all 0.15s;
   }
   .merch-btn-primary:hover {
-    background-color: rgb(244 244 245);
+    background-color: color-mix(in oklch, var(--primary) 90%, var(--background));
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
   }
 

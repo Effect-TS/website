@@ -89,3 +89,65 @@ test("the broken-light pages still render dark when dark is stored", async ({
     expect(await backgroundLightness(page, "main section")).toBeLessThan(0.5)
   }
 })
+
+// One route per layout: PageLayout, EffectDaysLayout and a BaseLayout page.
+const layoutRoutes = ["/effect-jobs", "/effect-days", "/merch"]
+
+test("a theme chosen on one extended page follows the visitor across layouts", async ({
+  page,
+}) => {
+  await page.goto("/effect-days", { waitUntil: "networkidle" })
+  await themeTrigger(page).click()
+  await page
+    .getByRole("menu", { name: "Theme" })
+    .getByRole("menuitemradio", { name: "Light", exact: true })
+    .click()
+  for (const route of [...layoutRoutes, "/"]) {
+    await page.goto(route, { waitUntil: "networkidle" })
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  }
+
+  await page.emulateMedia({ colorScheme: "light" })
+  await themeTrigger(page).click()
+  await page
+    .getByRole("menu", { name: "Theme" })
+    .getByRole("menuitemradio", { name: "System", exact: true })
+    .click()
+  for (const route of layoutRoutes) {
+    await page.goto(route, { waitUntil: "networkidle" })
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+    await page.emulateMedia({ colorScheme: "dark" })
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+    await page.emulateMedia({ colorScheme: "light" })
+  }
+})
+
+for (const route of layoutRoutes) {
+  test(`${route} paints in the stored theme without flashing the other one`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("theme", JSON.stringify("light"))
+      const log: Array<{ theme: string; at: number }> = []
+      Object.assign(window, { __themeLog: log })
+      new MutationObserver(() => {
+        const theme = document.documentElement?.dataset.theme
+        if (theme !== undefined && log.at(-1)?.theme !== theme) {
+          log.push({ theme, at: performance.now() })
+        }
+      }).observe(document, { attributes: true, childList: true, subtree: true })
+    })
+    await page.goto(route, { waitUntil: "load" })
+    const result = await page.evaluate(() => ({
+      log: (
+        window as unknown as {
+          __themeLog: Array<{ theme: string; at: number }>
+        }
+      ).__themeLog,
+      firstPaintAt: performance.getEntriesByType("paint")[0]?.startTime,
+    }))
+    expect(result.log.map((entry) => entry.theme)).toEqual(["light"])
+    expect(result.firstPaintAt).toBeDefined()
+    expect(result.log[0]!.at).toBeLessThan(result.firstPaintAt!)
+  })
+}

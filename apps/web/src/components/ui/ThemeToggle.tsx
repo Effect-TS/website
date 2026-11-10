@@ -1,7 +1,8 @@
-import { useAtomSet, useAtomValue } from "@effect/atom-react"
+import { useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Check, Monitor, Moon, Sun } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import {
+  isDarkAtom,
   selectThemeAtom,
   themeAtom,
   type Theme,
@@ -24,6 +25,10 @@ export default function ThemeToggle({
 
   const theme = useAtomValue(themeAtom)
   const selectTheme = useAtomSet(selectThemeAtom)
+  // Mounting keeps the prefers-color-scheme listener alive wherever the
+  // toggle is rendered, so "System" follows live OS changes on every page.
+  // (Mount rather than read: the atom touches `window`, which SSR lacks.)
+  useAtomMount(isDarkAtom)
 
   // Close menu on outside click or Escape
   useEffect(() => {

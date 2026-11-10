@@ -205,7 +205,7 @@ const ACTIVITIES = [
 const mapLink = (query: string) => `https://www.google.com/maps/search/?api=1&query=${query}`
 
 const anchorButtonClass =
-  "inline-flex items-center justify-center gap-2 rounded-md inset-ring inset-ring-zinc-700 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-zinc-800 hover:inset-ring-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+  "inline-flex items-center justify-center gap-2 rounded-md inset-ring inset-ring-border-strong bg-card/50 px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted hover:inset-ring-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
 ---
 
 <EffectDaysLayout
@@ -222,15 +222,15 @@ const anchorButtonClass =
       />
       {/* Blend into the dark page */}
       <div
-        class="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-950 via-transparent to-transparent"
+        class="pointer-events-none absolute inset-0 bg-linear-to-r from-background via-transparent to-transparent"
       >
       </div>
       <div
-        class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent"
+        class="pointer-events-none absolute inset-0 bg-linear-to-t from-background/70 via-transparent to-transparent"
       >
       </div>
       <p
-        class="absolute bottom-3 left-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase"
+        class="absolute bottom-3 left-4 font-mono text-xs font-medium tracking-wider text-prose-foreground uppercase"
       >
         {"// "}Venezia Nuova · Livorno
       </p>
@@ -240,7 +240,9 @@ const anchorButtonClass =
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div>
           <BackToEffectDays iconSize={12} class="gap-1.5" />
-          <h1 class="mt-6 leading-[1.1] text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h1
+            class="mt-6 leading-[1.1] text-3xl font-bold tracking-tight text-foreground md:text-4xl"
+          >
             Welcome to Livorno!
           </h1>
 
@@ -275,36 +277,38 @@ const anchorButtonClass =
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {pair.map((airport) => (
                   <Card>
-                    <p class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                    <p class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
                       {airport.distance}
                     </p>
                     {/* Distance track — marker position on a scale shared by all
                         cards */}
                     <div class="relative mt-3 h-2" aria-hidden="true">
                       <div
-                        class="absolute top-1/2 right-0 left-0 -translate-y-1/2 text-zinc-700"
+                        class="absolute top-1/2 right-0 left-0 -translate-y-1/2 text-subtle-foreground"
                         style="height: 1px; background-image: repeating-linear-gradient(to right, currentColor 0px, currentColor 2px, transparent 2px, transparent 4px)"
                       />
-                      <div class="absolute top-1/2 left-0 h-2 w-px -translate-y-1/2 bg-zinc-600" />
+                      <div class="absolute top-1/2 left-0 h-2 w-px -translate-y-1/2 bg-border-strong" />
                       <div
-                        class="absolute top-1/2 h-2 w-2 -translate-y-1/2 bg-white"
+                        class="absolute top-1/2 h-2 w-2 -translate-y-1/2 bg-primary"
                         style={`left: calc(${(airport.km / DISTANCE_SCALE_KM) * 100}% - 4px)`}
                       />
                     </div>
-                    <h3 class="mt-4 text-lg font-semibold text-white">{airport.name}</h3>
-                    <p class="mt-1 text-sm leading-normal text-zinc-400">{airport.intro}</p>
-                    <div class="mt-6 border-t border-dashed border-zinc-800 pt-4">
-                      <h4 class="text-base font-semibold text-white">By train</h4>
-                      <p class="mt-1 text-sm leading-normal text-zinc-400">{airport.train}</p>
+                    <h3 class="mt-4 text-lg font-semibold text-foreground">{airport.name}</h3>
+                    <p class="mt-1 text-sm leading-normal text-muted-foreground">{airport.intro}</p>
+                    <div class="mt-6 border-t border-dashed border-border pt-4">
+                      <h4 class="text-base font-semibold text-foreground">By train</h4>
+                      <p class="mt-1 text-sm leading-normal text-muted-foreground">
+                        {airport.train}
+                      </p>
                     </div>
                     <div class="mt-4">
-                      <h4 class="text-base font-semibold text-white">By car</h4>
-                      <p class="mt-1 text-sm leading-normal text-zinc-400">{airport.car}</p>
+                      <h4 class="text-base font-semibold text-foreground">By car</h4>
+                      <p class="mt-1 text-sm leading-normal text-muted-foreground">{airport.car}</p>
                     </div>
                     {airport.bus && (
                       <div class="mt-4">
-                        <h4 class="text-base font-semibold text-white">By bus</h4>
-                        <p class="mt-1 text-sm leading-normal text-zinc-400">
+                        <h4 class="text-base font-semibold text-foreground">By bus</h4>
+                        <p class="mt-1 text-sm leading-normal text-muted-foreground">
                           <InlineLink href="https://www.flixbus.com/bus-routes/bus-rome-fiumicino-airport-livorno">
                             FlixBus
                           </InlineLink>{" "}
@@ -327,10 +331,10 @@ const anchorButtonClass =
           <div>
             <SectionHeader eyebrow="Local Transportation" title="Moving around Livorno" />
 
-            <div class="mt-12 max-w-md divide-y divide-zinc-800/50">
+            <div class="mt-12 max-w-md divide-y divide-border/50">
               <div class="py-6 first:pt-0">
-                <h3 class="text-lg font-semibold text-white">By taxi</h3>
-                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                <h3 class="text-lg font-semibold text-foreground">By taxi</h3>
+                <p class="mt-1 text-sm leading-normal text-muted-foreground">
                   Call CoTaLi at{" "}
                   <InlineLink href="tel:+390586883377">+39 586 88 33 77</InlineLink>{" "}
                   or AsTaLa at{" "}
@@ -339,8 +343,8 @@ const anchorButtonClass =
                 </p>
               </div>
               <div class="py-6">
-                <h3 class="text-lg font-semibold text-white">By bus</h3>
-                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                <h3 class="text-lg font-semibold text-foreground">By bus</h3>
+                <p class="mt-1 text-sm leading-normal text-muted-foreground">
                   Check the{" "}
                   <InlineLink href="https://www.at-bus.it/en/travel/lines-and-timetables/livorno">
                     local bus schedule
@@ -349,8 +353,8 @@ const anchorButtonClass =
                 </p>
               </div>
               <div class="py-6 last:pb-0">
-                <h3 class="text-lg font-semibold text-white">Bike rentals</h3>
-                <p class="mt-1 text-sm leading-normal text-zinc-400">
+                <h3 class="text-lg font-semibold text-foreground">Bike rentals</h3>
+                <p class="mt-1 text-sm leading-normal text-muted-foreground">
                   Livorno is a bike-friendly city, with rentals and cycling paths along the seafront
                   and city center.
                 </p>
@@ -376,15 +380,17 @@ const anchorButtonClass =
         <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
           <Card>
             <div class="flex items-center justify-between">
-              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
-                <Sun size={16} class="text-zinc-200" aria-hidden="true" />
+              <div class="flex h-10 w-10 items-center justify-center border border-border-strong">
+                <Sun size={16} class="text-foreground" aria-hidden="true" />
               </div>
-              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              <span
+                class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
+              >
                 10-13°C
               </span>
             </div>
-            <h3 class="mt-6 text-lg font-semibold text-white">December weather</h3>
-            <p class="mt-1 text-sm leading-normal text-zinc-400">
+            <h3 class="mt-6 text-lg font-semibold text-foreground">December weather</h3>
+            <p class="mt-1 text-sm leading-normal text-muted-foreground">
               Livorno winters are mild: daytime temperatures around 10-13°C (50-55°F), with sunny
               spells between occasional rain showers. A warm jacket and an umbrella are all you
               need.
@@ -392,15 +398,17 @@ const anchorButtonClass =
           </Card>
           <Card>
             <div class="flex items-center justify-between">
-              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
-                <Clock size={16} class="text-zinc-200" aria-hidden="true" />
+              <div class="flex h-10 w-10 items-center justify-center border border-border-strong">
+                <Clock size={16} class="text-foreground" aria-hidden="true" />
               </div>
-              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              <span
+                class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
+              >
                 Trenitalia
               </span>
             </div>
-            <h3 class="mt-6 text-lg font-semibold text-white">Check train schedules</h3>
-            <p class="mt-1 text-sm leading-normal text-zinc-400">
+            <h3 class="mt-6 text-lg font-semibold text-foreground">Check train schedules</h3>
+            <p class="mt-1 text-sm leading-normal text-muted-foreground">
               Use the{" "}
               <InlineLink href="https://www.trenitalia.com/en.html">
                 Trenitalia website
@@ -411,15 +419,17 @@ const anchorButtonClass =
           </Card>
           <Card>
             <div class="flex items-center justify-between">
-              <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
-                <Download size={16} class="text-zinc-200" aria-hidden="true" />
+              <div class="flex h-10 w-10 items-center justify-center border border-border-strong">
+                <Download size={16} class="text-foreground" aria-hidden="true" />
               </div>
-              <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              <span
+                class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
+              >
                 at bus · Tabnet
               </span>
             </div>
-            <h3 class="mt-6 text-lg font-semibold text-white">Local transport apps</h3>
-            <p class="mt-1 text-sm leading-normal text-zinc-400">
+            <h3 class="mt-6 text-lg font-semibold text-foreground">Local transport apps</h3>
+            <p class="mt-1 text-sm leading-normal text-muted-foreground">
               Consider downloading apps like{" "}
               <InlineLink href="https://www.at-bus.it/en">at bus</InlineLink> or{" "}
               <InlineLink href="https://www.tabnet.it/">Tabnet</InlineLink> for real-time updates on local
@@ -437,16 +447,18 @@ const anchorButtonClass =
         <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {
             SIGHTS.map((sight) => (
-              <div class="flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950">
+              <div class="flex flex-col overflow-hidden border border-border bg-background">
                 <Image src={sight.image} alt={sight.title} class="aspect-3/2 w-full object-cover" />
                 <div class="flex flex-1 flex-col p-6">
-                  <h3 class="text-lg font-semibold text-white">{sight.title}</h3>
-                  <p class="mt-1 text-sm leading-normal text-zinc-400">{sight.description}</p>
+                  <h3 class="text-lg font-semibold text-foreground">{sight.title}</h3>
+                  <p class="mt-1 text-sm leading-normal text-muted-foreground">
+                    {sight.description}
+                  </p>
                   <a
                     href={mapLink(sight.mapQuery)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="mt-4 inline-flex items-center gap-1.5 pt-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+                    class="mt-4 inline-flex items-center gap-1.5 pt-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                   >
                     View on map
                     <ArrowUpRight size={12} aria-hidden="true" />
@@ -472,15 +484,15 @@ const anchorButtonClass =
                   return (
                     <Card>
                       <div class="flex items-center justify-between">
-                        <div class="flex h-10 w-10 items-center justify-center border border-zinc-600">
-                          <ActivityIcon size={16} class="text-zinc-200" aria-hidden="true" />
+                        <div class="flex h-10 w-10 items-center justify-center border border-border-strong">
+                          <ActivityIcon size={16} class="text-foreground" aria-hidden="true" />
                         </div>
-                        <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                        <span class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
                           {activity.tag}
                         </span>
                       </div>
-                      <h3 class="mt-6 text-lg font-semibold text-white">{activity.title}</h3>
-                      <p class="mt-1 text-sm leading-normal text-zinc-400">
+                      <h3 class="mt-6 text-lg font-semibold text-foreground">{activity.title}</h3>
+                      <p class="mt-1 text-sm leading-normal text-muted-foreground">
                         {activity.description}
                       </p>
                     </Card>
@@ -500,11 +512,13 @@ const anchorButtonClass =
         <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {
             FOOD.map((dish) => (
-              <div class="flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950">
+              <div class="flex flex-col overflow-hidden border border-border bg-background">
                 <Image src={dish.image} alt={dish.title} class="aspect-3/2 w-full object-cover" />
                 <div class="flex flex-1 flex-col p-6">
-                  <h3 class="text-lg font-semibold text-white">{dish.title}</h3>
-                  <p class="mt-1 text-sm leading-normal text-zinc-400">{dish.description}</p>
+                  <h3 class="text-lg font-semibold text-foreground">{dish.title}</h3>
+                  <p class="mt-1 text-sm leading-normal text-muted-foreground">
+                    {dish.description}
+                  </p>
                 </div>
               </div>
             ))
