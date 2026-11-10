@@ -2,7 +2,7 @@ import { expect, type Page } from "playwright/test"
 
 export type ThemeName = "Dark" | "Light" | "System"
 
-export const storeTheme = (page: Page, theme: "light" | "dark") =>
+export const storeTheme = (page: Page, theme: "light" | "dark" | "system") =>
   page.addInitScript((stored) => {
     localStorage.setItem("theme", JSON.stringify(stored))
   }, theme)
@@ -58,4 +58,30 @@ export const expectLightWithoutFlash = async (page: Page, route: string) => {
   expect(result.log.map((entry) => entry.theme)).toEqual(["light"])
   expect(result.firstPaintAt).toBeDefined()
   expect(result.log[0]!.at).toBeLessThan(result.firstPaintAt!)
+}
+
+/**
+ * Emulates an OS colour-scheme change and resolves once the document's own
+ * `prefers-color-scheme` listeners have run, so an "unchanged" assertion
+ * afterwards is not merely racing the event.
+ */
+export const changeOsScheme = async (page: Page, scheme: "light" | "dark") => {
+  const before = await page.evaluate(() => {
+    const probe = window as unknown as { __osChanges?: number }
+    if (probe.__osChanges === undefined) {
+      probe.__osChanges = 0
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", () => {
+          probe.__osChanges! += 1
+        })
+    }
+    return probe.__osChanges
+  })
+  await page.emulateMedia({ colorScheme: scheme })
+  await page.waitForFunction(
+    (before) =>
+      (window as unknown as { __osChanges: number }).__osChanges > before,
+    before,
+  )
 }

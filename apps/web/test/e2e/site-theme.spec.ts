@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "playwright/test"
 import {
+  changeOsScheme,
   chooseTheme,
   expectLightWithoutFlash,
   storeTheme,
@@ -124,28 +125,56 @@ test("a theme chosen on one extended page follows the visitor across layouts", a
   }
 })
 
-// An explicit choice made after "System" must win over later OS changes,
-// in both directions, on a page with the menu and on a route without one.
-test("an explicit choice made after System ignores later OS changes", async ({
+// A document loaded with "System" stored installs the OS listener. An explicit
+// choice made afterwards, in that same document, must win over a later OS
+// change in the opposite direction.
+for (const [choice, chosen, os] of [
+  ["Light", "light", "dark"],
+  ["Dark", "dark", "light"],
+] as const) {
+  test(`${choice} chosen after loading with System ignores a later OS change to ${os}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: chosen })
+    await storeTheme(page, "system")
+    await page.goto("/podcast", { waitUntil: "networkidle" })
+    await expect(page.locator("html")).toHaveAttribute("data-theme", chosen)
+
+    await chooseTheme(page, choice)
+    expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe(
+      JSON.stringify(chosen),
+    )
+    await changeOsScheme(page, os)
+    await expect(page.locator("html")).toHaveAttribute("data-theme", chosen)
+  })
+}
+
+// The frame has no menu: a choice made elsewhere reaches it through storage.
+// Loaded with "System", it follows the OS until an explicit value is stored.
+test("the no-menu frame loaded with System stops following the OS once a choice is stored", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "light" })
-  await page.goto("/podcast", { waitUntil: "networkidle" })
-  await chooseTheme(page, "System")
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
-
-  await chooseTheme(page, "Light")
-  await page.emulateMedia({ colorScheme: "dark" })
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await storeTheme(page, "system")
   await page.goto("/visuals/persisted-queue", { waitUntil: "networkidle" })
-  await page.emulateMedia({ colorScheme: "light" })
-  await page.emulateMedia({ colorScheme: "dark" })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+  await changeOsScheme(page, "dark")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await changeOsScheme(page, "light")
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
 
-  await page.goto("/podcast", { waitUntil: "networkidle" })
-  await chooseTheme(page, "System")
-  await chooseTheme(page, "Dark")
-  await page.emulateMedia({ colorScheme: "light" })
+  await page.evaluate(() =>
+    localStorage.setItem("theme", JSON.stringify("light")),
+  )
+  await changeOsScheme(page, "dark")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
+
+  await page.evaluate(() => {
+    localStorage.setItem("theme", JSON.stringify("dark"))
+    document.documentElement.classList.add("dark")
+  })
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await changeOsScheme(page, "light")
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
 })
 
