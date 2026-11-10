@@ -1,0 +1,670 @@
+---
+// A durable sleep, laid out like the replay visual: TellJoke next to its
+// journal, one beat per Step. WriteJoke and PostJoke run and go in the
+// journal. The sleep writes an hour's timer to the journal, and then the
+// workflow stops: the code fades, and nothing's running. The next Step runs
+// the timer down, and the wake-up comes due. Then the workflow runs again
+// from the top, and everything up to and including the sleep comes back from
+// the journal. Last, CountLaughs runs for real.
+
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+
+// The code, in tokens, coloured like the post's code blocks: [kind, text],
+// where the kind is a keyword, a constant, a function, a string, or plain
+type Token = [kind: "k" | "c" | "f" | "s" | "p", text: string]
+
+const escape = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+const tokens = (ts: Array<Token>) =>
+  ts.map(([kind, text]) => `<span class="t-${kind}">${escape(text)}</span>`).join("")
+// A step's name, marked so it can light up along with its journal row
+const nameToken = (name: string) =>
+  `<span class="t-s sl7-name" data-sl7-name>"${escape(name)}"</span>`
+const assign = (name: string): Array<Token> => [
+  ["k", "const"],
+  ["p", " "],
+  ["c", name],
+  ["p", " = "],
+]
+// A call over three lines, `open`, then the name, then the close, with a
+// place after the close for a comment saying what it returned. The code is
+// built here rather than in the markup, where a formatter would add
+// whitespace between the tokens.
+const call = (open: Array<Token>, name: string, extra: Array<Token> = []) =>
+  [
+    `<span>${tokens(open)}</span>`,
+    `<span class="sl7-break sl7-arg">${tokens([["p", "name: "]])}${nameToken(name)}${tokens(extra)}</span>`,
+    `<span class="sl7-break">${tokens([["p", "})"]])}<span class="sl7-note" data-sl7-note></span></span>`,
+  ].join("")
+const activity: Array<Token> = [
+  ["k", "yield*"],
+  ["p", " Activity."],
+  ["f", "make"],
+  ["p", "({"],
+]
+
+const LINES = [
+  call([...assign("joke"), ...activity], "WriteJoke"),
+  call([...assign("ts"), ...activity], "PostJoke"),
+  call(
+    [
+      ["k", "yield*"],
+      ["p", " DurableClock."],
+      ["f", "sleep"],
+      ["p", "({"],
+    ],
+    "WaitForLaughs",
+    [
+      ["p", ", duration: "],
+      ["s", `"1 hour"`],
+    ],
+  ),
+  call([...assign("laughs"), ...activity], "CountLaughs"),
+]
+const KEYS = ["WriteJoke", "PostJoke", "WaitForLaughs", "CountLaughs"]
+---
+
+<figure
+  class="sl7 st"
+  data-sl7-visual
+  aria-label="The TellJoke workflow next to its journal. WriteJoke and PostJoke run, and their results go in the journal. The sleep writes an hour's timer to the journal, and the workflow stops running. The timer runs down, and the wake-up comes due. The workflow runs again from the top: WriteJoke, PostJoke, and the sleep all come back from the journal, and CountLaughs runs for the first time."
+>
+  <div class="sl7-stage" data-sl7-stage>
+    <p class="sl7-title sl7-fades" style="--r: 1">Workflow</p>
+    <p class="sl7-title is-journal" style="--r: 1; --mr: 6">Journal</p>
+
+    <span class="sl7-pointer" data-sl7-pointer aria-hidden="true"></span>
+    <span class="sl7-spinner" data-sl7-spinner aria-hidden="true" hidden></span>
+    <svg class="sl7-arrows" data-sl7-arrows aria-hidden="true"></svg>
+
+    {
+      LINES.map((html, i) => (
+        <div class="sl7-row sl7-line sl7-fades" data-sl7-line style={`--r: ${i + 2}`}>
+          <code set:html={html} />
+        </div>
+      ))
+    }
+
+    {
+      KEYS.map((key, i) => (
+        <div class="sl7-row sl7-entry" data-sl7-entry style={`--r: ${i + 2}; --mr: ${i + 7}`}>
+          <span class="sl7-key" data-sl7-key>
+            {key}
+          </span>
+          <span class="sl7-result" data-sl7-result>
+            –
+          </span>
+        </div>
+      ))
+    }
+
+    <p class="sl7-suspended" aria-hidden="true">Suspended</p>
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import { rel } from "@/components/blog/module-of-the-week/stepper/stepper"
+  import { drawArrow } from "./arrow"
+
+  const KEYS = ["WriteJoke", "PostJoke", "WaitForLaughs", "CountLaughs"]
+  const SLEEP = 2
+  // What each step leaves in the journal, and what the code says it got back
+  const RESULTS = ["I'd tell you a UDP joke, but you might not get it.", "1718.0042", "", "0"]
+  const RETURNED = [`"I'd tell you a UDP joke…"`, `"1718.0042"`, "done", "0"]
+  const WORK_MS = 1000
+  const LOOK_MS = 350
+  // How long the hour takes to run down
+  const HOUR_MS = 1200
+  const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+  const SPIN_MS = 80
+
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const pause = (ms: number) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms))
+  // Minutes left, as mm:ss
+  const mmss = (minutes: number) => {
+    const total = Math.ceil(minutes * 60)
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-sl7-visual]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const all = <T extends Element>(sel: string) => [...root.querySelectorAll<T>(sel)]
+    const stage = q<HTMLElement>("[data-sl7-stage]")
+    const arrows = q<SVGSVGElement>("[data-sl7-arrows]")
+    const pointer = q<HTMLElement>("[data-sl7-pointer]")
+    const spinner = q<HTMLElement>("[data-sl7-spinner]")
+    const lines = all<HTMLElement>("[data-sl7-line]")
+    const notes = all<HTMLElement>("[data-sl7-note]")
+    const entries = all<HTMLElement>("[data-sl7-entry]")
+    const keys = all<HTMLElement>("[data-sl7-key]")
+    const results = all<HTMLElement>("[data-sl7-result]")
+    const names = all<HTMLElement>("[data-sl7-name]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const stepBtn = q<HTMLButtonElement>("[data-step]")
+    const resetBtn = q<HTMLButtonElement>("[data-reset]")
+
+    // Running, asleep with the timer going, asleep with the wake-up due, or
+    // finished
+    let phase: "running" | "asleep" | "due" | "done" = "running"
+    // The line the pointer's on
+    let at = 0
+    // Whether the sleep is in the journal yet
+    let slept = false
+    let busy = false
+    // Bumped on reset, so a step that's still going knows to stop
+    let generation = 0
+
+    // The same arrows as the replay visual: ink to write, green to read back
+    const arrow = (i: number, back: boolean) => {
+      const stacked = rel(stage, entries[i]!).top > rel(stage, lines.at(-1)!).bottom
+      return drawArrow({
+        stage,
+        layer: arrows,
+        from: lines[i]!,
+        to: entries[i]!,
+        back,
+        stacked,
+        className: "sl7-arrow",
+        gutter: stacked ? stage.clientWidth - 6 : undefined,
+      })
+    }
+
+    let spinning = 0
+    const spin = (line: HTMLElement) => {
+      let frame = 0
+      spinner.textContent = SPINNER[0]!
+      spinner.style.top = `${line.offsetTop}px`
+      spinner.style.left = `${line.offsetLeft + line.offsetWidth}px`
+      spinner.hidden = false
+      if (reduceMotion()) return
+      spinning = window.setInterval(() => {
+        frame = (frame + 1) % SPINNER.length
+        spinner.textContent = SPINNER[frame]!
+      }, SPIN_MS)
+    }
+    const stopSpinning = () => {
+      window.clearInterval(spinning)
+      spinner.hidden = true
+    }
+
+    const render = () => {
+      const asleep = phase === "asleep" || phase === "due"
+      stage.classList.toggle("is-asleep", asleep)
+      for (const [i, line] of lines.entries()) {
+        line.classList.toggle("is-current", !asleep && !busy && phase !== "done" && i === at)
+      }
+      const line = lines[Math.min(at, lines.length - 1)]!
+      pointer.style.top = `${line.offsetTop + line.offsetHeight / 2}px`
+      pointer.hidden = asleep || phase === "done"
+      stepBtn.disabled = busy || phase === "done"
+    }
+
+    const beat = async (fn: (alive: () => boolean) => Promise<void>) => {
+      const gen = generation
+      busy = true
+      render()
+      await fn(() => gen === generation)
+      if (gen !== generation) return
+      busy = false
+      render()
+    }
+
+    const write = (i: number, html: string) => {
+      results[i]!.innerHTML = html
+      entries[i]!.classList.remove("is-missing")
+      entries[i]!.classList.add("is-written")
+      setTimeout(() => entries[i]!.classList.remove("is-written"), 400)
+    }
+    const light = (i: number, on: boolean) => {
+      names[i]!.classList.toggle("is-lit", on)
+      keys[i]!.classList.toggle("is-lit", on)
+    }
+    // The sleep's timer, in its journal row
+    const timer = () => results[SLEEP]!.querySelector<HTMLElement>("[data-sl7-timer]")!
+
+    // An activity that isn't in the journal runs for real, and its result
+    // goes in the journal
+    const runActivity = (i: number) =>
+      beat(async (alive) => {
+        light(i, true)
+        entries[i]!.classList.add("is-missing")
+        await pause(LOOK_MS)
+        if (!alive()) return
+        lines[i]!.classList.add("is-working")
+        spin(lines[i]!)
+        await pause(WORK_MS)
+        stopSpinning()
+        lines[i]!.classList.remove("is-working")
+        if (!alive()) return
+        notes[i]!.className = "sl7-note"
+        notes[i]!.textContent = `// ${RETURNED[i]}`
+        await arrow(i, false)
+        if (!alive()) return
+        write(i, RESULTS[i]!)
+        light(i, false)
+        caption.textContent = `${KEYS[i]} isn't in the journal, so it runs for real and writes its result there`
+        at++
+        if (at === lines.length) phase = "done"
+      })
+
+    const step = () => {
+      // The sleep isn't in the journal yet, so it writes an hour's timer
+      // there, and then the workflow stops
+      if (phase === "running" && at === SLEEP && !slept) {
+        return void beat(async (alive) => {
+          light(SLEEP, true)
+          entries[SLEEP]!.classList.add("is-missing")
+          await pause(LOOK_MS)
+          if (!alive()) return
+          await arrow(SLEEP, false)
+          if (!alive()) return
+          write(SLEEP, `<span class="sl7-timer" data-sl7-timer>${mmss(60)}</span>`)
+          light(SLEEP, false)
+          slept = true
+          phase = "asleep"
+          caption.textContent =
+            "The sleep writes an hour's timer to the journal, and the workflow stops. Nothing is running."
+        })
+      }
+
+      if (phase === "running") return void runActivity(at)
+
+      // The hour runs down. Only the journal is left, and the wake-up comes
+      // due.
+      if (phase === "asleep") {
+        return void beat(async (alive) => {
+          const start = performance.now()
+          await new Promise<void>((done) => {
+            const tick = (now: number) => {
+              if (!alive()) return done()
+              const t = reduceMotion() ? 1 : Math.min(1, (now - start) / HOUR_MS)
+              timer().textContent = mmss(60 * (1 - t))
+              if (t < 1) requestAnimationFrame(tick)
+              else done()
+            }
+            requestAnimationFrame(tick)
+          })
+          if (!alive()) return
+          entries[SLEEP]!.classList.add("is-due")
+          phase = "due"
+          caption.textContent = "The hour is up, and the wake-up is due"
+        })
+      }
+
+      // The workflow runs again from the top, and everything up to the sleep
+      // comes back from the journal
+      if (phase === "due") {
+        return void beat(async (alive) => {
+          phase = "running"
+          for (const note of notes) note.textContent = ""
+          at = 0
+          render()
+          await pause(300)
+          for (let i = 0; i <= SLEEP; i++) {
+            if (!alive()) return
+            at = i
+            render()
+            light(i, true)
+            entries[i]!.classList.add("is-found")
+            await pause(LOOK_MS / 2)
+            if (!alive()) return
+            await arrow(i, true)
+            if (!alive()) return
+            notes[i]!.className = "sl7-note is-journal"
+            notes[i]!.textContent = `// ${RETURNED[i]}`
+            entries[i]!.classList.remove("is-found", "is-due")
+            light(i, false)
+          }
+          at = SLEEP + 1
+          caption.textContent =
+            "The workflow runs again from the top. Everything up to the sleep comes back from the journal."
+        })
+      }
+    }
+
+    stepBtn.addEventListener("click", () => {
+      if (!busy) step()
+    })
+
+    resetBtn.addEventListener("click", () => {
+      generation++
+      stopSpinning()
+      arrows.replaceChildren()
+      for (const line of lines) line.classList.remove("is-working")
+      for (const entry of entries) {
+        entry.classList.remove("is-found", "is-missing", "is-written", "is-due")
+      }
+      for (const el of results) el.textContent = "–"
+      for (const note of notes) note.textContent = ""
+      for (const i of keys.keys()) light(i, false)
+      phase = "running"
+      at = 0
+      slept = false
+      busy = false
+      caption.textContent = "Click Step to run the workflow"
+      render()
+    })
+    resetBtn.click()
+    new ResizeObserver(() => render()).observe(stage)
+  }
+</script>
+
+<style is:global>
+  .sl7 {
+    --sl7-ink: #3f3f46;
+    --sl7-muted: #71717a;
+    --sl7-line: #d4d4d8;
+    --sl7-surface: #ffffff;
+    --sl7-ok: #15803d;
+    --sl7-code-bg: #f6f8fa;
+    --sl7-t-keyword: #d73a49;
+    --sl7-t-constant: #005cc5;
+    --sl7-t-function: #6f42c1;
+    --sl7-t-string: #032f62;
+    --sl7-t-plain: #24292e;
+    --sl7-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --st-ink: var(--sl7-ink);
+    --st-muted: var(--sl7-muted);
+    --st-line: var(--sl7-line);
+    --st-surface: var(--sl7-surface);
+    margin: 1.5rem 0;
+  }
+  html.dark .sl7 {
+    --sl7-ink: #e4e4e7;
+    --sl7-muted: #a1a1aa;
+    --sl7-line: #3f3f46;
+    --sl7-surface: #09090b;
+    --sl7-ok: #4ade80;
+    --sl7-code-bg: #0d1117;
+    --sl7-t-keyword: #f97583;
+    --sl7-t-constant: #79b8ff;
+    --sl7-t-function: #b392f0;
+    --sl7-t-string: #9ecbff;
+    --sl7-t-plain: #e1e4e8;
+  }
+  .sl7 p {
+    margin: 0;
+  }
+
+  /* The same grid as the replay visual: code down the left, and each
+     journal row level with the line that asks for it */
+  .sl7-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 15rem;
+    column-gap: 2.75rem;
+    row-gap: 0.35rem;
+    align-items: center;
+    color: var(--sl7-ink);
+  }
+  .sl7-stage > * {
+    grid-row: var(--r);
+    grid-column: 1;
+  }
+  .sl7-stage > .is-journal,
+  .sl7-stage > .sl7-entry {
+    grid-column: 2;
+  }
+  .sl7 .sl7-title {
+    margin-bottom: 0.15rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  /* The sleep's timer, in its journal row */
+  .sl7-timer {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sl7-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 2.3rem;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--sl7-line);
+    border-radius: 0.4rem;
+    background: var(--sl7-surface);
+    font-size: 0.85rem;
+    color: var(--sl7-muted);
+    transition:
+      border-color 200ms ease,
+      background-color 200ms ease,
+      color 200ms ease,
+      opacity 250ms ease;
+  }
+  .sl7 .sl7-row code {
+    min-width: 0;
+    padding: 0;
+    background: none;
+    font-size: 0.82rem;
+    color: inherit;
+    white-space: nowrap;
+  }
+  .sl7-row.is-current {
+    border-color: var(--sl7-ink);
+    color: var(--sl7-ink);
+  }
+  .sl7 .t-k {
+    color: var(--sl7-t-keyword);
+  }
+  .sl7 .t-c {
+    color: var(--sl7-t-constant);
+  }
+  .sl7 .t-f {
+    color: var(--sl7-t-function);
+  }
+  .sl7 .t-s {
+    color: var(--sl7-t-string);
+  }
+  .sl7 .t-p {
+    color: var(--sl7-t-plain);
+  }
+  .sl7-line {
+    background: var(--sl7-code-bg);
+  }
+  .sl7-line code {
+    opacity: 0.7;
+    transition: opacity 200ms ease;
+  }
+  .sl7-line.is-current code,
+  .sl7-line.is-working code {
+    opacity: 1;
+  }
+  .sl7-line.is-working {
+    border-color: var(--sl7-ink);
+  }
+  .sl7-break {
+    display: block;
+  }
+  .sl7-arg {
+    padding-left: 2ch;
+  }
+  .sl7-note:not(:empty) {
+    margin-left: 1ch;
+    color: var(--sl7-muted);
+  }
+  .sl7-note.is-journal {
+    color: var(--sl7-ok);
+  }
+
+  .sl7-stage > .sl7-entry {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    align-self: stretch;
+    padding: 0.65rem;
+  }
+  .sl7-key {
+    flex: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--sl7-muted);
+  }
+  .sl7-result {
+    min-width: 0;
+    color: var(--sl7-ink);
+    line-height: 1.35;
+  }
+  .sl7-entry.is-missing {
+    border-style: dashed;
+  }
+  .sl7-entry.is-missing .sl7-result {
+    font-style: italic;
+    color: var(--sl7-muted);
+  }
+  .sl7-entry.is-written {
+    border-color: var(--sl7-ink);
+  }
+  /* The wake-up, once its time has come, and any row being read back */
+  .sl7-entry.is-due,
+  .sl7-entry.is-found {
+    border-color: var(--sl7-ok);
+    background: color-mix(in oklab, var(--sl7-ok) 12%, var(--sl7-surface));
+  }
+  .sl7-entry.is-due .sl7-result,
+  .sl7-entry.is-found .sl7-key,
+  .sl7-entry.is-found .sl7-result {
+    color: var(--sl7-ok);
+  }
+
+  .sl7-name,
+  .sl7-key {
+    border-radius: 0.2rem;
+    transition:
+      background-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .sl7-name.is-lit,
+  .sl7-key.is-lit {
+    background: color-mix(in oklab, var(--sl7-ink) 16%, transparent);
+    box-shadow: 0 0 0 0.15rem color-mix(in oklab, var(--sl7-ink) 16%, transparent);
+  }
+
+  .sl7-stage > .sl7-pointer {
+    position: absolute;
+    left: -0.85rem;
+    width: 0;
+    height: 0;
+    border-block: 0.3rem solid transparent;
+    border-left: 0.4rem solid var(--sl7-ink);
+    transform: translateY(-50%);
+    transition: top 300ms var(--sl7-ease);
+  }
+  .sl7-pointer[hidden] {
+    display: none;
+  }
+
+  .sl7-arrows {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .sl7-arrow path {
+    fill: none;
+    stroke: var(--sl7-ink);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .sl7-arrow.is-back path {
+    stroke: var(--sl7-ok);
+  }
+  .sl7-arrow.is-gone {
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+
+  .sl7-stage > .sl7-spinner {
+    position: absolute;
+    z-index: 2;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--sl7-ink);
+    transform: translate(calc(-100% - 0.55rem), 0.45rem);
+  }
+  .sl7-spinner[hidden] {
+    display: none;
+  }
+
+  /* Asleep: the code fades, and only the journal is left */
+  .sl7-stage.is-asleep .sl7-fades {
+    opacity: 0.35;
+  }
+  .sl7 .sl7-suspended {
+    z-index: 3;
+    grid-row: 2 / 6;
+    place-self: center;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--sl7-line);
+    border-radius: 0.4rem;
+    background: var(--sl7-surface);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--sl7-muted);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+    transition:
+      opacity 200ms ease,
+      transform 200ms var(--sl7-ease);
+  }
+  .sl7-stage.is-asleep .sl7-suspended {
+    opacity: 1;
+    transform: none;
+  }
+
+  .sl7 .st-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .sl7 .st-controls {
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .sl7-stage {
+      grid-template-columns: minmax(0, 1fr);
+      padding-right: 1.1rem;
+    }
+    .sl7-stage > .is-journal,
+    .sl7-stage > .sl7-entry {
+      grid-row: var(--mr);
+      grid-column: 1;
+    }
+    .sl7-stage > .is-journal {
+      margin-top: 1rem;
+    }
+    .sl7-row {
+      flex-wrap: wrap;
+      row-gap: 0.15rem;
+    }
+    .sl7 .sl7-row code {
+      font-size: 0.76rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sl7-pointer,
+    .sl7-suspended,
+    .sl7-row {
+      transition: none !important;
+    }
+  }
+</style>
