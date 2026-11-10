@@ -141,7 +141,7 @@ function CompanyLogo({ company }: { readonly company: string }) {
     case "warp":
       return <WarpLogo className="h-4 w-auto" />
     case "zendesk":
-      return <ZendeskLogo className="h-4 w-auto" />
+      return <ZendeskLogo className="h-4 w-auto" fill="currentColor" />
     case "ziverge":
       return (
         <DarkTile>
