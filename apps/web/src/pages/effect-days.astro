@@ -36,17 +36,23 @@ import johnDeGoes from "@/assets/effect-days/john-de-goes.png"
 import michaelArnaldi from "@/assets/effect-days/michael-arnaldi.png"
 import warp from "@/assets/effect-days/warp.svg"
 import betalyra from "@/assets/effect-days/betalyra-dark.svg"
+import betalyraLight from "@/assets/effect-days/betalyra-light.svg"
 import inato from "@/assets/effect-days/inato.png"
+import inatoLight from "@/assets/effect-days/inato-light.svg"
 import cloudflare from "@/assets/logos/cloudflare/cloudflare-dark-mode.svg"
 import cloudflareLight from "@/assets/logos/cloudflare/cloudflare-light-mode.svg"
 import datapizza from "@/assets/effect-days/datapizza.svg"
 import novelcrafter from "@/assets/effect-days/novelcrafter.svg"
+import novelcrafterLight from "@/assets/effect-days/novelcrafter-light.svg"
 import executor from "@/assets/effect-days/executor-mono.png"
 import august from "@/assets/effect-days/august.png"
+import augustLight from "@/assets/effect-days/august-light.svg"
 import maximilian from "@/assets/effect-days/maximilian.png"
 import joelHooks from "@/assets/effect-days/joel-hooks.jpg"
 import academind from "@/assets/effect-days/academind.svg"
+import academindLight from "@/assets/effect-days/academind-light.svg"
 import alchemy from "@/assets/effect-days/alchemy.svg"
+import alchemyLight from "@/assets/effect-days/alchemy-light.svg"
 
 const PROGRAM = [
   {
@@ -172,10 +178,22 @@ const SPONSOR_TIERS = [
   },
 ]
 
-// `logo` is the mark for dark backgrounds. A sponsor with a `light` file shows
-// both files as published; the others are drawn as one-colour silhouettes that
-// follow the theme.
-const SPONSORS = [
+// `logo` is the mark for dark backgrounds, whitened there unless `colorOnDark`.
+// `light` is the publisher's mark for light backgrounds, shown in its own
+// colours. A sponsor without one publishes its mark as a one-colour glyph that
+// follows the text colour, so `logo` is drawn black on light backgrounds.
+interface Sponsor {
+  readonly name: string
+  readonly tier: string
+  readonly logo: ImageMetadata
+  readonly light?: ImageMetadata
+  readonly lightHeight?: string
+  readonly colorOnDark?: boolean
+  readonly logoHeight: string
+  readonly websiteUrl: string
+}
+
+const SPONSORS: ReadonlyArray<Sponsor> = [
   {
     name: "Effectful",
     tier: "Main sponsor",
@@ -188,6 +206,7 @@ const SPONSORS = [
     name: "Ziverge",
     tier: "Main sponsor",
     logo: ziverge,
+    light: ziverge,
     logoHeight: "h-5.5",
     websiteUrl: "https://www.ziverge.com",
   },
@@ -202,6 +221,7 @@ const SPONSORS = [
     name: "Betalyra",
     tier: "Partner",
     logo: betalyra,
+    light: betalyraLight,
     logoHeight: "h-10",
     websiteUrl: "https://betalyra.com",
   },
@@ -209,6 +229,8 @@ const SPONSORS = [
     name: "Inato",
     tier: "Partner",
     logo: inato,
+    light: inatoLight,
+    lightHeight: "h-6",
     logoHeight: "h-8",
     websiteUrl: "https://www.inato.com",
   },
@@ -217,6 +239,7 @@ const SPONSORS = [
     tier: "Partner",
     logo: cloudflare,
     light: cloudflareLight,
+    colorOnDark: true,
     logoHeight: "h-10",
     websiteUrl: "https://www.cloudflare.com",
   },
@@ -224,6 +247,7 @@ const SPONSORS = [
     name: "Datapizza",
     tier: "Partner",
     logo: datapizza,
+    light: datapizza,
     logoHeight: "h-6",
     websiteUrl: "https://datapizza.tech",
   },
@@ -231,6 +255,7 @@ const SPONSORS = [
     name: "Novelcrafter",
     tier: "Community",
     logo: novelcrafter,
+    light: novelcrafterLight,
     logoHeight: "h-6",
     websiteUrl: "https://www.novelcrafter.com",
   },
@@ -245,6 +270,7 @@ const SPONSORS = [
     name: "August",
     tier: "Community",
     logo: august,
+    light: augustLight,
     logoHeight: "h-5",
     websiteUrl: "https://www.augusthealth.com",
   },
@@ -252,6 +278,7 @@ const SPONSORS = [
     name: "Academind",
     tier: "Community",
     logo: academind,
+    light: academindLight,
     logoHeight: "h-12",
     websiteUrl: "https://academind.com",
   },
@@ -259,6 +286,7 @@ const SPONSORS = [
     name: "Alchemy",
     tier: "Community",
     logo: alchemy,
+    light: alchemyLight,
     logoHeight: "h-10",
     websiteUrl: "https://alchemy.run",
   },
@@ -523,7 +551,7 @@ const FAQ_COLUMNS = [
                             width={sponsor.light.width}
                             height={sponsor.light.height}
                             class:list={[
-                              sponsor.logoHeight,
+                              sponsor.lightHeight ?? sponsor.logoHeight,
                               "w-auto max-w-full object-contain dark:hidden",
                             ]}
                           />
@@ -536,7 +564,8 @@ const FAQ_COLUMNS = [
                           class:list={[
                             sponsor.logoHeight,
                             "w-auto max-w-full object-contain",
-                            sponsor.light ? "hidden dark:block" : "brightness-0 dark:invert",
+                            sponsor.light ? "hidden dark:block" : "brightness-0",
+                            !sponsor.colorOnDark && "dark:brightness-0 dark:invert",
                           ]}
                         />
                       </span>
