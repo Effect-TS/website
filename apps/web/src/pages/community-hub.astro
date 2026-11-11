@@ -108,7 +108,7 @@ const CHANNELS = [
   },
   {
     icon: TwitterLogo,
-    color: "#FFFFFF",
+    color: "currentColor",
     title: "Follow Effect on X",
     description: "News, releases, and Effect takes straight from the source.",
     href: "https://x.com/EffectTS_",
@@ -124,7 +124,7 @@ const CHANNELS = [
   },
   {
     icon: Briefcase,
-    color: "#FFFFFF",
+    color: "currentColor",
     title: "Find an Effect job",
     description: "Open roles at companies building with Effect.",
     href: "/effect-jobs",
@@ -134,6 +134,7 @@ const CHANNELS = [
 ---
 
 <PageLayout
+  themeable
   title="Effect Community Hub"
   description="Crash your local TypeScript or AI event with an Effect talk, host your own meetup, or join an event near you."
   activeSlug="community"
@@ -155,17 +156,23 @@ const CHANNELS = [
     >
     </div>
 
-    <div class="absolute inset-y-0 right-0 z-70 hidden w-[53%] overflow-hidden lg:block">
+    {
+      /* In dark the photo's left edge fades into the page, so it runs a little
+        past the centre line. In light it has a hard edge and sits on the line. */
+    }
+    <div class="absolute inset-y-0 right-0 z-70 hidden w-1/2 overflow-hidden lg:block dark:w-[53%]">
       <Image src={speakers} alt="An Effect community meetup" class="h-full w-full object-cover" />
       <div
-        class="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-950 via-transparent to-transparent"
+        class="pointer-events-none absolute inset-0 hidden bg-linear-to-r from-background via-transparent to-transparent dark:block"
       >
       </div>
       <div
         class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent"
       >
       </div>
-      <p class="absolute bottom-3 left-16 font-mono text-xs tracking-wider text-zinc-300 uppercase">
+      <p
+        class="absolute bottom-3 left-4 font-mono text-xs tracking-wider text-zinc-300 uppercase dark:left-16"
+      >
         // Effect Meetup NYC '25 at Warp's
       </p>
     </div>
@@ -173,13 +180,15 @@ const CHANNELS = [
     <div class="relative z-20 mx-auto w-full max-w-295 px-4">
       <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
         <div>
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          <p
+            class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase"
+          >
             // Spread the Effect
           </p>
-          <h1 class="text-3xl leading-[1.1] font-bold tracking-tight text-white md:text-4xl">
+          <h1 class="text-3xl leading-[1.1] font-bold tracking-tight text-foreground md:text-4xl">
             Bring Effect to your community events
           </h1>
-          <p class="mt-4 text-lg text-zinc-400 md:max-w-[41.667%] lg:max-w-[83.333%]">
+          <p class="mt-4 text-lg text-muted-foreground md:max-w-[41.667%] lg:max-w-[83.333%]">
             Crash your local TypeScript or AI event with an Effect talk, host your own meetup, or
             join an event near you.
           </p>
@@ -188,7 +197,7 @@ const CHANNELS = [
               href={FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              class="group inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-medium text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+              class="group inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]"
             >
               Tell us about your event
               <ArrowUpRight
@@ -198,7 +207,7 @@ const CHANNELS = [
             </a>
             <a
               href="#upcoming-events"
-              class="group inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-900"
+              class="group inline-flex items-center justify-center gap-2 rounded-md border border-border-strong px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-subtle-foreground hover:bg-card"
             >
               See upcoming events
               <ArrowDown
@@ -229,17 +238,19 @@ const CHANNELS = [
     </div>
   </section>
 
-  <section id="upcoming-events" class="scroll-mt-16 border-t border-zinc-800 py-24">
+  <section id="upcoming-events" class="scroll-mt-16 border-t border-border py-24">
     <div class="mx-auto w-full max-w-295 px-4">
       <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
         <div>
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          <p
+            class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase"
+          >
             // Upcoming events
           </p>
-          <h2 class="leading-tighter text-2xl font-semibold text-white md:text-3xl">
+          <h2 class="leading-tighter text-2xl font-semibold text-foreground md:text-3xl">
             Join an upcoming event
           </h2>
-          <p class="mt-4 text-lg text-zinc-400">
+          <p class="mt-4 text-lg text-muted-foreground">
             Office Hours every Wednesday, plus meetups and conferences hosted by the community
             worldwide.
           </p>
@@ -248,7 +259,7 @@ const CHANNELS = [
               href="https://luma.com/effect-community"
               target="_blank"
               rel="noopener noreferrer"
-              class="group inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-zinc-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-900"
+              class="group inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-border-strong px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-subtle-foreground hover:bg-card"
             >
               View events calendar
               <ArrowUpRight
@@ -259,7 +270,7 @@ const CHANNELS = [
           </div>
         </div>
 
-        <div class="relative bg-[#131517]">
+        <div class="relative bg-card">
           <iframe
             src="https://luma.com/embed/calendar/cal-6pnQFi64vfu2qlO/events"
             title="Effect community events calendar"
@@ -269,7 +280,7 @@ const CHANNELS = [
             aria-hidden="false"
             tabindex="0"></iframe>
           <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-[#131517] to-transparent"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-card to-transparent"
           >
           </div>
         </div>
@@ -277,32 +288,34 @@ const CHANNELS = [
     </div>
   </section>
 
-  <section class="border-t border-zinc-800 py-24 md:pt-40">
+  <section class="border-t border-border py-24 md:pt-40">
     <div class="mx-auto w-full max-w-295 px-4">
-      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
         // Support
       </p>
-      <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+      <h2 class="text-2xl leading-tighter font-semibold text-foreground md:text-3xl">
         What we can help with
       </h2>
 
-      <div class="-mx-4 mt-12 flex flex-col border border-zinc-800">
+      <div class="-mx-4 mt-12 flex flex-col border border-border">
         {
           SUPPORT_ITEMS.map((item, index) => (
             <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2">
               <div
                 class:list={[
-                  "flex flex-col bg-[#0C0C0E] px-8 py-16 md:px-14",
+                  "flex flex-col bg-background px-8 py-16 md:px-14",
                   { "lg:order-2": index % 2 === 1 },
                 ]}
               >
-                <h3 class="text-xl font-semibold tracking-tight text-white md:text-2xl">
+                <h3 class="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
                   {item.title}
                 </h3>
-                <p class="mt-3 text-base leading-relaxed text-zinc-400">{item.description}</p>
-                <ul class="mt-4 flex flex-col gap-2 border-t border-zinc-700 pt-4">
+                <p class="mt-3 text-base leading-relaxed text-muted-foreground">
+                  {item.description}
+                </p>
+                <ul class="mt-4 flex flex-col gap-2 border-t border-border-strong pt-4">
                   {item.details.map((detail) => (
-                    <li class="flex items-baseline gap-2.5 text-base leading-relaxed text-zinc-400">
+                    <li class="flex items-baseline gap-2.5 text-base leading-relaxed text-muted-foreground">
                       <span class="text-emerald-500" aria-hidden="true">
                         ✓
                       </span>
@@ -330,15 +343,15 @@ const CHANNELS = [
     </div>
   </section>
 
-  <section id="talk-ideas" class="border-t border-zinc-800 py-24 md:pt-40">
+  <section id="talk-ideas" class="border-t border-border py-24 md:pt-40">
     <div class="mx-auto w-full max-w-295 px-4">
-      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
         // Effect Talk Ideas
       </p>
-      <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+      <h2 class="text-2xl leading-tighter font-semibold text-foreground md:text-3xl">
         Not sure what to talk about?
       </h2>
-      <p class="mt-4 text-lg leading-normal text-zinc-400">
+      <p class="mt-4 text-lg leading-normal text-muted-foreground">
         A few Effect-friendly angles to get you started
       </p>
 
@@ -351,16 +364,16 @@ const CHANNELS = [
                   href={idea.href}
                   target={idea.href.startsWith("http") ? "_blank" : undefined}
                   rel={idea.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                  class="group flex items-center gap-1.5 rounded-md border border-zinc-700 bg-[#0C0C0E] px-4 py-3 font-mono text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                  class="group flex items-center gap-1.5 rounded-md border border-border-strong bg-background px-4 py-3 font-mono text-sm text-prose-foreground transition-colors hover:border-subtle-foreground hover:text-foreground"
                 >
                   {idea.label}
                   <ArrowUpRight
-                    class="ml-auto size-4 shrink-0 self-center text-zinc-400 transition-colors group-hover:text-white"
+                    class="ml-auto size-4 shrink-0 self-center text-muted-foreground transition-colors group-hover:text-foreground"
                     aria-hidden="true"
                   />
                 </a>
               ) : (
-                <span class="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-[#0C0C0E] px-4 py-3 font-mono text-sm text-zinc-300">
+                <span class="flex items-center gap-1.5 rounded-md border border-border-strong bg-background px-4 py-3 font-mono text-sm text-prose-foreground">
                   {idea.label}
                 </span>
               )}
@@ -371,7 +384,7 @@ const CHANNELS = [
     </div>
   </section>
 
-  <section class="border-t border-zinc-800 py-16">
+  <section class="border-t border-border py-16">
     <div class="mx-auto w-full max-w-295 px-4">
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {
@@ -401,17 +414,19 @@ const CHANNELS = [
     </div>
   </section>
 
-  <section class="border-t border-zinc-800 py-24 md:pt-40">
+  <section class="border-t border-border py-24 md:pt-40">
     <div class="mx-auto w-full max-w-295 px-4">
       <div class="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8">
         <div class="lg:col-span-6 lg:flex lg:flex-col lg:justify-center">
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          <p
+            class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase"
+          >
             // Stay connected
           </p>
-          <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+          <h2 class="text-2xl leading-tighter font-semibold text-foreground md:text-3xl">
             Join the conversation
           </h2>
-          <p class="mt-4 text-lg leading-normal text-zinc-400">
+          <p class="mt-4 text-lg leading-normal text-muted-foreground">
             Where the Effect community hangs out online
           </p>
         </div>
@@ -427,9 +442,9 @@ const CHANNELS = [
                     href={channel.href}
                     target={isExternal ? "_blank" : undefined}
                     rel={isExternal ? "noopener noreferrer" : undefined}
-                    class="group relative flex gap-4 overflow-hidden rounded-md border border-zinc-700 bg-[#0C0C0E] p-6 transition-colors hover:border-zinc-500"
+                    class="group relative flex gap-4 overflow-hidden rounded-md border border-border-strong bg-background p-6 transition-colors hover:border-subtle-foreground"
                   >
-                    <div class="flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-md bg-zinc-800">
+                    <div class="flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-md bg-muted">
                       <ChannelIcon
                         class="size-6"
                         style={`color: ${channel.color}`}
@@ -437,13 +452,13 @@ const CHANNELS = [
                       />
                     </div>
                     <div class="flex flex-col">
-                      <h3 class="text-base font-semibold text-white">{channel.title}</h3>
-                      <p class="mt-1 text-sm leading-relaxed text-zinc-400">
+                      <h3 class="text-base font-semibold text-foreground">{channel.title}</h3>
+                      <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
                         {channel.description}
                       </p>
                     </div>
                     <ArrowUpRight
-                      class="ml-auto size-4 shrink-0 self-start text-zinc-600 transition-colors group-hover:text-white"
+                      class="ml-auto size-4 shrink-0 self-start text-subtle-foreground transition-colors group-hover:text-foreground"
                       aria-hidden="true"
                     />
                   </a>
@@ -456,27 +471,29 @@ const CHANNELS = [
     </div>
   </section>
 
-  <section class="cta-section relative overflow-hidden border-t border-zinc-800 py-24 md:pt-40">
+  <section class="cta-section relative overflow-hidden border-t border-border py-24 md:pt-40">
     <div class="cta-grid-offset">
       <GridBackground />
     </div>
     <div
       aria-hidden="true"
       class="pointer-events-none absolute inset-0"
-      style="background: linear-gradient(to bottom, #09090b 0%, transparent 25%, transparent 75%, #09090b 100%);"
+      style="background: linear-gradient(to bottom, var(--background) 0%, transparent 25%, transparent 75%, var(--background) 100%);"
     >
     </div>
 
     <div class="relative z-10 mx-auto w-full max-w-295 px-4">
       <div class="grid grid-cols-1 items-center gap-6 md:grid-cols-12 md:gap-x-6 md:gap-y-8">
         <div class="text-center md:col-span-6 md:mt-2 md:text-left">
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          <p
+            class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase"
+          >
             // Get in touch
           </p>
-          <h2 class="text-xl font-semibold tracking-tight text-white md:text-2xl">
+          <h2 class="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
             Bringing Effect to a developer event?
           </h2>
-          <p class="mt-4 text-lg leading-normal text-zinc-400">
+          <p class="mt-4 text-lg leading-normal text-muted-foreground">
             Every community starts with someone stepping on stage, we'd love it to be you.
           </p>
         </div>
@@ -494,7 +511,7 @@ const CHANNELS = [
               href={FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
             >
               Tell us about your event
               <ArrowRight class="size-4" aria-hidden="true" />
@@ -503,7 +520,7 @@ const CHANNELS = [
               href="https://discord.gg/effect-ts"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 font-mono text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+              class="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               discord.gg/effect-ts
               <ArrowUpRight class="size-3" aria-hidden="true" />
@@ -518,8 +535,8 @@ const CHANNELS = [
 <style>
   .hero-glow {
     background:
-      radial-gradient(ellipse 50% 80% at 70% -20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse 30% 50% at 80% 0%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
+      radial-gradient(ellipse 50% 80% at 70% -20%, var(--hero-glow-a) 0%, transparent 50%),
+      radial-gradient(ellipse 30% 50% at 80% 0%, var(--hero-glow-b) 0%, transparent 40%);
   }
 
   .hero-grid-offset {
@@ -539,8 +556,8 @@ const CHANNELS = [
   .community-hub-rail-center {
     background-image: repeating-linear-gradient(
       to bottom,
-      rgb(39 39 42) 0,
-      rgb(39 39 42) 2px,
+      var(--border) 0,
+      var(--border) 2px,
       transparent 2px,
       transparent 4px
     );
@@ -550,7 +567,7 @@ const CHANNELS = [
     position: absolute;
     height: 0.75rem;
     width: 0.75rem;
-    border-color: rgba(63, 63, 70, 0.8);
+    border-color: var(--border-strong);
     border-style: solid;
     border-width: 0;
   }

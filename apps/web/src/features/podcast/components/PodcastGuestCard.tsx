@@ -1,7 +1,9 @@
+import type { ReactNode } from "react"
 import _14AiLogo from "@/assets/logos/14ai/14ai.svg?react"
 import ApplePodcastsLogo from "@/assets/logos/apple-podcasts/ApplePodcasts.webp"
 import FoldkitLogo from "@/assets/logos/foldkit/foldkit.png"
 import MasterclassLogo from "@/assets/logos/masterclass/Masterclass.svg?react"
+import MasterclassLogoLight from "@/assets/logos/masterclass/Masterclass-light.svg"
 import OpenCodeLogo from "@/assets/logos/opencode/opencode.svg?react"
 import OpenRouterLogo from "@/assets/logos/openrouter.png"
 import SpikoLogo from "@/assets/logos/spiko/Spiko.svg?react"
@@ -17,14 +19,14 @@ export function PodcastGuestCard() {
   const episode = usePodcastEpisode()
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 lg:shrink-0">
-      <p className="mb-2 text-xs font-medium tracking-wider text-zinc-400 uppercase">
+    <div className="rounded-lg border border-border bg-card/50 p-4 lg:shrink-0">
+      <p className="mb-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
         Featured Guest
       </p>
 
-      <p className="text-lg font-semibold text-white">{episode.guest}</p>
+      <p className="text-lg font-semibold text-foreground">{episode.guest}</p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-400">
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <CompanyLogo company={episode.company} />
         <span>·</span>
         <span>{episode.formattedPublicationDate}</span>
@@ -32,16 +34,16 @@ export function PodcastGuestCard() {
         <span>{episode.formattedDuration}</span>
       </div>
 
-      <hr className="my-4 h-px border-0 bg-zinc-800" />
+      <hr className="my-4 h-px border-0 bg-muted" />
 
       <div>
-        <p className="mb-3 text-xs font-medium tracking-wider text-zinc-400 uppercase">
+        <p className="mb-3 text-xs font-medium tracking-wider text-muted-foreground uppercase">
           Listen on
         </p>
 
         <div className="flex items-center justify-between">
           <a
-            className="group flex items-center text-white no-underline transition-colors"
+            className="group flex items-center text-foreground no-underline transition-colors"
             href={episode.links.apple}
             target="_blank"
             rel="noopener noreferrer"
@@ -58,7 +60,7 @@ export function PodcastGuestCard() {
             </span>
           </a>
           <a
-            className="group flex items-center text-white no-underline transition-colors"
+            className="group flex items-center text-foreground no-underline transition-colors"
             href={episode.links.spotify}
             target="_blank"
             rel="noopener noreferrer"
@@ -70,7 +72,7 @@ export function PodcastGuestCard() {
             </span>
           </a>
           <a
-            className="group flex items-center text-white no-underline transition-colors"
+            className="group flex items-center text-foreground no-underline transition-colors"
             href={episode.links.youtube}
             target="_blank"
             rel="noopener noreferrer"
@@ -87,30 +89,73 @@ export function PodcastGuestCard() {
   )
 }
 
+// White-on-transparent marks sit on a small dark tile in light mode; marks
+// drawn with currentColor (OpenCode, Spiko, Warp, Zendesk) take the text colour directly.
+function DarkTile({ children }: { readonly children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-sm bg-zinc-950 px-1.5 py-1 dark:bg-transparent dark:p-0">
+      {children}
+    </span>
+  )
+}
+
 function CompanyLogo({ company }: { readonly company: string }) {
   switch (company) {
     case "14.ai":
-      return <_14AiLogo className="h-4 w-auto" />
+      return (
+        <DarkTile>
+          <_14AiLogo className="h-4 w-auto" />
+        </DarkTile>
+      )
     case "masterclass":
-      return <MasterclassLogo className="h-3 w-auto" />
+      // The light-background wordmark is an image so its mask id cannot
+      // collide with the inlined dark one.
+      return (
+        <>
+          <img
+            src={MasterclassLogoLight.src}
+            alt="MasterClass"
+            className="h-3 w-auto dark:hidden"
+          />
+          <MasterclassLogo className="hidden h-3 w-auto dark:block" />
+        </>
+      )
     case "opencode":
       return <OpenCodeLogo className="h-4 w-auto" />
     case "openrouter":
       return (
-        <img src={OpenRouterLogo.src} alt="OpenRouter" className="h-4 w-auto" />
+        <DarkTile>
+          <img
+            src={OpenRouterLogo.src}
+            alt="OpenRouter"
+            className="h-4 w-auto"
+          />
+        </DarkTile>
       )
     case "spiko":
       return <SpikoLogo className="h-4 w-auto" />
     case "vercel":
-      return <VercelLogo className="h-4 w-auto" />
+      return (
+        <DarkTile>
+          <VercelLogo className="h-4 w-auto" />
+        </DarkTile>
+      )
     case "foldkit":
-      return <img src={FoldkitLogo.src} alt="Foldkit" className="h-4 w-auto" />
+      return (
+        <DarkTile>
+          <img src={FoldkitLogo.src} alt="Foldkit" className="h-4 w-auto" />
+        </DarkTile>
+      )
     case "warp":
       return <WarpLogo className="h-4 w-auto" />
     case "zendesk":
-      return <ZendeskLogo className="h-4 w-auto" />
+      return <ZendeskLogo className="h-4 w-auto" fill="currentColor" />
     case "ziverge":
-      return <img src={ZivergeLogo.src} alt="Ziverge" className="h-4 w-auto" />
+      return (
+        <DarkTile>
+          <img src={ZivergeLogo.src} alt="Ziverge" className="h-4 w-auto" />
+        </DarkTile>
+      )
     default:
       return null
   }

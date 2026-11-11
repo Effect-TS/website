@@ -70,7 +70,7 @@ export function PodcastChapters() {
   return (
     <Collapsible
       defaultOpen={false}
-      className="bg-card rounded-lg border border-zinc-700 lg:flex lg:min-h-0 lg:flex-col lg:data-open:flex-1"
+      className="bg-card rounded-lg border border-border-strong lg:flex lg:min-h-0 lg:flex-col lg:data-open:flex-1"
     >
       <CollapsibleTrigger className="bg-card hover:bg-accent/50 flex w-full cursor-pointer items-center justify-between rounded-lg px-4 py-3 transition-colors data-panel-open:rounded-b-none lg:shrink-0">
         <h2 className="text-sm font-semibold">Chapters</h2>
@@ -78,7 +78,7 @@ export function PodcastChapters() {
       </CollapsibleTrigger>
 
       <CollapsibleContent className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-        <div className="bg-card border-t border-zinc-700 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+        <div className="bg-card border-t border-border-strong lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
           <ScrollArea className="h-64 p-2 lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1">
             <ul className="pr-2">
               {chapters.map((chapter, index) => {

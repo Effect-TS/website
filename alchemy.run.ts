@@ -11,7 +11,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
-type StoreId = Config.Config<Redacted.Redacted<string>> | Output.Output<string>
+const productionStoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
 
 // Each stage counts in its own rate-limit namespace, so a preview cannot use up
 // the production limit. Namespaces are numbers.
@@ -22,7 +22,9 @@ const rateLimitNamespaceId = (stage: string): number => {
 }
 
 const Website = (
-  storeId: StoreId,
+  // The store a preview searches next to production. None outside previews
+  // whose search content changed.
+  overlayStoreId: Option.Option<Output.Output<string>>,
   searchApiKey: Config.Config<Redacted.Redacted<string>>,
 ) =>
   Cloudflare.Website.Astro(
@@ -91,7 +93,11 @@ const Website = (
         },
         env: {
           MXBAI_API_KEY: searchApiKey,
-          MXBAI_VECTOR_STORE_ID: storeId,
+          MXBAI_VECTOR_STORE_ID: productionStoreId,
+          ...Option.match(overlayStoreId, {
+            onNone: () => ({}),
+            onSome: (id) => ({ MXBAI_OVERLAY_STORE_ID: id }),
+          }),
           KV_REST_API_URL: Config.Redacted("KV_REST_API_URL"),
           KV_REST_API_TOKEN: Config.Redacted("KV_REST_API_TOKEN"),
           DB: motwVote,
@@ -127,7 +133,7 @@ export default Alchemy.Stack(
       "MXBAI_PREVIEW_STORE_ENABLED",
     ).pipe(Config.withDefault(false))
     const sha = yield* Config.String("WEBSITE_REVISION")
-    let storeId: StoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
+    let overlayStoreId = Option.none<Output.Output<string>>()
     let searchApiKey = Config.Redacted("MXBAI_API_KEY")
     // Set when the preview has its own search store, to the synchronization
     // the preview comment waits for.
@@ -139,9 +145,6 @@ export default Alchemy.Stack(
         description: `Effect website search preview for PR ${pullRequest.value}`,
         expiresAfter: { anchor: "last_active_at", days: 7 },
         tags: ["effect-website-preview"],
-        // Start from production's index so the sync below only uploads what
-        // the pull request changed and deletes what it doesn't have.
-        copyFrom: Config.Redacted("MXBAI_VECTOR_STORE_ID"),
         metadata: {
           lifecycle: "pull-request-preview",
           pullRequest: pullRequest.value,
@@ -158,6 +161,7 @@ export default Alchemy.Stack(
         command: `vp exec mixedbread sync --pr ${pullRequest.value} --sha ${sha}`,
         env: {
           MXBAI_VECTOR_STORE_ID: store.id,
+          MXBAI_PRODUCTION_STORE_ID: productionStoreId,
         },
         memo: {
           include: [
@@ -177,15 +181,17 @@ export default Alchemy.Stack(
       })
       // The Worker only needs the store's ID, so the website builds while the
       // store synchronizes.
-      storeId = store.id
+      overlayStoreId = Option.some(store.id)
       searchSynchronized = synchronization.hash.input
       // The production search key is scoped to the production store. Mixedbread
-      // only issues API keys from its web app, so preview stores share a key
-      // created there that can search any store tagged `effect-website-preview`.
+      // only issues API keys from its web app, so previews share a key created
+      // there. It needs search on the production store and on the tag
+      // `effect-website-preview`, plus read on that tag for the preview store's
+      // metadata, which lists the production files the preview hides.
       searchApiKey = Config.Redacted("MXBAI_PREVIEW_SEARCH_API_KEY")
     }
 
-    const website = yield* Website(storeId, searchApiKey)
+    const website = yield* Website(overlayStoreId, searchApiKey)
 
     yield* Option.match(pullRequest, {
       onNone: () => Effect.void,

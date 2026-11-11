@@ -45,7 +45,7 @@ export function fileInProgressConflict(
   | undefined {
   if (!(cause instanceof ConflictError)) return undefined
   const fileIdentifier =
-    /File '([^']+)' with version '[^']+' and status 'in_progress'/.exec(
+    /File '([^']+)' with version '[^']+' and status '(?:in_progress|pending)'/.exec(
       cause.message,
     )?.[1]
   return fileIdentifier === undefined ? undefined : { cause, fileIdentifier }

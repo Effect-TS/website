@@ -13,25 +13,16 @@ export function VisualEffectConfigPanel({
     return null
   }
 
-  const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "#27272a"
-  const backgroundColor = isDied
-    ? "rgba(9, 9, 11, 0.78)"
-    : "rgba(9, 9, 11, 0.72)"
+  const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "var(--border)"
 
   return (
     <motion.section
-      className="border-b"
+      className="border-b bg-background"
       initial={false}
-      animate={{
-        borderColor,
-        backgroundColor,
-      }}
-      transition={{
-        borderColor: { duration: 0.2, ease: "easeInOut" },
-        backgroundColor: { duration: 0.2, ease: "easeInOut" },
-      }}
+      animate={{ borderColor }}
+      transition={{ borderColor: { duration: 0.2, ease: "easeInOut" } }}
     >
-      <div className="bg-linear-to-t from-neutral-800/40 to-neutral-800/20 px-6 py-4">
+      <div className="bg-linear-to-t from-muted/40 to-muted/20 px-6 py-4">
         {example.controls.map((control) => (
           <React.Fragment key={control.id}>{control.render()}</React.Fragment>
         ))}

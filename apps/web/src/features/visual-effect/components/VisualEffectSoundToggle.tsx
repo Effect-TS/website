@@ -44,7 +44,7 @@ export function VisualEffectSoundToggle() {
       </span>
 
       <ToggleGroup
-        className="bg-zinc-900 p-1"
+        className="bg-card p-1"
         value={[displayedPreference]}
         onValueChange={(value) => {
           const nextPreference = value[0]
@@ -60,7 +60,7 @@ export function VisualEffectSoundToggle() {
             value={option.value}
             className={cn(
               "cursor-pointer bg-transparent text-muted-foreground",
-              "data-pressed:bg-zinc-950 data-pressed:text-foreground hover:data-pressed:text-foreground",
+              "data-pressed:bg-background data-pressed:text-foreground hover:data-pressed:text-foreground",
             )}
             size="sm"
             aria-label={`Sound ${option.label}`}

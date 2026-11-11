@@ -1,7 +1,7 @@
 import type { HighlighterCore } from "@shikijs/core"
 import type { ThemedToken } from "shiki/types"
 import type { SnippetLanguage } from "@/features/visual-effect/model/snippet-highlights"
-import { effectShikiTheme } from "./shiki-theme"
+import { effectShikiThemes, type SnippetColorScheme } from "./shiki-theme"
 
 let highlighterPromise: Promise<HighlighterCore> | undefined = undefined
 
@@ -40,7 +40,8 @@ export const getHighlighter = (): Promise<HighlighterCore> => {
     ]) =>
       createHighlighterCore({
         themes: [
-          effectShikiTheme,
+          effectShikiThemes.dark,
+          effectShikiThemes.light,
           bundledThemes[docsShikiThemes.light],
           bundledThemes[docsShikiThemes.dark],
         ],
@@ -55,8 +56,9 @@ export const getHighlighter = (): Promise<HighlighterCore> => {
 export const getSnippetTokens = (
   language: SnippetLanguage,
   source: string,
+  scheme: SnippetColorScheme,
 ): Promise<ReadonlyArray<ReadonlyArray<ThemedToken>>> => {
-  const key = `${language}::${source}`
+  const key = `${scheme}::${language}::${source}`
   const cached = tokensBySnippetKey.get(key)
   if (cached !== undefined) {
     return cached
@@ -66,7 +68,7 @@ export const getSnippetTokens = (
     .then((highlighter) =>
       highlighter.codeToTokensBase(source, {
         lang: language,
-        theme: effectShikiTheme,
+        theme: effectShikiThemes[scheme],
       }),
     )
     .catch((error) => {

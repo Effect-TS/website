@@ -1,59 +1,43 @@
 ---
-import type { ImageMetadata } from "astro"
-import { Image } from "astro:assets"
 import { ArrowRight } from "@lucide/astro"
 
 import GridBackground from "@/components/GridBackground.astro"
 import HeroCommandPanel from "../blocks/HeroCommandPanel.astro"
 import HeroGridPulse from "../blocks/HeroGridPulse.astro"
-import CloudflareLogo from "@/assets/company-logos/Cloudflare_logo_horizontal_wht 1.png"
-import OpencodeLogo from "@/assets/company-logos/opencode-wordmark-dark.svg"
+import ThemedLogo, { type ThemedLogoDefinition } from "../blocks/ThemedLogo.astro"
+import CloudflareLogoDark from "@/assets/logos/cloudflare/cloudflare-dark-mode.svg"
+import CloudflareLogoLight from "@/assets/logos/cloudflare/cloudflare-light-mode.svg"
+import OpencodeLogoDark from "@/assets/company-logos/opencode-wordmark-dark.svg"
+import OpencodeLogoLight from "@/assets/company-logos/opencode-wordmark-light.svg"
 import MasterclassLogo from "@/assets/company-logos/masterclass-noM.svg"
-import T3Logo from "@/assets/company-logos/t3.svg"
+import MasterclassLogoLight from "@/assets/logos/masterclass/Masterclass-light.svg"
+import T3LogoDark from "@/assets/company-logos/t3-dark.svg"
+import T3LogoLight from "@/assets/company-logos/t3-light.svg"
 import XLogo from "@/assets/company-logos/x-logo.svg"
 
-const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
-  readonly name: string
-  readonly src: ImageMetadata
-  readonly alt: string
-  readonly className: string
-  readonly style?: string
-  readonly invert?: boolean
-}> = [
+type SocialProofLogo = ThemedLogoDefinition & { readonly name: string }
+
+const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
   {
     name: "Cloudflare",
-    src: CloudflareLogo,
-    alt: "Cloudflare",
-    className: "w-auto",
-    style: "height:22px",
+    dark: CloudflareLogoDark,
+    light: CloudflareLogoLight,
+    // The lockup is stacked (cloud above the wordmark), so it is taller than the others.
+    className: "h-10 w-auto",
   },
-  {
-    name: "X",
-    src: XLogo,
-    alt: "X",
-    className: "w-auto",
-    style: "height:20px;transform:translateY(2px)",
-  },
+  { name: "X", mono: XLogo, className: "h-5 w-auto translate-y-0.5" },
   {
     name: "opencode",
-    src: OpencodeLogo,
-    alt: "opencode",
-    className: "w-auto",
-    style: "height:20px;transform:translateY(2px)",
+    dark: OpencodeLogoDark,
+    light: OpencodeLogoLight,
+    className: "h-5 w-auto translate-y-0.5",
   },
-  {
-    name: "T3",
-    src: T3Logo,
-    alt: "T3",
-    className: "w-auto",
-    style: "height:16px",
-  },
+  { name: "T3", dark: T3LogoLight, light: T3LogoDark, className: "h-4 w-auto" },
   {
     name: "MasterClass",
-    src: MasterclassLogo,
-    alt: "MasterClass",
-    className: "w-auto",
-    style: "height:16px",
+    dark: MasterclassLogo,
+    light: MasterclassLogoLight,
+    className: "h-4 w-auto",
   },
 ]
 ---
@@ -67,9 +51,9 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
     <div class="max-w-4xl text-left md:mx-auto md:text-center">
       <a
         href="/blog/releases/effect/40"
-        class="group mb-4 inline-flex items-center gap-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:text-white"
+        class="group mb-4 inline-flex items-center gap-2 font-mono text-sm tracking-wider text-prose-foreground uppercase transition-colors hover:text-foreground"
       >
-        <span class="text-zinc-500 group-hover:text-zinc-400">//</span>
+        <span class="text-subtle-foreground group-hover:text-muted-foreground">//</span>
         <span>
           Effect
           <span class="hero-flip" aria-label="4.0">
@@ -81,7 +65,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
           </span>: Out now
         </span>
         <ArrowRight
-          class="text-zinc-500 transition-transform group-hover:translate-x-0.5 group-hover:text-zinc-300"
+          class="text-subtle-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-prose-foreground"
           size={16}
           aria-hidden="true"
         />
@@ -93,7 +77,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
         Reliable TypeScript for the AI era
       </h1>
 
-      <p class="mt-6 text-lg text-zinc-400 max-w-3xl leading-snug md:mx-auto">
+      <p class="mt-6 text-lg text-muted-foreground max-w-3xl leading-snug md:mx-auto">
         Build production-ready systems your team can ship, customers can depend on, and AI agents
         can work with.
       </p>
@@ -103,14 +87,14 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
       </div>
 
       <div class="mt-14 flex flex-col items-center gap-5">
-        <p class="font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+        <p class="font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
           // In production at
         </p>
-        <ul class="flex flex-wrap items-end justify-center gap-x-8 gap-y-5">
+        <ul class="flex flex-wrap items-end justify-center gap-x-8 gap-y-5 text-foreground">
           {
             SOCIAL_PROOF_LOGOS.map((logo) => (
               <li class="flex items-end">
-                <Image src={logo.src} alt={logo.alt} class={logo.className} style={logo.style} />
+                <ThemedLogo logo={logo} name={logo.name} />
               </li>
             ))
           }
@@ -123,8 +107,8 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
 <style>
   .hero-section {
     --hero-glow-gradient:
-      radial-gradient(ellipse 50% 80% at 70% -20%, rgba(255, 255, 255, 0.12) 0%, transparent 40%),
-      radial-gradient(ellipse 30% 50% at 80% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 30%);
+      radial-gradient(ellipse 50% 80% at 70% -20%, var(--hero-glow-a) 0%, transparent 40%),
+      radial-gradient(ellipse 30% 50% at 80% 0%, var(--hero-glow-b) 0%, transparent 30%);
   }
 
   @keyframes hero-glow-pulse {
@@ -168,9 +152,15 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<{
   }
 
   /* Shine that follows the letter shapes: the text is the gradient, so a soft
-     dim-to-white edge wipes across it and rests on white. */
+     dim-to-foreground edge wipes across it and rests on the foreground colour. */
   .hero-title {
-    background-image: linear-gradient(255deg, #71717a 0%, #71717a 33%, #ffffff 50%, #ffffff 100%);
+    background-image: linear-gradient(
+      255deg,
+      var(--subtle-foreground) 0%,
+      var(--subtle-foreground) 33%,
+      var(--foreground) 50%,
+      var(--foreground) 100%
+    );
     background-size: 300% 100%;
     background-position: 0% 0;
     animation: hero-title-shine 1.6s ease-out 500ms 1 both;

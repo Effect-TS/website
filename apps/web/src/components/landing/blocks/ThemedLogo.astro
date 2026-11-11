@@ -1,0 +1,39 @@
+---
+import type { ImageMetadata } from "astro"
+import type { SvgComponent } from "astro/types"
+import { Image } from "astro:assets"
+
+// Every mark is the brand's own artwork. Fixed-colour marks are rendered as
+// images so the files' internal ids never collide across the page: `dark` is
+// the variant published for dark backgrounds and `light` the one for light
+// backgrounds. `mono` marks are published as plain black/white glyphs and are
+// inlined so they take the theme's text colour.
+export type ThemedLogoDefinition = {
+  readonly className: string
+} & (
+  | {
+      readonly dark: ImageMetadata
+      readonly light: ImageMetadata
+      readonly mono?: undefined
+    }
+  | { readonly mono: SvgComponent; readonly dark?: undefined; readonly light?: undefined }
+)
+
+interface Props {
+  readonly logo: ThemedLogoDefinition
+  readonly name: string
+}
+
+const { logo, name } = Astro.props
+---
+
+{
+  logo.mono ? (
+    <logo.mono class={logo.className} role="img" aria-label={name} />
+  ) : (
+    <>
+      <Image src={logo.light} alt={name} class:list={[logo.className, "dark:hidden"]} />
+      <Image src={logo.dark} alt={name} class:list={[logo.className, "hidden dark:block"]} />
+    </>
+  )
+}

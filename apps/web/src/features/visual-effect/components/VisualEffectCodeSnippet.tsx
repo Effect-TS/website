@@ -1,6 +1,7 @@
 import type { ThemedToken } from "shiki/types"
 import { useAtomValue } from "@effect/atom-react"
 import * as React from "react"
+import { isDarkAtom } from "@/components/ui/atoms/theme"
 import type { CodeSnippetDefinition } from "@/features/visual-effect/model/example-definition"
 import type { ResolvedOffsetRange } from "@/features/visual-effect/model/snippet-highlights"
 import { getSnippetTokens } from "@/features/visual-effect/runtime/shiki-singleton"
@@ -33,12 +34,17 @@ export function VisualEffectCodeSnippet({
   })
   const snippetContainerReference = React.useRef<HTMLDivElement | null>(null)
   const resolvedSnippet = useAtomValue(snippet.atom)
+  const scheme = useAtomValue(isDarkAtom) ? "dark" : "light"
 
   React.useEffect(() => {
     let isMounted = true
     setTokensState({ _tag: "Loading" })
 
-    void getSnippetTokens(resolvedSnippet.language, resolvedSnippet.source)
+    void getSnippetTokens(
+      resolvedSnippet.language,
+      resolvedSnippet.source,
+      scheme,
+    )
       .then((tokens) => {
         if (!isMounted) {
           return
@@ -67,7 +73,7 @@ export function VisualEffectCodeSnippet({
     return () => {
       isMounted = false
     }
-  }, [resolvedSnippet.language, resolvedSnippet.source])
+  }, [resolvedSnippet.language, resolvedSnippet.source, scheme])
 
   const activeRanges = activeTarget
     ? (resolvedSnippet.highlightsByTarget[activeTarget] ?? EMPTY_RANGES)
@@ -94,7 +100,7 @@ export function VisualEffectCodeSnippet({
       </div>
 
       {tokensState._tag === "Error" && (
-        <div className="border-t border-zinc-800 px-6 py-2 font-mono text-xs text-zinc-500">
+        <div className="border-t border-border px-6 py-2 font-mono text-xs text-subtle-foreground">
           highlighting unavailable: {tokensState.message}
         </div>
       )}
@@ -108,7 +114,7 @@ function SnippetTokens({
   readonly tokens: ReadonlyArray<ReadonlyArray<ThemedToken>>
 }) {
   return (
-    <pre className="m-0 font-mono text-sm leading-[1.6] whitespace-pre [tab-size:2] text-zinc-300">
+    <pre className="m-0 font-mono text-sm leading-[1.6] whitespace-pre [tab-size:2] text-prose-foreground">
       {tokens.map((lineTokens, lineIndex) => (
         <div
           key={`snippet-line-${lineIndex.toString()}`}
@@ -140,7 +146,7 @@ function SnippetTokens({
 
 function SnippetFallback({ source }: { readonly source: string }) {
   return (
-    <pre className="m-0 font-mono text-sm leading-[1.6] whitespace-pre [tab-size:2] text-zinc-300">
+    <pre className="m-0 font-mono text-sm leading-[1.6] whitespace-pre [tab-size:2] text-prose-foreground">
       {source}
     </pre>
   )
