@@ -10,7 +10,7 @@ const video = latest?.post.data.video
 // Every module is a card that opens its blog post: `ModuleSummary` stretches
 // the Blog post link over the card, so each card must be positioned.
 const cardClass =
-  "group/card relative flex min-w-0 flex-col bg-zinc-950 transition-colors hover:bg-zinc-900/60 has-[a:focus-visible]:bg-zinc-900/60"
+  "group/card relative flex min-w-0 flex-col bg-background transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60 dark:hover:bg-card/60 dark:has-[a:focus-visible]:bg-card/60"
 ---
 
 {
@@ -23,21 +23,21 @@ const cardClass =
       <div class="mx-auto w-full max-w-295 px-4">
         <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            <p class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
               // Module of the Week
             </p>
             {/* The reference was set in Inter's text cut; the variable font's
                 display optical size at this size paints about 7% narrower. */}
             <h2
               id="module-of-the-week-heading"
-              class="text-2xl leading-tighter font-semibold text-white [font-optical-sizing:none] md:text-3xl"
+              class="text-2xl leading-tighter font-semibold text-foreground [font-optical-sizing:none] md:text-3xl"
             >
               One Effect module, every week
             </h2>
           </div>
           <a
             href="/module-of-the-week"
-            class="group inline-flex items-center gap-2 self-start rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white no-underline transition-colors hover:border-zinc-500 hover:bg-zinc-800 hover:no-underline lg:self-auto"
+            class="group inline-flex items-center gap-2 self-start rounded-md border border-border-strong bg-card px-5 py-2.5 text-sm font-medium text-foreground no-underline transition-colors hover:border-subtle-foreground hover:bg-muted hover:no-underline lg:self-auto"
           >
             All modules
             <ArrowRight
@@ -48,7 +48,7 @@ const cardClass =
         </div>
         <div
           class:list={[
-            "mt-12 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800",
+            "mt-12 grid grid-cols-1 gap-px border border-border bg-border",
             recent.length > 0 && "lg:grid-cols-2",
           ]}
         >
@@ -61,7 +61,7 @@ const cardClass =
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Watch ${latest.title} on YouTube (opens in a new tab)`}
-                class="relative z-10 block aspect-video overflow-hidden bg-zinc-900"
+                class="relative z-10 block aspect-video overflow-hidden bg-card"
               >
                 <img
                   src={`https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`}
@@ -80,21 +80,21 @@ const cardClass =
               // Until the video is out, a title card in the thumbnail's place.
               // It carries the module's heading, so the text block below
               // shows the title only once.
-              <div class="flex aspect-video flex-col justify-end bg-zinc-900 bg-[radial-gradient(120%_90%_at_85%_0%,var(--color-zinc-800),transparent_60%)] p-6 lg:p-8">
-                <p class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+              <div class="flex aspect-video flex-col justify-end bg-card bg-[radial-gradient(120%_90%_at_85%_0%,var(--color-muted),transparent_60%)] p-6 lg:p-8">
+                <p class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
                   Module of the Week #{latest.number}
                 </p>
-                <h3 class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance text-white md:text-4xl">
+                <h3 class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance text-foreground md:text-4xl">
                   {latest.title}
                 </h3>
               </div>
             )}
-            <div class="flex flex-1 flex-col gap-4 border-t border-zinc-800 p-5 lg:px-6">
+            <div class="flex flex-1 flex-col gap-4 border-t border-border p-5 lg:px-6">
               <ModuleSummary module={latest} featured showTitle={video !== undefined} />
             </div>
           </article>
           {recent.length > 0 && (
-            <div class="grid min-w-0 grid-cols-1 gap-px bg-zinc-800 lg:auto-rows-fr">
+            <div class="grid min-w-0 grid-cols-1 gap-px bg-border lg:auto-rows-fr">
               {recent.map((module) => (
                 <article class:list={[cardClass, "justify-between gap-3 p-5 lg:px-6"]}>
                   <ModuleSummary module={module} />
