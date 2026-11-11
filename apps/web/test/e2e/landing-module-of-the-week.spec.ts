@@ -4,7 +4,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } })
 
 const desktop = { width: 1280, height: 900 }
 const mobile = { width: 390, height: 844 }
-// The narrowest width at which the recent modules form a four-up row.
+// The narrowest width at which the modules sit in two columns.
 const narrowDesktop = { width: 1024, height: 900 }
 
 const open = async (page: Page, viewport: typeof desktop) => {
@@ -48,7 +48,7 @@ const expectToOpen = async (
   })
 }
 
-test("desktop features the latest module beside the four before it", async ({
+test("desktop features the latest module beside the three before it", async ({
   page,
 }) => {
   const section = await open(page, desktop)
@@ -61,7 +61,7 @@ test("desktop features the latest module beside the four before it", async ({
   await expect(allModules).toHaveAttribute("href", "/module-of-the-week")
 
   const articles = section.getByRole("article")
-  await expect(articles).toHaveCount(5)
+  await expect(articles).toHaveCount(4)
   const featured = articles.first()
   const recent = await articles.all().then((all) => all.slice(1))
   const featuredBox = await box(featured)
@@ -79,13 +79,13 @@ test("desktop features the latest module beside the four before it", async ({
   expect(Math.abs(right(buttonBox) - gridRight)).toBeLessThanOrEqual(2)
 
   // Two columns: the featured module on the left for the full height, the
-  // four before it stacked on the right between the same top and bottom.
+  // three before it stacked on the right between the same top and bottom.
   for (const rect of recentBoxes) {
     expect(rect.x).toBeGreaterThanOrEqual(right(featuredBox))
   }
   expect(Math.abs(recentBoxes[0]!.y - featuredBox.y)).toBeLessThanOrEqual(2)
   expect(
-    Math.abs(bottom(recentBoxes[3]!) - bottom(featuredBox)),
+    Math.abs(bottom(recentBoxes[2]!) - bottom(featuredBox)),
   ).toBeLessThanOrEqual(2)
 
   // Newest first, numbered consecutively.
@@ -134,7 +134,7 @@ test("every module links to its blog post and, when it has one, its video", asyn
 }) => {
   const section = await open(page, desktop)
   const articles = await section.getByRole("article").all()
-  expect(articles).toHaveLength(5)
+  expect(articles).toHaveLength(4)
   for (const article of articles) {
     await expect(article.getByRole("heading", { level: 3 })).toBeVisible()
     const blogPost = blogPostOf(article)
@@ -200,7 +200,7 @@ test("modules are keyboard accessible through their links alone", async ({
   const hrefs = await links.evaluateAll((all) =>
     all.map((link) => link.getAttribute("href")),
   )
-  expect(hrefs.length).toBeGreaterThanOrEqual(5)
+  expect(hrefs.length).toBeGreaterThanOrEqual(4)
 
   // Tabbing from "All modules" visits exactly the module links, in order,
   // then leaves the section: no extra or duplicate tab stops.
@@ -289,7 +289,7 @@ test("mobile stacks the modules in one column without overflowing", async ({
   expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(viewportWidth)
 
   const articles = await section.getByRole("article").all()
-  expect(articles).toHaveLength(5)
+  expect(articles).toHaveLength(4)
   let previousBottom = -Infinity
   for (const article of articles) {
     const rect = await box(article)
@@ -306,7 +306,7 @@ test("a long package name stays inside its card", async ({ page }) => {
     .getByRole("article")
     .all()
     .then((all) => all.slice(1))
-  expect(recent).toHaveLength(4)
+  expect(recent).toHaveLength(3)
   for (const article of recent) {
     // The longest package in the series so far, in every recent card.
     await article
