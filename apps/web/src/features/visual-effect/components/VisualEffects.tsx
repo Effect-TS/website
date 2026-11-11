@@ -44,7 +44,7 @@ export default function VisualEffects() {
   const scrollFade = useScrollRightFade(drag.ref, [category])
 
   return (
-    <div className="border-r border-zinc-800 shadow-2xl shadow-black/20">
+    <div className="border-r border-border shadow-2xl shadow-black/20">
       <div className="relative">
         <div
           ref={drag.ref}
@@ -54,7 +54,7 @@ export default function VisualEffects() {
           onPointerCancel={drag.onPointerCancel}
           onClickCapture={drag.onClickCapture}
           onScroll={scrollFade.onScroll}
-          className="scrollbar-hide flex overflow-x-auto overscroll-x-contain bg-zinc-950/90 select-none"
+          className="scrollbar-hide flex overflow-x-auto overscroll-x-contain bg-background/90 select-none"
         >
           {ORDERED_CATEGORIES.map((cat) => {
             const entry = EXAMPLES_CATALOG[cat]
@@ -69,8 +69,8 @@ export default function VisualEffects() {
                 }}
                 className={`min-w-fit flex-1 shrink-0 cursor-pointer px-4 py-3 font-mono text-sm tracking-wide whitespace-nowrap uppercase transition-colors md:px-6 md:text-base ${
                   active
-                    ? "bg-zinc-900 font-medium text-white"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-card font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {entry.label}
@@ -79,7 +79,7 @@ export default function VisualEffects() {
           })}
         </div>
         {scrollFade.canScrollRight && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-zinc-950/90 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/90 to-transparent" />
         )}
       </div>
 
@@ -121,7 +121,7 @@ function SubTabs({
           onPointerCancel={drag.onPointerCancel}
           onClickCapture={drag.onClickCapture}
           onScroll={scrollFade.onScroll}
-          className="scrollbar-hide flex items-center overflow-x-auto overscroll-x-contain border-y border-zinc-800 bg-zinc-950 select-none"
+          className="scrollbar-hide flex items-center overflow-x-auto overscroll-x-contain border-y border-border bg-background select-none"
         >
           {examples.map((example) => {
             const isActive = example.key === activeKey
@@ -135,13 +135,13 @@ function SubTabs({
                 }}
                 className={`min-w-fit flex-1 shrink-0 cursor-pointer px-3 py-2 font-mono text-sm whitespace-nowrap transition-colors ${
                   isActive
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
+                    ? "bg-card text-foreground"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
               >
                 <span>{example.title}</span>
                 {example.subtitle && (
-                  <span className="ml-1 text-zinc-400">
+                  <span className="ml-1 text-muted-foreground">
                     ({example.subtitle})
                   </span>
                 )}
@@ -150,7 +150,7 @@ function SubTabs({
           })}
         </div>
         {scrollFade.canScrollRight && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-zinc-950 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background to-transparent" />
         )}
       </div>
 

@@ -284,7 +284,7 @@ export function PodcastTranscript() {
     <Collapsible
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="bg-card rounded-lg border border-zinc-700 lg:flex lg:min-h-0 lg:flex-col lg:data-open:flex-1"
+      className="bg-card rounded-lg border border-border-strong lg:flex lg:min-h-0 lg:flex-col lg:data-open:flex-1"
     >
       <CollapsibleTrigger className="bg-card hover:bg-accent/50 flex w-full cursor-pointer items-center justify-between rounded-lg px-4 py-3 transition-colors data-panel-open:rounded-b-none lg:shrink-0">
         <h2 className="text-sm font-semibold">Transcript</h2>
@@ -293,7 +293,7 @@ export function PodcastTranscript() {
       <CollapsibleContent className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <div
           ref={rootRef}
-          className="bg-card border-t border-zinc-700 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
+          className="bg-card border-t border-border-strong lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
         >
           <ScrollArea className="h-80 p-2 lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1">
             <ul className="space-y-1 pr-2">
@@ -321,7 +321,7 @@ export function PodcastTranscript() {
                       </code>
                       <span
                         className={cn(
-                          "min-w-0 flex-1 text-sm leading-relaxed text-zinc-300",
+                          "min-w-0 flex-1 text-sm leading-relaxed",
                           isActive
                             ? "text-foreground"
                             : "text-muted-foreground group-hover:text-foreground",

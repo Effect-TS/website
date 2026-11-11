@@ -1,7 +1,8 @@
-import { useAtomSet, useAtomValue } from "@effect/atom-react"
+import { useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Check, Monitor, Moon, Sun } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import {
+  isDarkAtom,
   selectThemeAtom,
   themeAtom,
   type Theme,
@@ -24,6 +25,11 @@ export default function ThemeToggle({
 
   const theme = useAtomValue(themeAtom)
   const selectTheme = useAtomSet(selectThemeAtom)
+  // The layout's inline script already follows live OS changes while "System"
+  // is stored. Mounting adds the atom's own listener, which fades the switch
+  // and keeps `isDarkAtom` current for the components that read it.
+  // (Mount rather than read: the atom touches `window`, which SSR lacks.)
+  useAtomMount(isDarkAtom)
 
   // Close menu on outside click or Escape
   useEffect(() => {
@@ -67,7 +73,7 @@ export default function ThemeToggle({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Change theme"
-        className={`flex items-center justify-center transition-colors ${className}`}
+        className={`flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground ${className}`}
       >
         <Sun size={20} className="dark:hidden" aria-hidden="true" />
         <Moon size={20} className="hidden dark:block" aria-hidden="true" />

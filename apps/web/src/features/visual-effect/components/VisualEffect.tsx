@@ -51,7 +51,7 @@ function VisualEffectSurface() {
   )
 
   const isDied = exampleState._tag === "Died"
-  const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "#27272a"
+  const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "var(--border)"
 
   return (
     <motion.div
@@ -92,7 +92,7 @@ function VisualEffectNodes({
   readonly onHoverTargetChange: (target: string | null) => void
 }) {
   const example = useExampleDefinition()
-  const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "#27272a"
+  const borderColor = isDied ? "rgba(127, 29, 29, 0.5)" : "var(--border)"
 
   return (
     <motion.div

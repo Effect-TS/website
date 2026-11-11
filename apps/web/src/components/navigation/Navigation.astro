@@ -14,16 +14,10 @@ import {
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly version?: string | undefined
+  readonly showThemeToggle?: boolean | undefined
 }
 
-const { activeSlug, version } = Astro.props
-
-const showThemeToggle =
-  activeSlug === "playground" ||
-  activeSlug === "docs" ||
-  activeSlug === "api" ||
-  activeSlug === "blog" ||
-  activeSlug === "motw"
+const { activeSlug, version, showThemeToggle = false } = Astro.props
 
 const withVersion = (links: ReadonlyArray<NavigationLink>) =>
   version === undefined
