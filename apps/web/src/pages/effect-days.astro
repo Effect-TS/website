@@ -19,6 +19,7 @@ import pancaldiHall from "@/assets/effect-days/pancaldi-hall.avif"
 import livorno1 from "@/assets/effect-days/livorno-1.avif"
 import livorno6 from "@/assets/effect-days/livorno-6.avif"
 import livorno7 from "@/assets/effect-days/livorno-7.avif"
+import EffectfulBlack from "@/assets/effect-days/Effectful-black.svg"
 import EffectfulWhite from "@/assets/effect-days/Effectful-white.svg"
 import ziverge from "@/assets/effect-days/ziverge.svg"
 import ericClemmons from "@/assets/effect-days/eric-clemmons.jpg"
@@ -37,6 +38,7 @@ import warp from "@/assets/effect-days/warp.svg"
 import betalyra from "@/assets/effect-days/betalyra-dark.svg"
 import inato from "@/assets/effect-days/inato.png"
 import cloudflare from "@/assets/logos/cloudflare/cloudflare-dark-mode.svg"
+import cloudflareLight from "@/assets/logos/cloudflare/cloudflare-light-mode.svg"
 import datapizza from "@/assets/effect-days/datapizza.svg"
 import novelcrafter from "@/assets/effect-days/novelcrafter.svg"
 import executor from "@/assets/effect-days/executor-mono.png"
@@ -170,11 +172,15 @@ const SPONSOR_TIERS = [
   },
 ]
 
+// `logo` is the mark for dark backgrounds. A sponsor with a `light` file shows
+// both files as published; the others are drawn as one-colour silhouettes that
+// follow the theme.
 const SPONSORS = [
   {
     name: "Effectful",
     tier: "Main sponsor",
     logo: EffectfulWhite,
+    light: EffectfulBlack,
     logoHeight: "h-10",
     websiteUrl: "https://effectful.co",
   },
@@ -210,9 +216,8 @@ const SPONSORS = [
     name: "Cloudflare",
     tier: "Partner",
     logo: cloudflare,
+    light: cloudflareLight,
     logoHeight: "h-10",
-    // Supplied dark-background lockup: shown in its own colours, not whitened.
-    fullColor: true,
     websiteUrl: "https://www.cloudflare.com",
   },
   {
@@ -484,7 +489,7 @@ const FAQ_COLUMNS = [
     </div>
 
     <div class="mt-10 md:mt-12">
-      <div class="grid gap-px border border-border bg-muted">
+      <div class="grid gap-px border border-border bg-border">
         {
           SPONSOR_TIERS.map((tier) => {
             const marks = SPONSORS.filter((sponsor) => sponsor.tier === tier.tier)
@@ -496,9 +501,7 @@ const FAQ_COLUMNS = [
                     {tier.label}
                   </p>
                 </div>
-                {/* Sponsor artwork is made for dark backgrounds, so its cells keep a
-                    fixed dark surface in both themes instead of recolouring the marks. */}
-                <div data-surface="dark" class:list={["grid gap-px bg-zinc-800", tier.cols]}>
+                <div class:list={["grid gap-px bg-muted", tier.cols]}>
                   {marks.map((sponsor) => (
                     <a
                       href={sponsor.websiteUrl}
@@ -506,13 +509,25 @@ const FAQ_COLUMNS = [
                       rel="noopener noreferrer"
                       aria-label={`${sponsor.name} — visit website`}
                       class:list={[
-                        "group relative flex items-center justify-center bg-zinc-950 px-3 transition-colors duration-200 hover:bg-zinc-900 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground md:px-8",
+                        "group relative flex items-center justify-center bg-background px-3 transition-colors duration-200 hover:bg-card focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground md:px-8",
                         tier.cellClass,
                       ]}
                     >
                       <span
                         class:list={["flex max-w-full items-center justify-center", tier.logoBox]}
                       >
+                        {sponsor.light && (
+                          <img
+                            src={sponsor.light.src}
+                            alt={sponsor.name}
+                            width={sponsor.light.width}
+                            height={sponsor.light.height}
+                            class:list={[
+                              sponsor.logoHeight,
+                              "w-auto max-w-full object-contain dark:hidden",
+                            ]}
+                          />
+                        )}
                         <img
                           src={sponsor.logo.src}
                           alt={sponsor.name}
@@ -521,7 +536,7 @@ const FAQ_COLUMNS = [
                           class:list={[
                             sponsor.logoHeight,
                             "w-auto max-w-full object-contain",
-                            !sponsor.fullColor && "brightness-0 invert",
+                            sponsor.light ? "hidden dark:block" : "brightness-0 dark:invert",
                           ]}
                         />
                       </span>
