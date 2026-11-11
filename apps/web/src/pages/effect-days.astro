@@ -36,7 +36,7 @@ import michaelArnaldi from "@/assets/effect-days/michael-arnaldi.png"
 import warp from "@/assets/effect-days/warp.svg"
 import betalyra from "@/assets/effect-days/betalyra-dark.svg"
 import inato from "@/assets/effect-days/inato.png"
-import cloudflare from "@/assets/effect-days/cloudflare.svg"
+import cloudflare from "@/assets/logos/cloudflare/cloudflare-dark-mode.svg"
 import datapizza from "@/assets/effect-days/datapizza.svg"
 import novelcrafter from "@/assets/effect-days/novelcrafter.svg"
 import executor from "@/assets/effect-days/executor-mono.png"
@@ -211,6 +211,8 @@ const SPONSORS = [
     tier: "Partner",
     logo: cloudflare,
     logoHeight: "h-10",
+    // Supplied dark-background lockup: shown in its own colours, not whitened.
+    fullColor: true,
     websiteUrl: "https://www.cloudflare.com",
   },
   {
@@ -494,7 +496,7 @@ const FAQ_COLUMNS = [
                     {tier.label}
                   </p>
                 </div>
-                {/* Sponsor artwork is white-on-transparent, so its cells keep a
+                {/* Sponsor artwork is made for dark backgrounds, so its cells keep a
                     fixed dark surface in both themes instead of recolouring the marks. */}
                 <div data-surface="dark" class:list={["grid gap-px bg-zinc-800", tier.cols]}>
                   {marks.map((sponsor) => (
@@ -516,7 +518,11 @@ const FAQ_COLUMNS = [
                           alt={sponsor.name}
                           width={sponsor.logo.width}
                           height={sponsor.logo.height}
-                          class={`${sponsor.logoHeight} w-auto max-w-full object-contain brightness-0 invert`}
+                          class:list={[
+                            sponsor.logoHeight,
+                            "w-auto max-w-full object-contain",
+                            !sponsor.fullColor && "brightness-0 invert",
+                          ]}
                         />
                       </span>
                       <ArrowUpRight
