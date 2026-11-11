@@ -37,6 +37,9 @@ export default defineConfig({
     passWithNoTests: false,
     testTimeout: 30_000,
     include: [],
-    includeSource: ["apps/web/src/content/docs/v4/**/*.mdx"],
+    includeSource: [
+      "apps/web/src/content/docs/v4/**/*.mdx",
+      "apps/web/src/content/tutorial/*/index.mdx",
+    ],
   },
 })

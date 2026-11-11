@@ -1,0 +1,72 @@
+---
+import { getCollection, render } from "astro:content"
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
+import DocShell from "@/layouts/DocShell.astro"
+import { cacheKey, digest } from "@/lib/cache-key"
+import { getLessons } from "@/features/tutorial/lessons"
+import { slugForId } from "@/features/tutorial/model"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  const lessons = await getLessons()
+  const chapters = [...new Set(lessons.map((lesson) => lesson.chapter))]
+  return chapters.map((chapter) => ({
+    params: { chapter },
+    props: {
+      chapter,
+      lessons: lessons
+        .filter((lesson) => lesson.chapter === chapter)
+        .map((lesson) => ({ slug: lesson.slug, title: lesson.title })),
+    },
+    cacheKey: cacheKey(digest({ lessons })),
+  }))
+}
+
+const { chapter, lessons } = Astro.props
+const entry = (await getCollection("tutorialChapter")).find(
+  (item) => slugForId(item.id) === chapter,
+)
+if (entry === undefined) throw new Error(`Missing tutorial chapter ${chapter}`)
+const { Content, headings } = await render(entry)
+
+const tocItems = headings
+  .filter((heading) => heading.depth >= 2 && heading.depth <= 3)
+  .map((heading) => ({
+    id: heading.slug,
+    label: heading.text,
+    indent: heading.depth === 3,
+    class: "text-sm leading-snug",
+  }))
+---
+
+<DocShell title={entry.data.title} description={entry.data.description}>
+  <nav slot="sidebar" aria-label="Tutorial navigation">
+    <ul class="flex flex-col gap-0.5">
+      <li>
+        <SidebarLink
+          href={`/tutorial/${chapter}`}
+          active
+          class="-mx-2 px-2 py-2.5 text-sm font-semibold"
+        >
+          {entry.data.title}
+        </SidebarLink>
+      </li>
+    </ul>
+  </nav>
+
+  <a
+    data-testid="tutorial-practice"
+    href={`/tutorial/${lessons[0]?.slug}`}
+    class="mb-6 block text-sm text-muted-foreground no-underline hover:text-foreground"
+  >
+    Prefer to write the code? Practice in the browser →
+  </a>
+  <article class="prose prose-effect max-w-none">
+    <h1 class="mt-0!">{entry.data.title}</h1>
+    <Content />
+  </article>
+
+  {tocItems.length > 0 && <TableOfContents slot="toc" items={tocItems} />}
+</DocShell>

@@ -1,0 +1,9 @@
+---
+import { getLessons } from "@/features/tutorial/lessons"
+
+export const prerender = true
+
+const [first] = await getLessons()
+if (first === undefined) throw new Error("No tutorial lessons found")
+return Astro.redirect(`/tutorial/${first.slug}`)
+---

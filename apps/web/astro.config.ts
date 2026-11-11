@@ -19,6 +19,7 @@ import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
 import { remarkMermaid } from "./src/features/docs/remark-mermaid"
+import { remarkLessonCode } from "./src/features/tutorial/remark-lesson-code"
 import { incrementalBuildReport } from "./src/lib/incremental-build-report"
 
 const FontsourceProvider = fontProviders.fontsource()
@@ -39,7 +40,7 @@ const config = defineConfig({
 
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkMermaid],
+      remarkPlugins: [remarkMermaid, remarkLessonCode],
       rehypePlugins: [rehypeHeadingIds, rehypeHeadingLinks],
     }),
   },
@@ -58,7 +59,10 @@ const config = defineConfig({
 
   vite: {
     optimizeDeps: {
-      entries: ["src/features/playground/index.tsx"],
+      entries: [
+        "src/features/playground/index.tsx",
+        "src/features/tutorial/components/TutorialApp.tsx",
+      ],
     },
     plugins: [
       tailwindcss(),
