@@ -93,13 +93,7 @@ export const syncApiReference = Effect.fn("ApiReferenceSync.sync")(
     yield* Effect.forEach(
       staleFiles,
       Effect.fnUntraced(function* (file) {
-        yield* Effect.tryPromise({
-          try: () =>
-            client.stores.files.delete(file.id, {
-              store_identifier: store.id,
-            }),
-          catch: (cause) => new FailedToDeleteError({ file, cause }),
-        })
+        yield* stores.deleteFile(store.id, file)
         yield* Effect.log(
           `Deleted stale API reference file: ${file.external_id}`,
         )
@@ -214,7 +208,6 @@ import {
   UPLOAD_CONCURRENCY,
 } from "./Config.ts"
 import {
-  FailedToDeleteError,
   FailedToIndexError,
   FileInProgressError,
   fileInProgressConflict,

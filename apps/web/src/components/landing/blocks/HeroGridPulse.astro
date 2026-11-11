@@ -50,10 +50,12 @@
     const WAVE_TIME = 2300
 
     const ring = (inner: number, outer: number, peak: number) => {
+      // The pulse is a brightening of the grid: light on dark, dark on light.
+      const rgb = document.documentElement.classList.contains("dark") ? "255, 255, 255" : "9, 9, 11"
       const gradient = ctx.createRadialGradient(originX, originY, inner, originX, originY, outer)
-      gradient.addColorStop(0, "rgba(255, 255, 255, 0)")
-      gradient.addColorStop(0.7, `rgba(255, 255, 255, ${peak})`)
-      gradient.addColorStop(1, "rgba(255, 255, 255, 0)")
+      gradient.addColorStop(0, `rgba(${rgb}, 0)`)
+      gradient.addColorStop(0.7, `rgba(${rgb}, ${peak})`)
+      gradient.addColorStop(1, `rgba(${rgb}, 0)`)
       return gradient
     }
 

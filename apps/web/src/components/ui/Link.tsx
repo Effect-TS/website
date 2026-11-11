@@ -15,9 +15,9 @@ import { cn } from "@/lib/utils"
  * |----------|---------------------------------------------------------|
  * | inline   | Body text links — underlined, white text on dark bg     |
  * | nav      | Header nav — subtle bottom-border on hover              |
- * | footer   | Footer links — zinc-400 text, border-bottom on hover    |
+ * | footer   | Footer links — muted text, border-bottom on hover       |
  * | subtle   | Breadcrumbs, attributions — zinc-400 → white on hover   |
- * | icon     | Social/icon-only links — zinc-400 → white on hover      |
+ * | icon     | Social/icon-only links — muted → foreground on hover    |
  */
 const linkVariants = cva("transition-colors", {
   variants: {
@@ -25,9 +25,9 @@ const linkVariants = cva("transition-colors", {
       inline: "text-white underline underline-offset-2 hover:text-zinc-300",
       nav: "border-b border-transparent text-sm font-medium text-zinc-400 hover:border-current hover:text-white",
       footer:
-        "border-b border-transparent text-sm leading-relaxed font-medium text-zinc-400 hover:border-current hover:text-white",
+        "border-b border-transparent text-sm leading-relaxed font-medium text-muted-foreground hover:border-current hover:text-foreground",
       subtle: "text-sm text-zinc-400 hover:text-white",
-      icon: "text-zinc-400 hover:text-white",
+      icon: "text-muted-foreground hover:text-foreground",
     },
   },
   defaultVariants: {
@@ -57,7 +57,7 @@ function Link({
   const activeClass = active
     ? {
         nav: "border-white text-white",
-        footer: "border-transparent text-white dark:text-white",
+        footer: "border-transparent text-foreground",
         inline: "",
         subtle: "text-white",
         icon: "text-white",

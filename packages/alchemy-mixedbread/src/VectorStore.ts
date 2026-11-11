@@ -10,8 +10,6 @@ import { Resource, type ResourceClassLike } from "alchemy/Resource"
 import { Stack } from "alchemy/Stack"
 import { Stage } from "alchemy/Stage"
 import * as Effect from "effect/Effect"
-import * as Redacted from "effect/Redacted"
-import * as Struct from "effect/Struct"
 import {
   isConflict,
   isNotFound,
@@ -28,23 +26,13 @@ export interface VectorStoreProps {
   readonly metadata?: Readonly<Record<string, unknown>>
   readonly expiresAfter?: ExpiresAfter
   /**
-   * Tags for finding and organizing the store. They replace the store's
-   * current tags, including any a copy inherits from its source.
+   * Tags for finding and organizing the store.
    */
   readonly tags?: ReadonlyArray<string>
   readonly config?: {
     readonly contextualization?: boolean | ContextualizationConfig
     readonly save_content?: boolean
   }
-  /**
-   * ID or name of a store to copy when this resource creates the store.
-   *
-   * The copy keeps the source's files and indexed chunks, so it is only used
-   * when the source's configuration matches `config`. Any copy failure falls
-   * back to creating an empty store. Changing this prop never replaces an
-   * existing store.
-   */
-  readonly copyFrom?: string | Redacted.Redacted<string>
 }
 
 export type VectorStore = Resource<
@@ -89,31 +77,6 @@ export const VectorStoreRegistration: ResourceClassLike<VectorStore> = {
   Self: VectorStore.Self,
   Provider: VectorStore.Provider,
 }
-
-// Only consulted when creating a store, so it never forces an update or a
-// replacement of one that already exists.
-const withoutCopySource = (
-  props: VectorStoreProps,
-): Omit<VectorStoreProps, "copyFrom"> => Struct.omit(props, ["copyFrom"])
-
-// A copy target reports `in_progress` until the copy finishes; neither store
-// accepts file changes before then.
-const isCopying = (store: Store): boolean =>
-  store.copy_state?.role === "target" && store.status === "in_progress"
-
-const COPY_POLL_INTERVAL = "2 seconds"
-const COPY_TIMEOUT = "20 minutes"
-
-// The settings the copy carries over and that `createStore` would otherwise
-// set from `config`. Mixedbread applies `save_content: true` and no
-// contextualization by default.
-const effectiveConfig = (
-  config: VectorStoreProps["config"] | StoreConfig | null | undefined,
-) => ({
-  contextualization: config?.contextualization ?? false,
-  save_content: config?.save_content ?? true,
-  lsf: (config as StoreConfig | null | undefined)?.lsf ?? null,
-})
 
 // Mixedbread trims, lowercases, and deduplicates tags, and may reorder them.
 const normalizeTags = (
@@ -212,106 +175,30 @@ export const VectorStoreProvider = Provider.effect(
     const deleteOptional = (id: string) =>
       client.deleteStore(id).pipe(Effect.catchIf(isNotFound, () => Effect.void))
 
-    // A workflow cancelled mid-copy leaves the target copying; wait for it
-    // rather than writing to a store that rejects file changes.
-    const awaitCopy = Effect.fn("Mixedbread.awaitCopy")(function* (
-      store: Store,
-    ) {
-      let current: Store | undefined = store
-      while (current !== undefined && isCopying(current)) {
-        yield* Effect.sleep(COPY_POLL_INTERVAL)
-        current = yield* retrieveOptional(current.id)
-      }
-      return current
-    }, Effect.timeout(COPY_TIMEOUT))
-
     // Resolves a found store to one that can be updated in place, or to
     // `undefined` when it has to be created again.
     const settle = Effect.fn("Mixedbread.settle")(function* (
       store: Store | undefined,
       ownership: Ownership,
     ) {
-      const current = store === undefined ? undefined : yield* awaitCopy(store)
-      if (current?.status === "expired") {
-        yield* deleteOptional(current.id)
+      if (store?.status === "expired") {
+        yield* deleteOptional(store.id)
         return undefined
       }
-      if (current?.status === "failed") {
-        if (!hasOwnership(current.metadata, ownership)) {
+      if (store?.status === "failed") {
+        if (!hasOwnership(store.metadata, ownership)) {
           return yield* Effect.fail(
             new Error(
-              `Mixedbread store '${current.name}' is a failed copy that is not owned by this Alchemy resource.`,
+              `Mixedbread store '${store.name}' failed and is not owned by this Alchemy resource.`,
             ),
           )
         }
-        // A failed copy can only be deleted.
-        yield* deleteOptional(current.id)
+        // A failed store can only be deleted.
+        yield* deleteOptional(store.id)
         return undefined
       }
-      return current
+      return store
     })
-
-    // Copying only saves indexing work, so anything that makes it unsafe or
-    // unsuccessful falls back to an empty store. The caller's full sync
-    // reconciles the copy with its own content either way.
-    const copyStore = Effect.fn("Mixedbread.copyStore")(
-      function* (
-        source: string,
-        news: VectorStoreProps,
-        metadata: Record<string, unknown>,
-      ) {
-        const origin = yield* client.retrieveStore(source)
-        if (
-          !deepEqual(
-            effectiveConfig(origin.config),
-            effectiveConfig(news.config),
-          )
-        ) {
-          yield* Effect.logWarning(
-            `Not copying Mixedbread store '${origin.name}': its configuration differs from '${news.name}'`,
-          )
-          return undefined
-        }
-        const counts = origin.file_counts
-        if (
-          (counts?.pending ?? 0) > 0 ||
-          (counts?.in_progress ?? 0) > 0 ||
-          origin.copy_state?.status === "in_progress"
-        ) {
-          yield* Effect.logWarning(
-            `Not copying Mixedbread store '${origin.name}': it is still processing files or being copied`,
-          )
-          return undefined
-        }
-        const copy = yield* client.copyStore(origin.id, {
-          name: news.name,
-          ...(news.description === undefined
-            ? {}
-            : { description: news.description }),
-          metadata,
-          // Without this the copy would carry the source's tags.
-          tags: news.tags ?? [],
-        })
-        yield* Effect.log(
-          `Copying Mixedbread store '${origin.name}' into '${news.name}'`,
-        )
-        const copied = yield* awaitCopy(copy)
-        if (copied?.status === "failed") {
-          yield* Effect.logWarning(
-            `Copy into Mixedbread store '${news.name}' failed: ${copied.copy_state?.error ?? "unknown error"}`,
-          )
-          yield* deleteOptional(copied.id)
-          return undefined
-        }
-        return copied
-      },
-      Effect.catchTag("MixedbreadApiError", (error) =>
-        Effect.logWarning(
-          `Falling back to an empty Mixedbread store: ${error.message}`,
-          error.cause,
-        ).pipe(Effect.as(undefined)),
-      ),
-    )
 
     return {
       stables: ["id", "name"],
@@ -344,18 +231,16 @@ export const VectorStoreProvider = Provider.effect(
           const store = yield* client
             .retrieveStore(output.id)
             .pipe(Effect.catchIf(isNotFound, () => Effect.succeed(undefined)))
-          // A copy in progress can still fail and be recreated with a new id.
           if (
             store === undefined ||
             store.status === "expired" ||
-            store.status === "failed" ||
-            isCopying(store)
+            store.status === "failed"
           ) {
             return { action: "update", stables: [] } as const
           }
         }
 
-        return deepEqual(withoutCopySource(olds), withoutCopySource(news))
+        return deepEqual(olds, news)
           ? { action: "noop" as const }
           : { action: "update" as const }
       }),
@@ -393,16 +278,6 @@ export const VectorStoreProvider = Provider.effect(
           ownership,
         )
 
-        if (store === undefined && news.copyFrom !== undefined) {
-          store = yield* copyStore(
-            Redacted.isRedacted(news.copyFrom)
-              ? Redacted.value(news.copyFrom)
-              : news.copyFrom,
-            news,
-            metadata,
-          )
-        }
-
         if (store === undefined) {
           const create = client.createStore({
             name: news.name,
@@ -426,7 +301,7 @@ export const VectorStoreProvider = Provider.effect(
                 Effect.flatMap((existing) =>
                   existing !== undefined &&
                   hasOwnership(existing.metadata, ownership)
-                    ? // A copy whose response never arrived still owns the
+                    ? // A creation whose response never arrived still owns the
                       // name; settle it, then create again if it failed.
                       settle(existing, ownership).pipe(
                         Effect.flatMap((settled) =>
@@ -446,8 +321,7 @@ export const VectorStoreProvider = Provider.effect(
           )
         }
 
-        // A copy keeps the source's visibility, license, and expiration, and
-        // stores created before tags were managed have none.
+        // Stores created before tags were managed have none.
         const desired = {
           description: news.description ?? null,
           isPublic: news.isPublic,
@@ -477,17 +351,6 @@ export const VectorStoreProvider = Provider.effect(
         return toAttributes(store)
       }),
       delete: Effect.fn(function* ({ output }) {
-        // Deleting a copy target mid-copy leaves its source reporting a copy
-        // in progress for over an hour, which blocks production syncs. Let the
-        // copy finish first; it only takes a few minutes.
-        const store = yield* retrieveOptional(output.id)
-        if (store === undefined) return
-        if (isCopying(store)) {
-          yield* Effect.log(
-            `Waiting for the copy into Mixedbread store '${store.name}' to finish before deleting it`,
-          )
-          yield* awaitCopy(store)
-        }
         yield* deleteOptional(output.id)
       }),
     }

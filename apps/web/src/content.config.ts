@@ -86,8 +86,10 @@ const effectJobs = defineCollection({
     url: z.url(),
     note: z.string().optional(),
     logo: z.string().optional(),
+    // The logo is a single-colour glyph that the brand draws in the surrounding
+    // text colour, so it follows the theme instead of keeping the file's fill.
+    logoMono: z.boolean().optional(),
     payRange: z.string().optional(),
-    description: z.string().optional(),
   }),
 })
 

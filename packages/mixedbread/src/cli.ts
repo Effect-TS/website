@@ -12,6 +12,7 @@ import * as CliConfig from "effect/cli/CliConfig"
 import * as Command from "effect/cli/Command"
 import * as Flag from "effect/cli/Flag"
 import * as GlobalFlag from "effect/cli/GlobalFlag"
+import { InvalidStoreError } from "./Error.ts"
 import { Mixedbread } from "./Mixedbread.ts"
 import * as Preview from "./Preview.ts"
 import { SearchChanges } from "./SearchChanges.ts"
@@ -52,12 +53,19 @@ const syncCommand = Command.make("sync", {
           mixedbread.syncProduction(revision, scope),
         ),
       onSome: Effect.fnUntraced(function* (pullRequest) {
+        if (scope !== "all") {
+          return yield* new InvalidStoreError({
+            message: `A preview synchronizes all content; --scope ${scope} is for production`,
+          })
+        }
         const storeId = yield* Config.String("MXBAI_VECTOR_STORE_ID")
         return yield* Mixedbread.use((mixedbread) =>
-          mixedbread.syncStore(
-            { kind: "preview", pullRequest, revision, storeId },
-            scope,
-          ),
+          mixedbread.syncPreview({
+            kind: "preview",
+            pullRequest,
+            revision,
+            storeId,
+          }),
         )
       }),
     }),

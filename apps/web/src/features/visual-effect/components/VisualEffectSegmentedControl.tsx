@@ -14,7 +14,7 @@ export function VisualEffectSegmentedControl<A extends string>({
 
   return (
     <div className="flex flex-wrap items-center justify-start gap-3">
-      <span className="font-mono text-sm tracking-wider text-neutral-500 uppercase select-none">
+      <span className="font-mono text-sm tracking-wider text-muted-foreground uppercase select-none">
         {control.label}
       </span>
       <SegmentedControl value={value} onChange={setValue} options={options} />
