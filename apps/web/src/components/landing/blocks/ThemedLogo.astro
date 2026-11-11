@@ -7,16 +7,13 @@ import { Image } from "astro:assets"
 // images so the files' internal ids never collide across the page: `dark` is
 // the variant published for dark backgrounds and `light` the one for light
 // backgrounds. `mono` marks are published as plain black/white glyphs and are
-// inlined so they take the theme's text colour. A mark without a light variant
-// keeps its published artwork on a small dark tile in light mode instead of
-// being recoloured.
+// inlined so they take the theme's text colour.
 export type ThemedLogoDefinition = {
   readonly className: string
-  readonly lightClassName?: string
 } & (
   | {
       readonly dark: ImageMetadata
-      readonly light?: ImageMetadata
+      readonly light: ImageMetadata
       readonly mono?: undefined
     }
   | { readonly mono: SvgComponent; readonly dark?: undefined; readonly light?: undefined }
@@ -25,11 +22,9 @@ export type ThemedLogoDefinition = {
 interface Props {
   readonly logo: ThemedLogoDefinition
   readonly name: string
-  /** Padding of the dark tile behind a mark that has no light variant. */
-  readonly tilePadding: string
 }
 
-const { logo, name, tilePadding } = Astro.props
+const { logo, name } = Astro.props
 ---
 
 {
@@ -37,23 +32,8 @@ const { logo, name, tilePadding } = Astro.props
     <logo.mono class={logo.className} role="img" aria-label={name} />
   ) : (
     <>
-      {logo.light && (
-        <Image
-          src={logo.light}
-          alt={name}
-          class:list={[logo.lightClassName ?? logo.className, "dark:hidden"]}
-        />
-      )}
-      <span
-        class:list={[
-          "flex items-center",
-          logo.light
-            ? "hidden dark:flex"
-            : ["rounded-sm bg-zinc-950 dark:bg-transparent dark:p-0", tilePadding],
-        ]}
-      >
-        <Image src={logo.dark} alt={name} class={logo.className} />
-      </span>
+      <Image src={logo.light} alt={name} class:list={[logo.className, "dark:hidden"]} />
+      <Image src={logo.dark} alt={name} class:list={[logo.className, "hidden dark:block"]} />
     </>
   )
 }

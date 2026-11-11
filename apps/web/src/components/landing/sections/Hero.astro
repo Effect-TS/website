@@ -5,11 +5,12 @@ import GridBackground from "@/components/GridBackground.astro"
 import HeroCommandPanel from "../blocks/HeroCommandPanel.astro"
 import HeroGridPulse from "../blocks/HeroGridPulse.astro"
 import ThemedLogo, { type ThemedLogoDefinition } from "../blocks/ThemedLogo.astro"
-import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.png"
-import CloudflareLogoWhite from "@/assets/logos/cloudflare/cloudflare-logo-white.svg"
+import CloudflareLogoDark from "@/assets/logos/cloudflare/cloudflare-dark-mode.svg"
+import CloudflareLogoLight from "@/assets/logos/cloudflare/cloudflare-light-mode.svg"
 import OpencodeLogoDark from "@/assets/company-logos/opencode-wordmark-dark.svg"
 import OpencodeLogoLight from "@/assets/company-logos/opencode-wordmark-light.svg"
 import MasterclassLogo from "@/assets/company-logos/masterclass-noM.svg"
+import MasterclassLogoLight from "@/assets/logos/masterclass/Masterclass-light.svg"
 import T3LogoDark from "@/assets/company-logos/t3-dark.svg"
 import T3LogoLight from "@/assets/company-logos/t3-light.svg"
 import XLogo from "@/assets/company-logos/x-logo.svg"
@@ -19,11 +20,10 @@ type SocialProofLogo = ThemedLogoDefinition & { readonly name: string }
 const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
   {
     name: "Cloudflare",
-    dark: CloudflareLogoWhite,
-    light: CloudflareLogoColor,
-    className: "h-[22px] w-auto",
-    // The publisher's full-colour lockup is stacked (cloud above the wordmark).
-    lightClassName: "h-10 w-auto",
+    dark: CloudflareLogoDark,
+    light: CloudflareLogoLight,
+    // The lockup is stacked (cloud above the wordmark), so it is taller than the others.
+    className: "h-10 w-auto",
   },
   { name: "X", mono: XLogo, className: "h-5 w-auto translate-y-0.5" },
   {
@@ -33,8 +33,12 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
     className: "h-5 w-auto translate-y-0.5",
   },
   { name: "T3", dark: T3LogoLight, light: T3LogoDark, className: "h-4 w-auto" },
-  // No published light-background variant has been obtained; see the tile above.
-  { name: "MasterClass", dark: MasterclassLogo, className: "h-4 w-auto" },
+  {
+    name: "MasterClass",
+    dark: MasterclassLogo,
+    light: MasterclassLogoLight,
+    className: "h-4 w-auto",
+  },
 ]
 ---
 
@@ -90,7 +94,7 @@ const SOCIAL_PROOF_LOGOS: ReadonlyArray<SocialProofLogo> = [
           {
             SOCIAL_PROOF_LOGOS.map((logo) => (
               <li class="flex items-end">
-                <ThemedLogo logo={logo} name={logo.name} tilePadding="px-2.5 py-1.5" />
+                <ThemedLogo logo={logo} name={logo.name} />
               </li>
             ))
           }

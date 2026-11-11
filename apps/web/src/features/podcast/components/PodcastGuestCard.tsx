@@ -3,6 +3,7 @@ import _14AiLogo from "@/assets/logos/14ai/14ai.svg?react"
 import ApplePodcastsLogo from "@/assets/logos/apple-podcasts/ApplePodcasts.webp"
 import FoldkitLogo from "@/assets/logos/foldkit/foldkit.png"
 import MasterclassLogo from "@/assets/logos/masterclass/Masterclass.svg?react"
+import MasterclassLogoLight from "@/assets/logos/masterclass/Masterclass-light.svg"
 import OpenCodeLogo from "@/assets/logos/opencode/opencode.svg?react"
 import OpenRouterLogo from "@/assets/logos/openrouter.png"
 import SpikoLogo from "@/assets/logos/spiko/Spiko.svg?react"
@@ -107,10 +108,17 @@ function CompanyLogo({ company }: { readonly company: string }) {
         </DarkTile>
       )
     case "masterclass":
+      // The light-background wordmark is an image so its mask id cannot
+      // collide with the inlined dark one.
       return (
-        <DarkTile>
-          <MasterclassLogo className="h-3 w-auto" />
-        </DarkTile>
+        <>
+          <img
+            src={MasterclassLogoLight.src}
+            alt="MasterClass"
+            className="h-3 w-auto dark:hidden"
+          />
+          <MasterclassLogo className="hidden h-3 w-auto dark:block" />
+        </>
       )
     case "opencode":
       return <OpenCodeLogo className="h-4 w-auto" />

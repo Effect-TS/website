@@ -3,9 +3,10 @@ import { ChevronLeft, ChevronRight } from "@lucide/astro"
 import ThemedLogo, { type ThemedLogoDefinition } from "../blocks/ThemedLogo.astro"
 import AstroLogoDark from "@/assets/logos/astro/astro-logo-dark.svg"
 import AstroLogoLightGradient from "@/assets/logos/astro/astro-logo-light-gradient.svg"
-import CloudflareLogoColor from "@/assets/logos/cloudflare/cloudflare-logo-color.png"
-import CloudflareLogoWhite from "@/assets/logos/cloudflare/cloudflare-logo-white.svg"
+import CloudflareLogoDark from "@/assets/logos/cloudflare/cloudflare-dark-mode.svg"
+import CloudflareLogoLight from "@/assets/logos/cloudflare/cloudflare-light-mode.svg"
 import MasterclassLogo from "@/assets/logos/masterclass/Masterclass.svg"
+import MasterclassLogoLight from "@/assets/logos/masterclass/Masterclass-light.svg"
 import SpikoLogo from "@/assets/logos/spiko/Spiko.svg"
 import TotalTypeScriptLogo from "@/assets/logos/total-typescript/TotalTypescript.png"
 import TwitterLogo from "@/assets/icons/fa7-brands/x-twitter.svg"
@@ -39,15 +40,14 @@ const QUOTE_BY_LOGO_ID: Record<QuoteLogo, ThemedLogoDefinition> = {
     className: "h-6 w-auto",
   },
   cloudflare: {
-    dark: CloudflareLogoWhite,
-    light: CloudflareLogoColor,
-    className: "h-4 w-auto max-w-24",
-    // The publisher's full-colour lockup is stacked (cloud above the wordmark).
-    lightClassName: "h-7 w-auto",
+    dark: CloudflareLogoDark,
+    light: CloudflareLogoLight,
+    // The lockup is stacked (cloud above the wordmark), so it is taller than the others.
+    className: "h-7 w-auto",
   },
-  // No published light-background variant has been obtained; see the tile below.
   masterclass: {
     dark: MasterclassLogo,
+    light: MasterclassLogoLight,
     className: "h-2.5 w-auto",
   },
   spiko: {
@@ -196,11 +196,7 @@ const copies = [0, 1, 2] as const
                     <div class="h-px flex-1 bg-[linear-gradient(to_right,transparent,var(--border-strong))]" />
 
                     <div class="flex shrink-0 items-center text-foreground">
-                      <ThemedLogo
-                        logo={definition}
-                        name={quote.company}
-                        tilePadding="px-2 py-1.5"
-                      />
+                      <ThemedLogo logo={definition} name={quote.company} />
                     </div>
                   </div>
                 </article>
