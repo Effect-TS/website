@@ -33,6 +33,9 @@ const entryNumber = async (article: Locator) =>
 const blogPostOf = (article: Locator) =>
   article.getByRole("link", { name: /^Blog post/ })
 
+// Named "Watch …" on the featured module and "Video, …" on the others.
+const videoLink = /^(Video|Watch)/
+
 const samePath = (a: string, b: string) =>
   a.replace(/\/$/, "") === b.replace(/\/$/, "")
 
@@ -94,39 +97,21 @@ test("desktop features the latest module beside the three before it", async ({
     expect(await entryNumber(article)).toBe(latest - index - 1)
   }
 
-  // The featured module leads with a 16:9 visual the width of the card, and
-  // its metadata and description follow beneath it. Its heading sits in the
-  // text block under a thumbnail, or on the title card itself.
-  const visual = featured.locator(":scope > *").first()
-  const visualBox = await box(visual)
-  expect(visualBox.width).toBeGreaterThanOrEqual(featuredBox.width - 2)
-  expect(visualBox.width / visualBox.height).toBeGreaterThan(1.7)
-  expect(visualBox.width / visualBox.height).toBeLessThan(1.85)
-  const title = featured.getByRole("heading", { level: 3 })
-  await expect(title).toBeVisible()
+  // The featured module is text only: a "Latest" tag, then its number,
+  // heading and description beneath it. No thumbnail or other image.
+  const tagBox = await box(featured.getByText("Latest", { exact: true }))
+  await expect(featured.getByRole("heading", { level: 3 })).toBeVisible()
   expect(
     (await box(featured.getByText(/^\d+$/).first())).y,
-  ).toBeGreaterThanOrEqual(bottom(visualBox))
+  ).toBeGreaterThanOrEqual(bottom(tagBox))
   const paragraphs = await Promise.all(
     await featured
       .locator("p")
       .all()
       .then((all) => all.map(box)),
   )
-  expect(paragraphs.some((rect) => rect.y >= bottom(visualBox))).toBe(true)
-
-  // With a video the visual is its YouTube thumbnail; without one it is a
-  // text title card naming the module. Never an unrelated Open Graph image.
-  await expect(section.locator('img[src*="/og/"]')).toHaveCount(0)
-  if ((await featured.getByRole("link", { name: /^Video/ }).count()) > 0) {
-    await expect(visual.locator("img")).toHaveAttribute(
-      "src",
-      /^https:\/\/i\.ytimg\.com\//,
-    )
-  } else {
-    await expect(section.locator("img")).toHaveCount(0)
-    await expect(visual).toContainText((await title.textContent())!.trim())
-  }
+  expect(paragraphs.some((rect) => rect.y >= bottom(tagBox))).toBe(true)
+  await expect(section.locator("img")).toHaveCount(0)
 })
 
 test("every module links to its blog post and, when it has one, its video", async ({
@@ -148,7 +133,7 @@ test("every module links to its blog post and, when it has one, its video", asyn
       article.locator(`a[href="${await blogPost.getAttribute("href")}"]`),
     ).toHaveCount(1)
     for (const video of await article
-      .getByRole("link", { name: /^Video/ })
+      .getByRole("link", { name: videoLink })
       .all()) {
       await expect(video).toHaveAttribute(
         "href",
@@ -158,7 +143,9 @@ test("every module links to its blog post and, when it has one, its video", asyn
       await expect(video).toHaveAttribute("rel", /noopener/)
     }
   }
-  await expect(section.getByRole("link", { name: /^Video/ })).not.toHaveCount(0)
+  await expect(section.getByRole("link", { name: videoLink })).not.toHaveCount(
+    0,
+  )
   await expect(
     section.locator("a a, a [role='link'], [role='link'] a"),
   ).toHaveCount(0)
@@ -185,10 +172,7 @@ test("clicking anywhere on a module opens its blog post", async ({ page }) => {
 
   // The Video link still receives the pointer instead of the module.
   section = await open(page, desktop)
-  await section
-    .getByRole("link", { name: /^Video/ })
-    .first()
-    .hover()
+  await section.getByRole("link", { name: videoLink }).first().hover()
   expect(samePath(new URL(page.url()).pathname, "/")).toBe(true)
 })
 
@@ -262,7 +246,7 @@ test.describe("with motion enabled", () => {
           })
           .map(({ scale, transform }) => ({ scale, transform })),
       )
-    // Hover each block of the module in turn, wherever a thumbnail might sit.
+    // Hover each block of the module in turn.
     for (const block of await featured.locator(":scope > *").all()) {
       const rect = await onScreen(block)
       await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2)

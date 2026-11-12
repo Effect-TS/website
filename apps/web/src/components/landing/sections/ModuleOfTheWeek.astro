@@ -1,11 +1,10 @@
 ---
-import { ArrowRight, Play } from "@lucide/astro"
+import { ArrowRight } from "@lucide/astro"
 import ModuleSummary from "@/components/landing/blocks/ModuleSummary.astro"
 import { getLatestModules } from "@/features/module-of-the-week/http"
 
 const [latest, ...older] = await getLatestModules()
 const recent = older.slice(0, 3)
-const video = latest?.post.data.video
 
 // Every module is a card that opens its blog post: `ModuleSummary` stretches
 // the Blog post link over the card, so each card must be positioned.
@@ -52,51 +51,21 @@ const cardClass =
             recent.length > 0 && "lg:grid-cols-2",
           ]}
         >
-          <article class={cardClass}>
-            {video !== undefined ? (
-              // The video's thumbnail. It sits above the card's Blog post
-              // layer so it keeps its own destination.
-              <a
-                href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Watch ${latest.title} on YouTube (opens in a new tab)`}
-                class="relative z-10 block aspect-video overflow-hidden bg-card"
-              >
-                <img
-                  src={`https://i.ytimg.com/vi/${video.youtubeId}/sddefault.jpg`}
-                  alt=""
-                  loading="lazy"
-                  width="1280"
-                  height="720"
-                  class="h-full w-full object-cover"
-                />
-                <span class="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-zinc-950/80 py-0.5 pr-1.5 pl-1 font-mono text-xs text-white tabular-nums">
-                  <Play class="size-3 fill-current" aria-hidden="true" />
-                  {video.duration}
-                </span>
-              </a>
-            ) : (
-              // Until the video is out, a title card in the thumbnail's place.
-              // It carries the module's heading, so the text block below
-              // shows the title only once.
-              <div class="flex aspect-video flex-col justify-end bg-card bg-[radial-gradient(120%_90%_at_85%_0%,var(--color-muted),transparent_60%)] p-6 lg:p-8">
-                <p class="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                  Module of the Week #{latest.number}
-                </p>
-                <h3 class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance text-foreground md:text-4xl">
-                  {latest.title}
-                </h3>
-              </div>
-            )}
-            <div class="flex flex-1 flex-col gap-4 border-t border-border p-5 lg:px-6">
-              <ModuleSummary module={latest} featured showTitle={video !== undefined} />
+          <article class:list={[cardClass, "p-5 lg:p-8"]}>
+            {/* The site's bordered mono tag, with the brand dot of a status light. */}
+            <p class="inline-flex items-center gap-2 self-start border border-border-strong px-2 py-0.5 font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              <span class="size-1.5 rounded-full bg-brand" aria-hidden="true" />
+              Latest
+            </p>
+            {/* Anchored to the bottom of the card, however tall the column beside it. */}
+            <div class="mt-auto flex flex-col pt-12 lg:pt-19">
+              <ModuleSummary module={latest} featured />
             </div>
           </article>
           {recent.length > 0 && (
             <div class="grid min-w-0 grid-cols-1 gap-px bg-border lg:auto-rows-fr">
               {recent.map((module) => (
-                <article class:list={[cardClass, "justify-between gap-3 p-5 lg:px-6"]}>
+                <article class:list={[cardClass, "p-5 lg:px-6"]}>
                   <ModuleSummary module={module} />
                 </article>
               ))}

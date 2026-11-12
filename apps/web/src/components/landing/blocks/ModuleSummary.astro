@@ -1,35 +1,30 @@
 ---
-import { ArrowUpRight } from "@lucide/astro"
+import { ArrowUpRight, Play } from "@lucide/astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
 import type { Module } from "@/features/module-of-the-week/domain"
 
 /**
  * The metadata, title and links of one module. Rendered directly into a
- * positioned card: the Blog post link stretches over the whole card, so
- * clicking anywhere on it opens the post, while the Video link sits above
- * that layer and keeps its own destination.
+ * positioned flex column card: the Blog post link stretches over the whole
+ * card, so clicking anywhere on it opens the post, while the video link sits
+ * above that layer and keeps its own destination.
  */
 interface Props {
   readonly module: Module
-  /** The latest module: a larger title and its excerpt. */
+  /** The latest module: a larger title, its excerpt and a button for its main link. */
   readonly featured?: boolean | undefined
-  /** Off when the card's heading is already shown elsewhere, as in the hero's title card. */
-  readonly showTitle?: boolean | undefined
 }
 
-const { module, featured = false, showTitle = true } = Astro.props
+const { module, featured = false } = Astro.props
 const { post, number, title } = module
 const video = post.data.video
 
 const linkClass =
-  "group/link inline-flex items-center gap-1 text-sm text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
-const arrowClass = "size-3.5 transition-transform"
-// The Blog post arrow answers a hover anywhere on the card, the Video arrow
-// only its own link.
-const cardArrowClass =
-  "motion-safe:group-hover/card:translate-x-0.5 motion-safe:group-hover/card:-translate-y-0.5"
-const linkArrowClass =
-  "motion-safe:group-hover/link:translate-x-0.5 motion-safe:group-hover/link:-translate-y-0.5"
+  "inline-flex items-center text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
+// The featured module's main link: its video, or its post until the video is out.
+const buttonClass =
+  "inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary/85 hover:no-underline"
+const blogPostIsButton = featured && video === undefined
 ---
 
 <div class="flex items-baseline justify-between gap-4 font-mono text-xs text-muted-foreground">
@@ -39,49 +34,62 @@ const linkArrowClass =
   </div>
   <FormattedDate date={post.data.date} className="shrink-0 whitespace-nowrap tabular-nums" />
 </div>
-<div class="flex flex-col gap-2">
-  {
-    showTitle && (
-      <h3
-        class:list={[
-          "leading-snug font-semibold text-balance text-foreground",
-          featured ? "text-lg" : "text-base",
-        ]}
-      >
-        {title}
-      </h3>
-    )
-  }
-  {
-    featured && (
-      <p class="text-base leading-relaxed text-pretty text-muted-foreground">{post.data.excerpt}</p>
-    )
-  }
-</div>
-<div class:list={["flex flex-wrap items-center gap-x-4 gap-y-2", featured && "mt-auto pt-2"]}>
+{/* As in the section heading, Inter's text cut rather than its narrower display cut. */}
+<h3
+  class:list={[
+    "font-semibold text-balance text-foreground [font-optical-sizing:none]",
+    featured ? "mt-4 text-xl leading-tight md:text-2xl" : "mt-3 text-lg leading-snug",
+  ]}
+>
+  {title}
+</h3>
+{
+  featured && (
+    <p class="mt-4 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground">
+      {post.data.excerpt}
+    </p>
+  )
+}
+<div
+  class:list={[
+    "flex flex-wrap items-center gap-y-3",
+    featured ? "gap-x-6 pt-8" : "mt-auto gap-x-4 pt-5",
+  ]}
+>
   {
     video && (
       <a
         href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
         target="_blank"
         rel="noopener noreferrer"
-        class:list={[linkClass, "relative z-10"]}
+        class:list={["relative z-10", featured ? buttonClass : [linkClass, "gap-1.5"]]}
       >
-        Video
+        <Play class:list={["fill-current", featured ? "size-4" : "size-3"]} aria-hidden="true" />
+        {featured ? "Watch" : <span class="sr-only">Video,</span>}
+        <span
+          class:list={["font-mono text-xs tabular-nums", featured && "text-primary-foreground/70"]}
+        >
+          {video.duration}
+        </span>
         <span class="sr-only">: {title} on YouTube (opens in a new tab)</span>
-        <ArrowUpRight class:list={[arrowClass, linkArrowClass]} aria-hidden="true" />
       </a>
     )
   }
   <a
     href={`/blog/${post.id}`}
     class:list={[
-      linkClass,
-      "group-hover/card:text-foreground after:absolute after:inset-0 after:content-['']",
+      "after:absolute after:inset-0 after:content-['']",
+      blogPostIsButton
+        ? [buttonClass, "group-hover/card:bg-primary/85"]
+        : [linkClass, "gap-1 text-sm group-hover/card:text-foreground"],
     ]}
   >
     Blog post
     <span class="sr-only">: {title}</span>
-    <ArrowUpRight class:list={[arrowClass, cardArrowClass]} aria-hidden="true" />
+    {/* The arrow answers a hover anywhere on the card, as the link itself does. */}
+    <ArrowUpRight
+      class="size-3.5 transition-transform motion-safe:group-hover/card:translate-x-0.5 motion-safe:group-hover/card:-translate-y-0.5"
+      aria-hidden="true"
+    />
   </a>
 </div>
