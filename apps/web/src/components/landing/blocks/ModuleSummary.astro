@@ -1,5 +1,5 @@
 ---
-import { ArrowUpRight, Play } from "@lucide/astro"
+import { ArrowUpRight } from "@lucide/astro"
 import { FormattedDate } from "@/components/ui/FormattedDate"
 import type { Module } from "@/features/module-of-the-week/domain"
 
@@ -20,11 +20,12 @@ const { post, number, title } = module
 const video = post.data.video
 
 const linkClass =
-  "inline-flex items-center text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
+  "inline-flex items-center gap-1 text-sm text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
 // The featured module's main link: its video, or its post until the video is out.
 const buttonClass =
   "inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary/85 hover:no-underline"
 const blogPostIsButton = featured && video === undefined
+const arrowClass = "size-3.5 transition-transform"
 ---
 
 <div class="flex items-baseline justify-between gap-4 font-mono text-xs text-muted-foreground">
@@ -62,16 +63,17 @@ const blogPostIsButton = featured && video === undefined
         href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
         target="_blank"
         rel="noopener noreferrer"
-        class:list={["relative z-10", featured ? buttonClass : [linkClass, "gap-1.5"]]}
+        class:list={["group/video relative z-10", featured ? buttonClass : linkClass]}
       >
-        <Play class:list={["fill-current", featured ? "size-4" : "size-3"]} aria-hidden="true" />
-        {featured ? "Watch" : <span class="sr-only">Video,</span>}
-        <span
-          class:list={["font-mono text-xs tabular-nums", featured && "text-primary-foreground/70"]}
-        >
-          {video.duration}
-        </span>
+        Watch video
         <span class="sr-only">: {title} on YouTube (opens in a new tab)</span>
+        <ArrowUpRight
+          class:list={[
+            arrowClass,
+            "motion-safe:group-hover/video:translate-x-0.5 motion-safe:group-hover/video:-translate-y-0.5",
+          ]}
+          aria-hidden="true"
+        />
       </a>
     )
   }
@@ -81,14 +83,17 @@ const blogPostIsButton = featured && video === undefined
       "after:absolute after:inset-0 after:content-['']",
       blogPostIsButton
         ? [buttonClass, "group-hover/card:bg-primary/85"]
-        : [linkClass, "gap-1 text-sm group-hover/card:text-foreground"],
+        : [linkClass, "group-hover/card:text-foreground"],
     ]}
   >
     Blog post
     <span class="sr-only">: {title}</span>
     {/* The arrow answers a hover anywhere on the card, as the link itself does. */}
     <ArrowUpRight
-      class="size-3.5 transition-transform motion-safe:group-hover/card:translate-x-0.5 motion-safe:group-hover/card:-translate-y-0.5"
+      class:list={[
+        arrowClass,
+        "motion-safe:group-hover/card:translate-x-0.5 motion-safe:group-hover/card:-translate-y-0.5",
+      ]}
       aria-hidden="true"
     />
   </a>

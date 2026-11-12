@@ -33,8 +33,7 @@ const entryNumber = async (article: Locator) =>
 const blogPostOf = (article: Locator) =>
   article.getByRole("link", { name: /^Blog post/ })
 
-// Named "Watch …" on the featured module and "Video, …" on the others.
-const videoLink = /^(Video|Watch)/
+const videoLink = /^Watch video/
 
 const samePath = (a: string, b: string) =>
   a.replace(/\/$/, "") === b.replace(/\/$/, "")
@@ -317,8 +316,8 @@ test("small text in the modules keeps readable contrast at rest", async ({
   page,
 }) => {
   const section = await open(page, desktop)
-  // Every element under 14px with text of its own: numbers, packages, dates,
-  // durations and any badge. Rendered over the card they sit in.
+  // Every element under 14px with text of its own: numbers, packages, dates
+  // and any badge. Rendered over the card they sit in.
   const ratios = await section.getByRole("article").evaluateAll((articles) => {
     const channel = (value: number) => {
       const c = value / 255
