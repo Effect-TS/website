@@ -1,87 +1,75 @@
 ---
-import { ArrowRight, ArrowUpRight, FileText } from "@lucide/astro"
-import YouTubeLogo from "@/assets/icons/fa7-brands/youtube.svg"
-import ModuleCard from "@/components/module-of-the-week/ModuleCard.astro"
-import { FormattedDate } from "@/components/ui/FormattedDate"
+import { ArrowRight } from "@lucide/astro"
+import ModuleSummary from "@/components/landing/blocks/ModuleSummary.astro"
 import { getLatestModules } from "@/features/module-of-the-week/http"
 
-const [latest, ...others] = await getLatestModules()
-const linkClass =
-  "group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground hover:no-underline"
+const [latest, ...older] = await getLatestModules()
+const recent = older.slice(0, 3)
+
+// Every module is a card that opens its blog post: `ModuleSummary` stretches
+// the Blog post link over the card, so each card must be positioned.
+const cardClass =
+  "group/card relative flex min-w-0 flex-col bg-background transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60 dark:hover:bg-card/60 dark:has-[a:focus-visible]:bg-card/60"
 ---
 
 {
   latest !== undefined && (
-    <section id="module-of-the-week" class="relative w-full py-24 md:pt-40 md:pb-24">
+    <section
+      id="module-of-the-week"
+      aria-labelledby="module-of-the-week-heading"
+      class="relative w-full py-24 md:pt-40 md:pb-24"
+    >
       <div class="mx-auto w-full max-w-295 px-4">
-        <div class="mb-12">
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
-            // Module of the Week
-          </p>
-          <h2 class="text-2xl leading-tighter font-semibold text-foreground md:text-3xl">
-            One Effect module, every week
-          </h2>
-          <p class="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-            Each module starts as a blog post, gets walked through live at Effect Office Hours, and
-            ends up as a standalone video.
-          </p>
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="mb-3 font-mono text-sm font-medium tracking-wider text-muted-foreground uppercase">
+              // Module of the Week
+            </p>
+            {/* The reference was set in Inter's text cut; the variable font's
+                display optical size at this size paints about 7% narrower. */}
+            <h2
+              id="module-of-the-week-heading"
+              class="text-2xl leading-tighter font-semibold text-foreground [font-optical-sizing:none] md:text-3xl"
+            >
+              One Effect module, every week
+            </h2>
+          </div>
           <a
             href="/module-of-the-week"
-            class="mt-6 inline-flex items-center gap-2 rounded-lg border border-border-strong bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:border-subtle-foreground hover:bg-muted hover:no-underline"
+            class="group inline-flex items-center gap-2 self-start rounded-md border border-border-strong bg-card px-5 py-2.5 text-sm font-medium text-foreground no-underline transition-colors hover:border-subtle-foreground hover:bg-muted hover:no-underline lg:self-auto"
           >
-            <span>All modules</span>
-            <ArrowRight class="size-4" aria-hidden="true" />
+            All modules
+            <ArrowRight
+              class="size-4 transition-transform motion-safe:group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
           </a>
         </div>
-        <div class="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
-          <ModuleCard
-            post={latest.post}
-            entry={latest.number}
-            layout="stacked"
-            class="lg:col-span-7 lg:self-start"
-          />
-          <ol class="flex flex-col lg:col-span-5">
-            {others.slice(0, 4).map(({ post, number, title }) => (
-              <li class="border-t border-border first:border-t-0 py-5 first:pt-0 first:lg:pt-3">
-                <div class="flex items-center gap-2 font-mono text-xs">
-                  <span class="font-medium text-foreground tabular-nums">
-                    {String(number).padStart(2, "0")}
-                  </span>
-                  {post.data.packageName && (
-                    <>
-                      <span aria-hidden="true" class="h-3 w-px bg-border-strong" />
-                      <span class="truncate text-muted-foreground">
-                        from "{post.data.packageName}"
-                      </span>
-                    </>
-                  )}
-                  <FormattedDate
-                    date={post.data.date}
-                    className="ml-auto shrink-0 text-muted-foreground tabular-nums"
-                  />
-                </div>
-                <h3 class="mt-2 text-lg leading-snug font-semibold text-foreground">{title}</h3>
-                <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-                  {post.data.video && (
-                    <a
-                      href={`https://www.youtube.com/watch?v=${post.data.video.youtubeId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class={linkClass}
-                    >
-                      <YouTubeLogo class="size-4" aria-hidden="true" />
-                      Video
-                      <ArrowUpRight class="size-3.5" aria-hidden="true" />
-                    </a>
-                  )}
-                  <a href={`/blog/${post.id}`} class={linkClass}>
-                    <FileText class="size-4" aria-hidden="true" />
-                    Blog post
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ol>
+        <div
+          class:list={[
+            "mt-12 grid grid-cols-1 gap-px border border-border bg-border",
+            recent.length > 0 && "lg:grid-cols-2",
+          ]}
+        >
+          <article class:list={[cardClass, "p-5 lg:p-8"]}>
+            {/* A quiet filled badge: one surface step up from the card. */}
+            <p class="self-start rounded-sm bg-muted px-2 py-1 font-mono text-xs font-medium tracking-[0.04em] text-prose-foreground uppercase dark:bg-card">
+              Latest
+            </p>
+            {/* Anchored to the bottom of the card, however tall the column beside it. */}
+            <div class="mt-auto flex flex-col pt-12 lg:pt-19">
+              <ModuleSummary module={latest} featured />
+            </div>
+          </article>
+          {recent.length > 0 && (
+            <div class="grid min-w-0 grid-cols-1 gap-px bg-border lg:auto-rows-fr">
+              {recent.map((module) => (
+                <article class:list={[cardClass, "p-5 lg:px-6"]}>
+                  <ModuleSummary module={module} />
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
