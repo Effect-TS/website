@@ -92,6 +92,8 @@ export const ApiReferenceGeneratedMetadata = Schema.Struct({
   module_name: Schema.String,
   module_path: Schema.String,
   signature: Schema.String,
+  declaration_part: Schema.optional(Schema.Int),
+  declaration_part_count: Schema.optional(Schema.Int),
 })
 
 export const GeneratedMetadata = Schema.Union([
