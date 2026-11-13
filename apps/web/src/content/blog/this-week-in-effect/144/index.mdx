@@ -1,0 +1,156 @@
+---
+pagefind: false
+title: This Week in Effect - 144
+excerpt: "Effect 4.1.3 and 4.1.4 add an Amazon Bedrock provider and AG-UI protocol support. The Module of the Week Cluster series closes with Workflows. Julius Marminge & Devin Jameson join the Effect Days speakers!"
+date: 2026-11-16
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters! Welcome back to This Week in Effect, your weekly roundup of news from the Effect community and ecosystem.
+
+**Recent major announcements:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026](https://www.effect.website/effect-days) ✨
+
+## Technology
+
+New [Module of the Week](https://effect.website/blog/module-of-the-week/cluster-workflow) post by [Maxwell Brown](https://x.com/maxwellbrown), closing the Cluster series with **Workflows**.
+
+<Tweet id="2120129200975724775" />
+
+### Effect v4 updates.
+
+Effect 4.1.3 and 4.1.4 went out this week, alongside a wave of new AI providers and a long list of fixes across the platform packages.
+
+- **Additions**: Added an Amazon Bedrock provider for Effect AI, AG-UI protocol support in `effect/ai`, and workload identity federation for the Anthropic, OpenAI and OpenRouter providers. Cluster sharding now runs on Cloudflare Durable Objects, and `effect/protobuf` adds `ProtobufReader` and `ProtobufWriter`, now used to encode OTLP protobuf. Also added `CommandSpec` for documenting `effect/cli` command paths, `HttpApi.RedactedNames` for span redaction of query and header names, buffered response encoding and declared header schemas for `HttpApi`, an `allowEmpty` option for `generateObject`, and `Schema.Enum` parts in `Schema.TemplateLiteral`.
+
+- **Utilities**: Added `nthRoot` and `nthRootUnsafe` to `BigInt` and `Rational`, `Base64.encodeUnpadded` and `Base64.decodeLenient`, `String.isWellFormed` and `String.toWellFormed`, and `TextDiff.hunks` to group a line diff into hunks as data. `DateTime.make` now accepts the `UT`, `UTC` and `US` zone abbreviations, as `Date.parse` does.
+
+- **AI providers**: Fixed a long list of OpenRouter issues, including tool call fragments and streams that end before a tool call is complete, refusals reported as content-filter finish metadata, and base64 images and files sent as data URLs. For OpenAI-compatible providers, PDFs are now sent as file parts, null optional fields are accepted and the developer role is only sent to OpenAI reasoning models. Structured output now handles optional records and tuples and emits a single null branch for properties that already accept null. Anthropic fixes cover non-strict tool schemas, citations without a file id and all generated effort levels.
+
+- **MCP**: Restored MCP Skills support on legacy protocol revisions. Fixed resource reads dropping the registered MIME type, subscription shutdown and exit codes after stdin EOF, and progress notifications continuing after their request ends. List cursors the server never issued are now rejected, and MCP tools are hidden before parameter headers are validated.
+
+- **SQL & persistence**: Statements and driver-level transaction lookups from a fiber that outlives its transaction now fail instead of leaking, nested transactions waiting for a savepoint can be interrupted, and savepoint release is skipped after an ancestor ends during rollback. Fixed PostgreSQL transport retirement after scope release, an unregistered PostgreSQL value failing more than the query, `sql-mssql` binding and `SqlModel` repository updates on SQL Server, and `SqlClient.withoutTransforms` keeping query name transforms.
+
+- **HTTP, RPC & CLI**: `HttpClientError` URLs are now redacted with the redaction names active when the error is created, and requests with no body return an empty stream. Fixed `NodeHttpServer` shutdown hanging while WebSocket clients are connected, `HttpStaticServer` mishandling quoted commas in `If-None-Match`, `Headers.fromInput` dropping repeated names, and framed HTTP responses not being drained while dispatching an RPC batch. On the CLI side, fixed the wizard repeating flags typed before `--wizard`, completion for subcommand names containing colons, repeatable flags in shell completions and the minus sign in number prompts.
+
+- **Core & performance**: The audit carried on with fixes for `Stream.filterEffect` counting indices per chunk instead of across the stream, `Pool` usage TTL idle cleanup, `ScopedCache.get` returning a released value when the cache closes during a lookup, workflow cleanup ordering on early interruption, and `Match.tags` and `Match.discriminators` calling an undefined handler. `Semaphore` queues no longer cost the square of their length, and `SchemaBinary` captures fewer failure stacks. Also fixed `TestClock` interrupting masked finalizers, renamed time zones keeping their name in `DateTime`, `ConfigProvider` environment snapshot timing, `Csv` decoders dropping records parsed before an error, `Rational` arithmetic not cancelling common factors, and `OtlpTracer` marking successful spans as `Ok` instead of leaving the status unset.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Add onStdinEnd interrupt policy to stdio RPC and MCP servers](https://github.com/Effect-TS/effect/pull/10415) (Bug Fix, next-minor)
+- [Fix(http): identify cookies by name, domain and path](https://github.com/Effect-TS/effect/pull/10471) (Bug Fix, next-minor)
+
+## Community Highlights
+
+- **Fork Every Business: Sam Goodwin on Alchemy, Effect and AI** by Joel Hooks
+
+<YouTube
+  id="https://www.youtube.com/embed/JcY0th6QuMg?si=RVgPQNAHPPfSdQzS"
+  title="Fork Every Business: Sam Goodwin on Alchemy, Effect and AI"
+/>
+
+<Tweet id="2120676108089897095" />
+
+- We can't wait to have you there, Joel!
+
+<Tweet id="2120547733467717862" />
+
+- [ai-effect](https://ai-effect.fdarian.com/) - a wrapper around the Vercel AI SDK that returns Effect values, with streams as Effect Streams, typed `AiError` failures, UI message streams and tracing. By fdarian.
+
+- [effect-cqrs](https://github.com/davidnussio/effect-cqrs) - CQRS and event sourcing for Effect 4, with aggregates, commands, event stores (memory, SQLite, PostgreSQL) and view-model projections. By davidnussio.
+
+## Effect Job Opportunities
+
+[Explore Effect jobs →](https://www.effect.website/effect-jobs)
+
+## Community Events
+
+- Latest [Effect Days](https://effect.website/effect-days) speakers announced: **Julius Marminge** & **Devin Jameson**.
+
+  <Tweet id="2120124313487728736" />
+
+  <Tweet id="2121237895067615305" />
+
+- [Effect Warsaw #2](https://luma.com/k5o7m2pg) is coming up tomorrow!
+
+  <Tweet id="2108246661642285217" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Team Content Update
+
+- Effect Office Hours 54 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/N4t5viZVEbA?si=HO0GSqacegPQkBqk"
+  title="Effect Office Hours 54 🔥"
+/>
+
+- Dominik Tornow, founder of Resonate HQ | Office Hours 52
+
+<YouTube
+  id="https://www.youtube.com/embed/kU2FpNm65-k?si=jA_Uaw0pzkSqPIUs"
+  title="Dominik Tornow, founder of Resonate HQ | Office Hours 52"
+/>
+
+- Effect LSP: Smarter Rules, Faster Linting
+
+<YouTube
+  id="https://www.youtube.com/embed/YOZF2tN8YmY?si=iKFUze8kW5gjTwzN"
+  title="Effect LSP: Smarter Rules, Faster Linting"
+/>
+
+- Effect Idempotency, Cluster Part 4 | Module of the Week 6
+
+<YouTube
+  id="https://www.youtube.com/embed/fNpJ63QjK-k?si=tO-DnoYaAu7J67YN"
+  title="Effect Idempotency, Cluster Part 4 | Module of the Week 6"
+/>
+
+- Workflows, Cluster Part 5 | Module of the Week 7
+
+<YouTube
+  id="https://www.youtube.com/embed/fM5FDXIjlaY?si=LCe2Id5QDzWQbTq0"
+  title="Workflows, Cluster Part 5 | Module of the Week 7"
+/>
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## New to Effect?
+
+Effect is a TypeScript library for building reliable applications, with built-in concurrency, cancellation, and safe resource management. Explore the [documentation](/docs/getting-started/introduction/) and [installation](/docs/getting-started/installation/) guide below to get started.
+
+_Effect Community Team_
