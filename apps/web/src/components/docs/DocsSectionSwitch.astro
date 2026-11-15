@@ -4,6 +4,7 @@ import { BookOpen, Braces, Rocket } from "@lucide/astro"
 import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
 import type { DocsNavSection } from "@/lib/docs-sections"
 import { cn } from "@/lib/utils"
+import { defaultDocsVersion } from "@/lib/versions"
 
 /**
  * The Onboarding / Guides / Reference switch between the three parts of the
@@ -22,7 +23,9 @@ const horizontal = orientation === "horizontal"
 const sections = [
   { key: "onboarding", label: "Onboarding", href: `/docs/${version}`, Icon: Rocket },
   { key: "guides", label: "Guides", href: `/docs/${version}/guides`, Icon: BookOpen },
-  { key: "api", label: "Reference", href: `/docs/${version}/api`, Icon: Braces },
+  // The reference is an entry point into the current docs from every version;
+  // the version menu is the way into an older version's reference.
+  { key: "api", label: "Reference", href: `/docs/${defaultDocsVersion}/api`, Icon: Braces },
 ] as const
 ---
 

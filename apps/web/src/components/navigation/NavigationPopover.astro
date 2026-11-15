@@ -86,7 +86,12 @@ const { hover = false, class: className } = Astro.props
 
     #onPointerLeave = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return
-      this.#closeTimer = window.setTimeout(() => this.#setOpen(false), HOVER_CLOSE_DELAY_MS)
+      this.#closeTimer = window.setTimeout(() => {
+        // Keyboard focus on a link in the panel keeps it open; closing would
+        // hide the focused link. It closes once focus leaves, via `focusout`.
+        if (this.querySelector("[data-popover-panel]")?.contains(document.activeElement)) return
+        this.#setOpen(false)
+      }, HOVER_CLOSE_DELAY_MS)
     }
 
     // On the document, so Escape also dismisses a menu the pointer opened
