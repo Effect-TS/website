@@ -21,3 +21,26 @@ export function docsVersionFromPathname(pathname: string): DocsVersion {
     ? version
     : defaultDocsVersion
 }
+
+export interface DocsVersionLink {
+  readonly version: DocsVersion
+  readonly label: string
+  readonly href: string
+  readonly current: boolean
+}
+
+/**
+ * The version menu's entries for a docs page. `hrefFor` returns where a
+ * version's entry leads: the same page in that version when it exists there,
+ * otherwise that version's docs or API reference home.
+ */
+export const docsVersionLinks = (
+  current: string,
+  hrefFor: (version: DocsVersion) => string,
+): ReadonlyArray<DocsVersionLink> =>
+  DOCS_VERSIONS.map(({ value, label }) => ({
+    version: value,
+    label,
+    href: hrefFor(value),
+    current: value === current,
+  }))

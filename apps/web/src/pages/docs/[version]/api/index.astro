@@ -9,7 +9,7 @@ import ApiSidebarNav from "@/features/api-reference/ApiSidebarNav.astro"
 import { versionIndexDigest } from "@/features/api-reference/cache-key"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
-import { DOCS_VERSIONS } from "@/lib/versions"
+import { docsVersionLinks } from "@/lib/versions"
 
 export const prerender = true
 
@@ -185,11 +185,7 @@ const sidebarSections = [
     })),
   },
 ]
-const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api`,
-  label,
-  selected: value === version,
-}))
+const versionLinks = docsVersionLinks(version, (target) => `/docs/${target}/api`)
 const mobilePackages = [
   { disabled: true, href: "", label: "Packages", selected: true },
   ...packages
@@ -207,11 +203,12 @@ const mobilePackages = [
   ogImageVersion={versionIndexDigest(entries, version)}
   activeSlug="api"
   version={version}
+  versionLinks={versionLinks}
 >
   <ApiMobileNavigation
     slot="mobile-nav"
     version={version}
-    versions={mobileVersions}
+    versionLinks={versionLinks}
     packages={mobilePackages}
   />
 

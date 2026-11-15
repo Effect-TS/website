@@ -1,35 +1,9 @@
-export type NavigationSurface = "desktop" | "mobile"
-
-export type NavigationGroup = "primary" | "secondary" | "social"
-
 export const NAVIGATION_EVENTS = {
   SEARCH_OPEN: "effect-search:open",
   SEARCH_OPENED: "effect-search:opened",
   SEARCH_CLOSE: "effect-search:close",
   MOBILE_MENU_OPEN: "effect-mobile-menu:open",
 }
-
-interface NavigationLinkBase {
-  readonly id: string
-  readonly label: string
-  readonly group: NavigationGroup
-  readonly surfaces: ReadonlyArray<NavigationSurface>
-  readonly icon?: "discord" | "github" | "twitter"
-}
-
-export interface InternalNavigationLink extends NavigationLinkBase {
-  readonly kind: "internal"
-  readonly href: `/${string}`
-}
-
-export interface ExternalNavigationLink extends NavigationLinkBase {
-  readonly kind: "external"
-  readonly href: `https://${string}`
-  readonly target: "_blank"
-  readonly rel: "noopener noreferrer"
-}
-
-export type NavigationLink = InternalNavigationLink | ExternalNavigationLink
 
 export type NavigationActiveSlug =
   | "api"
@@ -40,117 +14,122 @@ export type NavigationActiveSlug =
   | "docs"
   | "playground"
   | "community"
+  | "adoption-partners"
+  | "merch"
   | "effect-days"
 
-export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
+export interface NavigationLink {
+  readonly kind: "link"
+  readonly id: NavigationActiveSlug
+  readonly label: string
+  readonly href: `/${string}`
+}
+
+export interface NavigationMenuItem {
+  /** Absent for items that leave the site, which can never be the current page. */
+  readonly id?: NavigationActiveSlug
+  readonly label: string
+  readonly description: string
+  readonly href: `/${string}` | `https://${string}`
+}
+
+export interface NavigationMenu {
+  readonly kind: "menu"
+  readonly id: string
+  readonly label: string
+  readonly items: ReadonlyArray<NavigationMenuItem>
+}
+
+export type NavigationEntry = NavigationLink | NavigationMenu
+
+/**
+ * The primary navigation, in desktop order. The mobile drawer lists the plain
+ * links first and the menus as labelled groups below them.
+ */
+export const PRIMARY_NAVIGATION: ReadonlyArray<NavigationEntry> = [
+  { kind: "link", id: "docs", label: "Docs", href: "/docs/v4" },
+  { kind: "link", id: "playground", label: "Play", href: "/play" },
   {
-    id: "docs",
-    kind: "internal",
-    label: "Docs",
-    href: "/docs/v4",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
+    kind: "menu",
+    id: "resources",
+    label: "Resources",
+    items: [
+      {
+        id: "blog",
+        label: "Blog",
+        description: "Releases and notes from the team",
+        href: "/blog",
+      },
+      {
+        id: "podcast",
+        label: "Podcast",
+        description: "Engineers using Effect in production",
+        href: "/podcast",
+      },
+      {
+        id: "motw",
+        label: "Module of the Week",
+        description: "One lesser-known module at a time",
+        href: "/module-of-the-week",
+      },
+      {
+        label: "Workshops",
+        description: "Recorded sessions on YouTube",
+        href: "https://www.youtube.com/playlist?list=PLDf3uQLaK2B9vHzUNyvOSvoMv61LW7792",
+      },
+    ],
   },
   {
-    id: "playground",
-    kind: "internal",
-    label: "Play",
-    href: "/play",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
-    id: "blog",
-    kind: "internal",
-    label: "Blog",
-    href: "/blog",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
-    id: "motw",
-    kind: "internal",
-    label: "Module of the Week",
-    href: "/module-of-the-week",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
-    id: "jobs",
-    kind: "internal",
-    label: "Jobs",
-    href: "/effect-jobs",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
+    kind: "menu",
     id: "community",
-    kind: "internal",
     label: "Community",
-    href: "/community-hub",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
+    items: [
+      {
+        id: "community",
+        label: "Community hub",
+        description: "Meetups, talks and events",
+        href: "/community-hub",
+      },
+      {
+        id: "jobs",
+        label: "Jobs",
+        description: "Open roles using Effect",
+        href: "/effect-jobs",
+      },
+      {
+        id: "adoption-partners",
+        label: "Adoption partner",
+        description: "Get help adopting Effect",
+        href: "/adoption-partners/ziverge",
+      },
+      {
+        id: "merch",
+        label: "Merch",
+        description: "Effect-branded merchandise",
+        href: "/merch",
+      },
+    ],
   },
   {
+    kind: "link",
     id: "effect-days",
-    kind: "internal",
     label: "Effect Days",
     href: "/effect-days",
-    group: "primary",
-    surfaces: ["desktop", "mobile"],
-  },
-  {
-    id: "github",
-    kind: "external",
-    label: "GitHub",
-    href: "https://github.com/Effect-TS/effect",
-    target: "_blank",
-    rel: "noopener noreferrer",
-    group: "social",
-    surfaces: ["desktop", "mobile"],
-    icon: "github",
-  },
-  {
-    id: "discord",
-    kind: "external",
-    label: "Discord",
-    href: "https://discord.gg/effect-ts",
-    target: "_blank",
-    rel: "noopener noreferrer",
-    group: "social",
-    surfaces: ["desktop", "mobile"],
-    icon: "discord",
-  },
-  {
-    id: "twitter",
-    kind: "external",
-    label: "X / Twitter",
-    href: "https://twitter.com/EffectTS_",
-    target: "_blank",
-    rel: "noopener noreferrer",
-    group: "social",
-    surfaces: ["desktop", "mobile"],
-    icon: "twitter",
   },
 ]
 
-export const getNavigationLinks = (
-  surface: NavigationSurface,
-  group: NavigationGroup,
-): ReadonlyArray<NavigationLink> => {
-  return LANDING_NAVIGATION_LINKS.filter((link) => {
-    return link.group === group && link.surfaces.includes(surface)
-  })
-}
+export const isExternalHref = (href: string): href is `https://${string}` =>
+  href.startsWith("https://")
 
-export const applyVersionToLinks = (
-  version: string,
-  links: ReadonlyArray<NavigationLink>,
-): ReadonlyArray<NavigationLink> => {
-  return links.map((link): NavigationLink => {
-    if (link.kind !== "internal") return link
-    if (link.id === "docs")
-      return { ...link, href: `/docs/${version}` as `/${string}` }
-    return link
-  })
-}
+export const SOCIAL_NAVIGATION_LINKS = [
+  {
+    id: "github",
+    label: "GitHub",
+    href: "https://github.com/Effect-TS/effect",
+  },
+  {
+    id: "discord",
+    label: "Discord",
+    href: "https://discord.gg/effect-ts",
+  },
+] as const

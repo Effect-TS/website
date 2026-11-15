@@ -1,0 +1,37 @@
+---
+import { ArrowRight } from "@lucide/astro"
+
+import type { DocsVersionLink } from "@/lib/versions"
+
+/**
+ * Tells a reader they are on a previous version of the docs and links to the
+ * current one. Most readers reach an old version from a search engine or an
+ * old link, so every page of that version carries it.
+ */
+interface Props {
+  readonly version: string
+  readonly latest: DocsVersionLink
+}
+
+const { version, latest } = Astro.props
+---
+
+<aside
+  aria-label="Version notice"
+  class="mb-8 flex w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground dark:bg-card/40"
+>
+  <p>
+    You're viewing <span class="font-mono text-foreground">{version}</span>, a previous version of
+    Effect.
+  </p>
+  <a
+    href={latest.href}
+    class="group inline-flex items-center gap-1 font-medium text-foreground no-underline"
+  >
+    Switch to {latest.label}
+    <ArrowRight
+      class="size-3.5 transition-transform duration-200 motion-safe:group-hover:translate-x-0.5"
+      aria-hidden="true"
+    />
+  </a>
+</aside>

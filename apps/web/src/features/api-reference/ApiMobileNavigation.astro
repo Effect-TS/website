@@ -1,6 +1,10 @@
 ---
 import { ChevronDown } from "@lucide/astro"
 
+import DocsMobileBar from "@/components/docs/DocsMobileBar.astro"
+import DocsSectionSwitch from "@/components/docs/DocsSectionSwitch.astro"
+import type { DocsVersionLink } from "@/lib/versions"
+
 export interface ApiMobileNavigationItem {
   readonly disabled?: boolean
   readonly href: string
@@ -10,36 +14,29 @@ export interface ApiMobileNavigationItem {
 
 interface Props {
   readonly version: string
-  readonly versions: ReadonlyArray<ApiMobileNavigationItem>
+  readonly versionLinks: ReadonlyArray<DocsVersionLink>
   readonly packages?: ReadonlyArray<ApiMobileNavigationItem>
   readonly modules?: ReadonlyArray<ApiMobileNavigationItem>
 }
 
-const { version, versions, packages = [], modules = [] } = Astro.props
+const { version, versionLinks, packages = [], modules = [] } = Astro.props
 
 const selects = [
-  { label: "Version", items: versions, width: "w-20 shrink-0" },
-  { label: "Package", items: packages, width: "min-w-0 flex-1" },
-  { label: "Module", items: modules, width: "min-w-0 flex-1" },
+  { label: "Package", items: packages },
+  { label: "Module", items: modules },
 ].filter(({ items }) => items.length > 0)
 ---
 
-<nav
-  aria-label="API reference mobile navigation"
-  class="sticky top-[var(--sticky-header-height)] z-30 border-y border-border bg-background/95 backdrop-blur lg:hidden"
->
-  <div class="mx-auto flex h-12 max-w-352 items-center gap-2 px-4">
-    <a
-      href={`/docs/${version}/api`}
-      class="shrink-0 font-mono text-xs font-semibold tracking-wider text-foreground uppercase"
-    >
-      API
-    </a>
-    <span class="shrink-0 text-subtle-foreground" aria-hidden="true">/</span>
+<DocsMobileBar versionLinks={versionLinks}>
+  <DocsSectionSwitch section="api" version={version} orientation="horizontal" />
+</DocsMobileBar>
 
+{/* Scrolls away with the page, so only the section bar stays pinned. */}
+<nav aria-label="API reference mobile navigation" class="border-b border-border lg:hidden">
+  <div class="mx-auto flex h-12 max-w-352 items-center gap-2 px-4">
     {
-      selects.map(({ label, items, width }) => (
-        <label class:list={["relative block", width]}>
+      selects.map(({ label, items }) => (
+        <label class="relative block min-w-0 flex-1">
           <span class="sr-only">{label}</span>
           <select
             aria-label={label}

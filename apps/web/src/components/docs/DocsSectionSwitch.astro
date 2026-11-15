@@ -1,0 +1,57 @@
+---
+import { BookOpen, Braces, Rocket } from "@lucide/astro"
+
+import SidebarLink from "@/components/ui/sidebar/SidebarLink.astro"
+import type { DocsNavSection } from "@/lib/docs-sections"
+import { cn } from "@/lib/utils"
+
+/**
+ * The Onboarding / Guides / Reference switch between the three parts of the
+ * docs. It is a list at the top of the sidebar and of the mobile docs menu, and
+ * a row of tabs in the mobile API reference bar.
+ */
+interface Props {
+  readonly section: DocsNavSection
+  readonly version: string
+  readonly orientation?: "vertical" | "horizontal" | undefined
+}
+
+const { section, version, orientation = "vertical" } = Astro.props
+const horizontal = orientation === "horizontal"
+
+const sections = [
+  { key: "onboarding", label: "Onboarding", href: `/docs/${version}`, Icon: Rocket },
+  { key: "guides", label: "Guides", href: `/docs/${version}/guides`, Icon: BookOpen },
+  { key: "api", label: "Reference", href: `/docs/${version}/api`, Icon: Braces },
+] as const
+---
+
+<ul
+  aria-label="Docs sections"
+  class:list={[
+    "flex gap-0.5",
+    horizontal ? "scrollbar-hide overflow-x-auto px-4 py-2" : "flex-col",
+  ]}
+>
+  {
+    sections.map(({ key, label, href, Icon }) => (
+      <li class="shrink-0">
+        <SidebarLink
+          href={href}
+          active={key === section}
+          class={cn(
+            "flex items-center gap-2.5 text-sm font-medium",
+            horizontal ? "px-2.5 py-1.5" : "-mx-2 px-2 py-2",
+          )}
+        >
+          {/* Labels alone fit a phone-width tab row; the icons do not. */}
+          <Icon
+            class:list={["size-4 shrink-0", horizontal && "hidden sm:block"]}
+            aria-hidden="true"
+          />
+          {label}
+        </SidebarLink>
+      </li>
+    ))
+  }
+</ul>

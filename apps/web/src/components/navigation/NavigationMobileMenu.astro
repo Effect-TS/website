@@ -1,22 +1,32 @@
 ---
-import { Search, X } from "@lucide/astro"
-import type { NavigationActiveSlug, NavigationLink } from "@/lib/navigation"
+import { ArrowUpRight, Search, X } from "@lucide/astro"
+import {
+  isExternalHref,
+  PRIMARY_NAVIGATION,
+  SOCIAL_NAVIGATION_LINKS,
+  type NavigationActiveSlug,
+} from "@/lib/navigation"
 import DiscordIcon from "@/assets/icons/fa7-brands/discord.svg"
 import GitHubIcon from "@/assets/icons/fa7-brands/github.svg"
-import TwitterIcon from "@/assets/icons/fa7-brands/x-twitter.svg"
 import ThemeToggle from "@/components/ui/ThemeToggle"
 
 interface Props {
-  readonly primaryLinks: ReadonlyArray<NavigationLink>
-  readonly socialLinks: ReadonlyArray<NavigationLink>
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly showThemeToggle?: boolean
 }
 
-const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro.props
+const { activeSlug, showThemeToggle = false } = Astro.props
+
+// The drawer has no room for dropdowns: plain links come first, then each menu
+// as a labelled group.
+const links = PRIMARY_NAVIGATION.filter((entry) => entry.kind === "link")
+const menus = PRIMARY_NAVIGATION.filter((entry) => entry.kind === "menu")
+
+const linkClass =
+  "flex items-center gap-1.5 rounded-md px-3 py-2.5 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:bg-zinc-100 aria-[current=page]:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-white"
 ---
 
-<effect-mobile-menu class="ml-auto flex items-center gap-2">
+<effect-mobile-menu class="flex items-center gap-2">
   {
     showThemeToggle && (
       <ThemeToggle client:load className="h-10 w-10 @min-[64rem]/navigation:hidden" />
@@ -70,52 +80,88 @@ const { primaryLinks, socialLinks, activeSlug, showThemeToggle = false } = Astro
         </button>
       </div>
       <nav aria-label="Mobile" class="flex-1 overflow-y-auto px-6 py-6">
-        <div class="space-y-1">
+        <ul class="space-y-1">
           {
-            primaryLinks.map((link) => (
-              <a
-                href={link.href}
-                target={link.kind === "external" ? link.target : undefined}
-                rel={link.kind === "external" ? link.rel : undefined}
-                data-role="menu-link"
-                aria-current={link.id === activeSlug ? "page" : undefined}
-                class:list={[
-                  "block rounded-md px-3 py-2.5 text-[15px] no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white",
-                  link.id === activeSlug
-                    ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
-                    : "text-zinc-600 dark:text-zinc-300",
-                ]}
-              >
-                {link.label}
-              </a>
+            links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  data-role="menu-link"
+                  aria-current={link.id === activeSlug ? "page" : undefined}
+                  class={linkClass}
+                >
+                  {link.label}
+                </a>
+              </li>
             ))
           }
-        </div>
+        </ul>
+
+        {
+          menus.map((menu) => (
+            <section class="mt-6">
+              {/* zinc-400 on the light drawer falls short of AA for text this small. */}
+              <h2
+                id={`mobile-menu-${menu.id}`}
+                class="px-3 pb-1.5 text-[13px] font-semibold text-zinc-500 dark:text-zinc-400"
+              >
+                {menu.label}
+              </h2>
+              <ul aria-labelledby={`mobile-menu-${menu.id}`} class="space-y-1">
+                {menu.items.map((item) => {
+                  const external = isExternalHref(item.href)
+                  return (
+                    <li>
+                      <a
+                        href={item.href}
+                        target={external ? "_blank" : undefined}
+                        rel={external ? "noopener noreferrer" : undefined}
+                        data-role="menu-link"
+                        aria-current={
+                          item.id !== undefined && item.id === activeSlug ? "page" : undefined
+                        }
+                        class={linkClass}
+                      >
+                        {item.label}
+                        {external && (
+                          <>
+                            <ArrowUpRight class="size-3.5 text-zinc-400" aria-hidden="true" />
+                            <span class="sr-only">(opens in a new tab)</span>
+                          </>
+                        )}
+                      </a>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))
+        }
 
         <div class="my-4 h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
-        <div class="space-y-1">
+        <ul class="space-y-1">
           {
-            socialLinks.map((link) => (
-              <a
-                href={link.href}
-                target={link.kind === "external" ? link.target : undefined}
-                rel={link.kind === "external" ? link.rel : undefined}
-                data-role="menu-link"
-                class="flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] text-zinc-600 no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
-              >
-                {link.icon === "discord" ? (
-                  <DiscordIcon class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true" />
-                ) : link.icon === "github" ? (
-                  <GitHubIcon class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true" />
-                ) : (
-                  <TwitterIcon class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true" />
-                )}
-                <span>{link.label}</span>
-              </a>
+            SOCIAL_NAVIGATION_LINKS.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-role="menu-link"
+                  class:list={[linkClass, "gap-3"]}
+                >
+                  {link.id === "discord" ? (
+                    <DiscordIcon class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true" />
+                  ) : (
+                    <GitHubIcon class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true" />
+                  )}
+                  <span>{link.label}</span>
+                </a>
+              </li>
             ))
           }
-        </div>
+        </ul>
 
         <button
           type="button"

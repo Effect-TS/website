@@ -16,7 +16,7 @@ import { splitComment } from "@/features/api-reference/comment-sections"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
-import { DOCS_VERSIONS } from "@/lib/versions"
+import { docsVersionLinks } from "@/lib/versions"
 
 export const prerender = true
 
@@ -40,7 +40,7 @@ export const getStaticPaths = (async () => {
       digests.packageIndex.get(packageIndexKey(entry.data.version, entry.data.packageSlug)),
       // `module:Foo` link resolution and the mobile package switcher.
       digests.symbolIndex.get(entry.data.version),
-      // v3/v4 switcher.
+      // The version menu links to this module in the other versions that have it.
       digests.crossVersion,
     ),
   }))
@@ -81,23 +81,16 @@ const moduleComment = (() => {
   const { summary, sections } = splitComment(apiModule.commentHtml)
   return summary + sections
 })()
-const versionLinks = DOCS_VERSIONS.map(({ value: version, label }) => {
-  const exact = allEntries.find(
+const versionLinks = docsVersionLinks(entry.data.version, (version) =>
+  allEntries.some(
     (candidate) =>
       candidate.data.version === version &&
       candidate.data.packageSlug === entry.data.packageSlug &&
       candidate.data.modulePath === entry.data.modulePath,
   )
-  return {
-    href:
-      exact === undefined
-        ? undefined
-        : `/docs/${exact.data.version}/api/${exact.data.packageSlug}/${exact.data.modulePath}`,
-    version,
-    label,
-  }
-})
-const showVersionSwitch = versionLinks.every(({ href }) => href !== undefined)
+    ? `/docs/${version}/api/${entry.data.packageSlug}/${entry.data.modulePath}`
+    : `/docs/${version}/api`,
+)
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
   if (entry.data.packageName === "effect" && parts[0] === "unstable") {
@@ -130,13 +123,6 @@ const sidebarSections = sections.map((section) => ({
       }),
   })),
 }))
-const mobileVersions = showVersionSwitch
-  ? versionLinks.flatMap(({ href, version }) =>
-      href === undefined
-        ? []
-        : [{ href, label: version, selected: version === entry.data.version }],
-    )
-  : []
 const mobilePackages = Array.from(
   Map.groupBy(
     allEntries.filter((candidate) => candidate.data.version === entry.data.version),
@@ -194,11 +180,12 @@ const tocItems = apiModule.groups.map((group) => ({
   ogImageVersion={entry.data.reflectionDigest}
   activeSlug="api"
   version={entry.data.version}
+  versionLinks={versionLinks}
 >
   <ApiMobileNavigation
     slot="mobile-nav"
     version={entry.data.version}
-    versions={mobileVersions}
+    versionLinks={versionLinks}
     packages={mobilePackages}
     modules={mobileModules}
   />

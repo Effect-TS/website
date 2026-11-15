@@ -1,0 +1,204 @@
+---
+/**
+ * Disclosure behaviour shared by the navbar's menus (Resources, Community, the
+ * docs version menu). The caller supplies a `data-popover-trigger` button and a
+ * `data-popover-panel` sibling holding links; this owns opening, closing and
+ * the panel animation.
+ *
+ * It opens on click. With `hover` it also opens under a mouse pointer; menus
+ * whose rows navigate away (the version menu) leave `hover` off so they never
+ * open while the pointer is only passing over.
+ */
+interface Props {
+  readonly hover?: boolean | undefined
+  readonly class?: string | undefined
+}
+
+const { hover = false, class: className } = Astro.props
+---
+
+<nav-popover class:list={["relative block", className]} data-hover={hover ? "" : undefined}>
+  <slot />
+</nav-popover>
+
+<script>
+  // Long enough for the pointer to cross the gap between trigger and panel.
+  const HOVER_CLOSE_DELAY_MS = 120
+
+  class NavPopoverElement extends HTMLElement {
+    #trigger: HTMLElement | null = null
+    #closeTimer = 0
+    // A hover-opened menu is already showing what a click would reveal, so the
+    // first click keeps it open instead of toggling it shut.
+    #openedByHover = false
+
+    connectedCallback() {
+      this.#trigger = this.querySelector("[data-popover-trigger]")
+      this.addEventListener("click", this.#onClick)
+      this.addEventListener("focusout", this.#onFocusOut)
+      document.addEventListener("keydown", this.#onDocumentKeyDown)
+      document.addEventListener("pointerdown", this.#onDocumentPointerDown)
+      if (this.hasAttribute("data-hover")) {
+        this.addEventListener("pointerenter", this.#onPointerEnter)
+        this.addEventListener("pointerleave", this.#onPointerLeave)
+      }
+    }
+
+    disconnectedCallback() {
+      window.clearTimeout(this.#closeTimer)
+      document.removeEventListener("keydown", this.#onDocumentKeyDown)
+      document.removeEventListener("pointerdown", this.#onDocumentPointerDown)
+    }
+
+    get #open(): boolean {
+      return this.hasAttribute("data-open")
+    }
+
+    #setOpen(open: boolean) {
+      window.clearTimeout(this.#closeTimer)
+      this.#openedByHover = false
+      this.toggleAttribute("data-open", open)
+      this.#trigger?.setAttribute("aria-expanded", String(open))
+    }
+
+    #onClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return
+      if (event.target.closest("[data-popover-trigger]") !== null) {
+        if (this.#open && this.#openedByHover) {
+          this.#openedByHover = false
+        } else {
+          this.#setOpen(!this.#open)
+        }
+      } else if (event.target.closest("a") !== null) {
+        // Closed before leaving, so a back-forward cache restore shows it shut.
+        this.#setOpen(false)
+      }
+    }
+
+    #onPointerEnter = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return
+      window.clearTimeout(this.#closeTimer)
+      if (!this.#open) {
+        this.#setOpen(true)
+        this.#openedByHover = true
+      }
+    }
+
+    #onPointerLeave = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return
+      this.#closeTimer = window.setTimeout(() => this.#setOpen(false), HOVER_CLOSE_DELAY_MS)
+    }
+
+    // On the document, so Escape also dismisses a menu the pointer opened
+    // while keyboard focus is elsewhere. Focus only moves if the menu had it.
+    #onDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !this.#open) return
+      const hadFocus = this.contains(document.activeElement)
+      this.#setOpen(false)
+      if (hadFocus) this.#trigger?.focus()
+    }
+
+    // `relatedTarget` is null when focus leaves the window or a click lands on
+    // something unfocusable; neither is keyboard focus leaving the menu.
+    #onFocusOut = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && !this.contains(event.relatedTarget)) {
+        this.#setOpen(false)
+      }
+    }
+
+    #onDocumentPointerDown = (event: PointerEvent) => {
+      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
+        this.#setOpen(false)
+      }
+    }
+  }
+
+  if (!customElements.get("nav-popover")) {
+    customElements.define("nav-popover", NavPopoverElement)
+  }
+</script>
+
+<style is:global>
+  /* The panel enters from `@starting-style` and leaves by transitioning
+     `display`, so no script has to wait for an animation to end. A caller tunes
+     the motion with the `--popover-*` properties. */
+  [data-popover-panel] {
+    display: none;
+    opacity: 0;
+    translate: 0 var(--popover-exit-y, -3px);
+    transform-origin: var(--popover-origin, top right);
+    transition:
+      opacity 120ms ease-in,
+      translate 120ms ease-in,
+      display 120ms allow-discrete;
+  }
+
+  nav-popover[data-open] > [data-popover-panel] {
+    display: block;
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity var(--popover-enter-duration, 180ms) cubic-bezier(0.16, 1, 0.3, 1),
+      translate var(--popover-enter-duration, 180ms) cubic-bezier(0.16, 1, 0.3, 1),
+      scale var(--popover-enter-duration, 180ms) cubic-bezier(0.16, 1, 0.3, 1),
+      display var(--popover-enter-duration, 180ms) allow-discrete;
+  }
+
+  nav-popover[data-open] [data-popover-stagger] {
+    transition:
+      opacity 200ms ease-out,
+      translate 200ms ease-out;
+    transition-delay: calc(30ms + 25ms * var(--popover-stagger-index, 0));
+  }
+
+  /* The site-wide focus ring sits outside the element, where a menu row's
+     neighbours and the panel edge would clip it; rows draw theirs inset. The
+     selectors outrank the unlayered global `:focus-visible` rules. */
+  nav-popover [data-popover-panel] a:focus-visible {
+    outline: 2px solid var(--color-zinc-400);
+    outline-offset: -2px;
+  }
+
+  .dark nav-popover [data-popover-panel] a:focus-visible {
+    outline-color: var(--color-zinc-500);
+  }
+
+  @starting-style {
+    nav-popover[data-open] > [data-popover-panel] {
+      opacity: 0;
+      translate: 0 var(--popover-enter-y, -4px);
+      scale: 0.98;
+    }
+
+    nav-popover[data-open] [data-popover-stagger] {
+      opacity: 0;
+      translate: 0 -3px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-popover-panel],
+    nav-popover[data-open] > [data-popover-panel] {
+      translate: none;
+      transition:
+        opacity 120ms ease,
+        display 120ms allow-discrete;
+    }
+
+    nav-popover[data-open] [data-popover-stagger] {
+      transition: none;
+    }
+
+    @starting-style {
+      nav-popover[data-open] > [data-popover-panel] {
+        translate: none;
+        scale: none;
+      }
+
+      nav-popover[data-open] [data-popover-stagger] {
+        opacity: 1;
+        translate: none;
+      }
+    }
+  }
+</style>
