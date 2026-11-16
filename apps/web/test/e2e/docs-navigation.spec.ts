@@ -53,6 +53,33 @@ test("a hover-opened menu stays open while a link in it has keyboard focus", asy
   await expect(trigger).toHaveAttribute("aria-expanded", "false")
 })
 
+test("hovering another menu leaves a keyboard-focused menu open until a click switches", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/blog", { waitUntil: "networkidle" })
+  const resources = page.getByRole("button", { name: "Resources" })
+  const community = page.getByRole("button", { name: "Community" })
+  await resources.focus()
+  await page.keyboard.press("Enter")
+  await page.keyboard.press("Tab")
+  const blog = page.locator("#navigation-menu-resources").getByRole("link", {
+    name: /^Blog/,
+  })
+  await expect(blog).toBeFocused()
+
+  await community.hover()
+  await page.waitForTimeout(500)
+  await expect(blog).toBeVisible()
+  await expect(blog).toBeFocused()
+  await expect(community).toHaveAttribute("aria-expanded", "false")
+
+  await community.click()
+  await expect(community).toHaveAttribute("aria-expanded", "true")
+  await expect(resources).toHaveAttribute("aria-expanded", "false")
+  await expect(blog).toBeHidden()
+})
+
 test("the version menu opens on hover, can be crossed into, and Escape dismisses it", async ({
   page,
 }) => {

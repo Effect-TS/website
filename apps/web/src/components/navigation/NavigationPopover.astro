@@ -82,7 +82,12 @@ const { class: className } = Astro.props
     #onPointerEnter = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return
       window.clearTimeout(this.#closeTimer)
-      if (!this.#open) this.#setOpen(true)
+      // Opening would close a menu whose link has keyboard focus, dropping that
+      // focus. Passing over is not a choice to switch; a click still switches.
+      const focusedMenu = document.querySelector(
+        "nav-popover[data-open] [data-popover-panel]:focus-within",
+      )
+      if (!this.#open && focusedMenu === null) this.#setOpen(true)
     }
 
     #onPointerLeave = (event: PointerEvent) => {
