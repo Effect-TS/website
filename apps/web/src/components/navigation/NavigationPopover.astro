@@ -5,58 +5,61 @@
  * `data-popover-panel` sibling holding links; this owns opening, closing and
  * the panel animation.
  *
- * It opens on click. With `hover` it also opens under a mouse pointer; menus
- * whose rows navigate away (the version menu) leave `hover` off so they never
- * open while the pointer is only passing over.
+ * A mouse pointer opens it on hover, and it closes shortly after the pointer
+ * leaves. A click, tap or keypress on the trigger opens it until it is
+ * dismissed: by the trigger again, Escape, a pointer-down outside, or focus
+ * leaving it. Opening one menu closes any other.
  */
 interface Props {
-  readonly hover?: boolean | undefined
   readonly class?: string | undefined
 }
 
-const { hover = false, class: className } = Astro.props
+const { class: className } = Astro.props
 ---
 
-<nav-popover class:list={["relative block", className]} data-hover={hover ? "" : undefined}>
+<nav-popover class:list={["relative block", className]}>
   <slot />
 </nav-popover>
 
 <script>
   // Long enough for the pointer to cross the gap between trigger and panel.
   const HOVER_CLOSE_DELAY_MS = 120
+  const OPEN_EVENT = "nav-popover:open"
 
   class NavPopoverElement extends HTMLElement {
     #trigger: HTMLElement | null = null
     #closeTimer = 0
-    // A hover-opened menu is already showing what a click would reveal, so the
-    // first click keeps it open instead of toggling it shut.
-    #openedByHover = false
+    // Opened by a click, tap or key rather than by hover: the pointer leaving
+    // does not close it. A mouse click lands after the hover that opened the
+    // menu, so it pins the open menu instead of toggling it shut.
+    #pinned = false
 
     connectedCallback() {
       this.#trigger = this.querySelector("[data-popover-trigger]")
       this.addEventListener("click", this.#onClick)
       this.addEventListener("focusout", this.#onFocusOut)
+      this.addEventListener("pointerenter", this.#onPointerEnter)
+      this.addEventListener("pointerleave", this.#onPointerLeave)
       document.addEventListener("keydown", this.#onDocumentKeyDown)
       document.addEventListener("pointerdown", this.#onDocumentPointerDown)
-      if (this.hasAttribute("data-hover")) {
-        this.addEventListener("pointerenter", this.#onPointerEnter)
-        this.addEventListener("pointerleave", this.#onPointerLeave)
-      }
+      document.addEventListener(OPEN_EVENT, this.#onOtherOpen)
     }
 
     disconnectedCallback() {
       window.clearTimeout(this.#closeTimer)
       document.removeEventListener("keydown", this.#onDocumentKeyDown)
       document.removeEventListener("pointerdown", this.#onDocumentPointerDown)
+      document.removeEventListener(OPEN_EVENT, this.#onOtherOpen)
     }
 
     get #open(): boolean {
       return this.hasAttribute("data-open")
     }
 
-    #setOpen(open: boolean) {
+    #setOpen(open: boolean, pinned = false) {
       window.clearTimeout(this.#closeTimer)
-      this.#openedByHover = false
+      this.#pinned = open && pinned
+      if (open && !this.#open) document.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: this }))
       this.toggleAttribute("data-open", open)
       this.#trigger?.setAttribute("aria-expanded", String(open))
     }
@@ -64,28 +67,26 @@ const { hover = false, class: className } = Astro.props
     #onClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return
       if (event.target.closest("[data-popover-trigger]") !== null) {
-        if (this.#open && this.#openedByHover) {
-          this.#openedByHover = false
-        } else {
-          this.#setOpen(!this.#open)
-        }
+        this.#setOpen(!this.#pinned, true)
       } else if (event.target.closest("a") !== null) {
         // Closed before leaving, so a back-forward cache restore shows it shut.
         this.#setOpen(false)
       }
     }
 
+    // Two panels would overlap while the pointer sweeps from one menu to the next.
+    #onOtherOpen = (event: Event) => {
+      if (this.#open && (event as CustomEvent).detail !== this) this.#setOpen(false)
+    }
+
     #onPointerEnter = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return
       window.clearTimeout(this.#closeTimer)
-      if (!this.#open) {
-        this.#setOpen(true)
-        this.#openedByHover = true
-      }
+      if (!this.#open) this.#setOpen(true)
     }
 
     #onPointerLeave = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse") return
+      if (event.pointerType !== "mouse" || this.#pinned) return
       this.#closeTimer = window.setTimeout(() => {
         // Keyboard focus on a link in the panel keeps it open; closing would
         // hide the focused link. It closes once focus leaves, via `focusout`.
