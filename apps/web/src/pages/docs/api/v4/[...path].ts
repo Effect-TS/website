@@ -1,9 +1,5 @@
-import type { APIRoute } from "astro"
+import { legacyApiRedirect } from "@/features/api-reference/legacy-redirect"
 
 export const prerender = false
 
-export const ALL: APIRoute = ({ url }) => {
-  const destination = new URL(url)
-  destination.pathname = `/docs/v4/api${url.pathname.slice("/docs/api/v4".length)}`
-  return Response.redirect(destination, 308)
-}
+export const ALL = legacyApiRedirect("v4")

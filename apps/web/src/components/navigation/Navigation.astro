@@ -1,36 +1,24 @@
 ---
 import AnnouncementBanner from "@/components/AnnouncementBanner.astro"
+import DocsVersionMenu from "@/components/navigation/DocsVersionMenu.astro"
 import NavigationMobileMenu from "@/components/navigation/NavigationMobileMenu.astro"
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLinks from "@/components/navigation/NavigationLinks.astro"
 import { SearchDialog } from "@/components/navigation/SearchDialog"
-import {
-  getNavigationLinks,
-  type NavigationActiveSlug,
-  type NavigationLink,
-} from "@/lib/navigation"
+import type { NavigationActiveSlug } from "@/lib/navigation"
+import type { DocsVersionLink } from "@/lib/versions"
 
 interface Props {
   readonly activeSlug?: NavigationActiveSlug | undefined
+  /** The docs version search is scoped to; the default version when absent. */
   readonly version?: string | undefined
+  /** Docs pages pass their version menu entries; other pages show no menu. */
+  readonly versionLinks?: ReadonlyArray<DocsVersionLink> | undefined
   readonly showThemeToggle?: boolean | undefined
 }
 
-const { activeSlug, version, showThemeToggle = false } = Astro.props
-
-const withVersion = (links: ReadonlyArray<NavigationLink>) =>
-  version === undefined
-    ? links
-    : links.map((link): NavigationLink => {
-        if (link.kind !== "internal") return link
-        if (link.id === "docs") return { ...link, href: `/docs/${version}` as `/${string}` }
-        if (link.id === "api") return { ...link, href: `/docs/${version}/api` as `/${string}` }
-        return link
-      })
-
-const mobilePrimaryLinks = withVersion(getNavigationLinks("mobile", "primary"))
-const mobileSocialLinks = getNavigationLinks("mobile", "social")
+const { activeSlug, version, versionLinks, showThemeToggle = false } = Astro.props
 ---
 
 <div class="sticky top-0 z-100 w-full">
@@ -43,22 +31,34 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
         activeSlug === "playground" ? "max-w-none" : "max-w-352",
       ]}
     >
-      <nav class="flex h-16 items-center">
+      <nav aria-label="Main" class="flex h-16 items-center">
         <NavigationLogo />
 
         <div class="ml-8 hidden items-center gap-6 @min-[64rem]/navigation:flex">
-          <NavigationLinks activeSlug={activeSlug} version={version} />
+          <NavigationLinks activeSlug={activeSlug} />
         </div>
 
-        <NavigationMobileMenu
-          primaryLinks={mobilePrimaryLinks}
-          socialLinks={mobileSocialLinks}
-          activeSlug={activeSlug}
-          showThemeToggle={showThemeToggle}
-        />
+        <div class="ml-auto flex items-center">
+          {
+            /* Shown from `lg`, where the docs bar that otherwise carries it is
+              gone, whether or not the bar's links have collapsed into the
+              drawer. 10px from search: the menu reads as paired with it. */
+          }
+          {
+            versionLinks && (
+              <DocsVersionMenu
+                id="docs-version-menu"
+                links={versionLinks}
+                class="mr-2.5 hidden lg:block"
+              />
+            )
+          }
 
-        <div class="ml-auto hidden items-center gap-4.5 @min-[64rem]/navigation:flex">
-          <NavigationDesktopActions showThemeToggle={showThemeToggle} />
+          <NavigationMobileMenu activeSlug={activeSlug} showThemeToggle={showThemeToggle} />
+
+          <div class="hidden items-center gap-4.5 @min-[64rem]/navigation:flex">
+            <NavigationDesktopActions showThemeToggle={showThemeToggle} />
+          </div>
         </div>
       </nav>
     </header>

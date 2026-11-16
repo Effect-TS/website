@@ -16,7 +16,7 @@ import {
 } from "@/features/api-reference/cache-key"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey } from "@/lib/cache-key"
-import { DOCS_VERSIONS } from "@/lib/versions"
+import { docsVersionLinks } from "@/lib/versions"
 
 interface StaticPathEntry {
   readonly params: {
@@ -82,6 +82,8 @@ export const getStaticPaths = (async () => {
       packageMetadataDigest(path.props.modules[0]!.data),
       // The mobile package switcher spans the whole version.
       versionIndexDigest(entries, version),
+      // The version menu links to this package in the other versions that have it.
+      digests.crossVersion,
     )
   }
 
@@ -125,11 +127,11 @@ const sidebarSections = sections.map((section) => ({
     }
   }),
 }))
-const mobileVersions = DOCS_VERSIONS.map(({ value, label }) => ({
-  href: `/docs/${value}/api/${pkg.slug}`,
-  label,
-  selected: value === version,
-}))
+const versionLinks = docsVersionLinks(version, (target) =>
+  collection.some((entry) => entry.data.version === target && entry.data.packageSlug === pkg.slug)
+    ? `/docs/${target}/api/${pkg.slug}`
+    : `/docs/${target}/api`,
+)
 const mobilePackages = Array.from(
   Map.groupBy(
     collection.filter((entry) => entry.data.version === version),
@@ -179,11 +181,12 @@ function moduleName(modulePath: string, group: string): string {
   ogImageVersion={packageMetadataDigest(modules[0]!.data)}
   activeSlug="api"
   version={version}
+  versionLinks={versionLinks}
 >
   <ApiMobileNavigation
     slot="mobile-nav"
     version={version}
-    versions={mobileVersions}
+    versionLinks={versionLinks}
     packages={mobilePackages}
     modules={mobileModules}
   />

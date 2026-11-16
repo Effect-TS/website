@@ -1,0 +1,59 @@
+---
+import { Check, ChevronDown } from "@lucide/astro"
+
+import NavigationPopover from "@/components/navigation/NavigationPopover.astro"
+import type { DocsVersionLink } from "@/lib/versions"
+
+/**
+ * The docs version control: a chip naming the version being read, opening a
+ * menu of every version. It is the only version control on a docs page, shown
+ * in the navbar and, where the navbar collapses, in the docs bar below it.
+ */
+interface Props {
+  /** Unique per instance; a page renders one in the navbar and one in the docs bar. */
+  readonly id: string
+  readonly links: ReadonlyArray<DocsVersionLink>
+  readonly class?: string | undefined
+}
+
+const { id, links, class: className } = Astro.props
+const current = links.find((link) => link.current)?.label
+---
+
+<NavigationPopover class={className}>
+  <button
+    type="button"
+    data-popover-trigger
+    aria-expanded="false"
+    aria-controls={id}
+    aria-label={`Docs version: ${current}. Change version`}
+    class="group flex h-8 items-center gap-1.5 rounded-md bg-accent pr-2 pl-2.5 font-mono text-[13px] leading-5 font-medium text-foreground transition-colors hover:bg-zinc-300/70 aria-expanded:bg-zinc-300/70 dark:bg-card dark:hover:bg-muted dark:aria-expanded:bg-muted"
+  >
+    {current}
+    <ChevronDown
+      class="size-3.5 transition-transform duration-200 group-aria-expanded:rotate-180 motion-reduce:transition-none"
+      aria-hidden="true"
+    />
+  </button>
+
+  <ul
+    id={id}
+    data-popover-panel
+    class="absolute top-full right-0 z-50 mt-2 w-28 rounded-lg before:absolute before:inset-x-0 before:-top-2.25 before:h-2.25 border border-border bg-background p-1.5 shadow-xl shadow-zinc-950/5 dark:bg-card dark:shadow-black/40"
+  >
+    {
+      links.map((link) => (
+        <li>
+          <a
+            href={link.href}
+            aria-current={link.current ? "page" : undefined}
+            class="flex items-center justify-between rounded-md px-2.5 py-2 font-mono text-[13px] leading-5 font-medium text-foreground no-underline transition-colors hover:bg-muted focus-visible:bg-muted"
+          >
+            {link.label}
+            {link.current && <Check class="size-3.5" aria-hidden="true" />}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</NavigationPopover>

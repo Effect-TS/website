@@ -1,11 +1,14 @@
 ---
-import DocsNavigation from "@/components/navigation/DocsNavigation.astro"
+import DocsSectionSwitch from "@/components/docs/DocsSectionSwitch.astro"
+import DocsVersionNotice from "@/components/docs/DocsVersionNotice.astro"
 import Footer from "@/components/Footer.astro"
+import Navigation from "@/components/navigation/Navigation.astro"
 import SidebarScrollMemory from "@/components/ui/sidebar/SidebarScrollMemory.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import type { DocsNavSection } from "@/lib/docs-sections"
 import type { NavigationActiveSlug } from "@/lib/navigation"
+import { defaultDocsVersion, type DocsVersionLink } from "@/lib/versions"
 
 /**
  * Three-column documentation shell (sidebar / main / table-of-contents) shared
@@ -14,7 +17,9 @@ import type { NavigationActiveSlug } from "@/lib/navigation"
  *   - `toc` present      → right rail from `xl`
  *   - `mobile-nav`       → rendered above the grid (page supplies its own)
  * The shell owns the desktop rail positioning, scrolling, padding, and the main
- * content spacing so Docs and API Reference cannot drift apart.
+ * content spacing so Docs and API Reference cannot drift apart. It also owns
+ * what every docs page shares: the section switch that heads the sidebar, the
+ * navbar's version menu, and the notice on pages of a previous version.
  * See apps/web/DESIGN.md.
  */
 interface Props {
@@ -22,13 +27,24 @@ interface Props {
   readonly description?: string | undefined
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly ogImageVersion?: string | undefined
-  readonly version?: string | undefined
+  readonly version: string
+  /** The version menu's entries for this page; see `docsVersionLinks`. */
+  readonly versionLinks: ReadonlyArray<DocsVersionLink>
   readonly section?: DocsNavSection | undefined
 }
 
-const { title, description, activeSlug = "docs", ogImageVersion, version, section } = Astro.props
+const {
+  title,
+  description,
+  activeSlug = "docs",
+  ogImageVersion,
+  version,
+  versionLinks,
+  section,
+} = Astro.props
 
 const navSection: DocsNavSection = section ?? (activeSlug === "api" ? "api" : "guides")
+const latestVersionLink = versionLinks.find((link) => link.version === defaultDocsVersion)
 
 const hasSidebar = Astro.slots.has("sidebar")
 const hasToc = Astro.slots.has("toc")
@@ -45,7 +61,7 @@ const railClass =
   {...description ? { description } : undefined}
   {...ogImageVersion ? { ogImageVersion } : undefined}
 >
-  <DocsNavigation section={navSection} version={version} />
+  <Navigation activeSlug="docs" version={version} versionLinks={versionLinks} showThemeToggle />
 
   <div class="relative w-full">
     <slot name="mobile-nav" />
@@ -53,8 +69,10 @@ const railClass =
     <div class:list={["mx-auto grid w-full max-w-352 grid-cols-1", gridCols]}>
       {
         hasSidebar && (
-          <aside class="hidden border-r border-border lg:block">
+          <aside aria-label="Docs sidebar" class="hidden border-r border-border lg:block">
             <div data-doc-sidebar-rail class={railClass}>
+              <DocsSectionSwitch section={navSection} version={version} />
+              <hr class="my-4 border-border" />
               <slot name="sidebar" />
             </div>
           </aside>
@@ -62,12 +80,17 @@ const railClass =
       }
 
       <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
+        {
+          version !== defaultDocsVersion && latestVersionLink && (
+            <DocsVersionNotice version={version} latest={latestVersionLink} />
+          )
+        }
         <slot />
       </main>
 
       {
         hasToc && (
-          <aside class="hidden border-l border-border xl:block">
+          <aside aria-label="Page outline" class="hidden border-l border-border xl:block">
             <div class={railClass}>
               <slot name="toc" />
             </div>

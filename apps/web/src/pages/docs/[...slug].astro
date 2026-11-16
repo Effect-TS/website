@@ -3,12 +3,15 @@ import { getCollection, getEntry, render } from "astro:content"
 
 import { ChevronDown, Menu } from "@lucide/astro"
 
+import DocsMobileBar from "@/components/docs/DocsMobileBar.astro"
+import DocsSectionSwitch from "@/components/docs/DocsSectionSwitch.astro"
 import DocsSidebarTree from "@/components/docs/DocsSidebarTree.astro"
 import PrevNextNav from "@/components/ui/PrevNextNav.astro"
 import TableOfContents from "@/components/ui/toc/TableOfContents.astro"
 import DocShell from "@/layouts/DocShell.astro"
 import { cacheKey, digest, sortedRows } from "@/lib/cache-key"
 import { buildDocsSidebar, docsNeighbors } from "@/lib/docs-sections"
+import { DOCS_VERSIONS, docsVersionLinks } from "@/lib/versions"
 
 export const prerender = true
 
@@ -18,6 +21,7 @@ export async function getStaticPaths() {
   const docVersion = (id: string): string => id.split("/")[0] ?? ""
 
   const entries = await getCollection("docs")
+  const entryIds = new Set(entries.map((entry) => entry.id))
 
   // Every page renders its version's whole sidebar, so a page goes stale when a
   // sibling's label or order changes, or when either config file changes — none
@@ -47,14 +51,25 @@ export async function getStaticPaths() {
     )
   }
 
-  return entries.map((entry) => ({
-    params: { slug: entry.id.replace(/\/index$/, "") },
-    props: { entry },
-    cacheKey: cacheKey(entry.digest, sidebarDigests.get(docVersion(entry.id))),
-  }))
+  return entries.map((entry) => {
+    // The versions that have this same page, which the version menu links to.
+    const pagePath = entry.id.slice(docVersion(entry.id).length)
+    const twinVersions = DOCS_VERSIONS.map(({ value }) => value).filter((version) =>
+      entryIds.has(`${version}${pagePath}`),
+    )
+    return {
+      params: { slug: entry.id.replace(/\/index$/, "") },
+      props: { entry, pagePath, twinVersions },
+      cacheKey: cacheKey(
+        entry.digest,
+        sidebarDigests.get(docVersion(entry.id)),
+        twinVersions.join(","),
+      ),
+    }
+  })
 }
 
-const { entry } = Astro.props
+const { entry, pagePath, twinVersions } = Astro.props
 const { Content, headings } = await render(entry)
 
 const currentVersion = entry.id.split("/")[0]
@@ -67,6 +82,9 @@ const currentLabel = entry.data.sidebar?.label ?? entry.data.title
 
 const { prev, next } = docsNeighbors(items, entry.id)
 const docHref = (id: string): string => `/docs/${id.replace(/\/index$/, "")}`
+const versionLinks = docsVersionLinks(currentVersion, (version) =>
+  twinVersions.includes(version) ? docHref(`${version}${pagePath}`) : `/docs/${version}`,
+)
 const prevLink = prev ? { href: docHref(prev.id), label: prev.label } : null
 const nextLink = next ? { href: docHref(next.id), label: next.label } : null
 
@@ -85,14 +103,13 @@ const tocItems = headings
   description={entry.data.description}
   activeSlug="docs"
   version={currentVersion}
+  versionLinks={versionLinks}
   section={section}
 >
   <!-- Mobile docs menu -->
-  <div
-    slot="mobile-nav"
-    class="sticky top-[var(--sticky-header-height)] z-40 border-b border-border bg-background/95 backdrop-blur-sm lg:hidden"
-  >
-    <details class="group">
+  <DocsMobileBar slot="mobile-nav" versionLinks={versionLinks}>
+    {/* Named so the tree's own groups don't rotate their chevrons with this one. */}
+    <details class="group/docs-menu">
       <summary
         class="flex w-full cursor-pointer select-none list-none items-center gap-2 px-4 py-3 text-sm font-medium text-navigation-heading"
       >
@@ -101,18 +118,21 @@ const tocItems = headings
         <span class="text-muted-foreground">/</span>
         <span class="truncate text-muted-foreground">{currentLabel}</span>
         <ChevronDown
-          class="ml-auto h-4 w-4 transition-transform group-open:rotate-180"
+          class="ml-auto h-4 w-4 transition-transform group-open/docs-menu:rotate-180"
           aria-hidden="true"
         />
       </summary>
+      {/* Positioned against the bar, so it spans the full width under it. */}
       <nav
         aria-label="Documentation navigation"
-        class="max-h-[60vh] overflow-y-auto border-t border-border px-4 py-4"
+        class="absolute inset-x-0 top-full max-h-[60vh] overflow-y-auto border-y border-border bg-background px-4 py-4"
       >
+        <DocsSectionSwitch section={section} version={currentVersion} />
+        <hr class="my-4 border-border" />
         <DocsSidebarTree items={items} currentId={entry.id} />
       </nav>
     </details>
-  </div>
+  </DocsMobileBar>
 
   <!-- Desktop sidebar -->
   <nav slot="sidebar" aria-label="Documentation navigation">

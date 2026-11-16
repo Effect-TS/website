@@ -1,0 +1,215 @@
+---
+/**
+ * Disclosure behaviour shared by the navbar's menus (Resources, Community, the
+ * docs version menu). The caller supplies a `data-popover-trigger` button and a
+ * `data-popover-panel` sibling holding links; this owns opening, closing and
+ * the panel animation.
+ *
+ * A mouse pointer opens it on hover, and it closes shortly after the pointer
+ * leaves. A click, tap or keypress on the trigger opens it until it is
+ * dismissed: by the trigger again, Escape, a pointer-down outside, or focus
+ * leaving it. Opening one menu closes any other.
+ */
+interface Props {
+  readonly class?: string | undefined
+}
+
+const { class: className } = Astro.props
+---
+
+<nav-popover class:list={["relative block", className]}>
+  <slot />
+</nav-popover>
+
+<script>
+  // Long enough for the pointer to cross the gap between trigger and panel.
+  const HOVER_CLOSE_DELAY_MS = 120
+  const OPEN_EVENT = "nav-popover:open"
+
+  class NavPopoverElement extends HTMLElement {
+    #trigger: HTMLElement | null = null
+    #closeTimer = 0
+    // Opened by a click, tap or key rather than by hover: the pointer leaving
+    // does not close it. A mouse click lands after the hover that opened the
+    // menu, so it pins the open menu instead of toggling it shut.
+    #pinned = false
+
+    connectedCallback() {
+      this.#trigger = this.querySelector("[data-popover-trigger]")
+      this.addEventListener("click", this.#onClick)
+      this.addEventListener("focusout", this.#onFocusOut)
+      this.addEventListener("pointerenter", this.#onPointerEnter)
+      this.addEventListener("pointerleave", this.#onPointerLeave)
+      document.addEventListener("keydown", this.#onDocumentKeyDown)
+      document.addEventListener("pointerdown", this.#onDocumentPointerDown)
+      document.addEventListener(OPEN_EVENT, this.#onOtherOpen)
+    }
+
+    disconnectedCallback() {
+      window.clearTimeout(this.#closeTimer)
+      document.removeEventListener("keydown", this.#onDocumentKeyDown)
+      document.removeEventListener("pointerdown", this.#onDocumentPointerDown)
+      document.removeEventListener(OPEN_EVENT, this.#onOtherOpen)
+    }
+
+    get #open(): boolean {
+      return this.hasAttribute("data-open")
+    }
+
+    #setOpen(open: boolean, pinned = false) {
+      window.clearTimeout(this.#closeTimer)
+      this.#pinned = open && pinned
+      if (open && !this.#open) document.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: this }))
+      this.toggleAttribute("data-open", open)
+      this.#trigger?.setAttribute("aria-expanded", String(open))
+    }
+
+    #onClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return
+      if (event.target.closest("[data-popover-trigger]") !== null) {
+        this.#setOpen(!this.#pinned, true)
+      } else if (event.target.closest("a") !== null) {
+        // Closed before leaving, so a back-forward cache restore shows it shut.
+        this.#setOpen(false)
+      }
+    }
+
+    // Two panels would overlap while the pointer sweeps from one menu to the next.
+    #onOtherOpen = (event: Event) => {
+      if (this.#open && (event as CustomEvent).detail !== this) this.#setOpen(false)
+    }
+
+    #onPointerEnter = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return
+      window.clearTimeout(this.#closeTimer)
+      // Opening would close a menu whose link has keyboard focus, dropping that
+      // focus. Passing over is not a choice to switch; a click still switches.
+      const focusedMenu = document.querySelector(
+        "nav-popover[data-open] [data-popover-panel]:focus-within",
+      )
+      if (!this.#open && focusedMenu === null) this.#setOpen(true)
+    }
+
+    #onPointerLeave = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse" || this.#pinned) return
+      this.#closeTimer = window.setTimeout(() => {
+        // Keyboard focus on a link in the panel keeps it open; closing would
+        // hide the focused link. It closes once focus leaves, via `focusout`.
+        if (this.querySelector("[data-popover-panel]")?.contains(document.activeElement)) return
+        this.#setOpen(false)
+      }, HOVER_CLOSE_DELAY_MS)
+    }
+
+    // On the document, so Escape also dismisses a menu the pointer opened
+    // while keyboard focus is elsewhere. Focus only moves if the menu had it.
+    #onDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !this.#open) return
+      const hadFocus = this.contains(document.activeElement)
+      this.#setOpen(false)
+      if (hadFocus) this.#trigger?.focus()
+    }
+
+    // `relatedTarget` is null when focus leaves the window or a click lands on
+    // something unfocusable; neither is keyboard focus leaving the menu.
+    #onFocusOut = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && !this.contains(event.relatedTarget)) {
+        this.#setOpen(false)
+      }
+    }
+
+    #onDocumentPointerDown = (event: PointerEvent) => {
+      if (this.#open && event.target instanceof Node && !this.contains(event.target)) {
+        this.#setOpen(false)
+      }
+    }
+  }
+
+  if (!customElements.get("nav-popover")) {
+    customElements.define("nav-popover", NavPopoverElement)
+  }
+</script>
+
+<style is:global>
+  /* The panel enters from `@starting-style` and leaves by transitioning
+     `display`, so no script has to wait for an animation to end. A caller tunes
+     the motion with the `--popover-*` properties. */
+  [data-popover-panel] {
+    display: none;
+    opacity: 0;
+    translate: 0 var(--popover-exit-y, -3px);
+    transform-origin: var(--popover-origin, top right);
+    transition:
+      opacity 120ms ease-in,
+      translate 120ms ease-in,
+      display 120ms allow-discrete;
+  }
+
+  nav-popover[data-open] > [data-popover-panel] {
+    display: block;
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity var(--popover-enter-duration, 180ms) cubic-bezier(0.16, 1, 0.3, 1),
+      translate var(--popover-enter-duration, 180ms) cubic-bezier(0.16, 1, 0.3, 1),
+      scale var(--popover-enter-duration, 180ms) cubic-bezier(0.16, 1, 0.3, 1),
+      display var(--popover-enter-duration, 180ms) allow-discrete;
+  }
+
+  nav-popover[data-open] [data-popover-stagger] {
+    transition:
+      opacity 200ms ease-out,
+      translate 200ms ease-out;
+    transition-delay: calc(30ms + 25ms * var(--popover-stagger-index, 0));
+  }
+
+  /* The site-wide focus ring sits outside the element, where a menu row's
+     neighbours and the panel edge would clip it; rows draw theirs inset. The
+     selectors outrank the unlayered global `:focus-visible` rules. */
+  nav-popover [data-popover-panel] a:focus-visible {
+    outline: 2px solid var(--color-zinc-400);
+    outline-offset: -2px;
+  }
+
+  .dark nav-popover [data-popover-panel] a:focus-visible {
+    outline-color: var(--color-zinc-500);
+  }
+
+  @starting-style {
+    nav-popover[data-open] > [data-popover-panel] {
+      opacity: 0;
+      translate: 0 var(--popover-enter-y, -4px);
+      scale: 0.98;
+    }
+
+    nav-popover[data-open] [data-popover-stagger] {
+      opacity: 0;
+      translate: 0 -3px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-popover-panel],
+    nav-popover[data-open] > [data-popover-panel] {
+      translate: none;
+      transition:
+        opacity 120ms ease,
+        display 120ms allow-discrete;
+    }
+
+    nav-popover[data-open] [data-popover-stagger] {
+      transition: none;
+    }
+
+    @starting-style {
+      nav-popover[data-open] > [data-popover-panel] {
+        translate: none;
+        scale: none;
+      }
+
+      nav-popover[data-open] [data-popover-stagger] {
+        opacity: 1;
+        translate: none;
+      }
+    }
+  }
+</style>

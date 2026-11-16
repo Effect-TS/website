@@ -1,0 +1,89 @@
+---
+import { ArrowUpRight, ChevronDown, ChevronRight } from "@lucide/astro"
+
+import NavigationPopover from "@/components/navigation/NavigationPopover.astro"
+import { isExternalHref, type NavigationActiveSlug, type NavigationMenu } from "@/lib/navigation"
+
+/** A navbar dropdown (Resources, Community): a trigger and a two-column panel of links. */
+interface Props {
+  readonly menu: NavigationMenu
+  readonly activeSlug?: NavigationActiveSlug | undefined
+}
+
+const { menu, activeSlug } = Astro.props
+
+const panelId = `navigation-menu-${menu.id}`
+const isCurrent = (id: NavigationActiveSlug | undefined) => id !== undefined && id === activeSlug
+const containsCurrent = menu.items.some((item) => isCurrent(item.id))
+---
+
+<NavigationPopover>
+  <button
+    type="button"
+    data-popover-trigger
+    aria-expanded="false"
+    aria-controls={panelId}
+    class:list={[
+      "group flex h-6 items-center gap-1 text-sm font-medium transition-colors hover:text-foreground aria-expanded:text-foreground",
+      containsCurrent ? "text-foreground" : "text-navigation-foreground",
+    ]}
+  >
+    {menu.label}
+    <ChevronDown
+      class="size-4 transition-transform duration-200 group-aria-expanded:rotate-180 motion-reduce:transition-none"
+      aria-hidden="true"
+    />
+  </button>
+
+  {
+    /* The top padding is a transparent bridge: the pointer stays inside the
+      menu while it crosses from the trigger to the panel under the bar. */
+  }
+  <div
+    id={panelId}
+    data-popover-panel
+    class="absolute top-full -left-4 z-50 w-136 pt-5 [--popover-enter-duration:200ms] [--popover-enter-y:-6px] [--popover-exit-y:-4px] [--popover-origin:top_left]"
+  >
+    <ul
+      class="grid grid-cols-2 gap-1 rounded-lg border border-border bg-background p-2 shadow-xl shadow-zinc-950/5 dark:bg-card dark:shadow-black/40"
+    >
+      {
+        menu.items.map((item, index) => {
+          const external = isExternalHref(item.href)
+          return (
+            <li data-popover-stagger style={`--popover-stagger-index: ${index}`}>
+              <a
+                href={item.href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+                aria-current={isCurrent(item.id) ? "page" : undefined}
+                class="group/item block h-full rounded-md px-3 py-2.5 no-underline transition-colors hover:bg-muted focus-visible:bg-muted aria-[current=page]:bg-muted"
+              >
+                <span class="flex items-center gap-1 text-sm font-medium text-foreground">
+                  {item.label}
+                  {external ? (
+                    <>
+                      <ArrowUpRight
+                        class="size-3.5 text-muted-foreground transition-transform duration-200 motion-safe:group-hover/item:translate-x-0.5 motion-safe:group-hover/item:-translate-y-0.5"
+                        aria-hidden="true"
+                      />
+                      <span class="sr-only">(opens in a new tab)</span>
+                    </>
+                  ) : (
+                    <ChevronRight
+                      class="size-3.5 text-muted-foreground opacity-0 transition duration-200 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 motion-safe:group-hover/item:translate-x-0.5 motion-safe:group-focus-visible/item:translate-x-0.5"
+                      aria-hidden="true"
+                    />
+                  )}
+                </span>
+                <span class="mt-0.5 block text-[13px] leading-snug text-zinc-500 dark:text-zinc-400">
+                  {item.description}
+                </span>
+              </a>
+            </li>
+          )
+        })
+      }
+    </ul>
+  </div>
+</NavigationPopover>
