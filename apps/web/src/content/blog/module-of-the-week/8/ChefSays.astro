@@ -1,0 +1,29 @@
+---
+// Speech bubble for Chef Arnaldi's interruptions. Chef Arnaldi has one rule
+// about toppings. Pass `angry` for when someone breaks it.
+import { Image } from "astro:assets"
+import calm from "@/assets/blog/module-of-the-week/8/chef-michael.png"
+import angry from "@/assets/blog/module-of-the-week/8/chef-michael-angry.png"
+
+interface Props {
+  angry?: boolean
+}
+const { angry: isAngry = false } = Astro.props
+---
+
+<div class="not-prose my-6 flex items-start gap-3">
+  <Image
+    src={isAngry ? angry : calm}
+    alt=""
+    aria-hidden="true"
+    width={88}
+    height={88}
+    class="size-11 shrink-0 rounded-full border border-border object-cover"
+  />
+  <div
+    class="relative min-w-0 rounded-lg border border-border bg-card/60 px-4 py-3 text-base leading-relaxed text-prose-foreground"
+  >
+    <span class="sr-only">{isAngry ? "Chef Arnaldi shouts:" : "Chef Arnaldi says:"}</span>
+    <slot />
+  </div>
+</div>

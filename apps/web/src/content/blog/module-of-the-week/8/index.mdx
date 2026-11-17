@@ -1,0 +1,697 @@
+---
+pagefind: false
+title: Module of the Week - HttpApi
+slug: module-of-the-week/http-api
+packageName: effect/http-api
+apiModules:
+  - effect/http-api/HttpApi
+  - effect/http-api/HttpApiEndpoint
+  - effect/http-api/HttpApiGroup
+  - effect/http-api/HttpApiBuilder
+  - effect/http-api/HttpApiClient
+  - effect/http-api/HttpApiMiddleware
+  - effect/http-api/HttpApiError
+  - effect/http-api/HttpApiScalar
+  - effect/http-api/OpenApi
+excerpt: We describe an HTTP API once with HttpApi, then try to sneak a pineapple pizza past the typed client, the schemas, the handler, the middleware, and the docs.
+date: 2026-11-16
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import Aside from "@/components/docs/Aside.astro"
+import ReaderAsks from "../5/ReaderAsks.astro"
+import ChefSays from "./ChefSays.astro"
+import OrderTripVisual from "./OrderTripVisual.astro"
+
+Whenever a client talks to a server over HTTP, the two of them are following a wire protocol. The protocol specifies endpoints you can call, what each expects in a request, and the different responses you might get back, errors included.
+
+Both a server and its clients are meant to adhere to the protocol, but in many codebases nothing actually enforces this. Change the server's side of the protocol without updating the client, and you've got a nasty bug that could be catastrophic for your application.
+
+Most APIs get built server first, with a client written to match afterwards. The protocol is just a side effect of that code, wherever the two happen to line up. Effect's `HttpApi` reverses the order. The protocol comes first, written out with Effect Schemas, and the server and the client are both derived from it. When the protocol changes, both sides change with it, because they're built from the same definition.
+
+By the end of this post, you'll know:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>How to define your API's protocol with `HttpApi`</li>
+  <li>How to derive a server and a client from the protocol</li>
+  <li>How handlers, services, and middleware fit together</li>
+</ol>
+
+## The Tuesday incident
+
+Pizzeria Arnaldi takes its orders through an API. Chef Arnaldi runs the kitchen, and has exactly one rule about what goes on a pizza. You can probably guess what it is.
+
+<ReaderAsks>Can I get a pineapple pizza?</ReaderAsks>
+
+<ChefSays>That is simply not possible.</ChefSays>
+
+He's touchy about it, and with good reason. Last Tuesday, somehow, an order made it into his kitchen for a pineapple pizza. Chef Arnaldi was furious, but he has never let a customer down, and he wasn't about to start now.
+
+So he made it.
+
+He hasn't been the same since.
+
+## The post-mortem
+
+Here's how that order got through. Back then, nothing said what an order was supposed to look like. The server and the ordering app each did their own thing, and for a while that was fine.
+
+The server had a route that read the order out of the request and handed it straight to the chef:
+
+```ts showLineNumbers=false title="server.ts"
+app.post("/orders", async (request) => {
+  const order = await request.json()
+  return chef.cook(order)
+})
+```
+
+Look at what's missing. Nothing checks that the request body actually matches the protocol. If it parses as JSON, the chef cooks it.
+
+So the only thing keeping pineapple out was the ordering app. It kept its own list of toppings for the dropdown, and sent whatever the customer picked:
+
+```ts showLineNumbers=false title="app.ts"
+// The toppings in the app's dropdown
+const toppings = ["sausage", "mozzarella", "basil", "mushrooms"]
+
+const placeOrder = (picked: Array<string>) =>
+  fetch("/orders", {
+    method: "POST",
+    body: JSON.stringify({ toppings: picked }),
+  })
+```
+
+That worked for months.
+
+Then, last Tuesday, somebody (definitely not me) added `"pineapple"` to the list in `app.ts`.
+
+Here's Tuesday's order. Press **Send**.
+
+<OrderTripVisual stage="open" />
+
+And that's how Chef Arnaldi ended up making a pineapple pizza.
+
+<ChefSays angry>I don't want to talk about Tuesday.</ChefSays>
+
+There's no shared protocol between the app and the server, so the server has nothing to validate an order against.
+
+<ReaderAsks>
+  Couldn't the app and the server share a TypeScript type?
+</ReaderAsks>
+
+They could, and it'd catch some of this. But types only exist while you're writing code. Once the server is running, `request.json()` hands back whatever it was sent, and there's no type left to check it against. Plus, someone with `curl` doesn't care what your types say.
+
+What we need is for the running server to validate every request body before it gets anywhere near the chef. And to do that, it needs a protocol to validate against.
+
+## Protocol first
+
+Real pizzerias already have one of these. It's the menu. Customers order from it, the kitchen cooks from it, and if something isn't on it, you can't have it. The menu doesn't say anything about how to make a pizza, only what you're allowed to order.
+
+Effect's `HttpApi` makes you start the same way. Before you write any handlers, you write down the protocol for every endpoint. On its own, the protocol doesn't do anything. It's a value that describes your API, and you use it to derive both the server and the client.
+
+## Defining the API
+
+```ts showLineNumbers=false title="api.ts"
+import { Schema } from "effect"
+import {
+  HttpApi,
+  HttpApiEndpoint,
+  HttpApiError,
+  HttpApiGroup,
+} from "effect/http-api"
+
+// Everything Chef Arnaldi is willing to put on a pizza
+export const Topping = Schema.Literals([
+  "sausage",
+  "mozzarella",
+  "basil",
+  "mushrooms",
+])
+
+// What a customer sends
+export const Order = Schema.Struct({
+  toppings: Schema.Array(Topping),
+  // Anything the chef should know
+  notes: Schema.optional(Schema.String),
+})
+
+// What the server sends back
+export const Receipt = Schema.Struct({
+  id: Schema.Int,
+  toppings: Schema.Array(Topping),
+  readyIn: Schema.Duration,
+})
+export type Receipt = typeof Receipt.Type
+
+export const PizzeriaApi = HttpApi.make("pizzeria").add(
+  HttpApiGroup.make("orders").add(
+    // POST /orders
+    // Place an order
+    HttpApiEndpoint.post("place", "/orders", {
+      payload: Order,
+      success: Receipt,
+    }),
+    // GET /orders/:id
+    // Look up an order by its number
+    HttpApiEndpoint.get("recall", "/orders/:id", {
+      params: { id: Schema.Int },
+      success: Receipt,
+      error: HttpApiError.NotFound,
+    }),
+  ),
+)
+```
+
+`Topping`, `Order` and `Receipt` are schemas. You get a TypeScript type from each one, and the server can use them to check orders while it's running.
+
+The `orders` group has two endpoints. `place` takes an `Order` and returns a `Receipt`. `recall` looks up an order by its `:id`, and fails with the built-in `HttpApiError.NotFound` if there's no such order.
+
+Notice there's no handler logic in here. Nothing reads a request, talks to the chef or sends a response. This file is only the protocol for our API.
+
+## Building the server
+
+Next, we need a server that implements the API, and someone to do the cooking. Before we get to any HTTP code, here's Chef Arnaldi:
+
+```ts showLineNumbers=false title="chef.ts"
+import { Context, Duration, Effect, Layer, Option } from "effect"
+import type { Receipt } from "./api"
+
+// Cooks every order, and remembers the ones worth remembering
+export class Chef extends Context.Service<
+  Chef,
+  {
+    readonly cook: (toppings: Receipt["toppings"]) => Effect.Effect<Receipt>
+    readonly remember: (id: number) => Effect.Effect<Option.Option<Receipt>>
+  }
+>()("Chef") {}
+
+// Chef Arnaldi, as a layer
+export const ChefLayer = Layer.sync(Chef, () => {
+  const cooked = new Map<number, Receipt>()
+  return {
+    cook: (toppings) =>
+      Effect.sync(() => {
+        const id = cooked.size + 1
+        const receipt = { id, toppings, readyIn: Duration.minutes(10) }
+        cooked.set(id, receipt)
+        return receipt
+      }),
+    remember: (id) => Effect.sync(() => Option.fromUndefinedOr(cooked.get(id))),
+  }
+})
+```
+
+He's a regular Effect service with two jobs. He can `cook` an order, and `remember` one he's already cooked. He doesn't need to know there's an HTTP API at all.
+
+Hooking him up to the API is the server's job. For every endpoint in the API, the server has a **handler**, which is the code that runs when a request for that endpoint comes in.
+
+```ts showLineNumbers=false title="server.ts" collapse={1-7}
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer, Option } from "effect"
+import { HttpRouter } from "effect/http"
+import { HttpApiBuilder, HttpApiError } from "effect/http-api"
+import { createServer } from "node:http"
+import { Chef, ChefLayer } from "./chef"
+import { PizzeriaApi } from "./api"
+
+// A handler for every endpoint in the "orders" group
+const OrdersLayer = HttpApiBuilder.group(PizzeriaApi, "orders", (handlers) =>
+  Effect.gen(function* () {
+    const chef = yield* Chef
+
+    return handlers.handleAll({
+      place: ({ payload }) => chef.cook(payload.toppings),
+      recall: Effect.fn(function* ({ params }) {
+        const receipt = yield* chef.remember(params.id)
+        if (Option.isNone(receipt)) {
+          return yield* new HttpApiError.NotFound()
+        }
+        return receipt.value
+      }),
+    })
+  }),
+)
+
+// The server for the whole API
+const ServerLayer = HttpApiBuilder.layer(PizzeriaApi).pipe(
+  // The handlers for the "orders" group
+  Layer.provide(OrdersLayer),
+  // Everything else the server needs
+  Layer.provide([
+    // Chef Arnaldi, for the handlers to call
+    ChefLayer,
+  ]),
+  // Serve the API's routes over HTTP
+  HttpRouter.serve,
+  // A Node HTTP server, listening on port 3000
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLayer).pipe(NodeRuntime.runMain)
+```
+
+The handlers barely do anything. There's no `request.json()`, and nothing checks what's in the order. By the time a handler runs, `payload` is already an `Order` and `params.id` is already a number.
+
+The handlers get access to a chef by `yield*`-ing the `Chef` service inside the `HttpApiBuilder.group` closure, with the `ChefLayer` providing the Chef Arnaldi implementation.
+
+<Aside type="caution" title="Every dish needs a cook">
+  It is worth noting that if the `HttpApi` has an endpoint and you forget to
+  handle it, the layer doesn't compile.
+</Aside>
+
+## Smuggling pineapples
+
+Last Tuesday, a pineapple pizza made it all the way to Chef Arnaldi. Let's see if it can happen again. I'm going to try to order one, and each time something stops me, I'll try a different way in.
+
+### Attempt 1: just ask
+
+I'll start with the obvious way in, which is ordering through the app. The app doesn't need to put its requests together by hand any more. `HttpApiClient.make` builds a client from the same API definition the server uses, with one method for every endpoint.
+
+```ts showLineNumbers=false title="app.ts"
+import { Effect } from "effect"
+import { FetchHttpClient } from "effect/http"
+import { HttpApiClient } from "effect/http-api"
+import { PizzeriaApi } from "./api"
+
+const program = Effect.gen(function* () {
+  // A client with a method for every endpoint in the API
+  const client = yield* HttpApiClient.make(PizzeriaApi, {
+    baseUrl: "http://localhost:3000",
+  })
+
+  return yield* client.orders.place({
+    payload: { toppings: ["mozzarella", "basil"] },
+  })
+})
+
+// The client needs an HTTP client to send its requests with,
+// and this one uses the platform's `fetch`
+program.pipe(Effect.provide(FetchHttpClient.layer), Effect.runPromise)
+// { id: 1, toppings: ["mozzarella", "basil"], readyIn: Duration.minutes(10) }
+```
+
+A margherita, no trouble at all. But before I try anything further, I want to know if the server kept a record of the offending order from Tuesday.
+
+The client has a `recall` method for looking up old orders, and Tuesday's order number was `67`.
+
+```ts showLineNumbers=false
+client.orders
+  .recall({ params: { id: 67 } })
+  .pipe(Effect.catchTag("NotFound", () => Effect.succeed("No such order")))
+// "No such order"
+```
+
+Chef Arnaldi doesn't remember order `67`. How convenient.
+
+<ChefSays>What Tuesday?</ChefSays>
+
+It's also worth noting that, because our `HttpApi` specifies that the `recall` endpoint can return a `NotFound` error, our client knows about that error too and can catch it by name.
+
+Now let's try to resubmit the order from Tuesday to our new HTTP API using the client derived from our API specification.
+
+```ts showLineNumbers=false
+client.orders.place({
+  payload: { toppings: ["mozzarella", "pineapple"] },
+  //                                  ~~~~~~~~~~~
+  // Type '"pineapple"' is not assignable to type
+  // '"sausage" | "mozzarella" | "basil" | "mushrooms"'.
+})
+```
+
+This time, my editor underlines `"pineapple"` in red before I've even run it.
+
+<ChefSays>A red squiggle. Beautiful. I'm having it framed.</ChefSays>
+
+Press **Send** anyway, and watch how far it gets.
+
+<OrderTripVisual stage="compiler" />
+
+The client will only accept requests that our specification allows, so we get a compiler error when we try to submit a topping that the API does not allow.
+
+Of course, the compiler can only save you if you use it.
+
+### Attempt 2: skip the compiler
+
+`curl` has never heard of TypeScript. It'll send the server whatever I type.
+
+```sh showLineNumbers=false
+curl -i localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{ "toppings": ["mozzarella", "pineapple"] }'
+
+# HTTP/1.1 400 Bad Request
+```
+
+This time there's no app and no compiler, just `curl`. Press **Send**.
+
+<OrderTripVisual stage="kitchen" />
+
+The kitchen turned it away. Before a handler runs, `HttpApi` checks the request against the endpoint's schemas. `"pineapple"` isn't a `Topping`, so the request fails with a `400 Bad Request`, and so the order never makes it to Chef Arnaldi.
+
+<ReaderAsks>Who wrote that validation? I didn't see any.</ReaderAsks>
+
+Nobody did. It's the `Order` schema from the API definition. In the app, it gave TypeScript the type behind the red squiggle. On the server, the same schema checked the JSON that `curl` sent. A shared TypeScript type only gives us a compiler error, but the Effect Schema allows the server to validate the shape of every request that comes in.
+
+The server does have one problem, though. That `400` came back with an empty body. Whoever sent the order gets told it was bad, but not why, so they can't tell a pineapple from a typo.
+
+However, you can decide how the API behaves in response to schema errors using **middleware**. Just like everything else in an `HttpApi`, middleware must first be defined as part of our API specification.
+
+```ts showLineNumbers=false title="api.ts"
+export class NotOnTheMenu extends Schema.TaggedError<NotOnTheMenu>()(
+  "NotOnTheMenu",
+  { message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
+// Wraps every request, and speaks up when a schema says no
+export class MenuCheck extends HttpApiMiddleware.Service<MenuCheck>()(
+  "MenuCheck",
+  { error: NotOnTheMenu },
+) {}
+
+export const PizzeriaApi = HttpApi.make("pizzeria")
+  .add(/* the orders group, as before */)
+  .middleware(MenuCheck)
+```
+
+Calling `.middleware(MenuCheck)` on the API adds that middleware to every endpoint in the API. You could also call `.middleware` on an `HttpApiGroup` to add it to all endpoints in a group, or on individual `HttpApiEndpoint` definitions.
+
+Once the middleware is part of the specification, it must be implemented. Effect's `HttpApi` has a special middleware for handling schema errors.
+
+`HttpApiMiddleware.layerSchemaErrorTransform` implements a middleware that only runs when a request fails to decode, and lets you send back your own error instead of the empty response:
+
+```ts showLineNumbers=false title="server.ts"
+const MenuCheckLayer = HttpApiMiddleware.layerSchemaErrorTransform(
+  MenuCheck,
+  () =>
+    Effect.fail(new NotOnTheMenu({ message: "That is simply not possible." })),
+)
+```
+
+The server needs the new layer, too:
+
+```ts showLineNumbers=false title="server.ts" ins={8-9}
+const ServerLayer = HttpApiBuilder.layer(PizzeriaApi).pipe(
+  // The handlers for the "orders" group
+  Layer.provide(OrdersLayer),
+  // Everything else the server needs
+  Layer.provide([
+    // Chef Arnaldi, for the handlers to call
+    ChefLayer,
+    // What the server says when a schema turns an order away
+    MenuCheckLayer,
+  ]),
+  // Serve the API's routes over HTTP
+  HttpRouter.serve,
+  // A Node HTTP server, listening on port 3000
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+```
+
+Now try again:
+
+```sh showLineNumbers=false
+curl -i localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{ "toppings": ["mozzarella", "pineapple"] }'
+
+# HTTP/1.1 400 Bad Request
+# {"_tag":"NotOnTheMenu","message":"That is simply not possible."}
+```
+
+<ChefSays>Much better. Now the server talks like me.</ChefSays>
+
+Alright - if we can't exploit the list of toppings, what else could we take advantage of on an order?
+
+### Attempt 3: the notes field
+
+The toppings are locked down, but the `notes` field isn't. It's a `Schema.String`, so it takes any string at all.
+
+```ts showLineNumbers=false
+client.orders.place({
+  payload: { toppings: ["mozzarella"], notes: "add pineapple pls" },
+})
+// { id: 2, toppings: ["mozzarella"], readyIn: Duration.minutes(10) }
+```
+
+It compiles. The server accepts it. Ten minutes later, a pizza arrives, and it's a margherita. Look back at the `place` handler and you'll see why. It only passes `payload.toppings` to the chef, so my very polite note never left the server.
+
+Chef Arnaldi heard about the note later. From now on, he wants every note read. He's happy to go easy on the garlic, or even cut the pizza into squares if he must, but anything mentioning pineapple gets turned down before it reaches his oven.
+
+First, we give this failure an error of its own, `PineappleDetected`, and list it on the `place` endpoint. The error also gets an `httpApiStatus` annotation, which tells `HttpApi` what HTTP status code should be returned for this error:
+
+```ts showLineNumbers=false title="api.ts" ins={1-6, 11}
+export class PineappleDetected extends Schema.TaggedError<PineappleDetected>()(
+  "PineappleDetected",
+  { message: Schema.String },
+  // The status code this error is sent with
+  { httpApiStatus: 422 },
+) {}
+
+HttpApiEndpoint.post("place", "/orders", {
+  payload: Order,
+  success: Receipt,
+  error: PineappleDetected,
+}),
+```
+
+Then the handler uses it:
+
+```ts showLineNumbers=false title="server.ts" ins={2-4}
+place: Effect.fn(function* ({ payload }) {
+  if (/pineapple/i.test(payload.notes ?? "")) {
+    return yield* new PineappleDetected({ message: "Nice try." })
+  }
+  return yield* chef.cook(payload.toppings)
+}),
+```
+
+If the note mentions pineapple, the handler fails with `PineappleDetected` and stops there, so the order never gets passed on to the chef. Any other note, and the pizza gets cooked as usual.
+
+Same order, same note. Press **Send**.
+
+<OrderTripVisual stage="chef" />
+
+This time the order got past the schemas, because there was nothing wrong with its shape. Then the handler read the note and failed with `PineappleDetected`, which came back to me as a `422`.
+
+<ChefSays>There's a status code for pineapple? Who do I thank?</ChefSays>
+
+<ReaderAsks>
+  Why does the error go in the API definition? Couldn't the handler just fail?
+</ReaderAsks>
+
+It can't, actually. A handler can only fail with the expected errors specified in the API definition, or it won't compile. Any defects raised by a handler are returned to the client as a `500 Internal Server Error`. And since the client is built from the same definition, it knows `place` can fail with `PineappleDetected`, so I can catch it by name:
+
+```ts showLineNumbers=false
+client.orders
+  .place({
+    payload: {
+      toppings: ["mozzarella"],
+      notes: "add pineapple pls",
+    },
+  })
+  .pipe(
+    Effect.catchTag("PineappleDetected", (error) =>
+      Effect.succeed(`Chef Arnaldi says: ${error.message}`),
+    ),
+  )
+// "Chef Arnaldi says: Nice try."
+```
+
+Chef Arnaldi now wants to know who keeps writing these notes.
+
+### Attempt 4: stay anonymous
+
+That's bad news for me. Right now, nothing in the API says who placed an order. As long as Chef Arnaldi can't put a name to the notes, I can keep sending them.
+
+His answer is to make customers sign in before they can order. Signing in gives the app a token, and the app sends it along with every request. On the server, **authentication** middleware checks that token before anything else happens, and tells the handler which customer it belongs to. Like everything else, it starts in the API definition:
+
+```ts showLineNumbers=false title="api.ts"
+// The customer who placed the order
+export class Customer extends Context.Service<
+  Customer,
+  { readonly name: string }
+>()("Customer") {}
+
+export class Authentication extends HttpApiMiddleware.Service<
+  Authentication,
+  // Every request it lets through comes with a Customer
+  { provides: Customer }
+>()("Authentication", {
+  // What you get without a valid token
+  error: HttpApiError.Unauthorized,
+  // Customers send the token they got when they signed in
+  security: { token: HttpApiSecurity.bearer },
+}) {}
+```
+
+The middleware has two fields we haven't seen yet. `security` says where to find the token, which here is the request's `Authorization: Bearer` header. `provides` says what the middleware provides to the handler when the token is valid (in this case the `Customer` who is ordering). If the token isn't valid, the request fails with the specified `error` (in this case `Unauthorized`).
+
+The only route that requires authentication is `POST /orders`, so the `Authentication` middleware is only attached to that endpoint:
+
+```ts showLineNumbers=false title="api.ts" ins={5}
+HttpApiEndpoint.post("place", "/orders", {
+  payload: Order,
+  success: Receipt,
+  error: PineappleDetected,
+}).middleware(Authentication),
+```
+
+`Customer` is a service, just like `Chef`, so the handler can `yield*` for it the same way. The difference is where it comes from. Nothing in the server's layers provides a `Customer`. Instead, the `Authentication` middleware is what provides the `Customer` service per-request:
+
+```ts showLineNumbers=false title="server.ts" ins={2, 5} del={4}
+place: Effect.fn(function* ({ payload }) {
+  const customer = yield* Customer
+  if (/pineapple/i.test(payload.notes ?? "")) {
+    return yield* new PineappleDetected({ message: "Nice try." })
+    return yield* new PineappleDetected({ message: `Nice try, ${customer.name}.` })
+  }
+  return yield* chef.cook(payload.toppings)
+}),
+```
+
+On the server, the middleware gets the token, along with the rest of the request as `httpEffect`. If the token belongs to someone, it provides their `Customer` and lets the request carry on. If not, it fails with `HttpApiError.Unauthorized`:
+
+```ts showLineNumbers=false title="server.ts"
+// A mock of a real sign-in system, just for this example.
+// It maps each signed-in token to the customer it belongs to.
+const signedIn = new Map([
+  ["4f9c2e", "sebastian"],
+  ["b71d08", "maxwell"],
+])
+
+const AuthenticationLayer = Layer.succeed(Authentication, {
+  token: (httpEffect, { credential }) => {
+    const name = signedIn.get(Redacted.value(credential))
+    return name === undefined
+      ? Effect.fail(new HttpApiError.Unauthorized())
+      : Effect.provideService(httpEffect, Customer, { name })
+  },
+})
+```
+
+Add it to the server like the others:
+
+```ts showLineNumbers=false title="server.ts" ins={10-11}
+const ServerLayer = HttpApiBuilder.layer(PizzeriaApi).pipe(
+  // The handlers for the "orders" group
+  Layer.provide(OrdersLayer),
+  // Everything else the server needs
+  Layer.provide([
+    // Chef Arnaldi, for the handlers to call
+    ChefLayer,
+    // What the server says when a schema turns an order away
+    MenuCheckLayer,
+    // Checks who's ordering
+    AuthenticationLayer,
+  ]),
+  // Serve the API's routes over HTTP
+  HttpRouter.serve,
+  // A Node HTTP server, listening on port 3000
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+```
+
+So I'll try to place my order without authenticating, and send the note with no token at all. If there's no token, there's no name to put on it. Press **Send**.
+
+<OrderTripVisual stage="auth" />
+
+<ChefSays>No name, no pizza.</ChefSays>
+
+It's feeling less and less likely that I'll get Chef Arnaldi to make another pineapple pizza...
+
+### Attempt 5: read the fine print
+
+I'm out of tricks. If I'm going to get a pineapple pizza out of this place, I'll have to find a loophole.
+
+Chef Arnaldi wants customers to know what they can order, so he's adding docs to the API. That's one more layer on the server:
+
+```ts showLineNumbers=false title="server.ts" ins={12-13}
+const ServerLayer = HttpApiBuilder.layer(PizzeriaApi).pipe(
+  // The handlers for the "orders" group
+  Layer.provide(OrdersLayer),
+  // Everything else the server needs
+  Layer.provide([
+    // Chef Arnaldi, for the handlers to call
+    ChefLayer,
+    // What the server says when a schema turns an order away
+    MenuCheckLayer,
+    // Checks who's ordering, before anything else
+    AuthenticationLayer,
+    // A documentation page at /docs, built from the API specification
+    HttpApiScalar.layer(PizzeriaApi),
+  ]),
+  // Serve the API's routes over HTTP
+  HttpRouter.serve,
+  // A Node HTTP server, listening on port 3000
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+```
+
+`HttpApiScalar` builds a documentation page from the API specification, and serves it at `localhost:3000/docs`. It lists every endpoint, every schema, every error with its status code, and the token you need to place an order. And because it's built from the API specification, it updates whenever you make changes to the API so your documentation never goes out of sync.
+
+Under the hood, the page is backed by an [OpenAPI](https://www.openapis.org) document. `OpenApi.fromApi(PizzeriaApi)` gives you that document as JSON, which you can hand to any tool that understands OpenAPI.
+
+I read every line of it, looking for a loophole. Chef Arnaldi got there first. **Annotations** add notes to the docs without changing what the API accepts:
+
+```ts showLineNumbers=false title="api.ts" ins={1, 8-10, 17}
+import { OpenApi } from "effect/http-api"
+
+export const Topping = Schema.Literals([
+  "sausage",
+  "mozzarella",
+  "basil",
+  "mushrooms",
+]).annotate({
+  description: "Pineapple is not a topping. Do not ask.",
+})
+
+HttpApiEndpoint.post("place", "/orders", {
+  payload: Order,
+  success: Receipt,
+  error: PineappleDetected,
+})
+  .annotate(OpenApi.Summary, "Order a pizza")
+  .middleware(Authentication),
+```
+
+The `description` goes on the `Topping` schema, so it shows up everywhere toppings do. `OpenApi.Summary` gives the `place` endpoint a one-line title on the docs page.
+
+Here's the fine print now:
+
+```json showLineNumbers=false
+"toppings": {
+  "type": "array",
+  "items": {
+    "type": "string",
+    "enum": ["sausage", "mozzarella", "basil", "mushrooms"],
+    "description": "Pineapple is not a topping. Do not ask."
+  }
+}
+```
+
+<ChefSays>
+  I also put it in the error messages, the receipts, and my will.
+</ChefSays>
+
+Yes, Chef.
+
+## Wrapping up
+
+That's it for this week! To recap what we've learned:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>An `HttpApi` defines your API's protocol with schemas.</li>
+  <li>The server and the client are both derived from it.</li>
+  <li>Every request is checked against the schemas before a handler runs.</li>
+  <li>
+    Handlers can only fail with declared errors, and the client gets them typed.
+  </li>
+  <li>Middleware can turn requests away and provide services to handlers.</li>
+  <li>Docs and an OpenAPI document are generated from the same definition.</li>
+</ul>
+
+All of the code from this post is [on GitHub](https://github.com/Effect-TS/office-hours/tree/main/packages/module-of-the-week/src/0008-http-api), if you'd like to try ordering a pineapple pizza yourself.
+
+Until next time, Happy Effecting!
