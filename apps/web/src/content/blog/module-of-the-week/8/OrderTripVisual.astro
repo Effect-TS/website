@@ -1,0 +1,468 @@
+---
+// An order travels along a line of stations and stops at the one that decides
+// what happens to it. Each `stage` is a fixed order for one section of the
+// post, so the only control is Send.
+//
+// The picture tells the story, so text is kept to one word per station and
+// the status code. The order is a small token: its toppings, a note, or (for
+// authentication) the anonymous customer. Chef Arnaldi's station is his face,
+// which turns angry when pineapple reaches him.
+//
+// The stations are in the order HttpApi runs them: middleware, then the
+// payload schema, then the handler.
+
+import { getImage } from "astro:assets"
+import calm from "@/assets/blog/module-of-the-week/8/chef-michael.png"
+import angry from "@/assets/blog/module-of-the-week/8/chef-michael-angry.png"
+
+type Stage = "open" | "compiler" | "kitchen" | "chef" | "auth"
+interface Props {
+  stage: Stage
+}
+const { stage } = Astro.props
+
+interface Station {
+  name: string
+  chef?: boolean
+  // Skipped on the way, drawn dashed
+  bypassed?: boolean
+}
+interface Scenario {
+  token: string
+  // What the token becomes if it's served
+  served?: string
+  stations: Array<Station>
+  decides: number
+  verdict: string
+  // Whether Chef Arnaldi sees pineapple, and is angry about it
+  furious: boolean
+  // For screen readers, since the picture carries the story
+  label: string
+}
+
+const app = { name: "App" }
+const compiler = { name: "Compiler" }
+const kitchen = { name: "Kitchen" }
+const chef = { name: "Chef", chef: true }
+
+const scenarios: Record<Stage, Scenario> = {
+  open: {
+    token: "🧀🍍",
+    served: "🍕🍍",
+    stations: [app, { name: "Kitchen", chef: true }],
+    decides: 1,
+    verdict: "200",
+    furious: true,
+    label:
+      "A mozzarella and pineapple order goes from the app straight to the kitchen, and is served.",
+  },
+  compiler: {
+    token: "🧀🍍",
+    stations: [app, compiler, kitchen, chef],
+    decides: 1,
+    verdict: "Type error",
+    furious: false,
+    label:
+      "A mozzarella and pineapple order is stopped by a type error from the compiler, and never sent.",
+  },
+  kitchen: {
+    token: "🧀🍍",
+    stations: [{ name: "curl" }, { ...compiler, bypassed: true }, kitchen, chef],
+    decides: 2,
+    verdict: "400",
+    furious: false,
+    label:
+      "A mozzarella and pineapple order sent with curl skips the compiler, and is turned away by the kitchen with a 400.",
+  },
+  chef: {
+    token: "🧀📝",
+    stations: [app, compiler, kitchen, chef],
+    decides: 3,
+    verdict: "422",
+    furious: true,
+    label:
+      "A mozzarella order with a note asking for pineapple gets into the kitchen, and Chef Arnaldi rejects it with a 422.",
+  },
+  auth: {
+    token: "🥷",
+    stations: [app, compiler, { name: "Auth" }, kitchen, chef],
+    decides: 2,
+    verdict: "401",
+    furious: false,
+    label:
+      "An order sent without a sign-in token is turned away by authentication with a 401, before anyone reads it.",
+  },
+}
+
+const s = scenarios[stage]
+const [calmSrc, angrySrc] = await Promise.all([
+  getImage({ src: calm, width: 160, height: 160 }),
+  getImage({ src: angry, width: 160, height: 160 }),
+])
+---
+
+<figure
+  class="ot"
+  data-order-trip
+  data-decides={s.decides}
+  data-served={s.served ?? ""}
+  data-token={s.token}
+  data-furious={String(s.furious)}
+  data-angry-src={angrySrc.src}
+  data-calm-src={calmSrc.src}
+  aria-label={s.label}
+>
+  <div class="ot-track" style={`--n: ${s.stations.length}`} data-track>
+    <span class="ot-token" data-ot-token aria-hidden="true">{s.token}</span>
+    <ol class="ot-stations">
+      {
+        s.stations.map((station, i) => (
+          <li
+            class:list={[
+              "ot-station",
+              station.bypassed && "is-bypassed",
+              station.chef && "is-chef",
+            ]}
+            data-station={i}
+          >
+            {station.chef ? (
+              <img
+                class="ot-dot ot-face"
+                src={calmSrc.src}
+                alt=""
+                width="80"
+                height="80"
+                data-face
+              />
+            ) : (
+              <span class="ot-dot" aria-hidden="true" />
+            )}
+            <span class="ot-name">{station.name}</span>
+            <span class="ot-verdict">{i === s.decides ? s.verdict : ""}</span>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+  <div class="ot-controls">
+    <button type="button" class="ot-send" data-send>Send</button>
+  </div>
+  <p class="ot-sr" aria-live="polite" data-ot-live></p>
+</figure>
+
+<script>
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-order-trip]")) {
+    const decides = Number(root.dataset.decides)
+    const served = root.dataset.served ?? ""
+    const furious = root.dataset.furious === "true"
+    const track = root.querySelector<HTMLElement>("[data-track]")!
+    const token = root.querySelector<HTMLElement>("[data-ot-token]")!
+    const send = root.querySelector<HTMLButtonElement>("[data-send]")!
+    const live = root.querySelector<HTMLElement>("[data-ot-live]")!
+    const face = root.querySelector<HTMLImageElement>("[data-face]")
+    const stations = [...root.querySelectorAll<HTMLElement>("[data-station]")]
+    let at = 0
+    // Bumped on every Send, so a trip that's still running knows to stop
+    let generation = 0
+
+    // The middle of station i's dot, across the track
+    const xOf = (i: number) => {
+      const dot = stations[i]!.querySelector<HTMLElement>(".ot-dot")!
+      const t = track.getBoundingClientRect()
+      const d = dot.getBoundingClientRect()
+      return d.left + d.width / 2 - t.left
+    }
+    const place = (i: number) => {
+      at = i
+      token.style.transform = `translateX(calc(${xOf(i)}px - 50%))`
+    }
+    const pause = (ms: number) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms))
+    const move = async (i: number) => {
+      const from = token.style.transform
+      place(i)
+      if (reduceMotion()) return
+      await token
+        .animate([{ transform: from }, { transform: token.style.transform }], {
+          duration: 500,
+          easing: "cubic-bezier(0.3, 0.7, 0.2, 1)",
+        })
+        .finished.catch(() => undefined)
+    }
+
+    const reset = () => {
+      root.classList.remove("is-done", "is-stopped", "is-served")
+      for (const el of stations) el.classList.remove("is-past", "is-decided", "is-future")
+      token.textContent = root.dataset.token ?? ""
+      if (face) face.src = root.dataset.calmSrc!
+      live.textContent = ""
+      place(0)
+    }
+
+    send.addEventListener("click", async () => {
+      const run = ++generation
+      reset()
+      send.disabled = true
+      await pause(150)
+      for (let i = 1; i <= decides; i++) {
+        stations[i - 1]!.classList.add("is-past")
+        await move(i)
+        if (run !== generation) return
+        if (i < decides) await pause(120)
+      }
+
+      stations.forEach((el, i) => {
+        el.classList.toggle("is-decided", i === decides)
+        el.classList.toggle("is-future", i > decides)
+      })
+      root.classList.add("is-done", served ? "is-served" : "is-stopped")
+      if (served) token.textContent = served
+      if (face && furious && stations[decides]!.contains(face)) face.src = root.dataset.angrySrc!
+      if (!served && !reduceMotion()) {
+        token.animate(
+          [
+            { translate: "0 0" },
+            { translate: "-4px 0" },
+            { translate: "4px 0" },
+            { translate: "0 0" },
+          ],
+          { duration: 240, iterations: 2 },
+        )
+      }
+      live.textContent = root.getAttribute("aria-label") ?? ""
+      send.textContent = "Send again"
+      send.disabled = false
+    })
+
+    new ResizeObserver(() => place(at)).observe(track)
+    reset()
+  }
+</script>
+
+<style is:global>
+  .ot {
+    --ot-ink: #3f3f46;
+    --ot-muted: #71717a;
+    --ot-faint: #d4d4d8;
+    --ot-line: #e4e4e7;
+    --ot-surface: #ffffff;
+    --ot-card: #fafafa;
+    --ot-stop: #dc2626;
+    --ot-ok: #007a5e;
+    /* Chef Arnaldi's face is bigger than the other stations, so he can be
+       seen fuming. The other dots sit centred on the same line. */
+    --ot-dot: 2.25rem;
+    --ot-face: 4rem;
+    margin: 1.5rem 0;
+    border: 1px solid var(--ot-line);
+    border-radius: 0.9rem;
+    background: var(--ot-card);
+    overflow: hidden;
+  }
+  html.dark .ot {
+    --ot-ink: #e4e4e7;
+    --ot-muted: #a1a1aa;
+    --ot-faint: #3f3f46;
+    --ot-line: #27272a;
+    --ot-surface: #09090b;
+    --ot-card: #0f0f12;
+    --ot-stop: #f87171;
+    --ot-ok: #3cc39b;
+  }
+
+  /* The line of stations, with the order riding above it */
+  .ot-track {
+    position: relative;
+    padding: 0.9rem 0.5rem 1rem;
+    background: var(--ot-surface);
+  }
+  .ot-token {
+    position: absolute;
+    top: 0.9rem;
+    left: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    height: 1.9rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--ot-ink);
+    border-radius: 0.45rem;
+    background: var(--ot-surface);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+    font-size: 1rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .ot.is-stopped .ot-token {
+    border-color: var(--ot-stop);
+  }
+  .ot.is-served .ot-token {
+    border-color: var(--ot-ok);
+    font-size: 1.2rem;
+  }
+
+  .ot .ot-stations {
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    margin: 2.6rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ot .ot-station {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+  .ot .ot-station::before,
+  .ot .ot-station::marker {
+    content: none;
+  }
+  /* The line from the previous station, behind the dots */
+  .ot-station + .ot-station::after {
+    content: "";
+    position: absolute;
+    top: calc(var(--ot-face) / 2);
+    right: 50%;
+    width: 100%;
+    border-top: 1.5px solid var(--ot-line);
+    transform: translateY(-50%);
+  }
+  .ot .ot-dot {
+    z-index: 1;
+    box-sizing: border-box;
+    width: var(--ot-dot);
+    height: var(--ot-dot);
+    margin: calc((var(--ot-face) - var(--ot-dot)) / 2) 0;
+    border: 1.5px solid var(--ot-muted);
+    border-radius: 999px;
+    background: var(--ot-surface);
+    transition: border-color 200ms ease;
+  }
+  .ot .ot-face {
+    width: var(--ot-face);
+    height: var(--ot-face);
+    margin: 0;
+    object-fit: cover;
+    border-width: 2.5px;
+  }
+  .ot-name {
+    font-size: 0.8rem;
+    color: var(--ot-ink);
+  }
+  .ot-verdict {
+    min-height: 1.1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .ot-station.is-bypassed .ot-dot {
+    border-style: dashed;
+  }
+  .ot-station.is-bypassed .ot-name {
+    color: var(--ot-muted);
+  }
+  .ot-station.is-past:not(.is-bypassed) .ot-dot {
+    border-color: var(--ot-ink);
+  }
+  .ot-station.is-past::after,
+  .ot-station.is-decided::after {
+    border-top-color: var(--ot-ink);
+  }
+
+  /* The station that decides is the only one with colour */
+  .ot-station.is-decided {
+    --c: var(--ot-stop);
+  }
+  .ot.is-served .ot-station.is-decided {
+    --c: var(--ot-ok);
+  }
+  .ot-station.is-decided .ot-dot {
+    border-color: var(--c);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 25%, transparent);
+  }
+  .ot-station.is-decided .ot-name {
+    font-weight: 600;
+    color: var(--c);
+  }
+  .ot-station.is-decided .ot-verdict {
+    color: var(--c);
+    opacity: 1;
+  }
+
+  /* Never reached */
+  .ot-station.is-future .ot-dot {
+    border-color: var(--ot-faint);
+  }
+  .ot-station.is-future .ot-face {
+    opacity: 0.4;
+  }
+  .ot-station.is-future .ot-name {
+    color: var(--ot-muted);
+    opacity: 0.6;
+  }
+  .ot-station.is-future::after {
+    border-top-style: dashed;
+  }
+
+  .ot-controls {
+    display: flex;
+    justify-content: center;
+    padding: 0.7rem;
+    border-top: 1px solid var(--ot-line);
+  }
+  .ot-send {
+    padding: 0.35rem 1rem;
+    border: 1.5px solid var(--ot-ink);
+    /* The same corners as the site's buttons */
+    border-radius: var(--radius-md, 6px);
+    background: var(--ot-ink);
+    font-size: 0.85rem;
+    color: var(--ot-surface);
+    cursor: pointer;
+  }
+  .ot-send:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .ot-send:focus-visible {
+    outline: 2px solid var(--ot-ink);
+    outline-offset: 2px;
+  }
+
+  .ot .ot-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 560px) {
+    .ot {
+      --ot-dot: 1.75rem;
+      --ot-face: 3.25rem;
+    }
+    .ot-name,
+    .ot-verdict {
+      font-size: 0.72rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ot .ot-dot,
+    .ot-verdict {
+      transition: none;
+    }
+  }
+</style>
