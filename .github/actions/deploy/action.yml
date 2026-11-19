@@ -45,6 +45,10 @@ inputs:
     description: Public PostHog API host
     required: false
     default: https://us.i.posthog.com
+  public-reo-client-id:
+    description: Public Reo.Dev client ID
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -84,6 +88,7 @@ runs:
       env:
         PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
         PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        PUBLIC_REO_CLIENT_ID: ${{ inputs.public-reo-client-id }}
 
     - name: Deploy website to Cloudflare
       shell: bash
@@ -102,6 +107,7 @@ runs:
         KV_REST_API_TOKEN: ${{ inputs.kv-rest-api-token }}
         PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
         PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        PUBLIC_REO_CLIENT_ID: ${{ inputs.public-reo-client-id }}
         GITHUB_TOKEN: ${{ github.token }}
         WEBSITE_REVISION: ${{ inputs.website-ref }}
         FORCE_FULL_BUILD: ${{ inputs.force-full-build }}
