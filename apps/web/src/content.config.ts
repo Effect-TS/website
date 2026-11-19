@@ -79,6 +79,8 @@ const merch = defineCollection({
 const effectJobs = defineCollection({
   loader: file("./src/content/effect-jobs.json"),
   schema: z.object({
+    // When this role was first listed on the site, not when its details were last edited.
+    addedOn: z.iso.date(),
     company: z.string(),
     role: z.string(),
     location: z.string().optional(),
