@@ -49,9 +49,11 @@ html {
 
   .docs-tabs-list {
     display: flex;
-    border-bottom: 1px solid currentColor;
-    border-bottom-color: oklch(from currentColor l c h / 0.15);
+    /* Inset shadow instead of a border so the active tab's underline can
+       cover it without overflowing the rail (which would scroll vertically) */
+    box-shadow: inset 0 -1px 0 oklch(from currentColor l c h / 0.15);
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
   }
 
@@ -86,7 +88,6 @@ html {
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
@@ -772,6 +773,12 @@ a:focus-visible {
    the rules above so it wins over them and over any utility class. */
 [data-surface="dark"] :focus-visible {
   outline-color: var(--color-white);
+}
+
+/* The docs tabs rail scrolls horizontally, which clips anything drawn outside
+   it, so draw the tab focus ring inside the button. */
+.docs-tabs-list [role="tab"]:focus-visible {
+  outline-offset: -2px;
 }
 
 /* Visual Effect Tab Styles */
