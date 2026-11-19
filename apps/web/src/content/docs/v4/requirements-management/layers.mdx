@@ -842,7 +842,7 @@ const server = Layer.effect(
   HTTPServer,
   Effect.gen(function* () {
     const host = yield* Config.String("HOST")
-    console.log(`Listening on http://localhost:${host}`)
+    console.log(`Listening on http://${host}`)
   }),
 ).pipe(
   // Log a message if the layer acquisition succeeds
@@ -857,7 +857,8 @@ Effect.runFork(Layer.launch(server))
 /*
 Output:
 layer acquisition failed with:
-(Missing data at HOST: "Expected HOST to exist in the process context")
+ConfigError(SchemaError(Expected string
+  at ["HOST"]))
 */
 ```
 
@@ -881,7 +882,7 @@ const server = Layer.effect(
   HTTPServer,
   Effect.gen(function* () {
     const host = yield* Config.String("HOST")
-    console.log(`Listening on http://localhost:${host}`)
+    console.log(`Listening on http://${host}`)
   }),
 ).pipe(
   // Recover from errors during layer construction
@@ -900,7 +901,8 @@ Effect.runFork(Layer.launch(server))
 /*
 Output:
 Recovering from error:
-(Missing data at HOST: "Expected HOST to exist in the process context")
+ConfigError(SchemaError(Expected string
+  at ["HOST"]))
 Listening on http://localhost:3000
 ...
 */
