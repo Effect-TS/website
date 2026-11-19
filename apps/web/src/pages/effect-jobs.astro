@@ -4,7 +4,14 @@ import { ArrowUpRightIcon, PlusIcon } from "@lucide/astro"
 import PageLayout from "@/layouts/PageLayout.astro"
 import GridBackground from "@/components/GridBackground.astro"
 
-const jobs = (await getCollection("effectJobs")).map((e) => e.data)
+const jobs = (await getCollection("effectJobs"))
+  .map((e) => e.data)
+  .sort(
+    (a, b) =>
+      b.addedOn.localeCompare(a.addedOn) ||
+      a.company.localeCompare(b.company, "en") ||
+      a.role.localeCompare(b.role, "en"),
+  )
 const logos = (await getCollection("effectJobsLogos")).map((e) => e.data)
 
 const lgRemainder = jobs.length % 3
