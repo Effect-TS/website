@@ -1,0 +1,170 @@
+---
+pagefind: false
+title: This Week in Effect - 145
+excerpt: "Effect 4.1.5 release. Module of the Week delves into HttpApi. Devin Jameson joins the Effect team to bring Foldkit under the Effect umbrella, and Maximilian Schwarzmüller joins the Effect Days speaker lineup!"
+date: 2026-11-23
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters! Welcome back to This Week in Effect, your weekly roundup of news from the Effect community and ecosystem.
+
+**Recent major announcements:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect Days 2026](https://www.effect.website/effect-days) ✨
+
+## Technology
+
+New [Module of the Week](https://effect.website/blog/module-of-the-week/http-api) post by [Maxwell Brown](https://x.com/maxwellbrown), delving into **HttpApi**.
+
+<Tweet id="2122732480994103718" />
+
+### Effect v4 updates.
+
+Effect 4.1.5 went out on Friday, and the week brought new chat integrations, more protobuf and crypto building blocks, and another round of fixes across the codebase.
+
+- **Additions**: Added `effect/chat` with `@effect/chat-slack`, `@effect/chat-discord` and `@effect/chat-whatsapp`, `effect/crypto/Password` for storing passwords as PHC strings with Argon2id or PBKDF2, `effect/workers/SharedMemory` for sharing typed arrays with workers, and a `CloudflareTracer` in `platform-cloudflare`. Protobuf gained `ProtobufDescriptor` and `ProtobufMessage` to work with messages by descriptor, without Schema, and `Xml` gained `Xml.toEvents` and strict namespace processing. Also added per-procedure RPC tracing, `staleTime` for HTTP and non-stream RPC atom queries, a tracing span around each SQL `Migrator` run, and captured `TestConsole` output for warning, info, debug and trace levels.
+
+- **Behavior changes**: Zoneless `DateTime` strings such as `2024-1-15` are now parsed as UTC instead of local time. `Result.Success` is serialized under `success` instead of `value` in `toJSON` and `JSON.stringify`, and `SchemaGetter` base64, hex and URI component encoders report an invalid value when they meet an unpaired UTF-16 surrogate. Negative zero is now encoded as `"-0"` in `Schema.NumberFromString`, `Schema.FiniteFromString` and `Schema.toCodecStringTree`, and explicit `HttpRouter` routes take precedence over a wildcard at their bare prefix.
+
+- **AI & MCP**: Typed toolkit handlers can now return native MCP content blocks, and `McpServer` sends tool model output as tool result content. Fixed `McpServer` toolkit registration growing with the square of the tool count, MCP tools marked `Tool.Readonly` being listed as destructive, `LanguageModel.streamText` dropping approved tool results when tool call resolution is disabled, and RPC and MCP stdio serving stopping after a malformed NDJSON line. Bedrock now honors tool model output and handles non-object tool results, OpenRouter gets tool result file parts as content items, and OpenAI streamed refusal explanations are preserved.
+
+- **Cluster & workflow**: Fixed stranded shards after persistent runner lock failures, held entity keep-alive requests completing on redelivery, premature workflow finalizers on durable wakeups, and activity restart loops after durable clock wakeups with SQL storage. Workflow activity replies stay available for same-runner redelivery, and `ClusterCron` entities are annotated with their schedule.
+
+- **HTTP, RPC & platform**: Server spans and request logs can now redact secret path params with `redactedParams`. `NodeHttpServer` returns 503 while it is not yet serving, `HttpRouter.serve` provides the app's services to the server, and inbound WebSocket buffering is bounded across runtimes with `highWaterMark`. Fixed a stalled `RpcClient` stream blocking other responses on its connection, RPC socket write failures escaping as defects, `HttpServerResponse` setters resetting an explicit `Content-Type`, and Web `File` byte ranges on Node.js. On the generator side, OpenAPI clients now include operation summaries in method comments and match multipart payload types, and `HttpApi` generation handles binary bodies, SSE responses and local Path Item references.
+
+- **SQL & persistence**: Added an option for ClickHouse clients to skip the startup ping, widened the PostgreSQL `PersistedQueue` sequence to `bigint`, and let PostgreSQL streams time out while queued on a transaction connection. Fixed anonymous record decoding and leading U+FEFF handling in `sql-pg`, Vitess idle advisory-lock heartbeat races, and `EventJournal.makeMemory` dropping entries imported during an upload.
+
+- **Core & Schema fixes**: The audit continued with fixes for `Queue.take` not delivering the final item before closing waiters, race losers that synchronously settle the race, `Effect.tx` spinning when its body recovers from `Effect.txRetry`, `Cache` and `ScopedCache` expiry using the default clock after the first caller is interrupted, and `HashMap` and `HashSet` overflowing the stack on custom hashes that are not 32-bit integers. Also fixed `Stream` groups being dropped while values are offered, `Atom.kvs` showing a value from before the last write, `Order.Struct` ignoring symbol comparator fields, struct field discovery across APIs, `Schema.CauseReasonIso`, `DateTime.make` with a time zone followed by a comment, `Chunk.fromIterable` sharing the caller's array, and `Unicode` letter handling in `String` case helpers. Summary metrics now reject `NaN` quantiles, and the OTLP exporter warns when a failed export disables it.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+---
+
+Other technical updates from the past week.
+
+### Effect Core
+
+- [Add Filter.map to transform passing values](https://github.com/Effect-TS/effect/pull/10711) (Bug Fix, next-minor)
+- [Let HttpClient.withRateLimiter report limiter failures as HTTP errors](https://github.com/Effect-TS/effect/pull/10713) (Bug Fix, next-minor)
+- [Trace time spent waiting for Semaphore permits](https://github.com/Effect-TS/effect/pull/10732) (Bug Fix, next-minor)
+
+### Effect SQL
+
+- [Allow a caller-provided retry schedule for PostgreSQL connection checkout](https://github.com/Effect-TS/effect/pull/10792) (Bug Fix, next-minor)
+
+## Community Highlights
+
+- Big news of the week! **Devin Jameson**, author of **Foldkit**, [joined the team](https://effect.website/blog/devin-jameson-joins-effect) to officially bring his creation under the Effect umbrella. Welcome Devin!
+
+  <Tweet id="2123473797848424931" />
+
+  <Tweet id="2123485496332472365" />
+
+  <Tweet id="2123479119455248866" />
+
+Watch the entire presentation livestream to discover the **Big Plans** Devin has for joining the team!
+
+<YouTube
+  id="https://www.youtube.com/embed/9E4M8I-4yHs?si=L5Ycqv_fJ8Vmfoiy"
+  title="Big Plans"
+/>
+
+- **Convince us that Effect.ts is good** by [Syntax](https://www.youtube.com/@syntaxfm). Michael Arnaldi joined Syntax to dig into Effect v4 and why guardrails matter so much now that AI agents are writing a good chunk of our code.
+
+<YouTube
+  id="https://www.youtube.com/embed/fLi2HivlhAI?si=keKM_uW_GLL705ji"
+  title="Convince us that Effect.ts is good"
+/>
+
+- 📈
+
+  <Tweet id="2122758258566008986" />
+
+- 🤍
+
+  <Tweet id="2122778904188403734" />
+
+- 100% accurate!
+
+  <Tweet id="2123059102125289653" />
+
+- [atrim.ai](https://atrim.ai/docs/connect/) - an OpenTelemetry backend that takes OTLP traces, metrics and logs with an ingest token. The Effect guide wires up `Otlp.layerProtobuf` from `@effect/opentelemetry`, so `Effect.withSpan` calls become spans and `Effect.log` becomes a log record on the same trace.
+
+- [Pinna for Effect](https://pinna.frondruntime.dev/effect) - `@frondruntime/pinna-effect` puts synchronous domain state on Effect Schema. Models are `Schema.Class` types whose fields check every write and roll back the update on failure, with scoped helpers like `watchScoped` and `fromStream`. By romanonthego.
+
+- [TypeSQL Effect adapter](https://typesql.karsli.net/adapters/effect) - `@typesql/effect` runs TypeSQL statements as Effects on an Effect `SqlClient`, for PostgreSQL, SQLite and MySQL/MariaDB. It has typed `SqlError` failures, `stream()` and `sql.withTransaction`. By ismailkarsli.
+
+- [wardic](https://github.com/wardiclabs/wardic) - an animation engine with Motion's API, built on Effect. It brings `initial`, `animate`, `exit`, gestures and layout animations to SolidJS, and runs on Effect internally so you don't write any Effect code. By wardiclabs.
+
+## Effect Job Opportunities
+
+[Explore Effect jobs →](https://www.effect.website/effect-jobs)
+
+## Community Events
+
+- [Effect Days](https://effect.website/effect-days) speakers announced: **Maximilian Schwarzmüller**.
+
+  <Tweet id="2123781042167304370" />
+
+- A big thank you to **Ziverge** for sponsoring Effect Days!
+
+  <Tweet id="2123038742839783556" />
+
+- Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Team Content Update
+
+- Effect Office Hours 55 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/SvYiZmbDasM?si=WA7WX8pTTLWNTWVv"
+  title="Effect Office Hours 55 🔥"
+/>
+
+- Schema first frontend development with Effect
+
+<YouTube
+  id="https://www.youtube.com/embed/1rU1FnILl0w?si=wtOQpkFMRA32PZXj"
+  title="Schema first frontend development with Effect"
+/>
+
+- HttpApi | Module of the Week 8
+
+<YouTube
+  id="https://www.youtube.com/embed/xB3YKYwoqxM?si=NACIOQOWtJsbeCoG"
+  title="HttpApi | Module of the Week 8"
+/>
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## New to Effect?
+
+Effect is a TypeScript library for building reliable applications, with built-in concurrency, cancellation, and safe resource management. Explore the [documentation](/docs/getting-started/introduction/) and [installation](/docs/getting-started/installation/) guide below to get started.
+
+_Effect Community Team_
