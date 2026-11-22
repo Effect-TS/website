@@ -56,3 +56,23 @@ export const resolveLspWsUrl = (
   const scheme = loc.protocol === "https:" ? "wss:" : "ws:"
   return `${scheme}//${loc.host}/api/lsp`
 }
+
+/**
+ * Where the Scratchpad's language server runs.
+ *
+ * - `worker` (default): the Effect-patched tsrs language server compiled to
+ *   wasm, in a Web Worker on the page (`@website/tsrs-lsp-wasm`).
+ * - `websocket`: the server-hosted `tsrs --lsp --stdio` behind `/api/lsp`
+ *   (`packages/lsp-bridge`), or `PUBLIC_LSP_WS_URL`.
+ */
+export type LspTransportKind = "worker" | "websocket"
+
+export const DEFAULT_LSP_TRANSPORT: LspTransportKind = "worker"
+
+/** Reads `PUBLIC_LSP_TRANSPORT`; anything but `websocket` or `worker` gives the default. */
+export const resolveLspTransportKind = (value?: string): LspTransportKind => {
+  const normalized = value?.trim().toLowerCase()
+  return normalized === "websocket" || normalized === "worker"
+    ? normalized
+    : DEFAULT_LSP_TRANSPORT
+}

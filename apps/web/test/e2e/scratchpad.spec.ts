@@ -71,12 +71,12 @@ test("renders Effect TS377xxx diagnostics, hover quickinfo, and completions on e
 
   const hoverTooltip = page.locator(".cm-tooltip-hover")
   await expect(hoverTooltip).toBeVisible({ timeout: 10_000 })
-  await expect(hoverTooltip).toContainText(/Effect\.Effect<number/)
+  await expect(hoverTooltip).toContainText(/Effect\.Effect<string/)
 
   // 3. Completions work on live edits.
   const returnLine = editor
     .locator(".cm-line")
-    .filter({ hasText: "return answer * 2" })
+    .filter({ hasText: "return greeting" })
     .first()
   await returnLine.click()
   await page.keyboard.press("Home")

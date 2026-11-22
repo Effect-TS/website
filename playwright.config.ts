@@ -4,7 +4,7 @@ const externalUrl = process.env.PLAYGROUND_URL
 
 export default defineConfig({
   testDir: "apps/web/test/e2e",
-  testIgnore: /scratchpad\.spec\.ts$/,
+  testIgnore: /scratchpad(-worker)?\.spec\.ts$/,
   timeout: 60_000,
   workers: 1,
   use: {

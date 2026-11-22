@@ -25,7 +25,10 @@ export function StatusIndicator() {
   const reconnect = useAtomSet(reconnectAtom)
 
   const view = describeLspStatus(status)
-  const isPulsing = view.state === "connecting" || view.state === "reconnecting"
+  const isPulsing =
+    view.state === "connecting" ||
+    view.state === "loading" ||
+    view.state === "reconnecting"
 
   const dot = (
     <span

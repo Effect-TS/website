@@ -10,7 +10,12 @@ import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
 import { createCachedLspTransport } from "./cache.ts"
-import { LspTransport, type TransportError } from "./transport.ts"
+import {
+  LspTransport,
+  type TransportError,
+  type TransportLoadPhase,
+  type TransportRecovery,
+} from "./transport.ts"
 
 export const LSP_CLIENT_TIMEOUT_MS = 10_000
 export const MAX_DOC_BYTES = 256 * 1024
@@ -18,16 +23,32 @@ export const RECONNECT_BASE_DELAY_MS = 500
 export const RECONNECT_FACTOR = 2
 export const RECONNECT_MAX_DELAY_MS = 10_000
 export const RECONNECT_MAX_ATTEMPTS = 5
+/** How long the status shows a crash recovery before returning to `ready`. */
+export const RECOVERED_NOTICE_MS = 8_000
 
 export type LspErrorCode =
   | "capacity"
   | "doc-too-large"
   | "policy"
   | "unreachable"
+  | "crashed"
 
+/**
+ * `loading` and `recovered` come only from transports that run the language
+ * server in the browser (`layerWorker`): `loading` while its assets download,
+ * compile and start, and `recovered` for a while after the server crashed and
+ * was restarted in place (the session stays usable throughout).
+ */
 export type LspStatus =
   | { readonly _tag: "connecting" }
+  | {
+      readonly _tag: "loading"
+      readonly phase: TransportLoadPhase
+      readonly loadedBytes: number
+      readonly totalBytes: number
+    }
   | { readonly _tag: "ready" }
+  | { readonly _tag: "recovered"; readonly recovery: TransportRecovery }
   | {
       readonly _tag: "reconnecting"
       readonly attempt: number
@@ -103,6 +124,17 @@ const isExplicitWakeTrigger = (
 type SessionCommand =
   | { readonly _tag: "TransportConnected"; readonly connectionId: number }
   | { readonly _tag: "TransportDisconnected"; readonly error: TransportError }
+  | {
+      readonly _tag: "TransportLoading"
+      readonly phase: TransportLoadPhase
+      readonly loadedBytes: number
+      readonly totalBytes: number
+    }
+  | {
+      readonly _tag: "TransportRecovered"
+      readonly recovery: TransportRecovery
+    }
+  | { readonly _tag: "RecoveredNoticeElapsed"; readonly token: number }
   | { readonly _tag: "InitSucceeded"; readonly connectionId: number }
   | {
       readonly _tag: "InitFailed"
@@ -125,6 +157,7 @@ export interface ScratchpadSessionConfig {
   readonly factor?: number
   readonly maxDelayMs?: number
   readonly maxAttempts?: number
+  readonly recoveredNoticeMs?: number
   readonly idleTTL?: Duration.Input
   readonly lspClientConfig?: Omit<LSPClientConfig, "timeout" | "rootUri">
 }
@@ -151,6 +184,7 @@ export const makeScratchpadSession = (
     maxDelayMs: config.maxDelayMs ?? RECONNECT_MAX_DELAY_MS,
     maxAttempts: config.maxAttempts ?? RECONNECT_MAX_ATTEMPTS,
   }
+  const recoveredNoticeMs = config.recoveredNoticeMs ?? RECOVERED_NOTICE_MS
 
   const runtime = Atom.runtime(config.transportLayer).pipe(
     Atom.setIdleTTL(config.idleTTL ?? "2 seconds"),
@@ -206,6 +240,7 @@ export const makeScratchpadSession = (
       let docByteLength = config.initialDocBytes ?? 0
       let initFiber: Fiber.Fiber<void, never> | undefined
       let backoffFiber: Fiber.Fiber<void, never> | undefined
+      let noticeToken = 0
 
       const setStatus = (next: LspStatus) => {
         currentStatus = next
@@ -281,17 +316,32 @@ export const makeScratchpadSession = (
 
       // Forward transport events into the serialized command queue.
       yield* lspTransport.events.pipe(
-        Stream.runForEach((ev) =>
-          ev._tag === "Connected"
-            ? Queue.offer(commands, {
+        Stream.runForEach((ev) => {
+          switch (ev._tag) {
+            case "Connected":
+              return Queue.offer(commands, {
                 _tag: "TransportConnected",
                 connectionId: ev.connectionId,
               })
-            : Queue.offer(commands, {
+            case "Disconnected":
+              return Queue.offer(commands, {
                 _tag: "TransportDisconnected",
                 error: ev.error,
-              }),
-        ),
+              })
+            case "Loading":
+              return Queue.offer(commands, {
+                _tag: "TransportLoading",
+                phase: ev.phase,
+                loadedBytes: ev.loadedBytes,
+                totalBytes: ev.totalBytes,
+              })
+            case "Recovered":
+              return Queue.offer(commands, {
+                _tag: "TransportRecovered",
+                recovery: ev.recovery,
+              })
+          }
+        }),
         Effect.forkScoped,
       )
 
@@ -372,6 +422,20 @@ export const makeScratchpadSession = (
               yield* disconnectClient
 
               const err = cmd.error
+              if (err._tag === "TransportFatalError") {
+                // The in-browser server is gone for good: no backoff, a
+                // retry starts it over.
+                yield* cancelBackoff
+                consecutiveAttempts = 0
+                noticeToken += 1
+                setStatus({
+                  _tag: "error",
+                  code: "crashed",
+                  message: err.message,
+                  retryable: true,
+                })
+                break
+              }
               if (err._tag === "TransportClosedError") {
                 if (err.code === CLOSE_CODE_IDLE_EVICTION) {
                   yield* cancelBackoff
@@ -424,6 +488,53 @@ export const makeScratchpadSession = (
               break
             }
 
+            case "TransportLoading": {
+              if (
+                currentStatus._tag === "connecting" ||
+                currentStatus._tag === "loading"
+              ) {
+                setStatus({
+                  _tag: "loading",
+                  phase: cmd.phase,
+                  loadedBytes: cmd.loadedBytes,
+                  totalBytes: cmd.totalBytes,
+                })
+              }
+              break
+            }
+
+            case "TransportRecovered": {
+              if (
+                currentStatus._tag !== "ready" &&
+                currentStatus._tag !== "recovered"
+              ) {
+                break
+              }
+              setStatus({ _tag: "recovered", recovery: cmd.recovery })
+              const token = ++noticeToken
+              yield* Effect.sleep(Duration.millis(recoveredNoticeMs)).pipe(
+                Effect.andThen(
+                  Queue.offer(commands, {
+                    _tag: "RecoveredNoticeElapsed",
+                    token,
+                  }),
+                ),
+                Effect.asVoid,
+                Effect.forkScoped,
+              )
+              break
+            }
+
+            case "RecoveredNoticeElapsed": {
+              if (
+                cmd.token === noticeToken &&
+                currentStatus._tag === "recovered"
+              ) {
+                setStatus({ _tag: "ready" })
+              }
+              break
+            }
+
             case "BackoffElapsed": {
               if (cmd.token !== backoffToken) break
               backoffFiber = undefined
@@ -457,7 +568,9 @@ export const makeScratchpadSession = (
 
             case "Online": {
               if (
-                (currentStatus._tag === "error" && currentStatus.retryable) ||
+                (currentStatus._tag === "error" &&
+                  currentStatus.retryable &&
+                  currentStatus.code !== "crashed") ||
                 currentStatus._tag === "reconnecting"
               ) {
                 yield* triggerReconnect

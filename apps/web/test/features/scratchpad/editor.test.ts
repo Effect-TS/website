@@ -22,6 +22,9 @@ import {
   makeFakeLspTransport,
   type FakeLspTransportOptions,
 } from "../../../src/features/scratchpad/transport.ts"
+import type { PageToWorker } from "../../../src/features/scratchpad/worker-protocol.ts"
+import { layerWorker } from "../../../src/features/scratchpad/worker-transport.ts"
+import { makeFakeWorkers } from "./fake-worker.ts"
 
 const flushMicrotasks = async (ticks = 15) => {
   for (let i = 0; i < ticks; i++) {
@@ -290,5 +293,95 @@ describe("ScratchpadEditorSession", () => {
     } finally {
       ctx.dispose()
     }
+  })
+
+  test("mirrors the Workspace into the worker's file system: initial files, edits, creates, renames and deletes", async () => {
+    const fakes = makeFakeWorkers()
+    const fakeEditors = createFakeEditorFactory()
+    const session = makeScratchpadEditorSession({
+      transportLayer: layerWorker({
+        makeWorker: fakes.makeWorker,
+        assets: { wasm: { url: "/lsp.wasm" }, typesPacks: [] },
+      }),
+      rootUri: SCRATCHPAD_ROOT_URI,
+      initialFiles: {
+        "src/main.ts": 'import { greet } from "./greeter.ts"\n',
+        "src/greeter.ts": "export const greet = 1\n",
+      },
+      createEditorView: fakeEditors.factory,
+      onlineTarget: new EventTarget(),
+    })
+    const registry = AtomRegistry.make({ defaultIdleTTL: 2000 })
+    const fsOps = () =>
+      fakes.workers
+        .flatMap((w) => w.controls())
+        .filter(
+          (m): m is Extract<PageToWorker, { _tag: "Fs" }> => m._tag === "Fs",
+        )
+        .map((m) => m.op)
+    const run = async (effect: () => void) => {
+      effect()
+      await flushMicrotasks(40)
+    }
+    try {
+      const unmount = registry.mount(session.editorAtom)
+      registry.set(
+        session.elementAtom,
+        Option.some({ replaceChildren() {} } as unknown as HTMLElement),
+      )
+      await flushMicrotasks(40)
+
+      // The session and the editor share one transport: one worker.
+      assert.equal(fakes.workers.length, 1)
+      assert.deepEqual(fsOps().at(-1), {
+        _tag: "Reset",
+        files: {
+          "src/greeter.ts": "export const greet = 1\n",
+          "src/main.ts": 'import { greet } from "./greeter.ts"\n',
+        },
+      })
+
+      await run(() =>
+        fakeEditors.handles[0]!.emitDocChange("export const edited = 1\n"),
+      )
+      assert.deepEqual(fsOps().at(-1), {
+        _tag: "WriteFile",
+        path: "src/main.ts",
+        content: "export const edited = 1\n",
+      })
+
+      await run(() =>
+        registry.set(session.createFileAtom, {
+          path: "src/util.ts",
+          content: "export {}\n",
+        }),
+      )
+      assert.deepEqual(fsOps().at(-1), {
+        _tag: "WriteFile",
+        path: "src/util.ts",
+        content: "export {}\n",
+      })
+
+      await run(() =>
+        registry.set(session.renamePathAtom, {
+          oldPath: "src/greeter.ts",
+          newPath: "src/lib/greeter.ts",
+        }),
+      )
+      assert.deepEqual(fsOps().at(-1), {
+        _tag: "Rename",
+        from: "src/greeter.ts",
+        to: "src/lib/greeter.ts",
+      })
+
+      await run(() => registry.set(session.deletePathAtom, "src/util.ts"))
+      assert.deepEqual(fsOps().at(-1), { _tag: "Remove", path: "src/util.ts" })
+
+      unmount()
+    } finally {
+      registry.dispose()
+    }
+    await flushMicrotasks(20)
+    assert.isTrue(fakes.workers[0]!.terminated)
   })
 })

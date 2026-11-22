@@ -31,11 +31,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 10
+    # A cold tsrs-lsp-wasm build takes about 5 minutes; cached runs skip it.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - name: Install dependencies
         uses: ./.github/actions/setup
+      # The tsrs-lsp-wasm and Scratchpad worker integration tests skip without it.
+      - name: Build tsrs-lsp-wasm
+        uses: ./.github/actions/tsrs-lsp-wasm
       - run: vp test
 
   scratchpad-e2e:
@@ -43,12 +47,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - name: Install dependencies
         uses: ./.github/actions/setup
+      - name: Build tsrs-lsp-wasm
+        uses: ./.github/actions/tsrs-lsp-wasm
       - name: Install Playwright Chromium
         run: vp exec playwright install --with-deps chromium
-      - name: Run Scratchpad E2E
+      - name: Run Scratchpad E2E (server-hosted language server)
         run: vp run test:e2e:scratchpad
+      - name: Run Scratchpad E2E (in-browser language server)
+        run: vp run test:e2e:scratchpad-worker

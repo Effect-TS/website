@@ -1,0 +1,28 @@
+[package]
+name = "ets_wasm_lsp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+# Derived from tsrs's crates/tsrs_wasm_lsp (Apache-2.0), not from effect-tsgo's MIT code.
+license = "Apache-2.0"
+publish.workspace = true
+description = "Effect website build of tsrs's single-threaded wasm32-wasip1 language server (tsrs_wasm_lsp ABI) with the Effect checker, execute and language-service hooks"
+
+[lints]
+workspace = true
+
+# cdylib only, as tsrs_wasm_lsp: cargo skips LTO for a crate that is also an rlib.
+[lib]
+crate-type = ["cdylib"]
+test = false
+
+# The host is tsrs_wasm's own source (src/lib.rs includes it by #[path]), so the module keeps tsrs_wasm_lsp's ABI.
+# The tsrs crates are path dependencies, like ets_shim's, so every type unifies.
+[dependencies]
+ets_etscheckerhooks.workspace = true
+ets_etsexecutehooks.workspace = true
+ets_etslshooks.workspace = true
+tsrs_core = { path = "../../tsrs/crates/tsrs_core" }
+tsrs_vfs = { path = "../../tsrs/crates/tsrs_vfs" }
+tsrs_lsp = { path = "../../tsrs/crates/tsrs_lsp" }
+tsrs_compiler = { path = "../../tsrs/crates/tsrs_compiler" }

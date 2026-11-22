@@ -9,6 +9,7 @@ import { X } from "lucide-react"
 import * as React from "react"
 import {
   DEFAULT_SCRATCHPAD_FILES,
+  resolveLspTransportKind,
   resolveLspWsUrl,
   SCRATCHPAD_ENTRY_PATH,
   SCRATCHPAD_ROOT_URI,
@@ -21,9 +22,12 @@ import {
 import { makeScratchpadEditorSession } from "./editor.ts"
 import { EditorTabs } from "./EditorTabs.tsx"
 import { FileExplorer } from "./FileExplorer.tsx"
+import { layerBrowserWorker } from "./lsp-worker-client.ts"
 import { layerWebSocket } from "./transport.ts"
 
 export interface ScratchpadProps {
+  /** `worker` (default) or `websocket`; see `resolveLspTransportKind`. */
+  readonly transport?: string | undefined
   readonly wsUrl?: string | undefined
   readonly initialCode?: string | undefined
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
@@ -102,17 +106,35 @@ function CodeMirrorHost() {
 }
 
 export function Scratchpad({
+  transport,
   wsUrl,
   initialCode,
   initialFiles,
   entryPath,
 }: ScratchpadProps) {
   const [session] = React.useState<ScratchpadSessionContextValue>(() => {
-    const resolvedUrl = resolveLspWsUrl(
-      wsUrl ?? import.meta.env.PUBLIC_LSP_WS_URL,
+    const transportKind = resolveLspTransportKind(
+      transport ?? import.meta.env.PUBLIC_LSP_TRANSPORT,
     )
+    const transportLayer =
+      transportKind === "websocket"
+        ? layerWebSocket(
+            resolveLspWsUrl(wsUrl ?? import.meta.env.PUBLIC_LSP_WS_URL),
+          )
+        : layerBrowserWorker({
+            onReady: (timings, memoryBytes) => {
+              // Read by the e2e tests and handy when demoing.
+              ;(
+                window as { __scratchpadLspReady?: unknown }
+              ).__scratchpadLspReady = {
+                ...timings,
+                memoryBytes,
+                at: performance.now(),
+              }
+            },
+          })
     const editorSession = makeScratchpadEditorSession({
-      transportLayer: layerWebSocket(resolvedUrl),
+      transportLayer,
       rootUri: SCRATCHPAD_ROOT_URI,
       ...(initialFiles !== undefined
         ? { initialFiles }

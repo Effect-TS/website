@@ -21,6 +21,20 @@ const errorSummary = (code: LspErrorCode, retryable: boolean): string => {
       return "Connection rejected"
     case "unreachable":
       return retryable ? "Disconnected · Retry" : "Disconnected"
+    case "crashed":
+      return retryable ? "Stopped · Restart" : "Stopped"
+  }
+}
+
+const formatMiB = (bytes: number): string =>
+  `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+
+const fileNameOfUri = (uri: string): string => {
+  const last = uri.slice(uri.lastIndexOf("/") + 1)
+  try {
+    return decodeURIComponent(last)
+  } catch {
+    return last
   }
 }
 
@@ -34,6 +48,63 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
         tone: "neutral",
         interactive: false,
       }
+    case "loading": {
+      const percent =
+        status.totalBytes > 0
+          ? Math.min(
+              100,
+              Math.floor((status.loadedBytes / status.totalBytes) * 100),
+            )
+          : undefined
+      switch (status.phase) {
+        case "downloading":
+          return {
+            state: "loading",
+            label:
+              percent === undefined
+                ? "Downloading…"
+                : `Downloading ${percent}%…`,
+            detail:
+              status.totalBytes > 0
+                ? `Downloading the in-browser Effect TypeScript language server (${formatMiB(status.loadedBytes)} of ${formatMiB(status.totalBytes)}).`
+                : "Downloading the in-browser Effect TypeScript language server.",
+            tone: "neutral",
+            interactive: false,
+          }
+        case "compiling":
+          return {
+            state: "loading",
+            label: "Compiling…",
+            detail:
+              "Compiling the in-browser Effect TypeScript language server.",
+            tone: "neutral",
+            interactive: false,
+          }
+        case "starting":
+          return {
+            state: "loading",
+            label: "Starting…",
+            detail:
+              "Starting the in-browser Effect TypeScript language server.",
+            tone: "neutral",
+            interactive: false,
+          }
+      }
+    }
+    case "recovered": {
+      const quarantined = status.recovery.quarantined.map(fileNameOfUri)
+      return {
+        state: "recovered",
+        label: "Ready · Restarted",
+        detail:
+          `The language server crashed (${status.recovery.reason}) and restarted in ${Math.round(status.recovery.ms)} ms.` +
+          (quarantined.length > 0
+            ? ` Language features are paused for ${quarantined.join(", ")} until its next edit.`
+            : ""),
+        tone: "warning",
+        interactive: false,
+      }
+    }
     case "ready":
       return {
         state: "ready",
@@ -71,7 +142,14 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
         detail,
         tone: "error",
         interactive: status.retryable,
-        ...(status.retryable ? { actionLabel: "Retry connection" } : {}),
+        ...(status.retryable
+          ? {
+              actionLabel:
+                status.code === "crashed"
+                  ? "Restart language server"
+                  : "Retry connection",
+            }
+          : {}),
       }
     }
   }

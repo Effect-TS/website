@@ -1,0 +1,282 @@
+diff --git a/crates/tsrs_cli/Cargo.toml b/crates/tsrs_cli/Cargo.toml
+index f1d238d..244eb6d 100644
+--- a/crates/tsrs_cli/Cargo.toml
++++ b/crates/tsrs_cli/Cargo.toml
+@@ -25,9 +25,12 @@ tsrs_api_transport.workspace = true
+ tsrs_execute.workspace = true
+ tsrs_contentmapper.workspace = true
+ tsrs_lint.workspace = true
+-mimalloc-safe.workspace = true
+ libc.workspace = true
+ 
++# wasm32-wasip1-threads: no C toolchain for mimalloc; the wasm build uses Rust's default (dlmalloc) allocator.
++[target.'cfg(not(target_family = "wasm"))'.dependencies]
++mimalloc-safe.workspace = true
++
+ [features]
+ noembed = ["tsrs_vfs/noembed"]
+ # The system allocator instead of mimalloc, for sanitizer builds (AddressSanitizer and ThreadSanitizer track only its
+diff --git a/crates/tsrs_cli/src/main.rs b/crates/tsrs_cli/src/main.rs
+index 032dbf0..ec6bbfa 100644
+--- a/crates/tsrs_cli/src/main.rs
++++ b/crates/tsrs_cli/src/main.rs
+@@ -1,6 +1,6 @@
+ // Miri (which cannot run mimalloc) and `system-alloc` builds (sanitizers, which see only the system allocator's
+ // blocks) keep the system allocator.
+-#[cfg(not(any(feature = "system-alloc", miri)))]
++#[cfg(not(any(feature = "system-alloc", miri, target_family = "wasm")))]
+ #[global_allocator]
+ static GLOBAL: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
+ 
+@@ -8,7 +8,7 @@ use tsrs_cli::{api, lsp, signals};
+ use tsrs_execute::{execute, sys, tsc};
+ 
+ // TSRS_MEM_SPLIT (tsrs_core::memsplit): mimalloc's view of its heap, every page of every thread.
+-#[cfg(not(feature = "system-alloc"))]
++#[cfg(not(any(feature = "system-alloc", target_family = "wasm")))]
+ fn mimalloc_heap_stats() -> tsrs_core::memsplit::HeapStats {
+     #[repr(C)]
+     struct HeapArea {
+@@ -58,7 +58,7 @@ fn mimalloc_heap_stats() -> tsrs_core::memsplit::HeapStats {
+     stats
+ }
+ 
+-#[cfg(not(feature = "system-alloc"))]
++#[cfg(not(any(feature = "system-alloc", target_family = "wasm")))]
+ fn mimalloc_collect(force: bool) {
+     unsafe extern "C" {
+         fn mi_collect(force: bool);
+@@ -86,7 +86,7 @@ fn main() -> std::process::ExitCode {
+     if args.first().map(String::as_str) == Some("--lint") {
+         return std::process::ExitCode::from(tsrs_lint::cli::main(args[1..].to_vec()) as u8);
+     }
+-    #[cfg(not(feature = "system-alloc"))]
++    #[cfg(not(any(feature = "system-alloc", target_family = "wasm")))]
+     tsrs_core::memsplit::set_heap_hooks(mimalloc_heap_stats, mimalloc_collect);
+     // main.go:21: `--lsp` runs the language server (its threads have their own stacks); `--api` runs the
+     // native API server (docs/NODE_API.md).
+diff --git a/crates/tsrs_compiler/src/checkerpool.rs b/crates/tsrs_compiler/src/checkerpool.rs
+index 8e0428c..0522bab 100644
+--- a/crates/tsrs_compiler/src/checkerpool.rs
++++ b/crates/tsrs_compiler/src/checkerpool.rs
+@@ -226,7 +226,7 @@ fn run_checker_job(mut job: CheckerJob) -> std::io::Result<()> {
+     let (jobs, next_jobs) = std::sync::mpsc::channel::<CheckerJob>();
+     std::thread::Builder::new()
+         .name("checker".to_string())
+-        .stack_size(CHECKER_STACK_SIZE)
++        .stack_size(tsrs_core::thread_stack_size(CHECKER_STACK_SIZE))
+         .spawn(move || checker_thread(job, &jobs, &next_jobs))?;
+     Ok(())
+ }
+@@ -2058,7 +2058,7 @@ fn default_checker_count_by_machine() -> i64 {
+         return GO_DEFAULT_CHECKERS;
+     }
+     default_checkers_for_parallelism(
+-        std::thread::available_parallelism().map_or(1, std::num::NonZero::get) as i64,
++        tsrs_core::available_parallelism() as i64,
+     )
+ }
+ 
+diff --git a/crates/tsrs_compiler/src/program.rs b/crates/tsrs_compiler/src/program.rs
+index 817ee55..f920ef3 100644
+--- a/crates/tsrs_compiler/src/program.rs
++++ b/crates/tsrs_compiler/src/program.rs
+@@ -504,11 +504,9 @@ pub fn worker_pool() -> &'static rayon::ThreadPool {
+             .and_then(|v| v.parse::<usize>().ok())
+             .filter(|&n| n > 0)
+             .unwrap_or_else(|| {
+-                std::thread::available_parallelism()
+-                    .map_or(1, std::num::NonZero::get)
+-                    .min(PARSE_THREAD_CAP)
++                tsrs_core::available_parallelism().min(PARSE_THREAD_CAP)
+             });
+-        rayon::ThreadPoolBuilder::new().num_threads(threads).stack_size(256 << 20).build().unwrap()
++        rayon::ThreadPoolBuilder::new().num_threads(threads).stack_size(tsrs_core::thread_stack_size(256 << 20)).build().unwrap()
+     })
+ }
+ 
+diff --git a/crates/tsrs_compiler/src/sharedgraph.rs b/crates/tsrs_compiler/src/sharedgraph.rs
+index 85ed1a7..c19d9b8 100644
+--- a/crates/tsrs_compiler/src/sharedgraph.rs
++++ b/crates/tsrs_compiler/src/sharedgraph.rs
+@@ -125,7 +125,7 @@ pub fn start_seed(program: &'static Program, weights: Vec<i64>, recycle: bool) {
+     let start = tsrs_core::phases::Timer::new(program.options().diagnostics_enabled());
+     let handle = std::thread::Builder::new()
+         .name("checker-seed".into())
+-        .stack_size(crate::checkerpool::CHECKER_STACK_SIZE)
++        .stack_size(tsrs_core::thread_stack_size(crate::checkerpool::CHECKER_STACK_SIZE))
+         .spawn(move || {
+             let files = &program.files;
+             let positions = seed_positions(
+diff --git a/crates/tsrs_core/src/lib.rs b/crates/tsrs_core/src/lib.rs
+index b77ce33..a195f58 100644
+--- a/crates/tsrs_core/src/lib.rs
++++ b/crates/tsrs_core/src/lib.rs
+@@ -12,7 +12,12 @@ pub const COMPRESSED_PTRS: bool = cfg!(compressed_ptrs);
+ /// calling thread, `Program::single_threaded()` is always true, the driver forces `--singleThreaded` for tsc
+ /// and `tsc -b`, and `tsc -b` builds and reports on the calling thread. False on native targets, where the
+ /// branches it guards fold away.
+-pub const NO_THREADS: bool = cfg!(all(target_family = "wasm", not(target_feature = "atomics")));
++///
++/// `cfg(target_feature = "atomics")` is not set on stable Rust even for `wasm32-wasip1-threads` (`rustc --print cfg`
++/// lists the same features for both wasip1 targets), so a threaded wasm build passes `--cfg tsrs_wasm_threads`.
++#[allow(unexpected_cfgs)]
++pub const NO_THREADS: bool =
++    cfg!(all(target_family = "wasm", not(any(target_feature = "atomics", tsrs_wasm_threads))));
+ pub(crate) use ptr::alloc_slice_aligned4;
+ pub use ptr::{
+     ArenaStringBuilder, OptionSliceCell, OptionThinSliceCell, P, PACK_BITS, PKey, PSliceCell,
+@@ -59,6 +64,7 @@ pub mod pattern;
+ mod projectreference;
+ mod scriptkind;
+ mod stack;
++mod threadstack;
+ pub mod text;
+ mod textchange;
+ mod tristate;
+@@ -79,6 +85,7 @@ pub use pattern::*;
+ pub use projectreference::*;
+ pub use scriptkind::*;
+ pub use stack::*;
++pub use threadstack::{available_parallelism, thread_stack_size};
+ pub use text::*;
+ pub use textchange::*;
+ pub use tristate::*;
+diff --git a/crates/tsrs_core/src/runslots.rs b/crates/tsrs_core/src/runslots.rs
+index 7504cea..ed1e924 100644
+--- a/crates/tsrs_core/src/runslots.rs
++++ b/crates/tsrs_core/src/runslots.rs
+@@ -35,7 +35,7 @@ fn get_slots() -> &'static Slots {
+     SLOTS.get_or_init(|| Slots {
+         in_use: Mutex::new(0),
+         freed: Condvar::new(),
+-        capacity: std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
++        capacity: crate::available_parallelism(),
+     })
+ }
+ 
+diff --git a/crates/tsrs_core/src/threadstack.rs b/crates/tsrs_core/src/threadstack.rs
+new file mode 100644
+index 0000000..1007c74
+--- /dev/null
++++ b/crates/tsrs_core/src/threadstack.rs
+@@ -0,0 +1,26 @@
++/// The stack size to give a thread that runs compiler code: `native` everywhere but wasm. On wasm (wasi-threads) a
++/// thread's stack is carved out of the shared 4 GiB linear memory, so 512 MB stacks run out after a handful of threads;
++/// there it is `TSRS_WASM_THREAD_STACK_MB` MiB, default 16. (The engine's own native stack, which holds the wasm call
++/// frames, is set by the host, not here.)
++pub fn thread_stack_size(native: usize) -> usize {
++    #[cfg(target_family = "wasm")]
++    {
++        let _ = native;
++        std::env::var("TSRS_WASM_THREAD_STACK_MB")
++            .ok()
++            .and_then(|v| v.parse::<usize>().ok())
++            .map_or(16 << 20, |mb| mb << 20)
++    }
++    #[cfg(not(target_family = "wasm"))]
++    native
++}
++
++/// `std::thread::available_parallelism()` as a count, at least 1. On wasm std cannot know the core count (wasi has no
++/// call for it), so the host passes it as `TSRS_WASM_PARALLELISM` (a browser: `navigator.hardwareConcurrency`).
++pub fn available_parallelism() -> usize {
++    #[cfg(target_family = "wasm")]
++    if let Some(n) = std::env::var("TSRS_WASM_PARALLELISM").ok().and_then(|v| v.parse::<usize>().ok()) {
++        return n.max(1);
++    }
++    std::thread::available_parallelism().map_or(1, std::num::NonZero::get)
++}
+diff --git a/crates/tsrs_lint/Cargo.toml b/crates/tsrs_lint/Cargo.toml
+index 476a830..bb33384 100644
+--- a/crates/tsrs_lint/Cargo.toml
++++ b/crates/tsrs_lint/Cargo.toml
+@@ -31,6 +31,8 @@ tsrs_vfs.workspace = true
+ rustc-hash.workspace = true
+ regex = "1"
+ regress = "0.12.0"
++
++[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ mimalloc-safe.workspace = true
+ 
+ [[bin]]
+diff --git a/crates/tsrs_lint/src/main.rs b/crates/tsrs_lint/src/main.rs
+index 0c4752e..5f73c2c 100644
+--- a/crates/tsrs_lint/src/main.rs
++++ b/crates/tsrs_lint/src/main.rs
+@@ -1,4 +1,4 @@
+-#[cfg(not(miri))]
++#[cfg(not(any(miri, target_family = "wasm")))]
+ #[global_allocator]
+ static GLOBAL: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
+ 
+diff --git a/crates/tsrs_ls/src/concurrent.rs b/crates/tsrs_ls/src/concurrent.rs
+index 4fa8ee5..2774c4c 100644
+--- a/crates/tsrs_ls/src/concurrent.rs
++++ b/crates/tsrs_ls/src/concurrent.rs
+@@ -17,7 +17,7 @@ pub fn run_concurrently<T: Send, R: Send>(
+         return items.into_iter().map(work).collect();
+     }
+     let threads =
+-        std::thread::available_parallelism().map_or(1, std::num::NonZero::get).min(items.len());
++        tsrs_core::available_parallelism().min(items.len());
+     let count = items.len();
+     let queue = std::sync::Mutex::new(items.into_iter().enumerate().rev().collect::<Vec<_>>());
+     let done = std::sync::Mutex::new(Vec::with_capacity(count));
+@@ -26,7 +26,7 @@ pub fn run_concurrently<T: Send, R: Send>(
+             for _ in 0..threads {
+                 std::thread::Builder::new()
+                     .name("tsrs-ls-worker".to_owned())
+-                    .stack_size(STACK_SIZE)
++                    .stack_size(tsrs_core::thread_stack_size(STACK_SIZE))
+                     .spawn_scoped(scope, || {
+                         tsrs_core::runslots::run(|| {
+                             around(&mut || {
+diff --git a/crates/tsrs_lsp/src/server.rs b/crates/tsrs_lsp/src/server.rs
+index c6e142e..62bf735 100644
+--- a/crates/tsrs_lsp/src/server.rs
++++ b/crates/tsrs_lsp/src/server.rs
+@@ -4409,7 +4409,7 @@ impl ErrGroup {
+ fn spawn_server_thread(name: &str, f: impl FnOnce() + Send + 'static) -> JoinHandle<()> {
+     std::thread::Builder::new()
+         .name(name.to_string())
+-        .stack_size(workerpool::WORKER_STACK_SIZE)
++        .stack_size(tsrs_core::thread_stack_size(workerpool::WORKER_STACK_SIZE))
+         .spawn(move || workerpool::run_or_exit(f))
+         .expect("failed to spawn a language server thread")
+ }
+diff --git a/crates/tsrs_lsp/src/workerpool.rs b/crates/tsrs_lsp/src/workerpool.rs
+index 0bd48ae..0a4dd80 100644
+--- a/crates/tsrs_lsp/src/workerpool.rs
++++ b/crates/tsrs_lsp/src/workerpool.rs
+@@ -30,7 +30,7 @@ struct WorkerPoolState {
+ fn get_pool() -> &'static WorkerPool {
+     static POOL: OnceLock<WorkerPool> = OnceLock::new();
+     POOL.get_or_init(|| {
+-        let parallelism = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
++        let parallelism = tsrs_core::available_parallelism();
+         WorkerPool {
+             state: Mutex::new(WorkerPoolState { jobs: VecDeque::new(), threads: 0, idle: 0 }),
+             cond: Condvar::new(),
+@@ -51,7 +51,7 @@ pub fn go(f: impl FnOnce() + Send + 'static) {
+         drop(state);
+         let spawned = std::thread::Builder::new()
+             .name(format!("lsp-worker-{n}"))
+-            .stack_size(WORKER_STACK_SIZE)
++            .stack_size(tsrs_core::thread_stack_size(WORKER_STACK_SIZE))
+             .spawn(|| worker_loop(get_pool()));
+         if let Err(err) = spawned {
+             // Out of threads or address space: the job waits for a running worker, as it did with a fixed pool.
+diff --git a/crates/tsrs_project/src/background/queue.rs b/crates/tsrs_project/src/background/queue.rs
+index ea24e7f..ca68f80 100644
+--- a/crates/tsrs_project/src/background/queue.rs
++++ b/crates/tsrs_project/src/background/queue.rs
+@@ -44,7 +44,7 @@ fn worker_pool() -> &'static WorkerPool {
+         for i in 0..WORKER_COUNT {
+             std::thread::Builder::new()
+                 .name(format!("project-background-{i}"))
+-                .stack_size(WORKER_STACK_SIZE)
++                .stack_size(tsrs_core::thread_stack_size(WORKER_STACK_SIZE))
+                 .spawn(move || {
+                     loop {
+                         let task = {

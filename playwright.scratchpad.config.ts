@@ -36,7 +36,7 @@ export default defineConfig({
             timeout: 30_000,
           },
           {
-            command: `PUBLIC_LSP_WS_URL=${bridgeWsUrl} vp -C apps/web exec astro dev --host 127.0.0.1 --port ${webPort} --ignore-lock`,
+            command: `PUBLIC_LSP_TRANSPORT=websocket PUBLIC_LSP_WS_URL=${bridgeWsUrl} vp -C apps/web exec astro dev --host 127.0.0.1 --port ${webPort} --ignore-lock`,
             url: `${localBaseUrl}/scratchpad`,
             reuseExistingServer: false,
             timeout: 120_000,

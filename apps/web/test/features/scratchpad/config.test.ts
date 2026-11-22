@@ -2,6 +2,7 @@ import { assert, describe, test } from "vite-plus/test"
 import {
   DEFAULT_SCRATCHPAD_FILES,
   DEFAULT_SCRATCHPAD_SNIPPET,
+  resolveLspTransportKind,
   resolveLspWsUrl,
   SCRATCHPAD_ENTRY_PATH,
   SCRATCHPAD_FILE_URI,
@@ -58,5 +59,13 @@ describe("Scratchpad config", () => {
     assert.isTrue(DEFAULT_SCRATCHPAD_SNIPPET.includes('from "effect"'))
     assert.isTrue(DEFAULT_SCRATCHPAD_SNIPPET.includes("Effect.gen"))
     assert.isBelow(utf8ByteLength(DEFAULT_SCRATCHPAD_SNIPPET), MAX_DOC_BYTES)
+  })
+
+  test("resolveLspTransportKind defaults to the in-browser worker and accepts websocket", () => {
+    assert.equal(resolveLspTransportKind(undefined), "worker")
+    assert.equal(resolveLspTransportKind(""), "worker")
+    assert.equal(resolveLspTransportKind("bogus"), "worker")
+    assert.equal(resolveLspTransportKind("worker"), "worker")
+    assert.equal(resolveLspTransportKind(" WebSocket "), "websocket")
   })
 })

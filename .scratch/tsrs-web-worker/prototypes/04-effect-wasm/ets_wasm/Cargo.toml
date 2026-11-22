@@ -1,0 +1,35 @@
+[package]
+name = "ets_wasm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Prototype: tsrs's batch tsc WebAssembly module (tsrs_wasm ABI) with the Effect checker and exit-code hooks"
+
+[lints]
+workspace = true
+
+# cdylib only, as tsrs_wasm: cargo skips LTO for a crate that is also an rlib.
+[lib]
+crate-type = ["cdylib"]
+test = false
+
+# The host, JSON encoder and System are tsrs_wasm's own sources (src/lib.rs includes them by #[path]), so the module
+# keeps tsrs_wasm's ABI byte for byte. The tsrs crates are path dependencies, like ets_shim's, so every type unifies.
+[dependencies]
+ets_etscheckerhooks.workspace = true
+ets_etsexecutehooks.workspace = true
+ets_etslshooks = { workspace = true, optional = true }
+tsrs_core = { path = "../../tsrs/crates/tsrs_core" }
+tsrs_ast = { path = "../../tsrs/crates/tsrs_ast" }
+tsrs_diagnostics = { path = "../../tsrs/crates/tsrs_diagnostics" }
+tsrs_scanner = { path = "../../tsrs/crates/tsrs_scanner" }
+tsrs_vfs = { path = "../../tsrs/crates/tsrs_vfs" }
+tsrs_compiler = { path = "../../tsrs/crates/tsrs_compiler" }
+tsrs_execute = { path = "../../tsrs/crates/tsrs_execute" }
+tsrs_contentmapper = { path = "../../tsrs/crates/tsrs_contentmapper" }
+
+[features]
+# Size experiment only: also registers the language-service hooks, which batch tsc never calls.
+lshooks = ["dep:ets_etslshooks"]

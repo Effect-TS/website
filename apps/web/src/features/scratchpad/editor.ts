@@ -3,6 +3,7 @@ import {
   jumpToDefinition,
   languageServerExtensions,
   type LSPClient,
+  type LSPClientExtension,
 } from "@codemirror/lsp-client"
 import { EditorState, type TransactionSpec } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
@@ -13,6 +14,7 @@ import * as Option from "effect/Option"
 import type * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
+import * as Stream from "effect/Stream"
 import {
   DEFAULT_SCRATCHPAD_FILES,
   SCRATCHPAD_ENTRY_PATH,
@@ -27,6 +29,7 @@ import {
   type WakeTrigger,
 } from "./session.ts"
 import type { LspTransport } from "./transport.ts"
+import { LspWorkspaceMirror, workspaceEventToFsOp } from "./worker-transport.ts"
 import {
   layerMemoryWorkspace,
   pathToWorkspaceUri,
@@ -152,6 +155,37 @@ const scratchpadEditorTheme = EditorView.theme({
     fontSize: "13px",
   },
 })
+
+/**
+ * Diagnostic client capabilities `@codemirror/lsp-client` does not declare by
+ * itself. tsrs attaches `relatedInformation` (Effect's "Inside this Effect
+ * generator." notes, for example) to pulled diagnostics only when the client
+ * declares `textDocument.diagnostic.relatedInformation`. Both language server
+ * paths pull diagnostics on the client's behalf with these capabilities in
+ * effect.
+ */
+export const DIAGNOSTIC_CLIENT_CAPABILITIES = {
+  textDocument: {
+    diagnostic: {
+      dynamicRegistration: false,
+      relatedDocumentSupport: false,
+      relatedInformation: true,
+      tagSupport: { valueSet: [1, 2] },
+      codeDescriptionSupport: true,
+      dataSupport: true,
+    },
+    publishDiagnostics: {
+      relatedInformation: true,
+      tagSupport: { valueSet: [1, 2] },
+      codeDescriptionSupport: true,
+      dataSupport: true,
+    },
+  },
+} as const
+
+export const diagnosticCapabilities: LSPClientExtension = {
+  clientCapabilities: DIAGNOSTIC_CLIENT_CAPABILITIES,
+}
 
 const defaultEditorViewFactory: EditorViewFactory = ({ parent, state }) =>
   new EditorView({ parent, state })
@@ -307,7 +341,7 @@ export const makeScratchpadEditorSession = (
     rootUri,
     initialDocBytes: initialTotalBytes,
     lspClientConfig: {
-      extensions: languageServerExtensions(),
+      extensions: [...languageServerExtensions(), diagnosticCapabilities],
       workspace: (client) => {
         const ws = new MultiFileLspWorkspace(client, {
           rootUri,
@@ -506,8 +540,31 @@ export const makeScratchpadEditorSession = (
       activeWorkspace = ws
       activeClient = client
 
+      // A language server with its own file system (the in-browser worker)
+      // gets every Workspace change, including files that are not open in a
+      // tab. Subscribe before listing so no change falls in between.
+      const mirror = yield* Effect.serviceOption(LspWorkspaceMirror)
+      if (Option.isSome(mirror)) {
+        yield* ws.events.pipe(
+          Stream.runForEach((event) =>
+            Effect.sync(() => {
+              const op = workspaceEventToFsOp(event)
+              if (op !== undefined) mirror.value.apply(op)
+            }),
+          ),
+          Effect.forkScoped,
+        )
+        yield* Effect.yieldNow
+      }
+
       // Seed LSP workspace with all files from Effect Workspace before/on connect
       const allFiles = yield* ws.listFiles.pipe(Effect.orDie)
+      if (Option.isSome(mirror)) {
+        mirror.value.apply({
+          _tag: "Reset",
+          files: Object.fromEntries(allFiles.map((f) => [f.path, f.content])),
+        })
+      }
       for (const file of allFiles) {
         activeLspWorkspace?.upsertWorkspaceFile(file.path, file.content)
       }

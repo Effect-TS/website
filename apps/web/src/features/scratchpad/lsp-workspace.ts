@@ -178,11 +178,10 @@ export class MultiFileLspWorkspace extends CMLSWorkspace {
     if (existing !== undefined) {
       existing.view = view
       existing.languageId = languageId
-      const plugin = LSPPlugin.get(view)
-      if (plugin !== null) {
-        plugin.syncedDoc = view.state.doc
-        plugin.clear()
-      }
+      // `openFile` runs inside the `LSPPlugin` constructor, which sets its
+      // synced doc right after this returns. Looking the plugin up here
+      // (`LSPPlugin.get(view)`) re-enters its construction and overflows the
+      // stack, which disabled the plugin (no diagnostics, hover or completion).
       // If the mounted state drifted from our tracked doc, sync it
       if (!existing.doc.eq(view.state.doc)) {
         existing.version += 1

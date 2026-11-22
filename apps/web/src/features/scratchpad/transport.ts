@@ -25,11 +25,49 @@ export class TransportClosedError extends Data.TaggedError(
   readonly reason: string
 }> {}
 
-export type TransportError = TransportConnectError | TransportClosedError
+/**
+ * The language server failed for good and will not come back by retrying on
+ * its own (the in-browser worker could not load its assets, or its server
+ * could not be restarted). Retrying means starting over.
+ */
+export class TransportFatalError extends Data.TaggedError(
+  "TransportFatalError",
+)<{
+  readonly message: string
+}> {}
 
+export type TransportError =
+  | TransportConnectError
+  | TransportClosedError
+  | TransportFatalError
+
+export type TransportLoadPhase = "downloading" | "compiling" | "starting"
+
+export interface TransportRecovery {
+  /** The trap, as "Name: message". */
+  readonly reason: string
+  readonly method: string | undefined
+  readonly uri: string | undefined
+  readonly ms: number
+  /** Document URIs whose text crashes the server, paused until their next edit. */
+  readonly quarantined: ReadonlyArray<string>
+}
+
+/**
+ * Transport lifecycle. `Loading` and `Recovered` come only from transports
+ * that run the language server locally (`layerWorker`); the WebSocket layers
+ * emit `Connected` and `Disconnected` only.
+ */
 export type TransportEvent =
   | { readonly _tag: "Connected"; readonly connectionId: number }
   | { readonly _tag: "Disconnected"; readonly error: TransportError }
+  | {
+      readonly _tag: "Loading"
+      readonly phase: TransportLoadPhase
+      readonly loadedBytes: number
+      readonly totalBytes: number
+    }
+  | { readonly _tag: "Recovered"; readonly recovery: TransportRecovery }
 
 export interface LspTransportService {
   readonly transport: Transport
