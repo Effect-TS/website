@@ -65,6 +65,11 @@ export const DEFAULT_BACKOFF_POLICY: BackoffPolicy = {
 
 const textEncoder = new TextEncoder()
 
+export const CLOSE_CODE_POLICY_VIOLATION = 1008
+const CLOSE_CODE_MESSAGE_TOO_BIG = 1009
+const CLOSE_CODE_TRY_AGAIN_LATER = 1013
+const CLOSE_CODE_IDLE_EVICTION = 4000
+
 export const utf8ByteLength = (text: string): number =>
   textEncoder.encode(text).byteLength
 
@@ -361,13 +366,13 @@ export const makeScratchpadSession = (
 
               const err = cmd.error
               if (err._tag === "TransportClosedError") {
-                if (err.code === 4000) {
+                if (err.code === CLOSE_CODE_IDLE_EVICTION) {
                   yield* cancelBackoff
                   consecutiveAttempts = 0
                   setStatus({ _tag: "idle" })
                   break
                 }
-                if (err.code === 1008) {
+                if (err.code === CLOSE_CODE_POLICY_VIOLATION) {
                   yield* cancelBackoff
                   consecutiveAttempts = 0
                   setStatus({
@@ -379,7 +384,7 @@ export const makeScratchpadSession = (
                   })
                   break
                 }
-                if (err.code === 1009) {
+                if (err.code === CLOSE_CODE_MESSAGE_TOO_BIG) {
                   yield* cancelBackoff
                   consecutiveAttempts = 0
                   setStatus({
@@ -391,7 +396,7 @@ export const makeScratchpadSession = (
                   })
                   break
                 }
-                if (err.code === 1013) {
+                if (err.code === CLOSE_CODE_TRY_AGAIN_LATER) {
                   yield* scheduleRetry(
                     "capacity",
                     err.reason || "Language server is at capacity.",

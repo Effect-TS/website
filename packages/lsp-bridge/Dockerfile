@@ -39,27 +39,10 @@ RUN mkdir -p /tmp/tsgo /opt/tsrs \
   && rm -rf /tmp/tsgo
 
 # Bake the static, read-only /workspace directory (0o555 dirs / 0o444 files)
-# with hoisted node_modules/effect and the Scratchpad tsconfig.json.
+# with hoisted node_modules/effect and the shared Scratchpad tsconfig.json.
+COPY workspace.tsconfig.json /workspace/tsconfig.json
 RUN mkdir -p /workspace/node_modules \
   && cp -a /app/node_modules/effect /workspace/node_modules/effect \
-  && printf '%s\n' \
-    '{' \
-    '  "compilerOptions": {' \
-    '    "strict": true,' \
-    '    "exactOptionalPropertyTypes": true,' \
-    '    "noEmit": true,' \
-    '    "target": "ES2022",' \
-    '    "module": "ESNext",' \
-    '    "moduleResolution": "bundler",' \
-    '    "types": [],' \
-    '    "plugins": [' \
-    '      {' \
-    '        "name": "@effect/language-service"' \
-    '      }' \
-    '    ]' \
-    '  },' \
-    '  "include": ["main.ts"]' \
-    '}' > /workspace/tsconfig.json \
   && printf 'export {}\n' > /workspace/main.ts \
   && find /workspace -type d -exec chmod 0555 {} + \
   && find /workspace -type f -exec chmod 0444 {} +

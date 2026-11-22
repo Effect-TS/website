@@ -251,6 +251,47 @@ describe("BridgeServer", () => {
             traversalClient.waitForClose(),
           )
           assert.strictEqual(traversalClose.code, 1008)
+
+          // 5. workspace/applyEdit targeting a disallowed URI closes with 1008
+          const badWorkspaceEditClient = yield* Effect.promise(() =>
+            connectWs(url),
+          )
+          badWorkspaceEditClient.send(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: 4,
+              method: "workspace/applyEdit",
+              params: {
+                edit: {
+                  changes: {
+                    "file:///workspace/other.ts": [],
+                  },
+                },
+              },
+            }),
+          )
+          const badWorkspaceEditClose = yield* Effect.promise(() =>
+            badWorkspaceEditClient.waitForClose(),
+          )
+          assert.strictEqual(badWorkspaceEditClose.code, 1008)
+
+          // 6. workspace/didCreateFiles targeting a disallowed URI closes with 1008
+          const badCreateFileClient = yield* Effect.promise(() =>
+            connectWs(url),
+          )
+          badCreateFileClient.send(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              method: "workspace/didCreateFiles",
+              params: {
+                files: [{ uri: "file:///workspace/evil.ts" }],
+              },
+            }),
+          )
+          const badCreateFileClose = yield* Effect.promise(() =>
+            badCreateFileClient.waitForClose(),
+          )
+          assert.strictEqual(badCreateFileClose.code, 1008)
         }),
       ),
     )

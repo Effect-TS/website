@@ -4,11 +4,14 @@ import {
   forwardToLspContainer,
   handleLspUpgrade,
   LSP_CONTAINER_PORT,
+  LSP_CONTAINER_SLEEP_AFTER_MS,
 } from "./features/scratchpad/lsp-gateway.ts"
 
 export class LspContainer extends DurableObject<typeof WorkerEnv> {
   readonly defaultPort = LSP_CONTAINER_PORT
-  readonly sleepAfter = "1m"
+  // Container inactivity timeout pairs with BridgeServer's 1-minute real-LSP-frame
+  // idle eviction (close code 4000), allowing idle containers to scale to zero.
+  readonly sleepAfterMs = LSP_CONTAINER_SLEEP_AFTER_MS
 
   async fetch(request: Request): Promise<Response> {
     const container = this.ctx.container
@@ -17,6 +20,7 @@ export class LspContainer extends DurableObject<typeof WorkerEnv> {
     }
     return forwardToLspContainer(container, request, {
       port: this.defaultPort,
+      sleepAfterMs: this.sleepAfterMs,
     })
   }
 }

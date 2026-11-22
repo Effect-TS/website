@@ -362,6 +362,99 @@ export const createWorkspaceSandbox = (
             params.changes = rewrittenChanges
             mutated = true
           }
+
+          if (isRecord(params.edit)) {
+            const edit = { ...params.edit }
+            let editMutated = false
+
+            if (isRecord(edit.changes)) {
+              const rewrittenEditChanges: Record<string, unknown> = {}
+              for (const [uri, edits] of Object.entries(edit.changes)) {
+                const rewrittenUri = yield* validateAndRewriteUri(uri, uriMode)
+                rewrittenEditChanges[rewrittenUri] = edits
+              }
+              edit.changes = rewrittenEditChanges
+              editMutated = true
+            }
+
+            if (Array.isArray(edit.documentChanges)) {
+              const rewrittenDocChanges: Array<unknown> = []
+              for (const change of edit.documentChanges) {
+                if (!isRecord(change)) {
+                  rewrittenDocChanges.push(change)
+                  continue
+                }
+                const nextChange: Record<string, unknown> = { ...change }
+                if (
+                  isRecord(change.textDocument) &&
+                  "uri" in change.textDocument
+                ) {
+                  nextChange.textDocument = {
+                    ...change.textDocument,
+                    uri: yield* validateAndRewriteUri(
+                      change.textDocument.uri,
+                      uriMode,
+                    ),
+                  }
+                }
+                if ("uri" in change && change.uri !== undefined) {
+                  nextChange.uri = yield* validateAndRewriteUri(
+                    change.uri,
+                    uriMode,
+                  )
+                }
+                if ("oldUri" in change && change.oldUri !== undefined) {
+                  nextChange.oldUri = yield* validateAndRewriteUri(
+                    change.oldUri,
+                    uriMode,
+                  )
+                }
+                if ("newUri" in change && change.newUri !== undefined) {
+                  nextChange.newUri = yield* validateAndRewriteUri(
+                    change.newUri,
+                    uriMode,
+                  )
+                }
+                rewrittenDocChanges.push(nextChange)
+              }
+              edit.documentChanges = rewrittenDocChanges
+              editMutated = true
+            }
+
+            if (editMutated) {
+              params.edit = edit
+              mutated = true
+            }
+          }
+
+          if (Array.isArray(params.files)) {
+            const rewrittenFiles: Array<unknown> = []
+            for (const file of params.files) {
+              if (!isRecord(file)) {
+                rewrittenFiles.push(file)
+                continue
+              }
+              const nextFile: Record<string, unknown> = { ...file }
+              if ("uri" in file && file.uri !== undefined) {
+                nextFile.uri = yield* validateAndRewriteUri(file.uri, uriMode)
+              }
+              if ("oldUri" in file && file.oldUri !== undefined) {
+                nextFile.oldUri = yield* validateAndRewriteUri(
+                  file.oldUri,
+                  uriMode,
+                )
+              }
+              if ("newUri" in file && file.newUri !== undefined) {
+                nextFile.newUri = yield* validateAndRewriteUri(
+                  file.newUri,
+                  uriMode,
+                )
+              }
+              rewrittenFiles.push(nextFile)
+            }
+            params.files = rewrittenFiles
+            mutated = true
+          }
         }
 
         if (!mutated) {

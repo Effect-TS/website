@@ -283,7 +283,6 @@ export const makeFakeLspTransport = (
 
   let activeDrainFiber: Fiber.Fiber<void, never> | undefined
   let activeEventsPubSub: PubSub.PubSub<TransportEvent> | undefined
-  let activeOutbound: Queue.Queue<string> | undefined
 
   const sentWaiters: Array<(msg: JsonRpcMessage) => void> = []
   const unreadSent: Array<JsonRpcMessage> = []
@@ -410,16 +409,7 @@ export const makeFakeLspTransport = (
           })
         }
       }),
-    failNextConnect: (error) =>
-      Effect.sync(() => {
-        const err =
-          error instanceof TransportConnectError
-            ? error
-            : new TransportConnectError({
-                message: error ?? "Simulated connection failure",
-              })
-        connectFailures.push(err)
-      }),
+    failNextConnect: (error) => controller.failConnects(1, error),
     failConnects: (count, error) =>
       Effect.sync(() => {
         for (let i = 0; i < count; i++) {
@@ -451,7 +441,6 @@ export const makeFakeLspTransport = (
       const lifecycle = yield* Semaphore.make(1)
 
       activeEventsPubSub = eventsPubSub
-      activeOutbound = outbound
 
       const closeActive = Effect.gen(function* () {
         connected = false
@@ -465,9 +454,6 @@ export const makeFakeLspTransport = (
           subscribers.clear()
           if (activeEventsPubSub === eventsPubSub) {
             activeEventsPubSub = undefined
-          }
-          if (activeOutbound === outbound) {
-            activeOutbound = undefined
           }
         }),
       )

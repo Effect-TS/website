@@ -2,7 +2,7 @@ import * as fs from "node:fs"
 import { createRequire } from "node:module"
 import * as os from "node:os"
 import * as path from "node:path"
-import { pathToFileURL } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 export interface LocalWorkspace {
   readonly rootDir: string
@@ -13,6 +13,7 @@ export interface LocalWorkspace {
 }
 
 const packageRequire = createRequire(import.meta.url)
+const packageRoot = fileURLToPath(new URL("..", import.meta.url))
 
 /**
  * Locate the native `@effect/tsgo` Rust `tsrs` binary directly so `ChildProcess`
@@ -115,29 +116,12 @@ export const createLocalReadOnlyWorkspace = (options?: {
   fs.mkdirSync(nodeModulesDir)
   fs.symlinkSync(effectSource, path.join(nodeModulesDir, "effect"), "dir")
 
-  const tsconfig = {
-    compilerOptions: {
-      strict: true,
-      exactOptionalPropertyTypes: true,
-      noEmit: true,
-      target: "ES2022",
-      module: "ESNext",
-      moduleResolution: "bundler",
-      types: [],
-      plugins: [
-        {
-          name: "@effect/language-service",
-        },
-      ],
-    },
-    include: ["main.ts"],
-  }
-
-  fs.writeFileSync(
-    tsconfigPath,
-    `${JSON.stringify(tsconfig, null, 2)}\n`,
-    "utf8",
+  const templateTsconfigPath = path.resolve(
+    packageRoot,
+    "workspace.tsconfig.json",
   )
+
+  fs.copyFileSync(templateTsconfigPath, tsconfigPath)
   fs.writeFileSync(mainFilePath, "export {}\n", "utf8")
 
   // Lock down permissions read-only (0o444 files, 0o555 directories)

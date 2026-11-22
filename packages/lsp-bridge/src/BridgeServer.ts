@@ -126,29 +126,17 @@ export const startBridgeServer = (
 
           yield* resetIdleTimer
 
+          const closeInternalError = () =>
+            closeSocketWith(writer, CLOSE_CODE_INTERNAL_ERROR, "Internal Error")
+
           const stdoutPump = session.incoming.pipe(
             Stream.runForEach((raw) =>
               writer.write(sandbox.rewriteServerMessage(raw)),
             ),
             Effect.catchTags({
-              InvalidLspFrameError: () =>
-                closeSocketWith(
-                  writer,
-                  CLOSE_CODE_INTERNAL_ERROR,
-                  "Internal Error",
-                ),
-              LspProcessError: () =>
-                closeSocketWith(
-                  writer,
-                  CLOSE_CODE_INTERNAL_ERROR,
-                  "Internal Error",
-                ),
-              LspProcessExitedError: () =>
-                closeSocketWith(
-                  writer,
-                  CLOSE_CODE_INTERNAL_ERROR,
-                  "Internal Error",
-                ),
+              InvalidLspFrameError: closeInternalError,
+              LspProcessError: closeInternalError,
+              LspProcessExitedError: closeInternalError,
             }),
             Effect.catch(() => Effect.void),
           )
