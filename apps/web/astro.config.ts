@@ -18,6 +18,7 @@ import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
 import { rehypeHeadingLinks } from "./src/features/docs/rehype-heading-links"
+import { rehypeTableScroll } from "./src/features/docs/rehype-table-scroll"
 import { remarkMermaid } from "./src/features/docs/remark-mermaid"
 import { incrementalBuildReport } from "./src/lib/incremental-build-report"
 
@@ -40,7 +41,7 @@ const config = defineConfig({
   markdown: {
     processor: unified({
       remarkPlugins: [remarkMermaid],
-      rehypePlugins: [rehypeHeadingIds, rehypeHeadingLinks],
+      rehypePlugins: [rehypeHeadingIds, rehypeHeadingLinks, rehypeTableScroll],
     }),
   },
 
