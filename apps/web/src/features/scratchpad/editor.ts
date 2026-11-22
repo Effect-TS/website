@@ -20,6 +20,7 @@ import {
   SCRATCHPAD_ENTRY_PATH,
   SCRATCHPAD_ROOT_URI,
 } from "./config.ts"
+import { scratchpadEditorTheme } from "./editor-theme.ts"
 import { MultiFileLspWorkspace } from "./lsp-workspace.ts"
 import {
   makeScratchpadSession,
@@ -116,45 +117,6 @@ export interface ScratchpadEditorSession {
   readonly deletePathAtom: Atom.AtomResultFn<string, void>
   readonly clearErrorAtom: Atom.AtomResultFn<void, void>
 }
-
-const scratchpadEditorTheme = EditorView.theme({
-  "&": {
-    height: "100%",
-    fontSize: "14px",
-    fontFamily:
-      "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-    backgroundColor: "transparent",
-  },
-  ".cm-scroller": {
-    overflow: "auto",
-    fontFamily: "inherit",
-    lineHeight: "1.6",
-  },
-  ".cm-content": {
-    padding: "16px 0",
-    caretColor: "currentColor",
-  },
-  ".cm-gutters": {
-    backgroundColor: "transparent",
-    borderRight: "1px solid color-mix(in oklab, currentColor 12%, transparent)",
-    color: "color-mix(in oklab, currentColor 45%, transparent)",
-    paddingRight: "4px",
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: "color-mix(in oklab, currentColor 6%, transparent)",
-  },
-  ".cm-activeLine": {
-    backgroundColor: "color-mix(in oklab, currentColor 4%, transparent)",
-  },
-  "&.cm-focused": {
-    outline: "none",
-  },
-  ".cm-tooltip": {
-    borderRadius: "6px",
-    border: "1px solid color-mix(in oklab, currentColor 18%, transparent)",
-    fontSize: "13px",
-  },
-})
 
 /**
  * Diagnostic client capabilities `@codemirror/lsp-client` does not declare by
