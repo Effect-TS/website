@@ -125,6 +125,11 @@ const config = defineConfig({
         optional: true,
         default: "https://us.i.posthog.com",
       }),
+      PUBLIC_LSP_WS_URL: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+      }),
     },
   },
 
