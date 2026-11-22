@@ -1,7 +1,7 @@
 # Design server-side @effect/tsgo WebSocket bridge and container lifecycle
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 02, 05, 08, 12
 
 ## Question
