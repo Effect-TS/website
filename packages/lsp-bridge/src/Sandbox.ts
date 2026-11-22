@@ -4,9 +4,13 @@ import * as path from "node:path"
 import { pathToFileURL } from "node:url"
 
 export const MAX_MESSAGE_BYTES = 256 * 1024
+export const MAX_WORKSPACE_BYTES = 1024 * 1024
+export const MAX_OPEN_FILES = 50
 export const VIRTUAL_WORKSPACE_DIR = "/workspace"
 export const VIRTUAL_WORKSPACE_URI = "file:///workspace"
 export const VIRTUAL_MAIN_URI = "file:///workspace/main.ts"
+
+const ALLOWED_EDITABLE_EXTENSIONS = new Set([".ts", ".tsx"])
 
 export class PolicyViolationError extends Data.TaggedError(
   "PolicyViolationError",
@@ -51,8 +55,16 @@ export interface WorkspaceSandbox {
   readonly mainFilePath: string
   readonly mainFileUri: string
   readonly maxMessageBytes: number
+  readonly maxWorkspaceBytes: number
+  readonly maxOpenFiles: number
   readonly makeSessionValidator: () => SessionMessageValidator
   readonly rewriteServerMessage: (raw: string) => string
+}
+
+export interface WorkspaceSandboxLimits {
+  readonly maxMessageBytes?: number | undefined
+  readonly maxWorkspaceBytes?: number | undefined
+  readonly maxOpenFiles?: number | undefined
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -113,10 +125,41 @@ const applyContentChanges = (
   return text
 }
 
+const isEditableRelativePath = (relPosix: string): boolean => {
+  if (relPosix.length === 0) {
+    return false
+  }
+  const segments = relPosix.split("/")
+  if (segments.some((s) => s.length === 0 || s === "." || s === "..")) {
+    return false
+  }
+  if (segments[0] === "node_modules") {
+    return false
+  }
+  if (relPosix === "tsconfig.json") {
+    return false
+  }
+  const ext = path.posix.extname(relPosix)
+  return ALLOWED_EDITABLE_EXTENSIONS.has(ext)
+}
+
 export const createWorkspaceSandbox = (
   workspaceDir: string,
-  maxMessageBytes: number = MAX_MESSAGE_BYTES,
+  limitsOrMaxMessageBytes?: number | WorkspaceSandboxLimits,
 ): WorkspaceSandbox => {
+  const maxMessageBytes =
+    typeof limitsOrMaxMessageBytes === "number"
+      ? limitsOrMaxMessageBytes
+      : (limitsOrMaxMessageBytes?.maxMessageBytes ?? MAX_MESSAGE_BYTES)
+  const maxWorkspaceBytes =
+    typeof limitsOrMaxMessageBytes === "number"
+      ? MAX_WORKSPACE_BYTES
+      : (limitsOrMaxMessageBytes?.maxWorkspaceBytes ?? MAX_WORKSPACE_BYTES)
+  const maxOpenFiles =
+    typeof limitsOrMaxMessageBytes === "number"
+      ? MAX_OPEN_FILES
+      : (limitsOrMaxMessageBytes?.maxOpenFiles ?? MAX_OPEN_FILES)
+
   const resolvedRoot = path.resolve(workspaceDir)
   const resolvedRootPosix = resolvedRoot.split(path.sep).join("/")
   const workspaceRootUri = pathToFileURL(resolvedRoot).href.replace(/\/$/, "")
@@ -197,12 +240,25 @@ export const createWorkspaceSandbox = (
         )
       }
 
-      if (mode === "editable" && mappedPath !== mainFilePath) {
-        return Effect.fail(
-          new PolicyViolationError({
-            reason: `Editable URI restricted to ${VIRTUAL_MAIN_URI}: ${rawUri}`,
-          }),
-        )
+      if (mode === "editable") {
+        if (mappedPath === resolvedRoot) {
+          return Effect.fail(
+            new PolicyViolationError({
+              reason: `Editable URI cannot be workspace root: ${rawUri}`,
+            }),
+          )
+        }
+        const relPosix = path
+          .relative(resolvedRoot, mappedPath)
+          .split(path.sep)
+          .join("/")
+        if (!isEditableRelativePath(relPosix)) {
+          return Effect.fail(
+            new PolicyViolationError({
+              reason: `Editable URI disallowed (must be .ts/.tsx outside node_modules and tsconfig.json): ${rawUri}`,
+            }),
+          )
+        }
       }
 
       return Effect.succeed(pathToFileURL(mappedPath).href.replace(/\/$/, ""))
@@ -210,11 +266,13 @@ export const createWorkspaceSandbox = (
 
   const makeSessionValidator = (): SessionMessageValidator => {
     const openDocuments = new Map<string, string>()
+    const openDocumentBytes = new Map<string, number>()
+    let totalOpenBytes = 0
 
     const checkBytes = (
       text: string,
       label: string,
-    ): Effect.Effect<void, MessageTooBigError> =>
+    ): Effect.Effect<number, MessageTooBigError> =>
       Effect.suspend(() => {
         const bytes = Buffer.byteLength(text, "utf8")
         if (bytes > maxMessageBytes) {
@@ -226,8 +284,47 @@ export const createWorkspaceSandbox = (
             }),
           )
         }
-        return Effect.void
+        return Effect.succeed(bytes)
       })
+
+    const updateOpenDocument = (
+      uri: string,
+      text: string,
+    ): Effect.Effect<void, MessageTooBigError> =>
+      Effect.gen(function* () {
+        const nextBytes = yield* checkBytes(text, "Open document text")
+        const isNew = !openDocuments.has(uri)
+        if (isNew && openDocuments.size >= maxOpenFiles) {
+          return yield* Effect.fail(
+            new MessageTooBigError({
+              reason: `Open document count exceeded ${maxOpenFiles} files`,
+              bytes: openDocuments.size + 1,
+              limit: maxOpenFiles,
+            }),
+          )
+        }
+        const prevBytes = openDocumentBytes.get(uri) ?? 0
+        const nextTotal = totalOpenBytes - prevBytes + nextBytes
+        if (nextTotal > maxWorkspaceBytes) {
+          return yield* Effect.fail(
+            new MessageTooBigError({
+              reason: `Total workspace size exceeded ${maxWorkspaceBytes} bytes (${nextTotal} bytes)`,
+              bytes: nextTotal,
+              limit: maxWorkspaceBytes,
+            }),
+          )
+        }
+        openDocuments.set(uri, text)
+        openDocumentBytes.set(uri, nextBytes)
+        totalOpenBytes = nextTotal
+      })
+
+    const removeOpenDocument = (uri: string) => {
+      const prevBytes = openDocumentBytes.get(uri) ?? 0
+      openDocuments.delete(uri)
+      openDocumentBytes.delete(uri)
+      totalOpenBytes = Math.max(0, totalOpenBytes - prevBytes)
+    }
 
     const validateAndRewriteClientMessage = (
       raw: string,
@@ -323,8 +420,7 @@ export const createWorkspaceSandbox = (
               method === "textDocument/didOpen" &&
               typeof textDocument.text === "string"
             ) {
-              yield* checkBytes(textDocument.text, "Open document text")
-              openDocuments.set(rewrittenUri, textDocument.text)
+              yield* updateOpenDocument(rewrittenUri, textDocument.text)
             } else if (
               method === "textDocument/didChange" &&
               Array.isArray(params.contentChanges)
@@ -334,10 +430,9 @@ export const createWorkspaceSandbox = (
                 previous,
                 params.contentChanges,
               )
-              yield* checkBytes(updated, "Open document text")
-              openDocuments.set(rewrittenUri, updated)
+              yield* updateOpenDocument(rewrittenUri, updated)
             } else if (method === "textDocument/didClose") {
-              openDocuments.delete(rewrittenUri)
+              removeOpenDocument(rewrittenUri)
             }
           }
 
@@ -511,6 +606,8 @@ export const createWorkspaceSandbox = (
     mainFilePath,
     mainFileUri,
     maxMessageBytes,
+    maxWorkspaceBytes,
+    maxOpenFiles,
     makeSessionValidator,
     rewriteServerMessage,
   }

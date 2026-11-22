@@ -33,6 +33,7 @@ export interface CachedLspTransport {
   readonly stats: () => LspCacheStats
   readonly clear: () => void
   readonly resetPending: () => void
+  readonly replayIncoming: (raw: string) => void
 }
 
 interface JsonRpcRecord {
@@ -156,6 +157,20 @@ export const createCachedLspTransport = (
   const lru = new Map<string, unknown>()
   const docTexts = new Map<string, string>()
   const docHashes = new Map<string, string>()
+  let workspaceFingerprint = ""
+
+  const recomputeWorkspaceFingerprint = () => {
+    if (docHashes.size === 0) {
+      workspaceFingerprint = ""
+      return
+    }
+    const entries = Array.from(docHashes.entries()).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    )
+    workspaceFingerprint = hashText(
+      entries.map(([uri, hash]) => `${uri}=${hash}`).join("\n"),
+    )
+  }
 
   interface PendingGroup {
     readonly upstreamId: string | number
@@ -228,13 +243,13 @@ export const createCachedLspTransport = (
     const docHash =
       uri !== undefined
         ? docHashes.get(uri)
-        : docHashes.size === 1
-          ? docHashes.values().next().value
+        : docHashes.size >= 1
+          ? workspaceFingerprint
           : undefined
-    if (docHash === undefined) {
+    if (docHash === undefined || workspaceFingerprint.length === 0) {
       return undefined
     }
-    return `${docHash}|${method}|${JSON.stringify(canonicalize(params ?? null))}`
+    return `${workspaceFingerprint}|${method}|${JSON.stringify(canonicalize(params ?? null))}`
   }
 
   const handleInnerMessage = (raw: string) => {
@@ -334,6 +349,7 @@ export const createCachedLspTransport = (
         const text = params.textDocument.text
         docTexts.set(uri, text)
         docHashes.set(uri, hashText(text))
+        recomputeWorkspaceFingerprint()
         inner.send(message)
         return
       }
@@ -350,6 +366,7 @@ export const createCachedLspTransport = (
         const next = applyContentChanges(prev, params.contentChanges)
         docTexts.set(uri, next)
         docHashes.set(uri, hashText(next))
+        recomputeWorkspaceFingerprint()
         inner.send(message)
         return
       }
@@ -363,6 +380,7 @@ export const createCachedLspTransport = (
         const uri = params.textDocument.uri
         docTexts.delete(uri)
         docHashes.delete(uri)
+        recomputeWorkspaceFingerprint()
         inner.send(message)
         return
       }
@@ -475,5 +493,8 @@ export const createCachedLspTransport = (
       resetPending()
     },
     resetPending,
+    replayIncoming: (raw: string) => {
+      emitToHandlers(raw)
+    },
   }
 }

@@ -19,6 +19,7 @@ import { transformClientToServer, transformServerToClient } from "./Quirks.ts"
 
 export const BRIDGE_REQUEST_ID_PREFIX = "bridge:"
 export const DIAGNOSTIC_DEBOUNCE_MS = 150
+export const CROSS_FILE_DIAGNOSTIC_DEBOUNCE_MS = 400
 
 export type LspSessionError =
   | InvalidLspFrameError
@@ -61,6 +62,16 @@ export const openLspSession = (): Effect.Effect<
     const pendingPulls = new Map<string, PendingDiagnosticPull>()
     const activePullIdByUri = new Map<string, string>()
     const debounceFiberByUri = new Map<string, Fiber.Fiber<void, never>>()
+    const openDocuments = new Map<string, number | undefined>()
+    let crossFileDebounceFiber: Fiber.Fiber<void, never> | undefined
+
+    const cancelCrossFileDebounce = Effect.gen(function* () {
+      const fiber = crossFileDebounceFiber
+      crossFileDebounceFiber = undefined
+      if (fiber !== undefined) {
+        yield* Fiber.interrupt(fiber)
+      }
+    })
 
     const failSession = (error: LspSessionError): Effect.Effect<void> =>
       Effect.gen(function* () {
@@ -69,10 +80,12 @@ export const openLspSession = (): Effect.Effect<
         }
         failure = error
 
+        yield* cancelCrossFileDebounce
         const fibers = Array.from(debounceFiberByUri.values())
         debounceFiberByUri.clear()
         pendingPulls.clear()
         activePullIdByUri.clear()
+        openDocuments.clear()
         for (const fiber of fibers) {
           yield* Fiber.interrupt(fiber)
         }
@@ -146,6 +159,38 @@ export const openLspSession = (): Effect.Effect<
           Effect.forkIn(scope),
         )
         debounceFiberByUri.set(uri, fiber)
+      })
+
+    const scheduleCrossFileDiagnosticPull = (
+      excludeUri?: string,
+    ): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        yield* cancelCrossFileDebounce
+        if (
+          openDocuments.size === 0 ||
+          (excludeUri !== undefined &&
+            openDocuments.size === 1 &&
+            openDocuments.has(excludeUri))
+        ) {
+          return
+        }
+        const fiber = yield* Effect.sleep(
+          `${CROSS_FILE_DIAGNOSTIC_DEBOUNCE_MS} millis`,
+        ).pipe(
+          Effect.andThen(
+            Effect.gen(function* () {
+              crossFileDebounceFiber = undefined
+              for (const [docUri, docVersion] of openDocuments.entries()) {
+                if (docUri === excludeUri) continue
+                if (debounceFiberByUri.has(docUri)) continue
+                yield* cancelPendingForUri(docUri)
+                yield* triggerDiagnosticPull(docUri, docVersion)
+              }
+            }),
+          ),
+          Effect.forkIn(scope),
+        )
+        crossFileDebounceFiber = fiber
       })
 
     // Drain stderr to structured server logs so pipe buffers never stall
@@ -321,12 +366,29 @@ export const openLspSession = (): Effect.Effect<
             : undefined
 
         if (parsed?.method === "textDocument/didOpen") {
+          openDocuments.set(uri, version)
           yield* cancelPendingForUri(uri)
           yield* triggerDiagnosticPull(uri, version)
+          yield* scheduleCrossFileDiagnosticPull(uri)
         } else if (parsed?.method === "textDocument/didChange") {
+          openDocuments.set(uri, version)
           yield* scheduleDebouncedDiagnosticPull(uri, version)
+          yield* scheduleCrossFileDiagnosticPull(uri)
         } else if (parsed?.method === "textDocument/didClose") {
+          openDocuments.delete(uri)
           yield* cancelPendingForUri(uri)
+          yield* Queue.offer(
+            clientOutQueue,
+            JSON.stringify({
+              jsonrpc: "2.0",
+              method: "textDocument/publishDiagnostics",
+              params: {
+                uri,
+                diagnostics: [],
+              },
+            }),
+          ).pipe(Effect.asVoid)
+          yield* scheduleCrossFileDiagnosticPull(uri)
         }
       })
 

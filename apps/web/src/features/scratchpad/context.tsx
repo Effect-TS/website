@@ -1,32 +1,35 @@
-import type { LSPClient } from "@codemirror/lsp-client"
-import type { EditorView } from "@codemirror/view"
-import type * as Option from "effect/Option"
-import type * as AsyncResult from "effect/reactivity/AsyncResult"
-import type * as Atom from "effect/reactivity/Atom"
 import * as React from "react"
-import type { LspStatus } from "./session.ts"
+import type { ScratchpadEditorSession } from "./editor.ts"
 
-export interface ScratchpadSessionContextValue {
-  readonly elementAtom: Atom.Writable<Option.Option<HTMLElement>>
-  readonly statusAtom: Atom.Writable<LspStatus>
-  readonly editorAtom: Atom.Atom<
-    AsyncResult.AsyncResult<{
-      readonly view: EditorView
-      readonly client: LSPClient
-    }>
-  >
-  readonly reconnectAtom: Atom.AtomResultFn<void, void>
-}
+export type ScratchpadSessionContextValue = Pick<
+  ScratchpadEditorSession,
+  | "elementAtom"
+  | "statusAtom"
+  | "editorAtom"
+  | "treeAtom"
+  | "openTabsAtom"
+  | "activeFileAtom"
+  | "diagnosticsAtom"
+  | "workspaceErrorAtom"
+  | "reconnectAtom"
+  | "openFileAtom"
+  | "closeTabAtom"
+  | "createFileAtom"
+  | "createDirectoryAtom"
+  | "renamePathAtom"
+  | "deletePathAtom"
+  | "clearErrorAtom"
+>
 
 export const ScratchpadSessionContext =
   React.createContext<ScratchpadSessionContextValue | null>(null)
 
 export const useScratchpadSession = (): ScratchpadSessionContextValue => {
-  const ctx = React.useContext(ScratchpadSessionContext)
-  if (ctx === null) {
+  const value = React.useContext(ScratchpadSessionContext)
+  if (value === null) {
     throw new Error(
-      "useScratchpadSession must be used inside a <Scratchpad> component.",
+      "useScratchpadSession must be used inside a ScratchpadSessionContext.Provider",
     )
   }
-  return ctx
+  return value
 }

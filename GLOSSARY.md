@@ -9,5 +9,9 @@ The full multi-file code editing and execution environment at `/play`.
 _Avoid_: Editor, sandbox, scratchpad
 
 **Scratchpad**:
-The standalone single-file TypeScript editing surface at `/scratchpad` with live language intelligence and no code execution.
+The standalone multi-file TypeScript editing surface at `/scratchpad` with live language intelligence and no code execution.
 _Avoid_: Lite playground, mini playground, editor
+
+**Workspace**:
+The mutable tree of source files and directories backing an editing surface, separate from editor UI state like open tabs or cursor positions.
+_Avoid_: Project, file tree, virtual disk

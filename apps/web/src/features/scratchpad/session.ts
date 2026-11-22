@@ -137,6 +137,7 @@ export interface ScratchpadSession {
   readonly wakeAtom: Atom.AtomResultFn<WakeTrigger, void>
   readonly onlineAtom: Atom.AtomResultFn<void, void>
   readonly documentChangedAtom: Atom.AtomResultFn<string | number, void>
+  readonly replayIncoming: (raw: string) => void
 }
 
 export const makeScratchpadSession = (
@@ -160,6 +161,7 @@ export const makeScratchpadSession = (
   )
 
   let activeCommands: Queue.Queue<SessionCommand> | undefined
+  let activeReplayIncoming: ((raw: string) => void) | undefined
 
   const clientAtom = runtime.atom(
     Effect.fnUntraced(function* () {
@@ -168,11 +170,13 @@ export const makeScratchpadSession = (
       const cachedTransport = createCachedLspTransport(lspTransport.transport)
       const commands = yield* Queue.unbounded<SessionCommand>()
       activeCommands = commands
+      activeReplayIncoming = cachedTransport.replayIncoming
 
       yield* Effect.addFinalizer(() =>
         Effect.sync(() => {
           if (activeCommands === commands) {
             activeCommands = undefined
+            activeReplayIncoming = undefined
           }
         }),
       )
@@ -533,5 +537,8 @@ export const makeScratchpadSession = (
     wakeAtom,
     onlineAtom,
     documentChangedAtom,
+    replayIncoming: (raw: string) => {
+      activeReplayIncoming?.(raw)
+    },
   }
 }

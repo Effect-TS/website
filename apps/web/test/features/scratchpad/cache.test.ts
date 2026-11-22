@@ -30,14 +30,18 @@ const makeMockTransport = () => {
   return { transport, sent, receive }
 }
 
-const openDoc = (transport: Transport, text: string) => {
+const openDoc = (
+  transport: Transport,
+  text: string,
+  uri: string = "file:///workspace/main.ts",
+) => {
   transport.send(
     JSON.stringify({
       jsonrpc: "2.0",
       method: "textDocument/didOpen",
       params: {
         textDocument: {
-          uri: "file:///workspace/main.ts",
+          uri,
           languageId: "typescript",
           version: 1,
           text,
@@ -346,5 +350,77 @@ describe("createCachedLspTransport", () => {
       id: 21,
       result: { line: 2 },
     })
+  })
+
+  test("invalidates cached queries in file A when another workspace file B changes", async () => {
+    const mock = makeMockTransport()
+    const cached = createCachedLspTransport(mock.transport)
+    const received: Array<Record<string, unknown>> = []
+    cached.transport.subscribe((raw) => {
+      received.push(JSON.parse(raw) as Record<string, unknown>)
+    })
+
+    openDoc(
+      cached.transport,
+      'import { greet } from "./greeter.ts"\nconst x = greet("a")\n',
+      "file:///workspace/src/main.ts",
+    )
+    openDoc(
+      cached.transport,
+      "export const greet = (name: string) => name\n",
+      "file:///workspace/src/greeter.ts",
+    )
+
+    const hoverParams = {
+      textDocument: { uri: "file:///workspace/src/main.ts" },
+      position: { line: 1, character: 12 },
+    }
+
+    // 1. Prime cache for main.ts
+    cached.transport.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "textDocument/hover",
+        params: hoverParams,
+      }),
+    )
+    mock.receive({
+      jsonrpc: "2.0",
+      id: 1,
+      result: { contents: "greet(name: string): string" },
+    })
+
+    // 2. Edit greeter.ts -> workspace fingerprint changes
+    cached.transport.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: "textDocument/didChange",
+        params: {
+          textDocument: {
+            uri: "file:///workspace/src/greeter.ts",
+            version: 2,
+          },
+          contentChanges: [{ text: "export const greet = (n: number) => n\n" }],
+        },
+      }),
+    )
+
+    // 3. Re-query hover in main.ts -> must miss cache and hit upstream!
+    const upstreamBefore = mock.sent.filter(
+      (m) => m.method === "textDocument/hover",
+    ).length
+    cached.transport.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "textDocument/hover",
+        params: hoverParams,
+      }),
+    )
+    const upstreamAfter = mock.sent.filter(
+      (m) => m.method === "textDocument/hover",
+    ).length
+    assert.strictEqual(upstreamAfter, upstreamBefore + 1)
   })
 })

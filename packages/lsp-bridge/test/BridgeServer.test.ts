@@ -100,7 +100,7 @@ const connectWs = (url: string): Promise<TestWsClient> =>
   })
 
 describe("BridgeServer", () => {
-  test("rewrites editable /workspace/main.ts URIs, allows read-only /workspace targets, and closes with 1008 on malformed JSON or disallowed URIs", async () => {
+  test("rewrites editable .ts/.tsx URIs inside /workspace, allows read-only /workspace targets, and closes with 1008 on malformed JSON or disallowed URIs", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
@@ -200,6 +200,39 @@ describe("BridgeServer", () => {
             `file://${workspaceDir}/node_modules/effect/dist/Effect.d.ts`,
           )
 
+          // Nested .ts file inside /workspace is editable and rewritten
+          client.send(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              method: "textDocument/didOpen",
+              params: {
+                textDocument: {
+                  uri: "file:///workspace/src/greeter.ts",
+                  languageId: "typescript",
+                  version: 1,
+                  text: "export const greet = () => 'hi'",
+                },
+              },
+            }),
+          )
+          const nestedDidOpen = (yield* fake.takeStdinMessage) as {
+            params: { textDocument: { uri: string } }
+          }
+          assert.strictEqual(
+            nestedDidOpen.params.textDocument.uri,
+            `file://${workspaceDir}/src/greeter.ts`,
+          )
+          // Consume synthetic diagnostic pull for nested file
+          const nestedPull = (yield* fake.takeStdinMessage) as {
+            method: string
+            params: { textDocument: { uri: string } }
+          }
+          assert.strictEqual(nestedPull.method, "textDocument/diagnostic")
+          assert.strictEqual(
+            nestedPull.params.textDocument.uri,
+            `file://${workspaceDir}/src/greeter.ts`,
+          )
+
           client.close()
           yield* Effect.promise(() => client.waitForClose())
 
@@ -211,26 +244,32 @@ describe("BridgeServer", () => {
           )
           assert.strictEqual(badJsonClose.code, 1008)
 
-          // 3. Editable request targeting non-main.ts inside /workspace closes with 1008
-          const badEditClient = yield* Effect.promise(() => connectWs(url))
-          badEditClient.send(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              method: "textDocument/didOpen",
-              params: {
-                textDocument: {
-                  uri: "file:///workspace/other.ts",
-                  languageId: "typescript",
-                  version: 1,
-                  text: "export {}",
+          // 3. Editable request targeting tsconfig.json, node_modules, or non-.ts/.tsx closes with 1008
+          for (const disallowedUri of [
+            "file:///workspace/tsconfig.json",
+            "file:///workspace/node_modules/effect/index.ts",
+            "file:///workspace/notes.md",
+          ]) {
+            const badEditClient = yield* Effect.promise(() => connectWs(url))
+            badEditClient.send(
+              JSON.stringify({
+                jsonrpc: "2.0",
+                method: "textDocument/didOpen",
+                params: {
+                  textDocument: {
+                    uri: disallowedUri,
+                    languageId: "typescript",
+                    version: 1,
+                    text: "export {}",
+                  },
                 },
-              },
-            }),
-          )
-          const badEditClose = yield* Effect.promise(() =>
-            badEditClient.waitForClose(),
-          )
-          assert.strictEqual(badEditClose.code, 1008)
+              }),
+            )
+            const badEditClose = yield* Effect.promise(() =>
+              badEditClient.waitForClose(),
+            )
+            assert.strictEqual(badEditClose.code, 1008)
+          }
 
           // 4. Path traversal outside /workspace closes with 1008
           const traversalClient = yield* Effect.promise(() => connectWs(url))
@@ -264,7 +303,7 @@ describe("BridgeServer", () => {
               params: {
                 edit: {
                   changes: {
-                    "file:///workspace/other.ts": [],
+                    "file:///workspace/tsconfig.json": [],
                   },
                 },
               },
@@ -284,7 +323,9 @@ describe("BridgeServer", () => {
               jsonrpc: "2.0",
               method: "workspace/didCreateFiles",
               params: {
-                files: [{ uri: "file:///workspace/evil.ts" }],
+                files: [
+                  { uri: "file:///workspace/node_modules/effect/evil.ts" },
+                ],
               },
             }),
           )

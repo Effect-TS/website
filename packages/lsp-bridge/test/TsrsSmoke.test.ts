@@ -387,4 +387,124 @@ describe("Live tsrs WebSocket smoke", () => {
       }
     },
   )
+
+  test(
+    "resolves cross-file imports, definition jumps, and live cross-file diagnostics across in-memory didOpen files",
+    { timeout: 20_000 },
+    async () => {
+      const binaryPath = resolveTsrsBinary()
+      const workspace = createLocalReadOnlyWorkspace()
+
+      try {
+        await Effect.runPromise(
+          Effect.scoped(
+            Effect.gen(function* () {
+              const stdioLayer = makeTsrsLspStdioLayer({
+                binaryPath,
+                workspaceDir: workspace.rootDir,
+              })
+
+              const { url } = yield* startBridgeServer({
+                port: 0,
+                workspaceDir: workspace.rootDir,
+              }).pipe(Effect.provide(stdioLayer))
+
+              const client = yield* Effect.promise(() => openLspWsClient(url))
+              const initRes = yield* Effect.promise(() =>
+                client.request("initialize", {
+                  processId: null,
+                  rootUri: "file:///workspace",
+                  capabilities: {},
+                }),
+              )
+              assert.isUndefined(initRes.error)
+              client.notify("initialized", {})
+
+              const greeterUri = "file:///workspace/src/greeter.ts"
+              const mainUri = "file:///workspace/src/main.ts"
+
+              client.notify("textDocument/didOpen", {
+                textDocument: {
+                  uri: greeterUri,
+                  languageId: "typescript",
+                  version: 1,
+                  text: [
+                    'import { Effect } from "effect"',
+                    "export const greet = (name: string) => Effect.succeed(`Hello, ${name}!`)",
+                    "",
+                  ].join("\n"),
+                },
+              })
+
+              client.notify("textDocument/didOpen", {
+                textDocument: {
+                  uri: mainUri,
+                  languageId: "typescript",
+                  version: 1,
+                  text: [
+                    'import { Effect } from "effect"',
+                    'import { greet } from "./greeter.ts"',
+                    'export const program = greet("Effect")',
+                    "",
+                  ].join("\n"),
+                },
+              })
+
+              // Definition on `greet` in src/main.ts resolves to rewritten virtual URI src/greeter.ts
+              const defRes = yield* Effect.promise(() =>
+                client.request("textDocument/definition", {
+                  textDocument: { uri: mainUri },
+                  position: { line: 2, character: 25 },
+                }),
+              )
+              assert.isUndefined(defRes.error)
+              assert.include(JSON.stringify(defRes.result), greeterUri)
+
+              // Edit greeter.ts to require a number -> cross-file pull must push TS2345 on src/main.ts
+              client.notify("textDocument/didChange", {
+                textDocument: { uri: greeterUri, version: 2 },
+                contentChanges: [
+                  {
+                    text: [
+                      'import { Effect } from "effect"',
+                      "export const greet = (count: number) => Effect.succeed(count)",
+                      "",
+                    ].join("\n"),
+                  },
+                ],
+              })
+
+              const mainDiag = yield* Effect.promise(() =>
+                client.waitForNotification((msg) => {
+                  if (msg.method !== "textDocument/publishDiagnostics") {
+                    return false
+                  }
+                  const params = msg.params as {
+                    uri?: string
+                    diagnostics?: ReadonlyArray<{ code?: unknown }>
+                  }
+                  return (
+                    params.uri === mainUri &&
+                    Array.isArray(params.diagnostics) &&
+                    params.diagnostics.some((d) => String(d.code) === "2345")
+                  )
+                }, 15_000),
+              )
+              assert.isDefined(mainDiag)
+
+              client.close()
+            }),
+          ).pipe(
+            Effect.provide(
+              NodeChildProcessSpawner.layer.pipe(
+                Layer.provide(NodeServices.layer),
+              ),
+            ),
+          ),
+        )
+      } finally {
+        workspace.cleanup()
+      }
+    },
+  )
 })
