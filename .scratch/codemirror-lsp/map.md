@@ -34,21 +34,19 @@ A settled technical spec and implementation ticket breakdown for a separate, lig
 - [Research Effect Atom patterns for CodeMirror and LSP state](issues/06-effect-atom-editor-link.md): Use `Atom.runtime` (short `setIdleTTL`) inside a per-instance `<RegistryProvider>` + `ScopedAtom.make` to own transport/LSP/`EditorView` scopes, keep live document text in CodeMirror `EditorState` with one-way `Annotation`-tagged dispatches and debounced streams, derive per-file `Atom.family` selectors from canonical workspace maps, use `runtime.fn` + `AsyncResult` (not `AtomRpc`) for extra LSP requests, and mount behind Astro's `client:only="react"` island boundary.
 - [Prototype bare CodeMirror 6 with @codemirror/lsp-client and vtsls worker](issues/10-proto-bare-codemirror-vtsls.md): Works in `apps/web` (`prototype/cm-lsp-vtsls`, `844de07b`) with push diagnostics, hover (42 ms), and completions (127 ms) out of the box in `@codemirror/lsp-client@6.3.1`, and the CM6 + LSP shell is only 183.7 KB gzip (7.6x smaller than Monaco's main bundle), but browser `vtsls` adds 5.05 MB gzip total (~2x Monaco's static bundle) and requires Vite WASM inlining, undeclared `uuid`, and COEP headers on static worker assets.
 - [Decide editor use cases, lightweight target, and multi-file scope](issues/07-editor-use-cases-and-scope.md): v1 ships as an unlisted standalone single-file **Scratchpad** at `/scratchpad` with one preloaded Effect snippet, a compact LSP status indicator, no code execution, no hard bundle cap while still tracking bundle size, latency targets under 500 ms editable and under 1.5 s warm first diagnostic/hover, multi-file editing deferred to v2, and four concrete gates required before ever considering a `/play` replacement.
+- [Choose primary architecture: server-hosted TS 7 vs browser-only TS 6](issues/08-server-ts7-vs-browser-ts6.md): v1 runs server-hosted `@effect/tsgo --lsp --stdio` on Cloudflare Containers (`@alchemy.run/cloudflare`) behind WebSockets, one scoped child process per connection, with framing and `tsgo` quirks absorbed on the server bridge and `@codemirror/lsp-client` kept behind a backend-agnostic Effect `Transport` service (ADR: `docs/adr/0001-server-hosted-effect-tsgo-lsp.md`).
 
 ## Not yet specified
 
-- **Content-Length framing codec:** Only needed if a stdio-backed server process (such as TS 7) is chosen.
-- **Effect transport service and layers:** Concrete service shape, worker and/or WebSocket layers, error model, and `$/cancelRequest` / timeout behavior.
-- **Reconnect and lifecycle policy:** Backoff, state recovery, and re-syncing open documents after a dropped worker or socket.
-- **Effect Atom module design:** Exact atoms, `Atom.runtime` ownership, and `EditorView` integration once the atom research settles.
-- **Extra LSP extensions:** Implementation approach for code actions, inlay hints, semantic tokens, or Effect-specific diagnostics if selected.
+- **Extra LSP extensions:** Implementation approach for code actions, inlay hints, or semantic tokens if selected in [Decide which missing LSP features to build beyond @codemirror/lsp-client](issues/09-missing-lsp-features.md).
 - **Fake LSP server test harness:** Scripted server for deterministic integration tests of transport, reconnection, and atom state.
-- **Final spec and implementation tickets:** Written once the research, grilling, and prototype tickets clear the fog.
+- **Final spec and implementation tickets:** Written once the remaining grilling and prototype tickets clear the fog.
 
 ## Out of scope
 
 - **Replacing the existing Monaco playground (`apps/web/src/features/playground`):** This effort designs a separate, lightweight editor experiment. Migrating or retiring Monaco is a follow-up effort if this succeeds.
+- **Browser-only TypeScript 6 Web Worker backend (`vtsls` or `@typescript/vfs`):** Ruled out for v1 in [Choose primary architecture: server-hosted TS 7 vs browser-only TS 6](issues/08-server-ts7-vs-browser-ts6.md); the Effect `Transport` service interface stays backend-agnostic if a worker layer is ever added later.
 - **Code execution (`@webcontainer/api`, terminal output):** Out of scope except where it touches the editor's file or workspace boundary.
-- **Writing a full custom LSP client on Effect RPC:** Out of scope unless research proves `@codemirror/lsp-client` cannot support a required feature.
+- **Writing a full custom LSP client on Effect RPC:** Ruled out; `@codemirror/lsp-client` remains the LSP client behind an Effect `Transport` service.
 - **Multi-file editing and custom CodeMirror `Workspace`:** Deferred to v2; v1 uses `@codemirror/lsp-client`'s built-in `Workspace` with a single file.
 - **Inline docs or blog embeds, URL sharing, localStorage persistence, and snippet or package pickers:** Deferred beyond v1; `/scratchpad` ships only one preloaded snippet and a minimal LSP status indicator.
