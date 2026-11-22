@@ -1,0 +1,30 @@
+---
+import { PUBLIC_LSP_WS_URL } from "astro:env/client"
+import Navigation from "@/components/navigation/Navigation.astro"
+import { Scratchpad } from "@/features/scratchpad/index"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+---
+
+<BaseLayout
+  title="Scratchpad | Effect"
+  description="Effect TypeScript Scratchpad with live Effect diagnostics and quickinfo."
+  noindex
+>
+  <div
+    class="relative flex h-screen flex-col overflow-hidden bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-white"
+  >
+    <Navigation showThemeToggle />
+
+    <main id={PAGE_TITLE_ID} tabindex="-1" class="flex min-h-0 flex-1 overflow-hidden">
+      <Scratchpad client:only="react" wsUrl={PUBLIC_LSP_WS_URL}>
+        <div
+          slot="fallback"
+          class="flex h-full w-full items-center justify-center bg-white font-mono text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+        >
+          Loading Scratchpad…
+        </div>
+      </Scratchpad>
+    </main>
+  </div>
+</BaseLayout>
