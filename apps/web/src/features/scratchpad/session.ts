@@ -9,6 +9,7 @@ import type * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
+import { createCachedLspTransport } from "./cache.ts"
 import { LspTransport, type TransportError } from "./transport.ts"
 
 export const LSP_CLIENT_TIMEOUT_MS = 10_000
@@ -164,6 +165,7 @@ export const makeScratchpadSession = (
     Effect.fnUntraced(function* () {
       const registry = yield* AtomRegistry.AtomRegistry
       const lspTransport = yield* LspTransport
+      const cachedTransport = createCachedLspTransport(lspTransport.transport)
       const commands = yield* Queue.unbounded<SessionCommand>()
       activeCommands = commands
 
@@ -304,7 +306,8 @@ export const makeScratchpadSession = (
               // Transport has already cleared any pending outbound frames so
               // `initialize` is always the first frame sent.
               yield* disconnectClient
-              client.connect(lspTransport.transport)
+              cachedTransport.resetPending()
+              client.connect(cachedTransport.transport)
 
               const connId = cmd.connectionId
               const initPromise = client.initializing

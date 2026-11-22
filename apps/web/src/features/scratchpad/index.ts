@@ -1,4 +1,12 @@
 export {
+  CACHEABLE_LSP_METHODS,
+  createCachedLspTransport,
+  DEFAULT_LSP_CACHE_MAX_ENTRIES,
+  type CachedLspTransport,
+  type CachedLspTransportOptions,
+  type LspCacheStats,
+} from "./cache.ts"
+export {
   DEFAULT_SCRATCHPAD_SNIPPET,
   resolveLspWsUrl,
   SCRATCHPAD_FILE_URI,
