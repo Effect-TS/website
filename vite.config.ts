@@ -120,6 +120,11 @@ export default defineConfig({
         command: "vp exec playwright test",
         cache: false,
       },
+      "test:e2e:scratchpad": {
+        command:
+          "vp exec playwright test --config playwright.scratchpad.config.ts",
+        cache: false,
+      },
     },
   },
 })

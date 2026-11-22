@@ -37,3 +37,18 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: vp test
+
+  scratchpad-e2e:
+    name: Scratchpad E2E
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - name: Install Playwright Chromium
+        run: vp exec playwright install --with-deps chromium
+      - name: Run Scratchpad E2E
+        run: vp run test:e2e:scratchpad
