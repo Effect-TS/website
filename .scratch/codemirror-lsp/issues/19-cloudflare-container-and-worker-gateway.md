@@ -4,9 +4,13 @@
 
 **Blocked by:** 18: Add WebSocket server, sandboxing, session limits, and live `tsrs` smoke tests to `packages/lsp-bridge`
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `packages/lsp-bridge` Docker image bakes a static, read-only `/workspace` (`0o555`/`0o444`) with hoisted `node_modules/effect` (pinned to the repo's `4.1.x` version), `tsrs` plus sibling `lib.*.d.ts` (stripping unused `tsc`, `oxlint`, and `tsgolint` artifacts), and `/workspace/tsconfig.json` (`strict: true`, `exactOptionalPropertyTypes: true`, `noEmit: true`, `target: "ES2022"`, `module: "ESNext"`, `moduleResolution: "bundler"`, `types: []`, `plugins: [{ "name": "@effect/language-service" }]`)
-- [ ] `alchemy.run.ts` declares `Cloudflare.Container` on `basic` instances (1 GiB RAM, 1/4 vCPU) with `maxInstances: 4` named `DurableObject` instances, 1-minute `sleepAfter`, and `RAYON_NUM_THREADS=1`
-- [ ] `WebsiteWorker` adds `/api/lsp` to `assets.runWorkerFirst`, checks the request `Origin` against an allowlist, enforces a per-IP `Cloudflare.RateLimit` binding, selects a container from the 4-instance pool by client IP hash or round-robin, and forwards WebSocket upgrades via `getTcpPort(port).fetch(request)`
-- [ ] Pure unit tests under `apps/web/test/` cover `/api/lsp` `Origin` allowlist acceptance/rejection, non-upgrade rejection, rate-limit rejection, and deterministic container pool routing
+- [x] `packages/lsp-bridge` Docker image bakes a static, read-only `/workspace` (`0o555`/`0o444`) with hoisted `node_modules/effect` (pinned to the repo's `4.1.x` version), `tsrs` plus sibling `lib.*.d.ts` (stripping unused `tsc`, `oxlint`, and `tsgolint` artifacts), and `/workspace/tsconfig.json` (`strict: true`, `exactOptionalPropertyTypes: true`, `noEmit: true`, `target: "ES2022"`, `module: "ESNext"`, `moduleResolution: "bundler"`, `types: []`, `plugins: [{ "name": "@effect/language-service" }]`)
+- [x] `alchemy.run.ts` declares `Cloudflare.Container` on `basic` instances (1 GiB RAM, 1/4 vCPU) with `maxInstances: 4` named `DurableObject` instances, 1-minute `sleepAfter`, and `RAYON_NUM_THREADS=1`
+- [x] `WebsiteWorker` adds `/api/lsp` to `assets.runWorkerFirst`, checks the request `Origin` against an allowlist, enforces a per-IP `Cloudflare.RateLimit` binding, selects a container from the 4-instance pool by client IP hash or round-robin, and forwards WebSocket upgrades via `getTcpPort(port).fetch(request)`
+- [x] Pure unit tests under `apps/web/test/` cover `/api/lsp` `Origin` allowlist acceptance/rejection, non-upgrade rejection, rate-limit rejection, and deterministic container pool routing
+
+## Answer
+
+Implemented on `feat/codemirror-lsp-scratchpad` (`17842329`, review follow-up `675b121a`).

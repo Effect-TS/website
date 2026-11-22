@@ -1,6 +1,6 @@
 # CodeMirror 6 Scratchpad with server-hosted `@effect/tsgo` LSP
 
-Status: ready-for-agent
+Status: resolved
 
 ## Problem Statement
 
