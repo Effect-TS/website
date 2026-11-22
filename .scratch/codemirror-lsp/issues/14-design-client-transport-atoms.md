@@ -12,4 +12,4 @@ Settle:
 
 1. The backend-agnostic Effect `Context.Service` `Transport` interface, its WebSocket layer (`BrowserSocket`), error model, and `@codemirror/lsp-client` timeout configuration for container cold starts.
 2. Reconnection policy: backoff schedule, connection status states exposed to the compact status indicator, and re-syncing the open Scratchpad document after a dropped WebSocket.
-3. Exact Effect Atom module design (`Atom.runtime`, `ScopedAtom.make`, `EditorView` lifecycle, and any `runtime.fn` + `AsyncResult` wrappers needed for extra LSP features from ticket 09).
+3. Exact Effect Atom module design (`Atom.runtime`, `ScopedAtom.make`, and `EditorView` lifecycle; no extra LSP `runtime.fn` wrappers are needed in v1 per ticket 09).
