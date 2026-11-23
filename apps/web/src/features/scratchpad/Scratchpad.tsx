@@ -23,6 +23,7 @@ import type { LoadNotice } from "./load.ts"
 import { LoadNoticeBar } from "./LoadNoticeBar.tsx"
 import { layerBrowserWorker } from "./lsp-worker-client.ts"
 import { SCRATCHPAD_SEED } from "./seed.ts"
+import { makeScratchpadShareAtoms } from "./share-atoms.ts"
 
 export interface ScratchpadProps {
   readonly initialCode?: string | undefined
@@ -59,6 +60,13 @@ function WorkspaceErrorBanner() {
       </button>
     </div>
   )
+}
+
+/** Autosaves the Workspace while the Scratchpad is mounted. */
+function Autosave() {
+  const { autosaveAtom } = useScratchpadSession()
+  useAtomMount(autosaveAtom)
+  return null
 }
 
 function CodeMirrorHost() {
@@ -133,6 +141,17 @@ export function Scratchpad({
           : { initialFiles: SCRATCHPAD_SEED.files }),
       entryPath: entryPath ?? SCRATCHPAD_ENTRY_PATH,
     })
+    const workspaceMetadataAtom = Atom.make(
+      metadata ??
+        (initialFiles === undefined && initialCode === undefined
+          ? SCRATCHPAD_SEED.metadata
+          : undefined),
+    ).pipe(Atom.keepAlive)
+    const shareAtoms = makeScratchpadShareAtoms({
+      runtime: editorSession.runtime,
+      metadataAtom: workspaceMetadataAtom,
+      initialFiles: initialFiles ?? SCRATCHPAD_SEED.files,
+    })
 
     return {
       elementAtom: editorSession.elementAtom,
@@ -152,18 +171,15 @@ export function Scratchpad({
       renamePathAtom: editorSession.renamePathAtom,
       deletePathAtom: editorSession.deletePathAtom,
       clearErrorAtom: editorSession.clearErrorAtom,
-      workspaceMetadataAtom: Atom.make(
-        metadata ??
-          (initialFiles === undefined && initialCode === undefined
-            ? SCRATCHPAD_SEED.metadata
-            : undefined),
-      ).pipe(Atom.keepAlive),
+      workspaceMetadataAtom,
+      ...shareAtoms,
     }
   })
 
   return (
     <RegistryProvider defaultIdleTTL={2000}>
       <ScratchpadSessionContext.Provider value={session}>
+        <Autosave />
         <section
           aria-label="Effect TypeScript Scratchpad"
           className="flex h-full min-h-0 w-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"

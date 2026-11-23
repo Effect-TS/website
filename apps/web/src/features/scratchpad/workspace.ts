@@ -247,7 +247,7 @@ const basenameOf = (relPath: string): string =>
   relPath.slice(relPath.lastIndexOf("/") + 1)
 
 /** Depth-first order with sorted names at each level (`a/x` before `a-b`). */
-const comparePaths = (a: string, b: string): number => {
+export const comparePaths = (a: string, b: string): number => {
   const as = a.split("/")
   const bs = b.split("/")
   const n = Math.min(as.length, bs.length)
