@@ -2,10 +2,10 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Popover } from "@base-ui/react/popover"
 import * as Option from "effect/Option"
 import {
+  Box,
   Circle,
   CircleCheck,
   CircleDashed,
-  CirclePlay,
   CircleX,
   ExternalLink,
   LoaderCircle,
@@ -23,12 +23,26 @@ import {
   type ReadinessStepState,
 } from "./status.ts"
 
-const ICON_COLOR: Record<ReadinessIcon, string> = {
-  error: "text-rose-600 dark:text-rose-400",
-  warning: "text-amber-600 dark:text-amber-400",
-  busy: "text-sky-600 dark:text-sky-400",
-  running: "text-blue-600 dark:text-blue-400",
-  ready: "text-emerald-600 dark:text-emerald-400",
+/** The corner badge's colour; busy and running pulse. */
+const BADGE: Record<ReadinessIcon, string> = {
+  error: "bg-rose-500",
+  warning: "bg-amber-500",
+  busy: "animate-pulse bg-sky-500",
+  running: "animate-pulse bg-blue-500",
+  ready: "bg-emerald-500",
+}
+
+/** The button itself only changes for an error or a running program. */
+const BUTTON: Record<ReadinessIcon, string> = {
+  error:
+    "border-rose-300 text-rose-600 dark:border-rose-900 dark:text-rose-400",
+  warning:
+    "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300",
+  busy: "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300",
+  running:
+    "border-blue-300 text-blue-600 dark:border-blue-900 dark:text-blue-400",
+  ready:
+    "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300",
 }
 
 const ICON_LABEL: Record<ReadinessIcon, string> = {
@@ -37,37 +51,6 @@ const ICON_LABEL: Record<ReadinessIcon, string> = {
   busy: "Getting ready",
   running: "Running",
   ready: "Ready",
-}
-
-function StateIcon({
-  icon,
-  className,
-}: {
-  readonly icon: ReadinessIcon
-  readonly className: string
-}) {
-  switch (icon) {
-    case "error":
-      return <CircleX aria-hidden="true" className={className} />
-    case "warning":
-      return <TriangleAlert aria-hidden="true" className={className} />
-    case "busy":
-      return (
-        <LoaderCircle
-          aria-hidden="true"
-          className={`${className} animate-spin`}
-        />
-      )
-    case "running":
-      return (
-        <CirclePlay
-          aria-hidden="true"
-          className={`${className} animate-pulse`}
-        />
-      )
-    case "ready":
-      return <CircleCheck aria-hidden="true" className={className} />
-  }
 }
 
 const STEP_COLOR: Record<ReadinessStepState, string> = {
@@ -117,7 +100,8 @@ const LINK_BUTTON =
   "inline-flex cursor-pointer items-center gap-1 text-xs text-sky-700 hover:underline dark:text-sky-300"
 
 /**
- * One icon for the language server and the Container, worst state first.
+ * One button for the language server and the Container: a fixed Container
+ * icon whose corner badge shows the worst state.
  * Hovering, focusing or clicking it opens a popover with a checklist of the
  * startup steps and, on a failure, what still works and how to recover. The
  * popover stays open while the pointer is over it, so its buttons work.
@@ -168,11 +152,13 @@ export function ReadinessIndicator() {
         // During a Container failure, clicking also brings back a hidden
         // failure strip.
         onClick={() => Option.map(failure, (failure) => failure.show())}
-        className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded-md hover:bg-zinc-200/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 data-[popup-open]:bg-zinc-200/70 dark:hover:bg-zinc-800 dark:data-[popup-open]:bg-zinc-800"
+        className={`relative flex h-6 w-6 cursor-pointer items-center justify-center rounded border bg-white transition-colors hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 data-[popup-open]:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:data-[popup-open]:bg-zinc-800 ${BUTTON[view.icon]}`}
       >
-        <StateIcon
-          icon={view.icon}
-          className={`h-[18px] w-[18px] ${ICON_COLOR[view.icon]}`}
+        <Box aria-hidden="true" className="h-3.5 w-3.5" />
+        <span
+          aria-hidden="true"
+          data-testid="readiness-badge"
+          className={`absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-zinc-950 ${BADGE[view.icon]}`}
         />
         {/* Screen-reader status (announced on change) and the hooks e2e
             tests read: one per subsystem. */}
