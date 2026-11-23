@@ -6,7 +6,7 @@ import * as Base64 from "effect/encoding/Base64"
 import * as Base64Url from "effect/encoding/Base64Url"
 import { flow, pipe } from "effect/Function"
 import * as Schema from "effect/Schema"
-import { Workspace, normalizeWorkspace } from "../domain/workspace"
+import { Workspace, normalizeWorkspace } from "./workspace"
 
 export class CompressionError extends Data.TaggedError("CompressionError")<{
   readonly method: "compress" | "decompress"

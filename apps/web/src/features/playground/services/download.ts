@@ -3,7 +3,7 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Layer from "effect/Layer"
-import { FileTree, Workspace } from "../domain/workspace"
+import { FileTree, Workspace } from "@/features/share/workspace"
 
 export class Zip extends Context.Service<Zip>()("app/Download/Zip", {
   make: Effect.sync(() => {

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react"
-import { Directory } from "../../domain/workspace"
+import { Directory } from "@/features/share/workspace"
 import { useCreate, useExplorerState } from "../file-explorer"
 import { FileInput } from "./file-input"
 import { FileNode } from "./file-node"

@@ -13,7 +13,7 @@ import {
 import React, { useCallback, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "../../context/workspace"
-import { Directory, File } from "../../domain/workspace"
+import { Directory, File } from "@/features/share/workspace"
 import {
   State,
   useExplorerDispatch,

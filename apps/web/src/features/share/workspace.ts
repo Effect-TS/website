@@ -1,5 +1,4 @@
 import * as Brand from "effect/Brand"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Equal from "effect/Equal"
 import { pipe } from "effect/Function"
@@ -50,10 +49,6 @@ export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
   command: Schema.optional(Schema.String),
   label: Schema.optional(Schema.String),
 }) {}
-
-export class WorkspaceTerminal extends Data.Class<{
-  command: string | undefined
-}> {}
 
 export class File extends Schema.TaggedClass<File>()("File", {
   name: Schema.String,

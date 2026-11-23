@@ -3,7 +3,7 @@ import { assert, test } from "vite-plus/test"
 import {
   makeDefaultWorkspace,
   makeFile,
-} from "../../../src/features/playground/domain/workspace.ts"
+} from "../../../src/features/share/workspace.ts"
 
 test("recognizes published v4 dist-tags", () => {
   for (const version of ["rc", "beta"]) {

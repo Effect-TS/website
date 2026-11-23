@@ -5,7 +5,7 @@ import {
   workspaceHandleAtom,
   type AtomWorkspaceHandle,
 } from "../atoms/workspace"
-import { Workspace } from "../domain/workspace"
+import { Workspace } from "@/features/share/workspace"
 
 export const WorkspaceContext = React.createContext<AtomWorkspaceHandle>(
   null as any,
