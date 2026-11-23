@@ -112,7 +112,8 @@ export function RunOutputTerminal({
       cursorBlink: false,
       cursorInactiveStyle: "none",
       fontFamily: monoFontFamily(),
-      fontSize: 13,
+      // xterm's default, which the Playground's terminal uses.
+      fontSize: 15,
       lineHeight: 1.4,
       scrollback: 5000,
       theme: runOutputTheme(isDarkNow()),

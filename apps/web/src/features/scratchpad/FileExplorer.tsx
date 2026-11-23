@@ -100,7 +100,7 @@ function InlineNameInput({
           }
         }}
         onBlur={onCancel}
-        className="w-full min-w-0 rounded border border-zinc-400 bg-white px-1.5 py-0.5 font-mono text-xs text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+        className="w-full min-w-0 rounded border border-zinc-400 bg-white px-1.5 py-0.5 font-mono text-sm text-zinc-900 outline-none focus:border-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
       />
     </form>
   )
@@ -224,9 +224,9 @@ export function FileExplorer() {
         className="flex items-center gap-1.5 py-1 pr-2"
       >
         {mode.kind === "directory" ? (
-          <Folder className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <Folder className="h-4 w-4 shrink-0 text-zinc-400" />
         ) : (
-          <FileCode2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <FileCode2 className="h-4 w-4 shrink-0 text-zinc-400" />
         )}
         <InlineNameInput
           initialValue=""
@@ -267,7 +267,7 @@ export function FileExplorer() {
           <div key={node.path}>
             <div
               style={{ paddingLeft: `${depth * 12 + 8}px` }}
-              className="group flex items-center gap-1.5 py-1 pr-2 text-xs text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+              className="group flex items-center gap-1.5 py-1 pr-2 text-sm text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
             >
               <button
                 type="button"
@@ -275,14 +275,14 @@ export function FileExplorer() {
                 className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
               >
                 {isCollapsed ? (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
                 )}
                 {isCollapsed ? (
-                  <Folder className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                  <Folder className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                 ) : (
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                  <FolderOpen className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                 )}
                 {isRenaming ? null : (
                   <span className="truncate font-mono">{node.name}</span>
@@ -311,7 +311,7 @@ export function FileExplorer() {
                     }}
                     className="rounded p-0.5 text-red-600 hover:bg-red-500/15 dark:text-red-400"
                   >
-                    <Check className="h-3 w-3" />
+                    <Check className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -319,7 +319,7 @@ export function FileExplorer() {
                     onClick={() => setMode({ _tag: "Idle" })}
                     className="rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 dark:hover:bg-zinc-700"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ) : (
@@ -335,7 +335,7 @@ export function FileExplorer() {
                       }}
                       className="rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                     >
-                      <FilePlus className="h-3 w-3" />
+                      <FilePlus className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
@@ -346,7 +346,7 @@ export function FileExplorer() {
                       }}
                       className="rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                     >
-                      <FolderPlus className="h-3 w-3" />
+                      <FolderPlus className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
@@ -366,7 +366,7 @@ export function FileExplorer() {
                       }}
                       className={`rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 ${LOCKED_BUTTON_CLASS}`}
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
@@ -385,7 +385,7 @@ export function FileExplorer() {
                       }}
                       className={`rounded p-0.5 text-zinc-500 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 ${LOCKED_BUTTON_CLASS}`}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </>
@@ -412,13 +412,13 @@ export function FileExplorer() {
           style={{ paddingLeft: `${depth * 12 + 20}px` }}
           className={
             isActive
-              ? "group flex items-center gap-1.5 bg-zinc-200/80 py-1 pr-2 text-xs font-medium text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50"
-              : "group flex items-center gap-1.5 py-1 pr-2 text-xs text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/50"
+              ? "group flex items-center gap-1.5 bg-zinc-200/80 py-1 pr-2 text-sm font-medium text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50"
+              : "group flex items-center gap-1.5 py-1 pr-2 text-sm text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/50"
           }
         >
           {isRenaming ? (
             <>
-              <FileCode2 className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
+              <FileCode2 className="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
               <InlineNameInput
                 initialValue={node.name}
                 placeholder="file-name"
@@ -438,7 +438,7 @@ export function FileExplorer() {
                 onClick={() => openFile(node.path)}
                 className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
               >
-                <FileCode2 className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
+                <FileCode2 className="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
                 <span className="truncate font-mono">{node.name}</span>
               </button>
 
@@ -453,7 +453,7 @@ export function FileExplorer() {
                     }}
                     className="rounded p-0.5 text-red-600 hover:bg-red-500/15 dark:text-red-400"
                   >
-                    <Check className="h-3 w-3" />
+                    <Check className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -461,7 +461,7 @@ export function FileExplorer() {
                     onClick={() => setMode({ _tag: "Idle" })}
                     className="rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 dark:hover:bg-zinc-700"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ) : (
@@ -484,7 +484,7 @@ export function FileExplorer() {
                       }}
                       className={`rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 ${LOCKED_BUTTON_CLASS}`}
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
@@ -501,7 +501,7 @@ export function FileExplorer() {
                       }}
                       className={`rounded p-0.5 text-zinc-500 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 ${LOCKED_BUTTON_CLASS}`}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </>
@@ -547,7 +547,7 @@ export function FileExplorer() {
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {renderCreatingRow("", 0)}
         {tree.length === 0 && mode._tag === "Idle" ? (
-          <div className="px-3 py-4 text-xs text-zinc-500 dark:text-zinc-500">
+          <div className="px-3 py-4 text-sm text-zinc-500 dark:text-zinc-500">
             No files yet.
           </div>
         ) : (

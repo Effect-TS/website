@@ -53,7 +53,8 @@ const hintColor = ld("#71717a", "#a1a1aa")
 const theme = EditorView.theme({
   "&": {
     height: "100%",
-    fontSize: "14px",
+    // Matches the Playground's Monaco editor.
+    fontSize: "16px",
     fontFamily:
       "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
     backgroundColor: "transparent",

@@ -92,7 +92,7 @@ function SkipNotice({ skip }: { readonly skip: RunSkip }) {
   return (
     <div
       data-testid="run-skip-notice"
-      className="max-h-[70%] shrink-0 overflow-y-auto border-b border-zinc-200 px-3 pt-2 pb-2 font-mono text-[13px] leading-[1.55] dark:border-zinc-800"
+      className="max-h-[70%] shrink-0 overflow-y-auto border-b border-zinc-200 px-3 pt-2 pb-2 font-mono text-[15px] leading-[1.55] dark:border-zinc-800"
     >
       <div className="flex flex-wrap items-center gap-x-2">
         <span
