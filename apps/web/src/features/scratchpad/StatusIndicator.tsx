@@ -1,6 +1,11 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useScratchpadSession } from "./context.tsx"
-import { describeLspStatus, type LspStatusTone } from "./status.ts"
+import * as Option from "effect/Option"
+import {
+  describeContainerPhase,
+  describeLspStatus,
+  type LspStatusTone,
+} from "./status.ts"
 
 const DOT_STYLES: Record<LspStatusTone, string> = {
   neutral: "bg-zinc-400 dark:bg-zinc-500",
@@ -66,6 +71,31 @@ export function StatusIndicator() {
       className={baseClasses}
     >
       {dot}
+      <span>{view.label}</span>
+    </span>
+  )
+}
+
+/** The Container's phase, next to the language server's. Hidden without a Container. */
+export function ContainerStatusIndicator() {
+  const { containerPhaseAtom } = useScratchpadSession()
+  const phase = useAtomValue(containerPhaseAtom)
+  if (Option.isNone(phase)) return null
+
+  const view = describeContainerPhase(phase.value)
+  return (
+    <span
+      role="status"
+      aria-live="polite"
+      data-testid="container-status"
+      data-container-phase={view.state}
+      title={view.detail}
+      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-xs leading-none transition-colors ${BADGE_STYLES[view.tone]}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT_STYLES[view.tone]} ${view.state === "booting" ? "animate-pulse" : ""}`}
+      />
       <span>{view.label}</span>
     </span>
   )

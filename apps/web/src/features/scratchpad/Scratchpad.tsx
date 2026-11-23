@@ -19,6 +19,7 @@ import {
 } from "./context.tsx"
 import { makeScratchpadEditorSession } from "./editor.ts"
 import { EditorTabs } from "./EditorTabs.tsx"
+import { layerWebContainer } from "./container-webcontainer.ts"
 import { FileExplorer } from "./FileExplorer.tsx"
 import { layerBrowserWorker } from "./lsp-worker-client.ts"
 
@@ -117,6 +118,7 @@ export function Scratchpad({
     })
     const editorSession = makeScratchpadEditorSession({
       transportLayer,
+      containerLayer: layerWebContainer,
       rootUri: SCRATCHPAD_ROOT_URI,
       ...(initialFiles !== undefined
         ? { initialFiles }
@@ -129,6 +131,7 @@ export function Scratchpad({
     return {
       elementAtom: editorSession.elementAtom,
       statusAtom: editorSession.statusAtom,
+      containerPhaseAtom: editorSession.containerPhaseAtom,
       editorAtom: editorSession.editorAtom,
       treeAtom: editorSession.treeAtom,
       openTabsAtom: editorSession.openTabsAtom,

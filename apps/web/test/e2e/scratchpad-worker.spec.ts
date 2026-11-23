@@ -51,7 +51,7 @@ const openFile = async (page: Page, path: string) => {
   await expect(page.getByTestId(`editor-tab-${path}`)).toBeVisible()
 }
 
-test("loads the in-browser language server without cross-origin isolation and shows the floating Effect diagnostic", async ({
+test("loads the in-browser language server on the cross-origin isolated page and shows the floating Effect diagnostic", async ({
   page,
   browserName,
 }) => {
@@ -106,13 +106,15 @@ test("loads the in-browser language server without cross-origin isolation and sh
     crossOriginIsolated: globalThis.crossOriginIsolated,
     sharedArrayBuffer: typeof SharedArrayBuffer,
   }))
-  expect(isolation.crossOriginIsolated).toBe(false)
+  // Isolated for the Container (ADR 0004); the worker must still load.
+  expect(isolation.crossOriginIsolated).toBe(true)
+  expect(isolation.sharedArrayBuffer).toBe("function")
   const worker = page
     .workers()
     .find((w) => w.url().includes("lsp.worker") || w.url().includes("lsp"))
   expect(worker).toBeDefined()
   expect(await worker!.evaluate(() => globalThis.crossOriginIsolated)).toBe(
-    false,
+    true,
   )
 
   const wasm = assets.find(
@@ -327,4 +329,27 @@ test("recovers from a document that crashes the language server and works again 
     "data-lsp-status",
     /recovered|ready/,
   )
+})
+
+// Smoke check for the real Container. Booting needs StackBlitz's servers, so a
+// failed boot skips rather than fails; it only gates on the badge appearing.
+test("boots the Container on page load next to the language server", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "WebContainer smoke runs in Chromium")
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  const badge = page.getByTestId("container-status")
+  await expect(badge).toBeVisible({ timeout: READY_TIMEOUT })
+  await expect(badge).toHaveAttribute(
+    "data-container-phase",
+    /^(ready|failed)$/,
+    { timeout: READY_TIMEOUT },
+  )
+  const phase = await badge.getAttribute("data-container-phase")
+  test.skip(
+    phase === "failed",
+    `Container did not boot (offline?): ${await badge.getAttribute("title")}`,
+  )
+  expect(phase).toBe("ready")
 })

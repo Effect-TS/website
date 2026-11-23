@@ -24,6 +24,12 @@ import {
 } from "../../../src/features/scratchpad/transport.ts"
 import type { PageToWorker } from "../../../src/features/scratchpad/worker-protocol.ts"
 import { layerWorker } from "../../../src/features/scratchpad/worker-transport.ts"
+import {
+  type Container,
+  ContainerBootFailed,
+  layerFakeContainer,
+  makeFakeContainerBackend,
+} from "../../../src/features/scratchpad/container.ts"
 import { makeFakeWorkers } from "./fake-worker.ts"
 
 const flushMicrotasks = async (ticks = 15) => {
@@ -109,6 +115,7 @@ const createFakeEditorFactory = () => {
 const setupEditorTest = async (
   fakeOptions?: FakeLspTransportOptions,
   initialFiles?: Readonly<Record<string, string>>,
+  containerLayer?: Layer.Layer<Container>,
 ) => {
   const fake = makeFakeLspTransport(fakeOptions)
   const layer = Layer.merge(fake.layer, TestClock.layer())
@@ -124,6 +131,7 @@ const setupEditorTest = async (
     initialCode: DEFAULT_SCRATCHPAD_SNIPPET,
     initialFiles,
     createEditorView: fakeEditors.factory,
+    containerLayer,
   })
 
   const clockAtom = session.runtime.atom(Clock.Clock)
@@ -161,6 +169,80 @@ const setupEditorTest = async (
 }
 
 describe("ScratchpadEditorSession", () => {
+  test("boots the Container and mounts the Workspace without waiting for the language server", async () => {
+    const backend = makeFakeContainerBackend()
+    const ctx = await setupEditorTest(
+      { autoHandshake: false },
+      { "src/main.ts": "main", "src/util.ts": "util" },
+      layerFakeContainer(backend),
+    )
+    try {
+      assert.isTrue(
+        Option.isNone(ctx.registry.get(ctx.session.containerPhaseAtom)),
+      )
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(40)
+
+      assert.deepEqual(ctx.getStatus(), { _tag: "connecting" })
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.containerPhaseAtom),
+        Option.some({ _tag: "ready" as const }),
+      )
+      assert.deepEqual(Object.fromEntries(backend.files), {
+        "src/main.ts": "main",
+        "src/util.ts": "util",
+      })
+
+      ctx.fakeEditors.handles[0]!.emitDocChange("edited")
+      await flushMicrotasks(40)
+      assert.equal(backend.files.get("src/main.ts"), "edited")
+
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("keeps editing when the Container fails to boot", async () => {
+    const backend = makeFakeContainerBackend()
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      { "src/main.ts": "main" },
+      layerFakeContainer(
+        backend,
+        Effect.fail(new ContainerBootFailed({ message: "boom" })),
+      ),
+    )
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(40)
+
+      const phase = ctx.registry.get(ctx.session.containerPhaseAtom)
+      assert.isTrue(Option.isSome(phase) && phase.value._tag === "failed")
+      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
+
+      ctx.fakeEditors.handles[0]!.emitDocChange("still editing")
+      await flushMicrotasks(40)
+      const editor = ctx.registry.get(ctx.session.editorAtom)
+      assert.equal(editor._tag, "Success")
+      if (editor._tag === "Success") {
+        assert.equal(
+          await Effect.runPromise(
+            editor.value.workspace.readFile("src/main.ts"),
+          ),
+          "still editing",
+        )
+      }
+      assert.equal(backend.log.length, 0)
+
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
   test("mounts EditorView immediately with preloaded snippet before the language server finishes initialize", async () => {
     const ctx = await setupEditorTest({ autoHandshake: false })
     try {

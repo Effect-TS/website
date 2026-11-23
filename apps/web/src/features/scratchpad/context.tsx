@@ -5,6 +5,7 @@ export type ScratchpadSessionContextValue = Pick<
   ScratchpadEditorSession,
   | "elementAtom"
   | "statusAtom"
+  | "containerPhaseAtom"
   | "editorAtom"
   | "treeAtom"
   | "openTabsAtom"
