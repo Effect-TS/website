@@ -25,7 +25,8 @@ import {
   File,
   Directory,
   Workspace,
-} from "../domain/workspace"
+} from "@/features/share/workspace"
+import { languageFromPath } from "@/features/share/flat"
 import * as DevToolsSchemaCompat from "./devtools/schema"
 import {
   FileSync,
@@ -945,15 +946,6 @@ const ignoredWorkspacePaths = new Set([".tsc-run.json", "dist", "node_modules"])
 function isIgnoredWorkspacePath(path: string) {
   const [root] = path.replace(/^\.\//, "").split("/")
   return root !== undefined && ignoredWorkspacePaths.has(root)
-}
-
-function languageFromPath(path: string) {
-  if (path.endsWith(".json")) return "json"
-  if (path.endsWith(".tsx")) return "typescriptreact"
-  if (path.endsWith(".jsx")) return "javascriptreact"
-  if (/\.(?:c|m)?js$/.test(path)) return "javascript"
-  if (/\.(?:c|m)?ts$/.test(path)) return "typescript"
-  return "plaintext"
 }
 
 function scanWorkspace(container: WC, workspace: Workspace) {

@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { Directory, File, FileTree as Tree } from "../../domain/workspace"
+import { Directory, File, FileTree as Tree } from "@/features/share/workspace"
 import { DirectoryNode } from "./directory-node"
 import { FileNode } from "./file-node"
 

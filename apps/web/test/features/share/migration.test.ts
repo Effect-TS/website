@@ -4,7 +4,7 @@ import {
   makeDefaultWorkspace,
   makeFile,
   normalizeWorkspace,
-} from "../../../src/features/playground/domain/workspace.ts"
+} from "../../../src/features/share/workspace.ts"
 
 function staleV3() {
   const workspace = makeDefaultWorkspace("v3")

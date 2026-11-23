@@ -4,7 +4,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Atom from "effect/reactivity/Atom"
-import { ShortenClient } from "@/features/playground/services/shorten/client"
+import { ShortenClient } from "@/features/share/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import {
   defaultVersion,
@@ -15,8 +15,8 @@ import {
   makeFile,
   normalizeWorkspace,
   Workspace,
-} from "../domain/workspace"
-import { WorkspaceCompression } from "../services/compression"
+} from "@/features/share/workspace"
+import { WorkspaceCompression } from "@/features/share/compression"
 import { WebContainer } from "../services/webcontainer"
 import { hashAtom } from "./location"
 

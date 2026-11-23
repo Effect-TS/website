@@ -16,8 +16,8 @@ import {
   File,
   makeDefaultWorkspace,
   Workspace,
-  WorkspaceTerminal,
-} from "../domain/workspace"
+} from "@/features/share/workspace"
+import { WorkspaceTerminal } from "../domain/terminal"
 import { DevToolsLayer } from "../services/devtools"
 import { Loader } from "../services/loader"
 import { Terminal } from "../services/terminal"
