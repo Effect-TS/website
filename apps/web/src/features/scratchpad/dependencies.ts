@@ -433,7 +433,12 @@ export const makeDependencies = (
       Stream.runForEach((boot) => update((s) => ({ ...s, boot }))),
       Effect.forkIn(scope),
     )
-    yield* container.awaitReady.pipe(
+    // `phaseChanges` rather than `awaitReady`, so a boot that only succeeds
+    // after a retry still starts the timeout.
+    yield* container.phaseChanges.pipe(
+      Stream.filter((boot) => boot._tag === "ready"),
+      Stream.take(1),
+      Stream.runDrain,
       Effect.andThen(Effect.sleep(typesTimeout)),
       Effect.andThen(update((s) => ({ ...s, timedOut: true }))),
       Effect.ignore,

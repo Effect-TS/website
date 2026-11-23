@@ -2,6 +2,7 @@ import type * as Atom from "effect/reactivity/Atom"
 import * as React from "react"
 import type { FlatWorkspaceMetadata } from "@/features/share/flat"
 import type { ScratchpadEditorSession } from "./editor.ts"
+import type { ContainerFailureAtoms } from "./failure.ts"
 import type { ScratchpadShareAtoms } from "./share-atoms.ts"
 
 export type ScratchpadSessionContextValue = Pick<
@@ -9,6 +10,7 @@ export type ScratchpadSessionContextValue = Pick<
   | "elementAtom"
   | "statusAtom"
   | "containerPhaseAtom"
+  | "installLogAtom"
   | "editorAtom"
   | "treeAtom"
   | "openTabsAtom"
@@ -24,7 +26,8 @@ export type ScratchpadSessionContextValue = Pick<
   | "deletePathAtom"
   | "clearErrorAtom"
 > &
-  ScratchpadShareAtoms & {
+  ScratchpadShareAtoms &
+  ContainerFailureAtoms & {
     /**
      * Share-format metadata of the loaded Workspace (name, `initialFilePath`,
      * `prepare`, `shells`, `snapshots`, per-node `userManaged`), handed to

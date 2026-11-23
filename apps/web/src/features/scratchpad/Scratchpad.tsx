@@ -17,6 +17,8 @@ import {
 } from "./context.tsx"
 import { makeScratchpadEditorSession } from "./editor.ts"
 import { EditorTabs } from "./EditorTabs.tsx"
+import { FailureStrip } from "./FailureStrip.tsx"
+import { makeContainerFailureAtoms } from "./failure.ts"
 import { layerWebContainer } from "./container-webcontainer.ts"
 import { FileExplorer } from "./FileExplorer.tsx"
 import type { LoadNotice } from "./load.ts"
@@ -153,10 +155,16 @@ export function Scratchpad({
       initialFiles: initialFiles ?? SCRATCHPAD_SEED.files,
     })
 
+    const failureAtoms = makeContainerFailureAtoms({
+      runtime: editorSession.runtime,
+      containerPhaseAtom: editorSession.containerPhaseAtom,
+    })
+
     return {
       elementAtom: editorSession.elementAtom,
       statusAtom: editorSession.statusAtom,
       containerPhaseAtom: editorSession.containerPhaseAtom,
+      installLogAtom: editorSession.installLogAtom,
       editorAtom: editorSession.editorAtom,
       treeAtom: editorSession.treeAtom,
       openTabsAtom: editorSession.openTabsAtom,
@@ -173,6 +181,7 @@ export function Scratchpad({
       clearErrorAtom: editorSession.clearErrorAtom,
       workspaceMetadataAtom,
       ...shareAtoms,
+      ...failureAtoms,
     }
   })
 
@@ -188,6 +197,8 @@ export function Scratchpad({
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <LoadNoticeBar notice={notice} />
             <EditorTabs />
+            {/* Temporary: moves into the Output panel's banner slot (ticket 09). */}
+            <FailureStrip />
             <WorkspaceErrorBanner />
             <CodeMirrorHost />
           </div>

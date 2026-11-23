@@ -11,9 +11,10 @@ import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
 import * as Queue from "effect/Queue"
-import type * as Scope from "effect/Scope"
+import * as Scope from "effect/Scope"
 import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
@@ -134,6 +135,11 @@ export interface ContainerService {
   readonly phaseChanges: Stream.Stream<ContainerBootPhase>
   /** Waits for boot to finish. */
   readonly awaitReady: Effect.Effect<void, ContainerBootError>
+  /**
+   * Boots again after a failed boot (the phase goes back to `booting`).
+   * Does nothing in any other phase.
+   */
+  readonly retry: Effect.Effect<void>
   /** Writes a flat map of Workspace-relative paths to contents, replacing nothing else. */
   readonly mount: (
     files: Readonly<Record<string, string>>,
@@ -232,38 +238,60 @@ const operationFailed =
  * Builds a Container service from a `boot` effect. Boot runs in the
  * background in the caller's scope, so constructing the service never waits
  * on it: operations wait instead.
+ *
+ * Each boot attempt gets its own scope. A failed attempt's scope is closed
+ * before the failure is announced, so whatever it acquired (a partly booted
+ * WebContainer, the one-instance guard) is released before `retry` boots
+ * again.
  */
 export const makeContainer = <R>(
   boot: Effect.Effect<ContainerBackend, ContainerBootError, Scope.Scope | R>,
 ): Effect.Effect<ContainerService, never, Scope.Scope | R> =>
   Effect.gen(function* () {
+    const scope = yield* Effect.scope
     const phaseRef = yield* SubscriptionRef.make<ContainerBootPhase>({
       _tag: "booting",
     })
-    const booted = yield* Deferred.make<ContainerBackend, ContainerBootError>()
+    // Replaced for each attempt, before the phase says `booting` again.
+    let booted = yield* Deferred.make<ContainerBackend, ContainerBootError>()
+    // Completed by `retry`; replaced after each failure.
+    let retrySignal = yield* Deferred.make<void>()
     // Serializes file system mutations so they land in call order.
     const fsLock = yield* Semaphore.make(1)
 
-    yield* boot.pipe(
-      Effect.matchEffect({
-        onSuccess: (backend) =>
-          SubscriptionRef.set(phaseRef, { _tag: "ready" }).pipe(
-            Effect.andThen(Deferred.succeed(booted, backend)),
+    yield* Effect.gen(function* () {
+      while (true) {
+        const attempt = yield* Scope.fork(scope)
+        const result = yield* boot.pipe(
+          Scope.provide(attempt),
+          Effect.onExit((exit) =>
+            Exit.isSuccess(exit) ? Effect.void : Scope.close(attempt, exit),
           ),
-        onFailure: (error) =>
-          SubscriptionRef.set(phaseRef, { _tag: "failed", error }).pipe(
-            Effect.andThen(Deferred.fail(booted, error)),
-          ),
-      }),
-      Effect.forkScoped,
-    )
+          Effect.result,
+        )
+        if (result._tag === "Success") {
+          yield* SubscriptionRef.set(phaseRef, { _tag: "ready" })
+          yield* Deferred.succeed(booted, result.success)
+          return
+        }
+        const error = result.failure
+        retrySignal = yield* Deferred.make<void>()
+        yield* SubscriptionRef.set(phaseRef, { _tag: "failed", error })
+        yield* Deferred.fail(booted, error)
+        yield* Deferred.await(retrySignal)
+        booted = yield* Deferred.make<ContainerBackend, ContainerBootError>()
+        yield* SubscriptionRef.set(phaseRef, { _tag: "booting" })
+      }
+    }).pipe(Effect.forkScoped)
+
+    const awaitBooted = Effect.suspend(() => Deferred.await(booted))
 
     const use = <A>(
       operation: string,
       path: string | undefined,
       f: (backend: ContainerBackend) => Promise<A>,
     ): Effect.Effect<A, ContainerError> =>
-      Deferred.await(booted).pipe(
+      awaitBooted.pipe(
         Effect.flatMap((backend) =>
           Effect.tryPromise({
             try: () => f(backend),
@@ -307,7 +335,10 @@ export const makeContainer = <R>(
     return {
       phase: SubscriptionRef.get(phaseRef),
       phaseChanges: SubscriptionRef.changes(phaseRef),
-      awaitReady: Deferred.await(booted).pipe(Effect.asVoid),
+      awaitReady: Effect.asVoid(awaitBooted),
+      retry: Effect.suspend(() =>
+        Deferred.succeed(retrySignal, undefined),
+      ).pipe(Effect.asVoid),
       mount: (files) =>
         mutate("mount", undefined, async (backend) => {
           for (const [path, content] of Object.entries(files)) {
@@ -370,9 +401,10 @@ export const applyWorkspaceEvent = (
  * events one at a time, in order. Events that happen while the Container
  * boots are buffered and applied after the mount.
  *
- * Returns once the mirror is subscribed. A Container that fails to boot ends
- * the mirror and drops the buffer; the Workspace is untouched. A failed
- * operation is logged and the mirror moves on.
+ * Returns once the mirror is subscribed. A Container that fails to boot
+ * leaves the Workspace untouched: the mirror drops its buffer and waits for
+ * `retry`, then mounts the Workspace as it is by then. A failed operation is
+ * logged and the mirror moves on.
  */
 export type MirrorChange =
   | {
@@ -406,32 +438,51 @@ export const mirrorWorkspace = (
       Effect.forkScoped,
     )
     yield* Effect.yieldNow
-    const files = yield* workspace.listFiles.pipe(
-      Effect.orElseSucceed(() => []),
+    const listFiles = workspace.listFiles.pipe(Effect.orElseSucceed(() => []))
+    const files = yield* listFiles
+
+    // After a failed boot, waits for `retry` to start the next attempt.
+    const awaitRetry = container.phaseChanges.pipe(
+      Stream.filter((phase) => phase._tag !== "failed"),
+      Stream.take(1),
+      Stream.runDrain,
     )
 
     const onChange = options.onChange ?? (() => Effect.void)
-    yield* Effect.gen(function* () {
-      const mounted = Object.fromEntries(
-        files.map((file) => [file.path, file.content]),
-      )
-      yield* container.mount(mounted)
-      yield* onChange({ _tag: "Mounted", files: mounted })
-      while (true) {
-        const event = yield* Queue.take(pending)
-        yield* applyWorkspaceEvent(container, event).pipe(
-          Effect.andThen(onChange({ _tag: "Applied", event })),
-          Effect.catch((error) =>
-            Effect.logWarning("Container mirror", error.message),
-          ),
+    const run = (
+      files: ReadonlyArray<{ readonly path: string; readonly content: string }>,
+    ): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        const mounted = Object.fromEntries(
+          files.map((file) => [file.path, file.content]),
         )
-      }
-    }).pipe(
-      Effect.catch((error) =>
-        error._tag === "ContainerOperationFailed"
-          ? Effect.logWarning("Container mount failed", error.message)
-          : Effect.void,
-      ),
+        yield* container.mount(mounted)
+        yield* onChange({ _tag: "Mounted", files: mounted })
+        while (true) {
+          const event = yield* Queue.take(pending)
+          yield* applyWorkspaceEvent(container, event).pipe(
+            Effect.andThen(onChange({ _tag: "Applied", event })),
+            Effect.catch((error) =>
+              Effect.logWarning("Container mirror", error.message),
+            ),
+          )
+        }
+      }).pipe(
+        Effect.catch((error) =>
+          error._tag === "ContainerOperationFailed"
+            ? Effect.logWarning("Container mount failed", error.message)
+            : // Boot failed. The next mount lists the Workspace again, so
+              // the events buffered until then are not needed.
+              Effect.gen(function* () {
+                yield* Queue.clear(pending)
+                yield* awaitRetry
+                yield* Queue.clear(pending)
+                return yield* run(yield* listFiles)
+              }),
+        ),
+      )
+
+    yield* run(files).pipe(
       Effect.ensuring(Queue.shutdown(pending)),
       Effect.forkScoped,
     )

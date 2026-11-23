@@ -182,6 +182,68 @@ describe("Container mirror", () => {
   })
 })
 
+describe("Container mirror after a retry", () => {
+  test("mounts the Workspace as it is when a retried boot succeeds, then mirrors edits", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const ws = yield* makeMemoryWorkspace({ initialFiles: SEED })
+          const backend = makeFakeContainerBackend()
+          let attempts = 0
+          const container = yield* makeContainer(
+            Effect.suspend(() =>
+              ++attempts === 1
+                ? Effect.fail(new ContainerBootFailed({ message: "boom" }))
+                : Effect.succeed(backend),
+            ),
+          )
+          const mounts: Array<number> = []
+          yield* mirrorWorkspace(ws, container, {
+            onChange: (change) =>
+              Effect.sync(() => {
+                if (change._tag === "Mounted") {
+                  mounts.push(Object.keys(change.files).length)
+                }
+              }),
+          })
+          yield* settle
+          assert.strictEqual((yield* container.phase)._tag, "failed")
+
+          // Edits while failed stay in the Workspace.
+          yield* ws.writeFile("src/main.ts", "edited while failed")
+          yield* ws.createFile("src/new.ts", "new")
+          yield* settle
+          assert.deepStrictEqual(backend.log, [])
+
+          yield* container.retry
+          yield* awaitLog(backend, 4)
+          yield* settle
+          assert.strictEqual((yield* container.phase)._tag, "ready")
+          assert.deepStrictEqual(mounts, [4])
+          assert.deepStrictEqual(
+            [...backend.log].sort(),
+            [
+              "write package.json",
+              "write src/main.ts",
+              "write src/new.ts",
+              "write src/util.ts",
+            ],
+            "one mount of the current Workspace, no replayed events",
+          )
+          assert.strictEqual(
+            backend.files.get("src/main.ts"),
+            "edited while failed",
+          )
+
+          yield* ws.writeFile("src/util.ts", "after retry")
+          yield* awaitLog(backend, 5)
+          assert.strictEqual(backend.files.get("src/util.ts"), "after retry")
+        }),
+      ),
+    )
+  })
+})
+
 describe("Container mirror onChange", () => {
   test("reports the mount, then each event after it lands, in order", async () => {
     await Effect.runPromise(
@@ -277,6 +339,108 @@ describe("Container", () => {
         }),
       undefined,
       Effect.fail(new ContainerBootFailed({ message: "no" })),
+    )
+  })
+
+  test("retry boots again after a failed boot, releasing the failed attempt first", async () => {
+    const events: Array<string> = []
+    let attempts = 0
+    const boot = Effect.gen(function* () {
+      const attempt = ++attempts
+      yield* Effect.acquireRelease(
+        Effect.sync(() => events.push(`acquire ${attempt}`)),
+        () => Effect.sync(() => events.push(`release ${attempt}`)),
+      )
+      if (attempt === 1) {
+        return yield* Effect.fail(new ContainerBootFailed({ message: "no" }))
+      }
+    })
+    const backend = makeFakeContainerBackend()
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const container = yield* makeContainer(boot.pipe(Effect.as(backend)))
+          const seen: Array<ContainerPhase["_tag"]> = []
+          yield* container.phaseChanges.pipe(
+            Stream.runForEach((phase) =>
+              Effect.sync(() => seen.push(phase._tag)),
+            ),
+            Effect.forkScoped,
+          )
+          yield* settle
+          assert.strictEqual((yield* container.phase)._tag, "failed")
+          assert.deepStrictEqual(events, ["acquire 1", "release 1"])
+          assert.isTrue(
+            Exit.isFailure(yield* container.awaitReady.pipe(Effect.exit)),
+          )
+
+          yield* container.retry
+          yield* container.awaitReady
+          yield* container.writeFile("a.ts", "x")
+          assert.strictEqual(backend.files.get("a.ts"), "x")
+          yield* settle
+          assert.deepStrictEqual(seen, ["failed", "booting", "ready"])
+          assert.deepStrictEqual(events, [
+            "acquire 1",
+            "release 1",
+            "acquire 2",
+          ])
+        }),
+      ),
+    )
+    // The successful attempt lives until the Container's scope closes.
+    assert.deepStrictEqual(events, [
+      "acquire 1",
+      "release 1",
+      "acquire 2",
+      "release 2",
+    ])
+  })
+
+  test("retry does nothing while booting or ready", async () => {
+    let attempts = 0
+    const backend = makeFakeContainerBackend()
+    await runContainer(
+      (container) =>
+        Effect.gen(function* () {
+          yield* container.awaitReady
+          yield* container.retry
+          yield* settle
+          assert.strictEqual(attempts, 1)
+          assert.strictEqual((yield* container.phase)._tag, "ready")
+        }),
+      backend,
+      Effect.sync(() => {
+        attempts++
+      }),
+    )
+
+    // A retry while the retried boot is still running does not queue a
+    // third attempt once that one fails.
+    attempts = 0
+    const second = Effect.runSync(Deferred.make<void, ContainerBootError>())
+    await runContainer(
+      (container) =>
+        Effect.gen(function* () {
+          yield* settle
+          yield* container.retry
+          yield* settle
+          assert.strictEqual((yield* container.phase)._tag, "booting")
+          yield* container.retry
+          yield* Deferred.fail(
+            second,
+            new ContainerBootFailed({ message: "2" }),
+          )
+          yield* settle
+          assert.strictEqual(attempts, 2)
+          assert.strictEqual((yield* container.phase)._tag, "failed")
+        }),
+      backend,
+      Effect.suspend(() =>
+        ++attempts === 1
+          ? Effect.fail(new ContainerBootFailed({ message: "1" }))
+          : Deferred.await(second),
+      ),
     )
   })
 
