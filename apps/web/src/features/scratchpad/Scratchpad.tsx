@@ -5,13 +5,11 @@ import {
   useAtomValue,
 } from "@effect/atom-react"
 import * as Option from "effect/Option"
+import * as Atom from "effect/reactivity/Atom"
 import { X } from "lucide-react"
 import * as React from "react"
-import {
-  DEFAULT_SCRATCHPAD_FILES,
-  SCRATCHPAD_ENTRY_PATH,
-  SCRATCHPAD_ROOT_URI,
-} from "./config.ts"
+import type { FlatWorkspaceMetadata } from "@/features/share/flat"
+import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
 import {
   ScratchpadSessionContext,
   type ScratchpadSessionContextValue,
@@ -20,12 +18,18 @@ import {
 import { makeScratchpadEditorSession } from "./editor.ts"
 import { EditorTabs } from "./EditorTabs.tsx"
 import { FileExplorer } from "./FileExplorer.tsx"
+import type { LoadNotice } from "./load.ts"
+import { LoadNoticeBar } from "./LoadNoticeBar.tsx"
 import { layerBrowserWorker } from "./lsp-worker-client.ts"
+import { SCRATCHPAD_SEED } from "./seed.ts"
 
 export interface ScratchpadProps {
   readonly initialCode?: string | undefined
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
   readonly entryPath?: string | undefined
+  /** Share-format metadata of the loaded Workspace, kept for Shares. */
+  readonly metadata?: FlatWorkspaceMetadata | undefined
+  readonly notice?: Option.Option<LoadNotice> | undefined
 }
 
 function WorkspaceErrorBanner() {
@@ -103,6 +107,8 @@ export function Scratchpad({
   initialCode,
   initialFiles,
   entryPath,
+  metadata,
+  notice = Option.none(),
 }: ScratchpadProps) {
   const [session] = React.useState<ScratchpadSessionContextValue>(() => {
     const transportLayer = layerBrowserWorker({
@@ -122,7 +128,7 @@ export function Scratchpad({
         ? { initialFiles }
         : initialCode !== undefined
           ? { initialCode }
-          : { initialFiles: DEFAULT_SCRATCHPAD_FILES }),
+          : { initialFiles: SCRATCHPAD_SEED.files }),
       entryPath: entryPath ?? SCRATCHPAD_ENTRY_PATH,
     })
 
@@ -143,6 +149,12 @@ export function Scratchpad({
       renamePathAtom: editorSession.renamePathAtom,
       deletePathAtom: editorSession.deletePathAtom,
       clearErrorAtom: editorSession.clearErrorAtom,
+      workspaceMetadataAtom: Atom.make(
+        metadata ??
+          (initialFiles === undefined && initialCode === undefined
+            ? SCRATCHPAD_SEED.metadata
+            : undefined),
+      ).pipe(Atom.keepAlive),
     }
   })
 
@@ -155,6 +167,7 @@ export function Scratchpad({
         >
           <FileExplorer />
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <LoadNoticeBar notice={notice} />
             <EditorTabs />
             <WorkspaceErrorBanner />
             <CodeMirrorHost />

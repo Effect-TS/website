@@ -10,7 +10,6 @@ import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import { TestClock } from "effect/testing"
 import { assert, describe, test } from "vite-plus/test"
 import {
-  DEFAULT_SCRATCHPAD_SNIPPET,
   SCRATCHPAD_FILE_URI,
   SCRATCHPAD_ROOT_URI,
 } from "../../../src/features/scratchpad/config.ts"
@@ -25,6 +24,7 @@ import {
 import type { PageToWorker } from "../../../src/features/scratchpad/worker-protocol.ts"
 import { layerWorker } from "../../../src/features/scratchpad/worker-transport.ts"
 import { makeFakeWorkers } from "./fake-worker.ts"
+import { MAIN_SNIPPET } from "./fixtures.ts"
 
 const flushMicrotasks = async (ticks = 15) => {
   for (let i = 0; i < ticks; i++) {
@@ -121,7 +121,7 @@ const setupEditorTest = async (
     transportLayer: layer,
     rootUri: SCRATCHPAD_ROOT_URI,
     fileUri: SCRATCHPAD_FILE_URI,
-    initialCode: DEFAULT_SCRATCHPAD_SNIPPET,
+    initialCode: MAIN_SNIPPET,
     initialFiles,
     createEditorView: fakeEditors.factory,
   })
@@ -174,7 +174,7 @@ describe("ScratchpadEditorSession", () => {
       // EditorView is already mounted with the preloaded Effect snippet.
       assert.equal(ctx.fakeEditors.handles.length, 1)
       const editor = ctx.fakeEditors.handles[0]!
-      assert.equal(editor.getState().doc.toString(), DEFAULT_SCRATCHPAD_SNIPPET)
+      assert.equal(editor.getState().doc.toString(), MAIN_SNIPPET)
       assert.equal(editor.isDestroyed(), false)
 
       // Now finish LSP initialize -> ready.
