@@ -3,10 +3,7 @@ import * as Exit from "effect/Exit"
 import * as Fiber from "effect/Fiber"
 import * as Stream from "effect/Stream"
 import { assert, describe, test } from "vite-plus/test"
-import {
-  DEFAULT_SCRATCHPAD_FILES,
-  SCRATCHPAD_ROOT_URI,
-} from "../../../src/features/scratchpad/config.ts"
+import { SCRATCHPAD_ROOT_URI } from "../../../src/features/scratchpad/config.ts"
 import {
   layerMemoryWorkspace,
   pathToWorkspaceUri,
@@ -18,6 +15,7 @@ import {
   type WorkspaceService,
   workspaceUriToPath,
 } from "../../../src/features/scratchpad/workspace.ts"
+import { GREETER_FILES } from "./fixtures.ts"
 
 const runWorkspace = <A>(
   body: (ws: WorkspaceService) => Effect.Effect<A, WorkspaceError>,
@@ -78,7 +76,7 @@ describe("Workspace (in-memory store)", () => {
     const result = await runWorkspace(
       (ws) =>
         Effect.all({ tree: ws.getTree, files: ws.listFiles, stats: ws.stats }),
-      { initialFiles: DEFAULT_SCRATCHPAD_FILES },
+      { initialFiles: GREETER_FILES },
     )
 
     assert.deepStrictEqual(

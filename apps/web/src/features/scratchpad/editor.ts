@@ -20,12 +20,9 @@ import type * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
-import {
-  DEFAULT_SCRATCHPAD_FILES,
-  SCRATCHPAD_ENTRY_PATH,
-  SCRATCHPAD_ROOT_URI,
-} from "./config.ts"
+import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
+import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
 import {
   makeScratchpadSession,
@@ -197,7 +194,7 @@ const resolveInitialFiles = (
   }
 
   return {
-    files: DEFAULT_SCRATCHPAD_FILES,
+    files: SCRATCHPAD_SEED_FILES,
     entryPath: config.entryPath ?? SCRATCHPAD_ENTRY_PATH,
   }
 }

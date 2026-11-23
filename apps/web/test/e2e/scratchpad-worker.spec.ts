@@ -12,6 +12,85 @@ export const greet = (name: string) =>
   Effect.succeed(\`Hello, \${name}!\`)
 `
 
+const MAIN = `import { Effect } from "effect"
+import { greet } from "./greeter.ts"
+
+const program = Effect.gen(function* () {
+  // Floating Effect (Effect TS377001) — yield* or remove to resolve
+  Effect.succeed("unhandled")
+
+  const greeting = yield* greet("Effect")
+  return greeting
+})
+
+export { program }
+`
+
+/**
+ * A two-file Workspace with a cross-file import and one Effect diagnostic,
+ * stored as the Scratchpad autosave (`Option<Workspace>` in the share format)
+ * so it loads instead of the seed.
+ */
+const GREETER_AUTOSAVE = JSON.stringify({
+  _tag: "Some",
+  value: {
+    name: "playground-v4",
+    initialFilePath: "src/main.ts",
+    prepare: "pnpm install",
+    shells: [{ command: "../run src/main.ts" }],
+    snapshots: [],
+    tree: [
+      {
+        _tag: "File",
+        name: "package.json",
+        language: "json",
+        initialContent: JSON.stringify(
+          { type: "module", dependencies: { effect: "latest" } },
+          undefined,
+          2,
+        ),
+      },
+      {
+        _tag: "File",
+        name: "tsconfig.json",
+        language: "json",
+        initialContent: JSON.stringify(
+          {
+            // The language server's built-in defaults, on NodeNext (which
+            // the share format's normalization enforces).
+            compilerOptions: {
+              strict: true,
+              exactOptionalPropertyTypes: true,
+              noEmit: true,
+              target: "ES2022",
+              module: "NodeNext",
+              moduleResolution: "NodeNext",
+              allowImportingTsExtensions: true,
+              types: [],
+            },
+            include: ["src"],
+          },
+          undefined,
+          2,
+        ),
+      },
+      {
+        _tag: "Directory",
+        name: "src",
+        children: [
+          { _tag: "File", name: "main.ts", initialContent: MAIN },
+          { _tag: "File", name: "greeter.ts", initialContent: GREETER },
+        ],
+      },
+    ],
+  },
+})
+
+const useGreeterWorkspace = (page: Page) =>
+  page.addInitScript((autosave) => {
+    localStorage.setItem("scratchpad-autosave", autosave)
+  }, GREETER_AUTOSAVE)
+
 const editorOf = (page: Page) => page.getByTestId("scratchpad-editor")
 const statusOf = (page: Page) => page.getByTestId("lsp-status")
 
@@ -30,6 +109,7 @@ const lintMessages = async (page: Page, text: string) => {
 const dismissTooltips = (page: Page) => page.mouse.move(0, 0)
 
 const openReady = async (page: Page) => {
+  await useGreeterWorkspace(page)
   await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
   await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready", {
     timeout: READY_TIMEOUT,
@@ -81,6 +161,7 @@ test("loads the in-browser language server without cross-origin isolation and sh
     })
     observer.observe(document, { childList: true, subtree: true })
   })
+  await useGreeterWorkspace(page)
   await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
   const status = statusOf(page)
   // The editor is usable while the server loads.
@@ -327,4 +408,43 @@ test("recovers from a document that crashes the language server and works again 
     "data-lsp-status",
     /recovered|ready/,
   )
+})
+
+test("opens the Playground v4 seed when nothing else is saved", async ({
+  page,
+}) => {
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  for (const path of [
+    "package.json",
+    "tsconfig.json",
+    "dprint.json",
+    "src/main.ts",
+    "src/DevTools.ts",
+  ]) {
+    await expect(page.getByTestId(`explorer-file-${path}`)).toBeVisible()
+  }
+  await expect(page.getByTestId("editor-tab-src/main.ts")).toBeVisible()
+  await expect(
+    lineWith(page, "Welcome to the Effect v4 Playground"),
+  ).toBeVisible()
+  await expect(page.getByTestId("scratchpad-load-notice")).toHaveCount(0)
+})
+
+test("a v3 ?code link shows a notice linking to the Playground", async ({
+  page,
+}) => {
+  const code = Buffer.from('import { Effect } from "effect"\n').toString(
+    "base64url",
+  )
+  await page.goto(`/scratchpad?code=${code}`, {
+    waitUntil: "domcontentloaded",
+  })
+  const notice = page.getByTestId("scratchpad-load-notice")
+  await expect(notice).toHaveAttribute("data-reason", "v3")
+  await expect(
+    notice.getByRole("link", { name: "Open in Playground" }),
+  ).toHaveAttribute("href", `/play?code=${code}`)
+  await expect(page.getByTestId("explorer-file-src/DevTools.ts")).toBeVisible()
+  await notice.getByRole("button", { name: "Dismiss notice" }).click()
+  await expect(notice).toHaveCount(0)
 })

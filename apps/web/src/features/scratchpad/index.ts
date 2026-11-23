@@ -7,9 +7,6 @@ export {
   type LspCacheStats,
 } from "./cache.ts"
 export {
-  DEFAULT_GREETER_SNIPPET,
-  DEFAULT_SCRATCHPAD_FILES,
-  DEFAULT_SCRATCHPAD_SNIPPET,
   SCRATCHPAD_ENTRY_PATH,
   SCRATCHPAD_FILE_URI,
   SCRATCHPAD_ROOT_URI,
@@ -35,7 +32,23 @@ export {
   MultiFileLspWorkspace,
   type MultiFileLspWorkspaceCallbacks,
 } from "./lsp-workspace.ts"
+export {
+  loadScratchpadWorkspace,
+  PLAYGROUND_AUTOSAVE_KEY,
+  SCRATCHPAD_AUTOSAVE_KEY,
+  type LoadedScratchpadWorkspace,
+  type LoadNotice,
+  type LoadNoticeReason,
+  type ScratchpadLoadSource,
+  type ScratchpadLocation,
+} from "./load.ts"
 export { Scratchpad, type ScratchpadProps } from "./Scratchpad.tsx"
+export { ScratchpadPage } from "./ScratchpadPage.tsx"
+export {
+  makeScratchpadSeedWorkspace,
+  SCRATCHPAD_SEED,
+  SCRATCHPAD_SEED_FILES,
+} from "./seed.ts"
 export {
   computeBackoffDelayMs,
   DEFAULT_BACKOFF_POLICY,

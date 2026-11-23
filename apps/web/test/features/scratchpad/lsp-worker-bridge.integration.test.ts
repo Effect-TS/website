@@ -12,13 +12,13 @@ import * as fs from "node:fs"
 import { createRequire } from "node:module"
 import * as path from "node:path"
 import { afterAll, assert, beforeAll, describe, test } from "vite-plus/test"
-import { DEFAULT_SCRATCHPAD_FILES } from "../../../src/features/scratchpad/config.ts"
 import { DIAGNOSTIC_CLIENT_CAPABILITIES } from "../../../src/features/scratchpad/editor.ts"
 import {
   makeLspWorkerBridge,
   QUARANTINE_DIAGNOSTIC_CODE,
   type LspWorkerBridge,
 } from "../../../src/features/scratchpad/lsp-worker-bridge.ts"
+import { GREETER_FILES } from "./fixtures.ts"
 
 const require = createRequire(import.meta.url)
 const DIST = path.join(
@@ -139,7 +139,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
         }
       },
     })
-    bridge.applyFsOp({ _tag: "Reset", files: DEFAULT_SCRATCHPAD_FILES })
+    bridge.applyFsOp({ _tag: "Reset", files: GREETER_FILES })
     host = await startLspHost({
       module: fs.readFileSync(WASM),
       fs: memoryFs,
@@ -153,7 +153,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
       capabilities: DIAGNOSTIC_CLIENT_CAPABILITIES,
     })
     client({ method: "initialized", params: {} })
-    for (const [relPath, text] of Object.entries(DEFAULT_SCRATCHPAD_FILES)) {
+    for (const [relPath, text] of Object.entries(GREETER_FILES)) {
       open(relPath, text)
     }
   }, 60_000)
@@ -193,7 +193,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
   }, 30_000)
 
   test("a change to a file updates the diagnostics of the file that imports it", async () => {
-    change("src/main.ts", DEFAULT_SCRATCHPAD_FILES["src/main.ts"]!)
+    change("src/main.ts", GREETER_FILES["src/main.ts"]!)
     await waitFor(() => {
       const push = latest("src/main.ts", versions.get("src/main.ts"))
       return push !== undefined && codes(push).join() === "377001"
@@ -203,7 +203,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
 
     // The editor sends didChange for the open greeter.ts and the Workspace
     // write reaches the file system mirror.
-    const renamed = DEFAULT_SCRATCHPAD_FILES["src/greeter.ts"]!.replace(
+    const renamed = GREETER_FILES["src/greeter.ts"]!.replace(
       "export const greet",
       "export const greetUser",
     )
@@ -222,7 +222,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
     }, "main.ts reports the missing export")
     assert.match(broken.diagnostics.map((d) => d.message).join("\n"), /greet/)
 
-    change("src/greeter.ts", DEFAULT_SCRATCHPAD_FILES["src/greeter.ts"]!)
+    change("src/greeter.ts", GREETER_FILES["src/greeter.ts"]!)
     await waitFor(() => {
       const push = latest("src/main.ts")
       return push !== undefined && codes(push).join() === "377001"
@@ -245,7 +245,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
     bridge.applyFsOp({
       _tag: "WriteFile",
       path: "src/greeter.ts",
-      content: DEFAULT_SCRATCHPAD_FILES["src/greeter.ts"]!,
+      content: GREETER_FILES["src/greeter.ts"]!,
     })
     await waitFor(() => {
       const push = latest("src/main.ts")
