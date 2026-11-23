@@ -116,8 +116,8 @@ export const applyFsOpToFiles = (
  * Crash recoveries inside the worker are relayed as `Recovered` and do not
  * disconnect. A worker that fails for good emits `Disconnected` with a
  * `TransportFatalError` and is terminated. JSON-RPC sent while no worker is
- * ready is dropped, as the WebSocket layer drops frames queued before a
- * connection opens. Closing the layer's scope terminates the worker.
+ * ready is dropped, so `initialize` is always the first frame a new server
+ * sees. Closing the layer's scope terminates the worker.
  */
 export const layerWorker = (
   options: LayerWorkerOptions,

@@ -1,8 +1,7 @@
 import { expect, test, type Page } from "playwright/test"
 
 // The Scratchpad with the Effect tsrs language server running in a Web Worker
-// on the page (PUBLIC_LSP_TRANSPORT=worker, the default). No lsp-bridge
-// process: see playwright.scratchpad-worker.config.ts.
+// on the page: see playwright.scratchpad-worker.config.ts.
 
 const READY_TIMEOUT = 60_000
 const LSP_TIMEOUT = 20_000

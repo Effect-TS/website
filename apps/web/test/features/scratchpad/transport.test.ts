@@ -1,15 +1,11 @@
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Queue from "effect/Queue"
-import * as Socket from "effect/socket/Socket"
 import * as Stream from "effect/Stream"
 import { assert, describe, test } from "vite-plus/test"
 import {
-  layerSocket,
   LspTransport,
   makeFakeLspTransport,
-  TransportClosedError,
-  TransportConnectError,
+  TransportFatalError,
   type TransportEvent,
 } from "../../../src/features/scratchpad/transport.ts"
 
@@ -77,16 +73,13 @@ describe("LspTransport and FakeLspController", () => {
             params: { uri: "file:///workspace/main.ts", diagnostics: [] },
           })
 
-          // Server closes with close code and reason
-          yield* fake.controller.close(4000, "idle timeout")
+          // Server fails for good
+          yield* fake.controller.crash("wasm trap")
           const closed = yield* Queue.take(events)
           assert.equal(closed._tag, "Disconnected")
           if (closed._tag === "Disconnected") {
-            assert.instanceOf(closed.error, TransportClosedError)
-            if (closed.error._tag === "TransportClosedError") {
-              assert.equal(closed.error.code, 4000)
-              assert.equal(closed.error.reason, "idle timeout")
-            }
+            assert.instanceOf(closed.error, TransportFatalError)
+            assert.equal(closed.error.message, "wasm trap")
           }
           assert.equal(yield* fake.controller.isConnected, false)
         }).pipe(Effect.provide(fake.layer)),
@@ -94,7 +87,7 @@ describe("LspTransport and FakeLspController", () => {
     )
   })
 
-  test("injects connection failures as TransportConnectError and supports autoHandshake and stallRequest", async () => {
+  test("supports autoHandshake and stallRequest", async () => {
     const fake = makeFakeLspTransport({ autoHandshake: true })
 
     await Effect.runPromise(
@@ -111,18 +104,7 @@ describe("LspTransport and FakeLspController", () => {
           )
           yield* Effect.yieldNow
 
-          // Inject connect failure
-          yield* fake.controller.failNextConnect("ECONNREFUSED")
-          yield* lsp.reconnect
-          const failed = yield* Queue.take(events)
-          assert.equal(failed._tag, "Disconnected")
-          if (failed._tag === "Disconnected") {
-            assert.instanceOf(failed.error, TransportConnectError)
-            assert.equal(failed.error.message, "ECONNREFUSED")
-          }
-          assert.equal(yield* fake.controller.isConnected, false)
-
-          // Next connect succeeds and autoHandshake replies to initialize
+          // Connect; autoHandshake replies to initialize
           yield* lsp.reconnect
           const connected = yield* Queue.take(events)
           assert.equal(connected._tag, "Connected")
@@ -196,82 +178,6 @@ describe("LspTransport and FakeLspController", () => {
           const first = yield* fake.controller.takeSentMessage
           assert.equal(first.method, "initialize")
         }).pipe(Effect.provide(fake.layer)),
-      ),
-    )
-  })
-
-  test("layerSocket maps SocketOpenError and SocketCloseError to tagged transport errors", async () => {
-    let dialAttempt = 0
-
-    const mockSocket = Socket.make({
-      reader: Effect.suspend(() => {
-        dialAttempt += 1
-        if (dialAttempt === 1) {
-          return Effect.fail(
-            new Socket.SocketError({
-              reason: new Socket.SocketOpenError({
-                kind: "Unknown",
-                cause: new Error("socket open failed"),
-              }),
-            }),
-          )
-        }
-        return Effect.succeed<Socket.Reader>({
-          pull: Effect.fail(
-            new Socket.SocketError({
-              reason: new Socket.SocketCloseError({
-                code: 1013,
-                closeReason: "at capacity",
-              }),
-            }),
-          ),
-          upgrade: Socket.SocketUpgradeError.unsupported,
-        })
-      }),
-      writer: Effect.succeed<Socket.Writer>({
-        write: () => Effect.void,
-        writeAll: () => Effect.void,
-      }),
-    })
-
-    const transportLayer = layerSocket.pipe(
-      Layer.provide(Layer.succeed(Socket.Socket, mockSocket)),
-    )
-
-    await Effect.runPromise(
-      Effect.scoped(
-        Effect.gen(function* () {
-          const lsp = yield* LspTransport
-          const events = yield* Queue.unbounded<TransportEvent>()
-
-          yield* lsp.events.pipe(
-            Stream.runForEach((ev) => Queue.offer(events, ev)),
-            Effect.forkScoped,
-          )
-          yield* Effect.yieldNow
-
-          // First dial fails on open -> TransportConnectError
-          yield* lsp.reconnect
-          const ev1 = yield* Queue.take(events)
-          assert.equal(ev1._tag, "Disconnected")
-          if (ev1._tag === "Disconnected") {
-            assert.instanceOf(ev1.error, TransportConnectError)
-          }
-
-          // Second dial opens then closes with 1013 -> Connected then TransportClosedError
-          yield* lsp.reconnect
-          const ev2 = yield* Queue.take(events)
-          assert.equal(ev2._tag, "Connected")
-          const ev3 = yield* Queue.take(events)
-          assert.equal(ev3._tag, "Disconnected")
-          if (ev3._tag === "Disconnected") {
-            assert.instanceOf(ev3.error, TransportClosedError)
-            if (ev3.error._tag === "TransportClosedError") {
-              assert.equal(ev3.error.code, 1013)
-              assert.equal(ev3.error.reason, "at capacity")
-            }
-          }
-        }).pipe(Effect.provide(transportLayer)),
       ),
     )
   })

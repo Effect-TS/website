@@ -1,4 +1,3 @@
-import * as fs from "node:fs"
 import { assert, describe, test } from "vite-plus/test"
 import { applyContentChanges } from "../src/RecoveringServer.ts"
 import { ManualScheduler } from "../src/Scheduler.ts"
@@ -6,22 +5,11 @@ import {
   fileUriToPath,
   pathToFileUri,
   WORKSPACE_ROOT_URI,
-  WORKSPACE_TSCONFIG,
   workspacePath,
   workspaceUri,
 } from "../src/Workspace.ts"
 
 describe("Workspace", () => {
-  test("WORKSPACE_TSCONFIG mirrors packages/lsp-bridge/workspace.tsconfig.json", () => {
-    const bridge = JSON.parse(
-      fs.readFileSync(
-        new URL("../../lsp-bridge/workspace.tsconfig.json", import.meta.url),
-        "utf8",
-      ),
-    ) as unknown
-    assert.deepStrictEqual(WORKSPACE_TSCONFIG, bridge)
-  })
-
   test("lines up with the Scratchpad's URIs", () => {
     assert.strictEqual(WORKSPACE_ROOT_URI, "file:///workspace")
     assert.strictEqual(workspacePath("src/main.ts"), "/workspace/src/main.ts")

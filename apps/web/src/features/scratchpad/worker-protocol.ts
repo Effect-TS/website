@@ -2,11 +2,11 @@
  * The `postMessage` protocol between the Scratchpad page and the language
  * server Web Worker (`lsp.worker.ts`).
  *
- * JSON-RPC travels as bare strings in both directions, exactly as it would
- * over the WebSocket. Everything else is a plain object with a `_tag`: the
- * page drives the worker's lifecycle and mirrors the Scratchpad Workspace into
- * the worker's file system, and the worker reports loading progress, readiness,
- * crash recoveries and fatal errors.
+ * JSON-RPC travels as bare strings in both directions. Everything else is a
+ * plain object with a `_tag`: the page drives the worker's lifecycle and
+ * mirrors the Scratchpad Workspace into the worker's file system, and the
+ * worker reports loading progress, readiness, crash recoveries and fatal
+ * errors.
  */
 
 import type { TransportLoadPhase, TransportRecovery } from "./transport.ts"

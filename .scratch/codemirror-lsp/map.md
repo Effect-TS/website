@@ -6,6 +6,7 @@ A settled technical spec and implementation ticket breakdown for a separate, lig
 
 ## Notes
 
+- **Superseded transport (2026-11-23):** The server-hosted path these tickets built (`packages/lsp-bridge`, the `/api/lsp` gateway, the Cloudflare container, `PUBLIC_LSP_TRANSPORT`/`PUBLIC_LSP_WS_URL`) was removed by `.scratch/webcontainer-execution/issues/04-remove-websocket-lsp-bridge.md`; the in-browser tsrs worker is now the only transport (ADR 0004).
 - **Tracker:** Local Markdown under `.scratch/codemirror-lsp/` (`docs/agents/issue-tracker.md`).
 - **Skills to consult:** `grilling` and `domain-modeling` for grilling tickets; `research` for research tickets; `prototype` for prototype tickets; `unslop-text` for all writing.
 - **Working hypothesis (open to challenge):** Keep `@codemirror/lsp-client` as the LSP client. Wrap its `Transport` in an Effect `Context.Service` with one layer per backend route, plus scoped lifecycle and reconnection. Do not build a custom LSP client on Effect RPC unless research shows `@codemirror/lsp-client` blocks a required capability.

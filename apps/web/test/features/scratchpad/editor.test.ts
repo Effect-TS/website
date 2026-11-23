@@ -17,7 +17,6 @@ import {
   makeScratchpadEditorSession,
   type EditorViewFactory,
 } from "../../../src/features/scratchpad/editor.ts"
-import { MAX_DOC_BYTES } from "../../../src/features/scratchpad/session.ts"
 import {
   makeFakeLspTransport,
   type FakeLspTransportOptions,
@@ -107,7 +106,6 @@ const setupEditorTest = async (fakeOptions?: FakeLspTransportOptions) => {
   const fake = makeFakeLspTransport(fakeOptions)
   const layer = Layer.merge(fake.layer, TestClock.layer())
   const fakeEditors = createFakeEditorFactory()
-  const onlineTarget = new EventTarget()
   const fakeElement = {
     replaceChildren() {},
   } as unknown as HTMLElement
@@ -118,7 +116,6 @@ const setupEditorTest = async (fakeOptions?: FakeLspTransportOptions) => {
     fileUri: SCRATCHPAD_FILE_URI,
     initialCode: DEFAULT_SCRATCHPAD_SNIPPET,
     createEditorView: fakeEditors.factory,
-    onlineTarget,
   })
 
   const clockAtom = session.runtime.atom(Clock.Clock)
@@ -143,7 +140,6 @@ const setupEditorTest = async (fakeOptions?: FakeLspTransportOptions) => {
   return {
     fake,
     fakeEditors,
-    onlineTarget,
     fakeElement,
     session,
     registry,
@@ -157,7 +153,7 @@ const setupEditorTest = async (fakeOptions?: FakeLspTransportOptions) => {
 }
 
 describe("ScratchpadEditorSession", () => {
-  test("mounts EditorView immediately with preloaded snippet before WebSocket initialize finishes", async () => {
+  test("mounts EditorView immediately with preloaded snippet before the language server finishes initialize", async () => {
     const ctx = await setupEditorTest({ autoHandshake: false })
     try {
       const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
@@ -187,7 +183,7 @@ describe("ScratchpadEditorSession", () => {
     }
   })
 
-  test("React.StrictMode double-mount opens a single socket and final dispose tears down cleanly", async () => {
+  test("React.StrictMode double-mount starts a single language server and final dispose tears down cleanly", async () => {
     const ctx = await setupEditorTest({ autoHandshake: true })
     try {
       // Mount 1
@@ -212,7 +208,7 @@ describe("ScratchpadEditorSession", () => {
       ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
       await flushMicrotasks(20)
 
-      // Still only a single WebSocket was opened!
+      // Still only a single language server was started!
       assert.equal(await Effect.runPromise(ctx.fake.controller.openCount), 1)
       assert.equal(ctx.fakeEditors.handles.length, 2)
       assert.equal(ctx.fakeEditors.handles[1]!.isDestroyed(), false)
@@ -233,68 +229,6 @@ describe("ScratchpadEditorSession", () => {
     }
   })
 
-  test("editor docChanged and focus wake idle, docChanged updates 256 KiB retryability, and online retries errors", async () => {
-    const ctx = await setupEditorTest({ autoHandshake: true })
-    try {
-      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
-      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      const editor = ctx.fakeEditors.handles[0]!
-
-      // 1. Idle eviction -> wake via editor focus
-      await Effect.runPromise(ctx.fake.controller.close(4000, "idle"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
-
-      editor.emitFocus()
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      // 2. Idle eviction -> wake via editor docChanged
-      await Effect.runPromise(ctx.fake.controller.close(4000, "idle"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
-
-      editor.emitDocChange(`${DEFAULT_SCRATCHPAD_SNIPPET}\n// edit`)
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      // 3. Oversized doc (> 256 KiB) + close 1009 -> non-retryable until trimmed
-      editor.emitDocChange("x".repeat(MAX_DOC_BYTES + 64))
-      await flushMicrotasks(20)
-      await Effect.runPromise(
-        ctx.fake.controller.close(1009, "Message too big"),
-      )
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "error",
-        code: "doc-too-large",
-        message: "Message too big",
-        retryable: false,
-      })
-
-      editor.emitDocChange("export const small = 1")
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "error",
-        code: "doc-too-large",
-        message: "Message too big",
-        retryable: true,
-      })
-
-      // 4. Browser `online` event triggers automatic retry from retryable error
-      ctx.onlineTarget.dispatchEvent(new Event("online"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      unmountEditor()
-    } finally {
-      ctx.dispose()
-    }
-  })
-
   test("mirrors the Workspace into the worker's file system: initial files, edits, creates, renames and deletes", async () => {
     const fakes = makeFakeWorkers()
     const fakeEditors = createFakeEditorFactory()
@@ -309,7 +243,6 @@ describe("ScratchpadEditorSession", () => {
         "src/greeter.ts": "export const greet = 1\n",
       },
       createEditorView: fakeEditors.factory,
-      onlineTarget: new EventTarget(),
     })
     const registry = AtomRegistry.make({ defaultIdleTTL: 2000 })
     const fsOps = () =>

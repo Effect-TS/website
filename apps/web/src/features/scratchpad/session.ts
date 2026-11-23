@@ -12,13 +12,12 @@ import * as Stream from "effect/Stream"
 import { createCachedLspTransport } from "./cache.ts"
 import {
   LspTransport,
-  type TransportError,
+  type TransportFatalError,
   type TransportLoadPhase,
   type TransportRecovery,
 } from "./transport.ts"
 
 export const LSP_CLIENT_TIMEOUT_MS = 10_000
-export const MAX_DOC_BYTES = 256 * 1024
 export const RECONNECT_BASE_DELAY_MS = 500
 export const RECONNECT_FACTOR = 2
 export const RECONNECT_MAX_DELAY_MS = 10_000
@@ -26,18 +25,16 @@ export const RECONNECT_MAX_ATTEMPTS = 5
 /** How long the status shows a crash recovery before returning to `ready`. */
 export const RECOVERED_NOTICE_MS = 8_000
 
-export type LspErrorCode =
-  | "capacity"
-  | "doc-too-large"
-  | "policy"
-  | "unreachable"
-  | "crashed"
+/**
+ * `unreachable`: the language server never finished `initialize` within the
+ * retry budget. `crashed`: the in-browser server failed for good.
+ */
+export type LspErrorCode = "unreachable" | "crashed"
 
 /**
- * `loading` and `recovered` come only from transports that run the language
- * server in the browser (`layerWorker`): `loading` while its assets download,
- * compile and start, and `recovered` for a while after the server crashed and
- * was restarted in place (the session stays usable throughout).
+ * `loading` while the worker's assets download, compile and start, and
+ * `recovered` for a while after the server crashed and was restarted in place
+ * (the session stays usable throughout).
  */
 export type LspStatus =
   | { readonly _tag: "connecting" }
@@ -54,22 +51,12 @@ export type LspStatus =
       readonly attempt: number
       readonly maxAttempts: number
     }
-  | { readonly _tag: "idle" }
   | {
       readonly _tag: "error"
       readonly code: LspErrorCode
       readonly message: string
       readonly retryable: boolean
     }
-
-export type ExplicitWakeTrigger = "docChanged" | "focus" | "indicatorClick"
-export type PassiveEvent =
-  | "mousemove"
-  | "pointermove"
-  | "scroll"
-  | "visibilitychange"
-  | "passive"
-export type WakeTrigger = ExplicitWakeTrigger | PassiveEvent
 
 export interface BackoffPolicy {
   readonly baseDelayMs: number
@@ -84,16 +71,6 @@ export const DEFAULT_BACKOFF_POLICY: BackoffPolicy = {
   maxDelayMs: RECONNECT_MAX_DELAY_MS,
   maxAttempts: RECONNECT_MAX_ATTEMPTS,
 }
-
-const textEncoder = new TextEncoder()
-
-export const CLOSE_CODE_POLICY_VIOLATION = 1008
-const CLOSE_CODE_MESSAGE_TOO_BIG = 1009
-const CLOSE_CODE_TRY_AGAIN_LATER = 1013
-const CLOSE_CODE_IDLE_EVICTION = 4000
-
-export const utf8ByteLength = (text: string): number =>
-  textEncoder.encode(text).byteLength
 
 /**
  * Computes jittered exponential backoff delay in milliseconds for a 1-based
@@ -114,16 +91,12 @@ export const computeBackoffDelayMs = (
   return Math.max(1, Math.round(raw * (0.5 + 0.5 * clampedUnit)))
 }
 
-const isExplicitWakeTrigger = (
-  trigger: WakeTrigger,
-): trigger is ExplicitWakeTrigger =>
-  trigger === "docChanged" ||
-  trigger === "focus" ||
-  trigger === "indicatorClick"
-
 type SessionCommand =
   | { readonly _tag: "TransportConnected"; readonly connectionId: number }
-  | { readonly _tag: "TransportDisconnected"; readonly error: TransportError }
+  | {
+      readonly _tag: "TransportDisconnected"
+      readonly error: TransportFatalError
+    }
   | {
       readonly _tag: "TransportLoading"
       readonly phase: TransportLoadPhase
@@ -143,16 +116,11 @@ type SessionCommand =
     }
   | { readonly _tag: "BackoffElapsed"; readonly token: number }
   | { readonly _tag: "ManualReconnect" }
-  | { readonly _tag: "Wake"; readonly trigger: WakeTrigger }
-  | { readonly _tag: "Online" }
-  | { readonly _tag: "DocumentChanged"; readonly byteLength: number }
 
 export interface ScratchpadSessionConfig {
   readonly transportLayer: Layer.Layer<LspTransport>
   readonly rootUri?: string
   readonly clientTimeoutMs?: number
-  readonly maxDocBytes?: number
-  readonly initialDocBytes?: number
   readonly baseDelayMs?: number
   readonly factor?: number
   readonly maxDelayMs?: number
@@ -167,9 +135,6 @@ export interface ScratchpadSession {
   readonly statusAtom: Atom.Writable<LspStatus>
   readonly clientAtom: Atom.Atom<AsyncResult.AsyncResult<LSPClient>>
   readonly reconnectAtom: Atom.AtomResultFn<void, void>
-  readonly wakeAtom: Atom.AtomResultFn<WakeTrigger, void>
-  readonly onlineAtom: Atom.AtomResultFn<void, void>
-  readonly documentChangedAtom: Atom.AtomResultFn<string | number, void>
   readonly replayIncoming: (raw: string) => void
 }
 
@@ -177,7 +142,6 @@ export const makeScratchpadSession = (
   config: ScratchpadSessionConfig,
 ): ScratchpadSession => {
   const clientTimeoutMs = config.clientTimeoutMs ?? LSP_CLIENT_TIMEOUT_MS
-  const maxDocBytes = config.maxDocBytes ?? MAX_DOC_BYTES
   const backoffPolicy: BackoffPolicy = {
     baseDelayMs: config.baseDelayMs ?? RECONNECT_BASE_DELAY_MS,
     factor: config.factor ?? RECONNECT_FACTOR,
@@ -237,7 +201,6 @@ export const makeScratchpadSession = (
       let consecutiveAttempts = 0
       let activeConnectionId = -1
       let backoffToken = 0
-      let docByteLength = config.initialDocBytes ?? 0
       let initFiber: Fiber.Fiber<void, never> | undefined
       let backoffFiber: Fiber.Fiber<void, never> | undefined
       let noticeToken = 0
@@ -410,7 +373,7 @@ export const makeScratchpadSession = (
               initFiber = undefined
               activeConnectionId = -1
               yield* disconnectClient
-              // Close any still-open socket before entering retry backoff.
+              // Stop the current server before entering retry backoff.
               yield* lspTransport.disconnect
               yield* scheduleRetry("unreachable", cmd.reason)
               break
@@ -421,70 +384,17 @@ export const makeScratchpadSession = (
               activeConnectionId = -1
               yield* disconnectClient
 
-              const err = cmd.error
-              if (err._tag === "TransportFatalError") {
-                // The in-browser server is gone for good: no backoff, a
-                // retry starts it over.
-                yield* cancelBackoff
-                consecutiveAttempts = 0
-                noticeToken += 1
-                setStatus({
-                  _tag: "error",
-                  code: "crashed",
-                  message: err.message,
-                  retryable: true,
-                })
-                break
-              }
-              if (err._tag === "TransportClosedError") {
-                if (err.code === CLOSE_CODE_IDLE_EVICTION) {
-                  yield* cancelBackoff
-                  consecutiveAttempts = 0
-                  setStatus({ _tag: "idle" })
-                  break
-                }
-                if (err.code === CLOSE_CODE_POLICY_VIOLATION) {
-                  yield* cancelBackoff
-                  consecutiveAttempts = 0
-                  setStatus({
-                    _tag: "error",
-                    code: "policy",
-                    message:
-                      err.reason || "Connection rejected by server policy.",
-                    retryable: false,
-                  })
-                  break
-                }
-                if (err.code === CLOSE_CODE_MESSAGE_TOO_BIG) {
-                  yield* cancelBackoff
-                  consecutiveAttempts = 0
-                  setStatus({
-                    _tag: "error",
-                    code: "doc-too-large",
-                    message:
-                      err.reason || "Document exceeds the 256 KiB limit.",
-                    retryable: docByteLength <= maxDocBytes,
-                  })
-                  break
-                }
-                if (err.code === CLOSE_CODE_TRY_AGAIN_LATER) {
-                  yield* scheduleRetry(
-                    "capacity",
-                    err.reason || "Language server is at capacity.",
-                  )
-                  break
-                }
-                yield* scheduleRetry(
-                  "unreachable",
-                  err.reason || `Connection closed (${err.code}).`,
-                )
-                break
-              }
-
-              yield* scheduleRetry(
-                "unreachable",
-                err.message || "Unable to connect to language server.",
-              )
+              // The in-browser server is gone for good: no backoff, a retry
+              // starts it over.
+              yield* cancelBackoff
+              consecutiveAttempts = 0
+              noticeToken += 1
+              setStatus({
+                _tag: "error",
+                code: "crashed",
+                message: cmd.error.message,
+                retryable: true,
+              })
               break
             }
 
@@ -543,55 +453,7 @@ export const makeScratchpadSession = (
             }
 
             case "ManualReconnect": {
-              if (
-                currentStatus._tag === "idle" ||
-                (currentStatus._tag === "error" && currentStatus.retryable)
-              ) {
-                yield* triggerReconnect
-              }
-              break
-            }
-
-            case "Wake": {
-              if (!isExplicitWakeTrigger(cmd.trigger)) break
-              if (currentStatus._tag === "idle") {
-                yield* triggerReconnect
-              } else if (
-                cmd.trigger === "indicatorClick" &&
-                currentStatus._tag === "error" &&
-                currentStatus.retryable
-              ) {
-                yield* triggerReconnect
-              }
-              break
-            }
-
-            case "Online": {
-              if (
-                (currentStatus._tag === "error" &&
-                  currentStatus.retryable &&
-                  currentStatus.code !== "crashed") ||
-                currentStatus._tag === "reconnecting"
-              ) {
-                yield* triggerReconnect
-              }
-              break
-            }
-
-            case "DocumentChanged": {
-              docByteLength = cmd.byteLength
-              if (
-                currentStatus._tag === "error" &&
-                currentStatus.code === "doc-too-large"
-              ) {
-                const retryable = docByteLength <= maxDocBytes
-                if (retryable !== currentStatus.retryable) {
-                  setStatus({
-                    ...currentStatus,
-                    retryable,
-                  })
-                }
-              } else if (currentStatus._tag === "idle") {
+              if (currentStatus._tag === "error" && currentStatus.retryable) {
                 yield* triggerReconnect
               }
               break
@@ -622,34 +484,11 @@ export const makeScratchpadSession = (
     }),
   )
 
-  const wakeAtom = runtime.fn<WakeTrigger>()(
-    Effect.fnUntraced(function* (trigger) {
-      yield* sendCommand({ _tag: "Wake", trigger })
-    }),
-  )
-
-  const onlineAtom = runtime.fn<void>()(
-    Effect.fnUntraced(function* () {
-      yield* sendCommand({ _tag: "Online" })
-    }),
-  )
-
-  const documentChangedAtom = runtime.fn<string | number>()(
-    Effect.fnUntraced(function* (docOrBytes) {
-      const byteLength =
-        typeof docOrBytes === "number" ? docOrBytes : utf8ByteLength(docOrBytes)
-      yield* sendCommand({ _tag: "DocumentChanged", byteLength })
-    }),
-  )
-
   return {
     runtime,
     statusAtom,
     clientAtom,
     reconnectAtom,
-    wakeAtom,
-    onlineAtom,
-    documentChangedAtom,
     replayIncoming: (raw: string) => {
       activeReplayIncoming?.(raw)
     },

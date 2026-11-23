@@ -9,9 +9,8 @@ export const WORKSPACE_TSCONFIG_PATH = `${WORKSPACE_ROOT_PATH}/tsconfig.json`
 export const WORKSPACE_NODE_MODULES_PATH = `${WORKSPACE_ROOT_PATH}/node_modules`
 
 /**
- * The tsconfig of the virtual workspace: packages/lsp-bridge/workspace.tsconfig.json (the server-hosted bridge's
- * config), including the @effect/language-service plugin entry that turns the Effect diagnostics on. A test keeps
- * the two in sync.
+ * The tsconfig of the virtual workspace, including the @effect/language-service plugin entry that turns the Effect
+ * diagnostics on.
  */
 export const WORKSPACE_TSCONFIG = {
   compilerOptions: {

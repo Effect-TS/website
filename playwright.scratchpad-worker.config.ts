@@ -1,7 +1,6 @@
 import { defineConfig, devices } from "playwright/test"
 
-// The Scratchpad with its language server in the browser (the default
-// `PUBLIC_LSP_TRANSPORT=worker`): `astro dev` only, no lsp-bridge process.
+// The Scratchpad with its language server in the browser: `astro dev` only.
 // Needs packages/tsrs-lsp-wasm/dist (nix develop -c pnpm --filter
 // @website/tsrs-lsp-wasm build). SCRATCHPAD_URL runs the spec against another
 // server; SCRATCHPAD_BROWSERS picks projects (default chromium).
@@ -38,7 +37,7 @@ export default defineConfig({
   webServer:
     externalUrl === undefined
       ? {
-          command: `PUBLIC_LSP_TRANSPORT=worker vp -C apps/web exec astro dev --host 127.0.0.1 --port ${webPort} --ignore-lock`,
+          command: `vp -C apps/web exec astro dev --host 127.0.0.1 --port ${webPort} --ignore-lock`,
           url: `${localBaseUrl}/scratchpad`,
           reuseExistingServer: false,
           timeout: 120_000,
