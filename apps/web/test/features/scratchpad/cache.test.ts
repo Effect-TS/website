@@ -118,12 +118,6 @@ describe("createCachedLspTransport", () => {
     assert.deepStrictEqual(received[1]?.result, {
       contents: { kind: "markdown", value: "const x: 1" },
     })
-    assert.deepStrictEqual(cached.stats(), {
-      hits: 1,
-      misses: 1,
-      coalesced: 0,
-      size: 1,
-    })
   })
 
   test("invalidates on document edit and reuses cache if buffer reverts to previous content", async () => {
@@ -193,7 +187,7 @@ describe("createCachedLspTransport", () => {
     })
   })
 
-  test("coalesces identical in-flight requests and handles partial vs full cancellation", () => {
+  test("coalesces identical in-flight requests and keeps the upstream request while one waiter remains", () => {
     const mock = makeMockTransport()
     const cached = createCachedLspTransport(mock.transport)
     const received: Array<Record<string, unknown>> = []
@@ -263,40 +257,55 @@ describe("createCachedLspTransport", () => {
 
     openDoc(cached.transport, "const a = 1\nconst b = 2\nconst c = 3\n")
 
-    // Error response is not cached
-    cached.transport.send(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "textDocument/hover",
-        params: {
-          textDocument: { uri: "file:///workspace/main.ts" },
-          position: { line: 0, character: 6 },
-        },
-      }),
-    )
+    const hover = (id: number) =>
+      cached.transport.send(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "textDocument/hover",
+          params: {
+            textDocument: { uri: "file:///workspace/main.ts" },
+            position: { line: 0, character: 6 },
+          },
+        }),
+      )
+    const rename = (id: number) =>
+      cached.transport.send(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "textDocument/rename",
+          params: {
+            textDocument: { uri: "file:///workspace/main.ts" },
+            position: { line: 0, character: 6 },
+            newName: "a2",
+          },
+        }),
+      )
+    const upstream = (method: string) =>
+      mock.sent.filter((m) => m.method === method).length
+
+    // Error response is not cached: the same hover goes upstream again
+    hover(1)
     mock.receive({
       jsonrpc: "2.0",
       id: 1,
       error: { code: -32603, message: "boom" },
     })
-    assert.strictEqual(cached.stats().size, 0)
+    hover(2)
+    assert.strictEqual(upstream("textDocument/hover"), 2)
+    mock.receive({
+      jsonrpc: "2.0",
+      id: 2,
+      error: { code: -32603, message: "boom" },
+    })
 
     // Mutating request (rename) is never cached
-    cached.transport.send(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: 2,
-        method: "textDocument/rename",
-        params: {
-          textDocument: { uri: "file:///workspace/main.ts" },
-          position: { line: 0, character: 6 },
-          newName: "a2",
-        },
-      }),
-    )
-    mock.receive({ jsonrpc: "2.0", id: 2, result: { changes: {} } })
-    assert.strictEqual(cached.stats().size, 0)
+    rename(3)
+    mock.receive({ jsonrpc: "2.0", id: 3, result: { changes: {} } })
+    rename(4)
+    assert.strictEqual(upstream("textDocument/rename"), 2)
+    mock.receive({ jsonrpc: "2.0", id: 4, result: { changes: {} } })
 
     // Fill LRU beyond maxEntries=2
     for (const [idx, line] of [0, 1, 2].entries()) {
@@ -314,7 +323,6 @@ describe("createCachedLspTransport", () => {
       )
       mock.receive({ jsonrpc: "2.0", id, result: { line } })
     }
-    assert.strictEqual(cached.stats().size, 2)
 
     // Line 0 was evicted -> re-querying it must hit upstream
     const before = mock.sent.length

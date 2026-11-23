@@ -129,16 +129,7 @@ export function Scratchpad({
   notice = Option.none(),
 }: ScratchpadProps) {
   const [{ session, runtime }] = React.useState(() => {
-    const transportLayer = layerBrowserWorker({
-      onReady: (timings, memoryBytes) => {
-        // Read by the e2e tests and handy when demoing.
-        ;(window as { __scratchpadLspReady?: unknown }).__scratchpadLspReady = {
-          ...timings,
-          memoryBytes,
-          at: performance.now(),
-        }
-      },
-    })
+    const transportLayer = layerBrowserWorker()
     const editorSession = makeScratchpadEditorSession({
       transportLayer,
       containerLayer: layerWebContainer,

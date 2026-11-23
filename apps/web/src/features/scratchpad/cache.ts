@@ -16,13 +16,6 @@ export const CACHEABLE_LSP_METHODS = new Set<string>([
 
 export const DEFAULT_LSP_CACHE_MAX_ENTRIES = 500
 
-export interface LspCacheStats {
-  readonly hits: number
-  readonly misses: number
-  readonly coalesced: number
-  readonly size: number
-}
-
 export interface CachedLspTransportOptions {
   readonly maxEntries?: number
   readonly cacheableMethods?: ReadonlySet<string>
@@ -30,7 +23,6 @@ export interface CachedLspTransportOptions {
 
 export interface CachedLspTransport {
   readonly transport: Transport
-  readonly stats: () => LspCacheStats
   readonly clear: () => void
   readonly resetPending: () => void
   readonly replayIncoming: (raw: string) => void
@@ -184,9 +176,6 @@ export const createCachedLspTransport = (
 
   const handlers = new Set<(value: string) => void>()
 
-  let hits = 0
-  let misses = 0
-  let coalesced = 0
   let innerSubscribed = false
 
   const emitToHandlers = (raw: string) => {
@@ -427,7 +416,6 @@ export const createCachedLspTransport = (
         if (cacheKey !== undefined) {
           const cached = getLru(cacheKey)
           if (cached.found) {
-            hits += 1
             const response = JSON.stringify({
               jsonrpc: "2.0",
               id: parsed.id,
@@ -441,13 +429,11 @@ export const createCachedLspTransport = (
 
           const existing = pendingByCacheKey.get(cacheKey)
           if (existing !== undefined) {
-            coalesced += 1
             existing.waiters.push(parsed.id)
             clientIdToGroup.set(parsed.id, existing)
             return
           }
 
-          misses += 1
           const group: PendingGroup = {
             upstreamId: parsed.id,
             cacheKey,
@@ -482,12 +468,6 @@ export const createCachedLspTransport = (
 
   return {
     transport,
-    stats: () => ({
-      hits,
-      misses,
-      coalesced,
-      size: lru.size,
-    }),
     clear: () => {
       lru.clear()
       resetPending()

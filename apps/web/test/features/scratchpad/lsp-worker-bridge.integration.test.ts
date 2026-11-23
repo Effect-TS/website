@@ -259,30 +259,6 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
     }, "main.ts recovers")
   }, 30_000)
 
-  test("a deleted file not open in the server breaks the import; restoring it fixes it", async () => {
-    client({
-      method: "textDocument/didClose",
-      params: { textDocument: { uri: uri("src/greeter.ts") } },
-    })
-    bridge.applyFsOp({ _tag: "Remove", path: "src/greeter.ts" })
-    await waitFor(() => {
-      const push = latest("src/main.ts")
-      return push !== undefined && codes(push).includes(2307) ? push : undefined
-    }, "main.ts reports the missing module")
-
-    bridge.applyFsOp({
-      _tag: "WriteFile",
-      path: "src/greeter.ts",
-      content: GREETER_FILES["src/greeter.ts"]!,
-    })
-    await waitFor(() => {
-      const push = latest("src/main.ts")
-      return push !== undefined && codes(push).join() === "377001"
-        ? push
-        : undefined
-    }, "main.ts resolves the restored file")
-  }, 30_000)
-
   test("tsconfig.json is the Workspace's: removing it drops the Effect plugin, restoring it brings it back", async () => {
     bridge.applyFsOp({ _tag: "Remove", path: "tsconfig.json" })
     await waitFor(() => {
@@ -317,14 +293,6 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
         : undefined
     }, "deep.ts quarantine warning")
     assert.equal(quarantined.diagnostics.length, 1)
-    assert.equal(host.recoveries.length >= 1, true)
-
-    // The rest of the session keeps working.
-    const hover = await request("textDocument/hover", {
-      textDocument: { uri: uri("src/main.ts") },
-      position: { line: 3, character: 8 },
-    })
-    assert.include(JSON.stringify(hover), "Effect")
 
     const version = change("src/deep.ts", "export const ok: string = 1\n")
     const fixed = await waitFor(

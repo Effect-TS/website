@@ -74,11 +74,6 @@ export interface WorkspaceFileEntry {
   readonly content: string
 }
 
-export interface WorkspaceStats {
-  readonly fileCount: number
-  readonly totalBytes: number
-}
-
 export const WorkspaceSnapshotSchema = Schema.Struct({
   version: Schema.Literal(1),
   files: Schema.Record(Schema.String, Schema.String),
@@ -125,7 +120,6 @@ export interface WorkspaceService {
     WorkspaceError
   >
   readonly getTree: Effect.Effect<ReadonlyArray<WorkspaceNode>, WorkspaceError>
-  readonly stats: Effect.Effect<WorkspaceStats, WorkspaceError>
   readonly readFile: (path: string) => Effect.Effect<string, WorkspaceError>
   /** An editor write: fails with `read-only` for `package.json` and `pnpm-lock.yaml`. */
   readonly writeFile: (
@@ -467,11 +461,6 @@ export const makeMemoryWorkspace = (options?: {
 
     const getTree = Effect.sync(() => store.tree())
 
-    const stats = Effect.sync((): WorkspaceStats => ({
-      fileCount: store.files.size,
-      totalBytes: store.totalBytes,
-    }))
-
     const readFile = (rawPath: string): Effect.Effect<string, WorkspaceError> =>
       Effect.gen(function* () {
         const relPath = yield* normalizeRelativePath(rawPath)
@@ -692,7 +681,6 @@ export const makeMemoryWorkspace = (options?: {
       rootUri,
       listFiles,
       getTree,
-      stats,
       readFile,
       writeFile: (path, content) =>
         writeInternal(path, content, "upsert", "editor"),

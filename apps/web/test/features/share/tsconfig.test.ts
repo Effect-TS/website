@@ -1,4 +1,3 @@
-import * as Equal from "effect/Equal"
 import * as Option from "effect/Option"
 import { assert, test } from "vite-plus/test"
 import {
@@ -125,9 +124,6 @@ test("normalizes a workspace's root tsconfig.json for the Scratchpad", () => {
 
   assert.deepStrictEqual(compilerOptions.plugins, [plugin])
   assert.isTrue(compilerOptions.verbatimModuleSyntax)
-  assert.isTrue(
-    Equal.equals(normalizeScratchpadWorkspace(normalized), normalized),
-  )
 })
 
 test("the Playground's normalizeWorkspace does not inject the plugin", () => {

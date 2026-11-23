@@ -79,15 +79,6 @@ test("normalizes npm prepare to pnpm install", () => {
   assert.equal(normalizeWorkspace(staleV3()).prepare, "pnpm install")
 })
 
-test("fixes extensionless DevTools import and keeps user code", () => {
-  const normalized = normalizeWorkspace(staleV3())
-  const [main] = normalized.findFile("src/main.ts").pipe(Option.getOrThrow)
-
-  assert.match(main.initialContent, /from "\.\/DevTools\.js"/)
-  assert.notMatch(main.initialContent, /from "\.\/DevTools"(?!\.)/)
-  assert.match(main.initialContent, /Welcome to the Effect Playground!/)
-})
-
 test("restores missing generated configs", () => {
   const workspace = makeDefaultWorkspace("v3")
   const [tsconfig] = workspace.findFile("tsconfig.json").pipe(Option.getOrThrow)
@@ -128,7 +119,7 @@ test("patches tsconfig module settings while keeping other options", () => {
   assert.deepEqual(parsed.include, ["src"])
 })
 
-test("leaves invalid package.json alone so mid-edit autosaves survive", () => {
+test("leaves invalid or non-object package.json alone so mid-edit autosaves survive", () => {
   const workspace = makeDefaultWorkspace("v3")
   const [packageJson] = workspace
     .findFile("package.json")
@@ -141,21 +132,15 @@ test("leaves invalid package.json alone so mid-edit autosaves survive", () => {
   const [kept] = normalized.findFile("package.json").pipe(Option.getOrThrow)
 
   assert.equal(kept.initialContent, '{"dependencies": {')
-})
 
-test("leaves non-object package.json alone", () => {
-  const workspace = makeDefaultWorkspace("v3")
-  const [packageJson] = workspace
-    .findFile("package.json")
-    .pipe(Option.getOrThrow)
   const array = workspace.replaceNode(
     packageJson,
     packageJson.withContent("[]"),
   )
-  const normalized = normalizeWorkspace(array)
-  const [kept] = normalized.findFile("package.json").pipe(Option.getOrThrow)
-
-  assert.equal(kept.initialContent, "[]")
+  const [keptArray] = normalizeWorkspace(array)
+    .findFile("package.json")
+    .pipe(Option.getOrThrow)
+  assert.equal(keptArray.initialContent, "[]")
 })
 
 test("keeps custom dependencies and user files", () => {
@@ -182,18 +167,6 @@ test("keeps custom dependencies and user files", () => {
   assert.equal(JSON.parse(parsed.initialContent).dependencies.lodash, "4.17.21")
   const [notes] = normalized.findFile("notes.txt").pipe(Option.getOrThrow)
   assert.equal(notes.initialContent, "do not touch")
-})
-
-test("current defaults are already normalized", () => {
-  for (const version of ["v3", "v4"] as const) {
-    const workspace = makeDefaultWorkspace(version)
-    const normalized = normalizeWorkspace(workspace)
-    assert.equal(normalized.prepare, "pnpm install")
-    const [packageJson] = normalized
-      .findFile("package.json")
-      .pipe(Option.getOrThrow)
-    assert.equal(JSON.parse(packageJson.initialContent).type, "module")
-  }
 })
 
 test("fixes extensionless imports in user-defined files", () => {

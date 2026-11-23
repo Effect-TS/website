@@ -50,9 +50,7 @@ import RUN_PRELOAD_SCRIPT from "./run-preload.mjs?raw"
 import { SCRATCHPAD_ENTRY_PATH } from "./config.ts"
 import { workspaceUriToPath } from "./workspace.ts"
 
-export { RUN_PRELOAD_SCRIPT }
-
-export const RUN_PRELOAD_NAME = "run-preload.mjs"
+const RUN_PRELOAD_NAME = "run-preload.mjs"
 export const DEFAULT_RUN_DEBOUNCE: Duration.Input = "500 millis"
 /** The Run output kept for the panel (the end of it). */
 export const RUN_OUTPUT_LIMIT = 256 * 1024
@@ -170,8 +168,7 @@ const ANSI_PATTERN =
   /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
 
 /** Removes ANSI escape sequences, so text can be re-styled as a whole. */
-export const stripAnsi = (text: string): string =>
-  text.replace(ANSI_PATTERN, "")
+const stripAnsi = (text: string): string => text.replace(ANSI_PATTERN, "")
 
 /** `path:line:col` of a blocking error, as the terminal prints it. */
 export const errorLocation = (error: RunBlockingError): string =>

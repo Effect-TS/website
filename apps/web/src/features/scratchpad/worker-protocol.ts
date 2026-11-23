@@ -64,13 +64,6 @@ export type LoadPhase = TransportLoadPhase
 
 export type WorkerRecovery = TransportRecovery
 
-export interface WorkerReadyTimings {
-  /** From `Start` until the module was compiled. */
-  readonly loadMs: number
-  /** From `Start` until the host accepted messages. */
-  readonly startMs: number
-}
-
 export type WorkerToPage =
   | {
       readonly _tag: "Progress"
@@ -78,11 +71,7 @@ export type WorkerToPage =
       readonly loadedBytes: number
       readonly totalBytes: number
     }
-  | {
-      readonly _tag: "Ready"
-      readonly timings: WorkerReadyTimings
-      readonly memoryBytes: number
-    }
+  | { readonly _tag: "Ready" }
   | { readonly _tag: "Recovered"; readonly recovery: WorkerRecovery }
   | { readonly _tag: "Fatal"; readonly message: string }
   | ({ readonly _tag: "TypesMounted" } & TypesMountedInfo)

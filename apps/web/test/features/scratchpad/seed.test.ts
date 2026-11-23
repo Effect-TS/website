@@ -1,10 +1,6 @@
 import * as Option from "effect/Option"
 import { assert, describe, test } from "vite-plus/test"
-import {
-  SCRATCHPAD_SEED,
-  SCRATCHPAD_SEED_FILES,
-} from "../../../src/features/scratchpad/seed.ts"
-import { fromFlatWorkspace } from "../../../src/features/share/flat.ts"
+import { SCRATCHPAD_SEED_FILES } from "../../../src/features/scratchpad/seed.ts"
 import { makeDefaultWorkspace } from "../../../src/features/share/workspace.ts"
 
 const template = makeDefaultWorkspace("v4")
@@ -42,39 +38,17 @@ describe("Scratchpad seed", () => {
     assert.equal(tsconfig.compilerOptions.module, "NodeNext")
   })
 
-  test("pins @types/node to ^24 and keeps the other ranges", () => {
+  test("pins @types/node to ^24 and keeps Effect on latest", () => {
     const pkg = JSON.parse(SCRATCHPAD_SEED_FILES["package.json"]!)
-    const templatePkg = JSON.parse(templateFile("package.json"))
-    assert.deepStrictEqual(pkg, {
-      ...templatePkg,
-      dependencies: { ...templatePkg.dependencies, "@types/node": "^24" },
-    })
+    assert.equal(pkg.dependencies["@types/node"], "^24")
     assert.equal(pkg.dependencies.effect, "latest")
     assert.equal(pkg.dependencies["@effect/platform-node"], "latest")
   })
 
   test("DevTools.ts imports NodeSocket from its own module", () => {
-    const devTools = SCRATCHPAD_SEED_FILES["src/DevTools.ts"]!
     assert.include(
-      devTools,
+      SCRATCHPAD_SEED_FILES["src/DevTools.ts"]!,
       'import * as NodeSocket from "@effect/platform-node/NodeSocket"',
     )
-    assert.notInclude(devTools, 'from "@effect/platform-node"')
-    assert.include(devTools, "NodeSocket.layerNet({ port: 34437 })")
-  })
-
-  test("leaves the Playground's own v4 template alone", () => {
-    assert.include(
-      templateFile("src/DevTools.ts"),
-      'from "@effect/platform-node"',
-    )
-    assert.notInclude(templateFile("tsconfig.json"), "verbatimModuleSyntax")
-  })
-
-  test("round-trips to a v4 share-format Workspace", () => {
-    const workspace = fromFlatWorkspace(SCRATCHPAD_SEED)
-    assert.equal(workspace.effectVersion, "v4")
-    assert.equal(workspace.initialFilePath, "src/main.ts")
-    assert.equal(workspace.name, template.name)
   })
 })

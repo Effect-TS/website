@@ -14,20 +14,20 @@ import {
   type ContainerBootError,
   ContainerBootFailed,
   type ContainerService,
-  type FakeContainerBackend,
-  type FakeSpawnCall,
-  type FakeSpawnResult,
   makeContainer,
-  makeFakeContainerBackend,
   mirrorWorkspace,
 } from "../../../src/features/scratchpad/container.ts"
 import {
-  COLLECT_TYPES_SCRIPT,
+  type FakeContainerBackend,
+  type FakeSpawnCall,
+  type FakeSpawnResult,
+  makeFakeContainerBackend,
+} from "./fake-container.ts"
+import {
   containerPhaseOf,
   type DependenciesService,
   type DependencyState,
   makeDependencies,
-  TYPES_PACK_NAME,
 } from "../../../src/features/scratchpad/dependencies.ts"
 import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
 import type { LspWorkspaceMirrorService } from "../../../src/features/scratchpad/worker-transport.ts"
@@ -111,6 +111,9 @@ interface Ctx {
   readonly state: () => Effect.Effect<DependencyState>
 }
 
+/** The host-dir file the types collector was told to write its pack to. */
+const packNameOf = (call: FakeSpawnCall) => call.args[2]!.split("/").at(-1)!
+
 /** The successful default: pnpm writes a lockfile, the collector a pack. */
 const defaultSpawn = (
   call: FakeSpawnCall,
@@ -120,7 +123,7 @@ const defaultSpawn = (
     backend.files.set("pnpm-lock.yaml", "lockfileVersion: '6.0'\n")
     return { exitCode: 0, output: ["Packages: +1\n", "Done\n"] }
   }
-  backend.hostFiles.set(TYPES_PACK_NAME, PACK)
+  backend.hostFiles.set(packNameOf(call), PACK)
   return { exitCode: 0, output: ['{"files":1}\n'] }
 }
 
@@ -192,16 +195,9 @@ describe("Dependencies", () => {
   test("installs after the mount, syncs the lockfile back, copies the installed types and releases diagnostics", async () => {
     await run({}, (ctx) =>
       Effect.gen(function* () {
-        assert.deepEqual(commands(ctx.backend), [
-          "pnpm install",
-          "node ../.scratchpad/collect-types.cjs node_modules ../.scratchpad/types.pack --skip-ts-libs",
-        ])
-        assert.equal(
-          ctx.backend.hostFiles.get("collect-types.cjs"),
-          COLLECT_TYPES_SCRIPT,
-        )
+        assert.equal(commands(ctx.backend)[0], "pnpm install")
         assert.isFalse(
-          ctx.backend.hostFiles.has(TYPES_PACK_NAME),
+          ctx.backend.hostFiles.has(packNameOf(ctx.backend.spawned[1]!)),
           "the pack is deleted after it is read",
         )
         assert.deepEqual(ctx.packs, [PACK])
@@ -330,7 +326,6 @@ describe("Dependencies", () => {
             assert.match(phase.error.outputTail, /ERR_PNPM_FETCH_404/)
           }
           assert.isTrue((yield* ctx.state()).diagnosticsVisible)
-          assert.deepEqual(commands(ctx.backend), ["pnpm install"])
           assert.deepEqual(ctx.packs, [])
           assert.isFalse(
             Option.isSome(
@@ -568,8 +563,10 @@ describe("collect-types.cjs", () => {
       const old = `${store}/undici-types@6.0.0/node_modules/undici-types`
       write(`${old}/package.json`, '{"version":"6.0.0"}')
 
-      const script = path.join(dir, "collect-types.cjs")
-      fs.writeFileSync(script, COLLECT_TYPES_SCRIPT)
+      const script = path.join(
+        import.meta.dirname,
+        "../../../src/features/scratchpad/collect-types.cjs",
+      )
       const stdout = execFileSync(
         process.execPath,
         [script, "node_modules", "out/types.pack", "--skip-ts-libs"],

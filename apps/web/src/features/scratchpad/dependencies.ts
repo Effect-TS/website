@@ -49,8 +49,6 @@ import {
 } from "./worker-transport.ts"
 import { Workspace, type WorkspaceService } from "./workspace.ts"
 
-export { COLLECT_TYPES_SCRIPT }
-
 /** How long after the Container is ready diagnostics wait for types. */
 export const DEFAULT_TYPES_TIMEOUT: Duration.Input = "60 seconds"
 /** The install output kept for display (the end of it). */
@@ -59,7 +57,7 @@ export const INSTALL_OUTPUT_LIMIT = 64 * 1024
 export const INSTALL_OUTPUT_TAIL = 4 * 1024
 
 export const COLLECTOR_SCRIPT_NAME = "collect-types.cjs"
-export const TYPES_PACK_NAME = "types.pack"
+const TYPES_PACK_NAME = "types.pack"
 export const SYNCED_BACK_PATHS = ["package.json", "pnpm-lock.yaml"] as const
 
 // ---------------------------------------------------------------------------

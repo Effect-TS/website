@@ -1,15 +1,10 @@
 import type { ContainerPhase } from "./container.ts"
 import type { LspErrorCode, LspStatus } from "./session.ts"
 
-export type LspStatusTone = "neutral" | "info" | "success" | "warning" | "error"
-
 export interface LspStatusView {
   readonly state: LspStatus["_tag"]
   readonly label: string
   readonly detail: string
-  readonly tone: LspStatusTone
-  readonly interactive: boolean
-  readonly actionLabel?: string | undefined
 }
 
 const errorSummary = (code: LspErrorCode, retryable: boolean): string => {
@@ -40,8 +35,6 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
         state: "connecting",
         label: "Connecting…",
         detail: "Connecting to the Effect TypeScript language server.",
-        tone: "neutral",
-        interactive: false,
       }
     case "loading": {
       const percent =
@@ -63,8 +56,6 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
               status.totalBytes > 0
                 ? `Downloading the in-browser Effect TypeScript language server (${formatMiB(status.loadedBytes)} of ${formatMiB(status.totalBytes)}).`
                 : "Downloading the in-browser Effect TypeScript language server.",
-            tone: "neutral",
-            interactive: false,
           }
         case "compiling":
           return {
@@ -72,8 +63,6 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
             label: "Compiling…",
             detail:
               "Compiling the in-browser Effect TypeScript language server.",
-            tone: "neutral",
-            interactive: false,
           }
         case "starting":
           return {
@@ -81,8 +70,6 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
             label: "Starting…",
             detail:
               "Starting the in-browser Effect TypeScript language server.",
-            tone: "neutral",
-            interactive: false,
           }
       }
     }
@@ -96,8 +83,6 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
           (quarantined.length > 0
             ? ` Language features are paused for ${quarantined.join(", ")} until its next edit.`
             : ""),
-        tone: "warning",
-        interactive: false,
       }
     }
     case "ready":
@@ -105,32 +90,18 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
         state: "ready",
         label: "Ready",
         detail: "Effect TypeScript language server is connected and ready.",
-        tone: "success",
-        interactive: false,
       }
     case "reconnecting":
       return {
         state: "reconnecting",
         label: `Reconnecting (${status.attempt}/${status.maxAttempts})…`,
         detail: `Reconnecting to the language server (attempt ${status.attempt} of ${status.maxAttempts}).`,
-        tone: "warning",
-        interactive: false,
       }
     case "error": {
       return {
         state: "error",
         label: errorSummary(status.code, status.retryable),
         detail: status.message,
-        tone: "error",
-        interactive: status.retryable,
-        ...(status.retryable
-          ? {
-              actionLabel:
-                status.code === "crashed"
-                  ? "Restart language server"
-                  : "Retry connection",
-            }
-          : {}),
       }
     }
   }
@@ -140,14 +111,9 @@ export interface ContainerStatusView {
   readonly state: ContainerPhase["_tag"]
   readonly label: string
   readonly detail: string
-  readonly tone: LspStatusTone
-  /** Work in progress: the badge pulses. */
-  readonly busy: boolean
 }
 
-export const describeContainerPhase = (
-  phase: ContainerPhase,
-): ContainerStatusView => {
+const describeContainerPhase = (phase: ContainerPhase): ContainerStatusView => {
   switch (phase._tag) {
     case "booting":
       return {
@@ -155,16 +121,12 @@ export const describeContainerPhase = (
         label: "Booting…",
         detail:
           "Starting the in-browser Node.js container that runs your code.",
-        tone: "neutral",
-        busy: true,
       }
     case "installing":
       return {
         state: "installing",
         label: "Installing…",
         detail: "Installing dependencies with pnpm in the container.",
-        tone: "neutral",
-        busy: true,
       }
     case "loading-types":
       return {
@@ -172,8 +134,6 @@ export const describeContainerPhase = (
         label: "Loading types…",
         detail:
           "Copying the installed packages' types into the language server.",
-        tone: "neutral",
-        busy: true,
       }
     case "ready":
       return {
@@ -181,8 +141,6 @@ export const describeContainerPhase = (
         label: "Container ready",
         detail:
           "Dependencies are installed and the editor type-checks against them.",
-        tone: "success",
-        busy: false,
       }
     case "failed":
       return {
@@ -192,24 +150,18 @@ export const describeContainerPhase = (
             ? "Can't run here"
             : "Container failed",
         detail: `${phase.error.message} Editing still works.`,
-        tone: "error",
-        busy: false,
       }
     case "install-failed":
       return {
         state: "install-failed",
         label: "Install failed",
         detail: `${phase.error.message} Editing still works.`,
-        tone: "error",
-        busy: false,
       }
     case "dependencies-unavailable":
       return {
         state: "dependencies-unavailable",
         label: "Dependencies unavailable",
         detail: `${phase.reason} Code still runs.`,
-        tone: "warning",
-        busy: false,
       }
   }
 }
@@ -240,8 +192,6 @@ export const describeContainerStatus = (
       phase._tag === "ready"
         ? "Your program is running in the container."
         : `Your program is running in the container. ${view.detail}`,
-    tone: phase._tag === "ready" ? "info" : view.tone,
-    busy: true,
   }
 }
 

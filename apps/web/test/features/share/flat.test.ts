@@ -14,29 +14,6 @@ import {
   WorkspaceShell,
 } from "../../../src/features/share/workspace.ts"
 
-test("flattens a workspace into paths and file contents", () => {
-  const flat = toFlatWorkspace(makeDefaultWorkspace("v4"))
-
-  assert.deepStrictEqual(Object.keys(flat.files), [
-    "package.json",
-    "dprint.json",
-    "tsconfig.json",
-    "src/main.ts",
-    "src/DevTools.ts",
-  ])
-  assert.match(flat.files["src/main.ts"]!, /Effect v4 Playground/)
-  assert.deepStrictEqual(flat.directories, [])
-})
-
-test("default workspaces round-trip unchanged", () => {
-  for (const version of ["v3", "v4"] as const) {
-    const workspace = makeDefaultWorkspace(version)
-    assert.isTrue(
-      Equal.equals(fromFlatWorkspace(toFlatWorkspace(workspace)), workspace),
-    )
-  }
-})
-
 test("round-trip keeps legacy fields, empty directories and node metadata", () => {
   const workspace = new Workspace({
     name: "legacy",

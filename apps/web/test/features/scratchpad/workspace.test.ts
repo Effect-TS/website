@@ -74,8 +74,7 @@ const SEED = {
 describe("Workspace (in-memory store)", () => {
   test("seeds initial files, builds sorted tree, and maps URIs both ways", async () => {
     const result = await runWorkspace(
-      (ws) =>
-        Effect.all({ tree: ws.getTree, files: ws.listFiles, stats: ws.stats }),
+      (ws) => Effect.all({ tree: ws.getTree, files: ws.listFiles }),
       { initialFiles: GREETER_FILES },
     )
 
@@ -83,8 +82,6 @@ describe("Workspace (in-memory store)", () => {
       result.files.map((f) => f.path),
       ["src/greeter.ts", "src/main.ts"],
     )
-    assert.strictEqual(result.stats.fileCount, 2)
-    assert.isAbove(result.stats.totalBytes, 0)
     assert.strictEqual(result.tree.length, 1)
     assert.strictEqual(result.tree[0]?._tag, "Directory")
     if (result.tree[0]?._tag === "Directory") {
@@ -262,10 +259,8 @@ describe("Workspace (in-memory store)", () => {
             "workspace-too-large",
           )
           // A failed write changes nothing.
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 3,
-            totalBytes: 201,
-          })
+          assert.strictEqual(yield* ws.readFile("src/b.ts"), "b".repeat(100))
+          assert.strictEqual(yield* ws.readFile("src/main.ts"), "x")
         }),
       {
         initialFiles: { "src/main.ts": "x" },
@@ -274,51 +269,41 @@ describe("Workspace (in-memory store)", () => {
     )
   })
 
-  test("keeps file count and total bytes current across every mutation", async () => {
+  test("counts UTF-8 bytes against the total limit across renames and snapshot restores", async () => {
     await runWorkspace(
       (ws) =>
         Effect.gen(function* () {
-          // "é" is two bytes in UTF-8.
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 1,
-            totalBytes: 3,
-          })
-          yield* ws.createFile("src/a.ts", "aaaa")
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 2,
-            totalBytes: 7,
-          })
-          yield* ws.writeFile("src/a.ts", "a")
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 2,
-            totalBytes: 4,
-          })
+          // "é" is two bytes in UTF-8, so the seed takes 3 of 10 bytes.
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("src/a.ts", "a".repeat(8))),
+            "workspace-too-large",
+          )
+          yield* ws.createFile("src/a.ts", "a".repeat(7))
+
+          // A rename moves bytes without adding or dropping any.
           yield* ws.rename("src", "lib")
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 2,
-            totalBytes: 4,
-          })
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("x.ts", "x")),
+            "workspace-too-large",
+          )
           yield* ws.remove("lib/a.ts")
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 1,
-            totalBytes: 3,
-          })
+          yield* ws.createFile("x.ts", "x".repeat(7))
+
+          // A restore replaces the total with the snapshot's.
           yield* ws.restoreSnapshot({
             version: 1,
             files: { "a.ts": "12345", "b.ts": "1" },
           })
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 2,
-            totalBytes: 6,
-          })
-          yield* ws.remove("a.ts")
-          yield* ws.remove("b.ts")
-          assert.deepStrictEqual(yield* ws.stats, {
-            fileCount: 0,
-            totalBytes: 0,
-          })
+          yield* ws.createFile("c.ts", "cccc")
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("d.ts", "d")),
+            "workspace-too-large",
+          )
         }),
-      { initialFiles: { "src/é.ts": "é1" } },
+      {
+        initialFiles: { "src/é.ts": "é1" },
+        limits: { maxTotalBytes: 10 },
+      },
     )
   })
 

@@ -4,13 +4,8 @@ export {
   DEFAULT_LSP_CACHE_MAX_ENTRIES,
   type CachedLspTransport,
   type CachedLspTransportOptions,
-  type LspCacheStats,
 } from "./cache.ts"
-export {
-  SCRATCHPAD_ENTRY_PATH,
-  SCRATCHPAD_FILE_URI,
-  SCRATCHPAD_ROOT_URI,
-} from "./config.ts"
+export { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
 export {
   ScratchpadSessionContext,
   useScratchpadSession,
@@ -64,22 +59,11 @@ export {
   type ScratchpadSession,
   type ScratchpadSessionConfig,
 } from "./session.ts"
-export {
-  describeLspStatus,
-  type LspStatusTone,
-  type LspStatusView,
-} from "./status.ts"
+export { describeLspStatus, type LspStatusView } from "./status.ts"
 export { ReadinessIndicator } from "./ReadinessIndicator.tsx"
 export {
-  layerInMemoryFake,
   LspTransport,
-  makeFakeLspTransport,
   TransportFatalError,
-  type FakeLspController,
-  type FakeLspTransportHandle,
-  type FakeLspTransportOptions,
-  type JsonRpcMessage,
-  type JsonRpcRequest,
   type LspTransportService,
   type TransportEvent,
 } from "./transport.ts"
@@ -107,5 +91,4 @@ export {
   type WorkspaceNode,
   type WorkspaceService,
   type WorkspaceSnapshot,
-  type WorkspaceStats,
 } from "./workspace.ts"

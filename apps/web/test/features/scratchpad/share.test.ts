@@ -180,6 +180,15 @@ describe("shareScratchpad", () => {
     assert.deepStrictEqual(second.metadata, first.metadata)
     assert.equal(second.initialFilePath, "src/Program.ts")
     assert.equal(second.metadata!.name, "playground-v4")
+    assert.deepStrictEqual(
+      second.metadata!.nodes.find((node) => node.path === "src/Program.ts"),
+      {
+        _tag: "File",
+        path: "src/Program.ts",
+        language: "typescript",
+        userManaged: true,
+      },
+    )
   })
 
   test("a workspace over the 128 KB limit fails before the request", async () => {

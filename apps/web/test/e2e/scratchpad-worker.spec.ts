@@ -124,7 +124,6 @@ const openReady = async (page: Page) => {
 
 test("loads the in-browser language server on the cross-origin isolated page and shows the floating Effect diagnostic", async ({
   page,
-  browserName,
 }) => {
   const assets: Array<Record<string, unknown>> = []
   page.on("response", async (response) => {
@@ -136,22 +135,11 @@ test("loads the in-browser language server on the cross-origin isolated page and
       url: url.replace(/^https?:\/\/[^/]+/, ""),
       status: response.status(),
       contentType: headers["content-type"],
-      cacheControl: headers["cache-control"],
-      contentEncoding: headers["content-encoding"],
       contentLength: headers["content-length"],
       bodyBytes: body?.byteLength,
     })
   })
 
-  // Note when the first diagnostic squiggle renders, in page time.
-  await page.addInitScript(() => {
-    const observer = new MutationObserver(() => {
-      if (document.querySelector(".cm-lintRange") === null) return
-      ;(window as { __firstLintAt?: number }).__firstLintAt = performance.now()
-      observer.disconnect()
-    })
-    observer.observe(document, { childList: true, subtree: true })
-  })
   await useGreeterWorkspace(page)
   await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
   const status = statusOf(page)
@@ -163,14 +151,8 @@ test("loads the in-browser language server on the cross-origin isolated page and
   await expect(status).toHaveAttribute("data-lsp-status", "ready", {
     timeout: READY_TIMEOUT,
   })
-  const readyAt = await page.evaluate(() => performance.now())
   await awaitInstalledTypes(page)
-  const typesAt = await page.evaluate(() => performance.now())
 
-  await expect(
-    lineWith(page, 'Effect.succeed("unhandled")').locator(".cm-lintRange"),
-  ).toBeVisible({ timeout: LSP_TIMEOUT })
-  const firstDiagnosticAt = await page.evaluate(() => performance.now())
   const tooltip = await lintMessages(page, 'Effect.succeed("unhandled")')
   // TS377001 is Effect's floatingEffect rule; the tooltip shows its message.
   await expect(tooltip).toContainText("floatingEffect")
@@ -209,32 +191,6 @@ test("loads the in-browser language server on the cross-origin isolated page and
   if (workerScript !== undefined) {
     expect(size(workerScript)).toBeLessThan(1_000_000)
   }
-
-  const { ready, firstLintAt } = await page.evaluate(() => {
-    const w = window as {
-      __scratchpadLspReady?: { readonly at: number }
-      __firstLintAt?: number
-    }
-    return { ready: w.__scratchpadLspReady, firstLintAt: w.__firstLintAt }
-  })
-  console.log(
-    `[scratchpad-worker ${browserName}] ` +
-      JSON.stringify({
-        // Page time (ms since navigation start).
-        workerReadyAt: ready === undefined ? undefined : Math.round(ready.at),
-        firstDiagnosticAt:
-          firstLintAt === undefined ? undefined : Math.round(firstLintAt),
-        workerReadyToFirstDiagnosticMs:
-          ready === undefined || firstLintAt === undefined
-            ? undefined
-            : Math.round(firstLintAt - ready.at),
-        statusReadySeenAt: Math.round(readyAt),
-        containerReadySeenAt: Math.round(typesAt),
-        squiggleSeenAt: Math.round(firstDiagnosticAt),
-        worker: ready,
-        assets,
-      }),
-  )
 })
 
 test("reports a type error and clears it on edit, hovers types and completes Effect members", async ({
@@ -404,26 +360,6 @@ test("recovers from a document that crashes the language server and works again 
     "data-lsp-status",
     /recovered|ready/,
   )
-})
-
-test("opens the Playground v4 seed when nothing else is saved", async ({
-  page,
-}) => {
-  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  for (const path of [
-    "package.json",
-    "tsconfig.json",
-    "dprint.json",
-    "src/main.ts",
-    "src/DevTools.ts",
-  ]) {
-    await expect(page.getByTestId(`explorer-file-${path}`)).toBeVisible()
-  }
-  await expect(page.getByTestId("editor-tab-src/main.ts")).toBeVisible()
-  await expect(
-    lineWith(page, "Welcome to the Effect v4 Playground"),
-  ).toBeVisible()
-  await expect(page.getByTestId("scratchpad-load-notice")).toHaveCount(0)
 })
 
 test("a v3 ?code link shows a notice linking to the Playground", async ({

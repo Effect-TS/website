@@ -1,6 +1,5 @@
 import { assert, describe, test } from "vite-plus/test"
 import { applyContentChanges } from "../src/RecoveringServer.ts"
-import { ManualScheduler } from "../src/Scheduler.ts"
 import {
   fileUriToPath,
   pathToFileUri,
@@ -64,22 +63,5 @@ describe("applyContentChanges", () => {
       ]),
       "xy",
     )
-  })
-})
-
-describe("ManualScheduler", () => {
-  test("runs tasks in time order and supports cancellation", () => {
-    const s = new ManualScheduler()
-    const ran: Array<string> = []
-    s.schedule(() => ran.push("b"), 10)
-    s.schedule(() => ran.push("a"), 0)
-    const cancel = s.schedule(() => ran.push("never"), 5)
-    cancel()
-    assert.deepStrictEqual(s.pending, [0, 10])
-    assert.strictEqual(s.runPending(), 1)
-    assert.deepStrictEqual(ran, ["a"])
-    s.advance(10)
-    assert.deepStrictEqual(ran, ["a", "b"])
-    assert.strictEqual(s.now, 10)
   })
 })

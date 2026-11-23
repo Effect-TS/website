@@ -9,10 +9,7 @@ import * as Option from "effect/Option"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import { TestClock } from "effect/testing"
 import { assert, describe, test } from "vite-plus/test"
-import {
-  SCRATCHPAD_FILE_URI,
-  SCRATCHPAD_ROOT_URI,
-} from "../../../src/features/scratchpad/config.ts"
+import { SCRATCHPAD_ROOT_URI } from "../../../src/features/scratchpad/config.ts"
 import {
   makeScratchpadEditorSession,
   type EditorViewFactory,
@@ -20,7 +17,7 @@ import {
 import {
   makeFakeLspTransport,
   type FakeLspTransportOptions,
-} from "../../../src/features/scratchpad/transport.ts"
+} from "./fake-transport.ts"
 import type { PageToWorker } from "../../../src/features/scratchpad/worker-protocol.ts"
 import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
 import {
@@ -31,9 +28,11 @@ import * as Deferred from "effect/Deferred"
 import {
   type Container,
   ContainerBootFailed,
+} from "../../../src/features/scratchpad/container.ts"
+import {
   layerFakeContainer,
   makeFakeContainerBackend,
-} from "../../../src/features/scratchpad/container.ts"
+} from "./fake-container.ts"
 import { makeFakeWorkers } from "./fake-worker.ts"
 import { MAIN_SNIPPET } from "./fixtures.ts"
 
@@ -133,7 +132,6 @@ const setupEditorTest = async (
   const session = makeScratchpadEditorSession({
     transportLayer: layer,
     rootUri: SCRATCHPAD_ROOT_URI,
-    fileUri: SCRATCHPAD_FILE_URI,
     initialCode: MAIN_SNIPPET,
     initialFiles,
     createEditorView: fakeEditors.factory,

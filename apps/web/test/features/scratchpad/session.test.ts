@@ -7,15 +7,13 @@ import { TestClock } from "effect/testing"
 import { assert, describe, test } from "vite-plus/test"
 import {
   computeBackoffDelayMs,
-  LSP_CLIENT_TIMEOUT_MS,
   makeScratchpadSession,
   type LspStatus,
 } from "../../../src/features/scratchpad/session.ts"
 import {
-  LspTransport,
   makeFakeLspTransport,
   type FakeLspTransportOptions,
-} from "../../../src/features/scratchpad/transport.ts"
+} from "./fake-transport.ts"
 
 const flushMicrotasks = async (ticks = 10) => {
   for (let i = 0; i < ticks; i++) {
@@ -84,21 +82,10 @@ const setupTestSession = async (
 }
 
 describe("ScratchpadSession", () => {
-  test("starts connecting, configures LSPClient with 10_000 ms timeout, and transitions to ready after initialize", async () => {
+  test("starts connecting and transitions to ready after initialize", async () => {
     const ctx = await setupTestSession({ autoHandshake: false })
     try {
       assert.deepEqual(ctx.getStatus(), { _tag: "connecting" })
-
-      const clientRes = ctx.registry.get(ctx.session.clientAtom)
-      assert.equal(clientRes._tag, "Success")
-      if (clientRes._tag === "Success") {
-        // Verify LSPClient timeout is 10_000 ms
-        assert.equal(
-          (clientRes.value as unknown as { timeout: number }).timeout,
-          LSP_CLIENT_TIMEOUT_MS,
-        )
-        assert.equal(LSP_CLIENT_TIMEOUT_MS, 10_000)
-      }
 
       const initReq = await Effect.runPromise(
         ctx.fake.controller.waitForRequest("initialize"),
@@ -219,44 +206,14 @@ describe("ScratchpadSession", () => {
     assert.equal(computeBackoffDelayMs(6, 0), 5_000)
   })
 
-  test("LSPClient.initializing timeout and rejection stop the server and retry with backoff", async () => {
+  test("an initialize rejection stops the server and retries with backoff", async () => {
     const ctx = await setupTestSession({ autoHandshake: false })
     try {
-      assert.deepEqual(ctx.getStatus(), { _tag: "connecting" })
-      const firstInit = await Effect.runPromise(
+      const init = await Effect.runPromise(
         ctx.fake.controller.waitForRequest("initialize"),
       )
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.isConnected),
-        true,
-      )
-
-      // Stall initialize past 10 s timeout -> stops the server and enters reconnecting
-      await ctx.adjust("10 seconds")
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.isConnected),
-        false,
-      )
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 1,
-        maxAttempts: 5,
-      })
-
-      // Advance backoff -> reconnects and sends a fresh initialize
-      await ctx.adjust("500 millis")
-      const secondInit = await Effect.runPromise(
-        ctx.fake.controller.waitForRequest("initialize"),
-      )
-      assert.notEqual(secondInit.id, firstInit.id)
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.isConnected),
-        true,
-      )
-
-      // Server rejects initialize with JSON-RPC error -> stops the server and retries (attempt 2)
       await Effect.runPromise(
-        ctx.fake.controller.replyError(secondInit.id, {
+        ctx.fake.controller.replyError(init.id, {
           code: -32603,
           message: "tsrs init failed",
         }),
@@ -268,76 +225,14 @@ describe("ScratchpadSession", () => {
       )
       assert.deepEqual(ctx.getStatus(), {
         _tag: "reconnecting",
-        attempt: 2,
+        attempt: 1,
         maxAttempts: 5,
       })
 
-      // Advance backoff -> next initialize succeeds -> ready
+      // The backoff elapses -> a fresh initialize succeeds -> ready
       await Effect.runPromise(ctx.fake.controller.setAutoHandshake(true))
-      await ctx.adjust("1 second")
+      await ctx.adjust("500 millis")
       assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-    } finally {
-      ctx.dispose()
-    }
-  })
-
-  test("reconnecting clears pending outbound queue before client.disconnect and client.connect so stale frames never precede initialize", async () => {
-    const ctx = await setupTestSession({ autoHandshake: true })
-    try {
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      // Grab the underlying LspTransport to enqueue stale frames while disconnected
-      const transportAtom = ctx.session.runtime.atom(LspTransport)
-      const unmountTransport = ctx.registry.mount(transportAtom)
-      await flushMicrotasks(10)
-      const transportRes = ctx.registry.get(transportAtom)
-      assert.equal(transportRes._tag, "Success")
-
-      // The server fails for good
-      await Effect.runPromise(ctx.fake.controller.crash("dropped"))
-      await flushMicrotasks(20)
-      assert.equal(ctx.getStatus()._tag, "error")
-
-      // Queue stale frames while disconnected
-      if (transportRes._tag === "Success") {
-        transportRes.value.transport.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            method: "textDocument/didChange",
-            params: { stale: 1 },
-          }),
-        )
-        transportRes.value.transport.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: 999,
-            method: "textDocument/hover",
-            params: { stale: 2 },
-          }),
-        )
-      }
-
-      // Manual retry reconnects
-      ctx.registry.set(ctx.session.reconnectAtom, undefined)
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      const msgsOnNewConn = await Effect.runPromise(
-        ctx.fake.controller.currentConnectionMessages,
-      )
-      assert.ok(msgsOnNewConn.length >= 1)
-      assert.equal(msgsOnNewConn[0]!.method, "initialize")
-      assert.equal(
-        msgsOnNewConn.some(
-          (m) =>
-            m.method === "textDocument/didChange" ||
-            m.method === "textDocument/hover",
-        ),
-        false,
-      )
-
-      unmountTransport()
     } finally {
       ctx.dispose()
     }

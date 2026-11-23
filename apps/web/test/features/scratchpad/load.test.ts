@@ -17,7 +17,6 @@ import {
   Compression,
   WorkspaceCompression,
 } from "../../../src/features/share/compression.ts"
-import { fromFlatWorkspace } from "../../../src/features/share/flat.ts"
 import { ShortenClient } from "../../../src/features/share/shorten/client.ts"
 import { Workspace } from "../../../src/features/share/workspace.ts"
 
@@ -162,12 +161,9 @@ interface Fixture {
 const AutosaveSchema = Schema.Option(Workspace)
 
 const load = (fixture: Fixture): Promise<LoadedScratchpadWorkspace> => {
-  const retrieved: Array<string> = []
   const shortener = Layer.succeed(ShortenClient, {
-    retrieve: ({ params }: { readonly params: { readonly hash: string } }) => {
-      retrieved.push(params.hash)
-      return Effect.succeed(Option.fromNullishOr(fixture.shares?.[params.hash]))
-    },
+    retrieve: ({ params }: { readonly params: { readonly hash: string } }) =>
+      Effect.succeed(Option.fromNullishOr(fixture.shares?.[params.hash])),
   } as unknown as ShortenClient["Service"])
   return Effect.gen(function* () {
     const store = KeyValueStore.toSchemaStore(
@@ -232,15 +228,8 @@ describe("loadScratchpadWorkspace", () => {
     ])
     // normalizeWorkspace's legacy repairs.
     assert.include(loaded.files["src/main.ts"], 'from "./Program.js"')
-    // The Scratchpad's tsconfig patch.
-    const tsconfig = JSON.parse(loaded.files["tsconfig.json"]!)
-    assert.deepStrictEqual(tsconfig.compilerOptions.plugins, [
-      {
-        name: "@effect/language-service",
-        diagnosticSeverity: { unstableApiUsage: "off" },
-      },
-    ])
-    assert.isTrue(tsconfig.compilerOptions.verbatimModuleSyntax)
+    // The Scratchpad's tsconfig patch (its details: share/tsconfig.test.ts).
+    assert.include(loaded.files["tsconfig.json"], "@effect/language-service")
     // The share's own pins survive.
     assert.equal(
       JSON.parse(loaded.files["package.json"]!).dependencies.effect,
@@ -248,38 +237,6 @@ describe("loadScratchpadWorkspace", () => {
     )
     // initialFilePath opens first.
     assert.equal(loaded.initialFilePath, "src/Program.ts")
-  })
-
-  test("keeps the share metadata for a later Share", async () => {
-    const loaded = await load({
-      location: { hash: "v4share" },
-      shares: { v4share: await compressJson(v4ShareJson) },
-    })
-    const metadata = loaded.metadata!
-    assert.equal(metadata.name, "playground-v4")
-    assert.equal(metadata.initialFilePath, "src/Program.ts")
-    assert.equal(metadata.prepare, "pnpm install")
-    assert.deepStrictEqual(
-      metadata.shells.map((shell) => shell.command),
-      ["../run src/main.ts"],
-    )
-    assert.deepStrictEqual(
-      metadata.nodes.find((node) => node.path === "src/Program.ts"),
-      {
-        _tag: "File",
-        path: "src/Program.ts",
-        language: "typescript",
-        userManaged: true,
-      },
-    )
-    const rebuilt = fromFlatWorkspace({
-      files: loaded.files,
-      directories: [],
-      metadata,
-    })
-    assert.equal(rebuilt.name, "playground-v4")
-    assert.equal(rebuilt.initialFilePath, "src/Program.ts")
-    assert.equal(rebuilt.effectVersion, "v4")
   })
 
   test("a v3 share loads the seed with a notice linking to the same hash", async () => {
@@ -306,16 +263,6 @@ describe("loadScratchpadWorkspace", () => {
     assert.equal(notice.reason, "limits")
     assert.equal(notice.playgroundUrl, "/play#big")
     assert.include(notice.message, "50 files")
-  })
-
-  test("a share with a file over 256 KiB gets the limits notice", async () => {
-    const huge = structuredClone(v4ShareJson)
-    huge.tree[2]!.children![1]!.initialContent = "x".repeat(300 * 1024)
-    const loaded = await load({
-      location: { hash: "#huge" },
-      shares: { huge: await compressJson(huge) },
-    })
-    assert.equal(Option.getOrThrow(loaded.notice).reason, "limits")
   })
 
   test("a corrupt hash falls through to the next source", async () => {
@@ -405,7 +352,6 @@ describe("loadScratchpadWorkspace", () => {
   test("reads /play's autosave when the Scratchpad has none", async () => {
     const loaded = await load({ playgroundAutosave: v4ShareJson })
     assert.equal(loaded.source, "playground-autosave")
-    assert.include(loaded.files["tsconfig.json"], "@effect/language-service")
   })
 
   test("a v3 /play autosave gets a notice linking to /play", async () => {

@@ -70,7 +70,6 @@ const expectRun = async (page: Page, id: number, text: string) => {
   await expect(output).toHaveAttribute("data-run-id", String(id), {
     timeout: RUN_TIMEOUT,
   })
-  await expect(output).not.toContainText("Run #")
   await expect(output).toContainText(text, { timeout: RUN_TIMEOUT })
 }
 
@@ -97,7 +96,6 @@ test("boots the Container, installs the seed's dependencies and loads their type
     await page.waitForTimeout(250)
   }
   await awaitInstalledTypes(page)
-  const readyMs = Date.now() - started
   expect(phases.has("installing") || phases.has("loading-types")).toBe(true)
 
   // The lockfile came back from the Container into the Workspace.
@@ -121,9 +119,6 @@ test("boots the Container, installs the seed's dependencies and loads their type
   await openFile(page, "src/DevTools.ts")
   await page.waitForTimeout(1_000)
   await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
-  console.log(
-    `[scratchpad-container] ${JSON.stringify({ phases: [...phases], readyMs })}`,
-  )
 })
 
 test("runs the seed, and an edit runs it again with the new output", async ({
@@ -174,7 +169,6 @@ test("a type error skips the Run with the reason, and fixing it runs again", asy
   await expect(terminal).toContainText('const broken: number = "nope"')
   await expect(terminal).toContainText(/previous output · \d\d:\d\d:\d\d/)
   await expect(terminal).toContainText(WELCOME)
-  await expect(page.getByTestId("run-skip-notice")).toHaveCount(0)
   // A skip is not a Run: the internal id stays.
   expect(await runIdOf(page)).toBe(1)
 

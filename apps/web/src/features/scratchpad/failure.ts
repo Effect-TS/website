@@ -39,8 +39,6 @@ export interface ContainerFailure {
   readonly retryLabel: string
   readonly helpUrl: string | undefined
   readonly helpLabel: string | undefined
-  /** The end of the pnpm output, for an install failure. */
-  readonly installLogTail: string | undefined
   /** Identifies this failure: dismissing it hides the strip until a new failure. */
   readonly error: ContainerBootError | InstallFailed
 }
@@ -63,7 +61,6 @@ export const containerFailureOf = (
               retryLabel: "Retry",
               helpUrl: BROWSER_SUPPORT_URL,
               helpLabel: "Browser support",
-              installLogTail: undefined,
               error: phase.error,
             }
           : {
@@ -76,7 +73,6 @@ export const containerFailureOf = (
               retryLabel: "Retry",
               helpUrl: BROWSER_SUPPORT_URL,
               helpLabel: "Browser support",
-              installLogTail: undefined,
               error: phase.error,
             },
       )
@@ -93,7 +89,6 @@ export const containerFailureOf = (
         retryLabel: "Retry install",
         helpUrl: undefined,
         helpLabel: undefined,
-        installLogTail: phase.error.outputTail,
         error: phase.error,
       })
     default:
@@ -105,7 +100,7 @@ export const containerFailureOf = (
  * The output panel's one line for "dependencies unavailable": Runs keep
  * working, so there is no strip.
  */
-export const dependenciesUnavailableLineOf = (
+const dependenciesUnavailableLineOf = (
   phase: ContainerPhase,
 ): Option.Option<string> =>
   phase._tag === "dependencies-unavailable"

@@ -25,20 +25,25 @@ import { Workspace } from "../../../src/features/share/workspace.ts"
 const AutosaveSchema = Schema.Option(Workspace)
 
 /** A `KeyValueStore` over a plain map, so tests can see every write. */
-const makeStorage = (options: { readonly failWrites?: boolean } = {}) => {
+const makeStorage = (options: { readonly failingWrites?: number } = {}) => {
   const map = new Map<string, string>()
   const writes: Array<string> = []
+  let failuresLeft = options.failingWrites ?? 0
   const layer = Layer.succeed(
     KeyValueStore.KeyValueStore,
     KeyValueStore.makeStringOnly({
       get: (key) => Effect.sync(() => map.get(key)),
       set: (key, value): Effect.Effect<void> =>
-        options.failWrites
-          ? Effect.die(new DOMException("quota", "QuotaExceededError"))
-          : Effect.sync(() => {
-              writes.push(key)
-              map.set(key, value)
-            }),
+        Effect.suspend(() => {
+          if (failuresLeft > 0) {
+            failuresLeft--
+            return Effect.die(new DOMException("quota", "QuotaExceededError"))
+          }
+          return Effect.sync(() => {
+            writes.push(key)
+            map.set(key, value)
+          })
+        }),
       remove: (key) =>
         Effect.sync(() => {
           map.delete(key)
@@ -136,32 +141,6 @@ describe("runAutosave", () => {
     assert.isFalse(storage.map.has(PLAYGROUND_AUTOSAVE_KEY))
   })
 
-  test("includes package.json and pnpm-lock.yaml", async () => {
-    const storage = makeStorage()
-    const lockfile = "lockfileVersion: '9.0'\n"
-    await withAutosave(
-      storage,
-      SCRATCHPAD_SEED.files,
-      SCRATCHPAD_SEED.metadata,
-      ({ workspace, tick }) =>
-        Effect.gen(function* () {
-          yield* workspace.writeHostFile("pnpm-lock.yaml", lockfile)
-          yield* tick(3)
-        }),
-    )
-    const saved = Option.getOrThrow(
-      readAutosave(storage, SCRATCHPAD_AUTOSAVE_KEY),
-    )
-    assert.equal(
-      Option.getOrThrow(saved.findFile("pnpm-lock.yaml"))[0].initialContent,
-      lockfile,
-    )
-    assert.equal(
-      Option.getOrThrow(saved.findFile("package.json"))[0].initialContent,
-      SCRATCHPAD_SEED.files["package.json"],
-    )
-  })
-
   test("skips a Workspace unchanged from the seed", async () => {
     const storage = makeStorage()
     await withAutosave(
@@ -200,42 +179,8 @@ describe("runAutosave", () => {
     assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
   })
 
-  test("a v3 notice plus seed visit keeps the existing autosave", async () => {
-    const storage = makeStorage()
-    const real = { ...SCRATCHPAD_SEED.files, "src/main.ts": EDIT }
-    // A real autosave from an earlier visit.
-    await withAutosave(
-      storage,
-      SCRATCHPAD_SEED.files,
-      SCRATCHPAD_SEED.metadata,
-      ({ workspace, tick }) =>
-        Effect.gen(function* () {
-          yield* workspace.writeFile("src/main.ts", real["src/main.ts"])
-          yield* tick(3)
-        }),
-    )
-    const before = storage.map.get(SCRATCHPAD_AUTOSAVE_KEY)
-    assert.isDefined(before)
-    // This visit loads the seed (say, under a v3 notice) and changes nothing
-    // that sticks.
-    await withAutosave(
-      storage,
-      SCRATCHPAD_SEED.files,
-      SCRATCHPAD_SEED.metadata,
-      ({ workspace, tick }) =>
-        Effect.gen(function* () {
-          yield* workspace.writeFile(
-            "src/main.ts",
-            SCRATCHPAD_SEED.files["src/main.ts"]!,
-          )
-          yield* tick(3)
-        }),
-    )
-    assert.equal(storage.map.get(SCRATCHPAD_AUTOSAVE_KEY), before)
-  })
-
   test("a failed write is logged and the next change tries again", async () => {
-    const storage = makeStorage({ failWrites: true })
+    const storage = makeStorage({ failingWrites: 1 })
     await withAutosave(
       storage,
       SCRATCHPAD_SEED.files,
@@ -244,15 +189,24 @@ describe("runAutosave", () => {
         Effect.gen(function* () {
           yield* workspace.writeFile("src/main.ts", EDIT)
           yield* tick(3)
+          assert.deepStrictEqual(storage.writes, [])
           yield* workspace.writeFile("src/main.ts", "// again\n")
           yield* tick(3)
         }),
     )
-    assert.deepStrictEqual(storage.writes, [])
+    assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
+    const saved = Option.getOrThrow(
+      readAutosave(storage, SCRATCHPAD_AUTOSAVE_KEY),
+    )
+    assert.equal(
+      Option.getOrThrow(saved.findFile("src/main.ts"))[0].initialContent,
+      "// again\n",
+    )
   })
 
-  test("the loader reads the autosave back", async () => {
+  test("the loader reads the autosave back, lockfile and empty directories included", async () => {
     const storage = makeStorage()
+    const lockfile = "lockfileVersion: '9.0'\n"
     await withAutosave(
       storage,
       SCRATCHPAD_SEED.files,
@@ -260,6 +214,7 @@ describe("runAutosave", () => {
       ({ workspace, tick }) =>
         Effect.gen(function* () {
           yield* workspace.writeFile("src/main.ts", EDIT)
+          yield* workspace.writeHostFile("pnpm-lock.yaml", lockfile)
           yield* workspace.createDirectory("src/empty")
           yield* tick(3)
         }),
@@ -276,13 +231,11 @@ describe("runAutosave", () => {
     )
     assert.equal(loaded.source, "autosave")
     assert.equal(loaded.files["src/main.ts"], EDIT)
+    assert.equal(loaded.files["pnpm-lock.yaml"], lockfile)
     assert.equal(loaded.metadata!.name, SCRATCHPAD_SEED.metadata!.name)
     assert.deepStrictEqual(
-      loaded.metadata!.nodes.map((node) => node.path),
-      [
-        ...SCRATCHPAD_SEED.metadata!.nodes.map((node) => node.path),
-        "src/empty",
-      ],
+      loaded.metadata!.nodes.find((node) => node.path === "src/empty"),
+      { _tag: "Directory", path: "src/empty", userManaged: false },
     )
   })
 })

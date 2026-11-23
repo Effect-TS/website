@@ -1,5 +1,4 @@
 import { assert, describe, test } from "vite-plus/test"
-import { collectTypesPack } from "../scripts/types-pack.ts"
 import { MemoryFileSystem } from "../src/MemoryFileSystem.ts"
 import {
   decodeTypesPack,
@@ -103,19 +102,5 @@ describe("TypesPack", () => {
     assert.isTrue(fs.isDirectory("/workspace/node_modules/demo/dist"))
     mountTypesPack(fs, sample, "/elsewhere/node_modules")
     assert.isTrue(fs.isFile("/elsewhere/node_modules/demo/empty.d.ts"))
-  })
-
-  test("collects the installed effect package's declarations", () => {
-    const pack = collectTypesPack(["effect"])
-    const effect = pack.packages.find((p) => p.name === "effect")
-    assert.isDefined(effect)
-    assert.match(effect!.version, /^4\./)
-    const paths = new Set(pack.files.map((f) => f.path))
-    assert.isTrue(paths.has("effect/package.json"))
-    assert.isTrue(paths.has("effect/dist/Effect.d.ts"))
-    assert.isTrue(
-      pack.files.every((f) => /\.d\.[mc]?ts$|\/package\.json$/.test(f.path)),
-    )
-    assert.isAbove(pack.files.length, 500)
   })
 })

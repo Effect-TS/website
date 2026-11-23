@@ -17,7 +17,6 @@ import {
   type PageToWorker,
   type TypesMountResult,
   type WorkerAssets,
-  type WorkerReadyTimings,
   type WorkspaceFsOp,
 } from "./worker-protocol.ts"
 
@@ -63,10 +62,6 @@ export interface LayerWorkerOptions {
   /** Creates the language server worker (`lsp.worker.ts`). */
   readonly makeWorker: () => WorkerLike
   readonly assets: WorkerAssets
-  /** Called with the worker's load timings once it reports ready. */
-  readonly onReady?:
-    | ((timings: WorkerReadyTimings, memoryBytes: number) => void)
-    | undefined
 }
 
 /**
@@ -90,7 +85,7 @@ export const workspaceEventToFsOp = (
 }
 
 /** Applies an op to the page-side copy of the Workspace files. */
-export const applyFsOpToFiles = (
+const applyFsOpToFiles = (
   files: Map<string, string>,
   op: WorkspaceFileOp,
 ): void => {
@@ -229,7 +224,6 @@ export const layerWorker = (
               break
             case "Ready":
               target.ready = true
-              options.onReady?.(data.timings, data.memoryBytes)
               PubSub.publishUnsafe(events, {
                 _tag: "Connected",
                 connectionId: target.id,

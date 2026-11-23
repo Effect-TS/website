@@ -75,7 +75,6 @@ export interface ScratchpadEditorSessionConfig extends Omit<
   ScratchpadSessionConfig,
   "lspClientConfig"
 > {
-  readonly fileUri?: string | undefined
   readonly initialCode?: string | undefined
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
   readonly entryPath?: string | undefined
@@ -222,7 +221,6 @@ const summarizeDiagnostics = (
 
 const resolveInitialFiles = (
   config: ScratchpadEditorSessionConfig,
-  rootUri: string,
 ): {
   readonly files: Readonly<Record<string, string>>
   readonly entryPath: string
@@ -238,11 +236,7 @@ const resolveInitialFiles = (
   }
 
   if (config.initialCode !== undefined) {
-    const entryFromUri =
-      config.fileUri !== undefined
-        ? workspaceUriToPath(config.fileUri, rootUri)
-        : undefined
-    const entry = config.entryPath ?? entryFromUri ?? SCRATCHPAD_ENTRY_PATH
+    const entry = config.entryPath ?? SCRATCHPAD_ENTRY_PATH
     return {
       files: { [entry]: config.initialCode },
       entryPath: entry,
@@ -265,10 +259,7 @@ export const makeScratchpadEditorSession = (
   config: ScratchpadEditorSessionConfig,
 ): ScratchpadEditorSession => {
   const rootUri = config.rootUri ?? SCRATCHPAD_ROOT_URI
-  const { files: initialFiles, entryPath } = resolveInitialFiles(
-    config,
-    rootUri,
-  )
+  const { files: initialFiles, entryPath } = resolveInitialFiles(config)
   const createEditorView = config.createEditorView ?? defaultEditorViewFactory
 
   const wsLayer =

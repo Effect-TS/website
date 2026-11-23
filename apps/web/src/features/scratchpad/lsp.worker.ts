@@ -57,7 +57,6 @@ const fatal = (error: unknown) => {
 const PROGRESS_INTERVAL_MS = 100
 
 const start = async (assets: WorkerAssets) => {
-  const t0 = performance.now()
   const totalBytes = assets.wasm.bytes ?? 0
   let loadedBytes = 0
   let phase: LoadPhase = "downloading"
@@ -90,7 +89,6 @@ const start = async (assets: WorkerAssets) => {
     }
   })
   const compiled = await module
-  const loadMs = performance.now() - t0
   phase = "starting"
   report(true)
 
@@ -119,11 +117,7 @@ const start = async (assets: WorkerAssets) => {
     return
   }
   bridge.connect(host)
-  post({
-    _tag: "Ready",
-    timings: { loadMs, startMs: performance.now() - t0 },
-    memoryBytes: host.memoryBytes(),
-  })
+  post({ _tag: "Ready" })
 }
 
 self.onmessage = (event) => {

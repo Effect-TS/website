@@ -9,11 +9,7 @@ import type * as Layer from "effect/Layer"
 import { wasmBytes, wasmUrl } from "virtual:tsrs-lsp-assets"
 import type { LspTransport } from "./transport.ts"
 import type { WorkerAssets } from "./worker-protocol.ts"
-import {
-  layerWorker,
-  type LayerWorkerOptions,
-  type LspWorkspaceMirror,
-} from "./worker-transport.ts"
+import { layerWorker, type LspWorkspaceMirror } from "./worker-transport.ts"
 
 export const LSP_WORKER_ASSETS: WorkerAssets = {
   wasm: { url: wasmUrl, bytes: wasmBytes ?? undefined },
@@ -25,11 +21,10 @@ export const makeLspWorker = (): Worker =>
     name: "scratchpad-lsp",
   })
 
-export const layerBrowserWorker = (
-  options?: Pick<LayerWorkerOptions, "onReady">,
-): Layer.Layer<LspTransport | LspWorkspaceMirror> =>
+export const layerBrowserWorker = (): Layer.Layer<
+  LspTransport | LspWorkspaceMirror
+> =>
   layerWorker({
     makeWorker: makeLspWorker,
     assets: LSP_WORKER_ASSETS,
-    ...options,
   })

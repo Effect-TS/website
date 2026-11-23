@@ -48,15 +48,6 @@ export const openFile = async (page: Page, path: string) => {
   await expect(page.getByTestId(`editor-tab-${path}`)).toBeVisible()
 }
 
-/** Stores `workspace` (share-format JSON) as the Scratchpad autosave, so it loads instead of the seed. */
-export const useAutosave = (page: Page, workspace: unknown) =>
-  page.addInitScript(
-    (autosave) => {
-      localStorage.setItem("scratchpad-autosave", autosave)
-    },
-    JSON.stringify({ _tag: "Some", value: workspace }),
-  )
-
 /**
  * Hosts the real Container needs: StackBlitz serves the WebContainer boot
  * iframe (`/headless`), and installs go to the npm registry.

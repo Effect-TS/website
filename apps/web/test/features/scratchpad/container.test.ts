@@ -9,13 +9,14 @@ import {
   ContainerBootFailed,
   type ContainerBootError,
   type ContainerPhase,
-  type FakeContainerBackend,
-  jsh,
-  layerFakeContainer,
-  makeFakeContainerBackend,
   makeContainer,
   mirrorWorkspace,
 } from "../../../src/features/scratchpad/container.ts"
+import {
+  type FakeContainerBackend,
+  layerFakeContainer,
+  makeFakeContainerBackend,
+} from "./fake-container.ts"
 import {
   makeMemoryWorkspace,
   type WorkspaceService,
@@ -97,7 +98,7 @@ describe("Container mirror", () => {
     )
   })
 
-  test("maps a rename to a write of the new path then a removal of the old one", async () => {
+  test("mirrors renames of files and folders", async () => {
     await withMirror(({ ws, backend, release }) =>
       Effect.gen(function* () {
         yield* Deferred.succeed(release, undefined)
@@ -109,18 +110,14 @@ describe("Container mirror", () => {
         yield* ws.rename("lib", "pkg")
         yield* awaitLog(backend, 4)
 
-        assert.deepStrictEqual(backend.log, [
-          "write src/helpers.ts",
-          "remove src/util.ts",
-          "write pkg/a.ts",
-          "remove lib/a.ts",
-        ])
         assert.deepStrictEqual([...backend.files.keys()].sort(), [
           "package.json",
           "pkg/a.ts",
           "src/helpers.ts",
           "src/main.ts",
         ])
+        assert.strictEqual(backend.files.get("src/helpers.ts"), "export {}")
+        assert.strictEqual(backend.files.get("pkg/a.ts"), "a")
       }),
     )
   })
@@ -137,12 +134,11 @@ describe("Container mirror", () => {
         yield* ws.remove("src/lib")
         yield* awaitLog(backend, 2)
 
-        assert.deepStrictEqual(backend.log.sort(), [
-          "remove src/lib/a.ts",
-          "remove src/lib/b.ts",
+        assert.deepStrictEqual([...backend.files.keys()].sort(), [
+          "package.json",
+          "src/main.ts",
+          "src/util.ts",
         ])
-        assert.isFalse(backend.files.has("src/lib/a.ts"))
-        assert.isTrue(backend.files.has("src/main.ts"))
       }),
     )
   })
@@ -197,15 +193,7 @@ describe("Container mirror after a retry", () => {
                 : Effect.succeed(backend),
             ),
           )
-          const mounts: Array<number> = []
-          yield* mirrorWorkspace(ws, container, {
-            onChange: (change) =>
-              Effect.sync(() => {
-                if (change._tag === "Mounted") {
-                  mounts.push(Object.keys(change.files).length)
-                }
-              }),
-          })
+          yield* mirrorWorkspace(ws, container)
           yield* settle
           assert.strictEqual((yield* container.phase)._tag, "failed")
 
@@ -219,7 +207,6 @@ describe("Container mirror after a retry", () => {
           yield* awaitLog(backend, 4)
           yield* settle
           assert.strictEqual((yield* container.phase)._tag, "ready")
-          assert.deepStrictEqual(mounts, [4])
           assert.deepStrictEqual(
             [...backend.log].sort(),
             [
@@ -444,20 +431,22 @@ describe("Container", () => {
     )
   })
 
-  test("spawns through jsh with node_modules/.bin on PATH and returns output and exit code", async () => {
+  test("spawns in the given directory with node_modules/.bin on PATH and returns output and exit code", async () => {
     const backend = makeFakeContainerBackend({
       spawn: () => ({ exitCode: 3, output: ["hello ", "world"] }),
     })
     await runContainer(
       (container) =>
         Effect.gen(function* () {
-          const proc = yield* container.spawn(jsh("echo hi", { cwd: "src" }))
+          const proc = yield* container.spawn({
+            command: "tsc",
+            args: ["--noEmit"],
+            cwd: "src",
+          })
           const output = yield* proc.output.pipe(Stream.mkString)
           assert.strictEqual(output, "hello world")
           assert.strictEqual(yield* proc.exitCode, 3)
           const call = backend.spawned[0]!
-          assert.strictEqual(call.command, "jsh")
-          assert.deepStrictEqual(call.args, ["-c", "echo hi"])
           assert.strictEqual(call.cwd, "src")
           assert.match(call.env.PATH!, /^node_modules\/\.bin:/)
         }).pipe(Effect.scoped),
@@ -510,18 +499,6 @@ describe("Container", () => {
           assert.strictEqual(backend.hostFiles.size, 0)
         }),
       backend,
-    )
-  })
-
-  test("reads back files as text", async () => {
-    await runContainer((container) =>
-      Effect.gen(function* () {
-        yield* container.mount({ "package.json": '{"name":"x"}' })
-        assert.strictEqual(
-          yield* container.readTextFile("package.json"),
-          '{"name":"x"}',
-        )
-      }),
     )
   })
 })
