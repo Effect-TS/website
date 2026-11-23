@@ -11,30 +11,80 @@ import {
   layerMemoryWorkspace,
   pathToWorkspaceUri,
   Workspace,
+  type WorkspaceError,
+  type WorkspaceErrorCode,
   type WorkspaceEvent,
+  type WorkspaceLimits,
+  type WorkspaceService,
   workspaceUriToPath,
 } from "../../../src/features/scratchpad/workspace.ts"
 
-describe("Workspace (@effect-vfs/memory)", () => {
-  test("seeds initial files, builds sorted tree, and maps URIs both ways", async () => {
-    const result = await Effect.runPromise(
+const runWorkspace = <A>(
+  body: (ws: WorkspaceService) => Effect.Effect<A, WorkspaceError>,
+  options: {
+    readonly initialFiles?: Readonly<Record<string, string>>
+    readonly limits?: WorkspaceLimits
+  } = {},
+): Promise<A> =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      return yield* body(yield* Workspace)
+    }).pipe(Effect.provide(layerMemoryWorkspace(options))),
+  )
+
+/** Runs `body` while recording every Workspace event it causes. */
+const recordEvents = (
+  body: (ws: WorkspaceService) => Effect.Effect<void, WorkspaceError>,
+  initialFiles: Readonly<Record<string, string>>,
+): Promise<ReadonlyArray<WorkspaceEvent>> => {
+  const events: Array<WorkspaceEvent> = []
+  return Effect.runPromise(
+    Effect.scoped(
       Effect.gen(function* () {
         const ws = yield* Workspace
-        const tree = yield* ws.getTree
-        const files = yield* ws.listFiles
-        const stats = yield* ws.stats
-        return { tree, files, stats }
-      }).pipe(
-        Effect.provide(
-          layerMemoryWorkspace({
-            rootUri: SCRATCHPAD_ROOT_URI,
-            initialFiles: DEFAULT_SCRATCHPAD_FILES,
-          }),
-        ),
-      ),
+        const fiber = yield* ws.events.pipe(
+          Stream.runForEach((ev) => Effect.sync(() => events.push(ev))),
+          Effect.forkScoped,
+        )
+        yield* Effect.yieldNow
+        yield* body(ws)
+        yield* Effect.yieldNow
+        yield* Fiber.interrupt(fiber)
+      }),
+    ).pipe(Effect.provide(layerMemoryWorkspace({ initialFiles }))),
+  ).then(() => events)
+}
+
+const failureCode = <A>(
+  effect: Effect.Effect<A, WorkspaceError>,
+): Effect.Effect<WorkspaceErrorCode | undefined> =>
+  Effect.exit(effect).pipe(
+    Effect.map((exit) =>
+      Exit.isFailure(exit)
+        ? exit.cause.reasons.find((r) => r._tag === "Fail")?.error.code
+        : undefined,
+    ),
+  )
+
+const SEED = {
+  "package.json": '{ "name": "scratchpad" }\n',
+  "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
+  "tsconfig.json": "{}\n",
+  "src/main.ts": "export const x = 1\n",
+}
+
+describe("Workspace (in-memory store)", () => {
+  test("seeds initial files, builds sorted tree, and maps URIs both ways", async () => {
+    const result = await runWorkspace(
+      (ws) =>
+        Effect.all({ tree: ws.getTree, files: ws.listFiles, stats: ws.stats }),
+      { initialFiles: DEFAULT_SCRATCHPAD_FILES },
     )
 
-    assert.strictEqual(result.files.length, 2)
+    assert.deepStrictEqual(
+      result.files.map((f) => f.path),
+      ["src/greeter.ts", "src/main.ts"],
+    )
     assert.strictEqual(result.stats.fileCount, 2)
     assert.isAbove(result.stats.totalBytes, 0)
     assert.strictEqual(result.tree.length, 1)
@@ -48,178 +98,464 @@ describe("Workspace (@effect-vfs/memory)", () => {
     }
 
     assert.strictEqual(
-      pathToWorkspaceUri("src/main.ts"),
+      pathToWorkspaceUri("src/main.ts", SCRATCHPAD_ROOT_URI),
       "file:///workspace/src/main.ts",
     )
     assert.strictEqual(
       workspaceUriToPath("file:///workspace/src/main.ts"),
       "src/main.ts",
     )
+    assert.strictEqual(
+      workspaceUriToPath("file:///workspace/tsconfig.json"),
+      "tsconfig.json",
+    )
     assert.isUndefined(
       workspaceUriToPath("file:///workspace/node_modules/effect/index.d.ts"),
     )
-    assert.isUndefined(workspaceUriToPath("file:///workspace/tsconfig.json"))
+    assert.isUndefined(workspaceUriToPath("file:///workspace/dist/main.js"))
+  })
+
+  test("lists directories before files at every level of the tree", async () => {
+    const tree = await runWorkspace((ws) => ws.getTree, {
+      initialFiles: {
+        "z.md": "z",
+        "a.json": "{}",
+        "lib/b.ts": "b",
+        "lib/a/c.ts": "c",
+      },
+    })
+    assert.deepStrictEqual(
+      tree.map((n) => n.path),
+      ["lib", "a.json", "z.md"],
+    )
+    const lib = tree[0]
+    assert.strictEqual(lib?._tag, "Directory")
+    if (lib?._tag === "Directory") {
+      assert.deepStrictEqual(
+        lib.children.map((n) => n.path),
+        ["lib/a", "lib/b.ts"],
+      )
+    }
   })
 
   test("supports create, write, rename (file and directory), remove, and emits events", async () => {
-    const events: Array<WorkspaceEvent> = []
-
-    await Effect.runPromise(
-      Effect.scoped(
+    const events = await recordEvents(
+      (ws) =>
         Effect.gen(function* () {
-          const ws = yield* Workspace
-          const subFiber = yield* ws.events.pipe(
-            Stream.runForEach((ev) =>
-              Effect.sync(() => {
-                events.push(ev)
-              }),
-            ),
-            Effect.forkScoped,
-          )
-          yield* Effect.yieldNow
-
-          yield* ws.createFile(
-            "src/utils/math.ts",
-            "export const add = (a: number, b: number) => a + b\n",
-          )
+          yield* ws.createFile("src/utils/math.ts", "export const add = 1\n")
+          yield* ws.createFile("src/utils/sub.ts", "export const sub = 1\n")
           assert.include(
             yield* ws.readFile("src/utils/math.ts"),
             "export const add",
           )
-
-          yield* ws.writeFile(
-            "src/utils/math.ts",
-            "export const add = (a: number, b: number) => a + b + 0\n",
-          )
+          yield* ws.writeFile("src/utils/math.ts", "export const add = 2\n")
           yield* ws.rename("src/utils", "src/helpers")
-
-          const renamedContent = yield* ws.readFile("src/helpers/math.ts")
-          assert.include(renamedContent, "+ 0")
-
+          assert.strictEqual(
+            yield* ws.readFile("src/helpers/math.ts"),
+            "export const add = 2\n",
+          )
           yield* ws.remove("src/helpers")
-          const afterRemove = yield* ws.listFiles
           assert.deepStrictEqual(
-            afterRemove.map((f) => f.path),
+            (yield* ws.listFiles).map((f) => f.path),
             ["src/main.ts"],
           )
-
-          yield* Effect.yieldNow
-          yield* Fiber.interrupt(subFiber)
         }),
-      ).pipe(
-        Effect.provide(
-          layerMemoryWorkspace({
-            initialFiles: { "src/main.ts": "export const x = 1\n" },
-          }),
-        ),
-      ),
+      { "src/main.ts": "export const x = 1\n" },
     )
 
-    assert.isTrue(
-      events.some(
-        (e) => e._tag === "FileCreated" && e.path === "src/utils/math.ts",
-      ),
-    )
-    assert.isTrue(
-      events.some(
-        (e) => e._tag === "FileChanged" && e.path === "src/utils/math.ts",
-      ),
-    )
-    assert.isTrue(
-      events.some(
-        (e) =>
-          e._tag === "FileRenamed" &&
-          e.oldPath === "src/utils/math.ts" &&
-          e.newPath === "src/helpers/math.ts",
-      ),
-    )
-    assert.isTrue(
-      events.some(
-        (e) => e._tag === "FileDeleted" && e.path === "src/helpers/math.ts",
-      ),
+    assert.deepStrictEqual(events, [
+      {
+        _tag: "FileCreated",
+        path: "src/utils/math.ts",
+        content: "export const add = 1\n",
+      },
+      {
+        _tag: "FileCreated",
+        path: "src/utils/sub.ts",
+        content: "export const sub = 1\n",
+      },
+      {
+        _tag: "FileChanged",
+        path: "src/utils/math.ts",
+        content: "export const add = 2\n",
+      },
+      {
+        _tag: "FileRenamed",
+        oldPath: "src/utils/math.ts",
+        newPath: "src/helpers/math.ts",
+        content: "export const add = 2\n",
+      },
+      {
+        _tag: "FileRenamed",
+        oldPath: "src/utils/sub.ts",
+        newPath: "src/helpers/sub.ts",
+        content: "export const sub = 1\n",
+      },
+      { _tag: "DirectoryChanged" },
+      { _tag: "FileDeleted", path: "src/helpers/math.ts" },
+      { _tag: "FileDeleted", path: "src/helpers/sub.ts" },
+      { _tag: "DirectoryChanged" },
+    ])
+  })
+
+  test("accepts any text file, including tsconfig.json, and reserves node_modules and dist", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          yield* ws.createFile("README.md", "# hi\n")
+          yield* ws.createFile("dprint.json", "{}\n")
+          yield* ws.createFile("scripts/Makefile", "all:\n")
+          yield* ws.createFile("tsconfig.json", "{}\n")
+          yield* ws.writeFile("tsconfig.json", '{ "strict": true }\n')
+          assert.strictEqual(
+            yield* ws.readFile("tsconfig.json"),
+            '{ "strict": true }\n',
+          )
+
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("node_modules/foo.ts", "")),
+            "invalid-path",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("dist/main.js", "")),
+            "invalid-path",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.createDirectory("dist")),
+            "invalid-path",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.rename("README.md", "dist/README.md")),
+            "invalid-path",
+          )
+          // Only the top-level folders are reserved.
+          yield* ws.createFile("src/dist/x.ts", "")
+        }),
+      { initialFiles: { "src/main.ts": "x" } },
     )
   })
 
-  test("enforces extension rules, reserved paths, file count, and byte limits", async () => {
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const ws = yield* Workspace
+  test("enforces file count and byte limits", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("src/big.ts", "a".repeat(101))),
+            "file-too-large",
+          )
 
-        const badExt = yield* Effect.exit(ws.createFile("src/readme.md", "hi"))
-        assert.isTrue(Exit.isFailure(badExt))
+          yield* ws.createFile("src/a.ts", "a".repeat(100))
+          yield* ws.createFile("src/b.ts", "b".repeat(100))
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("src/c.ts", "c")),
+            "too-many-files",
+          )
 
-        const badTsconfig = yield* Effect.exit(
-          ws.createFile("tsconfig.json", "{}"),
-        )
-        assert.isTrue(Exit.isFailure(badTsconfig))
+          // 1 + 100 + 100 = 201 bytes: b cannot grow past 100, and main.ts at 51 bytes
+          // takes the total to 251.
+          assert.strictEqual(
+            yield* failureCode(
+              ws.writeFile("src/b.ts", "b".repeat(100) + "b".repeat(50)),
+            ),
+            "file-too-large",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.writeFile("src/main.ts", "m".repeat(51))),
+            "workspace-too-large",
+          )
+          // A failed write changes nothing.
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 3,
+            totalBytes: 201,
+          })
+        }),
+      {
+        initialFiles: { "src/main.ts": "x" },
+        limits: { maxFiles: 3, maxFileBytes: 100, maxTotalBytes: 250 },
+      },
+    )
+  })
 
-        const badNm = yield* Effect.exit(
-          ws.createFile("node_modules/foo.ts", ""),
-        )
-        assert.isTrue(Exit.isFailure(badNm))
+  test("keeps file count and total bytes current across every mutation", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          // "é" is two bytes in UTF-8.
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 1,
+            totalBytes: 3,
+          })
+          yield* ws.createFile("src/a.ts", "aaaa")
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 2,
+            totalBytes: 7,
+          })
+          yield* ws.writeFile("src/a.ts", "a")
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 2,
+            totalBytes: 4,
+          })
+          yield* ws.rename("src", "lib")
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 2,
+            totalBytes: 4,
+          })
+          yield* ws.remove("lib/a.ts")
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 1,
+            totalBytes: 3,
+          })
+          yield* ws.restoreSnapshot({
+            version: 1,
+            files: { "a.ts": "12345", "b.ts": "1" },
+          })
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 2,
+            totalBytes: 6,
+          })
+          yield* ws.remove("a.ts")
+          yield* ws.remove("b.ts")
+          assert.deepStrictEqual(yield* ws.stats, {
+            fileCount: 0,
+            totalBytes: 0,
+          })
+        }),
+      { initialFiles: { "src/é.ts": "é1" } },
+    )
+  })
 
-        const tooBigFile = yield* Effect.exit(
-          ws.createFile("src/big.ts", "a".repeat(200)),
-        )
-        assert.isTrue(Exit.isFailure(tooBigFile))
+  test("frees room under the total limit when a file shrinks or is removed", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          yield* ws.writeFile("a.ts", "a".repeat(10))
+          yield* ws.createFile("b.ts", "b".repeat(90))
+          yield* ws.remove("b.ts")
+          yield* ws.createFile("c.ts", "c".repeat(90))
+        }),
+      {
+        initialFiles: { "a.ts": "a".repeat(100) },
+        limits: { maxTotalBytes: 100 },
+      },
+    )
+  })
 
-        yield* ws.createFile("src/a.ts", "a".repeat(60))
-        yield* ws.createFile("src/b.ts", "b".repeat(60))
+  test("package.json and pnpm-lock.yaml are read-only to editor writes", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          assert.strictEqual(
+            yield* failureCode(ws.writeFile("package.json", "{}")),
+            "read-only",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.writeFile("/pnpm-lock.yaml", "")),
+            "read-only",
+          )
+          assert.strictEqual(
+            yield* ws.readFile("package.json"),
+            SEED["package.json"],
+          )
+          // Writing tsconfig.json and src/main.ts is fine.
+          yield* ws.writeFile("tsconfig.json", '{ "strict": true }\n')
+          yield* ws.writeFile("src/main.ts", "export {}\n")
+        }),
+      { initialFiles: SEED },
+    )
+  })
 
-        // Exceeds maxFiles (3 total including src/main.ts)
-        const tooMany = yield* Effect.exit(ws.createFile("src/c.ts", "c"))
-        assert.isTrue(Exit.isFailure(tooMany))
-      }).pipe(
-        Effect.provide(
-          layerMemoryWorkspace({
-            initialFiles: { "src/main.ts": "x" },
-            limits: {
-              maxFiles: 3,
-              maxFileBytes: 100,
-              maxTotalBytes: 250,
-            },
-          }),
-        ),
-      ),
+  test("an editor cannot create a read-only file or rename a file onto one", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("package.json", "{}")),
+            "read-only",
+          )
+          yield* ws.createFile("lock.yaml", "")
+          assert.strictEqual(
+            yield* failureCode(ws.rename("lock.yaml", "pnpm-lock.yaml")),
+            "read-only",
+          )
+          // The names are only reserved at the root.
+          yield* ws.createFile("packages/a/package.json", "{}")
+        }),
+      { initialFiles: { "src/main.ts": "" } },
+    )
+  })
+
+  test("protected files cannot be deleted or renamed, nor can folders holding them", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          for (const path of Object.keys(SEED)) {
+            assert.strictEqual(
+              yield* failureCode(ws.remove(path)),
+              "protected",
+              path,
+            )
+            assert.strictEqual(
+              yield* failureCode(
+                ws.rename(path, `renamed-${path.replace("/", "-")}`),
+              ),
+              "protected",
+              path,
+            )
+          }
+          assert.strictEqual(yield* failureCode(ws.remove("src")), "protected")
+          assert.strictEqual(
+            yield* failureCode(ws.rename("src", "lib")),
+            "protected",
+          )
+          assert.deepStrictEqual(
+            (yield* ws.listFiles).map((f) => f.path),
+            ["package.json", "pnpm-lock.yaml", "src/main.ts", "tsconfig.json"],
+          )
+        }),
+      { initialFiles: SEED },
+    )
+  })
+
+  test("the host write path can create and update read-only files and emits the usual events", async () => {
+    const events = await recordEvents(
+      (ws) =>
+        Effect.gen(function* () {
+          yield* ws.writeHostFile("package.json", '{ "name": "a" }\n')
+          yield* ws.writeHostFile("pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+          assert.strictEqual(
+            yield* ws.readFile("pnpm-lock.yaml"),
+            "lockfileVersion: '9.0'\n",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.writeHostFile("dist/x.js", "")),
+            "invalid-path",
+          )
+        }),
+      { "package.json": "{}\n", "src/main.ts": "" },
+    )
+    assert.deepStrictEqual(events, [
+      {
+        _tag: "FileChanged",
+        path: "package.json",
+        content: '{ "name": "a" }\n',
+      },
+      {
+        _tag: "FileCreated",
+        path: "pnpm-lock.yaml",
+        content: "lockfileVersion: '9.0'\n",
+      },
+    ])
+  })
+
+  test("the host write path still respects the limits", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          assert.strictEqual(
+            yield* failureCode(
+              ws.writeHostFile("pnpm-lock.yaml", "x".repeat(11)),
+            ),
+            "file-too-large",
+          )
+        }),
+      { initialFiles: { "src/main.ts": "" }, limits: { maxFileBytes: 10 } },
+    )
+  })
+
+  test("rejects files and folders that collide with each other", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("src", "")),
+            "already-exists",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.createDirectory("src/main.ts")),
+            "already-exists",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.createFile("src/main.ts/x.ts", "")),
+            "invalid-path",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.readFile("src")),
+            "not-found",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.rename("src", "src/inner")),
+            "invalid-path",
+          )
+          assert.strictEqual(
+            yield* failureCode(ws.remove("missing.ts")),
+            "not-found",
+          )
+        }),
+      { initialFiles: { "src/main.ts": "", "src/a.ts": "" } },
     )
   })
 
   test("round-trips portable snapshots including empty directories", async () => {
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const ws = yield* Workspace
-        yield* ws.createDirectory("src/empty")
-        const snap = yield* ws.snapshot
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          yield* ws.createDirectory("src/empty")
+          const snap = yield* ws.snapshot
 
-        assert.strictEqual(snap.version, 1)
-        assert.deepStrictEqual(snap.directories, ["src/empty"])
-        assert.strictEqual(snap.files["src/main.ts"], "export const a = 1\n")
+          assert.strictEqual(snap.version, 1)
+          assert.deepStrictEqual(snap.directories, ["src/empty"])
+          assert.deepStrictEqual(snap.files, {
+            "src/main.ts": "export const a = 1\n",
+            "package.json": "{}\n",
+          })
 
-        yield* ws.remove("src/empty")
-        yield* ws.writeFile("src/main.ts", "export const a = 2\n")
-        yield* ws.restoreSnapshot(snap)
+          yield* ws.remove("src/empty")
+          yield* ws.writeFile("src/main.ts", "export const a = 2\n")
+          yield* ws.restoreSnapshot(snap)
 
-        assert.strictEqual(
-          yield* ws.readFile("src/main.ts"),
-          "export const a = 1\n",
-        )
-        const tree = yield* ws.getTree
-        const src = tree[0]
-        assert.strictEqual(src?._tag, "Directory")
-        if (src?._tag === "Directory") {
-          assert.isTrue(
-            src.children.some(
-              (c) => c._tag === "Directory" && c.path === "src/empty",
-            ),
+          assert.strictEqual(
+            yield* ws.readFile("src/main.ts"),
+            "export const a = 1\n",
           )
-        }
-      }).pipe(
-        Effect.provide(
-          layerMemoryWorkspace({
-            initialFiles: { "src/main.ts": "export const a = 1\n" },
-          }),
-        ),
-      ),
+          const tree = yield* ws.getTree
+          const src = tree[0]
+          assert.strictEqual(src?._tag, "Directory")
+          if (src?._tag === "Directory") {
+            assert.isTrue(
+              src.children.some(
+                (c) => c._tag === "Directory" && c.path === "src/empty",
+              ),
+            )
+          }
+        }),
+      {
+        initialFiles: {
+          "src/main.ts": "export const a = 1\n",
+          "package.json": "{}\n",
+        },
+      },
+    )
+  })
+
+  test("restoring a snapshot over the limits leaves the Workspace untouched", async () => {
+    await runWorkspace(
+      (ws) =>
+        Effect.gen(function* () {
+          assert.strictEqual(
+            yield* failureCode(
+              ws.restoreSnapshot({
+                version: 1,
+                files: { "a.ts": "aaaa", "b.ts": "bbbb" },
+              }),
+            ),
+            "workspace-too-large",
+          )
+          assert.deepStrictEqual(
+            (yield* ws.listFiles).map((f) => f.path),
+            ["src/main.ts"],
+          )
+        }),
+      { initialFiles: { "src/main.ts": "x" }, limits: { maxTotalBytes: 5 } },
     )
   })
 })

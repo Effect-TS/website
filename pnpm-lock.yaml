@@ -177,6 +177,9 @@ catalogs:
       specifier: 2.0.0-beta.85
       version: 2.0.0-beta.85
   default:
+    '@codemirror/lang-json':
+      specifier: ^6.0.2
+      version: 6.0.2
     '@resvg/resvg-wasm':
       specifier: ^2.6.2
       version: 2.6.2
@@ -308,6 +311,9 @@ importers:
       '@codemirror/lang-javascript':
         specifier: ^6.2.5
         version: 6.2.5
+      '@codemirror/lang-json':
+        specifier: 'catalog:'
+        version: 6.0.2
       '@codemirror/language':
         specifier: ^6.13.1
         version: 6.13.1
@@ -323,12 +329,6 @@ importers:
       '@dprint/formatter':
         specifier: ^0.5.1
         version: 0.5.1
-      '@effect-vfs/core':
-        specifier: ^0.12.1
-        version: 0.12.1(effect@4.1.5)
-      '@effect-vfs/memory':
-        specifier: ^0.12.1
-        version: 0.12.1(effect@4.1.5)
       '@effect/atom-react':
         specifier: catalog:effect
         version: 4.1.5(effect@4.1.5)(react@19.3.0)(scheduler@0.28.0)
@@ -1238,6 +1238,9 @@ packages:
   '@codemirror/lang-javascript@6.2.5':
     resolution: {integrity: sha512-zD4e5mS+50htS7F+TYjBPsiIFGanfVqg4HyUz6WNFikgOPf2BgKlx+TQedI1w6n/IqRBVBbBWmGFdLB/7uxO4A==}
 
+  '@codemirror/lang-json@6.0.2':
+    resolution: {integrity: sha512-x2OtO+AvwEHrEwR0FyyPtfDUiloG3rnVTSZV1W8UteaLL8/MajQd8DpvUb2YVzC+/T18aSDv0H9mu+xw0EStoQ==}
+
   '@codemirror/language@6.13.1':
     resolution: {integrity: sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw==}
 
@@ -1312,16 +1315,6 @@ packages:
   '@edge-runtime/vm@3.2.0':
     resolution: {integrity: sha512-0dEVyRLM/lG4gp1R/Ik5bfPl/1wX00xFwd5KcNH602tzBa09oF7pbTKETEhR1GjZ75K6OJnYFu8II2dyMhONMw==}
     engines: {node: '>=16'}
-
-  '@effect-vfs/core@0.12.1':
-    resolution: {integrity: sha512-tt9H5xjocZkTM7agYupWS5ICsexZNbRQwhhftUziNAK0/c/t2ncLAjk8MBOdWaj+fcAgLs1O8ouVCITQ2H6HNQ==}
-    peerDependencies:
-      effect: ~4.1.5
-
-  '@effect-vfs/memory@0.12.1':
-    resolution: {integrity: sha512-PaxvDGieaXZMV6SyDmpFr7iHwuMFYA8dA7QcVIVwwtPTN1V7kLSDyJsEheutCJnlNfm8FatAJoqzYxKMp4iQGw==}
-    peerDependencies:
-      effect: ~4.1.5
 
   '@effect/atom-react@4.1.5':
     resolution: {integrity: sha512-7bFJUOa4hatIE4LD4EmuOSS7+jNniZxaltX3TRExBCYAFqMd6vjZs9G/Ez3u24oUaJnkschmjfG3EwVzzebgig==}
@@ -2000,6 +1993,9 @@ packages:
 
   '@lezer/javascript@1.5.6':
     resolution: {integrity: sha512-sEvOqpl4vJQca0NugSQK02vQPbc5KrvoojnYGoqqFgFO0MtcYhwGiHKVEB+LuXYJnfyXo4QPA8ztbrEa4Fw5NA==}
+
+  '@lezer/json@1.0.3':
+    resolution: {integrity: sha512-BP9KzdF9Y35PDpv04r0VeSTKDeox5vVr3efE7eBbx3r4s3oNLfunchejZhjArmeieBH+nVOpgIiBJpEAv8ilqQ==}
 
   '@lezer/lr@1.4.12':
     resolution: {integrity: sha512-On9HU4oMMiHPMkQDgoTnGahjgG5n/MkN38CgG77sMraKLL+3JBbeQNi1FcCXV9QRqwF9/BUXP3caHyJC1fBOTQ==}
@@ -6826,6 +6822,11 @@ snapshots:
       '@lezer/common': 1.5.6
       '@lezer/javascript': 1.5.6
 
+  '@codemirror/lang-json@6.0.2':
+    dependencies:
+      '@codemirror/language': 6.13.1
+      '@lezer/json': 1.0.3
+
   '@codemirror/language@6.13.1':
     dependencies:
       '@codemirror/state': 6.7.6
@@ -6921,15 +6922,6 @@ snapshots:
     dependencies:
       '@edge-runtime/primitives': 4.1.0
     optional: true
-
-  '@effect-vfs/core@0.12.1(effect@4.1.5)':
-    dependencies:
-      effect: 4.1.5
-
-  '@effect-vfs/memory@0.12.1(effect@4.1.5)':
-    dependencies:
-      '@effect-vfs/core': 0.12.1(effect@4.1.5)
-      effect: 4.1.5
 
   '@effect/atom-react@4.1.5(effect@4.1.5)(react@19.3.0)(scheduler@0.28.0)':
     dependencies:
@@ -7439,6 +7431,12 @@ snapshots:
       '@lezer/common': 1.5.6
 
   '@lezer/javascript@1.5.6':
+    dependencies:
+      '@lezer/common': 1.5.6
+      '@lezer/highlight': 1.2.5
+      '@lezer/lr': 1.4.12
+
+  '@lezer/json@1.0.3':
     dependencies:
       '@lezer/common': 1.5.6
       '@lezer/highlight': 1.2.5

@@ -35,6 +35,14 @@ const languageIdForPath = (relPath: string): string =>
   relPath.endsWith(".tsx") ? "typescriptreact" : "typescript"
 
 /**
+ * Whether a Workspace file is a TypeScript document for the language server.
+ * Other files (JSON, Markdown, ...) stay out of `didOpen`, though the worker
+ * still gets them in its file system.
+ */
+export const isLspDocumentPath = (relPath: string): boolean =>
+  relPath.endsWith(".ts") || relPath.endsWith(".tsx")
+
+/**
  * Bridges a multi-file Scratchpad/Playground `Workspace` into
  * `@codemirror/lsp-client`'s `Workspace` abstraction.
  *
@@ -63,8 +71,10 @@ export class MultiFileLspWorkspace extends CMLSWorkspace {
   /**
    * Ensures a workspace file is tracked in `this.files` and opened in the LSP
    * server if connected. Used during initial seed, file creation, and renames.
+   * Ignores files that are not TypeScript documents.
    */
   upsertWorkspaceFile(relPath: string, content: string): void {
+    if (!isLspDocumentPath(relPath)) return
     const uri = pathToWorkspaceUri(relPath, this.rootUri)
     const existing = this.filesByUri.get(uri)
     const nextDoc = Text.of(content.split("\n"))

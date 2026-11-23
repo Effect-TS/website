@@ -16,7 +16,16 @@ import {
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
 import type { FileDiagnosticSummary } from "./editor.ts"
-import type { WorkspaceNode } from "./workspace.ts"
+import { WORKSPACE_PROTECTED_PATHS, type WorkspaceNode } from "./workspace.ts"
+
+/** Whether deleting or renaming `node` would delete or move a protected file. */
+const holdsProtectedFile = (node: WorkspaceNode): boolean =>
+  node._tag === "File"
+    ? WORKSPACE_PROTECTED_PATHS.has(node.path)
+    : node.children.some(holdsProtectedFile)
+
+const LOCKED_BUTTON_CLASS =
+  "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500"
 
 type ExplorerMode =
   | { readonly _tag: "Idle" }
@@ -221,7 +230,7 @@ export function FileExplorer() {
         )}
         <InlineNameInput
           initialValue=""
-          placeholder={mode.kind === "directory" ? "folder-name" : "file.ts"}
+          placeholder={mode.kind === "directory" ? "folder-name" : "file-name"}
           onCancel={() => setMode({ _tag: "Idle" })}
           onSubmit={(name) => {
             const fullPath = joinPath(parentDir, name)
@@ -246,6 +255,7 @@ export function FileExplorer() {
         mode._tag === "Renaming" && mode.targetPath === node.path
       const isConfirmingDelete =
         mode._tag === "ConfirmDelete" && mode.targetPath === node.path
+      const locked = holdsProtectedFile(node)
 
       if (node._tag === "Directory") {
         const isCollapsed = collapsed.has(node.path)
@@ -340,7 +350,12 @@ export function FileExplorer() {
                     </button>
                     <button
                       type="button"
-                      title="Rename folder"
+                      title={
+                        locked
+                          ? "Holds files that cannot be renamed"
+                          : "Rename folder"
+                      }
+                      disabled={locked}
                       onClick={(e) => {
                         e.stopPropagation()
                         setMode({
@@ -349,13 +364,18 @@ export function FileExplorer() {
                           currentName: node.name,
                         })
                       }}
-                      className="rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      className={`rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 ${LOCKED_BUTTON_CLASS}`}
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
                     <button
                       type="button"
-                      title="Delete folder"
+                      title={
+                        locked
+                          ? "Holds files that cannot be deleted"
+                          : "Delete folder"
+                      }
+                      disabled={locked}
                       onClick={(e) => {
                         e.stopPropagation()
                         setMode({
@@ -363,7 +383,7 @@ export function FileExplorer() {
                           targetPath: node.path,
                         })
                       }}
-                      className="rounded p-0.5 text-zinc-500 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400"
+                      className={`rounded p-0.5 text-zinc-500 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 ${LOCKED_BUTTON_CLASS}`}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -401,7 +421,7 @@ export function FileExplorer() {
               <FileCode2 className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
               <InlineNameInput
                 initialValue={node.name}
-                placeholder="file.ts"
+                placeholder="file-name"
                 onCancel={() => setMode({ _tag: "Idle" })}
                 onSubmit={(nextName) => {
                   const nextPath = joinPath(parentOf(node.path), nextName)
@@ -450,7 +470,10 @@ export function FileExplorer() {
                   <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
                     <button
                       type="button"
-                      title="Rename file"
+                      title={
+                        locked ? "This file cannot be renamed" : "Rename file"
+                      }
+                      disabled={locked}
                       onClick={(e) => {
                         e.stopPropagation()
                         setMode({
@@ -459,13 +482,16 @@ export function FileExplorer() {
                           currentName: node.name,
                         })
                       }}
-                      className="rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      className={`rounded p-0.5 text-zinc-500 hover:bg-zinc-300/60 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 ${LOCKED_BUTTON_CLASS}`}
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
                     <button
                       type="button"
-                      title="Delete file"
+                      title={
+                        locked ? "This file cannot be deleted" : "Delete file"
+                      }
+                      disabled={locked}
                       onClick={(e) => {
                         e.stopPropagation()
                         setMode({
@@ -473,7 +499,7 @@ export function FileExplorer() {
                           targetPath: node.path,
                         })
                       }}
-                      className="rounded p-0.5 text-zinc-500 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400"
+                      className={`rounded p-0.5 text-zinc-500 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 ${LOCKED_BUTTON_CLASS}`}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

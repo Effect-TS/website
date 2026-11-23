@@ -1,3 +1,4 @@
+import { language } from "@codemirror/language"
 import type { EditorState } from "@codemirror/state"
 import { EditorView, type ViewUpdate } from "@codemirror/view"
 import * as Clock from "effect/Clock"
@@ -56,6 +57,9 @@ const createFakeEditorFactory = () => {
       get hasFocus() {
         return hasFocus
       },
+      setState(next: EditorState) {
+        state = next
+      },
       destroy() {
         destroyed = true
       },
@@ -103,7 +107,10 @@ const createFakeEditorFactory = () => {
   return { factory, handles }
 }
 
-const setupEditorTest = async (fakeOptions?: FakeLspTransportOptions) => {
+const setupEditorTest = async (
+  fakeOptions?: FakeLspTransportOptions,
+  initialFiles?: Readonly<Record<string, string>>,
+) => {
   const fake = makeFakeLspTransport(fakeOptions)
   const layer = Layer.merge(fake.layer, TestClock.layer())
   const fakeEditors = createFakeEditorFactory()
@@ -117,6 +124,7 @@ const setupEditorTest = async (fakeOptions?: FakeLspTransportOptions) => {
     rootUri: SCRATCHPAD_ROOT_URI,
     fileUri: SCRATCHPAD_FILE_URI,
     initialCode: DEFAULT_SCRATCHPAD_SNIPPET,
+    initialFiles,
     createEditorView: fakeEditors.factory,
     onlineTarget,
   })
@@ -307,6 +315,8 @@ describe("ScratchpadEditorSession", () => {
       initialFiles: {
         "src/main.ts": 'import { greet } from "./greeter.ts"\n',
         "src/greeter.ts": "export const greet = 1\n",
+        "package.json": "{}\n",
+        "README.md": "# hi\n",
       },
       createEditorView: fakeEditors.factory,
       onlineTarget: new EventTarget(),
@@ -336,6 +346,8 @@ describe("ScratchpadEditorSession", () => {
       assert.deepEqual(fsOps().at(-1), {
         _tag: "Reset",
         files: {
+          "README.md": "# hi\n",
+          "package.json": "{}\n",
           "src/greeter.ts": "export const greet = 1\n",
           "src/main.ts": 'import { greet } from "./greeter.ts"\n',
         },
@@ -377,11 +389,128 @@ describe("ScratchpadEditorSession", () => {
       await run(() => registry.set(session.deletePathAtom, "src/util.ts"))
       assert.deepEqual(fsOps().at(-1), { _tag: "Remove", path: "src/util.ts" })
 
+      await run(() =>
+        registry.set(session.createFileAtom, {
+          path: "notes.md",
+          content: "todo\n",
+        }),
+      )
+      assert.deepEqual(fsOps().at(-1), {
+        _tag: "WriteFile",
+        path: "notes.md",
+        content: "todo\n",
+      })
+
       unmount()
     } finally {
       registry.dispose()
     }
     await flushMicrotasks(20)
     assert.isTrue(fakes.workers[0]!.terminated)
+  })
+
+  test("opens only TypeScript files in the language server", async () => {
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      {
+        "src/main.ts": "export const a = 1\n",
+        "src/view.tsx": "export const b = 1\n",
+        "package.json": "{}\n",
+        "tsconfig.json": "{}\n",
+        "README.md": "# hi\n",
+      },
+    )
+    const openedUris = async () =>
+      (await Effect.runPromise(ctx.fake.controller.sentMessages))
+        .filter((m) => "method" in m && m.method === "textDocument/didOpen")
+        .map(
+          (m) =>
+            (m as { params: { textDocument: { uri: string } } }).params
+              .textDocument.uri,
+        )
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(40)
+      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
+
+      ctx.registry.set(ctx.session.openFileAtom, "README.md")
+      ctx.registry.set(ctx.session.createFileAtom, {
+        path: "notes.txt",
+        content: "x\n",
+      })
+      ctx.registry.set(ctx.session.createFileAtom, {
+        path: "src/extra.ts",
+        content: "export {}\n",
+      })
+      await flushMicrotasks(40)
+
+      assert.deepEqual(
+        Option.getOrUndefined(ctx.registry.get(ctx.session.workspaceErrorAtom)),
+        undefined,
+      )
+      assert.sameMembers(await openedUris(), [
+        "file:///workspace/src/main.ts",
+        "file:///workspace/src/view.tsx",
+        "file:///workspace/src/extra.ts",
+      ])
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("picks the editor language by extension and makes read-only files read-only", async () => {
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      {
+        "src/main.ts": "export const a = 1\n",
+        "package.json": "{}\n",
+        "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
+        "tsconfig.json": "{}\n",
+        "README.md": "# hi\n",
+      },
+    )
+    const editorState = () => ctx.fakeEditors.handles[0]!.getState()
+    const open = async (path: string) => {
+      ctx.registry.set(ctx.session.openFileAtom, path)
+      await flushMicrotasks(20)
+      return editorState()
+    }
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(40)
+
+      const main = await open("src/main.ts")
+      assert.equal(main.facet(language)?.name, "typescript")
+      assert.isFalse(main.readOnly)
+
+      const tsconfig = await open("tsconfig.json")
+      assert.equal(tsconfig.facet(language)?.name, "json")
+      assert.isFalse(tsconfig.readOnly)
+
+      const readme = await open("README.md")
+      assert.isNull(readme.facet(language))
+      assert.isFalse(readme.readOnly)
+
+      const pkg = await open("package.json")
+      assert.equal(pkg.facet(language)?.name, "json")
+      assert.isTrue(pkg.readOnly)
+
+      const lock = await open("pnpm-lock.yaml")
+      assert.isTrue(lock.readOnly)
+
+      // A change reaching a read-only document (not from typing, which the
+      // read-only state blocks) is not written back as an editor write.
+      ctx.fakeEditors.handles[0]!.emitDocChange("changed")
+      await flushMicrotasks(20)
+      assert.isTrue(
+        Option.isNone(ctx.registry.get(ctx.session.workspaceErrorAtom)),
+      )
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
   })
 })
