@@ -41,8 +41,12 @@ const TYPE_ERROR: RunBlockingError = {
   path: "src/main.ts",
   line: 1,
   column: 13,
+  endLine: 1,
+  endColumn: 20,
   message:
     "Argument of type 'string' is not assignable to parameter of type 'number'.",
+  code: "TS2345",
+  source: 'console.log("hello")',
 }
 
 /** Lets promises and forked fibers run (real timers; the Effect clock is a TestClock). */
@@ -173,7 +177,8 @@ describe("Runs", () => {
         assert.equal(state.run?.trigger, "initial")
         assert.deepEqual(state.run?.status, { _tag: "exited", exitCode: 0 })
         const text = yield* ctx.output()
-        assert.match(text, /^\S*▶ Run #1\S* · \d\d:\d\d:\d\d · \S*initial/)
+        assert.match(text, /^\S*▶ \d\d:\d\d:\d\d\S* · \S*initial/)
+        assert.notInclude(text, "Run #", "Runs are not numbered on screen")
         assert.include(text, "hello\n")
         assert.match(text, /exited with code 0\S*\r\n$/)
       }),
@@ -234,7 +239,7 @@ describe("Runs", () => {
           yield* advance(500)
           assert.equal(ctx.backend.killed(), 1)
           const text = yield* ctx.output()
-          assert.match(text, /Run #2/)
+          assert.match(text, /▶ \d\d:\d\d:\d\d\S* · \S*src\/main\.ts changed/)
           assert.include(text, "run 2")
           assert.notInclude(text, "run 1")
           assert.equal((yield* ctx.runs.output).runId, 2)
@@ -275,6 +280,7 @@ describe("Runs", () => {
             at: 1000,
             errors: [TYPE_ERROR],
             previousRunId: 1,
+            previousRunStartedAt: 500,
           })
           assert.equal(state.run?.id, 1)
           assert.deepEqual(state.run?.status, { _tag: "stopped" })
@@ -399,7 +405,12 @@ describe("runBlockingErrorsOf", () => {
             "file:///workspace/src/main.ts",
             [
               { severity: 2, message: "warning", range: range(0, 0) },
-              { severity: 1, message: "second", range: range(6, 34) },
+              {
+                severity: 1,
+                message: "second",
+                code: 2769,
+                range: range(6, 34),
+              },
               { severity: 1, message: "first", range: range(5, 2) },
               { severity: 3, message: "info", range: range(1, 0) },
               { severity: 4, message: "hint", range: range(1, 0) },
@@ -411,11 +422,39 @@ describe("runBlockingErrorsOf", () => {
           ],
         ]),
         "file:///workspace",
+        (path, line) => (path === "src/main.ts" ? `line ${line}` : undefined),
       ),
       [
-        { path: "src/a.ts", line: 1, column: 1, message: "in a" },
-        { path: "src/main.ts", line: 6, column: 3, message: "first" },
-        { path: "src/main.ts", line: 7, column: 35, message: "second" },
+        {
+          path: "src/a.ts",
+          line: 1,
+          column: 1,
+          endLine: 1,
+          endColumn: 2,
+          message: "in a",
+          code: undefined,
+          source: undefined,
+        },
+        {
+          path: "src/main.ts",
+          line: 6,
+          column: 3,
+          endLine: 6,
+          endColumn: 4,
+          message: "first",
+          code: undefined,
+          source: "line 6",
+        },
+        {
+          path: "src/main.ts",
+          line: 7,
+          column: 35,
+          endLine: 7,
+          endColumn: 36,
+          message: "second",
+          code: "TS2769",
+          source: "line 7",
+        },
       ],
     )
   })

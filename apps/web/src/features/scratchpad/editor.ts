@@ -458,7 +458,16 @@ export const makeScratchpadEditorSession = (
         }
         byUri.set(uri, message.params.diagnostics ?? [])
       }
-      return runBlockingErrorsOf(byUri, rootUri)
+      const sourceLine = (path: string, line: number) => {
+        const uri = pathToWorkspaceUri(path, rootUri)
+        const doc =
+          editorStates.get(path)?.doc ??
+          lspWorkspace?.files.find((file) => file.uri === uri)?.doc
+        return doc !== undefined && line >= 1 && line <= doc.lines
+          ? doc.line(line).text
+          : undefined
+      }
+      return runBlockingErrorsOf(byUri, rootUri, sourceLine)
     })
 
   // The Container, its Dependencies and Runs are optional and looked up with

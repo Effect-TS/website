@@ -4,7 +4,12 @@ import * as Option from "effect/Option"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
 import { RunOutputTerminal } from "./RunOutputTerminal.tsx"
-import { formatRunTime, type RunOutput, type RunSkip } from "./runs.ts"
+import {
+  formatRunTime,
+  type RunBlockingError,
+  type RunOutput,
+  type RunSkip,
+} from "./runs.ts"
 
 const HEIGHT_KEY = "scratchpad-output-panel"
 const DEFAULT_HEIGHT = 260
@@ -44,6 +49,42 @@ const writeLayout = (layout: PanelLayout) => {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
 
+/**
+ * A tsc-style code frame for one error: the source line with its line number,
+ * and a caret underline under the error's range (first line only).
+ */
+function CodeFrame({ error }: { readonly error: RunBlockingError }) {
+  if (error.source === undefined) return null
+  // Collapse leading indentation so long, deeply nested lines stay readable.
+  const indent = error.source.length - error.source.trimStart().length
+  const text = error.source.slice(indent)
+  const start = Math.max(0, error.column - 1 - indent)
+  const end =
+    error.endLine === error.line
+      ? Math.max(start + 1, error.endColumn - 1 - indent)
+      : text.length
+  const gutter = String(error.line)
+  return (
+    <pre
+      data-testid="run-skip-error-frame"
+      className="mt-1 overflow-x-auto text-zinc-600 dark:text-zinc-400"
+    >
+      <span className="text-zinc-400 select-none dark:text-zinc-600">
+        {gutter} │{" "}
+      </span>
+      {text}
+      {"\n"}
+      <span className="text-zinc-400 select-none dark:text-zinc-600">
+        {" ".repeat(gutter.length)} │{" "}
+      </span>
+      <span className="text-rose-500 dark:text-rose-400">
+        {" ".repeat(start)}
+        {"~".repeat(Math.max(1, Math.min(end, text.length) - start))}
+      </span>
+    </pre>
+  )
+}
+
 function SkipNotice({ skip }: { readonly skip: RunSkip }) {
   const { revealPositionAtom } = useScratchpadSession()
   const reveal = useAtomSet(revealPositionAtom)
@@ -51,9 +92,9 @@ function SkipNotice({ skip }: { readonly skip: RunSkip }) {
   return (
     <div
       data-testid="run-skip-notice"
-      className="max-h-[50%] shrink-0 overflow-y-auto px-3 pt-2 pb-1 font-mono text-[13px] leading-[1.6]"
+      className="max-h-[70%] shrink-0 overflow-y-auto border-b border-zinc-200 px-3 pt-2 pb-2 font-mono text-[13px] leading-[1.55] dark:border-zinc-800"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2">
         <span
           aria-hidden="true"
           className="inline-block h-2.5 w-2.5 bg-orange-500"
@@ -68,44 +109,48 @@ function SkipNotice({ skip }: { readonly skip: RunSkip }) {
           {skip.trigger}
         </span>
       </div>
-      <div className="text-zinc-700 dark:text-zinc-300">
-        <span className="text-orange-600 dark:text-orange-400">
-          Run skipped:
-        </span>{" "}
-        <span className="font-semibold">
-          {plural(skip.errors.length, "type error")} in {files.join(", ")}
-        </span>{" "}
-        <span className="text-zinc-400 dark:text-zinc-500">
-          · fix them to run
-        </span>
+      <div className="mb-2 text-zinc-500 dark:text-zinc-400">
+        {plural(skip.errors.length, "type error")} in {files.join(", ")}. Fix{" "}
+        {skip.errors.length === 1 ? "it" : "them"} to run.
       </div>
-      <ul>
+      <ol className="space-y-3">
         {skip.errors.map((error, index) => (
-          <li key={index} className="flex gap-2">
-            <button
-              type="button"
-              data-testid="run-skip-error"
-              title={`Open ${error.path} at line ${error.line}, column ${error.column}`}
-              onClick={() =>
-                reveal({
-                  path: error.path,
-                  line: error.line,
-                  column: error.column,
-                })
-              }
-              className="shrink-0 cursor-pointer text-rose-600 underline decoration-rose-300 underline-offset-2 hover:text-rose-700 dark:text-rose-400 dark:decoration-rose-800 dark:hover:text-rose-300"
-            >
-              {error.path}:{error.line}:{error.column}
-            </button>
-            <span className="min-w-0 text-zinc-700 dark:text-zinc-300">
-              {error.message}
-            </span>
+          <li key={index} data-testid="run-skip-error-item">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <button
+                type="button"
+                data-testid="run-skip-error"
+                title={`Open ${error.path} at line ${error.line}, column ${error.column}`}
+                onClick={() =>
+                  reveal({
+                    path: error.path,
+                    line: error.line,
+                    column: error.column,
+                  })
+                }
+                className="cursor-pointer text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-800 dark:text-sky-400 dark:decoration-sky-800 dark:hover:text-sky-300"
+              >
+                {error.path}:{error.line}:{error.column}
+              </button>
+              <span className="text-rose-600 dark:text-rose-400">error</span>
+              {error.code !== undefined && (
+                <span className="text-zinc-400 dark:text-zinc-500">
+                  {error.code}
+                </span>
+              )}
+            </div>
+            <div className="pl-4">
+              <div className="break-words whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
+                {error.message}
+              </div>
+              <CodeFrame error={error} />
+            </div>
           </li>
         ))}
-      </ul>
-      {skip.previousRunId !== undefined && (
-        <div className="mt-2 text-zinc-400 dark:text-zinc-500">
-          — previous Run (#{skip.previousRunId}) —
+      </ol>
+      {skip.previousRunStartedAt !== undefined && (
+        <div className="mt-3 text-zinc-400 dark:text-zinc-500">
+          — previous output · {formatRunTime(skip.previousRunStartedAt)} —
         </div>
       )}
     </div>

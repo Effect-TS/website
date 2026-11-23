@@ -64,9 +64,17 @@ export const RUN_OUTPUT_LIMIT = 256 * 1024
 /** A tsrs error that blocks Runs. `line` and `column` are 1-based. */
 export interface RunBlockingError {
   readonly path: string
+  /** 1-based start position. */
   readonly line: number
   readonly column: number
+  /** 1-based end position. */
+  readonly endLine: number
+  readonly endColumn: number
   readonly message: string
+  /** The diagnostic code, e.g. `TS2769`, when the server sends one. */
+  readonly code: string | undefined
+  /** The text of the error's first line, for a code frame. */
+  readonly source: string | undefined
 }
 
 export type RunStatus =
@@ -77,7 +85,7 @@ export type RunStatus =
   | { readonly _tag: "failed"; readonly message: string }
 
 export interface RunInfo {
-  /** `#N` in the header; increments with each Run. */
+  /** Increments with each Run; identifies it internally, never shown. */
   readonly id: number
   /** Why it ran: `initial`, `restart`, `src/main.ts changed`, `2 files changed`. */
   readonly trigger: string
@@ -93,6 +101,8 @@ export interface RunSkip {
   readonly errors: ReadonlyArray<RunBlockingError>
   /** The Run whose output stays below the notice, if there was one. */
   readonly previousRunId: number | undefined
+  /** When that Run started. */
+  readonly previousRunStartedAt: number | undefined
 }
 
 export interface RunsState {
@@ -145,13 +155,12 @@ export const formatRunTime = (millis: number): string => {
 const ESC = "\u001b["
 const reset = `${ESC}0m`
 
-/** `▶ Run #N · HH:MM:SS · trigger`. */
+/** `▶ HH:MM:SS · trigger`. */
 export const runHeader = (run: {
-  readonly id: number
   readonly trigger: string
   readonly startedAt: number
 }): string =>
-  `${ESC}1;34m▶ Run #${run.id}${reset}${ESC}2m · ${formatRunTime(run.startedAt)} · ${reset}${ESC}35m${run.trigger}${reset}\r\n`
+  `${ESC}1;34m▶ ${formatRunTime(run.startedAt)}${reset}${ESC}2m · ${reset}${ESC}35m${run.trigger}${reset}\r\n`
 
 const statusLine = (status: RunStatus): string => {
   switch (status._tag) {
@@ -172,13 +181,26 @@ const statusLine = (status: RunStatus): string => {
 // The gate
 // ---------------------------------------------------------------------------
 
+interface LspPosition {
+  readonly line?: number
+  readonly character?: number
+}
+
 interface LspDiagnostic {
   readonly severity?: number | undefined
   readonly message?: string | undefined
+  readonly code?: string | number | undefined
   readonly range?:
-    | { readonly start?: { line?: number; character?: number } }
+    | { readonly start?: LspPosition; readonly end?: LspPosition }
     | undefined
 }
+
+const formatCode = (code: string | number | undefined): string | undefined =>
+  code === undefined || code === ""
+    ? undefined
+    : typeof code === "number"
+      ? `TS${code}`
+      : code
 
 /**
  * The errors (severity 1) in a set of LSP diagnostics by document URI,
@@ -187,6 +209,8 @@ interface LspDiagnostic {
 export const runBlockingErrorsOf = (
   diagnosticsByUri: ReadonlyMap<string, ReadonlyArray<unknown>>,
   rootUri: string,
+  /** The text of a 1-based line of a Workspace file, for code frames. */
+  sourceLine?: (path: string, line: number) => string | undefined,
 ): ReadonlyArray<RunBlockingError> => {
   const errors: Array<RunBlockingError> = []
   for (const [uri, items] of diagnosticsByUri) {
@@ -194,11 +218,17 @@ export const runBlockingErrorsOf = (
     if (path === undefined) continue
     for (const item of items as ReadonlyArray<LspDiagnostic>) {
       if (item?.severity !== 1) continue
+      const line = (item.range?.start?.line ?? 0) + 1
+      const column = (item.range?.start?.character ?? 0) + 1
       errors.push({
         path,
-        line: (item.range?.start?.line ?? 0) + 1,
-        column: (item.range?.start?.character ?? 0) + 1,
+        line,
+        column,
+        endLine: (item.range?.end?.line ?? line - 1) + 1,
+        endColumn: (item.range?.end?.character ?? column - 1) + 1,
         message: item.message ?? "",
+        code: formatCode(item.code),
+        source: sourceLine?.(path, line),
       })
     }
   }
@@ -394,6 +424,7 @@ export const makeRuns = (
                 at,
                 errors,
                 previousRunId: state.run?.id,
+                previousRunStartedAt: state.run?.startedAt,
               },
             }))
             return

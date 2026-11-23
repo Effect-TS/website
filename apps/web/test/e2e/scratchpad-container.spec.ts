@@ -64,13 +64,13 @@ const openSeedReady = async (page: Page) => {
   await awaitInstalledTypes(page)
 }
 
-/** Waits for Run #`id` to print `text`. */
+/** Waits for the `id`th Run (internal id, never shown) to print `text`. */
 const expectRun = async (page: Page, id: number, text: string) => {
   const output = runOutputOf(page)
   await expect(output).toHaveAttribute("data-run-id", String(id), {
     timeout: RUN_TIMEOUT,
   })
-  await expect(output).toContainText(`Run #${id}`)
+  await expect(output).not.toContainText("Run #")
   await expect(output).toContainText(text, { timeout: RUN_TIMEOUT })
 }
 
@@ -160,7 +160,11 @@ test("a type error skips the Run with the reason, and fixing it runs again", asy
   await expect(notice).toBeVisible({ timeout: RUN_TIMEOUT })
   await expect(output).toHaveAttribute("data-run-skipped", "true")
   await expect(notice).toContainText("Run skipped")
-  await expect(notice).toContainText("previous Run (#1)")
+  await expect(notice).toContainText(/previous output · \d\d:\d\d:\d\d/)
+  await expect(notice).toContainText("error")
+  await expect(
+    notice.getByTestId("run-skip-error-frame").first(),
+  ).toContainText('const broken: number = "nope"')
   const error = notice.getByTestId("run-skip-error").first()
   await expect(error).toHaveText(/^src\/main\.ts:\d+:\d+$/)
   // A skip is not a Run: the number stays.
