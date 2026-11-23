@@ -50,15 +50,15 @@ The Scratchpad replaces `/play` once it has all of the following. This spec deli
 - Accept any UTF-8 text file. CodeMirror gets language support for `.ts`, `.tsx` and `.json`, and other files open as plain text. "New file" accepts any extension. `node_modules/**` and `dist/**` stay reserved.
 - Keep the limits: 50 files, 256 KiB per file, 1 MiB total.
 - Protected files: `package.json` and `pnpm-lock.yaml` are read-only in the editor. Those two, `tsconfig.json` and `src/main.ts` cannot be deleted or renamed, and the explorer disables those actions instead of restoring the files afterwards.
-- Seed: the Playground v4 template (`src/main.ts`, `src/DevTools.ts`, `package.json` with `latest` dist-tags, `tsconfig.json`, `dprint.json`), plus the `@effect/language-service` plugin entry in `tsconfig.json`.
+- Seed: the Playground v4 template (`src/main.ts`, `src/DevTools.ts`, `package.json` with `latest` dist-tags, `tsconfig.json`, `dprint.json`), with these changes: `tsconfig.json` gets the `@effect/language-service` plugin entry and `verbatimModuleSyntax: true`, `src/DevTools.ts` imports `@effect/platform-node/NodeSocket` instead of the package root, and `@types/node` is pinned to `^24` to match the Container's Node.
 
 ### Container
 
 - One `Container` Effect service per page, booted on page load, with typed errors. WebContainer allows one instance per page.
 - `/scratchpad` sends COOP `same-origin` and COEP `require-corp`. `credentialless` is not used because Safari lacks it.
 - Mirror the Workspace one way, page to Container, from the same event stream that feeds the tsrs worker: initial mount, then write, remove and rename.
-- Run `pnpm install -E` after mount and whenever `package.json` changes. After each install, write the Container's `package.json` and `pnpm-lock.yaml` back into the Workspace. These are the only Workspace files that flow back from the Container.
-- After each install, copy `package.json` and `*.d.ts` files from `node_modules` into the tsrs worker's `/workspace/node_modules` through a bulk file-system op (the copy mechanism is chosen in ticket 02). Remove the `effect-types.pack.gz` pipeline from the Scratchpad. Don't use a recursive `fs.watch` on the Container root.
+- Run plain `pnpm install` after mount and whenever `package.json` changes. The Container's pnpm 8.15.6 rejects `install -E`, and the lockfile pins versions. After each install, write the Container's `package.json` and `pnpm-lock.yaml` back into the Workspace. These are the only Workspace files that flow back from the Container.
+- After each install, run an in-container collector script (spike 02) that flattens pnpm's layout and packs every `package.json` and `*.d.ts` into one TSPK file. Skip `typescript/lib/lib.*.d.ts`. The host reads the file once and sends it to the worker with a `ReplaceNodeModules` op, which mounts it at `/workspace/node_modules`. Remove the `effect-types.pack.gz` pipeline from the Scratchpad. Don't use a recursive `fs.watch` on the Container root.
 - `tsconfig.json` is a Workspace file mirrored to both tsrs and the Container. It replaces the hidden `WORKSPACE_TSCONFIG` for the Scratchpad.
 - Start the `/dev-tools-proxy` at boot and drop its output until the trace viewer lands.
 - Don't cache `node_modules` snapshots. `export()` omits lazily loaded large files and `mount()` drops executable bits.
@@ -67,16 +67,16 @@ The Scratchpad replaces `/play` once it has all of the following. This spec deli
 
 - The page triggers Runs. The first Run starts when types are first ready, and later Runs start about 500 ms after Workspace edits settle.
 - Any tsrs error anywhere in the Workspace blocks a Run. Warnings and suggestions don't block it. A skipped Run prints why in the panel.
-- The runner is `node src/main.ts` with Node 24 type stripping and a resolve hook that maps `./x.js` to `./x.ts`, plus `--experimental-transform-types` if needed. This is subject to ticket 01, with `tsc` emit then `node` as the fallback.
-- A new Run kills the previous process. There's no time limit. Stop and Restart sit in the panel.
+- The runner is `node --experimental-transform-types --import <abs preload> src/main.ts` (spike 01). The preload lives outside the mirrored Workspace, sets `process.title ??= "node"`, and registers an in-thread `module.registerHooks` resolve hook that maps `./x.js` to `./x.ts` when the `.js` file does not exist. The flag is always on. Stack-trace line numbers are unreliable inside WebContainer, so the panel does not offer click-to-line links on traces.
+- A new Run kills the previous process. A skipped Run also stops the previous process, so no output ever comes from code that no longer matches the editor. There's no time limit. Stop and Restart sit in the panel.
 - The entry file is fixed at `src/main.ts`. The legacy `prepare`, `shells` and `snapshots` fields are ignored.
 
 ### UI
 
 - Layout: explorer, editor, and a resizable, collapsible bottom panel with tabs. "Output" comes now, and "Terminal" and "Traces" come later.
-- Output is a read-only xterm, so ANSI colors render. Each Run clears it and writes a header showing the time and trigger.
+- Output is a read-only xterm, so ANSI colors render. Each Run clears it and writes a header showing the time and trigger. A skipped Run is not a Run: it shows the skip reason and clickable errors on top, and keeps the previous Run's output below it, dimmed.
 - The status badge covers both the LSP and the Container phases.
-- Failures (unsupported browser, boot failure, install failure, types never arriving) show a non-blocking overlay in the output panel with a plain-language explanation, Retry, and browser-support help. If types never arrive, diagnostics unhide after a timeout with a "dependencies unavailable" status. The visual design is confirmed in ticket 03.
+- Failures (unsupported browser, boot failure, install failure) show a strip across the top of the output panel (variant B2 from ticket 03). The strip has a plain-language explanation, Retry, and browser-support help, covers nothing, and leaves pnpm output printed below it as normal output. If the install succeeds but types never reach the editor, diagnostics unhide after a timeout and the Scratchpad shows a quiet "dependencies unavailable" state: the status badge plus one line in the output panel, with no strip. Runs keep working in that state.
 
 ### Share, autosave and legacy
 
