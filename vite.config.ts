@@ -15,7 +15,7 @@ export default defineConfig({
   lint: {
     plugins: ["typescript", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    ignorePatterns: [".direnv", "dist"],
+    ignorePatterns: [".direnv", ".scratch", "dist"],
     options: {
       typeAware: true,
       typeCheck: true,
