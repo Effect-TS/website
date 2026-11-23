@@ -1,9 +1,6 @@
-import { MemoryFileSystem } from "@effect-vfs/memory"
-import * as BrowserCrypto from "@effect/platform-browser/BrowserCrypto"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
-import * as FileSystem from "effect/FileSystem"
 import * as Layer from "effect/Layer"
 import * as PubSub from "effect/PubSub"
 import * as Schema from "effect/Schema"
@@ -16,7 +13,28 @@ export const WORKSPACE_MAX_FILES = 50
 export const WORKSPACE_MAX_FILE_BYTES = 256 * 1024
 export const WORKSPACE_MAX_TOTAL_BYTES = 1024 * 1024
 
-const ALLOWED_FILE_EXTENSIONS = new Set([".ts", ".tsx"])
+/** Top-level folders the Workspace never holds (the Container owns them). */
+const RESERVED_TOP_LEVEL = new Set(["node_modules", "dist"])
+
+/**
+ * Files only the host writes (synced back from the Container). The editor can
+ * read them but not change them.
+ */
+export const WORKSPACE_READ_ONLY_PATHS: ReadonlySet<string> = new Set([
+  "package.json",
+  "pnpm-lock.yaml",
+])
+
+/** Files that cannot be deleted or renamed. */
+export const WORKSPACE_PROTECTED_PATHS: ReadonlySet<string> = new Set([
+  ...WORKSPACE_READ_ONLY_PATHS,
+  "tsconfig.json",
+  "src/main.ts",
+])
+
+export const isReadOnlyPath = (relPath: string): boolean =>
+  WORKSPACE_READ_ONLY_PATHS.has(relPath)
+
 const textEncoder = new TextEncoder()
 
 export const utf8ByteLength = (text: string): number =>
@@ -24,13 +42,13 @@ export const utf8ByteLength = (text: string): number =>
 
 export type WorkspaceErrorCode =
   | "invalid-path"
-  | "invalid-extension"
   | "already-exists"
   | "not-found"
   | "file-too-large"
   | "workspace-too-large"
   | "too-many-files"
-  | "io"
+  | "read-only"
+  | "protected"
 
 export class WorkspaceError extends Data.TaggedError("WorkspaceError")<{
   readonly code: WorkspaceErrorCode
@@ -109,7 +127,16 @@ export interface WorkspaceService {
   readonly getTree: Effect.Effect<ReadonlyArray<WorkspaceNode>, WorkspaceError>
   readonly stats: Effect.Effect<WorkspaceStats, WorkspaceError>
   readonly readFile: (path: string) => Effect.Effect<string, WorkspaceError>
+  /** An editor write: fails with `read-only` for `package.json` and `pnpm-lock.yaml`. */
   readonly writeFile: (
+    path: string,
+    content: string,
+  ) => Effect.Effect<void, WorkspaceError>
+  /**
+   * A host write, for files synced back from the Container. Unlike
+   * `writeFile` it can write read-only files. Limits still apply.
+   */
+  readonly writeHostFile: (
     path: string,
     content: string,
   ) => Effect.Effect<void, WorkspaceError>
@@ -136,6 +163,9 @@ export class Workspace extends Context.Service<Workspace, WorkspaceService>()(
   "@website/scratchpad/Workspace",
 ) {}
 
+const fail = (code: WorkspaceErrorCode, message: string) =>
+  Effect.fail(new WorkspaceError({ code, message }))
+
 export const normalizeRelativePath = (
   raw: string,
 ): Effect.Effect<string, WorkspaceError> =>
@@ -143,72 +173,22 @@ export const normalizeRelativePath = (
     const trimmed = raw.trim().replaceAll("\\", "/")
     const stripped = trimmed.replace(/^\/+/, "").replace(/\/+$/, "")
     if (stripped.length === 0) {
-      return Effect.fail(
-        new WorkspaceError({
-          code: "invalid-path",
-          message: "Path cannot be empty.",
-        }),
-      )
+      return fail("invalid-path", "Path cannot be empty.")
     }
     if (stripped.includes("\0")) {
-      return Effect.fail(
-        new WorkspaceError({
-          code: "invalid-path",
-          message: "Path cannot contain null bytes.",
-        }),
-      )
+      return fail("invalid-path", "Path cannot contain null bytes.")
     }
     const segments = stripped.split("/")
     for (const segment of segments) {
       if (segment.length === 0 || segment === "." || segment === "..") {
-        return Effect.fail(
-          new WorkspaceError({
-            code: "invalid-path",
-            message: `Invalid path segment in "${raw}".`,
-          }),
-        )
+        return fail("invalid-path", `Invalid path segment in "${raw}".`)
       }
     }
-    if (segments[0] === "node_modules") {
-      return Effect.fail(
-        new WorkspaceError({
-          code: "invalid-path",
-          message: "Paths inside node_modules are reserved.",
-        }),
-      )
-    }
-    if (stripped === "tsconfig.json") {
-      return Effect.fail(
-        new WorkspaceError({
-          code: "invalid-path",
-          message: "tsconfig.json is managed by the server.",
-        }),
-      )
+    if (RESERVED_TOP_LEVEL.has(segments[0]!)) {
+      return fail("invalid-path", `Paths inside ${segments[0]} are reserved.`)
     }
     return Effect.succeed(stripped)
   })
-
-export const validateFilePath = (
-  raw: string,
-): Effect.Effect<string, WorkspaceError> =>
-  normalizeRelativePath(raw).pipe(
-    Effect.flatMap((normalized) => {
-      const lastSlash = normalized.lastIndexOf("/")
-      const basename =
-        lastSlash === -1 ? normalized : normalized.slice(lastSlash + 1)
-      const dot = basename.lastIndexOf(".")
-      const ext = dot > 0 ? basename.slice(dot) : ""
-      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
-        return Effect.fail(
-          new WorkspaceError({
-            code: "invalid-extension",
-            message: "Only .ts and .tsx files are supported.",
-          }),
-        )
-      }
-      return Effect.succeed(normalized)
-    }),
-  )
 
 export const pathToWorkspaceUri = (
   relPath: string,
@@ -240,9 +220,7 @@ export const workspaceUriToPath = (
       .join("/")
     if (
       decoded.length === 0 ||
-      decoded === "tsconfig.json" ||
-      decoded === "node_modules" ||
-      decoded.startsWith("node_modules/")
+      RESERVED_TOP_LEVEL.has(decoded.split("/")[0]!)
     ) {
       return undefined
     }
@@ -252,21 +230,32 @@ export const workspaceUriToPath = (
   }
 }
 
-const toMountPath = (relPath: string): string =>
-  `${WORKSPACE_MOUNT_ROOT}/${relPath}`
+const isSameOrBelow = (path: string, ancestor: string): boolean =>
+  path === ancestor || path.startsWith(`${ancestor}/`)
 
-const parentDirOf = (relPath: string): string | undefined => {
-  const idx = relPath.lastIndexOf("/")
-  return idx === -1 ? undefined : relPath.slice(0, idx)
+const ancestorsOf = (relPath: string): Array<string> => {
+  const out: Array<string> = []
+  let idx = relPath.indexOf("/")
+  while (idx !== -1) {
+    out.push(relPath.slice(0, idx))
+    idx = relPath.indexOf("/", idx + 1)
+  }
+  return out
 }
 
-const mapIoError = (cause: unknown): WorkspaceError =>
-  cause instanceof WorkspaceError
-    ? cause
-    : new WorkspaceError({
-        code: "io",
-        message: cause instanceof Error ? cause.message : String(cause),
-      })
+const basenameOf = (relPath: string): string =>
+  relPath.slice(relPath.lastIndexOf("/") + 1)
+
+/** Depth-first order with sorted names at each level (`a/x` before `a-b`). */
+const comparePaths = (a: string, b: string): number => {
+  const as = a.split("/")
+  const bs = b.split("/")
+  const n = Math.min(as.length, bs.length)
+  for (let i = 0; i < n; i++) {
+    if (as[i] !== bs[i]) return as[i]! < bs[i]! ? -1 : 1
+  }
+  return as.length - bs.length
+}
 
 const sortNodes = (nodes: Array<WorkspaceNode>): Array<WorkspaceNode> =>
   nodes.sort((a, b) => {
@@ -276,25 +265,129 @@ const sortNodes = (nodes: Array<WorkspaceNode>): Array<WorkspaceNode> =>
     return a.name.localeCompare(b.name)
   })
 
-/**
- * Builds an in-memory `FileSystem.FileSystem` layer backed by `@effect-vfs/memory`
- * using WebCrypto (`BrowserCrypto`), suitable for both browsers and Node 24+.
- */
-export const makeMemoryFileSystemLayer =
-  (): Layer.Layer<FileSystem.FileSystem> =>
-    Layer.fresh(MemoryFileSystem.layer).pipe(
-      Layer.provide(
-        Layer.merge(BrowserCrypto.layerDigest, BrowserCrypto.layerSecureRandom),
-      ),
-    )
+interface StoredFile {
+  readonly content: string
+  readonly bytes: number
+}
 
-export const makeWorkspaceFromFileSystem = (options?: {
+/**
+ * The Workspace's state: files by path, every folder (including the ones files
+ * imply), and running totals so limit checks never re-read the tree.
+ */
+class Store {
+  readonly files = new Map<string, StoredFile>()
+  readonly directories = new Set<string>()
+  totalBytes = 0
+
+  /** A file can be stored at `relPath` without colliding with a folder. */
+  checkFileSlot(relPath: string): WorkspaceError | undefined {
+    if (this.directories.has(relPath)) {
+      return new WorkspaceError({
+        code: "already-exists",
+        message: `A folder already exists at "${relPath}".`,
+      })
+    }
+    return this.checkAncestors(relPath)
+  }
+
+  /** No ancestor of `relPath` is a file. */
+  checkAncestors(relPath: string): WorkspaceError | undefined {
+    for (const ancestor of ancestorsOf(relPath)) {
+      if (this.files.has(ancestor)) {
+        return new WorkspaceError({
+          code: "invalid-path",
+          message: `"${ancestor}" is a file, not a folder.`,
+        })
+      }
+    }
+    return undefined
+  }
+
+  setFile(relPath: string, content: string, bytes: number): void {
+    const previous = this.files.get(relPath)
+    this.totalBytes += bytes - (previous?.bytes ?? 0)
+    this.files.set(relPath, { content, bytes })
+    this.addDirectories(relPath)
+  }
+
+  deleteFile(relPath: string): void {
+    const previous = this.files.get(relPath)
+    if (previous === undefined) return
+    this.totalBytes -= previous.bytes
+    this.files.delete(relPath)
+  }
+
+  /** Adds the folders above `relPath`. */
+  addDirectories(relPath: string): void {
+    for (const ancestor of ancestorsOf(relPath)) {
+      this.directories.add(ancestor)
+    }
+  }
+
+  /** Files at or below `relPath`, in listing order. */
+  filesUnder(relPath: string): Array<[string, StoredFile]> {
+    return [...this.files]
+      .filter(([path]) => isSameOrBelow(path, relPath))
+      .sort(([a], [b]) => comparePaths(a, b))
+  }
+
+  directoriesUnder(relPath: string): Array<string> {
+    return [...this.directories].filter((dir) => isSameOrBelow(dir, relPath))
+  }
+
+  listFiles(): Array<WorkspaceFileEntry> {
+    return [...this.files]
+      .sort(([a], [b]) => comparePaths(a, b))
+      .map(([path, file]) => ({ path, content: file.content }))
+  }
+
+  tree(): Array<WorkspaceNode> {
+    const children = new Map<string, Array<WorkspaceNode>>()
+    const childrenOf = (dir: string) => {
+      let list = children.get(dir)
+      if (list === undefined) {
+        list = []
+        children.set(dir, list)
+      }
+      return list
+    }
+    const parentOf = (path: string) => {
+      const idx = path.lastIndexOf("/")
+      return idx === -1 ? "" : path.slice(0, idx)
+    }
+    for (const [path, file] of this.files) {
+      childrenOf(parentOf(path)).push({
+        _tag: "File",
+        name: basenameOf(path),
+        path,
+        bytes: file.bytes,
+      })
+    }
+    const build = (dir: string): Array<WorkspaceNode> => {
+      const nodes = childrenOf(dir)
+      for (const sub of this.directories) {
+        if (parentOf(sub) === dir) {
+          nodes.push({
+            _tag: "Directory",
+            name: basenameOf(sub),
+            path: sub,
+            children: build(sub),
+          })
+        }
+      }
+      return sortNodes(nodes)
+    }
+    return build("")
+  }
+}
+
+/** An in-memory `WorkspaceService`, serializing mutations with a semaphore. */
+export const makeMemoryWorkspace = (options?: {
   readonly rootUri?: string | undefined
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
   readonly limits?: WorkspaceLimits | undefined
-}): Effect.Effect<WorkspaceService, WorkspaceError, FileSystem.FileSystem> =>
+}): Effect.Effect<WorkspaceService, WorkspaceError> =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
     const rootUri = options?.rootUri ?? WORKSPACE_ROOT_URI
     const maxFiles = options?.limits?.maxFiles ?? WORKSPACE_MAX_FILES
     const maxFileBytes =
@@ -304,243 +397,90 @@ export const makeWorkspaceFromFileSystem = (options?: {
 
     const pubsub = yield* PubSub.unbounded<WorkspaceEvent>()
     const lock = yield* Semaphore.make(1)
+    let store = new Store()
 
-    yield* fs
-      .makeDirectory(WORKSPACE_MOUNT_ROOT, { recursive: true })
-      .pipe(Effect.mapError(mapIoError))
-
-    const collectEntries = (
-      relDir: string,
-    ): Effect.Effect<
-      {
-        readonly files: Array<WorkspaceFileEntry>
-        readonly directories: Array<string>
-      },
-      WorkspaceError
-    > =>
-      Effect.gen(function* () {
-        const fsDir =
-          relDir.length === 0 ? WORKSPACE_MOUNT_ROOT : toMountPath(relDir)
-        const names = yield* fs
-          .readDirectory(fsDir)
-          .pipe(Effect.mapError(mapIoError))
-
-        const files: Array<WorkspaceFileEntry> = []
-        const directories: Array<string> = []
-
-        for (const name of [...names].sort()) {
-          const childRel = relDir.length === 0 ? name : `${relDir}/${name}`
-          const childFs = toMountPath(childRel)
-          const info = yield* fs.stat(childFs).pipe(Effect.mapError(mapIoError))
-          if (info.type === "Directory") {
-            directories.push(childRel)
-            const nested = yield* collectEntries(childRel)
-            files.push(...nested.files)
-            directories.push(...nested.directories)
-          } else if (info.type === "File") {
-            const content = yield* fs
-              .readFileString(childFs)
-              .pipe(Effect.mapError(mapIoError))
-            files.push({ path: childRel, content })
-          }
-        }
-
-        return { files, directories }
-      })
-
-    const buildTree = (
-      relDir: string,
-    ): Effect.Effect<ReadonlyArray<WorkspaceNode>, WorkspaceError> =>
-      Effect.gen(function* () {
-        const fsDir =
-          relDir.length === 0 ? WORKSPACE_MOUNT_ROOT : toMountPath(relDir)
-        const names = yield* fs
-          .readDirectory(fsDir)
-          .pipe(Effect.mapError(mapIoError))
-
-        const nodes: Array<WorkspaceNode> = []
-        for (const name of names) {
-          const childRel = relDir.length === 0 ? name : `${relDir}/${name}`
-          const childFs = toMountPath(childRel)
-          const info = yield* fs.stat(childFs).pipe(Effect.mapError(mapIoError))
-          if (info.type === "Directory") {
-            const children = yield* buildTree(childRel)
-            nodes.push({
-              _tag: "Directory",
-              name,
-              path: childRel,
-              children,
-            })
-          } else if (info.type === "File") {
-            nodes.push({
-              _tag: "File",
-              name,
-              path: childRel,
-              bytes: Number(info.size),
-            })
-          }
-        }
-
-        return sortNodes(nodes)
-      })
-
-    const computeStats = (): Effect.Effect<WorkspaceStats, WorkspaceError> =>
-      collectEntries("").pipe(
-        Effect.map(({ files }) => {
-          let totalBytes = 0
-          for (const f of files) {
-            totalBytes += utf8ByteLength(f.content)
-          }
-          return {
-            fileCount: files.length,
-            totalBytes,
-          }
-        }),
+    const fileTooLarge = (relPath: string) =>
+      fail(
+        "file-too-large",
+        `File "${relPath}" exceeds the ${Math.round(maxFileBytes / 1024)} KiB limit.`,
       )
-
-    const ensureParentDir = (relPath: string) =>
-      Effect.gen(function* () {
-        const parent = parentDirOf(relPath)
-        if (parent !== undefined) {
-          yield* fs
-            .makeDirectory(toMountPath(parent), { recursive: true })
-            .pipe(Effect.mapError(mapIoError))
-        }
-      })
 
     const writeInternal = (
       rawPath: string,
       content: string,
       mode: "create" | "upsert",
+      origin: "editor" | "host",
     ): Effect.Effect<void, WorkspaceError> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
-          const relPath = yield* validateFilePath(rawPath)
+          const relPath = yield* normalizeRelativePath(rawPath)
+          if (origin === "editor" && isReadOnlyPath(relPath)) {
+            return yield* fail(
+              "read-only",
+              `"${relPath}" is read-only. It is updated by the package manager.`,
+            )
+          }
+          const slotError = store.checkFileSlot(relPath)
+          if (slotError !== undefined) return yield* Effect.fail(slotError)
+
+          const previous = store.files.get(relPath)
+          if (mode === "create" && previous !== undefined) {
+            return yield* fail("already-exists", `"${relPath}" already exists.`)
+          }
+
           const fileBytes = utf8ByteLength(content)
           if (fileBytes > maxFileBytes) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "file-too-large",
-                message: `File "${relPath}" exceeds the ${Math.round(maxFileBytes / 1024)} KiB limit.`,
-              }),
+            return yield* fileTooLarge(relPath)
+          }
+          if (previous === undefined && store.files.size + 1 > maxFiles) {
+            return yield* fail(
+              "too-many-files",
+              `Workspace cannot exceed ${maxFiles} files.`,
             )
           }
-
-          const fsPath = toMountPath(relPath)
-          const alreadyExists = yield* fs
-            .exists(fsPath)
-            .pipe(Effect.mapError(mapIoError))
-
-          if (mode === "create" && alreadyExists) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "already-exists",
-                message: `"${relPath}" already exists.`,
-              }),
-            )
-          }
-
-          let previousBytes = 0
-          if (alreadyExists) {
-            const info = yield* fs
-              .stat(fsPath)
-              .pipe(Effect.mapError(mapIoError))
-            if (info.type === "Directory") {
-              return yield* Effect.fail(
-                new WorkspaceError({
-                  code: "already-exists",
-                  message: `A directory already exists at "${relPath}".`,
-                }),
-              )
-            }
-            const prevContent = yield* fs
-              .readFileString(fsPath)
-              .pipe(Effect.mapError(mapIoError))
-            previousBytes = utf8ByteLength(prevContent)
-          }
-
-          const currentStats = yield* computeStats()
-          if (!alreadyExists && currentStats.fileCount + 1 > maxFiles) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "too-many-files",
-                message: `Workspace cannot exceed ${maxFiles} files.`,
-              }),
-            )
-          }
-
           const nextTotalBytes =
-            currentStats.totalBytes - previousBytes + fileBytes
+            store.totalBytes - (previous?.bytes ?? 0) + fileBytes
           if (nextTotalBytes > maxTotalBytes) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "workspace-too-large",
-                message: `Workspace exceeds the ${Math.round(maxTotalBytes / (1024 * 1024))} MiB total limit.`,
-              }),
+            return yield* fail(
+              "workspace-too-large",
+              `Workspace exceeds the ${Math.round(maxTotalBytes / (1024 * 1024))} MiB total limit.`,
             )
           }
 
-          yield* ensureParentDir(relPath)
-          yield* fs
-            .writeFileString(fsPath, content)
-            .pipe(Effect.mapError(mapIoError))
-
+          store.setFile(relPath, content, fileBytes)
           yield* PubSub.publish(
             pubsub,
-            alreadyExists
-              ? { _tag: "FileChanged", path: relPath, content }
-              : { _tag: "FileCreated", path: relPath, content },
+            previous === undefined
+              ? { _tag: "FileCreated", path: relPath, content }
+              : { _tag: "FileChanged", path: relPath, content },
           )
         }),
       )
 
     if (options?.initialFiles !== undefined) {
       for (const [relPath, content] of Object.entries(options.initialFiles)) {
-        yield* writeInternal(relPath, content, "upsert")
+        yield* writeInternal(relPath, content, "upsert", "host")
       }
     }
 
-    const listFiles = lock.withPermits(1)(
-      collectEntries("").pipe(Effect.map(({ files }) => files)),
-    )
+    const listFiles = Effect.sync(() => store.listFiles())
 
-    const getTree = lock.withPermits(1)(buildTree(""))
+    const getTree = Effect.sync(() => store.tree())
 
-    const stats = lock.withPermits(1)(computeStats())
+    const stats = Effect.sync((): WorkspaceStats => ({
+      fileCount: store.files.size,
+      totalBytes: store.totalBytes,
+    }))
 
     const readFile = (rawPath: string): Effect.Effect<string, WorkspaceError> =>
-      lock.withPermits(1)(
-        Effect.gen(function* () {
-          const relPath = yield* validateFilePath(rawPath)
-          const fsPath = toMountPath(relPath)
-          const exists = yield* fs
-            .exists(fsPath)
-            .pipe(Effect.mapError(mapIoError))
-          if (!exists) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "not-found",
-                message: `File "${relPath}" not found.`,
-              }),
-            )
-          }
-          return yield* fs
-            .readFileString(fsPath)
-            .pipe(Effect.mapError(mapIoError))
-        }),
-      )
-
-    const writeFile = (
-      rawPath: string,
-      content: string,
-    ): Effect.Effect<void, WorkspaceError> =>
-      writeInternal(rawPath, content, "upsert")
-
-    const createFile = (
-      rawPath: string,
-      content: string = "",
-    ): Effect.Effect<void, WorkspaceError> =>
-      writeInternal(rawPath, content, "create")
+      Effect.gen(function* () {
+        const relPath = yield* normalizeRelativePath(rawPath)
+        const file = store.files.get(relPath)
+        if (file === undefined) {
+          return yield* fail("not-found", `File "${relPath}" not found.`)
+        }
+        return file.content
+      })
 
     const createDirectory = (
       rawPath: string,
@@ -548,24 +488,36 @@ export const makeWorkspaceFromFileSystem = (options?: {
       lock.withPermits(1)(
         Effect.gen(function* () {
           const relPath = yield* normalizeRelativePath(rawPath)
-          const fsPath = toMountPath(relPath)
-          const exists = yield* fs
-            .exists(fsPath)
-            .pipe(Effect.mapError(mapIoError))
-          if (exists) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "already-exists",
-                message: `"${relPath}" already exists.`,
-              }),
-            )
+          if (store.files.has(relPath) || store.directories.has(relPath)) {
+            return yield* fail("already-exists", `"${relPath}" already exists.`)
           }
-          yield* fs
-            .makeDirectory(fsPath, { recursive: true })
-            .pipe(Effect.mapError(mapIoError))
+          const ancestorError = store.checkAncestors(relPath)
+          if (ancestorError !== undefined) {
+            return yield* Effect.fail(ancestorError)
+          }
+          store.directories.add(relPath)
+          store.addDirectories(relPath)
           yield* PubSub.publish(pubsub, { _tag: "DirectoryChanged" })
         }),
       )
+
+    /** Fails when `relPath` is, or holds, a protected file that exists. */
+    const checkNotProtected = (relPath: string, action: string) => {
+      for (const protectedPath of WORKSPACE_PROTECTED_PATHS) {
+        if (
+          store.files.has(protectedPath) &&
+          isSameOrBelow(protectedPath, relPath)
+        ) {
+          return fail(
+            "protected",
+            protectedPath === relPath
+              ? `"${relPath}" cannot be ${action}.`
+              : `"${relPath}" holds "${protectedPath}", which cannot be ${action}.`,
+          )
+        }
+      }
+      return Effect.void
+    }
 
     const rename = (
       rawOldPath: string,
@@ -574,77 +526,58 @@ export const makeWorkspaceFromFileSystem = (options?: {
       lock.withPermits(1)(
         Effect.gen(function* () {
           const oldPath = yield* normalizeRelativePath(rawOldPath)
-          const oldFs = toMountPath(oldPath)
-          const exists = yield* fs
-            .exists(oldFs)
-            .pipe(Effect.mapError(mapIoError))
-          if (!exists) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "not-found",
-                message: `"${oldPath}" not found.`,
-              }),
-            )
+          const isFile = store.files.has(oldPath)
+          const isDirectory = store.directories.has(oldPath)
+          if (!isFile && !isDirectory) {
+            return yield* fail("not-found", `"${oldPath}" not found.`)
           }
-
-          const info = yield* fs.stat(oldFs).pipe(Effect.mapError(mapIoError))
-          const newPath =
-            info.type === "Directory"
-              ? yield* normalizeRelativePath(rawNewPath)
-              : yield* validateFilePath(rawNewPath)
-
+          const newPath = yield* normalizeRelativePath(rawNewPath)
           if (oldPath === newPath) {
             return
           }
-
-          if (info.type === "Directory" && newPath.startsWith(`${oldPath}/`)) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "invalid-path",
-                message: "Cannot move a folder into itself.",
-              }),
+          if (isDirectory && newPath.startsWith(`${oldPath}/`)) {
+            return yield* fail(
+              "invalid-path",
+              "Cannot move a folder into itself.",
             )
           }
-
-          const newFs = toMountPath(newPath)
-          const targetExists = yield* fs
-            .exists(newFs)
-            .pipe(Effect.mapError(mapIoError))
-          if (targetExists) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "already-exists",
-                message: `"${newPath}" already exists.`,
-              }),
+          yield* checkNotProtected(oldPath, "renamed")
+          if (isFile && isReadOnlyPath(newPath)) {
+            return yield* fail(
+              "read-only",
+              `"${newPath}" is read-only. It is updated by the package manager.`,
             )
           }
+          if (store.files.has(newPath) || store.directories.has(newPath)) {
+            return yield* fail("already-exists", `"${newPath}" already exists.`)
+          }
+          const ancestorError = store.checkAncestors(newPath)
+          if (ancestorError !== undefined) {
+            return yield* Effect.fail(ancestorError)
+          }
 
-          if (info.type === "Directory") {
-            const nestedBefore = yield* collectEntries(oldPath)
-            yield* ensureParentDir(newPath)
-            yield* fs.rename(oldFs, newFs).pipe(Effect.mapError(mapIoError))
-            for (const entry of nestedBefore.files) {
-              const suffix = entry.path.slice(oldPath.length)
-              yield* PubSub.publish(pubsub, {
-                _tag: "FileRenamed",
-                oldPath: entry.path,
-                newPath: `${newPath}${suffix}`,
-                content: entry.content,
-              })
-            }
-            yield* PubSub.publish(pubsub, { _tag: "DirectoryChanged" })
-          } else {
-            const content = yield* fs
-              .readFileString(oldFs)
-              .pipe(Effect.mapError(mapIoError))
-            yield* ensureParentDir(newPath)
-            yield* fs.rename(oldFs, newFs).pipe(Effect.mapError(mapIoError))
+          const remap = (path: string) =>
+            `${newPath}${path.slice(oldPath.length)}`
+          const moved = store.filesUnder(oldPath)
+          const movedDirectories = store.directoriesUnder(oldPath)
+          for (const [path] of moved) store.deleteFile(path)
+          for (const dir of movedDirectories) store.directories.delete(dir)
+          for (const dir of movedDirectories) store.directories.add(remap(dir))
+          for (const [path, file] of moved) {
+            store.setFile(remap(path), file.content, file.bytes)
+          }
+          store.addDirectories(newPath)
+
+          for (const [path, file] of moved) {
             yield* PubSub.publish(pubsub, {
               _tag: "FileRenamed",
-              oldPath,
-              newPath,
-              content,
+              oldPath: path,
+              newPath: remap(path),
+              content: file.content,
             })
+          }
+          if (isDirectory) {
+            yield* PubSub.publish(pubsub, { _tag: "DirectoryChanged" })
           }
         }),
       )
@@ -653,132 +586,98 @@ export const makeWorkspaceFromFileSystem = (options?: {
       lock.withPermits(1)(
         Effect.gen(function* () {
           const relPath = yield* normalizeRelativePath(rawPath)
-          const fsPath = toMountPath(relPath)
-          const exists = yield* fs
-            .exists(fsPath)
-            .pipe(Effect.mapError(mapIoError))
-          if (!exists) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "not-found",
-                message: `"${relPath}" not found.`,
-              }),
-            )
+          const isFile = store.files.has(relPath)
+          const isDirectory = store.directories.has(relPath)
+          if (!isFile && !isDirectory) {
+            return yield* fail("not-found", `"${relPath}" not found.`)
           }
+          yield* checkNotProtected(relPath, "deleted")
 
-          const info = yield* fs.stat(fsPath).pipe(Effect.mapError(mapIoError))
-          if (info.type === "Directory") {
-            const nested = yield* collectEntries(relPath)
-            yield* fs
-              .remove(fsPath, { recursive: true })
-              .pipe(Effect.mapError(mapIoError))
-            for (const entry of nested.files) {
-              yield* PubSub.publish(pubsub, {
-                _tag: "FileDeleted",
-                path: entry.path,
-              })
-            }
+          const removed = store.filesUnder(relPath)
+          for (const [path] of removed) store.deleteFile(path)
+          for (const dir of store.directoriesUnder(relPath)) {
+            store.directories.delete(dir)
+          }
+          for (const [path] of removed) {
+            yield* PubSub.publish(pubsub, { _tag: "FileDeleted", path })
+          }
+          if (isDirectory) {
             yield* PubSub.publish(pubsub, { _tag: "DirectoryChanged" })
-          } else {
-            yield* fs.remove(fsPath).pipe(Effect.mapError(mapIoError))
-            yield* PubSub.publish(pubsub, {
-              _tag: "FileDeleted",
-              path: relPath,
-            })
           }
         }),
       )
 
-    const snapshot = lock.withPermits(1)(
-      collectEntries("").pipe(
-        Effect.map(({ files, directories }) => {
-          const fileRecord: Record<string, string> = {}
-          for (const f of files) {
-            fileRecord[f.path] = f.content
-          }
-          const emptyDirs = directories.filter(
-            (dir) => !files.some((f) => f.path.startsWith(`${dir}/`)),
-          )
-          return {
-            version: 1 as const,
-            files: fileRecord,
-            ...(emptyDirs.length > 0 ? { directories: emptyDirs } : {}),
-          }
-        }),
-      ),
-    )
+    const snapshot = Effect.sync((): WorkspaceSnapshot => {
+      const files: Record<string, string> = {}
+      for (const entry of store.listFiles()) {
+        files[entry.path] = entry.content
+      }
+      const paths = [...store.files.keys()]
+      const emptyDirs = [...store.directories]
+        .filter((dir) => !paths.some((path) => path.startsWith(`${dir}/`)))
+        .sort(comparePaths)
+      return {
+        version: 1,
+        files,
+        ...(emptyDirs.length > 0 ? { directories: emptyDirs } : {}),
+      }
+    })
 
     const restoreSnapshot = (
       snap: WorkspaceSnapshot,
     ): Effect.Effect<void, WorkspaceError> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
-          // Validate all files & limits before mutating
+          // Build the whole next state before touching the current one.
           const entries = Object.entries(snap.files)
           if (entries.length > maxFiles) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "too-many-files",
-                message: `Snapshot exceeds ${maxFiles} files.`,
-              }),
+            return yield* fail(
+              "too-many-files",
+              `Snapshot exceeds ${maxFiles} files.`,
             )
           }
-          let totalBytes = 0
-          const validatedFiles: Array<WorkspaceFileEntry> = []
+          const next = new Store()
+          const created: Array<WorkspaceFileEntry> = []
           for (const [rawPath, content] of entries) {
-            const relPath = yield* validateFilePath(rawPath)
+            const relPath = yield* normalizeRelativePath(rawPath)
             const bytes = utf8ByteLength(content)
             if (bytes > maxFileBytes) {
-              return yield* Effect.fail(
-                new WorkspaceError({
-                  code: "file-too-large",
-                  message: `File "${relPath}" exceeds per-file limit.`,
-                }),
-              )
+              return yield* fileTooLarge(relPath)
             }
-            totalBytes += bytes
-            validatedFiles.push({ path: relPath, content })
+            const slotError = next.checkFileSlot(relPath)
+            if (slotError !== undefined) return yield* Effect.fail(slotError)
+            next.setFile(relPath, content, bytes)
+            created.push({ path: relPath, content })
           }
-          if (totalBytes > maxTotalBytes) {
-            return yield* Effect.fail(
-              new WorkspaceError({
-                code: "workspace-too-large",
-                message: "Snapshot exceeds total workspace size limit.",
-              }),
+          if (next.totalBytes > maxTotalBytes) {
+            return yield* fail(
+              "workspace-too-large",
+              "Snapshot exceeds total workspace size limit.",
             )
           }
-
-          const validatedDirs: Array<string> = []
           for (const rawDir of snap.directories ?? []) {
-            validatedDirs.push(yield* normalizeRelativePath(rawDir))
+            const dir = yield* normalizeRelativePath(rawDir)
+            if (next.files.has(dir)) {
+              return yield* fail("already-exists", `"${dir}" already exists.`)
+            }
+            const ancestorError = next.checkAncestors(dir)
+            if (ancestorError !== undefined) {
+              return yield* Effect.fail(ancestorError)
+            }
+            next.directories.add(dir)
+            next.addDirectories(dir)
           }
 
-          const previous = yield* collectEntries("")
-          yield* fs
-            .remove(WORKSPACE_MOUNT_ROOT, { recursive: true, force: true })
-            .pipe(Effect.mapError(mapIoError))
-          yield* fs
-            .makeDirectory(WORKSPACE_MOUNT_ROOT, { recursive: true })
-            .pipe(Effect.mapError(mapIoError))
+          const previous = store.listFiles()
+          store = next
 
-          for (const prev of previous.files) {
+          for (const prev of previous) {
             yield* PubSub.publish(pubsub, {
               _tag: "FileDeleted",
               path: prev.path,
             })
           }
-
-          for (const dir of validatedDirs) {
-            yield* fs
-              .makeDirectory(toMountPath(dir), { recursive: true })
-              .pipe(Effect.mapError(mapIoError))
-          }
-
-          for (const file of validatedFiles) {
-            yield* ensureParentDir(file.path)
-            yield* fs
-              .writeFileString(toMountPath(file.path), file.content)
-              .pipe(Effect.mapError(mapIoError))
+          for (const file of created) {
             yield* PubSub.publish(pubsub, {
               _tag: "FileCreated",
               path: file.path,
@@ -795,8 +694,12 @@ export const makeWorkspaceFromFileSystem = (options?: {
       getTree,
       stats,
       readFile,
-      writeFile,
-      createFile,
+      writeFile: (path, content) =>
+        writeInternal(path, content, "upsert", "editor"),
+      writeHostFile: (path, content) =>
+        writeInternal(path, content, "upsert", "host"),
+      createFile: (path, content = "") =>
+        writeInternal(path, content, "create", "editor"),
       createDirectory,
       rename,
       remove,
@@ -811,6 +714,4 @@ export const layerMemoryWorkspace = (options?: {
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
   readonly limits?: WorkspaceLimits | undefined
 }): Layer.Layer<Workspace, WorkspaceError> =>
-  Layer.effect(Workspace, makeWorkspaceFromFileSystem(options)).pipe(
-    Layer.provide(makeMemoryFileSystemLayer()),
-  )
+  Layer.effect(Workspace, makeMemoryWorkspace(options))

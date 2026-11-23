@@ -243,7 +243,7 @@ test("updates diagnostics across files when another file changes, is created, re
 
   // Create src/extra.ts and import it from main.ts.
   await page.getByTestId("explorer-new-file").click()
-  await page.getByPlaceholder("file.ts").fill("src/extra.ts")
+  await page.getByPlaceholder("file-name").fill("src/extra.ts")
   await page.keyboard.press("Enter")
   await expect(page.getByTestId("editor-tab-src/extra.ts")).toBeVisible()
   await editorOf(page).locator(".cm-content").click()
@@ -266,7 +266,7 @@ test("updates diagnostics across files when another file changes, is created, re
   const extraRow = page.getByTestId("explorer-file-src/extra.ts").locator("..")
   await extraRow.hover()
   await extraRow.getByTitle("Rename file").click()
-  const renameInput = page.getByPlaceholder("file.ts")
+  const renameInput = page.getByPlaceholder("file-name")
   await renameInput.fill("renamed.ts")
   await renameInput.press("Enter")
   await expect(page.getByTestId("explorer-file-src/renamed.ts")).toBeVisible()

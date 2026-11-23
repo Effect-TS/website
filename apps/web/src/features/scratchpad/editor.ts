@@ -1,11 +1,16 @@
 import { javascript } from "@codemirror/lang-javascript"
+import { json } from "@codemirror/lang-json"
 import {
   jumpToDefinition,
   languageServerExtensions,
   type LSPClient,
   type LSPClientExtension,
 } from "@codemirror/lsp-client"
-import { EditorState, type TransactionSpec } from "@codemirror/state"
+import {
+  EditorState,
+  type Extension,
+  type TransactionSpec,
+} from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { basicSetup } from "codemirror"
 import * as Effect from "effect/Effect"
@@ -21,7 +26,7 @@ import {
   SCRATCHPAD_ROOT_URI,
 } from "./config.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
-import { MultiFileLspWorkspace } from "./lsp-workspace.ts"
+import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
 import {
   makeScratchpadSession,
   utf8ByteLength,
@@ -32,6 +37,7 @@ import {
 import type { LspTransport } from "./transport.ts"
 import { LspWorkspaceMirror, workspaceEventToFsOp } from "./worker-transport.ts"
 import {
+  isReadOnlyPath,
   layerMemoryWorkspace,
   pathToWorkspaceUri,
   Workspace,
@@ -154,6 +160,17 @@ const defaultEditorViewFactory: EditorViewFactory = ({ parent, state }) =>
 
 const languageIdForPath = (relPath: string): string =>
   relPath.endsWith(".tsx") ? "typescriptreact" : "typescript"
+
+/** CodeMirror language support by extension; other files are plain text. */
+const languageSupportForPath = (relPath: string): Extension => {
+  if (relPath.endsWith(".ts") || relPath.endsWith(".tsx")) {
+    return javascript({ typescript: true, jsx: relPath.endsWith(".tsx") })
+  }
+  if (relPath.endsWith(".json")) {
+    return json()
+  }
+  return []
+}
 
 const summarizeDiagnostics = (
   items: ReadonlyArray<{ readonly severity?: number | undefined }>,
@@ -356,7 +373,7 @@ export const makeScratchpadEditorSession = (
     ws: WorkspaceService,
   ): EditorState => {
     const uri = pathToWorkspaceUri(relPath, rootUri)
-    const langId = languageIdForPath(relPath)
+    const readOnly = isReadOnlyPath(relPath)
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (isSwappingState) return
@@ -364,15 +381,19 @@ export const makeScratchpadEditorSession = (
         const text = update.state.doc.toString()
         editorStates.set(relPath, update.state)
         registry.set(session.documentChangedAtom, utf8ByteLength(text))
-        void Effect.runPromise(
-          ws.writeFile(relPath, text).pipe(
-            Effect.catch((err) =>
-              Effect.sync(() => {
-                registry.set(workspaceErrorAtom, Option.some(err.message))
-              }),
+        // Read-only files only change through the host, which already wrote
+        // them to the Workspace.
+        if (!readOnly) {
+          void Effect.runPromise(
+            ws.writeFile(relPath, text).pipe(
+              Effect.catch((err) =>
+                Effect.sync(() => {
+                  registry.set(workspaceErrorAtom, Option.some(err.message))
+                }),
+              ),
             ),
-          ),
-        )
+          )
+        }
       }
       if (update.focusChanged && update.view.hasFocus) {
         registry.set(session.wakeAtom, "focus")
@@ -399,13 +420,12 @@ export const makeScratchpadEditorSession = (
       doc: content,
       extensions: [
         basicSetup,
-        javascript({
-          typescript: true,
-          jsx: relPath.endsWith(".tsx"),
-        }),
-        client.plugin(uri, langId),
+        languageSupportForPath(relPath),
+        isLspDocumentPath(relPath)
+          ? [client.plugin(uri, languageIdForPath(relPath)), cmdClickHandler]
+          : [],
+        readOnly ? EditorState.readOnly.of(true) : [],
         updateListener,
-        cmdClickHandler,
         scratchpadEditorTheme,
       ],
     })
