@@ -1,7 +1,7 @@
 import type { ContainerPhase } from "./container.ts"
 import type { LspErrorCode, LspStatus } from "./session.ts"
 
-export type LspStatusTone = "neutral" | "success" | "warning" | "error"
+export type LspStatusTone = "neutral" | "info" | "success" | "warning" | "error"
 
 export interface LspStatusView {
   readonly state: LspStatus["_tag"]
@@ -211,5 +211,36 @@ export const describeContainerPhase = (
         tone: "warning",
         busy: false,
       }
+  }
+}
+
+export interface ContainerStatusWithRunView extends ContainerStatusView {
+  /** A Run's process is alive. */
+  readonly running: boolean
+}
+
+/**
+ * The Container badge: its phase, or "Running" while a Run's process is
+ * alive in a phase that can run code. `state` stays the phase.
+ */
+export const describeContainerStatus = (
+  phase: ContainerPhase,
+  runAlive: boolean,
+): ContainerStatusWithRunView => {
+  const view = describeContainerPhase(phase)
+  const running =
+    runAlive &&
+    (phase._tag === "ready" || phase._tag === "dependencies-unavailable")
+  if (!running) return { ...view, running }
+  return {
+    ...view,
+    running,
+    label: "Running",
+    detail:
+      phase._tag === "ready"
+        ? "Your program is running in the container."
+        : `Your program is running in the container. ${view.detail}`,
+    tone: phase._tag === "ready" ? "info" : view.tone,
+    busy: true,
   }
 }
