@@ -23,7 +23,7 @@ const projects = {
 
 export default defineConfig({
   testDir: "apps/web/test/e2e",
-  testMatch: /scratchpad-worker\.spec\.ts$/,
+  testMatch: /scratchpad-(worker|share)\.spec\.ts$/,
   timeout: 90_000,
   workers: 1,
   projects: browsers.map((name) => ({
