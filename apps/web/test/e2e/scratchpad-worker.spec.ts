@@ -109,7 +109,15 @@ const lineWith = (page: Page, text: string) =>
 const lintMessages = async (page: Page, text: string) => {
   const range = lineWith(page, text).locator(".cm-lintRange").first()
   await expect(range).toBeVisible({ timeout: LSP_TIMEOUT })
-  await range.hover()
+  // On very long lines the range's centre sits far off-screen and the editor
+  // is scrolled to the cursor at the line's end, so Playwright's hover lands
+  // on the gutter or file explorer. Scroll back and hover the range's start.
+  await editorOf(page)
+    .locator(".cm-scroller")
+    .evaluate((el) => {
+      el.scrollLeft = 0
+    })
+  await range.hover({ position: { x: 4, y: 4 } })
   const tooltip = page.locator(".cm-tooltip-lint")
   await expect(tooltip).toBeVisible({ timeout: LSP_TIMEOUT })
   return tooltip
