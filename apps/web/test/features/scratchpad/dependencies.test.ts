@@ -13,6 +13,7 @@ import { assert, describe, test } from "vite-plus/test"
 import {
   type ContainerBootError,
   ContainerBootFailed,
+  type ContainerService,
   type FakeContainerBackend,
   type FakeSpawnCall,
   type FakeSpawnResult,
@@ -94,12 +95,14 @@ interface Scenario {
     backend: FakeContainerBackend,
   ) => FakeSpawnResult | undefined
   readonly mirror?: MirrorAnswer | (() => MirrorAnswer) | "none"
-  readonly boot?: "ready" | "gated"
+  /** `fail-once`: the first boot fails and a retried one succeeds. */
+  readonly boot?: "ready" | "gated" | "fail-once"
   readonly typesTimeout?: Duration.Input
 }
 
 interface Ctx {
   readonly ws: WorkspaceService
+  readonly container: ContainerService
   readonly backend: FakeContainerBackend
   readonly deps: DependenciesService
   readonly packs: Array<Uint8Array>
@@ -136,8 +139,13 @@ const run = <A>(
         const release = yield* Deferred.make<void, ContainerBootError>()
         if (scenario.boot !== "gated")
           yield* Deferred.succeed(release, undefined)
+        let boots = 0
         const container = yield* makeContainer(
-          Deferred.await(release).pipe(Effect.as(backend)),
+          Effect.suspend(() =>
+            scenario.boot === "fail-once" && ++boots === 1
+              ? Effect.fail(new ContainerBootFailed({ message: "boom" }))
+              : Deferred.await(release),
+          ).pipe(Effect.as(backend)),
         )
         const answer = scenario.mirror ?? "mount"
         const fake = makeFakeMirror(
@@ -165,6 +173,7 @@ const run = <A>(
         yield* settle
         return yield* body({
           ws,
+          container,
           backend,
           deps,
           packs: fake.packs,
@@ -423,6 +432,83 @@ describe("Dependencies", () => {
             "loading-types",
             "ready",
           ])
+        }),
+    )
+  })
+
+  test("a retried boot mounts, installs and loads types after a failed one", async () => {
+    await run({ boot: "fail-once" }, (ctx) =>
+      Effect.gen(function* () {
+        assert.equal(containerPhaseOf(yield* ctx.state())._tag, "failed")
+        assert.deepEqual(ctx.backend.spawned, [])
+        yield* ctx.ws.writeFile("src/main.ts", "edited while failed")
+
+        yield* ctx.container.retry
+        yield* settle
+        const state = yield* ctx.state()
+        assert.equal(containerPhaseOf(state)._tag, "ready")
+        assert.deepEqual(ctx.phases, [
+          "failed",
+          "booting",
+          "installing",
+          "loading-types",
+          "ready",
+        ])
+        assert.equal(commands(ctx.backend)[0], "pnpm install")
+        assert.equal(
+          ctx.backend.files.get("src/main.ts"),
+          "edited while failed",
+        )
+        assert.deepEqual(ctx.packs, [PACK])
+      }),
+    )
+  })
+
+  test("the types timeout starts when a retried boot is ready", async () => {
+    await run({ boot: "fail-once", mirror: "never" }, (ctx) =>
+      Effect.gen(function* () {
+        yield* ctx.container.retry
+        yield* settle
+        assert.equal(containerPhaseOf(yield* ctx.state())._tag, "loading-types")
+        yield* TestClock.adjust("60 seconds")
+        yield* settle
+        assert.equal(
+          containerPhaseOf(yield* ctx.state())._tag,
+          "dependencies-unavailable",
+        )
+      }),
+    )
+  })
+
+  test("install retries a failed install, which can then succeed", async () => {
+    let installs = 0
+    await run(
+      {
+        spawn: (call) =>
+          call.command === "pnpm" && ++installs === 1
+            ? { exitCode: 1, output: ["ERR_PNPM_FETCH_404\n"] }
+            : undefined,
+      },
+      (ctx) =>
+        Effect.gen(function* () {
+          assert.equal(
+            containerPhaseOf(yield* ctx.state())._tag,
+            "install-failed",
+          )
+          yield* ctx.deps.install
+          yield* settle
+          assert.equal(containerPhaseOf(yield* ctx.state())._tag, "ready")
+          assert.deepEqual(ctx.phases, [
+            "installing",
+            "install-failed",
+            "installing",
+            "loading-types",
+            "ready",
+          ])
+          const log = yield* ctx.deps.installLog
+          assert.equal(log.run, 2)
+          assert.equal(log.exitCode, 0)
+          assert.deepEqual(ctx.packs, [PACK])
         }),
     )
   })

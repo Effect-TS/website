@@ -541,3 +541,48 @@ test("boots the Container, installs the seed's dependencies and loads their type
   await page.waitForTimeout(1_000)
   await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
 })
+
+// Serving the page without COOP/COEP is how an unsupported browser looks to
+// the Scratchpad (no cross-origin isolation), so no test-only flag is needed.
+test("without cross-origin isolation, shows the unsupported strip with help and no Retry, and editing still works", async ({
+  page,
+}) => {
+  await page.route(
+    (url) => url.pathname === "/scratchpad",
+    async (route) => {
+      const response = await route.fetch()
+      const headers = { ...response.headers() }
+      delete headers["cross-origin-opener-policy"]
+      delete headers["cross-origin-embedder-policy"]
+      await route.fulfill({ response, headers })
+    },
+  )
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  expect(await page.evaluate(() => globalThis.crossOriginIsolated)).toBe(false)
+
+  const strip = page.getByTestId("container-failure")
+  await expect(strip).toHaveAttribute("data-failure-kind", "unsupported", {
+    timeout: READY_TIMEOUT,
+  })
+  await expect(containerOf(page)).toHaveAttribute(
+    "data-container-phase",
+    "failed",
+  )
+  await expect(strip.getByTestId("container-failure-retry")).toHaveCount(0)
+  await expect(
+    strip.getByRole("link", { name: "Browser support" }),
+  ).toHaveAttribute("href", "https://webcontainers.io/guides/browser-support")
+
+  // Editing and the language server keep working.
+  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready", {
+    timeout: READY_TIMEOUT,
+  })
+  await replaceDocument(page, "export const stillEditing = 1\n")
+  await expect(lineWith(page, "stillEditing")).toBeVisible()
+
+  // Hide it, and the badge brings it back.
+  await strip.getByRole("button", { name: "Hide" }).click()
+  await expect(strip).toHaveCount(0)
+  await containerOf(page).click()
+  await expect(strip).toBeVisible()
+})

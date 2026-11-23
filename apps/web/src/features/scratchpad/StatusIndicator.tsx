@@ -1,5 +1,6 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useScratchpadSession } from "./context.tsx"
+import { useFailureState } from "./FailureStrip.tsx"
 import * as Option from "effect/Option"
 import {
   describeContainerPhase,
@@ -76,13 +77,45 @@ export function StatusIndicator() {
   )
 }
 
-/** The Container's phase, next to the language server's. Hidden without a Container. */
+/**
+ * The Container's phase, next to the language server's. Hidden without a
+ * Container. During a failure it is a button that shows the failure strip
+ * again after it was hidden.
+ */
 export function ContainerStatusIndicator() {
   const { containerPhaseAtom } = useScratchpadSession()
   const phase = useAtomValue(containerPhaseAtom)
+  const failure = useFailureState()
   if (Option.isNone(phase)) return null
 
   const view = describeContainerPhase(phase.value)
+  const className = `inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-xs leading-none transition-colors ${BADGE_STYLES[view.tone]}`
+  const content = (
+    <>
+      <span
+        aria-hidden="true"
+        className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT_STYLES[view.tone]} ${view.busy ? "animate-pulse" : ""}`}
+      />
+      <span>{view.label}</span>
+    </>
+  )
+
+  if (Option.isSome(failure)) {
+    return (
+      <button
+        type="button"
+        data-testid="container-status"
+        data-container-phase={view.state}
+        title={view.detail}
+        aria-label={`${view.label}. Show details`}
+        onClick={failure.value.show}
+        className={`${className} cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 dark:hover:brightness-110`}
+      >
+        {content}
+      </button>
+    )
+  }
+
   return (
     <span
       role="status"
@@ -90,13 +123,9 @@ export function ContainerStatusIndicator() {
       data-testid="container-status"
       data-container-phase={view.state}
       title={view.detail}
-      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-xs leading-none transition-colors ${BADGE_STYLES[view.tone]}`}
+      className={className}
     >
-      <span
-        aria-hidden="true"
-        className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT_STYLES[view.tone]} ${view.busy ? "animate-pulse" : ""}`}
-      />
-      <span>{view.label}</span>
+      {content}
     </span>
   )
 }
