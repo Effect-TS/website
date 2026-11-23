@@ -4,7 +4,8 @@ const externalUrl = process.env.PLAYGROUND_URL
 
 export default defineConfig({
   testDir: "apps/web/test/e2e",
-  testIgnore: /scratchpad-worker\.spec\.ts$/,
+  // The Scratchpad specs have their own configs (playwright.scratchpad-*.config.ts).
+  testIgnore: /scratchpad-(worker|share|container)\.spec\.ts$/,
   timeout: 60_000,
   workers: 1,
   use: {
