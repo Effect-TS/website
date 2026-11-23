@@ -1,6 +1,5 @@
 /**
- * dist/manifest.json: what the build scripts produced. build-wasm.ts writes `wasm`, build-types-pack.ts writes
- * `typesPack`; each keeps the other's entry.
+ * dist/manifest.json: what the build produced. build-wasm.ts writes `wasm` and keeps any other entry.
  */
 import * as fs from "node:fs"
 import * as path from "node:path"
@@ -37,22 +36,8 @@ export interface WasmManifest {
   readonly buildSeconds: number
 }
 
-export interface TypesPackManifest {
-  readonly file: string
-  readonly packages: ReadonlyArray<{
-    readonly name: string
-    readonly version: string
-  }>
-  readonly files: number
-  readonly bytes: number
-  readonly gzipBytes: number
-  readonly brotliBytes: number
-  readonly sha256: string
-}
-
 export interface Manifest {
   readonly wasm?: WasmManifest
-  readonly typesPack?: TypesPackManifest
 }
 
 export const readManifest = (distDir: string): Manifest => {

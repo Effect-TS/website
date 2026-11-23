@@ -1,6 +1,8 @@
 import type { Transport } from "@codemirror/lsp-client"
 import * as Context from "effect/Context"
+import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
 import * as PubSub from "effect/PubSub"
 import * as Stream from "effect/Stream"
@@ -13,6 +15,7 @@ import type { WorkspaceEvent } from "./workspace.ts"
 import {
   isWorkerToPage,
   type PageToWorker,
+  type TypesMountResult,
   type WorkerAssets,
   type WorkerReadyTimings,
   type WorkspaceFsOp,
@@ -20,7 +23,8 @@ import {
 
 /** The parts of a `Worker` the transport uses, so tests can pass a fake. */
 export interface WorkerLike {
-  readonly postMessage: (message: unknown) => void
+  // Method syntax: `Worker`'s overloads only match it bivariantly.
+  postMessage(message: unknown, transfer?: Array<Transferable>): void
   readonly terminate: () => void
   readonly addEventListener: (
     type: "message" | "error" | "messageerror",
@@ -28,9 +32,21 @@ export interface WorkerLike {
   ) => void
 }
 
+export type WorkspaceFileOp = Exclude<
+  WorkspaceFsOp,
+  { readonly _tag: "ReplaceNodeModules" }
+>
+
 export interface LspWorkspaceMirrorService {
   /** Applies a Workspace change to the language server's file system. */
-  readonly apply: (op: WorkspaceFsOp) => void
+  readonly apply: (op: WorkspaceFileOp) => void
+  /**
+   * Replaces the language server's `node_modules` with a types pack and
+   * waits for the worker's answer. The pack is kept and sent again to every
+   * new worker (a restart replays it after the Workspace files). Waits until
+   * a worker answers, so callers should add a timeout.
+   */
+  readonly mountTypes: (pack: Uint8Array) => Effect.Effect<TypesMountResult>
 }
 
 /**
@@ -59,7 +75,7 @@ export interface LayerWorkerOptions {
  */
 export const workspaceEventToFsOp = (
   event: WorkspaceEvent,
-): WorkspaceFsOp | undefined => {
+): WorkspaceFileOp | undefined => {
   switch (event._tag) {
     case "FileCreated":
     case "FileChanged":
@@ -76,7 +92,7 @@ export const workspaceEventToFsOp = (
 /** Applies an op to the page-side copy of the Workspace files. */
 export const applyFsOpToFiles = (
   files: Map<string, string>,
-  op: WorkspaceFsOp,
+  op: WorkspaceFileOp,
 ): void => {
   switch (op._tag) {
     case "Reset":
@@ -111,7 +127,8 @@ export const applyFsOpToFiles = (
  * Worker (`lsp.worker.ts`), plus `LspWorkspaceMirror`.
  *
  * Each `reconnect` terminates any previous worker and starts a fresh one: it
- * sends the current Workspace files, then `Start`, relays loading progress as
+ * sends the current Workspace files and the last types pack, then `Start`,
+ * relays loading progress as
  * `Loading` events, and emits `Connected` once the server accepts messages.
  * Crash recoveries inside the worker are relayed as `Recovered` and do not
  * disconnect. A worker that fails for good emits `Disconnected` with a
@@ -127,6 +144,13 @@ export const layerWorker = (
       const events = yield* PubSub.unbounded<TransportEvent>()
       const subscribers = new Set<(value: string) => void>()
       const files = new Map<string, string>()
+      // The last types pack, replayed to every new worker.
+      let types: { readonly id: number; readonly pack: Uint8Array } | undefined
+      let nextTypesId = 0
+      const typesWaiters = new Map<
+        number,
+        Deferred.Deferred<TypesMountResult>
+      >()
 
       interface Active {
         readonly worker: WorkerLike
@@ -139,6 +163,19 @@ export const layerWorker = (
 
       const post = (target: Active, message: PageToWorker | string) => {
         if (!target.closed) target.worker.postMessage(message)
+      }
+
+      /** Posts the pack as a copy the worker owns; the page keeps its own. */
+      const postTypes = (target: Active) => {
+        if (types === undefined || target.closed) return
+        const buffer = types.pack.slice().buffer
+        target.worker.postMessage(
+          {
+            _tag: "Fs",
+            op: { _tag: "ReplaceNodeModules", id: types.id, pack: buffer },
+          } satisfies PageToWorker,
+          [buffer],
+        )
       }
 
       const close = (target: Active) => {
@@ -207,6 +244,15 @@ export const layerWorker = (
             case "Fatal":
               fail(target, data.message)
               break
+            case "TypesMounted":
+            case "TypesRejected": {
+              const waiter = typesWaiters.get(data.id)
+              typesWaiters.delete(data.id)
+              if (waiter !== undefined) {
+                Deferred.doneUnsafe(waiter, Exit.succeed(data))
+              }
+              break
+            }
           }
         })
         worker.addEventListener("error", (event) => {
@@ -225,6 +271,7 @@ export const layerWorker = (
           _tag: "Fs",
           op: { _tag: "Reset", files: Object.fromEntries(files) },
         })
+        postTypes(target)
         post(target, { _tag: "Start", assets: options.assets })
       }
 
@@ -256,6 +303,21 @@ export const layerWorker = (
           applyFsOpToFiles(files, op)
           if (active !== undefined) post(active, { _tag: "Fs", op })
         },
+        mountTypes: (pack) =>
+          Effect.suspend(() => {
+            const id = ++nextTypesId
+            types = { id, pack }
+            const waiter = Deferred.makeUnsafe<TypesMountResult>()
+            typesWaiters.set(id, waiter)
+            if (active !== undefined) postTypes(active)
+            return Deferred.await(waiter).pipe(
+              Effect.ensuring(
+                Effect.sync(() => {
+                  typesWaiters.delete(id)
+                }),
+              ),
+            )
+          }),
       }
 
       return Context.make(LspTransport, {

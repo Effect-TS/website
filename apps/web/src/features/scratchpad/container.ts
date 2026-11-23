@@ -53,14 +53,48 @@ export type ContainerBootError = ContainerUnsupported | ContainerBootFailed
 
 export type ContainerError = ContainerBootError | ContainerOperationFailed
 
-export type ContainerPhase =
+/** Where the Container itself is: booting, booted, or failed to boot. */
+export type ContainerBootPhase =
   | { readonly _tag: "booting" }
   | { readonly _tag: "ready" }
   | { readonly _tag: "failed"; readonly error: ContainerBootError }
 
+/** `pnpm install` exited with a non-zero code. */
+export class InstallFailed extends Data.TaggedError("InstallFailed")<{
+  readonly exitCode: number
+  /** The end of the install's terminal output. */
+  readonly outputTail: string
+  readonly message: string
+}> {}
+
+/**
+ * What the status badge shows for the Container: its boot, then the
+ * dependency install and the types copy (`dependencies.ts`).
+ *
+ * - `booting` → `installing` → `loading-types` → `ready`
+ * - `failed`: boot failed (`ContainerUnsupported` or `ContainerBootFailed`)
+ * - `install-failed`: `pnpm install` failed
+ * - `dependencies-unavailable`: installed, but types never reached the
+ *   editor (diagnostics are shown without them)
+ */
+export type ContainerPhase =
+  | { readonly _tag: "booting" }
+  | { readonly _tag: "installing" }
+  | { readonly _tag: "loading-types" }
+  | { readonly _tag: "ready" }
+  | { readonly _tag: "failed"; readonly error: ContainerBootError }
+  | { readonly _tag: "install-failed"; readonly error: InstallFailed }
+  | { readonly _tag: "dependencies-unavailable"; readonly reason: string }
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
+
+/**
+ * The host scripts directory, relative to the Workspace root. Every backend
+ * keeps it next to the Workspace directory.
+ */
+export const CONTAINER_HOST_DIR_FROM_WORKSPACE = "../.scratchpad"
 
 /** Directories on the Container's `PATH`, relative ones first. */
 export const CONTAINER_BIN_PATH =
@@ -95,9 +129,9 @@ export interface ContainerProcess {
 
 export interface ContainerService {
   /** The current phase. Operations wait for `ready` and fail if boot failed. */
-  readonly phase: Effect.Effect<ContainerPhase>
+  readonly phase: Effect.Effect<ContainerBootPhase>
   /** The current phase, then every change. */
-  readonly phaseChanges: Stream.Stream<ContainerPhase>
+  readonly phaseChanges: Stream.Stream<ContainerBootPhase>
   /** Waits for boot to finish. */
   readonly awaitReady: Effect.Effect<void, ContainerBootError>
   /** Writes a flat map of Workspace-relative paths to contents, replacing nothing else. */
@@ -117,6 +151,24 @@ export interface ContainerService {
   ) => Effect.Effect<void, ContainerError>
   readonly readFile: (path: string) => Effect.Effect<Uint8Array, ContainerError>
   readonly readTextFile: (path: string) => Effect.Effect<string, ContainerError>
+  /**
+   * The host scripts directory sits next to the Workspace, outside it, for
+   * files the Workspace must not see (the types collector and its pack).
+   * `name` is a plain file name.
+   */
+  readonly writeHostDirFile: (
+    name: string,
+    content: string,
+  ) => Effect.Effect<void, ContainerError>
+  readonly readHostDirFile: (
+    name: string,
+  ) => Effect.Effect<Uint8Array, ContainerError>
+  /** Missing files are not an error. */
+  readonly removeHostDirFile: (
+    name: string,
+  ) => Effect.Effect<void, ContainerError>
+  /** `name` in the host scripts directory, as a path relative to the Workspace root (for spawn arguments). */
+  readonly hostDirPath: (name: string) => string
   /**
    * Starts a process. Closing the scope (or interrupting the fiber that owns
    * it) kills the process.
@@ -149,6 +201,9 @@ export interface ContainerBackend {
   readonly remove: (path: string) => Promise<void>
   readonly rename: (from: string, to: string) => Promise<void>
   readonly readFile: (path: string) => Promise<Uint8Array>
+  readonly writeHostDirFile: (name: string, content: string) => Promise<void>
+  readonly readHostDirFile: (name: string) => Promise<Uint8Array>
+  readonly removeHostDirFile: (name: string) => Promise<void>
   readonly spawn: (
     command: string,
     args: ReadonlyArray<string>,
@@ -182,7 +237,7 @@ export const makeContainer = <R>(
   boot: Effect.Effect<ContainerBackend, ContainerBootError, Scope.Scope | R>,
 ): Effect.Effect<ContainerService, never, Scope.Scope | R> =>
   Effect.gen(function* () {
-    const phaseRef = yield* SubscriptionRef.make<ContainerPhase>({
+    const phaseRef = yield* SubscriptionRef.make<ContainerBootPhase>({
       _tag: "booting",
     })
     const booted = yield* Deferred.make<ContainerBackend, ContainerBootError>()
@@ -268,6 +323,15 @@ export const makeContainer = <R>(
       readFile,
       readTextFile: (path) =>
         readFile(path).pipe(Effect.map((bytes) => textDecoder.decode(bytes))),
+      writeHostDirFile: (name, content) =>
+        use("write", name, (backend) =>
+          backend.writeHostDirFile(name, content),
+        ),
+      readHostDirFile: (name) =>
+        use("read", name, (backend) => backend.readHostDirFile(name)),
+      removeHostDirFile: (name) =>
+        use("remove", name, (backend) => backend.removeHostDirFile(name)),
+      hostDirPath: (name) => `${CONTAINER_HOST_DIR_FROM_WORKSPACE}/${name}`,
       spawn,
     }
   })
@@ -310,9 +374,27 @@ export const applyWorkspaceEvent = (
  * the mirror and drops the buffer; the Workspace is untouched. A failed
  * operation is logged and the mirror moves on.
  */
+export type MirrorChange =
+  | {
+      readonly _tag: "Mounted"
+      readonly files: Readonly<Record<string, string>>
+    }
+  | { readonly _tag: "Applied"; readonly event: WorkspaceEvent }
+
+export interface MirrorWorkspaceOptions {
+  /**
+   * Runs after the mount and after each event lands in the Container, in
+   * order, on the mirror's fiber (the next event waits for it).
+   */
+  readonly onChange?:
+    | ((change: MirrorChange) => Effect.Effect<void>)
+    | undefined
+}
+
 export const mirrorWorkspace = (
   workspace: WorkspaceService,
   container: ContainerService,
+  options: MirrorWorkspaceOptions = {},
 ): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function* () {
     const pending = yield* Queue.unbounded<WorkspaceEvent>()
@@ -328,13 +410,17 @@ export const mirrorWorkspace = (
       Effect.orElseSucceed(() => []),
     )
 
+    const onChange = options.onChange ?? (() => Effect.void)
     yield* Effect.gen(function* () {
-      yield* container.mount(
-        Object.fromEntries(files.map((file) => [file.path, file.content])),
+      const mounted = Object.fromEntries(
+        files.map((file) => [file.path, file.content]),
       )
+      yield* container.mount(mounted)
+      yield* onChange({ _tag: "Mounted", files: mounted })
       while (true) {
         const event = yield* Queue.take(pending)
         yield* applyWorkspaceEvent(container, event).pipe(
+          Effect.andThen(onChange({ _tag: "Applied", event })),
           Effect.catch((error) =>
             Effect.logWarning("Container mirror", error.message),
           ),
@@ -360,6 +446,8 @@ export interface FakeSpawnResult {
   readonly output?: ReadonlyArray<string> | undefined
   /** When true the process runs until killed (exit code 143). */
   readonly hang?: boolean | undefined
+  /** The process exits with this code when it resolves (or 143 when killed first). */
+  readonly exit?: Promise<number> | undefined
 }
 
 export interface FakeSpawnCall {
@@ -372,6 +460,8 @@ export interface FakeSpawnCall {
 export interface FakeContainerBackend extends ContainerBackend {
   /** The Container's files, by Workspace-relative path. */
   readonly files: Map<string, string>
+  /** The host scripts directory's files, by name. */
+  readonly hostFiles: Map<string, string | Uint8Array>
   /** Every file system call, in order (`write a`, `remove b`, …). */
   readonly log: Array<string>
   readonly spawned: Array<FakeSpawnCall>
@@ -388,6 +478,7 @@ export const makeFakeContainerBackend = (
   } = {},
 ): FakeContainerBackend => {
   const files = new Map(Object.entries(options.files ?? {}))
+  const hostFiles = new Map<string, string | Uint8Array>()
   const log: Array<string> = []
   const spawned: Array<FakeSpawnCall> = []
   const encoder = new TextEncoder()
@@ -396,6 +487,7 @@ export const makeFakeContainerBackend = (
     path === root || path.startsWith(`${root}/`)
   return {
     files,
+    hostFiles,
     log,
     spawned,
     killed: () => killed,
@@ -424,6 +516,17 @@ export const makeFakeContainerBackend = (
       if (content === undefined) throw new Error(`ENOENT: ${path}`)
       return encoder.encode(content)
     },
+    writeHostDirFile: async (name, content) => {
+      hostFiles.set(name, content)
+    },
+    readHostDirFile: async (name) => {
+      const content = hostFiles.get(name)
+      if (content === undefined) throw new Error(`ENOENT: ${name}`)
+      return typeof content === "string" ? encoder.encode(content) : content
+    },
+    removeHostDirFile: async (name) => {
+      hostFiles.delete(name)
+    },
     spawn: async (command, args, spawnOptions) => {
       const call = { command, args, ...spawnOptions }
       spawned.push(call)
@@ -438,13 +541,22 @@ export const makeFakeContainerBackend = (
         exited = true
         resolveExit(code)
       }
+      const runs = result.hang === true || result.exit !== undefined
       const output = new ReadableStream<string>({
         start(controller) {
           for (const chunk of result.output ?? []) controller.enqueue(chunk)
-          if (!result.hang) controller.close()
+          if (!runs) controller.close()
+          void exit.then(() => {
+            try {
+              controller.close()
+            } catch {
+              // Already closed.
+            }
+          })
         },
       })
-      if (!result.hang) finish(result.exitCode ?? 0)
+      if (!runs) finish(result.exitCode ?? 0)
+      void result.exit?.then(finish)
       return {
         exit,
         output,

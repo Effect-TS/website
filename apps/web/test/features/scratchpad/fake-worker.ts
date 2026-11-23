@@ -7,15 +7,18 @@ import type { WorkerLike } from "../../../src/features/scratchpad/worker-transpo
 /** A Worker stand-in: records what the page posts and lets the test speak for the worker. */
 export class FakeWorker implements WorkerLike {
   readonly posted: Array<PageToWorker | string> = []
+  /** The transfer list of each posted message, by index. */
+  readonly transfers: Array<ReadonlyArray<Transferable> | undefined> = []
   terminated = false
   private readonly listeners = new Map<
     string,
     Array<(event: { readonly data?: unknown }) => void>
   >()
 
-  postMessage(message: unknown) {
+  postMessage(message: unknown, transfer?: Array<Transferable>) {
     if (this.terminated) throw new Error("posted to a terminated worker")
     this.posted.push(message as PageToWorker | string)
+    this.transfers.push(transfer)
   }
   terminate() {
     this.terminated = true

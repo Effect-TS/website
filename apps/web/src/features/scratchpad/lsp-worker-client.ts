@@ -1,17 +1,12 @@
 /**
  * The browser side of the in-browser language server: the worker script and
- * its assets as Vite URLs. The wasm module and the types pack stay separate
- * hashed files (never inlined into JavaScript); the worker fetches them.
- * They come from `packages/tsrs-lsp-wasm/dist/` through
- * `virtual:tsrs-lsp-assets` (see `tsrs-lsp-assets-plugin.ts`).
+ * the wasm module as a Vite URL. The module stays a separate hashed file
+ * (never inlined into JavaScript); the worker fetches it. It comes from
+ * `packages/tsrs-lsp-wasm/dist/` through `virtual:tsrs-lsp-assets` (see
+ * `tsrs-lsp-assets-plugin.ts`). Types come from the Container (ADR 0004).
  */
 import type * as Layer from "effect/Layer"
-import {
-  typesPackBytes,
-  typesPackUrl,
-  wasmBytes,
-  wasmUrl,
-} from "virtual:tsrs-lsp-assets"
+import { wasmBytes, wasmUrl } from "virtual:tsrs-lsp-assets"
 import type { LspTransport } from "./transport.ts"
 import type { WorkerAssets } from "./worker-protocol.ts"
 import {
@@ -22,7 +17,6 @@ import {
 
 export const LSP_WORKER_ASSETS: WorkerAssets = {
   wasm: { url: wasmUrl, bytes: wasmBytes ?? undefined },
-  typesPacks: [{ url: typesPackUrl, bytes: typesPackBytes ?? undefined }],
 }
 
 export const makeLspWorker = (): Worker =>

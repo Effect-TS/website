@@ -1,8 +1,9 @@
 name: Build tsrs-lsp-wasm
 description: >-
   Builds the Scratchpad's in-browser language server into
-  packages/tsrs-lsp-wasm/dist (the wasm module, its licenses and the effect
-  types pack). The wasm module is cached on the package's build inputs, so
+  packages/tsrs-lsp-wasm/dist (the wasm module and its licenses). The Scratchpad
+  gets types from the Container's installed packages, not a bundled pack. The
+  wasm module is cached on the package's build inputs, so
   only a change to the pins, patches, crate or build script rebuilds it.
   Run after ./.github/actions/setup.
 
@@ -45,7 +46,3 @@ runs:
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: pnpm --filter @website/tsrs-lsp-wasm build:wasm
-
-    - name: Build effect types pack
-      shell: bash
-      run: pnpm --filter @website/tsrs-lsp-wasm build:types-pack

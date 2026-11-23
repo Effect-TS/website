@@ -1,11 +1,16 @@
 /**
  * The worker's bridge against the real wasm language server, in Node: what
- * `lsp.worker.ts` wires up, minus the worker. Needs the built artifacts:
+ * `lsp.worker.ts` wires up, minus the worker. The Workspace's tsconfig.json
+ * is mirrored like any file (no hidden one), and types arrive later with
+ * `ReplaceNodeModules`, as they do from the Container. The pack here is
+ * collected from this repo's `effect`. Needs the built module:
  *   nix develop -c pnpm --filter @website/tsrs-lsp-wasm build
  */
 import {
+  encodeTypesPack,
   MemoryFileSystem,
   startLspHost,
+  WORKSPACE_TSCONFIG,
   type LspHost,
 } from "@website/tsrs-lsp-wasm"
 import * as fs from "node:fs"
@@ -18,6 +23,8 @@ import {
   QUARANTINE_DIAGNOSTIC_CODE,
   type LspWorkerBridge,
 } from "../../../src/features/scratchpad/lsp-worker-bridge.ts"
+import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
+import { collectTypesPack } from "../../../../../packages/tsrs-lsp-wasm/scripts/types-pack.ts"
 import { GREETER_FILES } from "./fixtures.ts"
 
 const require = createRequire(import.meta.url)
@@ -26,8 +33,8 @@ const DIST = path.join(
   "dist",
 )
 const WASM = path.join(DIST, "tsrs-effect-lsp.wasm")
-const PACK = path.join(DIST, "effect-types.pack")
-const hasArtifacts = fs.existsSync(WASM) && fs.existsSync(PACK)
+const hasArtifacts = fs.existsSync(WASM)
+const TSCONFIG = `${JSON.stringify(WORKSPACE_TSCONFIG, null, 2)}\n`
 
 describe.runIf(!hasArtifacts)("worker bridge against the built module", () => {
   test("SKIPPED: @website/tsrs-lsp-wasm has not been built", (ctx) => {
@@ -71,6 +78,7 @@ const waitFor = async <A>(
 
 describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
   const pushes: Array<Push> = []
+  const types: Array<TypesMountResult> = []
   const responses = new Map<number | string, unknown>()
   let host: LspHost
   let bridge: LspWorkerBridge
@@ -125,6 +133,7 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
     const memoryFs = new MemoryFileSystem()
     bridge = makeLspWorkerBridge({
       fs: memoryFs,
+      onTypes: (result) => types.push(result),
       postToPage: (raw) => {
         const message = JSON.parse(raw) as {
           id?: number | string
@@ -139,11 +148,14 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
         }
       },
     })
-    bridge.applyFsOp({ _tag: "Reset", files: GREETER_FILES })
+    bridge.applyFsOp({
+      _tag: "Reset",
+      files: { ...GREETER_FILES, "tsconfig.json": TSCONFIG },
+    })
     host = await startLspHost({
       module: fs.readFileSync(WASM),
       fs: memoryFs,
-      typesPacks: [fs.readFileSync(PACK)],
+      tsconfig: null,
       onMessage: (raw) => bridge.handleServerMessage(raw),
     })
     bridge.connect(host)
@@ -163,8 +175,24 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
     host?.dispose()
   })
 
-  test("pushes the default snippet's floating Effect (377001) without any client pull", async () => {
-    const push = await waitFor(() => latest("src/main.ts", 1), "main.ts push")
+  test("cannot resolve effect before the installed types land; ReplaceNodeModules brings the floating Effect (377001) without any client pull", async () => {
+    const before = await waitFor(() => latest("src/main.ts", 1), "main.ts push")
+    assert.include(codes(before), 2307, JSON.stringify(before))
+
+    const pack = encodeTypesPack(collectTypesPack(["effect"]))
+    bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 1,
+      pack: pack.slice().buffer,
+    })
+    assert.equal(types[0]?._tag, "TypesMounted", JSON.stringify(types[0]))
+
+    const push = await waitFor(() => {
+      const next = latest("src/main.ts", 1)
+      return next !== undefined && !codes(next).includes(2307)
+        ? next
+        : undefined
+    }, "main.ts push after the types")
     assert.deepEqual(codes(push), [377001], JSON.stringify(push))
     assert.match(push.diagnostics[0]!.message, /floatingEffect/)
     assert.equal(push.diagnostics[0]!.severity, 1)
@@ -253,6 +281,28 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
         ? push
         : undefined
     }, "main.ts resolves the restored file")
+  }, 30_000)
+
+  test("tsconfig.json is the Workspace's: removing it drops the Effect plugin, restoring it brings it back", async () => {
+    bridge.applyFsOp({ _tag: "Remove", path: "tsconfig.json" })
+    await waitFor(() => {
+      const push = latest("src/main.ts")
+      return push !== undefined && !codes(push).includes(377001)
+        ? push
+        : undefined
+    }, "main.ts without the plugin's diagnostic")
+
+    bridge.applyFsOp({
+      _tag: "WriteFile",
+      path: "tsconfig.json",
+      content: TSCONFIG,
+    })
+    await waitFor(() => {
+      const push = latest("src/main.ts")
+      return push !== undefined && codes(push).join() === "377001"
+        ? push
+        : undefined
+    }, "main.ts with the plugin again")
   }, 30_000)
 
   test("a document that crashes the server gets the quarantine warning, and an edit brings it back", async () => {

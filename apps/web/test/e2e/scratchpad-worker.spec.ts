@@ -2,9 +2,18 @@ import { expect, test, type Page } from "playwright/test"
 
 // The Scratchpad with the Effect tsrs language server running in a Web Worker
 // on the page: see playwright.scratchpad-worker.config.ts.
+//
+// Types come from the packages the real Container installs (ADR 0004), so
+// tests that need Effect's types wait for the Container to reach `ready`.
+// Booting needs StackBlitz's servers and installing needs the npm registry:
+// when the Container cannot get there, those tests skip rather than fail.
 
 const READY_TIMEOUT = 60_000
 const LSP_TIMEOUT = 20_000
+/** Boot, `pnpm install` and the types copy. */
+const TYPES_TIMEOUT = 120_000
+
+test.describe.configure({ timeout: 240_000 })
 
 const GREETER = `import { Effect } from "effect"
 
@@ -108,12 +117,33 @@ const lintMessages = async (page: Page, text: string) => {
 
 const dismissTooltips = (page: Page) => page.mouse.move(0, 0)
 
+const containerOf = (page: Page) => page.getByTestId("container-status")
+
+/**
+ * Waits until the Container settles. Skips the test when it did not get to
+ * `ready` (no network to boot or install), since Effect's types are missing.
+ */
+const awaitInstalledTypes = async (page: Page) => {
+  const badge = containerOf(page)
+  await expect(badge).toHaveAttribute(
+    "data-container-phase",
+    /^(ready|failed|install-failed|dependencies-unavailable)$/,
+    { timeout: TYPES_TIMEOUT },
+  )
+  const phase = await badge.getAttribute("data-container-phase")
+  test.skip(
+    phase !== "ready",
+    `The Container did not install (offline?): ${phase}: ${await badge.getAttribute("title")}`,
+  )
+}
+
 const openReady = async (page: Page) => {
   await useGreeterWorkspace(page)
   await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
   await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready", {
     timeout: READY_TIMEOUT,
   })
+  await awaitInstalledTypes(page)
   await expect(
     lineWith(page, 'Effect.succeed("unhandled")').locator(".cm-lintRange"),
   ).toBeVisible({ timeout: LSP_TIMEOUT })
@@ -138,7 +168,7 @@ test("loads the in-browser language server on the cross-origin isolated page and
   const assets: Array<Record<string, unknown>> = []
   page.on("response", async (response) => {
     const url = response.url()
-    if (!/tsrs-effect-lsp|effect-types\.pack|lsp\.worker/.test(url)) return
+    if (!/tsrs-effect-lsp|lsp\.worker/.test(url)) return
     const headers = await response.allHeaders()
     const body = await response.body().catch(() => undefined)
     assets.push({
@@ -173,6 +203,8 @@ test("loads the in-browser language server on the cross-origin isolated page and
     timeout: READY_TIMEOUT,
   })
   const readyAt = await page.evaluate(() => performance.now())
+  await awaitInstalledTypes(page)
+  const typesAt = await page.evaluate(() => performance.now())
 
   await expect(
     lineWith(page, 'Effect.succeed("unhandled")').locator(".cm-lintRange"),
@@ -236,6 +268,7 @@ test("loads the in-browser language server on the cross-origin isolated page and
             ? undefined
             : Math.round(firstLintAt - ready.at),
         statusReadySeenAt: Math.round(readyAt),
+        containerReadySeenAt: Math.round(typesAt),
         squiggleSeenAt: Math.round(firstDiagnosticAt),
         worker: ready,
         assets,
@@ -451,25 +484,60 @@ test("a v3 ?code link shows a notice linking to the Playground", async ({
   await expect(notice).toHaveCount(0)
 })
 
-// Smoke check for the real Container. Booting needs StackBlitz's servers, so a
-// failed boot skips rather than fails; it only gates on the badge appearing.
-test("boots the Container on page load next to the language server", async ({
+// Smoke check for the real Container. Booting needs StackBlitz's servers and
+// installing needs the npm registry, so a failed boot or install skips rather
+// than fails. The full real-Container suite is ticket 13.
+test("boots the Container, installs the seed's dependencies and loads their types with no error diagnostics", async ({
   page,
   browserName,
 }) => {
   test.skip(browserName !== "chromium", "WebContainer smoke runs in Chromium")
   await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  const badge = page.getByTestId("container-status")
+  const badge = containerOf(page)
   await expect(badge).toBeVisible({ timeout: READY_TIMEOUT })
-  await expect(badge).toHaveAttribute(
-    "data-container-phase",
-    /^(ready|failed)$/,
-    { timeout: READY_TIMEOUT },
-  )
+  // Diagnostics stay hidden until the installed types land.
+  const phases = new Set<string>()
+  const started = Date.now()
+  while (Date.now() - started < TYPES_TIMEOUT) {
+    const phase = (await badge.getAttribute("data-container-phase")) ?? ""
+    phases.add(phase)
+    if (
+      /^(ready|failed|install-failed|dependencies-unavailable)$/.test(phase)
+    ) {
+      break
+    }
+    if (phase === "booting" || phase === "installing") {
+      await expect(editorOf(page).locator(".cm-lintRange")).toHaveCount(0)
+    }
+    await page.waitForTimeout(250)
+  }
   const phase = await badge.getAttribute("data-container-phase")
   test.skip(
-    phase === "failed",
-    `Container did not boot (offline?): ${await badge.getAttribute("title")}`,
+    phase === "failed" || phase === "install-failed",
+    `Container did not boot or install (offline?): ${await badge.getAttribute("title")}`,
   )
-  expect(phase).toBe("ready")
+  expect(phase, (await badge.getAttribute("title")) ?? "").toBe("ready")
+  expect(phases.has("installing") || phases.has("loading-types")).toBe(true)
+
+  // The lockfile came back from the Container into the Workspace.
+  await expect(page.getByTestId("explorer-file-pnpm-lock.yaml")).toBeVisible()
+
+  // The seed type-checks against the installed packages: hover resolves
+  // Effect's types and there are no error squiggles in either file.
+  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready")
+  await lineWith(page, "NodeRuntime.runMain")
+    .getByText("NodeRuntime", { exact: true })
+    .first()
+    .hover()
+  await expect(page.locator(".cm-tooltip-hover")).toContainText(
+    /platform-node/,
+    { timeout: LSP_TIMEOUT },
+  )
+  await dismissTooltips(page)
+  // Warnings (unstableApiUsage) are expected; errors are not.
+  await page.waitForTimeout(2_000)
+  await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
+  await openFile(page, "src/DevTools.ts")
+  await page.waitForTimeout(1_000)
+  await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
 })

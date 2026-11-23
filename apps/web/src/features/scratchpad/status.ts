@@ -141,6 +141,8 @@ export interface ContainerStatusView {
   readonly label: string
   readonly detail: string
   readonly tone: LspStatusTone
+  /** Work in progress: the badge pulses. */
+  readonly busy: boolean
 }
 
 export const describeContainerPhase = (
@@ -154,13 +156,33 @@ export const describeContainerPhase = (
         detail:
           "Starting the in-browser Node.js container that runs your code.",
         tone: "neutral",
+        busy: true,
+      }
+    case "installing":
+      return {
+        state: "installing",
+        label: "Installing…",
+        detail: "Installing dependencies with pnpm in the container.",
+        tone: "neutral",
+        busy: true,
+      }
+    case "loading-types":
+      return {
+        state: "loading-types",
+        label: "Loading types…",
+        detail:
+          "Copying the installed packages' types into the language server.",
+        tone: "neutral",
+        busy: true,
       }
     case "ready":
       return {
         state: "ready",
         label: "Container ready",
-        detail: "The in-browser Node.js container is running.",
+        detail:
+          "Dependencies are installed and the editor type-checks against them.",
         tone: "success",
+        busy: false,
       }
     case "failed":
       return {
@@ -171,6 +193,23 @@ export const describeContainerPhase = (
             : "Container failed",
         detail: `${phase.error.message} Editing still works.`,
         tone: "error",
+        busy: false,
+      }
+    case "install-failed":
+      return {
+        state: "install-failed",
+        label: "Install failed",
+        detail: `${phase.error.message} Editing still works.`,
+        tone: "error",
+        busy: false,
+      }
+    case "dependencies-unavailable":
+      return {
+        state: "dependencies-unavailable",
+        label: "Dependencies unavailable",
+        detail: `${phase.reason} Code still runs.`,
+        tone: "warning",
+        busy: false,
       }
   }
 }

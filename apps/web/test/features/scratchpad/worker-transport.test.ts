@@ -1,6 +1,7 @@
 import * as Clock from "effect/Clock"
 import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
+import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
 import * as Queue from "effect/Queue"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
@@ -17,7 +18,10 @@ import {
   TransportFatalError,
   type TransportEvent,
 } from "../../../src/features/scratchpad/transport.ts"
-import type { WorkerAssets } from "../../../src/features/scratchpad/worker-protocol.ts"
+import type {
+  PageToWorker,
+  WorkerAssets,
+} from "../../../src/features/scratchpad/worker-protocol.ts"
 import {
   applyFsOpToFiles,
   layerWorker,
@@ -28,7 +32,6 @@ import { makeFakeWorkers, type FakeWorker } from "./fake-worker.ts"
 
 const ASSETS: WorkerAssets = {
   wasm: { url: "/assets/lsp.wasm", bytes: 100 },
-  typesPacks: [{ url: "/assets/effect.pack.gz", bytes: 50 }],
 }
 
 const flush = async (ticks = 20) => {
@@ -183,6 +186,80 @@ describe("layerWorker", () => {
             crashed._tag === "Disconnected" && crashed.error._tag,
             "TransportFatalError",
           )
+        }).pipe(
+          Effect.provide(
+            layerWorker({ makeWorker: fakes.makeWorker, assets: ASSETS }),
+          ),
+        ),
+      ),
+    )
+  })
+
+  test("mountTypes transfers a copy of the pack, resolves with the worker's answer, and replays the pack to every new worker", async () => {
+    const fakes = makeFakeWorkers()
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const lsp = yield* LspTransport
+          const mirror = yield* LspWorkspaceMirror
+          const pack = new Uint8Array([1, 2, 3])
+          const opOf = (message: PageToWorker | string | undefined) =>
+            typeof message === "object" && message._tag === "Fs"
+              ? message.op
+              : undefined
+
+          // Before any worker exists the pack is only kept.
+          const first = yield* mirror.mountTypes(pack).pipe(Effect.forkChild)
+          yield* Effect.yieldNow
+          yield* lsp.reconnect
+          const worker = fakes.workers[0]!
+          assert.deepEqual(
+            worker
+              .controls()
+              .map((m) => (m._tag === "Fs" ? m.op._tag : m._tag)),
+            ["Reset", "ReplaceNodeModules", "Start"],
+          )
+          const replace = opOf(worker.posted[1])
+          assert.equal(replace?._tag, "ReplaceNodeModules")
+          if (replace?._tag !== "ReplaceNodeModules") return
+          assert.equal(replace.id, 1)
+          assert.deepEqual([...new Uint8Array(replace.pack)], [1, 2, 3])
+          assert.deepEqual(worker.transfers[1], [replace.pack])
+          assert.equal(pack.byteLength, 3, "the page keeps its own copy")
+
+          worker.emit({
+            _tag: "TypesMounted",
+            id: 1,
+            files: 1,
+            bytes: 3,
+            packages: [{ name: "effect", version: "4.1.5" }],
+          })
+          const answer = yield* Fiber.join(first)
+          assert.equal(answer._tag, "TypesMounted")
+
+          // A newer pack goes straight to the running worker.
+          const second = yield* mirror
+            .mountTypes(new Uint8Array([9]))
+            .pipe(Effect.forkChild)
+          yield* Effect.yieldNow
+          const newer = opOf(worker.posted.at(-1))
+          assert.equal(newer?._tag === "ReplaceNodeModules" && newer.id, 2)
+          worker.emit({ _tag: "TypesRejected", id: 2, message: "bad magic" })
+          assert.deepEqual(yield* Fiber.join(second), {
+            _tag: "TypesRejected",
+            id: 2,
+            message: "bad magic",
+          })
+
+          // A restarted worker gets the newest pack after the files.
+          worker.emit({ _tag: "Fatal", message: "boom" })
+          yield* lsp.reconnect
+          const replayed = opOf(fakes.workers[1]!.posted[1])
+          assert.equal(replayed?._tag, "ReplaceNodeModules")
+          if (replayed?._tag === "ReplaceNodeModules") {
+            assert.equal(replayed.id, 2)
+            assert.deepEqual([...new Uint8Array(replayed.pack)], [9])
+          }
         }).pipe(
           Effect.provide(
             layerWorker({ makeWorker: fakes.makeWorker, assets: ASSETS }),

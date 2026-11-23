@@ -21,6 +21,13 @@
  *   per keystroke) and written when the document closes. Files that are not
  *   open, creations, deletions and renames go straight to the file system,
  *   which the host turns into `workspace/didChangeWatchedFiles`.
+ *   `tsconfig.json` is a Workspace file like any other: the worker writes no
+ *   hidden one (ADR 0004).
+ * - Installed types. `ReplaceNodeModules` swaps everything below
+ *   `node_modules` for the Container's types pack in one synchronous step, so
+ *   the host reports it in one coalesced watched-files flush, and answers
+ *   with `TypesMounted` or `TypesRejected` through `onTypes`. A pack that
+ *   does not decode leaves the previous types in place.
  * - Quarantine. When the host quarantines a document whose text crashes the
  *   server, its pulls fail. The bridge then pushes one warning diagnostic that
  *   says why the file has no language features until it is edited.
@@ -29,11 +36,12 @@
  */
 import {
   applyContentChanges,
+  decodeTypesPack,
   fileUriToPath,
   pathToFileUri,
   REQUEST_FAILED,
 } from "@website/tsrs-lsp-wasm"
-import type { WorkspaceFsOp } from "./worker-protocol.ts"
+import type { TypesMountResult, WorkspaceFsOp } from "./worker-protocol.ts"
 
 export const BRIDGE_REQUEST_ID_PREFIX = "worker:"
 export const OWN_PULL_DELAY_MS = 20
@@ -45,7 +53,7 @@ export const QUARANTINE_MESSAGE =
 /** The subset of the host's `MemoryFileSystem` the bridge uses. */
 export interface BridgeFileSystem {
   readonly exists: (path: string) => boolean
-  readonly writeFile: (path: string, data: string) => void
+  readonly writeFile: (path: string, data: string | Uint8Array) => void
   readonly remove: (path: string) => boolean
   readonly rename: (from: string, to: string) => void
   readonly listFiles: (directory?: string) => Array<string>
@@ -79,6 +87,8 @@ export interface LspWorkerBridgeOptions {
   readonly timers?: BridgeTimers
   readonly ownPullDelayMs?: number
   readonly crossFilePullDelayMs?: number
+  /** Receives the answer to each `ReplaceNodeModules` op. */
+  readonly onTypes?: (result: TypesMountResult) => void
 }
 
 export interface LspWorkerBridge {
@@ -417,9 +427,9 @@ export const makeLspWorkerBridge = (
     options.postToPage(raw)
   }
 
+  const nodeModulesPath = `${rootPath}/node_modules`
   const isWorkspaceFile = (absPath: string) =>
-    absPath !== `${rootPath}/tsconfig.json` &&
-    !isBelow(absPath, `${rootPath}/node_modules`)
+    !isBelow(absPath, nodeModulesPath)
 
   const isOpenPath = (absPath: string) => open.has(uriOfAbsolute(absPath))
 
@@ -484,6 +494,34 @@ export const makeLspWorkerBridge = (
         for (const [absPath, content] of moved) {
           touched = writeWorkspaceFile(absPath, content) || touched
         }
+        break
+      }
+      case "ReplaceNodeModules": {
+        let pack: ReturnType<typeof decodeTypesPack>
+        try {
+          pack = decodeTypesPack(op.pack)
+        } catch (error) {
+          options.onTypes?.({
+            _tag: "TypesRejected",
+            id: op.id,
+            message: error instanceof Error ? error.message : String(error),
+          })
+          return
+        }
+        fs.remove(nodeModulesPath)
+        let bytes = 0
+        for (const file of pack.files) {
+          fs.writeFile(`${nodeModulesPath}/${file.path}`, file.data)
+          bytes += file.data.byteLength
+        }
+        touched = true
+        options.onTypes?.({
+          _tag: "TypesMounted",
+          id: op.id,
+          files: pack.files.length,
+          bytes,
+          packages: pack.packages,
+        })
         break
       }
     }

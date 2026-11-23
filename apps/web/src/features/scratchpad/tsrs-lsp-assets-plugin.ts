@@ -8,9 +8,10 @@ import type { Plugin } from "vite"
  * Serves the Scratchpad's in-browser language server from
  * `@website/tsrs-lsp-wasm`'s build output:
  *
- * - `virtual:tsrs-lsp-assets` exports the wasm module and the gzipped types
- *   pack as Vite asset URLs (hashed files under `/_astro/` in a build, never
- *   inlined) plus their sizes from the package manifest. Keeping the imports
+ * - `virtual:tsrs-lsp-assets` exports the wasm module as a Vite asset URL (a
+ *   hashed file under `/_astro/` in a build, never inlined) plus its size
+ *   from the package manifest. Types are not bundled: they come from the
+ *   Container's installed packages (ADR 0004). Keeping the imports
  *   here means type checking does not need the artifacts.
  * - The upstream license files are copied next to them, to
  *   `/_astro/tsrs-lsp-wasm/licenses/`, and served from the same path in dev.
@@ -29,13 +30,11 @@ export const TSRS_LSP_BUILD_COMMAND =
   "nix develop -c pnpm --filter @website/tsrs-lsp-wasm build"
 
 const WASM_FILE = "tsrs-effect-lsp.wasm"
-const TYPES_PACK_FILE = "effect-types.pack.gz"
 const MANIFEST_FILE = "manifest.json"
 const LICENSES_DIR = "licenses"
 
 interface ArtifactManifest {
   readonly wasm?: { readonly bytes?: number; readonly mode?: string }
-  readonly typesPack?: { readonly gzipBytes?: number }
 }
 
 export const resolveTsrsLspDistDir = (fromDir: string): string => {
@@ -50,7 +49,7 @@ export const resolveTsrsLspDistDir = (fromDir: string): string => {
 export const missingTsrsLspArtifacts = (
   distDir: string,
 ): ReadonlyArray<string> =>
-  [WASM_FILE, TYPES_PACK_FILE, MANIFEST_FILE, LICENSES_DIR]
+  [WASM_FILE, MANIFEST_FILE, LICENSES_DIR]
     .map((name) => path.join(distDir, name))
     .filter((file) => !fs.existsSync(file))
 
@@ -100,12 +99,9 @@ export const tsrsLspAssetsVitePlugin = (distDir: string): Plugin => {
       if (id !== RESOLVED_MODULE_ID) return undefined
       const manifest = readManifest(distDir)
       const wasmPath = path.join(distDir, WASM_FILE)
-      const packPath = path.join(distDir, TYPES_PACK_FILE)
       return [
         `export { default as wasmUrl } from ${JSON.stringify(`${wasmPath}?url`)}`,
-        `export { default as typesPackUrl } from ${JSON.stringify(`${packPath}?url`)}`,
         `export const wasmBytes = ${JSON.stringify(manifest.wasm?.bytes ?? null)}`,
-        `export const typesPackBytes = ${JSON.stringify(manifest.typesPack?.gzipBytes ?? null)}`,
         `export const licensesUrl = ${JSON.stringify(LICENSES_PUBLIC_PATH)}`,
       ].join("\n")
     },

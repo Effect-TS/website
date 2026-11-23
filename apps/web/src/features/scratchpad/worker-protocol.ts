@@ -28,6 +28,18 @@ export type WorkspaceFsOp =
       readonly from: string
       readonly to: string
     }
+  | {
+      /**
+       * Replaces everything below `/workspace/node_modules` with a TSPK types
+       * pack (`@website/tsrs-lsp-wasm` `TypesPack.ts`, paths
+       * `<name>/<path in package>`). Posted with `pack` in the transfer list.
+       * The worker answers with `TypesMounted` or `TypesRejected` carrying
+       * the same `id`.
+       */
+      readonly _tag: "ReplaceNodeModules"
+      readonly id: number
+      readonly pack: ArrayBuffer
+    }
 
 export interface WorkerAsset {
   readonly url: string
@@ -35,10 +47,12 @@ export interface WorkerAsset {
   readonly bytes?: number | undefined
 }
 
+/**
+ * What the worker downloads. Types are not bundled: they come from the
+ * Container's installed packages through `ReplaceNodeModules` (ADR 0004).
+ */
 export interface WorkerAssets {
   readonly wasm: WorkerAsset
-  /** Types packs; a gzip-compressed pack is inflated in the worker. */
-  readonly typesPacks: ReadonlyArray<WorkerAsset>
 }
 
 export type PageToWorker =
@@ -51,7 +65,7 @@ export type LoadPhase = TransportLoadPhase
 export type WorkerRecovery = TransportRecovery
 
 export interface WorkerReadyTimings {
-  /** From `Start` until the module was compiled and the packs were mounted. */
+  /** From `Start` until the module was compiled. */
   readonly loadMs: number
   /** From `Start` until the host accepted messages. */
   readonly startMs: number
@@ -71,13 +85,43 @@ export type WorkerToPage =
     }
   | { readonly _tag: "Recovered"; readonly recovery: WorkerRecovery }
   | { readonly _tag: "Fatal"; readonly message: string }
+  | ({ readonly _tag: "TypesMounted" } & TypesMountedInfo)
+  | {
+      readonly _tag: "TypesRejected"
+      readonly id: number
+      readonly message: string
+    }
+
+/** What a `ReplaceNodeModules` op mounted. */
+export interface TypesMountedInfo {
+  readonly id: number
+  readonly files: number
+  readonly bytes: number
+  readonly packages: ReadonlyArray<{
+    readonly name: string
+    readonly version: string
+  }>
+}
+
+/** The worker's answer to a `ReplaceNodeModules` op. */
+export type TypesMountResult = Extract<
+  WorkerToPage,
+  { readonly _tag: "TypesMounted" | "TypesRejected" }
+>
 
 const isTagged = (value: unknown): value is { readonly _tag: string } =>
   typeof value === "object" &&
   value !== null &&
   typeof (value as { _tag?: unknown })._tag === "string"
 
-const WORKER_TO_PAGE_TAGS = new Set(["Progress", "Ready", "Recovered", "Fatal"])
+const WORKER_TO_PAGE_TAGS = new Set([
+  "Progress",
+  "Ready",
+  "Recovered",
+  "Fatal",
+  "TypesMounted",
+  "TypesRejected",
+])
 const PAGE_TO_WORKER_TAGS = new Set(["Start", "Fs", "Dispose"])
 
 export const isWorkerToPage = (value: unknown): value is WorkerToPage =>
