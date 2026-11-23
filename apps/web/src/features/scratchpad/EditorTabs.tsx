@@ -4,10 +4,7 @@ import { FileCode2, X } from "lucide-react"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
 import { ShareButton } from "./ShareButton.tsx"
-import {
-  ContainerStatusIndicator,
-  StatusIndicator,
-} from "./StatusIndicator.tsx"
+import { ReadinessIndicator } from "./ReadinessIndicator.tsx"
 
 const basenameOf = (path: string): string => {
   const idx = path.lastIndexOf("/")
@@ -114,8 +111,7 @@ export function EditorTabs() {
 
       <div className="flex shrink-0 items-center gap-2 py-1.5">
         <ShareButton />
-        <ContainerStatusIndicator />
-        <StatusIndicator />
+        <ReadinessIndicator />
       </div>
     </div>
   )

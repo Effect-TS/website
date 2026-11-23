@@ -165,8 +165,8 @@ export const runHeader = (run: {
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
 
 // CSI sequences (colors, cursor moves) and OSC sequences (titles, links).
-// oxlint-disable-next-line no-control-regex
 const ANSI_PATTERN =
+  // oxlint-disable-next-line no-control-regex
   /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
 
 /** Removes ANSI escape sequences, so text can be re-styled as a whole. */

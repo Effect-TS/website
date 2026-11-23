@@ -483,10 +483,21 @@ test("without cross-origin isolation, shows the unsupported strip with help and 
   await replaceDocument(page, "export const stillEditing = 1\n")
   await expect(lineWith(page, "stillEditing")).toBeVisible()
 
-  // Hide it, and the badge brings it back.
+  // The readiness indicator warns, and its popover explains and links help.
+  const indicator = page.getByTestId("readiness-indicator")
+  await expect(indicator).toHaveAttribute("data-readiness", "warning")
+  await indicator.hover()
+  const popover = page.getByTestId("readiness-popover")
+  await expect(popover).toContainText("Running code isn't available here")
+  await expect(
+    popover.getByRole("link", { name: "Supported browsers" }),
+  ).toHaveAttribute("href", "https://webcontainers.io/guides/browser-support")
+
+  // Hide the strip, and clicking the indicator brings it back.
+  await page.mouse.move(0, 0)
   await strip.getByRole("button", { name: "Hide" }).click()
   await expect(strip).toHaveCount(0)
-  await containerOf(page).click()
+  await indicator.click()
   await expect(strip).toBeVisible()
 })
 

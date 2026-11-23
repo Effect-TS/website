@@ -69,7 +69,7 @@ export {
   type LspStatusTone,
   type LspStatusView,
 } from "./status.ts"
-export { StatusIndicator } from "./StatusIndicator.tsx"
+export { ReadinessIndicator } from "./ReadinessIndicator.tsx"
 export {
   layerInMemoryFake,
   LspTransport,

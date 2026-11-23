@@ -4,10 +4,12 @@ import {
   ContainerUnsupported,
   InstallFailed,
 } from "../../../src/features/scratchpad/container.ts"
+import type { LspStatus } from "../../../src/features/scratchpad/session.ts"
 import {
   describeContainerPhase,
   describeContainerStatus,
   describeLspStatus,
+  describeReadiness,
 } from "../../../src/features/scratchpad/status.ts"
 
 describe("describeLspStatus", () => {
@@ -192,5 +194,144 @@ describe("describeContainerStatus", () => {
     const installing = describeContainerStatus({ _tag: "installing" }, true)
     assert.isFalse(installing.running)
     assert.equal(installing.label, "Installing…")
+  })
+})
+
+describe("describeReadiness", () => {
+  const ready: LspStatus = { _tag: "ready" }
+  const states = (view: ReturnType<typeof describeReadiness>) =>
+    view.steps.map((step) => `${step.label}:${step.state}`)
+
+  test("busy while anything starts, with a checklist of the steps", () => {
+    const view = describeReadiness(ready, { _tag: "installing" }, false)
+    assert.equal(view.icon, "busy")
+    assert.equal(view.title, "Getting ready")
+    assert.deepEqual(states(view), [
+      "Language server:done",
+      "Container booted:done",
+      "Installing dependencies:busy",
+      "Loading types:pending",
+    ])
+    assert.deepEqual(view.actions, [])
+  })
+
+  test("ready, running, and editor-only without a Container", () => {
+    assert.equal(
+      describeReadiness(ready, { _tag: "ready" }, false).icon,
+      "ready",
+    )
+    const running = describeReadiness(ready, { _tag: "ready" }, true)
+    assert.equal(running.icon, "running")
+    assert.equal(running.title, "Running src/main.ts")
+    assert.deepEqual(states(describeReadiness(ready, undefined, false)), [
+      "Language server:done",
+    ])
+  })
+
+  test("a failed install is an error with Retry install and the step's reason", () => {
+    const view = describeReadiness(
+      ready,
+      {
+        _tag: "install-failed",
+        error: new InstallFailed({
+          exitCode: 1,
+          outputTail: "ERR_PNPM",
+          message: "pnpm install failed",
+        }),
+      },
+      false,
+    )
+    assert.equal(view.icon, "error")
+    assert.equal(view.title, "Can't run code")
+    assert.deepEqual(states(view), [
+      "Language server:done",
+      "Container booted:done",
+      "Installing dependencies:error",
+      "Loading types:skipped",
+    ])
+    assert.equal(view.steps[2]?.detail, "pnpm install exited with code 1")
+    assert.deepEqual(
+      view.actions.map((action) => action._tag),
+      ["RetryContainer", "ShowFailure"],
+    )
+  })
+
+  test("a failed boot is an error; an unsupported browser only warns", () => {
+    const failed = describeReadiness(
+      ready,
+      { _tag: "failed", error: new ContainerBootFailed({ message: "boom" }) },
+      false,
+    )
+    assert.equal(failed.icon, "error")
+    assert.equal(failed.message, "Editing, sharing and autosave still work.")
+    assert.deepEqual(states(failed).slice(1), [
+      "Container booted:error",
+      "Installing dependencies:skipped",
+      "Loading types:skipped",
+    ])
+
+    const unsupported = describeReadiness(
+      ready,
+      {
+        _tag: "failed",
+        error: new ContainerUnsupported({ message: "No isolation." }),
+      },
+      false,
+    )
+    assert.equal(unsupported.icon, "warning")
+    assert.deepEqual(states(unsupported), [
+      "Language server:done",
+      "Container:warning",
+    ])
+    assert.notInclude(
+      unsupported.actions.map((action) => action._tag),
+      "RetryContainer",
+    )
+  })
+
+  test("missing types and a recovered language server warn", () => {
+    const noTypes = describeReadiness(
+      ready,
+      { _tag: "dependencies-unavailable", reason: "Timed out." },
+      false,
+    )
+    assert.equal(noTypes.icon, "warning")
+    assert.equal(noTypes.title, "Ready, without package types")
+    assert.equal(noTypes.steps[3]?.detail, "Timed out.")
+
+    const recovered = describeReadiness(
+      {
+        _tag: "recovered",
+        recovery: {
+          reason: "RuntimeError: unreachable",
+          method: "textDocument/diagnostic",
+          uri: "file:///workspace/src/main.ts",
+          ms: 400,
+          quarantined: ["file:///workspace/src/main.ts"],
+        },
+      },
+      { _tag: "ready" },
+      false,
+    )
+    assert.equal(recovered.icon, "warning")
+    assert.match(recovered.steps[0]!.detail!, /main\.ts crashed it/)
+  })
+
+  test("a stopped language server is an error with a restart action", () => {
+    const view = describeReadiness(
+      {
+        _tag: "error",
+        code: "crashed",
+        message: "The language server stopped.",
+        retryable: true,
+      },
+      { _tag: "ready" },
+      false,
+    )
+    assert.equal(view.icon, "error")
+    assert.equal(view.title, "Type checking stopped")
+    assert.deepEqual(view.actions, [
+      { _tag: "RestartLsp", label: "Restart language server" },
+    ])
   })
 })
