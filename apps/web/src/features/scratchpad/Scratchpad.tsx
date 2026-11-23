@@ -21,6 +21,7 @@ import { layerWebContainer } from "./container-webcontainer.ts"
 import { FileExplorer } from "./FileExplorer.tsx"
 import type { LoadNotice } from "./load.ts"
 import { LoadNoticeBar } from "./LoadNoticeBar.tsx"
+import { OutputPanel } from "./OutputPanel.tsx"
 import { layerBrowserWorker } from "./lsp-worker-client.ts"
 import { SCRATCHPAD_SEED } from "./seed.ts"
 import { makeScratchpadShareAtoms } from "./share-atoms.ts"
@@ -157,6 +158,11 @@ export function Scratchpad({
       elementAtom: editorSession.elementAtom,
       statusAtom: editorSession.statusAtom,
       containerPhaseAtom: editorSession.containerPhaseAtom,
+      runStateAtom: editorSession.runStateAtom,
+      runOutputAtom: editorSession.runOutputAtom,
+      stopRunAtom: editorSession.stopRunAtom,
+      restartRunAtom: editorSession.restartRunAtom,
+      revealPositionAtom: editorSession.revealPositionAtom,
       editorAtom: editorSession.editorAtom,
       treeAtom: editorSession.treeAtom,
       openTabsAtom: editorSession.openTabsAtom,
@@ -190,6 +196,7 @@ export function Scratchpad({
             <EditorTabs />
             <WorkspaceErrorBanner />
             <CodeMirrorHost />
+            <OutputPanel />
           </div>
         </section>
       </ScratchpadSessionContext.Provider>

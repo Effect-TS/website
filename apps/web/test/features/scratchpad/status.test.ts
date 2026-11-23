@@ -6,6 +6,7 @@ import {
 } from "../../../src/features/scratchpad/container.ts"
 import {
   describeContainerPhase,
+  describeContainerStatus,
   describeLspStatus,
 } from "../../../src/features/scratchpad/status.ts"
 
@@ -164,5 +165,32 @@ describe("describeContainerPhase", () => {
     assert.equal(unavailable.label, "Dependencies unavailable")
     assert.equal(unavailable.tone, "warning")
     assert.include(unavailable.detail, "did not reach the editor")
+  })
+})
+
+describe("describeContainerStatus", () => {
+  test("shows a live Run as running, over the ready phases only", () => {
+    const running = describeContainerStatus({ _tag: "ready" }, true)
+    assert.equal(running.state, "ready", "the phase stays readable")
+    assert.isTrue(running.running)
+    assert.equal(running.label, "Running")
+    assert.equal(running.tone, "info")
+    assert.isTrue(running.busy)
+
+    const idle = describeContainerStatus({ _tag: "ready" }, false)
+    assert.isFalse(idle.running)
+    assert.equal(idle.label, "Container ready")
+
+    const unavailable = describeContainerStatus(
+      { _tag: "dependencies-unavailable", reason: "No types." },
+      true,
+    )
+    assert.equal(unavailable.label, "Running")
+    assert.equal(unavailable.tone, "warning", "still flags missing types")
+    assert.include(unavailable.detail, "No types.")
+
+    const installing = describeContainerStatus({ _tag: "installing" }, true)
+    assert.isFalse(installing.running)
+    assert.equal(installing.label, "Installing…")
   })
 })

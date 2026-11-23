@@ -2,13 +2,14 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useScratchpadSession } from "./context.tsx"
 import * as Option from "effect/Option"
 import {
-  describeContainerPhase,
+  describeContainerStatus,
   describeLspStatus,
   type LspStatusTone,
 } from "./status.ts"
 
 const DOT_STYLES: Record<LspStatusTone, string> = {
   neutral: "bg-zinc-400 dark:bg-zinc-500",
+  info: "bg-sky-500",
   success: "bg-emerald-500",
   warning: "bg-amber-500",
   error: "bg-rose-500",
@@ -17,6 +18,7 @@ const DOT_STYLES: Record<LspStatusTone, string> = {
 const BADGE_STYLES: Record<LspStatusTone, string> = {
   neutral:
     "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300",
+  info: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300",
   success:
     "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   warning:
@@ -78,17 +80,22 @@ export function StatusIndicator() {
 
 /** The Container's phase, next to the language server's. Hidden without a Container. */
 export function ContainerStatusIndicator() {
-  const { containerPhaseAtom } = useScratchpadSession()
+  const { containerPhaseAtom, runStateAtom } = useScratchpadSession()
   const phase = useAtomValue(containerPhaseAtom)
+  const runs = useAtomValue(runStateAtom)
   if (Option.isNone(phase)) return null
 
-  const view = describeContainerPhase(phase.value)
+  const view = describeContainerStatus(
+    phase.value,
+    runs.run?.status._tag === "running",
+  )
   return (
     <span
       role="status"
       aria-live="polite"
       data-testid="container-status"
       data-container-phase={view.state}
+      data-run-state={view.running ? "running" : "idle"}
       title={view.detail}
       className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-xs leading-none transition-colors ${BADGE_STYLES[view.tone]}`}
     >

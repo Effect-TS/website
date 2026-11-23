@@ -12,6 +12,8 @@ const READY_TIMEOUT = 60_000
 const LSP_TIMEOUT = 20_000
 /** Boot, `pnpm install` and the types copy. */
 const TYPES_TIMEOUT = 120_000
+/** A Run's start to its first output in the Container (about 5 s). */
+const RUN_TIMEOUT = 60_000
 
 test.describe.configure({ timeout: 240_000 })
 
@@ -540,4 +542,42 @@ test("boots the Container, installs the seed's dependencies and loads their type
   await openFile(page, "src/DevTools.ts")
   await page.waitForTimeout(1_000)
   await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
+
+  // Runs: the seed runs once its types are in, and its output streams in.
+  const output = page.getByTestId("run-output")
+  await expect(output).toContainText("Run #1", { timeout: RUN_TIMEOUT })
+  await expect(output).toContainText("initial")
+  await expect(output).toContainText("Welcome to the Effect v4 Playground!", {
+    timeout: RUN_TIMEOUT,
+  })
+
+  // A type error skips the next Run and says why, with the error clickable.
+  await openFile(page, "src/main.ts")
+  await editorOf(page).locator(".cm-content").click()
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.insertText('\nconst broken: number = "nope"\n')
+  const notice = page.getByTestId("run-skip-notice")
+  await expect(notice).toBeVisible({ timeout: RUN_TIMEOUT })
+  await expect(notice).toContainText("Run skipped")
+  await expect(notice).toContainText("previous Run (#1)")
+  const error = notice.getByTestId("run-skip-error").first()
+  await expect(error).toHaveText(/^src\/main\.ts:\d+:\d+$/)
+  await openFile(page, "src/DevTools.ts")
+  await error.click()
+  await expect(page.getByTestId("editor-tab-src/main.ts")).toHaveAttribute(
+    "aria-selected",
+    "true",
+  )
+
+  // Fixing it runs again.
+  await editorOf(page).locator(".cm-content").click()
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.press("ArrowUp")
+  await page.keyboard.press("Shift+End")
+  await page.keyboard.press("Backspace")
+  await expect(notice).toBeHidden({ timeout: RUN_TIMEOUT })
+  await expect(output).toContainText("Run #2", { timeout: RUN_TIMEOUT })
+  await expect(output).toContainText("Welcome to the Effect v4 Playground!", {
+    timeout: RUN_TIMEOUT,
+  })
 })

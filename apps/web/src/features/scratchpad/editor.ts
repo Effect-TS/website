@@ -31,6 +31,16 @@ import {
   layerDependencies,
 } from "./dependencies.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
+import {
+  emptyRunOutput,
+  initialRunsState,
+  layerRuns,
+  type RunBlockingError,
+  type RunOutput,
+  Runs,
+  runBlockingErrorsOf,
+  type RunsState,
+} from "./runs.ts"
 import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
 import {
@@ -94,6 +104,13 @@ export interface CreateFileInput {
   readonly content?: string | undefined
 }
 
+/** A position to show in the editor. `line` and `column` are 1-based. */
+export interface RevealPositionInput {
+  readonly path: string
+  readonly line: number
+  readonly column: number
+}
+
 export interface RenamePathInput {
   readonly oldPath: string
   readonly newPath: string
@@ -115,6 +132,14 @@ export interface ScratchpadEditorSession {
    * Container). Once true it stays true.
    */
   readonly diagnosticsVisibleAtom: Atom.Atom<boolean>
+  /** Runs: whether they can happen, the latest Run, and the latest skip. */
+  readonly runStateAtom: Atom.Atom<RunsState>
+  /** The latest Run's terminal output. */
+  readonly runOutputAtom: Atom.Atom<RunOutput>
+  readonly stopRunAtom: Atom.AtomResultFn<void, void>
+  readonly restartRunAtom: Atom.AtomResultFn<void, void>
+  /** Opens a file and puts the cursor at a position (clickable errors). */
+  readonly revealPositionAtom: Atom.AtomResultFn<RevealPositionInput, void>
   readonly editorAtom: Atom.Atom<
     AsyncResult.AsyncResult<ScratchpadEditorInstance>
   >
@@ -230,6 +255,12 @@ const resolveInitialFiles = (
   }
 }
 
+/** How long no diagnostics may arrive before a Run trusts them. */
+export const RUN_GATE_QUIET_MS = 400
+/** The longest a Run waits for fresh diagnostics. */
+export const RUN_GATE_TIMEOUT_MS = 5_000
+const RUN_GATE_POLL_MS = 50
+
 export const makeScratchpadEditorSession = (
   config: ScratchpadEditorSessionConfig,
 ): ScratchpadEditorSession => {
@@ -258,6 +289,10 @@ export const makeScratchpadEditorSession = (
 
   const editorStates = new Map<string, EditorState>()
   const lastDiagnosticsByUri = new Map<string, string>()
+  // The document version each push was for, and when the last push came
+  // (Date.now), for the Run gate.
+  const pushedVersionByUri = new Map<string, number>()
+  let lastPushAt = 0
   // With a Container, diagnostics wait for the installed types (ADR 0004).
   let diagnosticsHidden = config.containerLayer !== undefined
 
@@ -288,6 +323,10 @@ export const makeScratchpadEditorSession = (
       typeof params.uri !== "string"
     ) {
       return
+    }
+    lastPushAt = Date.now()
+    if ("version" in params && typeof params.version === "number") {
+      pushedVersionByUri.set(params.uri, params.version)
     }
     lastDiagnosticsByUri.set(
       params.uri,
@@ -372,7 +411,57 @@ export const makeScratchpadEditorSession = (
     },
   })
 
-  // The Container and its Dependencies are optional and looked up with
+  /**
+   * The Run gate: the tsrs errors anywhere in the Workspace, as of now. The
+   * client sends pending edits first. The worker pulls every document after
+   * each change and pushes the result with the document's version, so the
+   * gate waits until every TypeScript document has a push for its current
+   * version and no push came for `RUN_GATE_QUIET_MS` (cross-file pulls follow
+   * an edit after 200 ms), at most `RUN_GATE_TIMEOUT_MS`. It never pulls by
+   * itself: a document that crashes the language server must only be pulled
+   * by the worker, which quarantines it.
+   */
+  const collectRunBlockers: Effect.Effect<ReadonlyArray<RunBlockingError>> =
+    Effect.gen(function* () {
+      const client = activeClient
+      const lspWorkspace = activeLspWorkspace
+      if (client !== undefined && lspWorkspace !== undefined) {
+        if (client.connected) client.sync()
+        // Real time, like the worker it waits on.
+        const startedAt = Date.now()
+        while (true) {
+          const now = Date.now()
+          if (now - startedAt >= RUN_GATE_TIMEOUT_MS) break
+          const fresh = lspWorkspace.files.every(
+            (file) => (pushedVersionByUri.get(file.uri) ?? 0) >= file.version,
+          )
+          const quiet =
+            now - Math.max(startedAt, lastPushAt) >= RUN_GATE_QUIET_MS
+          if (fresh && quiet) break
+          yield* Effect.promise(
+            () =>
+              new Promise<void>((resolve) =>
+                setTimeout(resolve, RUN_GATE_POLL_MS),
+              ),
+          )
+        }
+      }
+      const open =
+        lspWorkspace === undefined
+          ? undefined
+          : new Set(lspWorkspace.files.map((file) => file.uri))
+      const byUri = new Map<string, ReadonlyArray<unknown>>()
+      for (const [uri, raw] of lastDiagnosticsByUri) {
+        if (open !== undefined && !open.has(uri)) continue
+        const message = JSON.parse(raw) as {
+          readonly params: { readonly diagnostics?: ReadonlyArray<unknown> }
+        }
+        byUri.set(uri, message.params.diagnostics ?? [])
+      }
+      return runBlockingErrorsOf(byUri, rootUri)
+    })
+
+  // The Container, its Dependencies and Runs are optional and looked up with
   // `serviceOption`, so they are kept out of the runtime's type.
   const baseLayer = Layer.mergeAll(
     config.transportLayer,
@@ -382,7 +471,10 @@ export const makeScratchpadEditorSession = (
   const runtimeLayer =
     config.containerLayer === undefined
       ? baseLayer
-      : (layerDependencies({ typesTimeout: config.typesTimeout }).pipe(
+      : (layerRuns({ blockingErrors: collectRunBlockers }).pipe(
+          Layer.provideMerge(
+            layerDependencies({ typesTimeout: config.typesTimeout }),
+          ),
           Layer.provideMerge(baseLayer),
         ) as unknown as typeof baseLayer)
   const runtime = Atom.runtime(runtimeLayer).pipe(
@@ -396,6 +488,12 @@ export const makeScratchpadEditorSession = (
     Atom.keepAlive,
   )
   const diagnosticsVisibleAtom = Atom.make(!diagnosticsHidden).pipe(
+    Atom.keepAlive,
+  )
+  const runStateAtom = Atom.make<RunsState>(initialRunsState).pipe(
+    Atom.keepAlive,
+  )
+  const runOutputAtom = Atom.make<RunOutput>(emptyRunOutput).pipe(
     Atom.keepAlive,
   )
 
@@ -467,9 +565,49 @@ export const makeScratchpadEditorSession = (
         ),
         Effect.forkScoped,
       )
+      const runs = yield* Effect.serviceOption(Runs)
+      if (Option.isSome(runs)) {
+        yield* runs.value.stateChanges.pipe(
+          Stream.runForEach((state) =>
+            Effect.sync(() => {
+              registry.set(runStateAtom, state)
+            }),
+          ),
+          Effect.forkScoped,
+        )
+        yield* runs.value.outputChanges.pipe(
+          Stream.runForEach((output) =>
+            Effect.sync(() => {
+              registry.set(runOutputAtom, output)
+            }),
+          ),
+          Effect.forkScoped,
+        )
+      }
+      // Runs hear about a change after Dependencies, so a `package.json`
+      // change starts its install before the Run waits on it.
       yield* mirrorWorkspace(ws, container.value, {
-        onChange: deps.value.onMirrorChange,
+        onChange: (change) =>
+          Option.isSome(runs)
+            ? deps.value
+                .onMirrorChange(change)
+                .pipe(Effect.andThen(runs.value.onMirrorChange(change)))
+            : deps.value.onMirrorChange(change),
       })
+    }),
+  )
+
+  const stopRunAtom = runtime.fn<void>()(
+    Effect.fnUntraced(function* () {
+      const runs = yield* Effect.serviceOption(Runs)
+      if (Option.isSome(runs)) yield* runs.value.stop
+    }),
+  )
+
+  const restartRunAtom = runtime.fn<void>()(
+    Effect.fnUntraced(function* () {
+      const runs = yield* Effect.serviceOption(Runs)
+      if (Option.isSome(runs)) yield* runs.value.restart
     }),
   )
 
@@ -964,6 +1102,21 @@ export const makeScratchpadEditorSession = (
     }),
   )
 
+  const revealPositionAtom = runtime.fn<RevealPositionInput>()(
+    Effect.fnUntraced(function* ({ path, line, column }) {
+      const view = yield* mountFileInView(path)
+      if (view === null) return
+      const doc = view.state.doc
+      const target = doc.line(Math.min(Math.max(line, 1), doc.lines))
+      const pos = Math.min(target.from + Math.max(column - 1, 0), target.to)
+      view.dispatch({
+        selection: { anchor: pos },
+        effects: EditorView.scrollIntoView(pos, { y: "center" }),
+      })
+      view.focus()
+    }),
+  )
+
   const clearErrorAtom = runtime.fn<void>()(
     Effect.fnUntraced(function* () {
       const registry = yield* AtomRegistry.AtomRegistry
@@ -978,6 +1131,11 @@ export const makeScratchpadEditorSession = (
     containerPhaseAtom,
     installLogAtom,
     diagnosticsVisibleAtom,
+    runStateAtom,
+    runOutputAtom,
+    stopRunAtom,
+    restartRunAtom,
+    revealPositionAtom,
     editorAtom,
     treeAtom,
     openTabsAtom,
