@@ -16,6 +16,9 @@ import type { Plugin } from "vite"
  *   `/_astro/tsrs-lsp-wasm/licenses/`, and served from the same path in dev.
  * - A build stops with the command to run when the artifacts are missing.
  *   `astro dev` only warns, since only `/scratchpad` needs them.
+ * - In dev, the worker script gets COEP `require-corp`: `/scratchpad` is
+ *   cross-origin isolated for its Container, and a COEP page's dedicated
+ *   worker must send COEP too. A build sets it in `public/_headers`.
  */
 
 export const TSRS_LSP_ASSETS_MODULE_ID = "virtual:tsrs-lsp-assets"
@@ -107,6 +110,12 @@ export const tsrsLspAssetsVitePlugin = (distDir: string): Plugin => {
       ].join("\n")
     },
     configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split("?")[0]?.endsWith("/lsp.worker.ts")) {
+          res.setHeader("Cross-Origin-Embedder-Policy", "require-corp")
+        }
+        next()
+      })
       server.middlewares.use(LICENSES_PUBLIC_PATH, (req, res, next) => {
         const name = path.basename(decodeURIComponent(req.url ?? ""))
         const file = path.join(distDir, LICENSES_DIR, name)

@@ -1,5 +1,12 @@
 import { assert, describe, test } from "vite-plus/test"
-import { describeLspStatus } from "../../../src/features/scratchpad/status.ts"
+import {
+  ContainerBootFailed,
+  ContainerUnsupported,
+} from "../../../src/features/scratchpad/container.ts"
+import {
+  describeContainerPhase,
+  describeLspStatus,
+} from "../../../src/features/scratchpad/status.ts"
 
 describe("describeLspStatus", () => {
   test("renders connecting, ready, and reconnecting as non-interactive states", () => {
@@ -106,5 +113,24 @@ describe("describeLspStatus", () => {
     assert.equal(crashed.interactive, true)
     assert.equal(crashed.actionLabel, "Restart language server")
     assert.include(crashed.detail, "404")
+  })
+})
+
+describe("describeContainerPhase", () => {
+  test("labels booting, ready and the two failures", () => {
+    assert.equal(describeContainerPhase({ _tag: "booting" }).tone, "neutral")
+    assert.equal(describeContainerPhase({ _tag: "ready" }).tone, "success")
+    const unsupported = describeContainerPhase({
+      _tag: "failed",
+      error: new ContainerUnsupported({ message: "No isolation." }),
+    })
+    assert.equal(unsupported.tone, "error")
+    assert.equal(unsupported.label, "Can't run here")
+    assert.include(unsupported.detail, "Editing still works")
+    const failed = describeContainerPhase({
+      _tag: "failed",
+      error: new ContainerBootFailed({ message: "boom" }),
+    })
+    assert.equal(failed.label, "Container failed")
   })
 })

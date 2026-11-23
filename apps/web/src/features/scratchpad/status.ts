@@ -1,3 +1,4 @@
+import type { ContainerPhase } from "./container.ts"
 import type { LspErrorCode, LspStatus } from "./session.ts"
 
 export type LspStatusTone = "neutral" | "success" | "warning" | "error"
@@ -132,5 +133,44 @@ export const describeLspStatus = (status: LspStatus): LspStatusView => {
           : {}),
       }
     }
+  }
+}
+
+export interface ContainerStatusView {
+  readonly state: ContainerPhase["_tag"]
+  readonly label: string
+  readonly detail: string
+  readonly tone: LspStatusTone
+}
+
+export const describeContainerPhase = (
+  phase: ContainerPhase,
+): ContainerStatusView => {
+  switch (phase._tag) {
+    case "booting":
+      return {
+        state: "booting",
+        label: "Booting…",
+        detail:
+          "Starting the in-browser Node.js container that runs your code.",
+        tone: "neutral",
+      }
+    case "ready":
+      return {
+        state: "ready",
+        label: "Container ready",
+        detail: "The in-browser Node.js container is running.",
+        tone: "success",
+      }
+    case "failed":
+      return {
+        state: "failed",
+        label:
+          phase.error._tag === "ContainerUnsupported"
+            ? "Can't run here"
+            : "Container failed",
+        detail: `${phase.error.message} Editing still works.`,
+        tone: "error",
+      }
   }
 }

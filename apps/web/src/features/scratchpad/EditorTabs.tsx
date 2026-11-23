@@ -3,7 +3,10 @@ import * as Option from "effect/Option"
 import { FileCode2, X } from "lucide-react"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
-import { StatusIndicator } from "./StatusIndicator.tsx"
+import {
+  ContainerStatusIndicator,
+  StatusIndicator,
+} from "./StatusIndicator.tsx"
 
 const basenameOf = (path: string): string => {
   const idx = path.lastIndexOf("/")
@@ -108,7 +111,8 @@ export function EditorTabs() {
         })}
       </div>
 
-      <div className="shrink-0 py-1.5">
+      <div className="flex shrink-0 items-center gap-1.5 py-1.5">
+        <ContainerStatusIndicator />
         <StatusIndicator />
       </div>
     </div>

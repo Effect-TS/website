@@ -21,6 +21,7 @@ import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
 import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
+import { Container, type ContainerPhase, mirrorWorkspace } from "./container.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
 import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
@@ -61,6 +62,11 @@ export interface ScratchpadEditorSessionConfig extends Omit<
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
   readonly entryPath?: string | undefined
   readonly workspaceLayer?: Layer.Layer<Workspace, WorkspaceError> | undefined
+  /**
+   * The Container the Workspace is mirrored into. It boots when the editor
+   * mounts and never blocks editing. Without one, nothing runs.
+   */
+  readonly containerLayer?: Layer.Layer<Container> | undefined
   readonly createEditorView?: EditorViewFactory | undefined
 }
 
@@ -84,6 +90,8 @@ export interface ScratchpadEditorSession {
   readonly runtime: Atom.AtomRuntime<LspTransport | Workspace>
   readonly elementAtom: Atom.Writable<Option.Option<HTMLElement>>
   readonly statusAtom: Atom.Writable<LspStatus>
+  /** The Container's phase, or `None` when the session has no Container. */
+  readonly containerPhaseAtom: Atom.Atom<Option.Option<ContainerPhase>>
   readonly editorAtom: Atom.Atom<
     AsyncResult.AsyncResult<ScratchpadEditorInstance>
   >
@@ -333,9 +341,44 @@ export const makeScratchpadEditorSession = (
     },
   })
 
+  // The Container is optional and looked up with `serviceOption`, so it is
+  // kept out of the runtime's type.
+  const containerLayer = (config.containerLayer ??
+    Layer.empty) as Layer.Layer<never>
   const runtime = Atom.runtime(
-    Layer.merge(config.transportLayer, wsLayer.pipe(Layer.orDie)),
+    Layer.mergeAll(
+      config.transportLayer,
+      wsLayer.pipe(Layer.orDie),
+      containerLayer,
+    ),
   ).pipe(Atom.setIdleTTL(config.idleTTL ?? "2 seconds"))
+
+  const containerPhaseAtom = Atom.make<Option.Option<ContainerPhase>>(
+    Option.none(),
+  ).pipe(Atom.keepAlive)
+
+  /**
+   * Mirrors the Workspace into the Container and tracks its phase while
+   * mounted. Mounted by `editorAtom`, so the Container boots on page load,
+   * alongside the language server rather than after it.
+   */
+  const containerAtom = runtime.atom(
+    Effect.fnUntraced(function* () {
+      const container = yield* Effect.serviceOption(Container)
+      if (Option.isNone(container)) return
+      const registry = yield* AtomRegistry.AtomRegistry
+      const ws = yield* Workspace
+      yield* container.value.phaseChanges.pipe(
+        Stream.runForEach((phase) =>
+          Effect.sync(() => {
+            registry.set(containerPhaseAtom, Option.some(phase))
+          }),
+        ),
+        Effect.forkScoped,
+      )
+      yield* mirrorWorkspace(ws, container.value)
+    }),
+  )
 
   const elementAtom = Atom.make(Option.none<HTMLElement>())
 
@@ -483,6 +526,7 @@ export const makeScratchpadEditorSession = (
 
   const editorAtom = runtime.atom(
     Effect.fnUntraced(function* (get) {
+      get.mount(containerAtom)
       const registry = yield* AtomRegistry.AtomRegistry
       const ws = yield* Workspace
       const el = yield* get.some(elementAtom)
@@ -791,6 +835,7 @@ export const makeScratchpadEditorSession = (
     runtime,
     elementAtom,
     statusAtom: session.statusAtom,
+    containerPhaseAtom,
     editorAtom,
     treeAtom,
     openTabsAtom,

@@ -3,6 +3,14 @@ import Navigation from "@/components/navigation/Navigation.astro"
 import { ScratchpadPage } from "@/features/scratchpad/index"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+
+// The Container (WebContainer) needs cross-origin isolation. Set per request,
+// like /play, so `astro dev` sends them too (`_headers` only applies to
+// deployed static files). `credentialless` is not used: Safari lacks it.
+export const prerender = false
+
+Astro.response.headers.set("Cross-Origin-Embedder-Policy", "require-corp")
+Astro.response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
 ---
 
 <BaseLayout
