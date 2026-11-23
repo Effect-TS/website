@@ -5,6 +5,37 @@ import { normalizeWorkspace, type Workspace } from "./workspace"
 const languageServicePlugin = "@effect/language-service"
 
 /**
+ * Effect's `unstableApiUsage` rule warns on every unstable module the
+ * Playground templates themselves import, so the Scratchpad turns it off
+ * unless the config already says otherwise.
+ */
+const unstableApiUsageRule = "unstableApiUsage"
+
+const isLanguageServicePlugin = (
+  plugin: unknown,
+): plugin is Record<string, unknown> =>
+  Predicate.isObject(plugin) && plugin["name"] === languageServicePlugin
+
+const hasUnstableApiSeverity = (plugin: Record<string, unknown>) =>
+  Predicate.isObject(plugin["diagnosticSeverity"]) &&
+  unstableApiUsageRule in plugin["diagnosticSeverity"]
+
+const withUnstableApiOff = (
+  plugin: Record<string, unknown>,
+): Record<string, unknown> =>
+  hasUnstableApiSeverity(plugin)
+    ? plugin
+    : {
+        ...plugin,
+        diagnosticSeverity: {
+          ...(Predicate.isObject(plugin["diagnosticSeverity"])
+            ? plugin["diagnosticSeverity"]
+            : {}),
+          [unstableApiUsageRule]: "off",
+        },
+      }
+
+/**
  * Removes comments and trailing commas outside string literals, turning the
  * JSONC that `tsconfig.json` allows into plain JSON.
  */
@@ -52,8 +83,10 @@ function parseJsonc(content: string): unknown {
 
 /**
  * Adds the `@effect/language-service` plugin entry (keeping other plugins and
- * an existing entry's options) and `verbatimModuleSyntax: true`, which makes
- * tsrs flag type-only imports that would crash under Node's type stripping.
+ * an existing entry's options) with the `unstableApiUsage` diagnostic off
+ * unless the entry already sets it, and `verbatimModuleSyntax: true`, which
+ * makes tsrs flag type-only imports that would crash under Node's type
+ * stripping.
  *
  * Returns `undefined` when nothing changes or the content isn't a JSON
  * object, so invalid mid-edit configs are left as they are. Comments in a
@@ -72,12 +105,14 @@ export function patchScratchpadTsConfig(content: string): string | undefined {
   )
     ? compilerOptions["plugins"]
     : []
-  const hasPlugin = plugins.some(
+  const hasPlugin = plugins.some(isLanguageServicePlugin)
+  const pluginsSettled = plugins.every(
     (plugin) =>
-      Predicate.isObject(plugin) && plugin["name"] === languageServicePlugin,
+      !isLanguageServicePlugin(plugin) || hasUnstableApiSeverity(plugin),
   )
   if (
     hasPlugin &&
+    pluginsSettled &&
     plugins === compilerOptions["plugins"] &&
     compilerOptions["verbatimModuleSyntax"] === true
   ) {
@@ -89,8 +124,12 @@ export function patchScratchpadTsConfig(content: string): string | undefined {
       compilerOptions: {
         ...compilerOptions,
         plugins: hasPlugin
-          ? plugins
-          : [...plugins, { name: languageServicePlugin }],
+          ? plugins.map((plugin) =>
+              isLanguageServicePlugin(plugin)
+                ? withUnstableApiOff(plugin)
+                : plugin,
+            )
+          : [...plugins, withUnstableApiOff({ name: languageServicePlugin })],
         verbatimModuleSyntax: true,
       },
     },

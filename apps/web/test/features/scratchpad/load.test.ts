@@ -235,7 +235,10 @@ describe("loadScratchpadWorkspace", () => {
     // The Scratchpad's tsconfig patch.
     const tsconfig = JSON.parse(loaded.files["tsconfig.json"]!)
     assert.deepStrictEqual(tsconfig.compilerOptions.plugins, [
-      { name: "@effect/language-service" },
+      {
+        name: "@effect/language-service",
+        diagnosticSeverity: { unstableApiUsage: "off" },
+      },
     ])
     assert.isTrue(tsconfig.compilerOptions.verbatimModuleSyntax)
     // The share's own pins survive.

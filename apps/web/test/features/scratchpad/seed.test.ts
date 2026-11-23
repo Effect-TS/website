@@ -33,7 +33,10 @@ describe("Scratchpad seed", () => {
   test("tsconfig.json gets the language-service plugin and verbatimModuleSyntax", () => {
     const tsconfig = JSON.parse(SCRATCHPAD_SEED_FILES["tsconfig.json"]!)
     assert.deepStrictEqual(tsconfig.compilerOptions.plugins, [
-      { name: "@effect/language-service" },
+      {
+        name: "@effect/language-service",
+        diagnosticSeverity: { unstableApiUsage: "off" },
+      },
     ])
     assert.isTrue(tsconfig.compilerOptions.verbatimModuleSyntax)
     assert.equal(tsconfig.compilerOptions.module, "NodeNext")

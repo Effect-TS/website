@@ -11,7 +11,10 @@ import {
   normalizeWorkspace,
 } from "../../../src/features/share/workspace.ts"
 
-const plugin = { name: "@effect/language-service" }
+const plugin = {
+  name: "@effect/language-service",
+  diagnosticSeverity: { unstableApiUsage: "off" },
+}
 
 test("adds the language service plugin and verbatimModuleSyntax", () => {
   const patched = patchScratchpadTsConfig(
@@ -49,21 +52,43 @@ test("is idempotent", () => {
   assert.isUndefined(patchScratchpadTsConfig(once!))
 })
 
-test("keeps a configured plugin entry and overrides verbatimModuleSyntax", () => {
+test("keeps a configured plugin entry's options, turns unstable API warnings off, and overrides verbatimModuleSyntax", () => {
   const configured = {
     compilerOptions: {
-      plugins: [{ name: "@effect/language-service", diagnosticSeverity: {} }],
+      plugins: [
+        {
+          name: "@effect/language-service",
+          diagnosticSeverity: { floatingEffect: "error" },
+        },
+      ],
       verbatimModuleSyntax: false,
     },
   }
   const patched = JSON.parse(
     patchScratchpadTsConfig(JSON.stringify(configured))!,
   )
-  assert.deepStrictEqual(
-    patched.compilerOptions.plugins,
-    configured.compilerOptions.plugins,
-  )
+  assert.deepStrictEqual(patched.compilerOptions.plugins, [
+    {
+      name: "@effect/language-service",
+      diagnosticSeverity: { floatingEffect: "error", unstableApiUsage: "off" },
+    },
+  ])
   assert.isTrue(patched.compilerOptions.verbatimModuleSyntax)
+})
+
+test("keeps an explicit unstableApiUsage severity", () => {
+  const configured = {
+    compilerOptions: {
+      plugins: [
+        {
+          name: "@effect/language-service",
+          diagnosticSeverity: { unstableApiUsage: "warning" },
+        },
+      ],
+      verbatimModuleSyntax: true,
+    },
+  }
+  assert.isUndefined(patchScratchpadTsConfig(JSON.stringify(configured)))
 })
 
 test("reads tsconfig files with comments and trailing commas", () => {
