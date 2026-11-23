@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0004
 ---
 
 # Virtual `FileSystem` (`@effect-vfs/memory`) for multi-file Workspaces

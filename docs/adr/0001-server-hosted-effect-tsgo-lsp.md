@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0003
 ---
 
 # Server-hosted `@effect/tsgo` LSP for the Scratchpad

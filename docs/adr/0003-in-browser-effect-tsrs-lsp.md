@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # In-browser Effect tsrs language server for the Scratchpad
@@ -25,4 +25,4 @@ The server path cost a container pool, cold starts of 1 to 3 s, rate limiting an
 - **No cancellation.** Each request runs to completion before the next one. `$/cancelRequest` arrives too late to matter. The first auto-import registry build, about 400 ms of background work after the first edit, blocks requests that arrive during it.
 - **Client-side bridge duties.** The worker now does what `packages/lsp-bridge` did. It turns pulled diagnostics into `publishDiagnostics` pushes, mirrors the Scratchpad Workspace into the server's in-memory file system, and strips `params: null` from `shutdown` and `exit`. This code lives in `lsp-worker-bridge.ts` with unit and integration tests.
 - **Code actions, inlay hints and completion resolve.** The module answers them, but `@codemirror/lsp-client` 6.3.1 never sends those requests. The Effect quick fixes and refactors stay out of reach until the Scratchpad adds a code-action UI. That is follow-up work.
-- **Server path retained.** `packages/lsp-bridge`, the `/api/lsp` gateway and the Cloudflare container config stay deployed and selectable with `PUBLIC_LSP_TRANSPORT=websocket`. Retiring them is a separate decision.
+- **Server path removed.** ADR 0004 makes the worker the only transport, because types now come from the Container's installed `node_modules`, which the server bridge cannot see. `packages/lsp-bridge`, the `/api/lsp` gateway, the Cloudflare container config and `PUBLIC_LSP_TRANSPORT` are deleted. The declarations pack described above is also replaced by ADR 0004.
