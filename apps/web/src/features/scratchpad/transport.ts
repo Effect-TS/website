@@ -1,5 +1,4 @@
 import type { Transport } from "@codemirror/lsp-client"
-import * as BrowserSocket from "@effect/platform-browser/BrowserSocket"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -8,22 +7,7 @@ import * as Layer from "effect/Layer"
 import * as PubSub from "effect/PubSub"
 import * as Queue from "effect/Queue"
 import * as Semaphore from "effect/Semaphore"
-import * as Socket from "effect/socket/Socket"
 import * as Stream from "effect/Stream"
-
-export class TransportConnectError extends Data.TaggedError(
-  "TransportConnectError",
-)<{
-  readonly message: string
-  readonly cause?: unknown
-}> {}
-
-export class TransportClosedError extends Data.TaggedError(
-  "TransportClosedError",
-)<{
-  readonly code: number
-  readonly reason: string
-}> {}
 
 /**
  * The language server failed for good and will not come back by retrying on
@@ -35,11 +19,6 @@ export class TransportFatalError extends Data.TaggedError(
 )<{
   readonly message: string
 }> {}
-
-export type TransportError =
-  | TransportConnectError
-  | TransportClosedError
-  | TransportFatalError
 
 export type TransportLoadPhase = "downloading" | "compiling" | "starting"
 
@@ -53,14 +32,10 @@ export interface TransportRecovery {
   readonly quarantined: ReadonlyArray<string>
 }
 
-/**
- * Transport lifecycle. `Loading` and `Recovered` come only from transports
- * that run the language server locally (`layerWorker`); the WebSocket layers
- * emit `Connected` and `Disconnected` only.
- */
+/** Lifecycle of the in-browser language server (`layerWorker`). */
 export type TransportEvent =
   | { readonly _tag: "Connected"; readonly connectionId: number }
-  | { readonly _tag: "Disconnected"; readonly error: TransportError }
+  | { readonly _tag: "Disconnected"; readonly error: TransportFatalError }
   | {
       readonly _tag: "Loading"
       readonly phase: TransportLoadPhase
@@ -80,139 +55,6 @@ export class LspTransport extends Context.Service<
   LspTransport,
   LspTransportService
 >()("@web/scratchpad/LspTransport") {}
-
-const mapSocketError = (err: Socket.SocketError): TransportError => {
-  switch (err.reason._tag) {
-    case "SocketCloseError":
-      return new TransportClosedError({
-        code: err.reason.code,
-        reason: err.reason.closeReason ?? "",
-      })
-    case "SocketOpenError":
-    case "SocketReadError":
-    case "SocketWriteError":
-    case "SocketUpgradeError":
-      return new TransportConnectError({
-        message: err.reason.message,
-        cause: err.reason.cause,
-      })
-  }
-}
-
-/**
- * Message-level `LspTransport` layer backed by any Effect `Socket.Socket`.
- *
- * Each `reconnect` interrupts any previous connection scope, clears the pending
- * outbound queue, and dials a fresh socket connection.
- */
-export const layerSocket: Layer.Layer<LspTransport, never, Socket.Socket> =
-  Layer.effect(
-    LspTransport,
-    Effect.gen(function* () {
-      const scope = yield* Effect.scope
-      const socket = yield* Socket.Socket
-      const writer = yield* socket.writer
-      const eventsPubSub = yield* PubSub.unbounded<TransportEvent>()
-      const outbound = yield* Queue.unbounded<string>()
-      const subscribers = new Set<(value: string) => void>()
-      const lifecycle = yield* Semaphore.make(1)
-
-      let activeFiber: Fiber.Fiber<void, never> | undefined
-      let connectionId = 0
-
-      const closeActive = Effect.gen(function* () {
-        const fiber = activeFiber
-        activeFiber = undefined
-        if (fiber !== undefined) {
-          yield* Fiber.interrupt(fiber)
-        }
-        yield* Queue.clear(outbound)
-      })
-
-      yield* Effect.addFinalizer(() =>
-        Effect.gen(function* () {
-          yield* closeActive
-          subscribers.clear()
-        }),
-      )
-
-      const disconnect = lifecycle.withPermits(1)(closeActive)
-
-      const reconnect = lifecycle.withPermits(1)(
-        Effect.gen(function* () {
-          yield* closeActive
-          const id = ++connectionId
-
-          const fiber = yield* Effect.scoped(
-            Effect.gen(function* () {
-              const pull = yield* Socket.readerString(socket)
-
-              // Drop any frames queued while disconnected or dialing before
-              // emitting Connected and starting the writer drain.
-              yield* Queue.clear(outbound)
-
-              yield* Effect.forever(
-                Effect.gen(function* () {
-                  const msg = yield* Queue.take(outbound)
-                  yield* writer.write(msg).pipe(Effect.ignore)
-                }),
-              ).pipe(Effect.forkScoped)
-
-              yield* PubSub.publish(eventsPubSub, {
-                _tag: "Connected",
-                connectionId: id,
-              })
-
-              while (true) {
-                const batch = yield* pull
-                for (const msg of batch) {
-                  for (const handler of subscribers) {
-                    handler(msg)
-                  }
-                }
-              }
-            }),
-          ).pipe(
-            Effect.catch((err) =>
-              PubSub.publish(eventsPubSub, {
-                _tag: "Disconnected",
-                error: mapSocketError(err),
-              }).pipe(Effect.asVoid),
-            ),
-            Effect.forkIn(scope),
-          )
-
-          activeFiber = fiber
-        }),
-      )
-
-      const transport: Transport = {
-        send(message: string) {
-          Queue.offerUnsafe(outbound, message)
-        },
-        subscribe(handler: (value: string) => void) {
-          subscribers.add(handler)
-        },
-        unsubscribe(handler: (value: string) => void) {
-          subscribers.delete(handler)
-        },
-      }
-
-      return {
-        transport,
-        events: Stream.fromPubSub(eventsPubSub),
-        reconnect,
-        disconnect,
-      }
-    }),
-  )
-
-/**
- * Browser WebSocket `LspTransport` layer built on `effect/socket/Socket` and
- * `@effect/platform-browser/BrowserSocket`.
- */
-export const layerWebSocket = (url: string): Layer.Layer<LspTransport> =>
-  layerSocket.pipe(Layer.provide(BrowserSocket.layerWebSocket(url)))
 
 // ---------------------------------------------------------------------------
 // In-memory Fake Transport + Controller (for deterministic Node tests)
@@ -279,15 +121,8 @@ export interface FakeLspController {
   readonly stallRequest: (method: string) => Effect.Effect<void>
   readonly unstallRequest: (method: string) => Effect.Effect<void>
   readonly setAutoHandshake: (enabled: boolean) => Effect.Effect<void>
-  readonly close: (code: number, reason?: string) => Effect.Effect<void>
-  readonly failNextConnect: (
-    error?: TransportConnectError | string,
-  ) => Effect.Effect<void>
-  readonly failConnects: (
-    count: number,
-    error?: TransportConnectError | string,
-  ) => Effect.Effect<void>
-  readonly clearConnectFailures: Effect.Effect<void>
+  /** Fails the server for good, as the worker does when it cannot recover. */
+  readonly crash: (message?: string) => Effect.Effect<void>
   readonly clearMessages: Effect.Effect<void>
 }
 
@@ -314,7 +149,6 @@ export const makeFakeLspTransport = (
   let connectionId = 0
 
   const stalledMethods = new Set<string>()
-  const connectFailures: Array<TransportConnectError> = []
   const allSent: Array<JsonRpcMessage> = []
   let currentSent: Array<JsonRpcMessage> = []
   const subscribers = new Set<(value: string) => void>()
@@ -435,7 +269,7 @@ export const makeFakeLspTransport = (
       Effect.sync(() => {
         autoHandshake = enabled
       }),
-    close: (code, reason = "") =>
+    crash: (message = "Simulated crash") =>
       Effect.gen(function* () {
         if (!connected) return
         connected = false
@@ -443,26 +277,10 @@ export const makeFakeLspTransport = (
         if (activeEventsPubSub !== undefined) {
           yield* PubSub.publish(activeEventsPubSub, {
             _tag: "Disconnected",
-            error: new TransportClosedError({ code, reason }),
+            error: new TransportFatalError({ message }),
           })
         }
       }),
-    failNextConnect: (error) => controller.failConnects(1, error),
-    failConnects: (count, error) =>
-      Effect.sync(() => {
-        for (let i = 0; i < count; i++) {
-          const err =
-            error instanceof TransportConnectError
-              ? error
-              : new TransportConnectError({
-                  message: error ?? "Simulated connection failure",
-                })
-          connectFailures.push(err)
-        }
-      }),
-    clearConnectFailures: Effect.sync(() => {
-      connectFailures.length = 0
-    }),
     clearMessages: Effect.sync(() => {
       allSent.length = 0
       currentSent = []
@@ -502,16 +320,6 @@ export const makeFakeLspTransport = (
         Effect.gen(function* () {
           yield* closeActive
           totalConnectionAttempts += 1
-
-          const failure = connectFailures.shift()
-          if (failure !== undefined) {
-            yield* PubSub.publish(eventsPubSub, {
-              _tag: "Disconnected",
-              error: failure,
-            })
-            return
-          }
-
           totalOpens += 1
           const id = ++connectionId
           currentSent = []

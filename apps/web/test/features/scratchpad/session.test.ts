@@ -9,8 +9,6 @@ import {
   computeBackoffDelayMs,
   LSP_CLIENT_TIMEOUT_MS,
   makeScratchpadSession,
-  MAX_DOC_BYTES,
-  utf8ByteLength,
   type LspStatus,
 } from "../../../src/features/scratchpad/session.ts"
 import {
@@ -28,7 +26,6 @@ const flushMicrotasks = async (ticks = 10) => {
 const setupTestSession = async (
   fakeOptions?: FakeLspTransportOptions,
   sessionOptions?: {
-    readonly initialDocBytes?: number
     readonly maxAttempts?: number
     readonly baseDelayMs?: number
     readonly maxDelayMs?: number
@@ -117,147 +114,32 @@ describe("ScratchpadSession", () => {
     }
   })
 
-  test("close code 4000 stops reconnecting and enters idle; explicit wakes reconnect while passive events do not", async () => {
-    const ctx = await setupTestSession({ autoHandshake: true })
+  test("initialize failures retry with jittered exponential backoff up to 5 attempts, then enter a retryable error that a manual retry clears", async () => {
+    const ctx = await setupTestSession({ autoHandshake: false })
     try {
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
+      await Effect.runPromise(ctx.fake.controller.stallRequest("initialize"))
 
-      // Server evicts idle session with 4000
-      await Effect.runPromise(ctx.fake.controller.close(4000, "idle timeout"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
-
-      const opensAfterIdle = await Effect.runPromise(
-        ctx.fake.controller.openCount,
-      )
-
-      // Advancing clock does NOT auto-reconnect from idle
-      await ctx.adjust("60 seconds")
-      assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opensAfterIdle,
-      )
-
-      // Passive events do NOT wake from idle
-      for (const passive of [
-        "mousemove",
-        "pointermove",
-        "scroll",
-        "visibilitychange",
-        "passive",
-      ] as const) {
-        ctx.registry.set(ctx.session.wakeAtom, passive)
-        await flushMicrotasks(20)
-        assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        // initialize times out -> backoff attempt N of 5
+        await ctx.adjust("10 seconds")
+        assert.deepEqual(ctx.getStatus(), {
+          _tag: "reconnecting",
+          attempt,
+          maxAttempts: 5,
+        })
+        // The jittered delay is at most 500 ms * 2^(N - 1)
+        const opensBefore = await Effect.runPromise(
+          ctx.fake.controller.openCount,
+        )
+        await ctx.adjust(Math.min(10_000, 500 * 2 ** (attempt - 1)))
+        assert.equal(
+          await Effect.runPromise(ctx.fake.controller.openCount),
+          opensBefore + 1,
+        )
       }
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opensAfterIdle,
-      )
 
-      // Explicit wake: focus -> reconnects to ready
-      ctx.registry.set(ctx.session.wakeAtom, "focus")
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opensAfterIdle + 1,
-      )
-
-      // Idle again -> explicit wake: docChanged -> reconnects to ready
-      await Effect.runPromise(ctx.fake.controller.close(4000, "idle timeout"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
-
-      ctx.registry.set(ctx.session.documentChangedAtom, "const x = 1")
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opensAfterIdle + 2,
-      )
-
-      // Idle again -> explicit wake: indicator click (reconnectAtom) -> reconnects to ready
-      await Effect.runPromise(ctx.fake.controller.close(4000, "idle timeout"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "idle" })
-
-      ctx.registry.set(ctx.session.reconnectAtom, undefined)
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opensAfterIdle + 3,
-      )
-    } finally {
-      ctx.dispose()
-    }
-  })
-
-  test("retryable drops (1006, 1011, connect error) retry with jittered exponential backoff up to 5 attempts then enter retryable error, and reset on ready", async () => {
-    const ctx = await setupTestSession({ autoHandshake: true })
-    try {
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      // Fail the next 5 reconnect attempts (attempts 1..5)
-      await Effect.runPromise(ctx.fake.controller.failConnects(5, "offline"))
-
-      // Drop with 1006 -> enters reconnecting attempt 1 of 5
-      await Effect.runPromise(ctx.fake.controller.close(1006, "abnormal close"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 1,
-        maxAttempts: 5,
-      })
-
-      // Attempt 1 delay is in [250, 500] ms: 100 ms should NOT fire yet
-      const attemptsBefore = await Effect.runPromise(
-        ctx.fake.controller.connectionCount,
-      )
-      await ctx.adjust("100 millis")
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.connectionCount),
-        attemptsBefore,
-      )
-
-      // Advancing remaining 400 ms fires attempt 1 (fails) -> attempt 2
-      await ctx.adjust("400 millis")
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 2,
-        maxAttempts: 5,
-      })
-
-      // Attempt 2: up to 1000 ms -> fails -> attempt 3
-      await ctx.adjust("1 second")
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 3,
-        maxAttempts: 5,
-      })
-
-      // Attempt 3: up to 2000 ms -> fails -> attempt 4
-      await ctx.adjust("2 seconds")
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 4,
-        maxAttempts: 5,
-      })
-
-      // Attempt 4: up to 4000 ms -> fails -> attempt 5
-      await ctx.adjust("4 seconds")
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 5,
-        maxAttempts: 5,
-      })
-
-      // Attempt 5: up to 8000 ms -> fails -> exhausted -> retryable error
-      await ctx.adjust("8 seconds")
+      // The 6th failure exhausts the retry budget
+      await ctx.adjust("10 seconds")
       const exhausted = ctx.getStatus()
       assert.equal(exhausted._tag, "error")
       if (exhausted._tag === "error") {
@@ -265,72 +147,58 @@ describe("ScratchpadSession", () => {
         assert.equal(exhausted.retryable, true)
       }
 
-      // No further automatic retries after exhausting max attempts
-      const countAtExhaustion = await Effect.runPromise(
-        ctx.fake.controller.connectionCount,
+      // No further automatic retries
+      const opensAtExhaustion = await Effect.runPromise(
+        ctx.fake.controller.openCount,
       )
-      await ctx.adjust("30 seconds")
+      await ctx.adjust("60 seconds")
       assert.equal(
-        await Effect.runPromise(ctx.fake.controller.connectionCount),
-        countAtExhaustion,
+        await Effect.runPromise(ctx.fake.controller.openCount),
+        opensAtExhaustion,
       )
 
-      // Browser `online` event triggers automatic retry -> ready (resets attempts)
-      ctx.registry.set(ctx.session.onlineAtom, undefined)
+      // A manual retry starts over and reaches ready
+      await Effect.runPromise(ctx.fake.controller.unstallRequest("initialize"))
+      await Effect.runPromise(ctx.fake.controller.setAutoHandshake(true))
+      ctx.registry.set(ctx.session.reconnectAtom, undefined)
       await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      // Subsequent 1011 drop starts fresh at attempt 1 of 5
-      await Effect.runPromise(ctx.fake.controller.close(1011, "server crash"))
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 1,
-        maxAttempts: 5,
-      })
-
-      await ctx.adjust("500 millis")
       assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
     } finally {
       ctx.dispose()
     }
   })
 
-  test("1013 capacity drops retry up to 5 attempts then surface retryable capacity error", async () => {
+  test("a fatal error shows a retryable crashed error without backoff; a manual retry restarts the server", async () => {
     const ctx = await setupTestSession({ autoHandshake: true })
     try {
       await flushMicrotasks(20)
       assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
 
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        await Effect.runPromise(
-          ctx.fake.controller.close(1013, "server at capacity"),
-        )
-        await flushMicrotasks(20)
-        assert.deepEqual(ctx.getStatus(), {
-          _tag: "reconnecting",
-          attempt,
-          maxAttempts: 5,
-        })
-
-        // Prevent initialize from completing on the next open so consecutive
-        // attempts are not reset, then close with 1013 again.
-        await Effect.runPromise(ctx.fake.controller.stallRequest("initialize"))
-        await ctx.adjust("10 seconds")
-      }
-
-      // 6th consecutive 1013 exhausts the 5-attempt retry cap
-      await Effect.runPromise(
-        ctx.fake.controller.close(1013, "server at capacity"),
-      )
+      await Effect.runPromise(ctx.fake.controller.crash("wasm trap"))
       await flushMicrotasks(20)
+      assert.deepEqual(ctx.getStatus(), {
+        _tag: "error",
+        code: "crashed",
+        message: "wasm trap",
+        retryable: true,
+      })
 
-      const status = ctx.getStatus()
-      assert.equal(status._tag, "error")
-      if (status._tag === "error") {
-        assert.equal(status.code, "capacity")
-        assert.equal(status.retryable, true)
-      }
+      const opensAfterCrash = await Effect.runPromise(
+        ctx.fake.controller.openCount,
+      )
+      await ctx.adjust("60 seconds")
+      assert.equal(
+        await Effect.runPromise(ctx.fake.controller.openCount),
+        opensAfterCrash,
+      )
+
+      ctx.registry.set(ctx.session.reconnectAtom, undefined)
+      await flushMicrotasks(20)
+      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
+      assert.equal(
+        await Effect.runPromise(ctx.fake.controller.openCount),
+        opensAfterCrash + 1,
+      )
     } finally {
       ctx.dispose()
     }
@@ -351,7 +219,7 @@ describe("ScratchpadSession", () => {
     assert.equal(computeBackoffDelayMs(6, 0), 5_000)
   })
 
-  test("LSPClient.initializing timeout and rejection close any open socket and retry with backoff", async () => {
+  test("LSPClient.initializing timeout and rejection stop the server and retry with backoff", async () => {
     const ctx = await setupTestSession({ autoHandshake: false })
     try {
       assert.deepEqual(ctx.getStatus(), { _tag: "connecting" })
@@ -363,7 +231,7 @@ describe("ScratchpadSession", () => {
         true,
       )
 
-      // Stall initialize past 10 s timeout -> closes open socket and enters reconnecting
+      // Stall initialize past 10 s timeout -> stops the server and enters reconnecting
       await ctx.adjust("10 seconds")
       assert.equal(
         await Effect.runPromise(ctx.fake.controller.isConnected),
@@ -386,7 +254,7 @@ describe("ScratchpadSession", () => {
         true,
       )
 
-      // Server rejects initialize with JSON-RPC error -> closes open socket and retries (attempt 2)
+      // Server rejects initialize with JSON-RPC error -> stops the server and retries (attempt 2)
       await Effect.runPromise(
         ctx.fake.controller.replyError(secondInit.id, {
           code: -32603,
@@ -413,102 +281,6 @@ describe("ScratchpadSession", () => {
     }
   })
 
-  test("terminal close 1008 stops reconnecting with non-retryable policy error", async () => {
-    const ctx = await setupTestSession({ autoHandshake: true })
-    try {
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      await Effect.runPromise(ctx.fake.controller.close(1008, "disallowed URI"))
-      await flushMicrotasks(20)
-
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "error",
-        code: "policy",
-        message: "disallowed URI",
-        retryable: false,
-      })
-
-      const opens = await Effect.runPromise(ctx.fake.controller.openCount)
-      await ctx.adjust("30 seconds")
-      ctx.registry.set(ctx.session.reconnectAtom, undefined)
-      ctx.registry.set(ctx.session.onlineAtom, undefined)
-      await flushMicrotasks(20)
-
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opens,
-      )
-      assert.equal(ctx.getStatus()._tag, "error")
-    } finally {
-      ctx.dispose()
-    }
-  })
-
-  test("terminal close 1009 keeps retryable false above 256 KiB UTF-8 and flips true once trimmed below 256 KiB", async () => {
-    // Use 4-byte UTF-8 emoji: 70_000 code units (< 256 KiB chars) = 280_000 UTF-8 bytes (> 256 KiB!)
-    const oversizedUtf8 = "🚀".repeat(70_000)
-    assert.ok(oversizedUtf8.length < MAX_DOC_BYTES)
-    assert.ok(utf8ByteLength(oversizedUtf8) > MAX_DOC_BYTES)
-
-    const ctx = await setupTestSession(
-      { autoHandshake: true },
-      { initialDocBytes: utf8ByteLength(oversizedUtf8) },
-    )
-    try {
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-
-      await Effect.runPromise(
-        ctx.fake.controller.close(1009, "document exceeds 256 KiB"),
-      )
-      await flushMicrotasks(20)
-
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "error",
-        code: "doc-too-large",
-        message: "document exceeds 256 KiB",
-        retryable: false,
-      })
-
-      // Manual reconnect is ignored while still oversized
-      const opens = await Effect.runPromise(ctx.fake.controller.openCount)
-      ctx.registry.set(ctx.session.reconnectAtom, undefined)
-      await flushMicrotasks(20)
-      assert.equal(
-        await Effect.runPromise(ctx.fake.controller.openCount),
-        opens,
-      )
-
-      // Still oversized edit keeps retryable: false
-      ctx.registry.set(ctx.session.documentChangedAtom, "🚀".repeat(66_000))
-      await flushMicrotasks(20)
-      const stillLarge = ctx.getStatus()
-      assert.equal(stillLarge._tag, "error")
-      if (stillLarge._tag === "error") {
-        assert.equal(stillLarge.code, "doc-too-large")
-        assert.equal(stillLarge.retryable, false)
-      }
-
-      // Trimming below 256 KiB flips retryable to true
-      ctx.registry.set(ctx.session.documentChangedAtom, "const ok = 1")
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "error",
-        code: "doc-too-large",
-        message: "document exceeds 256 KiB",
-        retryable: true,
-      })
-
-      // Manual reconnect now succeeds and returns to ready
-      ctx.registry.set(ctx.session.reconnectAtom, undefined)
-      await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
-    } finally {
-      ctx.dispose()
-    }
-  })
-
   test("reconnecting clears pending outbound queue before client.disconnect and client.connect so stale frames never precede initialize", async () => {
     const ctx = await setupTestSession({ autoHandshake: true })
     try {
@@ -522,14 +294,10 @@ describe("ScratchpadSession", () => {
       const transportRes = ctx.registry.get(transportAtom)
       assert.equal(transportRes._tag, "Success")
 
-      // Drop connection with 1006 -> enters backoff
-      await Effect.runPromise(ctx.fake.controller.close(1006, "dropped"))
+      // The server fails for good
+      await Effect.runPromise(ctx.fake.controller.crash("dropped"))
       await flushMicrotasks(20)
-      assert.deepEqual(ctx.getStatus(), {
-        _tag: "reconnecting",
-        attempt: 1,
-        maxAttempts: 5,
-      })
+      assert.equal(ctx.getStatus()._tag, "error")
 
       // Queue stale frames while disconnected
       if (transportRes._tag === "Success") {
@@ -550,8 +318,9 @@ describe("ScratchpadSession", () => {
         )
       }
 
-      // Advance TestClock to trigger reconnect
-      await ctx.adjust("500 millis")
+      // Manual retry reconnects
+      ctx.registry.set(ctx.session.reconnectAtom, undefined)
+      await flushMicrotasks(20)
       assert.deepEqual(ctx.getStatus(), { _tag: "ready" })
 
       const msgsOnNewConn = await Effect.runPromise(

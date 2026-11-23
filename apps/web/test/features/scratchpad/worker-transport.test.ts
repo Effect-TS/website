@@ -287,7 +287,6 @@ describe("ScratchpadSession over layerWorker", () => {
       answerInitialize,
       status: () => registry.get(session.statusAtom),
       reconnect: () => registry.set(session.reconnectAtom, undefined),
-      online: () => registry.set(session.onlineAtom, undefined),
       dispose: () => {
         unsubscribe()
         unmountClock()
@@ -349,16 +348,14 @@ describe("ScratchpadSession over layerWorker", () => {
       await ctx.adjust(1)
       assert.deepEqual(ctx.status(), { _tag: "ready" })
 
-      // No WebSocket semantics leak in: never reconnecting or idle.
-      assert.isFalse(
-        ctx.history.some((s) => s._tag === "reconnecting" || s._tag === "idle"),
-      )
+      // A recovery never goes through backoff.
+      assert.isFalse(ctx.history.some((s) => s._tag === "reconnecting"))
     } finally {
       ctx.dispose()
     }
   })
 
-  test("a fatal error shows a retryable crashed error without backoff; online does not restart it; a click does", async () => {
+  test("a fatal error shows a retryable crashed error without backoff; only a click restarts it", async () => {
     const ctx = await setup()
     try {
       ctx.fakes.workers[0]!.emit({
@@ -373,8 +370,6 @@ describe("ScratchpadSession over layerWorker", () => {
         retryable: true,
       })
       await ctx.adjust("60 seconds")
-      ctx.online()
-      await flush()
       assert.equal(ctx.fakes.workers.length, 1)
       assert.equal(ctx.status()._tag, "error")
 

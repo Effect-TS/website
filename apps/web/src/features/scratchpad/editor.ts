@@ -29,10 +29,8 @@ import { scratchpadEditorTheme } from "./editor-theme.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
 import {
   makeScratchpadSession,
-  utf8ByteLength,
   type LspStatus,
   type ScratchpadSessionConfig,
-  type WakeTrigger,
 } from "./session.ts"
 import type { LspTransport } from "./transport.ts"
 import { LspWorkspaceMirror, workspaceEventToFsOp } from "./worker-transport.ts"
@@ -57,20 +55,9 @@ export type EditorViewFactory = (args: {
   readonly state: EditorState
 }) => EditorView
 
-export interface OnlineEventTarget {
-  readonly addEventListener: (
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-  ) => void
-  readonly removeEventListener: (
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-  ) => void
-}
-
 export interface ScratchpadEditorSessionConfig extends Omit<
   ScratchpadSessionConfig,
-  "initialDocBytes" | "lspClientConfig"
+  "lspClientConfig"
 > {
   readonly fileUri?: string | undefined
   readonly initialCode?: string | undefined
@@ -78,7 +65,6 @@ export interface ScratchpadEditorSessionConfig extends Omit<
   readonly entryPath?: string | undefined
   readonly workspaceLayer?: Layer.Layer<Workspace, WorkspaceError> | undefined
   readonly createEditorView?: EditorViewFactory | undefined
-  readonly onlineTarget?: OnlineEventTarget | null | undefined
 }
 
 export interface ScratchpadEditorInstance {
@@ -112,9 +98,6 @@ export interface ScratchpadEditorSession {
   >
   readonly workspaceErrorAtom: Atom.Writable<Option.Option<string>>
   readonly reconnectAtom: Atom.AtomResultFn<void, void>
-  readonly wakeAtom: Atom.AtomResultFn<WakeTrigger, void>
-  readonly onlineAtom: Atom.AtomResultFn<void, void>
-  readonly documentChangedAtom: Atom.AtomResultFn<string | number, void>
   readonly openFileAtom: Atom.AtomResultFn<string, void>
   readonly closeTabAtom: Atom.AtomResultFn<string, void>
   readonly createFileAtom: Atom.AtomResultFn<CreateFileInput, void>
@@ -229,11 +212,6 @@ export const makeScratchpadEditorSession = (
   )
   const createEditorView = config.createEditorView ?? defaultEditorViewFactory
 
-  const initialTotalBytes = Object.values(initialFiles).reduce(
-    (sum, content) => sum + utf8ByteLength(content),
-    0,
-  )
-
   const wsLayer =
     config.workspaceLayer ??
     layerMemoryWorkspace({
@@ -318,7 +296,6 @@ export const makeScratchpadEditorSession = (
   const session = makeScratchpadSession({
     ...config,
     rootUri,
-    initialDocBytes: initialTotalBytes,
     lspClientConfig: {
       extensions: [...languageServerExtensions(), diagnosticCapabilities],
       workspace: (client) => {
@@ -380,7 +357,6 @@ export const makeScratchpadEditorSession = (
       if (update.docChanged) {
         const text = update.state.doc.toString()
         editorStates.set(relPath, update.state)
-        registry.set(session.documentChangedAtom, utf8ByteLength(text))
         // Read-only files only change through the host, which already wrote
         // them to the Workspace.
         if (!readOnly) {
@@ -394,9 +370,6 @@ export const makeScratchpadEditorSession = (
             ),
           )
         }
-      }
-      if (update.focusChanged && update.view.hasFocus) {
-        registry.set(session.wakeAtom, "focus")
       }
     })
 
@@ -551,29 +524,6 @@ export const makeScratchpadEditorSession = (
         activeLspWorkspace?.upsertWorkspaceFile(file.path, file.content)
       }
       yield* refreshTree(ws, registry).pipe(Effect.orDie)
-
-      const onlineTarget =
-        config.onlineTarget !== undefined
-          ? config.onlineTarget
-          : typeof window !== "undefined"
-            ? window
-            : null
-
-      if (onlineTarget !== null) {
-        yield* Effect.acquireRelease(
-          Effect.sync(() => {
-            const onOnline = () => {
-              registry.set(session.onlineAtom, undefined)
-            }
-            onlineTarget.addEventListener("online", onOnline)
-            return onOnline
-          }),
-          (onOnline) =>
-            Effect.sync(() => {
-              onlineTarget.removeEventListener("online", onOnline)
-            }),
-        )
-      }
 
       const initialActive = registry.get(activeFileAtom)
       const initialPath = Option.isSome(initialActive)
@@ -851,9 +801,6 @@ export const makeScratchpadEditorSession = (
     diagnosticsAtom,
     workspaceErrorAtom,
     reconnectAtom: session.reconnectAtom,
-    wakeAtom: session.wakeAtom,
-    onlineAtom: session.onlineAtom,
-    documentChangedAtom: session.documentChangedAtom,
     openFileAtom,
     closeTabAtom,
     createFileAtom,

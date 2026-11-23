@@ -1,9 +1,8 @@
 /**
- * What `packages/lsp-bridge` does for the server-hosted language server,
- * redone for the in-browser one. It runs inside the language server Web
- * Worker, between the page's JSON-RPC strings and the tsrs host
- * (`@website/tsrs-lsp-wasm`), and has no browser dependencies so it can be
- * unit tested against a fake host.
+ * The glue between the page and the in-browser language server. It runs
+ * inside the language server Web Worker, between the page's JSON-RPC strings
+ * and the tsrs host (`@website/tsrs-lsp-wasm`), and has no browser
+ * dependencies so it can be unit tested against a fake host.
  *
  * - Pull-to-push diagnostics. tsrs computes file diagnostics only on
  *   `textDocument/diagnostic` pulls and `@codemirror/lsp-client` only renders

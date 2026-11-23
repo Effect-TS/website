@@ -5,7 +5,6 @@ import * as GitHub from "@alchemy.run/github"
 import * as Output from "alchemy/Output"
 import * as Mixedbread from "@website/alchemy-mixedbread"
 import { TURNSTILE_TEST_KEYS } from "./apps/web/src/features/motw-vote/turnstile-test-keys.ts"
-import type { LspContainer } from "./apps/web/src/worker.ts"
 import * as Config from "effect/Config"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -57,7 +56,6 @@ const Website = (
 
       return {
         rootDir: "./apps/web",
-        main: "src/worker.ts",
         memo: {
           include: [
             ".alchemy-build-input.json",
@@ -75,9 +73,8 @@ const Website = (
         astro: { output: "static" as const },
         assets: {
           htmlHandling: "drop-trailing-slash" as const,
-          // Route the PostHog proxy and Scratchpad LSP WebSocket gateway through
-          // the Worker before the asset layer.
-          runWorkerFirst: ["/_ingest/*", "/api/lsp"],
+          // Route the PostHog proxy through the Worker before the asset layer.
+          runWorkerFirst: ["/_ingest/*"],
         },
         ...(stage === "prod"
           ? {
@@ -113,24 +110,6 @@ const Website = (
             namespaceId: rateLimitNamespaceId(stage),
             simple: { limit: 20, period: 60 },
           }),
-          // Scratchpad LSP bridge container pool: 4 basic instances (1 GiB RAM,
-          // 1/4 vCPU), 1-minute sleepAfter configured on LspContainer DO.
-          LSP_CONTAINER: Cloudflare.Container<LspContainer>("LspContainer", {
-            className: "LspContainer",
-            context: "./packages/lsp-bridge",
-            instanceType: "basic",
-            maxInstances: 4,
-            env: {
-              RAYON_NUM_THREADS: "1",
-              GOMAXPROCS: "1",
-            },
-          }),
-          // 30 WebSocket upgrade attempts a minute per client IP
-          LSP_RATE_LIMIT: Cloudflare.RateLimit("LSP_RATE_LIMIT", {
-            namespaceId: rateLimitNamespaceId(`${stage}:lsp`),
-            simple: { limit: 30, period: 60 },
-          }),
-          LSP_ALLOW_PREVIEW_ORIGINS: stage === "prod" ? "false" : "true",
         },
         sessionKVBindingName: false,
         prerenderEnvironment: "node" as const,

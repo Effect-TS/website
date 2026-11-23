@@ -13,8 +13,5 @@ export const cloudflareWorkersFallback = (): Plugin => ({
   apply: "serve",
   enforce: "post",
   resolveId: (id) => (id === "cloudflare:workers" ? FALLBACK : undefined),
-  load: (id) =>
-    id === FALLBACK
-      ? "export const env = {}; export class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }"
-      : undefined,
+  load: (id) => (id === FALLBACK ? "export const env = {}" : undefined),
 })

@@ -14,7 +14,6 @@ import svgr from "vite-plugin-svgr"
 import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
-import { devLspProxyPlugin } from "./src/features/scratchpad/dev-lsp-proxy-plugin"
 import { tsrsLspAssets } from "./src/features/scratchpad/tsrs-lsp-assets-plugin"
 import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
@@ -67,7 +66,6 @@ const config = defineConfig({
       svgr(),
       openGraphMetadataPlugin({ cacheDir }),
       cloudflareWorkersFallback(),
-      devLspProxyPlugin(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
         features: "all",
@@ -127,20 +125,6 @@ const config = defineConfig({
         access: "public",
         optional: true,
         default: "https://us.i.posthog.com",
-      }),
-      PUBLIC_LSP_WS_URL: envField.string({
-        context: "client",
-        access: "public",
-        optional: true,
-      }),
-      // Where the Scratchpad's language server runs: "worker" (in the browser,
-      // the default) or "websocket" (packages/lsp-bridge behind /api/lsp or
-      // PUBLIC_LSP_WS_URL).
-      PUBLIC_LSP_TRANSPORT: envField.enum({
-        context: "client",
-        access: "public",
-        values: ["worker", "websocket"],
-        default: "worker",
       }),
     },
   },
