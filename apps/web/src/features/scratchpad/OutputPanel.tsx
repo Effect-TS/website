@@ -4,12 +4,7 @@ import * as Option from "effect/Option"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
 import { RunOutputTerminal } from "./RunOutputTerminal.tsx"
-import {
-  formatRunTime,
-  type RunBlockingError,
-  type RunOutput,
-  type RunSkip,
-} from "./runs.ts"
+import { type RunOutput, skipReport } from "./runs.ts"
 
 const HEIGHT_KEY = "scratchpad-output-panel"
 const DEFAULT_HEIGHT = 260
@@ -45,116 +40,6 @@ const writeLayout = (layout: PanelLayout) => {
   } catch {
     // Storage unavailable: the layout just isn't remembered.
   }
-}
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
-
-/**
- * A tsc-style code frame for one error: the source line with its line number,
- * and a caret underline under the error's range (first line only).
- */
-function CodeFrame({ error }: { readonly error: RunBlockingError }) {
-  if (error.source === undefined) return null
-  // Collapse leading indentation so long, deeply nested lines stay readable.
-  const indent = error.source.length - error.source.trimStart().length
-  const text = error.source.slice(indent)
-  const start = Math.max(0, error.column - 1 - indent)
-  const end =
-    error.endLine === error.line
-      ? Math.max(start + 1, error.endColumn - 1 - indent)
-      : text.length
-  const gutter = String(error.line)
-  return (
-    <pre
-      data-testid="run-skip-error-frame"
-      className="mt-1 overflow-x-auto text-zinc-600 dark:text-zinc-400"
-    >
-      <span className="text-zinc-400 select-none dark:text-zinc-600">
-        {gutter} │{" "}
-      </span>
-      {text}
-      {"\n"}
-      <span className="text-zinc-400 select-none dark:text-zinc-600">
-        {" ".repeat(gutter.length)} │{" "}
-      </span>
-      <span className="text-rose-500 dark:text-rose-400">
-        {" ".repeat(start)}
-        {"~".repeat(Math.max(1, Math.min(end, text.length) - start))}
-      </span>
-    </pre>
-  )
-}
-
-function SkipNotice({ skip }: { readonly skip: RunSkip }) {
-  const { revealPositionAtom } = useScratchpadSession()
-  const reveal = useAtomSet(revealPositionAtom)
-  const files = [...new Set(skip.errors.map((error) => error.path))]
-  return (
-    <div
-      data-testid="run-skip-notice"
-      className="max-h-[70%] shrink-0 overflow-y-auto border-b border-zinc-200 px-3 pt-2 pb-2 font-mono text-[15px] leading-[1.55] dark:border-zinc-800"
-    >
-      <div className="flex flex-wrap items-center gap-x-2">
-        <span
-          aria-hidden="true"
-          className="inline-block h-2.5 w-2.5 bg-orange-500"
-        />
-        <span className="font-medium text-orange-600 dark:text-orange-400">
-          Run skipped
-        </span>
-        <span className="text-zinc-400 dark:text-zinc-500">
-          · {formatRunTime(skip.at)} ·
-        </span>
-        <span className="text-purple-600 dark:text-purple-400">
-          {skip.trigger}
-        </span>
-      </div>
-      <div className="mb-2 text-zinc-500 dark:text-zinc-400">
-        {plural(skip.errors.length, "type error")} in {files.join(", ")}. Fix{" "}
-        {skip.errors.length === 1 ? "it" : "them"} to run.
-      </div>
-      <ol className="space-y-3">
-        {skip.errors.map((error, index) => (
-          <li key={index} data-testid="run-skip-error-item">
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              <button
-                type="button"
-                data-testid="run-skip-error"
-                title={`Open ${error.path} at line ${error.line}, column ${error.column}`}
-                onClick={() =>
-                  reveal({
-                    path: error.path,
-                    line: error.line,
-                    column: error.column,
-                  })
-                }
-                className="cursor-pointer text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-800 dark:text-sky-400 dark:decoration-sky-800 dark:hover:text-sky-300"
-              >
-                {error.path}:{error.line}:{error.column}
-              </button>
-              <span className="text-rose-600 dark:text-rose-400">error</span>
-              {error.code !== undefined && (
-                <span className="text-zinc-400 dark:text-zinc-500">
-                  {error.code}
-                </span>
-              )}
-            </div>
-            <div className="pl-4">
-              <div className="break-words whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
-                {error.message}
-              </div>
-              <CodeFrame error={error} />
-            </div>
-          </li>
-        ))}
-      </ol>
-      {skip.previousRunStartedAt !== undefined && (
-        <div className="mt-3 text-zinc-400 dark:text-zinc-500">
-          — previous output · {formatRunTime(skip.previousRunStartedAt)} —
-        </div>
-      )}
-    </div>
-  )
 }
 
 const TAB_BASE =
@@ -201,7 +86,9 @@ export function OutputPanel({ banner }: OutputPanelProps) {
     installLogAtom,
     failureAtom,
     dependenciesUnavailableLineAtom,
+    revealPositionAtom,
   } = useScratchpadSession()
+  const reveal = useAtomSet(revealPositionAtom)
   const runs = useAtomValue(runStateAtom)
   const runOutput = useAtomValue(runOutputAtom)
   const installLog = useAtomValue(installLogAtom)
@@ -212,13 +99,25 @@ export function OutputPanel({ banner }: OutputPanelProps) {
   // install log and Runs from being mistaken for each other.
   const installFailed =
     Option.isSome(failure) && failure.value.kind === "install-failed"
+  // A skipped Run shows its type errors in the terminal, above the previous
+  // Run's output (dimmed). Keyed by the skip's time so a new skip redraws.
+  const skipText =
+    !installFailed && runs.skipped !== undefined
+      ? skipReport(runs.skipped, runOutput)
+      : undefined
   const output: RunOutput = installFailed
     ? {
         runId: -installLog.run,
         text: installLog.output,
         total: installLog.output.length,
       }
-    : runOutput
+    : skipText !== undefined
+      ? {
+          runId: -(runs.skipped?.at ?? 0),
+          text: skipText,
+          total: skipText.length,
+        }
+      : runOutput
   const stop = useAtomSet(stopRunAtom)
   const restart = useAtomSet(restartRunAtom)
   const [layout, setLayout] = React.useState(readLayout)
@@ -271,7 +170,13 @@ export function OutputPanel({ banner }: OutputPanelProps) {
       data-testid="output-panel"
       data-collapsed={layout.collapsed}
       data-runs-available={runs.available}
-      style={layout.collapsed ? undefined : { height: layout.height }}
+      // A remembered height can exceed a smaller window: always leave the
+      // editor room, as dragging does.
+      style={
+        layout.collapsed
+          ? undefined
+          : { height: layout.height, maxHeight: "calc(100% - 120px)" }
+      }
       className="relative flex shrink-0 flex-col border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div
@@ -367,7 +272,6 @@ export function OutputPanel({ banner }: OutputPanelProps) {
             {dependenciesLine.value}
           </div>
         )}
-        {skipped !== undefined && <SkipNotice skip={skipped} />}
         {empty && (
           <div
             data-testid="run-output-empty"
@@ -380,7 +284,7 @@ export function OutputPanel({ banner }: OutputPanelProps) {
         )}
         <RunOutputTerminal
           output={output}
-          className={skipped !== undefined ? "opacity-45" : undefined}
+          onOpenLocation={skipText === undefined ? undefined : reveal}
         />
       </div>
     </div>

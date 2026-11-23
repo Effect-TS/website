@@ -162,6 +162,79 @@ export const runHeader = (run: {
 }): string =>
   `${ESC}1;34m▶ ${formatRunTime(run.startedAt)}${reset}${ESC}2m · ${reset}${ESC}35m${run.trigger}${reset}\r\n`
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
+
+// CSI sequences (colors, cursor moves) and OSC sequences (titles, links).
+// oxlint-disable-next-line no-control-regex
+const ANSI_PATTERN =
+  /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
+
+/** Removes ANSI escape sequences, so text can be re-styled as a whole. */
+export const stripAnsi = (text: string): string =>
+  text.replace(ANSI_PATTERN, "")
+
+/** `path:line:col` of a blocking error, as the terminal prints it. */
+export const errorLocation = (error: RunBlockingError): string =>
+  `${error.path}:${error.line}:${error.column}`
+
+/**
+ * A tsc-style code frame: the source line with its number, and a `~`
+ * underline under the error's range (first line only). Leading indentation
+ * is dropped so deeply nested lines stay readable.
+ */
+const codeFrame = (error: RunBlockingError): string => {
+  if (error.source === undefined) return ""
+  const indent = error.source.length - error.source.trimStart().length
+  const text = error.source.slice(indent)
+  const start = Math.max(0, error.column - 1 - indent)
+  const end =
+    error.endLine === error.line
+      ? Math.max(start + 1, error.endColumn - 1 - indent)
+      : text.length
+  const width = Math.max(1, Math.min(end, text.length) - start)
+  const gutter = String(error.line)
+  const bar = `${ESC}2m│${reset}`
+  return (
+    `    ${ESC}2m${gutter}${reset} ${bar} ${text}\r\n` +
+    `    ${" ".repeat(gutter.length)} ${bar} ${" ".repeat(start)}${ESC}31m${"~".repeat(width)}${reset}\r\n`
+  )
+}
+
+/**
+ * The terminal text for a skipped Run: a header, then each blocking error
+ * like tsc prints it (location, code, message with its chain on separate
+ * lines, code frame), then the previous Run's output, dimmed.
+ */
+export const skipReport = (
+  skip: RunSkip,
+  previous: RunOutput | undefined,
+): string => {
+  const files = [...new Set(skip.errors.map((error) => error.path))]
+  let text =
+    `${ESC}1;33m■ Run skipped${reset}${ESC}2m · ${formatRunTime(skip.at)} · ${reset}${ESC}35m${skip.trigger}${reset}\r\n` +
+    `${ESC}2m${plural(skip.errors.length, "type error")} in ${files.join(", ")}. Fix ${skip.errors.length === 1 ? "it" : "them"} to run.${reset}\r\n`
+  for (const error of skip.errors) {
+    text +=
+      `\r\n${ESC}4;36m${errorLocation(error)}${reset} ${ESC}31merror${reset}` +
+      (error.code === undefined ? "" : ` ${ESC}2m${error.code}${reset}`) +
+      "\r\n"
+    for (const line of error.message.split(/\r?\n/)) {
+      text += `  ${line}\r\n`
+    }
+    text += codeFrame(error)
+  }
+  if (skip.previousRunStartedAt !== undefined && previous !== undefined) {
+    text += `\r\n${ESC}2m— previous output · ${formatRunTime(skip.previousRunStartedAt)} —${reset}\r\n`
+    // Re-dim every line: the previous output's own resets would end a
+    // single dim span early.
+    text += stripAnsi(previous.text)
+      .split(/\r?\n/)
+      .map((line) => (line === "" ? "" : `${ESC}2m${line}${reset}`))
+      .join("\r\n")
+  }
+  return text
+}
+
 const statusLine = (status: RunStatus): string => {
   switch (status._tag) {
     case "running":

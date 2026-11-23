@@ -4,6 +4,15 @@ import "@xterm/xterm/css/xterm.css"
 import * as React from "react"
 import type { RunOutput } from "./runs.ts"
 
+/** A clickable `path:line:col` in the terminal. */
+export interface TerminalLocation {
+  readonly path: string
+  readonly line: number
+  readonly column: number
+}
+
+const LOCATION_PATTERN = /([\w./-]+\.(?:tsx?|mts|cts)):(\d+):(\d+)/g
+
 const HIDE_CURSOR = "\u001b[?25l"
 
 const ansi = {
@@ -94,10 +103,18 @@ export const useIsDark = (): boolean => {
 export function RunOutputTerminal({
   output,
   className,
+  onOpenLocation,
 }: {
   readonly output: RunOutput
   readonly className?: string | undefined
+  /**
+   * Makes `path:line:col` locations clickable. Leave it unset for program
+   * output: stack-trace line numbers are unreliable inside WebContainer.
+   */
+  readonly onOpenLocation?: ((location: TerminalLocation) => void) | undefined
 }) {
+  const openLocation = React.useRef(onOpenLocation)
+  openLocation.current = onOpenLocation
   const hostRef = React.useRef<HTMLDivElement>(null)
   const terminalRef = React.useRef<Terminal | null>(null)
   const written = React.useRef({ runId: -1, total: 0 })
@@ -121,6 +138,30 @@ export function RunOutputTerminal({
     const fit = new FitAddon()
     terminal.loadAddon(fit)
     terminal.open(host)
+    const links = terminal.registerLinkProvider({
+      provideLinks(row, callback) {
+        const open = openLocation.current
+        const text = terminal.buffer.active
+          .getLine(row - 1)
+          ?.translateToString(true)
+        if (open === undefined || text === undefined) return callback(undefined)
+        const found = [...text.matchAll(LOCATION_PATTERN)].map((match) => ({
+          text: match[0],
+          range: {
+            start: { x: match.index + 1, y: row },
+            end: { x: match.index + match[0].length, y: row },
+          },
+          decorations: { pointerCursor: true, underline: true },
+          activate: () =>
+            openLocation.current?.({
+              path: match[1]!,
+              line: Number(match[2]),
+              column: Number(match[3]),
+            }),
+        }))
+        callback(found.length === 0 ? undefined : found)
+      },
+    })
     terminal.write(HIDE_CURSOR)
     const refit = () => {
       try {
@@ -144,6 +185,7 @@ export function RunOutputTerminal({
     return () => {
       disposed = true
       observer.disconnect()
+      links.dispose()
       terminal.dispose()
       terminalRef.current = null
     }
@@ -166,9 +208,15 @@ export function RunOutputTerminal({
       delta > output.text.length
     ) {
       terminal.reset()
-      terminal.write(HIDE_CURSOR + output.text)
+      // A report (locations clickable) reads from the top; program output
+      // follows its tail.
+      terminal.write(HIDE_CURSOR + output.text, () => {
+        if (openLocation.current !== undefined) terminal.scrollToTop()
+      })
     } else if (delta > 0) {
-      terminal.write(output.text.slice(output.text.length - delta))
+      terminal.write(output.text.slice(output.text.length - delta), () => {
+        if (openLocation.current !== undefined) terminal.scrollToTop()
+      })
     }
     written.current = { runId: output.runId, total: output.total }
   }, [output])

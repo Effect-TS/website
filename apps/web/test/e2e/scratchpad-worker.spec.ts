@@ -489,3 +489,38 @@ test("without cross-origin isolation, shows the unsupported strip with help and 
   await containerOf(page).click()
   await expect(strip).toBeVisible()
 })
+
+test("the file explorer resizes by dragging its edge and remembers the width", async ({
+  page,
+}) => {
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  const explorer = page.getByTestId("scratchpad-file-explorer")
+  const handle = page.getByTestId("explorer-resize-handle")
+  await expect(explorer).toBeVisible()
+  const before = (await explorer.boundingBox())!.width
+  const grip = (await handle.boundingBox())!
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(
+    grip.x + grip.width / 2 + 120,
+    grip.y + grip.height / 2,
+    {
+      steps: 6,
+    },
+  )
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await explorer.boundingBox())!.width)
+    .toBeCloseTo(before + 120, -1)
+
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await expect
+    .poll(async () => (await explorer.boundingBox())!.width)
+    .toBeCloseTo(before + 120, -1)
+
+  // Double-clicking the edge restores the default.
+  await handle.dblclick()
+  await expect
+    .poll(async () => (await explorer.boundingBox())!.width)
+    .toBeCloseTo(before, -1)
+})

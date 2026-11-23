@@ -147,6 +147,13 @@ test("runs the seed, and an edit runs it again with the new output", async ({
 test("a type error skips the Run with the reason, and fixing it runs again", async ({
   page,
 }) => {
+  // Tall enough to show the report and the previous output.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "scratchpad-output-panel",
+      JSON.stringify({ height: 400, collapsed: false }),
+    ),
+  )
   await openSeedReady(page)
   const output = runOutputOf(page)
   await expectRun(page, 1, WELCOME)
@@ -156,21 +163,32 @@ test("a type error skips the Run with the reason, and fixing it runs again", asy
   await editorOf(page).locator(".cm-content").click()
   await page.keyboard.press("ControlOrMeta+End")
   await page.keyboard.insertText('\nconst broken: number = "nope"\n')
-  const notice = page.getByTestId("run-skip-notice")
-  await expect(notice).toBeVisible({ timeout: RUN_TIMEOUT })
-  await expect(output).toHaveAttribute("data-run-skipped", "true")
-  await expect(notice).toContainText("Run skipped")
-  await expect(notice).toContainText(/previous output · \d\d:\d\d:\d\d/)
-  await expect(notice).toContainText("error")
-  await expect(
-    notice.getByTestId("run-skip-error-frame").first(),
-  ).toContainText('const broken: number = "nope"')
-  const error = notice.getByTestId("run-skip-error").first()
-  await expect(error).toHaveText(/^src\/main\.ts:\d+:\d+$/)
-  // A skip is not a Run: the number stays.
+  // The report is printed in the terminal, like tsc, above the previous
+  // output.
+  const terminal = page.getByTestId("run-output-terminal")
+  await expect(output).toHaveAttribute("data-run-skipped", "true", {
+    timeout: RUN_TIMEOUT,
+  })
+  await expect(terminal).toContainText("Run skipped")
+  await expect(terminal).toContainText(/src\/main\.ts:\d+:\d+ error TS2322/)
+  await expect(terminal).toContainText('const broken: number = "nope"')
+  await expect(terminal).toContainText(/previous output · \d\d:\d\d:\d\d/)
+  await expect(terminal).toContainText(WELCOME)
+  await expect(page.getByTestId("run-skip-notice")).toHaveCount(0)
+  // A skip is not a Run: the internal id stays.
   expect(await runIdOf(page)).toBe(1)
+
+  // The error's location is a link that opens the file.
   await openFile(page, "src/DevTools.ts")
-  await error.click()
+  const location = terminal
+    .locator(".xterm-rows > div")
+    .filter({ hasText: /^src\/main\.ts:\d+:\d+ error/ })
+    .first()
+  // xterm's screen layer sits over its text rows, so point at the row.
+  const box = (await location.boundingBox())!
+  await page.mouse.move(box.x + 12, box.y + box.height / 2)
+  await page.mouse.move(box.x + 16, box.y + box.height / 2)
+  await page.mouse.click(box.x + 16, box.y + box.height / 2)
   await expect(page.getByTestId("editor-tab-src/main.ts")).toHaveAttribute(
     "aria-selected",
     "true",
@@ -182,8 +200,8 @@ test("a type error skips the Run with the reason, and fixing it runs again", asy
   await page.keyboard.press("ArrowUp")
   await page.keyboard.press("Shift+End")
   await page.keyboard.press("Backspace")
-  await expect(notice).toBeHidden({ timeout: RUN_TIMEOUT })
   await expectRun(page, 2, WELCOME)
+  await expect(terminal).not.toContainText("Run skipped")
   await expect(output).toHaveAttribute("data-run-skipped", "false")
 })
 

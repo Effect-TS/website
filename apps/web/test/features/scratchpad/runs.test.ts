@@ -19,6 +19,8 @@ import {
   RUN_PRELOAD_NAME,
   RUN_PRELOAD_SCRIPT,
   runBlockingErrorsOf,
+  skipReport,
+  stripAnsi,
   type RunBlockingError,
   type RunsService,
 } from "../../../src/features/scratchpad/runs.ts"
@@ -457,5 +459,57 @@ describe("runBlockingErrorsOf", () => {
         },
       ],
     )
+  })
+})
+
+describe("skipReport", () => {
+  const skip = {
+    trigger: "src/main.ts changed",
+    at: 0,
+    errors: [
+      {
+        path: "src/main.ts",
+        line: 12,
+        column: 21,
+        endLine: 12,
+        endColumn: 33,
+        message:
+          "No overload matches this call.\n  The last overload gave the following error.",
+        code: "TS2769",
+        source: "    NodeRuntime.runMain(program.pipe(",
+      },
+    ],
+    previousRunId: 1,
+    previousRunStartedAt: 0,
+  }
+
+  test("prints errors like tsc, with the message chain and a code frame", () => {
+    const text = stripAnsi(skipReport(skip, undefined))
+    const lines = text.split("\r\n")
+    assert.match(
+      lines[0]!,
+      /^■ Run skipped · \d\d:\d\d:\d\d · src\/main\.ts changed$/,
+    )
+    assert.equal(lines[1], "1 type error in src/main.ts. Fix it to run.")
+    assert.equal(lines[3], "src/main.ts:12:21 error TS2769")
+    assert.equal(lines[4], "  No overload matches this call.")
+    assert.equal(lines[5], "    The last overload gave the following error.")
+    // Indentation is dropped from the frame, and the underline follows it.
+    assert.equal(lines[6], "    12 │ NodeRuntime.runMain(program.pipe(")
+    assert.equal(lines[7], `       │ ${" ".repeat(16)}${"~".repeat(12)}`)
+    assert.notInclude(text, "previous output")
+  })
+
+  test("keeps the previous Run's output below, dimmed line by line", () => {
+    const previous = {
+      runId: 1,
+      text: "\u001b[1;34m▶ 00:00:00\u001b[0m · initial\r\n\u001b[32mhello\u001b[0m\r\n",
+      total: 0,
+    }
+    const report = skipReport(skip, previous)
+    assert.include(stripAnsi(report), "— previous output · ")
+    assert.include(report, "\u001b[2mhello\u001b[0m")
+    assert.include(report, "\u001b[2m▶ 00:00:00 · initial\u001b[0m")
+    assert.notInclude(report, "\u001b[32m")
   })
 })

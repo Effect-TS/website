@@ -18,6 +18,69 @@ import { useScratchpadSession } from "./context.tsx"
 import type { FileDiagnosticSummary } from "./editor.ts"
 import { WORKSPACE_PROTECTED_PATHS, type WorkspaceNode } from "./workspace.ts"
 
+const WIDTH_KEY = "scratchpad-explorer-width"
+const DEFAULT_WIDTH = 224
+const MIN_WIDTH = 160
+const MAX_WIDTH = 560
+
+const clampWidth = (width: number) =>
+  Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)))
+
+const readWidth = (): number => {
+  try {
+    const raw = localStorage.getItem(WIDTH_KEY)
+    const width = raw === null ? Number.NaN : Number(raw)
+    return Number.isFinite(width) ? clampWidth(width) : DEFAULT_WIDTH
+  } catch {
+    // Storage unavailable: use the default.
+    return DEFAULT_WIDTH
+  }
+}
+
+const writeWidth = (width: number) => {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(width))
+  } catch {
+    // Storage unavailable: the width just isn't remembered.
+  }
+}
+
+/**
+ * The explorer's width, resizable by dragging its right edge and remembered
+ * across visits. Double-clicking the edge restores the default.
+ */
+function useExplorerWidth() {
+  const [width, setWidth] = React.useState(readWidth)
+  const onResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const handle = event.currentTarget
+    handle.setPointerCapture(event.pointerId)
+    const startX = event.clientX
+    const startWidth = width
+    // Leave the editor some room on narrow windows.
+    const max = Math.min(MAX_WIDTH, window.innerWidth - 320)
+    let next = startWidth
+    const onMove = (move: PointerEvent) => {
+      next = Math.min(max, clampWidth(startWidth + move.clientX - startX))
+      setWidth(next)
+    }
+    const onUp = () => {
+      handle.removeEventListener("pointermove", onMove)
+      handle.removeEventListener("pointerup", onUp)
+      handle.removeEventListener("pointercancel", onUp)
+      writeWidth(next)
+    }
+    handle.addEventListener("pointermove", onMove)
+    handle.addEventListener("pointerup", onUp)
+    handle.addEventListener("pointercancel", onUp)
+  }
+  const reset = () => {
+    setWidth(DEFAULT_WIDTH)
+    writeWidth(DEFAULT_WIDTH)
+  }
+  return { width, onResizeStart, reset }
+}
+
 /** Whether deleting or renaming `node` would delete or move a protected file. */
 const holdsProtectedFile = (node: WorkspaceNode): boolean =>
   node._tag === "File"
@@ -164,6 +227,7 @@ const joinPath = (dir: string, name: string): string =>
   dir.length === 0 ? name : `${dir}/${name}`
 
 export function FileExplorer() {
+  const explorerWidth = useExplorerWidth()
   const {
     treeAtom,
     activeFileAtom,
@@ -516,8 +580,22 @@ export function FileExplorer() {
     <aside
       aria-label="Workspace files"
       data-testid="scratchpad-file-explorer"
-      className="flex h-full w-56 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-900/40"
+      style={{ width: explorerWidth.width }}
+      className="relative flex h-full shrink-0 flex-col border-r border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-900/40"
     >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the file explorer"
+        aria-valuenow={explorerWidth.width}
+        aria-valuemin={MIN_WIDTH}
+        aria-valuemax={MAX_WIDTH}
+        title="Drag to resize · double-click to reset"
+        data-testid="explorer-resize-handle"
+        onPointerDown={explorerWidth.onResizeStart}
+        onDoubleClick={explorerWidth.reset}
+        className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize hover:bg-blue-500/30"
+      />
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <span className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
           Files
