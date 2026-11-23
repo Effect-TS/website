@@ -18,9 +18,8 @@ Nothing here changes either upstream repository.
   versions, which is what Effect's `repoctl submodules setup` does, and adds the new crate's entry.
 - `upstream/crates/ets_wasm_lsp/` is the module crate. The build copies it into the effect-tsgo checkout.
 - `scripts/build-wasm.ts` builds `dist/tsrs-effect-lsp.wasm`.
-- `scripts/build-types-pack.ts` builds `dist/effect-types.pack`, the `effect` declaration files in one binary file,
-  and `dist/effect-types.pack.gz`, the same bytes gzipped for serving (CDNs do not compress
-  `application/octet-stream`, so the app ships the gzipped file and its worker inflates it).
+- `scripts/types-pack.ts` collects packages' declaration files into a types pack for the tests. The Scratchpad
+  ships no pack: its Container collects one from the installed packages after each install (ADR 0004).
 - `src/` is the runtime host. It uses no Node built-ins and no dependencies.
 - `dist/manifest.json` records sizes, sha256 sums, the upstream SHAs and the build mode. Nothing in `dist/` is
   committed.
@@ -47,8 +46,7 @@ standard library is not there. The first build needs network access for the two 
 ```sh
 nix develop -c pnpm --filter @website/tsrs-lsp-wasm build:wasm        # release, about 4 min from a clean cache
 nix develop -c pnpm --filter @website/tsrs-lsp-wasm build:wasm:dev    # no LTO, no wasm-opt, about 2.5 min
-nix develop -c pnpm --filter @website/tsrs-lsp-wasm build:types-pack  # about 20 s, mostly brotli for the manifest
-nix develop -c pnpm --filter @website/tsrs-lsp-wasm build             # both
+nix develop -c pnpm --filter @website/tsrs-lsp-wasm build             # same as build:wasm
 ```
 
 Pass `--force` to `scripts/build-wasm.ts` to rebuild anyway. The release settings are tsrs's `tools/wasm/build.sh`
@@ -85,22 +83,23 @@ The package exports `./dist/*`, so a worker can import the artifacts as URLs onc
 ```ts
 import { startLspHost } from "@website/tsrs-lsp-wasm"
 import wasmUrl from "@website/tsrs-lsp-wasm/dist/tsrs-effect-lsp.wasm?url"
-import packUrl from "@website/tsrs-lsp-wasm/dist/effect-types.pack?url"
 
 const host = await startLspHost({
   module: fetch(wasmUrl), // compileStreaming when served as application/wasm
-  typesPacks: [await (await fetch(packUrl)).arrayBuffer()],
+  typesPacks: [packBytes], // a TSPK types pack, e.g. from encodeTypesPack
   files: { "src/main.ts": mainText, "src/greeter.ts": greeterText },
   onMessage: (json) => postMessage(json),
 })
 self.onmessage = (event) => void host.send(event.data)
 ```
 
-The Scratchpad does this in `apps/web/src/features/scratchpad/lsp.worker.ts`, with the URLs coming from
+The Scratchpad does this in `apps/web/src/features/scratchpad/lsp.worker.ts`, with the module URL coming from
 `virtual:tsrs-lsp-assets` (`tsrs-lsp-assets-plugin.ts`), which also copies `dist/licenses/` into the build and stops
 `astro build` with the build command when the files are missing. `pnpm run setup:scratchpad` at the repo root (inside
 `nix develop`) builds everything. The app needs the files built before `astro dev` or `astro build`. Over the network the module is about 3.0 MB
-brotli and the pack about 1.2 MB. The manifest has exact numbers.
+brotli. The manifest has exact numbers. The Scratchpad starts the host with no types pack and `tsconfig: null`: the
+Workspace's own `tsconfig.json` is mirrored in, and the Container's installed declarations arrive later as a pack
+(ADR 0004).
 
 ## Runtime API
 

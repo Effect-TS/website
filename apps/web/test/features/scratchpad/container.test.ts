@@ -182,6 +182,44 @@ describe("Container mirror", () => {
   })
 })
 
+describe("Container mirror onChange", () => {
+  test("reports the mount, then each event after it lands, in order", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const ws = yield* makeMemoryWorkspace({ initialFiles: SEED })
+          const backend = makeFakeContainerBackend()
+          const container = yield* makeContainer(Effect.succeed(backend))
+          const seen: Array<string> = []
+          yield* mirrorWorkspace(ws, container, {
+            onChange: (change) =>
+              Effect.sync(() => {
+                seen.push(
+                  change._tag === "Mounted"
+                    ? `mounted ${Object.keys(change.files).length}`
+                    : `${change.event._tag} ${
+                        "path" in change.event ? change.event.path : ""
+                      } landed=${
+                        "path" in change.event &&
+                        backend.files.has(change.event.path)
+                      }`,
+                )
+              }),
+          })
+          yield* settle
+          yield* ws.writeHostFile("package.json", '{"a":1}')
+          yield* awaitLog(backend, 4)
+          yield* settle
+          assert.deepStrictEqual(seen, [
+            "mounted 3",
+            "FileChanged package.json landed=true",
+          ])
+        }),
+      ),
+    )
+  })
+})
+
 describe("Container", () => {
   const runContainer = <A, E>(
     body: (
@@ -281,6 +319,31 @@ describe("Container", () => {
           assert.strictEqual(backend.killed(), 0)
           yield* Fiber.interrupt(fiber)
           assert.strictEqual(backend.killed(), 1)
+        }),
+      backend,
+    )
+  })
+
+  test("keeps host files outside the Workspace and names them for spawn arguments", async () => {
+    const backend = makeFakeContainerBackend()
+    await runContainer(
+      (container) =>
+        Effect.gen(function* () {
+          yield* container.writeHostDirFile("collect.cjs", "script")
+          assert.strictEqual(
+            new TextDecoder().decode(
+              yield* container.readHostDirFile("collect.cjs"),
+            ),
+            "script",
+          )
+          assert.isFalse(backend.files.has("collect.cjs"))
+          assert.strictEqual(
+            container.hostDirPath("collect.cjs"),
+            "../.scratchpad/collect.cjs",
+          )
+          yield* container.removeHostDirFile("collect.cjs")
+          yield* container.removeHostDirFile("missing")
+          assert.strictEqual(backend.hostFiles.size, 0)
         }),
       backend,
     )

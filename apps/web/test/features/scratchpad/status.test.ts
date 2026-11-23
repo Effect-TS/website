@@ -2,6 +2,7 @@ import { assert, describe, test } from "vite-plus/test"
 import {
   ContainerBootFailed,
   ContainerUnsupported,
+  InstallFailed,
 } from "../../../src/features/scratchpad/container.ts"
 import {
   describeContainerPhase,
@@ -132,5 +133,36 @@ describe("describeContainerPhase", () => {
       error: new ContainerBootFailed({ message: "boom" }),
     })
     assert.equal(failed.label, "Container failed")
+  })
+
+  test("labels the install and types phases, and pulses while busy", () => {
+    const installing = describeContainerPhase({ _tag: "installing" })
+    assert.equal(installing.label, "Installing…")
+    assert.isTrue(installing.busy)
+    const loading = describeContainerPhase({ _tag: "loading-types" })
+    assert.equal(loading.label, "Loading types…")
+    assert.isTrue(loading.busy)
+    assert.isFalse(describeContainerPhase({ _tag: "ready" }).busy)
+
+    const installFailed = describeContainerPhase({
+      _tag: "install-failed",
+      error: new InstallFailed({
+        exitCode: 1,
+        outputTail: "ERR_PNPM",
+        message: "pnpm install exited with code 1.",
+      }),
+    })
+    assert.equal(installFailed.label, "Install failed")
+    assert.equal(installFailed.tone, "error")
+    assert.include(installFailed.detail, "exited with code 1")
+
+    const unavailable = describeContainerPhase({
+      _tag: "dependencies-unavailable",
+      reason: "Installed types did not reach the editor in time.",
+    })
+    assert.equal(unavailable.state, "dependencies-unavailable")
+    assert.equal(unavailable.label, "Dependencies unavailable")
+    assert.equal(unavailable.tone, "warning")
+    assert.include(unavailable.detail, "did not reach the editor")
   })
 })

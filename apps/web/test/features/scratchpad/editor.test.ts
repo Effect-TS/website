@@ -22,7 +22,12 @@ import {
   type FakeLspTransportOptions,
 } from "../../../src/features/scratchpad/transport.ts"
 import type { PageToWorker } from "../../../src/features/scratchpad/worker-protocol.ts"
-import { layerWorker } from "../../../src/features/scratchpad/worker-transport.ts"
+import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
+import {
+  layerWorker,
+  LspWorkspaceMirror,
+} from "../../../src/features/scratchpad/worker-transport.ts"
+import * as Deferred from "effect/Deferred"
 import {
   type Container,
   ContainerBootFailed,
@@ -116,9 +121,10 @@ const setupEditorTest = async (
   fakeOptions?: FakeLspTransportOptions,
   initialFiles?: Readonly<Record<string, string>>,
   containerLayer?: Layer.Layer<Container>,
+  mirrorLayer: Layer.Layer<never> = Layer.empty,
 ) => {
   const fake = makeFakeLspTransport(fakeOptions)
-  const layer = Layer.merge(fake.layer, TestClock.layer())
+  const layer = Layer.mergeAll(fake.layer, TestClock.layer(), mirrorLayer)
   const fakeEditors = createFakeEditorFactory()
   const fakeElement = {
     replaceChildren() {},
@@ -185,9 +191,17 @@ describe("ScratchpadEditorSession", () => {
       await flushMicrotasks(40)
 
       assert.deepEqual(ctx.getStatus(), { _tag: "connecting" })
+      // Installed, but this transport has no mirror to take the types.
       assert.deepEqual(
         ctx.registry.get(ctx.session.containerPhaseAtom),
-        Option.some({ _tag: "ready" as const }),
+        Option.some({
+          _tag: "dependencies-unavailable" as const,
+          reason: "The language server cannot receive types.",
+        }),
+      )
+      assert.deepEqual(
+        backend.spawned.map((call) => [call.command, ...call.args].join(" ")),
+        ["pnpm install"],
       )
       assert.deepEqual(Object.fromEntries(backend.files), {
         "src/main.ts": "main",
@@ -198,6 +212,196 @@ describe("ScratchpadEditorSession", () => {
       await flushMicrotasks(40)
       assert.equal(backend.files.get("src/main.ts"), "edited")
 
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("hides diagnostics until the installed types mount, then shows the fresh pushes only", async () => {
+    const answer = Deferred.makeUnsafe<TypesMountResult>()
+    const mirrorLayer = Layer.succeed(LspWorkspaceMirror, {
+      apply: () => {},
+      mountTypes: () => Deferred.await(answer),
+    }) as Layer.Layer<never>
+    const backend = makeFakeContainerBackend({
+      spawn: (call) => {
+        if (call.command === "node") {
+          backend.hostFiles.set("types.pack", new Uint8Array([1]))
+        }
+        return {}
+      },
+    })
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      { "src/main.ts": "main" },
+      layerFakeContainer(backend),
+      mirrorLayer,
+    )
+    const push = (message: string) =>
+      Effect.runPromise(
+        ctx.fake.controller.pushNotification(
+          "textDocument/publishDiagnostics",
+          {
+            uri: `${SCRATCHPAD_ROOT_URI}/src/main.ts`,
+            diagnostics: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 0, character: 1 },
+                },
+                severity: 1,
+                message,
+              },
+            ],
+          },
+        ),
+      )
+    try {
+      assert.isFalse(ctx.registry.get(ctx.session.diagnosticsVisibleAtom))
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(60)
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.containerPhaseAtom),
+        Option.some({ _tag: "loading-types" as const }),
+      )
+
+      await push("Cannot find module 'effect'")
+      await flushMicrotasks(40)
+      assert.isFalse(ctx.registry.get(ctx.session.diagnosticsVisibleAtom))
+      assert.equal(ctx.registry.get(ctx.session.diagnosticsAtom).size, 0)
+
+      Deferred.doneUnsafe(
+        answer,
+        Effect.succeed({
+          _tag: "TypesMounted",
+          id: 1,
+          files: 1,
+          bytes: 1,
+          packages: [],
+        }),
+      )
+      await flushMicrotasks(60)
+      assert.isTrue(ctx.registry.get(ctx.session.diagnosticsVisibleAtom))
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.containerPhaseAtom),
+        Option.some({ _tag: "ready" as const }),
+      )
+      // The push from before the types is stale and stays hidden.
+      assert.equal(ctx.registry.get(ctx.session.diagnosticsAtom).size, 0)
+
+      await push("Type 'string' is not assignable to type 'number'.")
+      await flushMicrotasks(40)
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.diagnosticsAtom).get("src/main.ts"),
+        { errors: 1, warnings: 0 },
+      )
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("shows the held-back diagnostics when types do not arrive within 60 seconds", async () => {
+    const mirrorLayer = Layer.succeed(LspWorkspaceMirror, {
+      apply: () => {},
+      mountTypes: () => Effect.never,
+    }) as Layer.Layer<never>
+    const backend = makeFakeContainerBackend({
+      spawn: (call) => {
+        if (call.command === "node") {
+          backend.hostFiles.set("types.pack", new Uint8Array([1]))
+        }
+        return {}
+      },
+    })
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      { "src/main.ts": "main" },
+      layerFakeContainer(backend),
+      mirrorLayer,
+    )
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(60)
+      await Effect.runPromise(
+        ctx.fake.controller.pushNotification(
+          "textDocument/publishDiagnostics",
+          {
+            uri: `${SCRATCHPAD_ROOT_URI}/src/main.ts`,
+            diagnostics: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 0, character: 1 },
+                },
+                severity: 2,
+                message: "warning",
+              },
+            ],
+          },
+        ),
+      )
+      await ctx.adjust("59 seconds")
+      assert.isFalse(ctx.registry.get(ctx.session.diagnosticsVisibleAtom))
+      assert.equal(ctx.registry.get(ctx.session.diagnosticsAtom).size, 0)
+
+      await ctx.adjust("1 second")
+      await flushMicrotasks(40)
+      assert.isTrue(ctx.registry.get(ctx.session.diagnosticsVisibleAtom))
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.diagnosticsAtom).get("src/main.ts"),
+        { errors: 0, warnings: 1 },
+      )
+      const phase = ctx.registry.get(ctx.session.containerPhaseAtom)
+      assert.equal(
+        Option.isSome(phase) && phase.value._tag,
+        "dependencies-unavailable",
+      )
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("synced-back files reach the explorer and an open read-only tab", async () => {
+    const boot = Deferred.makeUnsafe<void>()
+    const backend = makeFakeContainerBackend({
+      spawn: (call) => {
+        if (call.command === "pnpm") {
+          backend.files.set("package.json", '{ "dependencies": {} }\n')
+          backend.files.set("pnpm-lock.yaml", "lockfileVersion: '6.0'\n")
+        }
+        return {}
+      },
+    })
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      { "src/main.ts": "main", "package.json": "{}" },
+      // Boot once the editor has opened package.json.
+      layerFakeContainer(backend, Deferred.await(boot)),
+    )
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(60)
+      ctx.registry.set(ctx.session.openFileAtom, "package.json")
+      await flushMicrotasks(40)
+      const view = ctx.fakeEditors.handles[0]!
+      assert.equal(view.getState().doc.toString(), "{}")
+
+      Deferred.doneUnsafe(boot, Effect.void)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      await flushMicrotasks(80)
+      const names = (nodes: ReadonlyArray<{ readonly path: string }>) =>
+        nodes.map((node) => node.path)
+      assert.include(
+        names(ctx.registry.get(ctx.session.treeAtom)),
+        "pnpm-lock.yaml",
+      )
+      assert.equal(view.getState().doc.toString(), '{ "dependencies": {} }\n')
       unmountEditor()
     } finally {
       ctx.dispose()
@@ -325,7 +529,7 @@ describe("ScratchpadEditorSession", () => {
     const session = makeScratchpadEditorSession({
       transportLayer: layerWorker({
         makeWorker: fakes.makeWorker,
-        assets: { wasm: { url: "/lsp.wasm" }, typesPacks: [] },
+        assets: { wasm: { url: "/lsp.wasm" } },
       }),
       rootUri: SCRATCHPAD_ROOT_URI,
       initialFiles: {

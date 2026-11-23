@@ -3,6 +3,10 @@
  * language server compiled to wasm (`@website/tsrs-lsp-wasm`), behind the
  * page protocol in `worker-protocol.ts`. The pull-to-push and file system
  * logic lives in `lsp-worker-bridge.ts`; this file only wires it up.
+ *
+ * Types are not downloaded: the page sends the Container's installed
+ * declarations with `ReplaceNodeModules`, and `tsconfig.json` arrives as a
+ * Workspace file (ADR 0004).
  */
 import {
   MemoryFileSystem,
@@ -11,7 +15,7 @@ import {
   type LspHost,
 } from "@website/tsrs-lsp-wasm"
 import { makeLspWorkerBridge } from "./lsp-worker-bridge.ts"
-import { fetchCounted, loadTypesPack } from "./worker-assets.ts"
+import { fetchCounted } from "./worker-assets.ts"
 import {
   isPageToWorker,
   type LoadPhase,
@@ -32,6 +36,7 @@ const bridge = makeLspWorkerBridge({
   fs,
   rootPath: WORKSPACE_ROOT_PATH,
   postToPage: (message) => post(message),
+  onTypes: (result) => post(result),
 })
 
 let host: LspHost | undefined
@@ -53,9 +58,7 @@ const PROGRESS_INTERVAL_MS = 100
 
 const start = async (assets: WorkerAssets) => {
   const t0 = performance.now()
-  const totalBytes =
-    (assets.wasm.bytes ?? 0) +
-    assets.typesPacks.reduce((sum, pack) => sum + (pack.bytes ?? 0), 0)
+  const totalBytes = assets.wasm.bytes ?? 0
   let loadedBytes = 0
   let phase: LoadPhase = "downloading"
   let lastProgress = 0
@@ -72,9 +75,6 @@ const start = async (assets: WorkerAssets) => {
   report(true)
 
   const wasmResponse = fetchCounted(fetch, assets.wasm.url, onBytes)
-  const packs = Promise.all(
-    assets.typesPacks.map((pack) => loadTypesPack(fetch, pack.url, onBytes)),
-  )
   // Compilation streams alongside the download; once every byte is in, what
   // is left is compiling.
   const module = wasmResponse.then((response) =>
@@ -83,13 +83,13 @@ const start = async (assets: WorkerAssets) => {
       ? response.arrayBuffer().then((bytes) => WebAssembly.compile(bytes))
       : WebAssembly.compileStreaming(response),
   )
-  void Promise.all([wasmResponse, packs]).then(() => {
+  void wasmResponse.then(() => {
     if (phase === "downloading") {
       phase = "compiling"
       report(true)
     }
   })
-  const [compiled, typesPacks] = await Promise.all([module, packs])
+  const compiled = await module
   const loadMs = performance.now() - t0
   phase = "starting"
   report(true)
@@ -97,8 +97,9 @@ const start = async (assets: WorkerAssets) => {
   host = await startLspHost({
     module: compiled,
     fs,
-    typesPacks,
     rootPath: WORKSPACE_ROOT_PATH,
+    // The Workspace's own tsconfig.json, mirrored like any file.
+    tsconfig: null,
     onMessage: (message) => bridge.handleServerMessage(message),
     onRecovery: (event) =>
       post({

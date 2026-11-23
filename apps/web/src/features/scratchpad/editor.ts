@@ -13,6 +13,7 @@ import {
 } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { basicSetup } from "codemirror"
+import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
@@ -22,6 +23,13 @@ import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
 import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
 import { Container, type ContainerPhase, mirrorWorkspace } from "./container.ts"
+import {
+  containerPhaseOf,
+  Dependencies,
+  emptyInstallLog,
+  type InstallLog,
+  layerDependencies,
+} from "./dependencies.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
 import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
@@ -67,6 +75,11 @@ export interface ScratchpadEditorSessionConfig extends Omit<
    * mounts and never blocks editing. Without one, nothing runs.
    */
   readonly containerLayer?: Layer.Layer<Container> | undefined
+  /**
+   * With a Container, how long after it is ready diagnostics wait for the
+   * installed types before they are shown anyway. Default 60 seconds.
+   */
+  readonly typesTimeout?: Duration.Input | undefined
   readonly createEditorView?: EditorViewFactory | undefined
 }
 
@@ -90,8 +103,18 @@ export interface ScratchpadEditorSession {
   readonly runtime: Atom.AtomRuntime<LspTransport | Workspace>
   readonly elementAtom: Atom.Writable<Option.Option<HTMLElement>>
   readonly statusAtom: Atom.Writable<LspStatus>
-  /** The Container's phase, or `None` when the session has no Container. */
+  /**
+   * The Container's phase, including the install and the types copy, or
+   * `None` when the session has no Container.
+   */
   readonly containerPhaseAtom: Atom.Atom<Option.Option<ContainerPhase>>
+  /** The latest `pnpm install`'s output and exit code. */
+  readonly installLogAtom: Atom.Atom<InstallLog>
+  /**
+   * False while diagnostics wait for the installed types (only with a
+   * Container). Once true it stays true.
+   */
+  readonly diagnosticsVisibleAtom: Atom.Atom<boolean>
   readonly editorAtom: Atom.Atom<
     AsyncResult.AsyncResult<ScratchpadEditorInstance>
   >
@@ -235,6 +258,8 @@ export const makeScratchpadEditorSession = (
 
   const editorStates = new Map<string, EditorState>()
   const lastDiagnosticsByUri = new Map<string, string>()
+  // With a Container, diagnostics wait for the installed types (ADR 0004).
+  let diagnosticsHidden = config.containerLayer !== undefined
 
   const treeAtom = Atom.make<ReadonlyArray<WorkspaceNode>>([]).pipe(
     Atom.keepAlive,
@@ -254,6 +279,7 @@ export const makeScratchpadEditorSession = (
     Option.none(),
   ).pipe(Atom.keepAlive)
 
+  /** Caches a push, and summarizes it unless diagnostics are hidden. */
   const recordPublishedDiagnostics = (params: unknown) => {
     if (
       typeof params !== "object" ||
@@ -263,20 +289,24 @@ export const makeScratchpadEditorSession = (
     ) {
       return
     }
-    const uri = params.uri
-    const diagnostics =
-      "diagnostics" in params && Array.isArray(params.diagnostics)
-        ? (params.diagnostics as ReadonlyArray<{ readonly severity?: number }>)
-        : []
-
     lastDiagnosticsByUri.set(
-      uri,
+      params.uri,
       JSON.stringify({
         jsonrpc: "2.0",
         method: "textDocument/publishDiagnostics",
         params,
       }),
     )
+    if (!diagnosticsHidden) summarizePublishedDiagnostics(params)
+  }
+
+  const summarizePublishedDiagnostics = (params: object) => {
+    if (!("uri" in params) || typeof params.uri !== "string") return
+    const uri = params.uri
+    const diagnostics =
+      "diagnostics" in params && Array.isArray(params.diagnostics)
+        ? (params.diagnostics as ReadonlyArray<{ readonly severity?: number }>)
+        : []
 
     const relPath = workspaceUriToPath(uri, rootUri)
     if (relPath === undefined || activeRegistry === undefined) {
@@ -334,33 +364,75 @@ export const makeScratchpadEditorSession = (
         "textDocument/publishDiagnostics": (_client, params) => {
           recordPublishedDiagnostics(params)
           // Return false so @codemirror/lsp-client's serverDiagnostics() also
-          // renders squiggles in the active EditorView.
-          return false
+          // renders squiggles in the active EditorView. While diagnostics
+          // wait for types, the push is only cached.
+          return diagnosticsHidden
         },
       },
     },
   })
 
-  // The Container is optional and looked up with `serviceOption`, so it is
-  // kept out of the runtime's type.
-  const containerLayer = (config.containerLayer ??
-    Layer.empty) as Layer.Layer<never>
-  const runtime = Atom.runtime(
-    Layer.mergeAll(
-      config.transportLayer,
-      wsLayer.pipe(Layer.orDie),
-      containerLayer,
-    ),
-  ).pipe(Atom.setIdleTTL(config.idleTTL ?? "2 seconds"))
+  // The Container and its Dependencies are optional and looked up with
+  // `serviceOption`, so they are kept out of the runtime's type.
+  const baseLayer = Layer.mergeAll(
+    config.transportLayer,
+    wsLayer.pipe(Layer.orDie),
+    (config.containerLayer ?? Layer.empty) as Layer.Layer<never>,
+  )
+  const runtimeLayer =
+    config.containerLayer === undefined
+      ? baseLayer
+      : (layerDependencies({ typesTimeout: config.typesTimeout }).pipe(
+          Layer.provideMerge(baseLayer),
+        ) as unknown as typeof baseLayer)
+  const runtime = Atom.runtime(runtimeLayer).pipe(
+    Atom.setIdleTTL(config.idleTTL ?? "2 seconds"),
+  )
 
   const containerPhaseAtom = Atom.make<Option.Option<ContainerPhase>>(
     Option.none(),
   ).pipe(Atom.keepAlive)
+  const installLogAtom = Atom.make<InstallLog>(emptyInstallLog).pipe(
+    Atom.keepAlive,
+  )
+  const diagnosticsVisibleAtom = Atom.make(!diagnosticsHidden).pipe(
+    Atom.keepAlive,
+  )
 
   /**
-   * Mirrors the Workspace into the Container and tracks its phase while
-   * mounted. Mounted by `editorAtom`, so the Container boots on page load,
-   * alongside the language server rather than after it.
+   * Shows the diagnostics held back while waiting for types. When types
+   * mounted, the cached pushes predate them (all "Cannot find module"), and
+   * the worker is already re-pulling, so they are dropped. Otherwise they
+   * are the best there is, and are shown.
+   */
+  const releaseDiagnostics = (
+    registry: AtomRegistry.AtomRegistry,
+    typesMounted: boolean,
+  ) => {
+    if (!diagnosticsHidden) return
+    diagnosticsHidden = false
+    registry.set(diagnosticsVisibleAtom, true)
+    if (typesMounted) {
+      lastDiagnosticsByUri.clear()
+      return
+    }
+    for (const raw of lastDiagnosticsByUri.values()) {
+      const message = JSON.parse(raw) as { readonly params: object }
+      summarizePublishedDiagnostics(message.params)
+    }
+    if (mountedFilePath !== undefined) {
+      const cached = lastDiagnosticsByUri.get(
+        pathToWorkspaceUri(mountedFilePath, rootUri),
+      )
+      if (cached !== undefined) session.replayIncoming(cached)
+    }
+  }
+
+  /**
+   * Mirrors the Workspace into the Container, runs installs and the types
+   * copy (`Dependencies`), and tracks the phase while mounted. Mounted by
+   * `editorAtom`, so the Container boots on page load, alongside the
+   * language server rather than after it.
    */
   const containerAtom = runtime.atom(
     Effect.fnUntraced(function* () {
@@ -368,15 +440,36 @@ export const makeScratchpadEditorSession = (
       if (Option.isNone(container)) return
       const registry = yield* AtomRegistry.AtomRegistry
       const ws = yield* Workspace
-      yield* container.value.phaseChanges.pipe(
-        Stream.runForEach((phase) =>
+      const deps = yield* Effect.serviceOption(Dependencies)
+      if (Option.isNone(deps)) {
+        yield* mirrorWorkspace(ws, container.value)
+        return
+      }
+      yield* deps.value.stateChanges.pipe(
+        Stream.runForEach((state) =>
           Effect.sync(() => {
-            registry.set(containerPhaseAtom, Option.some(phase))
+            registry.set(
+              containerPhaseAtom,
+              Option.some(containerPhaseOf(state)),
+            )
+            if (state.diagnosticsVisible) {
+              releaseDiagnostics(registry, state.types._tag === "mounted")
+            }
           }),
         ),
         Effect.forkScoped,
       )
-      yield* mirrorWorkspace(ws, container.value)
+      yield* deps.value.installLogChanges.pipe(
+        Stream.runForEach((log) =>
+          Effect.sync(() => {
+            registry.set(installLogAtom, log)
+          }),
+        ),
+        Effect.forkScoped,
+      )
+      yield* mirrorWorkspace(ws, container.value, {
+        onChange: deps.value.onMirrorChange,
+      })
     }),
   )
 
@@ -524,6 +617,33 @@ export const makeScratchpadEditorSession = (
 
   switchViewToFile = mountFileInView
 
+  /**
+   * Brings an open read-only file (`package.json`, `pnpm-lock.yaml`) up to
+   * date after the host wrote it (Container sync-back). Editor writes never
+   * need this: the editor is where they came from.
+   */
+  const applyHostWrite = (relPath: string, content: string) => {
+    if (!isReadOnlyPath(relPath)) return
+    const view = activeView
+    const mounted = view !== undefined && mountedFilePath === relPath
+    const state = mounted ? view.state : editorStates.get(relPath)
+    if (state === undefined) return
+    const current = state.doc.toString()
+    if (current === content) return
+    const next = state.update({
+      changes: { from: 0, to: current.length, insert: content },
+    }).state
+    editorStates.set(relPath, next)
+    if (mounted) {
+      isSwappingState = true
+      try {
+        view.setState(next)
+      } finally {
+        isSwappingState = false
+      }
+    }
+  }
+
   const editorAtom = runtime.atom(
     Effect.fnUntraced(function* (get) {
       get.mount(containerAtom)
@@ -552,6 +672,26 @@ export const makeScratchpadEditorSession = (
         )
         yield* Effect.yieldNow
       }
+
+      // Host writes (Container sync-back) add files the explorer has not
+      // seen and change read-only files that may be open.
+      yield* ws.events.pipe(
+        Stream.runForEach((event) => {
+          switch (event._tag) {
+            case "FileChanged":
+              applyHostWrite(event.path, event.content)
+              return isReadOnlyPath(event.path)
+                ? refreshTree(ws, registry).pipe(Effect.ignore)
+                : Effect.void
+            case "FileCreated":
+              applyHostWrite(event.path, event.content)
+              return refreshTree(ws, registry).pipe(Effect.ignore)
+            default:
+              return refreshTree(ws, registry).pipe(Effect.ignore)
+          }
+        }),
+        Effect.forkScoped,
+      )
 
       // Seed LSP workspace with all files from Effect Workspace before/on connect
       const allFiles = yield* ws.listFiles.pipe(Effect.orDie)
@@ -836,6 +976,8 @@ export const makeScratchpadEditorSession = (
     elementAtom,
     statusAtom: session.statusAtom,
     containerPhaseAtom,
+    installLogAtom,
+    diagnosticsVisibleAtom,
     editorAtom,
     treeAtom,
     openTabsAtom,

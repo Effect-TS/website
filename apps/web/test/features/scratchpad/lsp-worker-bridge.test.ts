@@ -1,4 +1,8 @@
-import { MemoryFileSystem, REQUEST_FAILED } from "@website/tsrs-lsp-wasm"
+import {
+  encodeTypesPack,
+  MemoryFileSystem,
+  REQUEST_FAILED,
+} from "@website/tsrs-lsp-wasm"
 import { assert, describe, test } from "vite-plus/test"
 import {
   CROSS_FILE_PULL_DELAY_MS,
@@ -7,6 +11,7 @@ import {
   QUARANTINE_DIAGNOSTIC_CODE,
   type BridgeTimers,
 } from "../../../src/features/scratchpad/lsp-worker-bridge.ts"
+import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
 
 interface Message {
   readonly jsonrpc?: string
@@ -55,11 +60,13 @@ const setup = () => {
   const { timers, advance } = makeManualTimers()
   const toPage: Array<Message> = []
   const toServer: Array<Message> = []
+  const types: Array<TypesMountResult> = []
   const quarantined = new Set<string>()
   const bridge = makeLspWorkerBridge({
     fs,
     timers,
     postToPage: (raw) => toPage.push(JSON.parse(raw) as Message),
+    onTypes: (result) => types.push(result),
   })
   const server = {
     send: (raw: string) => {
@@ -106,6 +113,7 @@ const setup = () => {
   return {
     fs,
     bridge,
+    types,
     server,
     quarantined,
     advance,
@@ -352,14 +360,12 @@ describe("LspWorkerBridge workspace file system", () => {
     ctx.bridge.applyFsOp({ _tag: "Remove", path: "src/lib/new.ts" })
     assert.isFalse(ctx.fs.exists("/workspace/src/lib/new.ts"))
 
-    // A Reset drops files that are gone but keeps the server's own files.
-    ctx.fs.writeFile("/workspace/tsconfig.json", "{}")
+    // A Reset drops files that are gone but keeps the installed types.
     ctx.fs.writeFile("/workspace/node_modules/effect/package.json", "{}")
     ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/b.ts": "b" } })
     assert.deepEqual(ctx.fs.listFiles("/workspace").sort(), [
       "/workspace/node_modules/effect/package.json",
       "/workspace/src/b.ts",
-      "/workspace/tsconfig.json",
     ])
   })
 
@@ -379,5 +385,139 @@ describe("LspWorkerBridge workspace file system", () => {
       to: "src/app.ts",
     })
     assert.equal(ctx.fs.readTextFile("/workspace/src/app.ts"), "v2")
+  })
+})
+
+const packOf = (
+  files: Readonly<Record<string, string>>,
+  packages = [{ name: "effect", version: "4.1.5" }],
+): ArrayBuffer => {
+  const encoder = new TextEncoder()
+  const bytes = encodeTypesPack({
+    packages,
+    files: Object.entries(files).map(([path, text]) => ({
+      path,
+      data: encoder.encode(text),
+    })),
+  })
+  return bytes.slice().buffer
+}
+
+describe("LspWorkerBridge tsconfig.json", () => {
+  test("is a Workspace file: written, changed, removed, and dropped by a Reset without it", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({
+      _tag: "Reset",
+      files: { "src/main.ts": "main", "tsconfig.json": '{"a":1}' },
+    })
+    assert.equal(ctx.fs.readTextFile("/workspace/tsconfig.json"), '{"a":1}')
+
+    ctx.bridge.applyFsOp({
+      _tag: "WriteFile",
+      path: "tsconfig.json",
+      content: '{"a":2}',
+    })
+    assert.equal(ctx.fs.readTextFile("/workspace/tsconfig.json"), '{"a":2}')
+
+    ctx.bridge.applyFsOp({ _tag: "Remove", path: "tsconfig.json" })
+    assert.isFalse(ctx.fs.exists("/workspace/tsconfig.json"))
+
+    ctx.bridge.applyFsOp({
+      _tag: "WriteFile",
+      path: "tsconfig.json",
+      content: "{}",
+    })
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
+    assert.isFalse(
+      ctx.fs.exists("/workspace/tsconfig.json"),
+      "no stale tsconfig survives a Reset",
+    )
+  })
+})
+
+describe("LspWorkerBridge ReplaceNodeModules", () => {
+  test("replaces everything below node_modules, answers TypesMounted and re-pulls open documents", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
+    ctx.bridge.connect(ctx.server)
+    ctx.open(MAIN_URI, "main")
+    ctx.advance(1_000)
+
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 1,
+      pack: packOf({
+        "effect/package.json": '{"name":"effect"}',
+        "effect/dist/Old.d.ts": "old",
+      }),
+    })
+    assert.equal(
+      ctx.fs.readTextFile("/workspace/node_modules/effect/dist/Old.d.ts"),
+      "old",
+    )
+    const before = ctx.pulls().length
+
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 2,
+      pack: packOf(
+        {
+          "effect/package.json": '{"name":"effect"}',
+          "effect/dist/New.d.ts": "export {}",
+          "@types/node/package.json": "{}",
+        },
+        [
+          { name: "@types/node", version: "24.0.0" },
+          { name: "effect", version: "4.1.6" },
+        ],
+      ),
+    })
+    assert.deepEqual(ctx.fs.listFiles("/workspace").sort(), [
+      "/workspace/node_modules/@types/node/package.json",
+      "/workspace/node_modules/effect/dist/New.d.ts",
+      "/workspace/node_modules/effect/package.json",
+      "/workspace/src/main.ts",
+    ])
+    assert.deepEqual(ctx.types[1], {
+      _tag: "TypesMounted",
+      id: 2,
+      files: 3,
+      bytes: '{"name":"effect"}'.length + "export {}".length + 2,
+      packages: [
+        { name: "@types/node", version: "24.0.0" },
+        { name: "effect", version: "4.1.6" },
+      ],
+    })
+    ctx.advance(CROSS_FILE_PULL_DELAY_MS)
+    assert.deepEqual(ctx.pullUris().slice(before), [MAIN_URI])
+  })
+
+  test("a pack that does not decode is rejected and keeps the previous types", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 1,
+      pack: packOf({ "effect/package.json": "{}" }),
+    })
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 2,
+      pack: new TextEncoder().encode("not a pack").buffer,
+    })
+    assert.equal(ctx.types[1]?._tag, "TypesRejected")
+    assert.equal(ctx.types[1]?.id, 2)
+    assert.isTrue(ctx.fs.exists("/workspace/node_modules/effect/package.json"))
+  })
+
+  test("works before the server is connected, and a Reset keeps the types", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 7,
+      pack: packOf({ "effect/package.json": "{}" }),
+    })
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
+    assert.equal(ctx.types[0]?._tag, "TypesMounted")
+    assert.isTrue(ctx.fs.exists("/workspace/node_modules/effect/package.json"))
   })
 })

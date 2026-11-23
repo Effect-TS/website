@@ -94,7 +94,7 @@ export function ContainerStatusIndicator() {
     >
       <span
         aria-hidden="true"
-        className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT_STYLES[view.tone]} ${view.state === "booting" ? "animate-pulse" : ""}`}
+        className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT_STYLES[view.tone]} ${view.busy ? "animate-pulse" : ""}`}
       />
       <span>{view.label}</span>
     </span>

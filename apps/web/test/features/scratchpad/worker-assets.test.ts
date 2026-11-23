@@ -1,7 +1,6 @@
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
-import { gzipSync } from "node:zlib"
 import { assert, describe, test } from "vite-plus/test"
 import {
   missingArtifactsMessage,
@@ -11,9 +10,6 @@ import {
 import {
   AssetLoadError,
   fetchCounted,
-  inflateIfGzip,
-  isGzip,
-  loadTypesPack,
 } from "../../../src/features/scratchpad/worker-assets.ts"
 
 const bytesOf = (text: string) => new TextEncoder().encode(text)
@@ -56,24 +52,6 @@ describe("worker assets", () => {
     }
   })
 
-  test("inflates a gzipped types pack and passes plain bytes through", async () => {
-    const plain = bytesOf("TSPK pack bytes")
-    const gzipped = new Uint8Array(gzipSync(plain))
-    assert.isTrue(isGzip(gzipped))
-    assert.isFalse(isGzip(plain))
-    assert.deepEqual(await inflateIfGzip(gzipped), plain)
-    assert.deepEqual(await inflateIfGzip(plain), plain)
-
-    let counted = 0
-    const loaded = await loadTypesPack(
-      () => Promise.resolve(new Response(gzipped)),
-      "/effect-types.pack.gz",
-      (n) => (counted += n),
-    )
-    assert.deepEqual(loaded, plain)
-    assert.equal(counted, gzipped.byteLength)
-  })
-
   test("names every missing artifact and the command that builds them", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tsrs-lsp-dist-"))
     try {
@@ -81,7 +59,7 @@ describe("worker assets", () => {
       const missing = missingTsrsLspArtifacts(dir)
       assert.deepEqual(
         missing.map((file) => path.basename(file)),
-        ["tsrs-effect-lsp.wasm", "effect-types.pack.gz", "licenses"],
+        ["tsrs-effect-lsp.wasm", "licenses"],
       )
       const message = missingArtifactsMessage(missing)
       assert.include(message, TSRS_LSP_BUILD_COMMAND)

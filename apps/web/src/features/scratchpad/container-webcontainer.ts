@@ -6,7 +6,8 @@
  * - `workspace/`: the mirrored Workspace. Every `ContainerBackend` path is
  *   relative to it, and processes start there.
  * - `.scratchpad/`: host scripts that are not part of the Workspace (the
- *   `/dev-tools-proxy` now, the Run preload and types collector later).
+ *   `/dev-tools-proxy`, the types collector and its pack, the Run preload
+ *   later). `ContainerBackend`'s host-dir operations work here.
  */
 import type { WebContainer } from "@webcontainer/api"
 import * as Effect from "effect/Effect"
@@ -24,6 +25,7 @@ import {
 
 export const CONTAINER_WORKDIR_NAME = "scratchpad"
 export const CONTAINER_WORKSPACE_DIR = "workspace"
+/** `CONTAINER_HOST_DIR_FROM_WORKSPACE` is this directory seen from `workspace/`. */
 export const CONTAINER_HOST_DIR = ".scratchpad"
 
 /** The devtools TCP port Effect's `DevTools.layer` connects to. */
@@ -106,6 +108,13 @@ const makeBackend = (wc: WebContainer): ContainerBackend => {
       await wc.fs.rename(abs(from), abs(to))
     },
     readFile: (path) => wc.fs.readFile(abs(path)),
+    writeHostDirFile: async (name, content) => {
+      await wc.fs.mkdir(CONTAINER_HOST_DIR, { recursive: true })
+      await wc.fs.writeFile(`${CONTAINER_HOST_DIR}/${name}`, content)
+    },
+    readHostDirFile: (name) => wc.fs.readFile(`${CONTAINER_HOST_DIR}/${name}`),
+    removeHostDirFile: (name) =>
+      wc.fs.rm(`${CONTAINER_HOST_DIR}/${name}`, { force: true }),
     spawn: (command, args, options) =>
       wc.spawn(command, [...args], {
         cwd:
