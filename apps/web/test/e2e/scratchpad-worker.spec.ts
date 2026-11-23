@@ -1,4 +1,17 @@
 import { expect, test, type Page } from "playwright/test"
+import {
+  awaitInstalledTypes,
+  containerOf,
+  dismissTooltips,
+  editorOf,
+  LSP_TIMEOUT,
+  lineWith,
+  lintMessages,
+  openFile,
+  READY_TIMEOUT,
+  replaceDocument,
+  statusOf,
+} from "./scratchpad-helpers.ts"
 
 // The Scratchpad with the Effect tsrs language server running in a Web Worker
 // on the page: see playwright.scratchpad-worker.config.ts.
@@ -7,13 +20,8 @@ import { expect, test, type Page } from "playwright/test"
 // tests that need Effect's types wait for the Container to reach `ready`.
 // Booting needs StackBlitz's servers and installing needs the npm registry:
 // when the Container cannot get there, those tests skip rather than fail.
-
-const READY_TIMEOUT = 60_000
-const LSP_TIMEOUT = 20_000
-/** Boot, `pnpm install` and the types copy. */
-const TYPES_TIMEOUT = 120_000
-/** A Run's start to its first output in the Container (about 5 s). */
-const RUN_TIMEOUT = 60_000
+// Tests about the Container itself (Runs, installs, `pnpm add`, Stop and
+// Restart) live in scratchpad-container.spec.ts.
 
 test.describe.configure({ timeout: 240_000 })
 
@@ -102,51 +110,6 @@ const useGreeterWorkspace = (page: Page) =>
     localStorage.setItem("scratchpad-autosave", autosave)
   }, GREETER_AUTOSAVE)
 
-const editorOf = (page: Page) => page.getByTestId("scratchpad-editor")
-const statusOf = (page: Page) => page.getByTestId("lsp-status")
-
-const lineWith = (page: Page, text: string) =>
-  editorOf(page).locator(".cm-line").filter({ hasText: text }).first()
-
-const lintMessages = async (page: Page, text: string) => {
-  const range = lineWith(page, text).locator(".cm-lintRange").first()
-  await expect(range).toBeVisible({ timeout: LSP_TIMEOUT })
-  // On very long lines the range's centre sits far off-screen and the editor
-  // is scrolled to the cursor at the line's end, so Playwright's hover lands
-  // on the gutter or file explorer. Scroll back and hover the range's start.
-  await editorOf(page)
-    .locator(".cm-scroller")
-    .evaluate((el) => {
-      el.scrollLeft = 0
-    })
-  await range.hover({ position: { x: 4, y: 4 } })
-  const tooltip = page.locator(".cm-tooltip-lint")
-  await expect(tooltip).toBeVisible({ timeout: LSP_TIMEOUT })
-  return tooltip
-}
-
-const dismissTooltips = (page: Page) => page.mouse.move(0, 0)
-
-const containerOf = (page: Page) => page.getByTestId("container-status")
-
-/**
- * Waits until the Container settles. Skips the test when it did not get to
- * `ready` (no network to boot or install), since Effect's types are missing.
- */
-const awaitInstalledTypes = async (page: Page) => {
-  const badge = containerOf(page)
-  await expect(badge).toHaveAttribute(
-    "data-container-phase",
-    /^(ready|failed|install-failed|dependencies-unavailable)$/,
-    { timeout: TYPES_TIMEOUT },
-  )
-  const phase = await badge.getAttribute("data-container-phase")
-  test.skip(
-    phase !== "ready",
-    `The Container did not install (offline?): ${phase}: ${await badge.getAttribute("title")}`,
-  )
-}
-
 const openReady = async (page: Page) => {
   await useGreeterWorkspace(page)
   await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
@@ -157,18 +120,6 @@ const openReady = async (page: Page) => {
   await expect(
     lineWith(page, 'Effect.succeed("unhandled")').locator(".cm-lintRange"),
   ).toBeVisible({ timeout: LSP_TIMEOUT })
-}
-
-/** Replaces the active editor's text in one transaction (like a paste). */
-const replaceDocument = async (page: Page, text: string) => {
-  await editorOf(page).locator(".cm-content").click()
-  await page.keyboard.press("ControlOrMeta+a")
-  await page.keyboard.insertText(text)
-}
-
-const openFile = async (page: Page, path: string) => {
-  await page.getByTestId(`explorer-file-${path}`).click()
-  await expect(page.getByTestId(`editor-tab-${path}`)).toBeVisible()
 }
 
 test("loads the in-browser language server on the cross-origin isolated page and shows the floating Effect diagnostic", async ({
@@ -492,102 +443,6 @@ test("a v3 ?code link shows a notice linking to the Playground", async ({
   await expect(page.getByTestId("explorer-file-src/DevTools.ts")).toBeVisible()
   await notice.getByRole("button", { name: "Dismiss notice" }).click()
   await expect(notice).toHaveCount(0)
-})
-
-// Smoke check for the real Container. Booting needs StackBlitz's servers and
-// installing needs the npm registry, so a failed boot or install skips rather
-// than fails. The full real-Container suite is ticket 13.
-test("boots the Container, installs the seed's dependencies and loads their types with no error diagnostics", async ({
-  page,
-  browserName,
-}) => {
-  test.skip(browserName !== "chromium", "WebContainer smoke runs in Chromium")
-  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  const badge = containerOf(page)
-  await expect(badge).toBeVisible({ timeout: READY_TIMEOUT })
-  // Diagnostics stay hidden until the installed types land.
-  const phases = new Set<string>()
-  const started = Date.now()
-  while (Date.now() - started < TYPES_TIMEOUT) {
-    const phase = (await badge.getAttribute("data-container-phase")) ?? ""
-    phases.add(phase)
-    if (
-      /^(ready|failed|install-failed|dependencies-unavailable)$/.test(phase)
-    ) {
-      break
-    }
-    if (phase === "booting" || phase === "installing") {
-      await expect(editorOf(page).locator(".cm-lintRange")).toHaveCount(0)
-    }
-    await page.waitForTimeout(250)
-  }
-  const phase = await badge.getAttribute("data-container-phase")
-  test.skip(
-    phase === "failed" || phase === "install-failed",
-    `Container did not boot or install (offline?): ${await badge.getAttribute("title")}`,
-  )
-  expect(phase, (await badge.getAttribute("title")) ?? "").toBe("ready")
-  expect(phases.has("installing") || phases.has("loading-types")).toBe(true)
-
-  // The lockfile came back from the Container into the Workspace.
-  await expect(page.getByTestId("explorer-file-pnpm-lock.yaml")).toBeVisible()
-
-  // The seed type-checks against the installed packages: hover resolves
-  // Effect's types and there are no error squiggles in either file.
-  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready")
-  await lineWith(page, "NodeRuntime.runMain")
-    .getByText("NodeRuntime", { exact: true })
-    .first()
-    .hover()
-  await expect(page.locator(".cm-tooltip-hover")).toContainText(
-    /platform-node/,
-    { timeout: LSP_TIMEOUT },
-  )
-  await dismissTooltips(page)
-  // Warnings (unstableApiUsage) are expected; errors are not.
-  await page.waitForTimeout(2_000)
-  await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
-  await openFile(page, "src/DevTools.ts")
-  await page.waitForTimeout(1_000)
-  await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
-
-  // Runs: the seed runs once its types are in, and its output streams in.
-  const output = page.getByTestId("run-output")
-  await expect(output).toContainText("Run #1", { timeout: RUN_TIMEOUT })
-  await expect(output).toContainText("initial")
-  await expect(output).toContainText("Welcome to the Effect v4 Playground!", {
-    timeout: RUN_TIMEOUT,
-  })
-
-  // A type error skips the next Run and says why, with the error clickable.
-  await openFile(page, "src/main.ts")
-  await editorOf(page).locator(".cm-content").click()
-  await page.keyboard.press("ControlOrMeta+End")
-  await page.keyboard.insertText('\nconst broken: number = "nope"\n')
-  const notice = page.getByTestId("run-skip-notice")
-  await expect(notice).toBeVisible({ timeout: RUN_TIMEOUT })
-  await expect(notice).toContainText("Run skipped")
-  await expect(notice).toContainText("previous Run (#1)")
-  const error = notice.getByTestId("run-skip-error").first()
-  await expect(error).toHaveText(/^src\/main\.ts:\d+:\d+$/)
-  await openFile(page, "src/DevTools.ts")
-  await error.click()
-  await expect(page.getByTestId("editor-tab-src/main.ts")).toHaveAttribute(
-    "aria-selected",
-    "true",
-  )
-
-  // Fixing it runs again.
-  await editorOf(page).locator(".cm-content").click()
-  await page.keyboard.press("ControlOrMeta+End")
-  await page.keyboard.press("ArrowUp")
-  await page.keyboard.press("Shift+End")
-  await page.keyboard.press("Backspace")
-  await expect(notice).toBeHidden({ timeout: RUN_TIMEOUT })
-  await expect(output).toContainText("Run #2", { timeout: RUN_TIMEOUT })
-  await expect(output).toContainText("Welcome to the Effect v4 Playground!", {
-    timeout: RUN_TIMEOUT,
-  })
 })
 
 // Serving the page without COOP/COEP is how an unsupported browser looks to

@@ -28,6 +28,12 @@ import { layerBrowserWorker } from "./lsp-worker-client.ts"
 import { SCRATCHPAD_SEED } from "./seed.ts"
 import { makeScratchpadShareAtoms } from "./share-atoms.ts"
 
+// `window.__scratchpadTest` for the real-Container e2e suite: dev server only,
+// and lazily imported so production builds leave it out (see test-hook.tsx).
+const ScratchpadTestHook = import.meta.env.DEV
+  ? React.lazy(() => import("./test-hook.tsx"))
+  : undefined
+
 export interface ScratchpadProps {
   readonly initialCode?: string | undefined
   readonly initialFiles?: Readonly<Record<string, string>> | undefined
@@ -122,7 +128,7 @@ export function Scratchpad({
   metadata,
   notice = Option.none(),
 }: ScratchpadProps) {
-  const [session] = React.useState<ScratchpadSessionContextValue>(() => {
+  const [{ session, runtime }] = React.useState(() => {
     const transportLayer = layerBrowserWorker({
       onReady: (timings, memoryBytes) => {
         // Read by the e2e tests and handy when demoing.
@@ -161,7 +167,7 @@ export function Scratchpad({
       containerPhaseAtom: editorSession.containerPhaseAtom,
     })
 
-    return {
+    const session: ScratchpadSessionContextValue = {
       elementAtom: editorSession.elementAtom,
       statusAtom: editorSession.statusAtom,
       containerPhaseAtom: editorSession.containerPhaseAtom,
@@ -189,12 +195,18 @@ export function Scratchpad({
       ...shareAtoms,
       ...failureAtoms,
     }
+    return { session, runtime: editorSession.runtime }
   })
 
   return (
     <RegistryProvider defaultIdleTTL={2000}>
       <ScratchpadSessionContext.Provider value={session}>
         <Autosave />
+        {ScratchpadTestHook !== undefined && (
+          <React.Suspense fallback={null}>
+            <ScratchpadTestHook runtime={runtime} />
+          </React.Suspense>
+        )}
         <section
           aria-label="Effect TypeScript Scratchpad"
           className="flex h-full min-h-0 w-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"

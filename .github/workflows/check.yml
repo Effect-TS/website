@@ -58,3 +58,38 @@ jobs:
         run: vp exec playwright install --with-deps chromium
       - name: Run Scratchpad E2E
         run: vp run test:e2e:scratchpad-worker
+
+  # The Scratchpad against a real WebContainer. Non-blocking until its
+  # flakiness is known: it needs StackBlitz and the npm registry, and a failure
+  # here doesn't fail the workflow. To make it gating, drop
+  # `continue-on-error` and add the job to the branch protection's required
+  # checks (see .scratch/webcontainer-execution/issues/13-real-container-e2e.md).
+  scratchpad-container-e2e:
+    name: Scratchpad Container E2E
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - name: Build tsrs-lsp-wasm
+        uses: ./.github/actions/tsrs-lsp-wasm
+      - name: Install Playwright Chromium
+        run: vp exec playwright install --with-deps chromium
+      - name: Run Scratchpad Container E2E
+        run: vp run test:e2e:scratchpad-container
+        env:
+          SCRATCHPAD_CONTAINER_RETRIES: "2"
+      # Failed attempts keep their traces, including ones a retry passed, so
+      # flaky runs leave evidence too.
+      - name: Upload Playwright traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: scratchpad-container-e2e-traces
+          path: test-results/scratchpad-container/
+          if-no-files-found: ignore
+          retention-days: 14
