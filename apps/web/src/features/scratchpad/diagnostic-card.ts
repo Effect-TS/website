@@ -216,9 +216,15 @@ const menuItem = (
 
 /**
  * The Fix button and its menu: the fixes first (the preferred one on top),
- * then the ignores. The menu opens in the card's flow under the button: the
- * tooltip clips anything positioned outside it.
+ * then the ignores. The menu floats (`position: fixed`) next to the button
+ * rather than sitting in the card's flow: a card above its line grows upward,
+ * so a taller card would move the button out from under the pointer, or flip
+ * the card below the line. Fixed positioning also escapes the tooltip's
+ * `overflow: hidden`, and the menu stays inside the card's DOM, so the hover
+ * still counts as over the card.
  */
+const MENU_GAP = 4
+
 const fixMenu = (
   fixes: ReadonlyArray<CardFix>,
 ): { readonly row: HTMLElement; readonly menu: HTMLElement } => {
@@ -256,10 +262,32 @@ const fixMenu = (
   const items = () => [
     ...menu.querySelectorAll<HTMLButtonElement>("[role=menuitem]"),
   ]
+  // Under the button, or above it when there is no room below.
+  const place = () => {
+    // The card closed with the menu open: drop the listeners.
+    if (!toggle.isConnected) return setOpen(false)
+    const button = toggle.getBoundingClientRect()
+    const height = menu.offsetHeight
+    const below = button.bottom + MENU_GAP
+    const fitsBelow = below + height <= window.innerHeight - MENU_GAP
+    menu.style.left = `${button.left}px`
+    menu.style.top = `${
+      fitsBelow ? below : Math.max(MENU_GAP, button.top - MENU_GAP - height)
+    }px`
+  }
   const setOpen = (open: boolean) => {
     menu.hidden = !open
     toggle.setAttribute("aria-expanded", String(open))
-    if (open) items()[0]?.focus()
+    if (open) {
+      place()
+      // The card moves with the editor's scroll, so the menu follows it.
+      window.addEventListener("scroll", place, { capture: true, passive: true })
+      window.addEventListener("resize", place, { passive: true })
+      items()[0]?.focus()
+    } else {
+      window.removeEventListener("scroll", place, { capture: true })
+      window.removeEventListener("resize", place)
+    }
   }
   toggle.addEventListener("click", (event) => {
     event.preventDefault()
@@ -523,12 +551,15 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     backgroundColor: ld("#d4d4d8", "#3a3a40"),
   },
   ".cm-diagnosticCard-menu": {
+    position: "fixed",
+    zIndex: "1",
     display: "flex",
     flexDirection: "column",
-    width: "fit-content",
+    width: "max-content",
     minWidth: "260px",
-    marginTop: "8px",
+    maxWidth: "min(420px, 90vw)",
     padding: "3px",
+    boxShadow: `0 8px 24px ${ld("#18181b26", "#00000080")}`,
     borderRadius: "6px",
     border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
     backgroundColor: ld("#ffffff", "#18181b"),
