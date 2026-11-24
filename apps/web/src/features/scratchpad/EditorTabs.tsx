@@ -41,12 +41,12 @@ export function EditorTabs() {
   }, [openTabs])
 
   return (
-    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50 pr-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+    <div className="flex shrink-0 items-stretch justify-between gap-2 border-b border-zinc-200 bg-zinc-50 pr-3 dark:border-zinc-800 dark:bg-zinc-900/60">
       <div
         role="tablist"
         aria-label="Open files"
         data-testid="scratchpad-tabs"
-        className="flex min-w-0 flex-1 items-center overflow-x-auto"
+        className="flex min-w-0 flex-1 items-stretch overflow-x-auto"
       >
         {openTabs.map((tabPath) => {
           const isActive =
@@ -78,8 +78,8 @@ export function EditorTabs() {
               }}
               className={
                 isActive
-                  ? "group flex shrink-0 items-center gap-1.5 border-r border-b-2 border-r-zinc-200 border-b-blue-500 bg-white px-3.5 py-2.5 font-mono text-sm font-medium text-zinc-950 dark:border-r-zinc-800 dark:border-b-blue-400 dark:bg-zinc-950 dark:text-zinc-50"
-                  : "group flex shrink-0 items-center gap-1.5 border-r border-r-zinc-200 px-3.5 py-2.5 font-mono text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-r-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+                  ? "group flex shrink-0 items-center gap-1.5 border-r border-b-2 border-r-zinc-200 border-b-blue-500 bg-white px-3.5 py-1.5 font-mono text-sm font-medium text-zinc-950 dark:border-r-zinc-800 dark:border-b-blue-400 dark:bg-zinc-950 dark:text-zinc-50"
+                  : "group flex shrink-0 items-center gap-1.5 border-r border-r-zinc-200 px-3.5 py-1.5 font-mono text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-r-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
               }
             >
               <button
@@ -119,7 +119,7 @@ export function EditorTabs() {
         })}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 py-2">
+      <div className="flex shrink-0 items-center gap-2 py-1">
         <VersionToggle />
         <ResetButton />
         <ShareButton />
