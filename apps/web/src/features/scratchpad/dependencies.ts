@@ -16,6 +16,11 @@
  * Cycles are serialized: a new trigger interrupts the running cycle (which
  * kills its process) before the next one starts.
  *
+ * When `package.json` or `pnpm-lock.yaml` changes in the Container itself
+ * (a terminal `pnpm add`, pulled back by the two-way sync), the install has
+ * already run. Once the Container's dependency files have been quiet for
+ * `containerInstallQuiet`, the Scratchpad does steps 2 and 3 only.
+ *
  * Diagnostics stay hidden until the first types land, so the editor never
  * flashes "Cannot find module 'effect'". They are released for good when
  * types first mount, when the Container cannot boot or install, when types
@@ -37,6 +42,7 @@ import COLLECT_TYPES_SCRIPT from "./collect-types.cjs?raw"
 import {
   Container,
   type ContainerBootPhase,
+  type ContainerChanges,
   type ContainerPhase,
   type ContainerService,
   InstallFailed,
@@ -51,6 +57,11 @@ import { Workspace, type WorkspaceService } from "./workspace.ts"
 
 /** How long after the Container is ready diagnostics wait for types. */
 export const DEFAULT_TYPES_TIMEOUT: Duration.Input = "60 seconds"
+/**
+ * How long `node_modules`, `package.json` and `pnpm-lock.yaml` must be quiet
+ * after a Container-side change before the types reload.
+ */
+export const DEFAULT_CONTAINER_INSTALL_QUIET: Duration.Input = "1500 millis"
 /** The install output kept for display (the end of it). */
 export const INSTALL_OUTPUT_LIMIT = 64 * 1024
 /** The install output carried by `InstallFailed`. */
@@ -174,6 +185,12 @@ export interface DependenciesService {
   readonly install: Effect.Effect<void>
   /** Feed the Workspace mirror's changes here (`mirrorWorkspace`'s `onChange`). */
   readonly onMirrorChange: (change: MirrorChange) => Effect.Effect<void>
+  /**
+   * Feed the Container's changes here (`mirrorWorkspace`'s
+   * `onContainerChange`). A Container-side `package.json` or lockfile change
+   * reloads the types once the install settles, without reinstalling.
+   */
+  readonly onContainerChange: (changes: ContainerChanges) => Effect.Effect<void>
 }
 
 export class Dependencies extends Context.Service<
@@ -187,6 +204,7 @@ export interface MakeDependenciesOptions {
   /** The language server's file system mirror; without it types are unavailable. */
   readonly mirror: Option.Option<LspWorkspaceMirrorService>
   readonly typesTimeout?: Duration.Input | undefined
+  readonly containerInstallQuiet?: Duration.Input | undefined
 }
 
 class TypesUnavailable extends Data.TaggedError("TypesUnavailable")<{
@@ -200,6 +218,9 @@ export const makeDependencies = (
     const { workspace, container, mirror } = options
     const typesTimeout = Duration.fromInputUnsafe(
       options.typesTimeout ?? DEFAULT_TYPES_TIMEOUT,
+    )
+    const containerInstallQuiet = Duration.fromInputUnsafe(
+      options.containerInstallQuiet ?? DEFAULT_CONTAINER_INSTALL_QUIET,
     )
     const scope = yield* Effect.scope
     const stateRef = yield* SubscriptionRef.make(initialDependencyState)
@@ -226,6 +247,12 @@ export const makeDependencies = (
     // sync-back's own write does not start another install.
     let installedPackageJson: string | undefined
     let current: Fiber.Fiber<void> | undefined
+    // A page-started install cycle is running (its sync-back and types copy
+    // cover whatever pnpm changes in the Container meanwhile).
+    let installing = false
+    // A Container-side change to the dependency files is waiting to settle.
+    let reloadPending = false
+    let reloadTimer: Fiber.Fiber<void> | undefined
     // The types the worker has, kept when a later copy fails.
     let mountedTypes: TypesMountedInfo | undefined
 
@@ -397,16 +424,79 @@ export const makeDependencies = (
       if (!installed) return
       yield* syncBack
       yield* loadTypes
+    }).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          installing = false
+        }),
+      ),
+    )
+
+    const cancelReload = Effect.gen(function* () {
+      reloadPending = false
+      if (reloadTimer !== undefined) yield* Fiber.interrupt(reloadTimer)
+      reloadTimer = undefined
     })
 
     const trigger = (packageJson: string | undefined) =>
       triggerLock.withPermits(1)(
         Effect.gen(function* () {
+          yield* cancelReload
           if (current !== undefined) yield* Fiber.interrupt(current)
           installedPackageJson = packageJson
+          installing = true
           current = yield* Effect.forkIn(cycle, scope)
         }),
       )
+
+    // Something else installed: sync back and copy the types, no install.
+    const reload = Effect.gen(function* () {
+      yield* update((s) => ({
+        ...s,
+        install: { _tag: "succeeded" },
+        types: { _tag: "loading" },
+      }))
+      yield* syncBack
+      yield* loadTypes
+    })
+
+    const startReload = triggerLock.withPermits(1)(
+      Effect.gen(function* () {
+        reloadPending = false
+        reloadTimer = undefined
+        if (current !== undefined) yield* Fiber.interrupt(current)
+        current = yield* Effect.forkIn(reload, scope)
+      }),
+    )
+
+    // Restarts the quiet period.
+    const scheduleReload = triggerLock.withPermits(1)(
+      Effect.gen(function* () {
+        if (reloadTimer !== undefined) yield* Fiber.interrupt(reloadTimer)
+        reloadTimer = yield* Effect.forkIn(
+          Effect.sleep(containerInstallQuiet).pipe(Effect.andThen(startReload)),
+          scope,
+        )
+      }),
+    )
+
+    const isDependencyPath = (path: string) =>
+      path === "node_modules" ||
+      path.startsWith("node_modules/") ||
+      (SYNCED_BACK_PATHS as ReadonlyArray<string>).includes(path)
+
+    const onContainerChange = (
+      changes: ContainerChanges,
+    ): Effect.Effect<void> =>
+      Effect.suspend(() => {
+        if (installing) return Effect.void
+        if (changes.applied.some((change) => isDependencyPath(change.path))) {
+          reloadPending = true
+        }
+        return reloadPending && changes.paths.some(isDependencyPath)
+          ? scheduleReload
+          : Effect.void
+      })
 
     const onMirrorChange = (change: MirrorChange): Effect.Effect<void> => {
       switch (change._tag) {
@@ -451,6 +541,7 @@ export const makeDependencies = (
       awaitDiagnosticsVisible: Deferred.await(visible),
       install: Effect.suspend(() => trigger(installedPackageJson)),
       onMirrorChange,
+      onContainerChange,
     }
   })
 

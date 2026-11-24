@@ -19,9 +19,9 @@ import {
   TYPES_TIMEOUT,
 } from "./scratchpad-helpers.ts"
 
-// The Scratchpad against a real WebContainer (ADR 0004): boot, install,
-// installed types, Runs, `pnpm add`, legacy shares, Stop and Restart. See
-// playwright.scratchpad-container.config.ts.
+// The Scratchpad against a real WebContainer (ADRs 0004, 0005): boot,
+// install, installed types, Runs, two-way sync, `pnpm add`, legacy shares,
+// Stop and Restart. See playwright.scratchpad-container.config.ts.
 //
 // Booting needs StackBlitz's servers and installing needs the npm registry.
 // When the Container cannot get there, every test skips rather than fails
@@ -224,7 +224,43 @@ const autosavedFile = (page: Page, name: string) =>
     return tree?.find((node) => node.name === name)?.initialContent
   }, name)
 
-test("pnpm add through the host spawn API syncs package.json and the lockfile back, reloads types, and the import resolves and runs", async ({
+test("a file written in the Container appears in the explorer and the editor, and its deletion closes the tab", async ({
+  page,
+}) => {
+  await openSeedReady(page)
+  await page.waitForFunction(() => window.__scratchpadTest !== undefined)
+
+  const wrote: ScratchpadTestSpawnResult = await page.evaluate(() =>
+    window.__scratchpadTest!.spawn("jsh", [
+      "-c",
+      "echo 'export const extra = 1' > src/extra.ts",
+    ]),
+  )
+  expect(wrote.exitCode, wrote.output).toBe(0)
+  const entry = page.getByTestId("explorer-file-src/extra.ts")
+  await expect(entry).toBeVisible({ timeout: LSP_TIMEOUT })
+  await openFile(page, "src/extra.ts")
+  await expect(lineWith(page, "export const extra = 1")).toBeVisible()
+
+  // An edit in the Container shows up in the open editor.
+  await page.evaluate(() =>
+    window.__scratchpadTest!.spawn("jsh", [
+      "-c",
+      "echo 'export const extra = 2' > src/extra.ts",
+    ]),
+  )
+  await expect(lineWith(page, "export const extra = 2")).toBeVisible({
+    timeout: LSP_TIMEOUT,
+  })
+
+  await page.evaluate(() =>
+    window.__scratchpadTest!.spawn("rm", ["src/extra.ts"]),
+  )
+  await expect(entry).toHaveCount(0, { timeout: LSP_TIMEOUT })
+  await expect(page.getByTestId("editor-tab-src/extra.ts")).toHaveCount(0)
+})
+
+test("pnpm add in the Container syncs package.json and the lockfile back, reloads types, and the import resolves and runs", async ({
   page,
 }) => {
   await openSeedReady(page)
@@ -237,9 +273,8 @@ test("pnpm add through the host spawn API syncs package.json and the lockfile ba
     `${ADDED_PACKAGE}@${ADDED_VERSION}`,
   )
   expect(added.exitCode, added.output).toBe(0)
-  // `pnpm add` changed the Container's package.json, not the Workspace's;
-  // the install cycle syncs it back and reloads types.
-  await page.evaluate(() => window.__scratchpadTest!.install())
+  // `pnpm add` changed the Container's package.json. The two-way sync pulls
+  // it and the lockfile back and the types reload, with no page install.
 
   await openFile(page, "package.json")
   await expect(lineWith(page, `"${ADDED_PACKAGE}"`)).toBeVisible({

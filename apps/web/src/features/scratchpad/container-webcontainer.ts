@@ -3,7 +3,7 @@
  *
  * Layout inside the Container's workdir (`/home/scratchpad`):
  *
- * - `workspace/`: the mirrored Workspace. Every `ContainerBackend` path is
+ * - `workspace/`: the synced Workspace. Every `ContainerBackend` path is
  *   relative to it, and processes start there.
  * - `.scratchpad/`: host scripts that are not part of the Workspace (the
  *   `/dev-tools-proxy`, the types collector and its pack, the Run preload
@@ -84,6 +84,8 @@ export const classifyBootError = (cause: unknown): ContainerBootError => {
       })
 }
 
+const textDecoder = new TextDecoder()
+
 const parentOf = (path: string) => {
   const idx = path.lastIndexOf("/")
   return idx === -1 ? undefined : path.slice(0, idx)
@@ -108,6 +110,33 @@ const makeBackend = (wc: WebContainer): ContainerBackend => {
       await wc.fs.rename(abs(from), abs(to))
     },
     readFile: (path) => wc.fs.readFile(abs(path)),
+    readDirectory: async (path) => {
+      const entries = await wc.fs.readdir(
+        path === "" ? CONTAINER_WORKSPACE_DIR : abs(path),
+        { withFileTypes: true },
+      )
+      return entries.map((entry) => ({
+        name: entry.name,
+        kind: entry.isDirectory() ? "directory" : "file",
+      }))
+    },
+    // Recursive watches on the workdir froze the Container after installs
+    // (ADR 0004), so the watch is on the Workspace directory. `node_modules`
+    // events still arrive; the sync ignores them (ADR 0005).
+    watch: (onChange) => {
+      const watcher = wc.fs.watch(
+        CONTAINER_WORKSPACE_DIR,
+        { recursive: true },
+        (_event, filename) => {
+          onChange(
+            typeof filename === "string"
+              ? filename
+              : textDecoder.decode(filename),
+          )
+        },
+      )
+      return () => watcher.close()
+    },
     writeHostDirFile: async (name, content) => {
       await wc.fs.mkdir(CONTAINER_HOST_DIR, { recursive: true })
       await wc.fs.writeFile(`${CONTAINER_HOST_DIR}/${name}`, content)

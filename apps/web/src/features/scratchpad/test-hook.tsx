@@ -1,9 +1,10 @@
 /**
  * A development-only hook for the real-Container e2e suite
  * (`test/e2e/scratchpad-container.spec.ts`). It exposes the host spawn API
- * on `window.__scratchpadTest` so a test can run `pnpm add <pkg>` in the
- * Container the way a terminal will, then start an install cycle so
- * `package.json` and `pnpm-lock.yaml` sync back and the types reload.
+ * on `window.__scratchpadTest` so a test can run commands (`pnpm add <pkg>`,
+ * `echo … > src/extra.ts`) in the Container the way a terminal will. The
+ * two-way sync pulls their changes back (ADR 0005). `install` starts a page
+ * install cycle.
  *
  * `Scratchpad.tsx` only renders `ScratchpadTestHook` when
  * `import.meta.env.DEV` is true (`astro dev`, which is what the e2e configs

@@ -1,5 +1,5 @@
 import { language } from "@codemirror/language"
-import type { EditorState } from "@codemirror/state"
+import type { EditorState, TransactionSpec } from "@codemirror/state"
 import { EditorView, type ViewUpdate } from "@codemirror/view"
 import * as Clock from "effect/Clock"
 import type * as Duration from "effect/Duration"
@@ -34,6 +34,7 @@ import {
   makeFakeContainerBackend,
 } from "./fake-container.ts"
 import { makeFakeWorkers } from "./fake-worker.ts"
+import type { WorkspaceNode } from "../../../src/features/scratchpad/workspace.ts"
 import { MAIN_SNIPPET } from "./fixtures.ts"
 
 const flushMicrotasks = async (ticks = 15) => {
@@ -68,6 +69,17 @@ const createFakeEditorFactory = () => {
       },
       setState(next: EditorState) {
         state = next
+      },
+      dispatch(spec: TransactionSpec) {
+        const tr = state.update(spec)
+        state = tr.state
+        notifyListeners({
+          view,
+          state,
+          docChanged: tr.docChanged,
+          focusChanged: false,
+          transactions: [tr],
+        })
       },
       destroy() {
         destroyed = true
@@ -400,6 +412,66 @@ describe("ScratchpadEditorSession", () => {
         "pnpm-lock.yaml",
       )
       assert.equal(view.getState().doc.toString(), '{ "dependencies": {} }\n')
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("Container changes update the open editor in place, reach the explorer, and close the tabs of deleted files", async () => {
+    const backend = makeFakeContainerBackend()
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      {
+        "src/main.ts": "const a = 1\nconst b = 2\n",
+        "src/util.ts": "export {}\n",
+        "package.json": "{}",
+      },
+      layerFakeContainer(backend),
+    )
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await flushMicrotasks(60)
+      ctx.registry.set(ctx.session.openFileAtom, "src/util.ts")
+      await flushMicrotasks(40)
+      ctx.registry.set(ctx.session.openFileAtom, "src/main.ts")
+      await flushMicrotasks(40)
+      const view = ctx.fakeEditors.handles[0]!
+      // The cursor sits on the second line, after "const b".
+      const cursor = "const a = 1\nconst b".length
+      view.view.dispatch({ selection: { anchor: cursor } })
+      const workspaceWrites = () =>
+        backend.log.filter((entry) => entry === "write src/main.ts").length
+      const writesBefore = workspaceWrites()
+
+      // A terminal edits the first line, adds a file and deletes another.
+      backend.containerWrite("src/main.ts", "const alpha = 1\nconst b = 2\n")
+      backend.containerWrite("src/extra.ts", "export const extra = 1\n")
+      backend.containerRemove("src/util.ts")
+      await flushMicrotasks(20)
+      await ctx.adjust("100 millis")
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      await flushMicrotasks(80)
+
+      const state = view.getState()
+      assert.equal(state.doc.toString(), "const alpha = 1\nconst b = 2\n")
+      assert.equal(
+        state.selection.main.head,
+        cursor + "alpha".length - "a".length,
+        "the cursor moved with its text",
+      )
+      assert.equal(workspaceWrites(), writesBefore, "nothing written back")
+      const paths = (nodes: ReadonlyArray<WorkspaceNode>): Array<string> =>
+        nodes.flatMap((node) =>
+          node._tag === "Directory" ? paths(node.children) : [node.path],
+        )
+      const tree = paths(ctx.registry.get(ctx.session.treeAtom))
+      assert.include(tree, "src/extra.ts")
+      assert.notInclude(tree, "src/util.ts")
+      assert.deepEqual(ctx.registry.get(ctx.session.openTabsAtom), [
+        "src/main.ts",
+      ])
       unmountEditor()
     } finally {
       ctx.dispose()

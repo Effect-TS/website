@@ -1,18 +1,44 @@
 # 01: Two-way Container sync
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by:
 Spec: ../spec.md
 
 Implement ADR 0005's two-way sync (`docs/adr/0005-two-way-sync-and-one-terminal.md`). Read `/play`'s version for reference: `features/playground/services/webcontainer.ts` (`watchWorkspace`, `reconcileWorkspace`, `restoreProtectedNodes`) and `services/file-sync.ts`. Don't copy its generation bookkeeping unless you need it; the Scratchpad writes immediately, so the dirty window is short.
 
-- [ ] Watch the Container's Workspace directory recursively. Debounce about 100 ms, then rescan and diff against the Workspace. Ignore `node_modules`, `dist`, `.git`, `.tsc-run.json`, files over 1 MB and non-UTF-8 files
-- [ ] Apply created, changed and deleted files to the Workspace store, tagged as coming from the Container so `mirrorWorkspace` doesn't write them back
-- [ ] Conflict rule: a file is dirty from the page's last change until the Container has written that exact content. Container changes to a dirty file are dropped
-- [ ] Open editors update in place (cursor preserved where possible), and the tsrs worker gets the change. New files appear in the explorer; tabs for deleted files close
-- [ ] Protected files (`package.json`, `tsconfig.json`) deleted in the Container are restored
-- [ ] A Container-side `package.json` change (for example `pnpm add` from a terminal) doesn't trigger a page reinstall. Once the Container's pnpm process has exited, or after a short quiet period, sync the lockfile back and reload types (`dependencies.ts`)
-- [ ] Synced files show up in shares and autosave
-- [ ] Unit tests against the fake Container (extend `test/features/scratchpad/fake-container.ts` with a way to simulate Container-side writes and watch events). Extend the real-Container e2e (`scratchpad-container.spec.ts`): write a file through the backend's spawn (`echo … > src/extra.ts`) and assert it appears in the explorer; `pnpm add` through the DEV test hook updates types and `package.json` in the editor
-- [ ] Update `GLOSSARY.md` if a term changes (for example the "mirror")
+- [x] Watch the Container's Workspace directory recursively. Debounce about 100 ms, then rescan and diff against the Workspace. Ignore `node_modules`, `dist`, `.git`, `.tsc-run.json`, files over 1 MB and non-UTF-8 files
+- [x] Apply created, changed and deleted files to the Workspace store, tagged as coming from the Container so `mirrorWorkspace` doesn't write them back
+- [x] Conflict rule: a file is dirty from the page's last change until the Container has written that exact content. Container changes to a dirty file are dropped
+- [x] Open editors update in place (cursor preserved where possible), and the tsrs worker gets the change. New files appear in the explorer; tabs for deleted files close
+- [x] Protected files (`package.json`, `tsconfig.json`) deleted in the Container are restored
+- [x] A Container-side `package.json` change (for example `pnpm add` from a terminal) doesn't trigger a page reinstall. Once the Container's pnpm process has exited, or after a short quiet period, sync the lockfile back and reload types (`dependencies.ts`)
+- [x] Synced files show up in shares and autosave
+- [x] Unit tests against the fake Container (extend `test/features/scratchpad/fake-container.ts` with a way to simulate Container-side writes and watch events). Extend the real-Container e2e (`scratchpad-container.spec.ts`): write a file through the backend's spawn (`echo … > src/extra.ts`) and assert it appears in the explorer; `pnpm add` through the DEV test hook updates types and `package.json` in the editor
+- [x] Update `GLOSSARY.md` if a term changes (for example the "mirror")
+
+## Answer
+
+Implemented in `apps/web/src/features/scratchpad/`.
+
+- **`container-sync.ts`** (new): the sync, both directions. `mirrorWorkspace` moved here from `container.ts` (which re-exports it, `applyWorkspaceEvent`, `MirrorChange`, `MirrorWorkspaceOptions` and the new `ContainerChanges`, so existing imports still work). After the mount it watches the Container's Workspace directory (`Container.watch`). Once the watch has been quiet for `watchDebounce` (default 100 ms), it rescans (`scanContainer`) and diffs the result against `known`, the content it last saw in the Container or wrote there (`diffContainerScan`). Diffing against `known` rather than the Workspace means a stale read can never undo a page edit.
+- **Ignored**: `isContainerOnlyPath` covers `node_modules`, `dist`, `.git` and `.tsc-run.json` at the root, plus `node_modules` and `.git` at any depth. Files over 1 MiB (`CONTAINER_SYNC_MAX_FILE_BYTES`) and files that aren't valid UTF-8 are skipped. A skipped file is never treated as deleted, so a Workspace file that turns binary in the Container stays in the Workspace.
+- **Conflicts**: `dirty` maps each path to the page's latest content (or null for a deletion) until that exact content lands in the Container. A change counts as dirty if it is in that map, or if the Workspace content differs from `known`, which covers an editor write whose event hasn't reached the mirror yet. Container changes to dirty files are dropped. Mirror writes and rescans share one lock, so a rescan never reads the Container halfway through a page write.
+- **Workspace** (`workspace.ts`): file events can carry `origin: "container"` (`WorkspaceEventOrigin`, with the `isFromContainer(event)` helper). There are two new writers: `writeContainerFile`, which can write read-only files like `writeHostFile` but tags its event, and `removeContainerPath`, which still refuses protected files. The mirror skips tagged events, so it never writes them back and Runs never hear about them (a program that writes files can't retrigger itself). Autosave and shares see tagged events like any other.
+- **Deletes**: a Container deletion of any protected path (`WORKSPACE_PROTECTED_PATHS`: `package.json`, `pnpm-lock.yaml`, `tsconfig.json`, `src/main.ts`) is undone by writing the Workspace copy back into the Container. Folders deleted in the Container leave the Workspace once they're empty; folders the page created (never mirrored) stay. Empty folders created in the Container aren't pulled back.
+- **Container** (`container.ts`, `container-webcontainer.ts`): `ContainerBackend` and `ContainerService` gain `readDirectory(path)` (`""` is the root; entries are `{ name, kind }`) and `watch` (a `Stream<string>` of Workspace-relative paths, recursive, `node_modules` included, closed with the stream). The real backend uses `wc.fs.watch("workspace", { recursive: true })`.
+- **Editor** (`editor.ts`): tagged events update the open editor with a single-span `dispatch` (`changedSpan`), so the cursor stays in place where it can, and the LSP plugin syncs the change like an ordinary edit. Unmounted cached states are updated with the same span. Files not shown in a view go to the language server through `upsertWorkspaceFile`. An `externalWrite` annotation stops the update listener from writing the change back to the Workspace. Read-only host writes (sync-back) take the same path now instead of `setState`. Tagged deletes go through `forgetFiles`, which closes the tab, drops state and diagnostics, and falls back to another tab. `deletePathAtom` now uses `forgetFiles` too. The tsrs worker still gets every change through the existing `LspWorkspaceMirror` subscription.
+- **Dependencies** (`dependencies.ts`): `onContainerChange(changes)` is wired as `mirrorWorkspace`'s `onContainerChange`. A Container-side change to `package.json` or `pnpm-lock.yaml` that reached the Workspace marks a reload as pending. Each later batch that touches `node_modules` or those files restarts a quiet period (`containerInstallQuiet`, default 1.5 s). When the quiet period ends, a reload cycle runs: sync-back, then the types copy, with no `pnpm install`. The phase goes `loading-types` → `ready`, and `install` is marked `succeeded`. Container changes are ignored while a page install cycle is running, because that cycle's own sync-back and types copy cover them. A new page `trigger` cancels a pending reload. The pnpm process's exit isn't observed; the quiet period stands in for it.
+
+### For other tickets
+
+- **Terminal (02)**: nothing to call. Anything the terminal does to Workspace files reaches the editor through the watch. `pnpm add` in the terminal reloads types by itself, so don't call `Dependencies.install` after it, or it will reinstall.
+- **v3 toggle and reset (04)**: `restoreSnapshot` events are page events and are mirrored as before. Files the Container has that the new snapshot lacks are removed by the mirror's `FileDeleted` events. Container-only files (`node_modules`) stay.
+- Anyone subscribing to `Workspace.events` can use `isFromContainer(event)` to tell the two sources apart.
+- The fake backend (`test/features/scratchpad/fake-container.ts`) now has `containerWrite(path, content | bytes)`, `containerRemove(path)`, `touch(path)` (a watch event with no file change) and `watchers()`. Its own `writeFile`, `remove` and `rename` notify the watch the way a real one does. `files` values may be `Uint8Array`. The fake editor view in `editor.test.ts` gained `dispatch`.
+
+### Verification
+
+- Unit tests: `container-sync.test.ts` (new, 10 tests) covers create, change and delete with tags and no write-back; no echo of page writes; a dirty file dropped while clean files still sync; clean again after the Container writes it; ignored paths, large and binary files; a file turning binary is kept; protected-file restore; protected-file edits syncing; folder pruning; and the `onContainerChange` report. `dependencies.test.ts` adds 2 tests: a Container `pnpm add` reloads types after the quiet period (restarted by `node_modules` activity) without a second install, and unrelated changes don't reload. `editor.test.ts` adds 1 test: in-place update with the cursor mapped, no write-back, the new file in the tree, and the deleted file's tab closed.
+- `vp test run apps/web/test/features packages/tsrs-lsp-wasm`: 51 files, 581 passed, 2 skipped. `vp lint` is clean. `astro check` reports 0 errors. Test files also type-check with `tsc`.
+- E2E (`scratchpad-container.spec.ts`, real Container): a new test writes `src/extra.ts` through the spawn hook (`jsh -c "echo … > src/extra.ts"`), sees it in the explorer and editor, sees a second Container edit update the open editor, and sees `rm` close the tab. The `pnpm add` test no longer calls `install()`: the sync alone brings `package.json` and the lockfile back and reloads types, and the import resolves and runs.
