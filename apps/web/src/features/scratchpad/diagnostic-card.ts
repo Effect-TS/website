@@ -135,18 +135,8 @@ const ICON_PATHS: Record<CardSeverity, ReadonlyArray<string>> = {
   hint: ["M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20", "M12 16v-4", "M12 8h.01"],
 }
 
-const icon = (severity: CardSeverity): SVGSVGElement => {
-  const svg = document.createElementNS(SVG_NS, "svg")
-  svg.setAttribute("viewBox", "0 0 24 24")
-  svg.setAttribute("aria-hidden", "true")
-  svg.setAttribute("class", `cm-diagnosticCard-icon is-${severity}`)
-  for (const d of ICON_PATHS[severity]) {
-    const path = document.createElementNS(SVG_NS, "path")
-    path.setAttribute("d", d)
-    svg.append(path)
-  }
-  return svg
-}
+const icon = (severity: CardSeverity): SVGSVGElement =>
+  svgIcon(`cm-diagnosticCard-icon is-${severity}`, ICON_PATHS[severity])
 
 const el = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -176,65 +166,135 @@ const withCode = (text: string, pattern: RegExp): Array<Node | string> => {
 const QUOTED = /'([^'\n]{1,200})'/g
 const BACKTICKED = /`([^`\n]+)`/g
 
-const fixButton = (fix: CardFix, primary: boolean): HTMLButtonElement => {
-  const button = el(
+const svgIcon = (className: string, paths: ReadonlyArray<string>) => {
+  const svg = document.createElementNS(SVG_NS, "svg")
+  svg.setAttribute("viewBox", "0 0 24 24")
+  svg.setAttribute("aria-hidden", "true")
+  svg.setAttribute("class", className)
+  for (const d of paths) {
+    const path = document.createElementNS(SVG_NS, "path")
+    path.setAttribute("d", d)
+    svg.append(path)
+  }
+  return svg
+}
+
+// Lucide's wrench and chevron-down.
+const WRENCH = [
+  "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z",
+]
+const CHEVRON = ["m6 9 6 6 6-6"]
+
+/** "Disable floatingEffect for this line" → "Ignore on this line". */
+export const ignoreLabel = (title: string): string =>
+  /for this line$/i.test(title)
+    ? "Ignore on this line"
+    : /for (the )?entire file$/i.test(title)
+      ? "Ignore in this file"
+      : title
+
+const menuItem = (
+  fix: CardFix,
+  label: Array<Node | string>,
+  muted: boolean,
+) => {
+  const item = el(
     "button",
-    primary ? "cm-diagnosticCard-fix is-primary" : "cm-diagnosticCard-fix",
-    ...withCode(fix.title, /(yield\*|@ts-\w+)/g),
+    muted
+      ? "cm-diagnosticCard-menuItem is-muted"
+      : "cm-diagnosticCard-menuItem",
+    ...label,
   )
-  button.type = "button"
-  button.addEventListener("click", (event) => {
+  item.type = "button"
+  item.setAttribute("role", "menuitem")
+  item.setAttribute("aria-label", fix.title)
+  item.title = fix.title
+  item.addEventListener("click", (event) => {
     event.preventDefault()
     fix.apply()
   })
-  return button
+  return item
 }
 
 /**
- * The Ignore button and its menu. The menu opens in the card's flow under the
- * buttons: the tooltip clips anything positioned outside it.
+ * The Fix button and its menu: the fixes first (the preferred one on top),
+ * then the ignores. The menu opens in the card's flow under the button: the
+ * tooltip clips anything positioned outside it.
  */
-const ignoreMenu = (
-  ignores: ReadonlyArray<CardFix>,
-): { readonly toggle: HTMLElement; readonly menu: HTMLElement } => {
-  const toggle = el("button", "cm-diagnosticCard-fix", "Ignore")
+const fixMenu = (
+  fixes: ReadonlyArray<CardFix>,
+  codeActionKey: string,
+): { readonly row: HTMLElement; readonly menu: HTMLElement } => {
+  const { primary, others, ignores } = groupFixes(fixes)
+  const real = primary === undefined ? others : [primary, ...others]
+
+  const toggle = el(
+    "button",
+    "cm-diagnosticCard-fix",
+    svgIcon("cm-diagnosticCard-buttonIcon", WRENCH),
+    "Fix",
+    el("span", "cm-diagnosticCard-divider"),
+    svgIcon("cm-diagnosticCard-buttonIcon", CHEVRON),
+  )
   toggle.type = "button"
   toggle.setAttribute("aria-haspopup", "menu")
   toggle.setAttribute("aria-expanded", "false")
-  const chevron = document.createElementNS(SVG_NS, "svg")
-  chevron.setAttribute("viewBox", "0 0 24 24")
-  chevron.setAttribute("aria-hidden", "true")
-  chevron.setAttribute("class", "cm-diagnosticCard-chevron")
-  const path = document.createElementNS(SVG_NS, "path")
-  path.setAttribute("d", "m6 9 6 6 6-6")
-  chevron.append(path)
-  toggle.append(chevron)
 
   const menu = el("div", "cm-diagnosticCard-menu")
   menu.setAttribute("role", "menu")
+  menu.setAttribute("aria-label", "Fixes")
   menu.hidden = true
+  for (const fix of real) {
+    menu.append(menuItem(fix, withCode(fix.title, /(yield\*|@ts-\w+)/g), false))
+  }
+  if (real.length > 0 && ignores.length > 0) {
+    const separator = el("div", "cm-diagnosticCard-menuSeparator")
+    separator.setAttribute("role", "separator")
+    menu.append(separator)
+  }
   for (const fix of ignores) {
-    const item = el(
-      "button",
-      undefined,
-      fix.title.replace(/^Disable (\S+) for /i, "Disable for "),
-    )
-    item.type = "button"
-    item.title = fix.title
-    item.setAttribute("role", "menuitem")
-    item.setAttribute("aria-label", fix.title)
-    item.addEventListener("click", (event) => {
-      event.preventDefault()
-      fix.apply()
-    })
-    menu.append(item)
+    menu.append(menuItem(fix, [ignoreLabel(fix.title)], true))
+  }
+
+  const items = () => [
+    ...menu.querySelectorAll<HTMLButtonElement>("[role=menuitem]"),
+  ]
+  const setOpen = (open: boolean) => {
+    menu.hidden = !open
+    toggle.setAttribute("aria-expanded", String(open))
+    if (open) items()[0]?.focus()
   }
   toggle.addEventListener("click", (event) => {
     event.preventDefault()
-    menu.hidden = !menu.hidden
-    toggle.setAttribute("aria-expanded", String(!menu.hidden))
+    setOpen(toggle.getAttribute("aria-expanded") !== "true")
   })
-  return { toggle, menu }
+  menu.addEventListener("keydown", (event) => {
+    const list = items()
+    const index = list.indexOf(document.activeElement as HTMLButtonElement)
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault()
+      const step = event.key === "ArrowDown" ? 1 : -1
+      list[(index + step + list.length) % list.length]?.focus()
+    } else if (event.key === "Escape") {
+      event.preventDefault()
+      setOpen(false)
+      toggle.focus()
+    }
+  })
+
+  const row = el(
+    "div",
+    "cm-diagnosticCard-actions",
+    toggle,
+    el("span", "cm-diagnosticCard-spacer"),
+    el(
+      "span",
+      "cm-diagnosticCard-hint",
+      "or ",
+      el("kbd", undefined, codeActionKey),
+    ),
+  )
+  return { row, menu }
 }
 
 const renderSection = (
@@ -281,24 +341,9 @@ const renderSection = (
     section.append(why)
   }
 
-  const { primary, others, ignores } = groupFixes(diagnostic.fixes)
-  if (primary !== undefined || ignores.length > 0) {
-    const footer = el("div", "cm-diagnosticCard-actions")
-    if (primary !== undefined) footer.append(fixButton(primary, true))
-    for (const fix of others.slice(0, 2)) footer.append(fixButton(fix, false))
-    const ignore = ignores.length > 0 ? ignoreMenu(ignores) : undefined
-    if (ignore !== undefined) footer.append(ignore.toggle)
-    footer.append(
-      el("span", "cm-diagnosticCard-spacer"),
-      el(
-        "span",
-        "cm-diagnosticCard-hint",
-        others.length > 2 ? "More fixes " : "All fixes ",
-        el("kbd", undefined, options.codeActionKey),
-      ),
-    )
-    section.append(footer)
-    if (ignore !== undefined) section.append(ignore.menu)
+  if (diagnostic.fixes.length > 0) {
+    const { row, menu } = fixMenu(diagnostic.fixes, options.codeActionKey)
+    section.append(row, menu)
   }
   return section
 }
@@ -469,7 +514,7 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     alignItems: "center",
     gap: "4px",
     height: "30px",
-    padding: "0 12px",
+    padding: "0 8px 0 10px",
     borderRadius: "6px",
     border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
     backgroundColor: ld("#ffffff", "#1b1b1f"),
@@ -479,36 +524,35 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     cursor: "pointer",
     "&:hover": { backgroundColor: ld("#f4f4f5", "#26262b") },
   },
-  ".cm-diagnosticCard-fix.is-primary": {
-    backgroundColor: ld("#18181b", "#e4e4e7"),
-    borderColor: ld("#18181b", "#e4e4e7"),
-    color: ld("#fafafa", "#09090b"),
-    fontWeight: "600",
-    "&:hover": { backgroundColor: ld("#27272a", "#ffffff") },
-  },
-  ".cm-diagnosticCard-fix.is-primary code": {
-    backgroundColor: "transparent",
-    padding: "0",
-    color: "inherit",
-  },
-  ".cm-diagnosticCard-chevron": {
-    width: "13px",
-    height: "13px",
+  ".cm-diagnosticCard-buttonIcon": {
+    width: "14px",
+    height: "14px",
     fill: "none",
     stroke: "currentColor",
     strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  },
+  ".cm-diagnosticCard-fix[aria-expanded=true]": {
+    backgroundColor: ld("#f4f4f5", "#26262b"),
+  },
+  ".cm-diagnosticCard-divider": {
+    width: "1px",
+    height: "16px",
+    margin: "0 2px 0 6px",
+    backgroundColor: ld("#d4d4d8", "#3a3a40"),
   },
   ".cm-diagnosticCard-menu": {
     display: "flex",
     flexDirection: "column",
     width: "fit-content",
-    minWidth: "220px",
+    minWidth: "260px",
     marginTop: "8px",
     padding: "3px",
     borderRadius: "6px",
     border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
     backgroundColor: ld("#ffffff", "#18181b"),
-    "& button": {
+    "& .cm-diagnosticCard-menuItem": {
       display: "block",
       width: "100%",
       textAlign: "left",
@@ -522,8 +566,16 @@ export const diagnosticCardTheme = EditorView.baseTheme({
       whiteSpace: "nowrap",
       cursor: "pointer",
     },
-    "& button:hover, & button:focus-visible": {
-      backgroundColor: ld("#f4f4f5", "#27272a"),
+    "& .cm-diagnosticCard-menuItem:hover, & .cm-diagnosticCard-menuItem:focus-visible":
+      {
+        backgroundColor: ld("#f4f4f5", "#27272a"),
+        outline: "none",
+      },
+    "& .cm-diagnosticCard-menuItem.is-muted": { color: muted },
+    "& .cm-diagnosticCard-menuSeparator": {
+      height: "1px",
+      margin: "3px 0",
+      backgroundColor: border,
     },
   },
   ".cm-diagnosticCard-menu[hidden]": { display: "none" },

@@ -3,6 +3,7 @@ import {
   type CardFix,
   countSummary,
   groupFixes,
+  ignoreLabel,
   parseMessage,
 } from "../../../src/features/scratchpad/diagnostic-card.ts"
 import { ruleTitle } from "../../../src/features/scratchpad/effect-rules.ts"
@@ -100,5 +101,20 @@ test("countSummary counts by severity, errors first", () => {
       { severity: "warning" },
     ]).map((count) => count.text),
     ["1 error", "2 warnings"],
+  )
+})
+
+test("ignoreLabel shortens the disable fixes", () => {
+  assert.strictEqual(
+    ignoreLabel("Disable floatingEffect for this line"),
+    "Ignore on this line",
+  )
+  assert.strictEqual(
+    ignoreLabel("Disable floatingEffect for entire file"),
+    "Ignore in this file",
+  )
+  assert.strictEqual(
+    ignoreLabel("Add yield* statement"),
+    "Add yield* statement",
   )
 })

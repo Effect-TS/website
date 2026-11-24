@@ -597,18 +597,18 @@ test("Cmd/Ctrl-click into a library opens its declarations in a read-only tab, a
   )
 })
 
-test("a diagnostic's card offers its fixes, with the disables under Ignore, and applying one clears the error", async ({
+test("a diagnostic's card offers its fixes in a Fix menu, and applying one clears the error", async ({
   page,
 }) => {
   await openReady(page)
   const floating = 'Effect.succeed("unhandled")'
   const card = page.locator(".cm-diagnosticCard")
-  const ignore = card.getByRole("button", { name: "Ignore" })
+  const fixButton = card.getByRole("button", { name: "Fix" })
   // The fixes are asked for after the diagnostics render.
   await expect(async () => {
     await dismissTooltips(page)
     await lintMessages(page, floating)
-    await expect(ignore).toBeVisible({ timeout: 2_000 })
+    await expect(fixButton).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: LSP_TIMEOUT })
   await expect(card.locator(".cm-diagnosticCard-title")).toHaveText(
     "Floating effect",
@@ -617,10 +617,12 @@ test("a diagnostic's card offers its fixes, with the disables under Ignore, and 
     "href",
     "/docs/v4/getting-started/using-generators/",
   )
-  await ignore.click()
-  await card
-    .getByRole("menuitem", { name: "Disable floatingEffect for this line" })
-    .click()
+  await fixButton.click()
+  const item = card.getByRole("menuitem", {
+    name: "Disable floatingEffect for this line",
+  })
+  await expect(item).toHaveText("Ignore on this line")
+  await item.click()
 
   await expect(
     lineWith(page, "@effect-diagnostics-next-line floatingEffect:off"),
