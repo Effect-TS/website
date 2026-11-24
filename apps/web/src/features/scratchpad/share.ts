@@ -1,5 +1,6 @@
 import * as Effect from "effect/Effect"
 import { WorkspaceCompression } from "@/features/share/compression"
+import { zipWorkspace } from "@/features/share/download"
 import {
   fromFlatWorkspace,
   type FlatWorkspaceMetadata,
@@ -97,6 +98,13 @@ export const shareScratchpad = Effect.fnUntraced(function* (
     url: options.origin === undefined ? path : `${options.origin}${path}`,
   } satisfies ShareResult
 })
+
+/**
+ * The Scratchpad as a zip: the files a Share holds, under a folder named
+ * after the Workspace, in `<Workspace name>.zip`.
+ */
+export const downloadScratchpad = (source: ShareSource) =>
+  zipWorkspace(toShareWorkspace(source))
 
 /** A message for a failed Share, shown next to the Share button. */
 export const shareErrorMessage = (error: unknown): string => {

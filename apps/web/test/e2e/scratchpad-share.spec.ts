@@ -1,3 +1,5 @@
+import * as zip from "@zip.js/zip.js"
+import { readFile } from "node:fs/promises"
 import { expect, test, type Page } from "playwright/test"
 import { editorOf, replaceDocument } from "./scratchpad-helpers.ts"
 
@@ -73,4 +75,36 @@ test("edits are autosaved and restored on reload", async ({ page }) => {
   await expect(editorOf(page).locator(".cm-content")).toContainText(
     "export const shared = 42",
   )
+})
+
+test("the download button saves the Workspace as a zip", async ({ page }) => {
+  await openScratchpad(page)
+  await replaceDocument(page, EDIT)
+
+  const downloading = page.waitForEvent("download")
+  await page.getByTestId("scratchpad-download").click()
+  const download = await downloading
+  expect(download.suggestedFilename()).toBe("playground-v4.zip")
+
+  const reader = new zip.ZipReader(
+    new zip.Uint8ArrayReader(
+      new Uint8Array(await readFile(await download.path())),
+    ),
+  )
+  const entries: Record<string, string> = {}
+  for (const entry of await reader.getEntries()) {
+    if (!entry.directory) {
+      entries[entry.filename] = await entry.getData!(new zip.TextWriter())
+    }
+  }
+  await reader.close()
+  expect(Object.keys(entries)).toEqual(
+    expect.arrayContaining([
+      "playground-v4/package.json",
+      "playground-v4/tsconfig.json",
+      "playground-v4/dprint.json",
+      "playground-v4/src/main.ts",
+    ]),
+  )
+  expect(entries["playground-v4/src/main.ts"]).toBe(EDIT)
 })
