@@ -35,7 +35,17 @@ export const lintMessages = async (page: Page, text: string) => {
   return tooltip
 }
 
-export const dismissTooltips = (page: Page) => page.mouse.move(0, 0)
+/**
+ * Moves the pointer off the editor and waits for every hover tooltip to
+ * close, including a language server hover that answers after the pointer
+ * left (the editor closes those too).
+ */
+export const dismissTooltips = async (page: Page) => {
+  await page.mouse.move(0, 0)
+  await expect(page.locator(".cm-tooltip-hover")).toHaveCount(0, {
+    timeout: LSP_TIMEOUT,
+  })
+}
 
 /** Replaces the active editor's text in one transaction (like a paste). */
 export const replaceDocument = async (page: Page, text: string) => {

@@ -40,6 +40,7 @@ import {
   layerDependencies,
 } from "./dependencies.ts"
 import { diagnosticsWithCodeActions } from "./code-actions.ts"
+import { closeLateHovers } from "./hover-guard.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
 import { formatOnSave, makeDprintDocumentFormatter } from "./format.ts"
 import {
@@ -483,6 +484,7 @@ export const makeScratchpadEditorSession = (
           },
         }),
         ...languageServerExtensions(),
+        closeLateHovers,
         diagnosticCapabilities,
       ],
       workspace: (client) => {
