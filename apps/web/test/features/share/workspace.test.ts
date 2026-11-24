@@ -3,6 +3,8 @@ import { assert, test } from "vite-plus/test"
 import {
   makeDefaultWorkspace,
   makeFile,
+  PLAYGROUND_TYPESCRIPT_VERSION,
+  withPlaygroundTypeScript,
 } from "../../../src/features/share/workspace.ts"
 
 test("recognizes published v4 dist-tags", () => {
@@ -66,3 +68,38 @@ function workspaceWithEffectVersion(version: string) {
     ),
   )
 }
+
+const withPackageJson = (content: string) => {
+  const workspace = makeDefaultWorkspace("v4")
+  const [packageJson] = workspace
+    .findFile("package.json")
+    .pipe(Option.getOrThrow)
+  return workspace.replaceNode(packageJson, makeFile("package.json", content))
+}
+
+const packageJsonOf = (workspace: ReturnType<typeof makeDefaultWorkspace>) =>
+  workspace.findFile("package.json").pipe(Option.getOrThrow)[0].initialContent
+
+test("/play adds typescript to a workspace without it, like a Scratchpad share", () => {
+  const added = withPlaygroundTypeScript(
+    withPackageJson(JSON.stringify({ dependencies: { effect: "latest" } })),
+  )
+  assert.deepStrictEqual(JSON.parse(packageJsonOf(added)).dependencies, {
+    effect: "latest",
+    typescript: PLAYGROUND_TYPESCRIPT_VERSION,
+  })
+})
+
+test("/play keeps a workspace's own typescript, and invalid JSON", () => {
+  for (const content of [
+    JSON.stringify({ dependencies: { typescript: "5.9.3" } }),
+    JSON.stringify({ devDependencies: { typescript: "5.9.3" } }),
+    "{ not json",
+  ]) {
+    const workspace = withPackageJson(content)
+    assert.strictEqual(
+      packageJsonOf(withPlaygroundTypeScript(workspace)),
+      content,
+    )
+  }
+})

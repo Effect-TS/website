@@ -555,6 +555,46 @@ const v4Dependencies: Readonly<Record<string, string>> = {
 }
 
 /**
+ * The TypeScript `/play` installs: its runner compiles the program with
+ * `node_modules/typescript`. The Scratchpad doesn't need it (tsrs type-checks
+ * in a web worker and Node runs the TypeScript), so its seed leaves it out.
+ */
+export const PLAYGROUND_TYPESCRIPT_VERSION = "6.0.2"
+
+/**
+ * Adds `typescript` to a workspace's `package.json` when it has none, as in
+ * a Scratchpad share opened in `/play`. Invalid JSON is left alone.
+ */
+export const withPlaygroundTypeScript = (workspace: Workspace): Workspace =>
+  Effect.runSync(
+    workspace.updateFiles((file, path) => {
+      if (path !== "package.json") return Effect.succeed(file)
+      const pkg: unknown = Option.getOrUndefined(parseJson(file.initialContent))
+      if (!Predicate.isObject(pkg)) return Effect.succeed(file)
+      const dependencies: object = Predicate.isObject(pkg["dependencies"])
+        ? pkg["dependencies"]
+        : {}
+      const devDependencies: object = Predicate.isObject(pkg["devDependencies"])
+        ? pkg["devDependencies"]
+        : {}
+      if ("typescript" in dependencies || "typescript" in devDependencies) {
+        return Effect.succeed(file)
+      }
+      return Effect.succeed(
+        file.withContent(
+          encodeJson({
+            ...pkg,
+            dependencies: {
+              ...dependencies,
+              typescript: PLAYGROUND_TYPESCRIPT_VERSION,
+            },
+          }),
+        ),
+      )
+    }),
+  )
+
+/**
  * The v3 workspace keeps the pre-toggle name "playground" so existing
  * autosaves and share links keep working. The names must differ between
  * versions: switching swaps the workspace handle, and the outgoing handle's
@@ -567,7 +607,7 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
     dependencies: {
       ...v3Dependencies,
       "@types/node": "latest",
-      typescript: "6.0.2",
+      typescript: PLAYGROUND_TYPESCRIPT_VERSION,
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
     initialFilePath: "src/main.ts",
@@ -578,7 +618,7 @@ const defaultWorkspaces: Record<EffectVersion, Workspace> = {
     dependencies: {
       ...v4Dependencies,
       "@types/node": "latest",
-      typescript: "6.0.2",
+      typescript: PLAYGROUND_TYPESCRIPT_VERSION,
     },
     shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
     initialFilePath: "src/main.ts",

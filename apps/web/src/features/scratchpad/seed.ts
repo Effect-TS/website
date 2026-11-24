@@ -63,11 +63,15 @@ const patchSeedPackageJson = (
   const pkg = JSON.parse(content) as {
     readonly dependencies?: Record<string, string>
   }
+  // The Playground template's `typescript` is for /play's runner. Here tsrs
+  // type-checks in the web worker and Node runs the TypeScript, so installing
+  // it (24 MB) buys nothing.
+  const { typescript: _typescript, ...dependencies } = pkg.dependencies ?? {}
   return JSON.stringify(
     {
       ...pkg,
       dependencies: {
-        ...pkg.dependencies,
+        ...dependencies,
         ...seedExtraDependencies[version],
         "@types/node": SEED_TYPES_NODE_RANGE,
       },
@@ -98,8 +102,8 @@ const patchSeedFile = (
  * The Scratchpad seed for an Effect version, in the share format: the
  * Playground template for that version with the language-service plugin and
  * `verbatimModuleSyntax` in `tsconfig.json`, `src/DevTools.ts` importing only
- * the modules it uses, and `@types/node` pinned to the Container's Node
- * major. Every other dependency keeps the template's range.
+ * the modules it uses, `@types/node` pinned to the Container's Node major,
+ * and no `typescript`. Every other dependency keeps the template's range.
  */
 export const makeScratchpadSeedWorkspace = (
   version: EffectVersion = "v4",

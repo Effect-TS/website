@@ -49,6 +49,13 @@ describe("Scratchpad seed", () => {
     assert.equal(pkg.dependencies["@effect/platform-node"], "latest")
   })
 
+  test("leaves out the template's typescript: tsrs and Node cover it", () => {
+    for (const seed of Object.values(SCRATCHPAD_SEEDS)) {
+      const pkg = JSON.parse(seed.files["package.json"]!)
+      assert.notProperty(pkg.dependencies, "typescript")
+    }
+  })
+
   test("DevTools.ts imports NodeSocket from its own module", () => {
     assert.include(
       SCRATCHPAD_SEED_FILES["src/DevTools.ts"]!,

@@ -14,6 +14,7 @@ import {
   makeDefaultWorkspace,
   makeFile,
   normalizeWorkspace,
+  withPlaygroundTypeScript,
   Workspace,
 } from "@/features/share/workspace"
 import { WorkspaceCompression } from "@/features/share/compression"
@@ -186,7 +187,10 @@ const fromHash = Effect.fnUntraced(
       .retrieve({ params: { hash: hash.value } })
       .pipe(Effect.flatMap(Effect.fromOption))
     const compression = yield* WorkspaceCompression
-    return Option.some(yield* compression.decompress(compressed))
+    // A Scratchpad share has no `typescript`, which /play's runner needs.
+    return Option.some(
+      withPlaygroundTypeScript(yield* compression.decompress(compressed)),
+    )
   },
   Effect.catch((error) =>
     Effect.logWarning(
@@ -239,7 +243,7 @@ export const importAtom = runtime.atom(
       yield* Effect.logInfo(
         "Playground: loaded workspace from the localStorage autosave",
       )
-      return normalizeWorkspace(autoSaved.value)
+      return withPlaygroundTypeScript(normalizeWorkspace(autoSaved.value))
     }
 
     const version = Option.getOrElse(get(versionParamAtom), () =>
