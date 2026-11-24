@@ -8,7 +8,6 @@ import {
   makeContainer,
   type TerminalSize,
 } from "../../../src/features/scratchpad/container.ts"
-import { RUN_MARKER_PREFIX } from "../../../src/features/scratchpad/terminal.ts"
 
 /** An in-memory Container backend for tests. */
 
@@ -57,12 +56,9 @@ export interface FakeShell {
   readonly killed: () => boolean
 }
 
-const RUN_LINE = /^node \S*run\.cjs /
-
 /**
  * A scripted `jsh`: echoes input, runs each entered line with `command`,
- * prints the prompt when it is done, and handles Ctrl+C and Ctrl+U. A line
- * that runs the Run wrapper gets its markers around the output.
+ * prints the prompt when it is done, and handles Ctrl+C and Ctrl+U.
  */
 const makeFakeShell = (
   size: TerminalSize,
@@ -81,8 +77,8 @@ const makeFakeShell = (
   let closed = false
   let killed = false
   let line = ""
-  // The command in the foreground, if one is running.
-  let running: { readonly run: boolean } | undefined
+  // Whether a command is in the foreground.
+  let running = false
   const input: Array<string> = []
   const lines: Array<string> = []
   const sizes: Array<TerminalSize> = [size]
@@ -90,11 +86,9 @@ const makeFakeShell = (
     if (!closed) controller.enqueue(text)
   }
   const prompt = () => print(FAKE_PROMPT)
-  const end = (code: number) => {
-    const current = running
-    if (current === undefined) return
-    running = undefined
-    if (current.run) print(`${RUN_MARKER_PREFIX}exit;${code}\u0007`)
+  const end = (_code: number) => {
+    if (!running) return
+    running = false
     prompt()
   }
   const close = (code: number) => {
@@ -109,10 +103,8 @@ const makeFakeShell = (
     print("\r\n")
     if (entered.trim() === "") return prompt()
     lines.push(entered)
-    const isRun = RUN_LINE.test(entered)
     const result = command(entered)
-    running = { run: isRun }
-    if (isRun) print(`${RUN_MARKER_PREFIX}start\u0007`)
+    running = true
     for (const chunk of result.output ?? []) print(chunk)
     if (result.hang !== true) end(result.exitCode ?? 0)
   }
@@ -144,9 +136,9 @@ const makeFakeShell = (
           if (char === "\u0003") {
             print("^C\r\n")
             line = ""
-            if (running !== undefined) end(130)
+            if (running) end(130)
             else prompt()
-          } else if (running !== undefined) {
+          } else if (running) {
             // Goes to the program's stdin.
           } else if (char === "\r") {
             enter()
@@ -167,6 +159,8 @@ export interface FakeContainerBackend extends ContainerBackend {
   readonly files: Map<string, string | Uint8Array>
   /** The host scripts directory's files, by name. */
   readonly hostFiles: Map<string, string | Uint8Array>
+  /** Executables written next to the Workspace dir (`../<name>`), by name. */
+  readonly executables: Map<string, string>
   /** Every file system call, in order (`write a`, `remove b`, …). */
   readonly log: Array<string>
   readonly spawned: Array<FakeSpawnCall>
@@ -201,6 +195,7 @@ export const makeFakeContainerBackend = (
     Object.entries(options.files ?? {}),
   )
   const hostFiles = new Map<string, string | Uint8Array>()
+  const executables = new Map<string, string>()
   const log: Array<string> = []
   const spawned: Array<FakeSpawnCall> = []
   const shells: Array<FakeShell> = []
@@ -221,6 +216,7 @@ export const makeFakeContainerBackend = (
   return {
     files,
     hostFiles,
+    executables,
     log,
     spawned,
     killed: () => killed,
@@ -298,6 +294,9 @@ export const makeFakeContainerBackend = (
     },
     removeHostDirFile: async (name) => {
       hostFiles.delete(name)
+    },
+    writeExecutable: async (name, content) => {
+      executables.set(name, content)
     },
     spawn: async (command, args, spawnOptions) => {
       const call = { command, args, ...spawnOptions }

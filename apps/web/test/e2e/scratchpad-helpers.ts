@@ -14,7 +14,6 @@ export const statusOf = (page: Page) => page.getByTestId("lsp-status")
 export const containerOf = (page: Page) => page.getByTestId("container-status")
 export const runOutputOf = (page: Page) => page.getByTestId("run-output")
 export const terminalOf = (page: Page) => page.getByTestId("terminal")
-export const runBarOf = (page: Page) => page.getByTestId("run-bar")
 
 export const lineWith = (page: Page, text: string) =>
   editorOf(page).locator(".cm-line").filter({ hasText: text }).first()

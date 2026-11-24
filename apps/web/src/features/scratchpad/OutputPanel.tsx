@@ -1,9 +1,8 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { ChevronDown, ChevronUp, Eraser } from "lucide-react"
+import { ChevronDown, ChevronUp, Eraser, RotateCw } from "lucide-react"
 import * as Option from "effect/Option"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
-import { RunBar, RunWaitingChip, SkipBanner } from "./RunBar.tsx"
 import { TerminalView } from "./TerminalView.tsx"
 import { TracesPanel } from "./TracesPanel.tsx"
 
@@ -60,45 +59,38 @@ type PanelTabId = (typeof PANEL_TABS)[number]["id"]
 
 export interface OutputPanelProps {
   /**
-   * Rendered across the top of the panel body, above the Run bar and the
-   * terminal (the Container failure strip). It covers nothing.
+   * Rendered across the top of the panel body, above the terminal (the
+   * Container failure strip). It covers nothing.
    */
   readonly banner?: React.ReactNode
 }
 
 /**
  * The bottom panel under the editor: a resizable, collapsible panel whose
- * "Terminal" tab is the Container's interactive shell, with the Run bar,
- * the skip banner and the typing guard's chip (ADR 0005).
+ * "Terminal" tab is the Container's interactive shell, where the watch runner
+ * runs the program (ADR 0006). The header has Restart and Clear.
  */
 export function OutputPanel({ banner }: OutputPanelProps) {
   const {
-    runStateAtom,
+    terminalStateAtom,
     terminalOutputAtom,
     openTerminalAtom,
     resizeTerminalAtom,
     terminalInputAtom,
-    discardTerminalInputAtom,
     clearTerminalAtom,
-    stopRunAtom,
     restartRunAtom,
     dependenciesUnavailableLineAtom,
     revealPositionAtom,
   } = useScratchpadSession()
   const reveal = useAtomSet(revealPositionAtom)
-  const runs = useAtomValue(runStateAtom)
+  const terminal = useAtomValue(terminalStateAtom)
   const terminalOutput = useAtomValue(terminalOutputAtom)
   const dependenciesLine = useAtomValue(dependenciesUnavailableLineAtom)
   const openTerminal = useAtomSet(openTerminalAtom)
   const resizeTerminal = useAtomSet(resizeTerminalAtom)
   const terminalInput = useAtomSet(terminalInputAtom)
-  const discardInput = useAtomSet(discardTerminalInputAtom)
   const clearTerminal = useAtomSet(clearTerminalAtom)
   const [tab, setTab] = React.useState<PanelTabId>("terminal")
-  // Esc reaches the shell unless a Run is waiting on the visitor.
-  const waitingRef = React.useRef(runs.waiting)
-  waitingRef.current = runs.waiting
-  const stop = useAtomSet(stopRunAtom)
   const restart = useAtomSet(restartRunAtom)
   const [layout, setLayout] = React.useState(readLayout)
   const panelRef = React.useRef<HTMLDivElement>(null)
@@ -139,14 +131,11 @@ export function OutputPanel({ banner }: OutputPanelProps) {
     handle.addEventListener("pointercancel", onUp)
   }
 
-  const skipped = runs.skipped
-
   return (
     <div
       ref={panelRef}
       data-testid="output-panel"
       data-collapsed={layout.collapsed}
-      data-runs-available={runs.available}
       // A remembered height can exceed a smaller window: always leave the
       // editor room, as dragging does.
       style={
@@ -191,6 +180,23 @@ export function OutputPanel({ banner }: OutputPanelProps) {
           {tab === "terminal" && (
             <button
               type="button"
+              data-testid="run-restart"
+              title={
+                terminal.runner
+                  ? "Run the program again"
+                  : "Restart works while ../run is running in the terminal"
+              }
+              disabled={!terminal.runner}
+              onClick={() => restart()}
+              className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <RotateCw className="h-3 w-3" aria-hidden="true" />
+              Restart
+            </button>
+          )}
+          {tab === "terminal" && (
+            <button
+              type="button"
               data-testid="terminal-clear"
               title="Clear the terminal"
               onClick={() => clearTerminal()}
@@ -225,10 +231,9 @@ export function OutputPanel({ banner }: OutputPanelProps) {
       <div
         role="tabpanel"
         data-testid="run-output"
-        data-run-id={runs.run?.id ?? 0}
-        data-run-status={runs.run?.status._tag ?? "none"}
-        data-run-skipped={skipped !== undefined}
-        data-run-waiting={runs.waiting ?? "none"}
+        data-run-id={terminal.run?.id ?? 0}
+        data-run-status={terminal.run?.status._tag ?? "none"}
+        data-runner={terminal.runner}
         className={
           layout.collapsed || tab !== "terminal"
             ? "hidden"
@@ -244,32 +249,14 @@ export function OutputPanel({ banner }: OutputPanelProps) {
             {dependenciesLine.value}
           </div>
         )}
-        <RunBar runs={runs} onStop={() => stop()} onRestart={() => restart()} />
-        {skipped !== undefined && (
-          <SkipBanner key={skipped.at} skip={skipped} onOpenLocation={reveal} />
-        )}
         <div className="relative flex min-h-0 flex-1 flex-col">
           <TerminalView
             output={terminalOutput}
             onOpen={(size) => openTerminal(size)}
             onResize={(size) => resizeTerminal(size)}
             onData={(data) => terminalInput(data)}
-            onEscape={() => {
-              if (waitingRef.current === undefined) return false
-              discardInput()
-              return true
-            }}
             onOpenLocation={reveal}
           />
-          {runs.waiting !== undefined && (
-            // Below the terminal, so it covers none of the prompt.
-            <div className="shrink-0 px-3 pb-2">
-              <RunWaitingChip
-                waiting={runs.waiting}
-                onDiscard={() => discardInput()}
-              />
-            </div>
-          )}
         </div>
       </div>
       {!layout.collapsed && tab === "traces" && <TracesPanel />}

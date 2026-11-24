@@ -24,7 +24,7 @@ import {
   type TraceAtoms,
 } from "@/features/devtools/traces"
 import { Container, type ContainerService } from "./container.ts"
-import { Runs } from "./runs.ts"
+import { Terminal } from "./terminal.ts"
 
 /** The devtools TCP port Effect's `DevTools.layerSocket` connects to. */
 export const DEV_TOOLS_PORT = 34437
@@ -127,7 +127,8 @@ export const followTraces = (
 
 /**
  * Follows the Container's traces into `atoms` for the layer's lifetime.
- * Without a Container it does nothing; without Runs the traces never reset.
+ * Without a Container it does nothing; without a Terminal (whose runner
+ * reports each Run) the traces never reset.
  */
 export const layerTraces = (
   atoms: TraceAtoms,
@@ -136,15 +137,15 @@ export const layerTraces = (
     Effect.gen(function* () {
       const container = yield* Effect.serviceOption(Container)
       if (Option.isNone(container)) return
-      const runs = yield* Effect.serviceOption(Runs)
+      const terminal = yield* Effect.serviceOption(Terminal)
       yield* followTraces({
         container: container.value,
         registry: yield* AtomRegistry.AtomRegistry,
         atoms,
-        runIds: Option.match(runs, {
+        runIds: Option.match(terminal, {
           onNone: () => Stream.empty,
-          onSome: (runs) =>
-            runs.stateChanges.pipe(Stream.map((state) => state.run?.id)),
+          onSome: (terminal) =>
+            terminal.stateChanges.pipe(Stream.map((state) => state.run?.id)),
         }),
       })
     }),

@@ -1,30 +1,26 @@
 /**
- * The terminal: one interactive `jsh` in the Container, shared by Runs and
- * the visitor (ADR 0005, "One terminal").
+ * The terminal: one interactive `jsh` in the Container. After the first
+ * install the page types the Workspace shell's command into it once
+ * (`../run src/main.ts`), and the watch runner (`run-watch.cjs`) owns it
+ * until Ctrl+C, as on `/play` (ADR 0006).
  *
- * - The shell starts on the first `open` (the panel mounting) or the first
- *   Run, once the Container is ready. It starts again after the Container
- *   retries a failed boot, and after the visitor exits it.
+ * - The shell starts on the first `open` (the panel mounting), once the
+ *   Container is ready. It starts again after the Container retries a failed
+ *   boot, and after the visitor exits it. The command is typed into the first
+ *   shell of each boot, once the Container can run code.
  * - Output is kept here (the last `TERMINAL_OUTPUT_LIMIT` characters), so the
  *   xterm can be recreated and replay it. Install output is printed into it.
- * - Runs are typed into the shell as `node ../.scratchpad/run.cjs <entry>`.
- *   The wrapper (`run-wrapper.cjs`) prints OSC markers for its start and its
- *   exit code. They are parsed out of the output here, and the exit marker
- *   becomes an `exited with code N · HH:MM:SS` line.
- * - What is in the foreground is tracked from the visitor's keystrokes, the
- *   markers and the prompt: `idle` at the prompt, `run` while a Run is,
- *   `command` after the visitor entered a command, `stopping` between a
- *   Ctrl+C and the prompt coming back. `typing` says the visitor has typed at
- *   the prompt since the last Enter, Ctrl+C or Ctrl+U. Runs wait on both
- *   (the typing guard).
+ * - The runner prints OSC markers: `watch;start` and `watch;exit` around
+ *   itself, `start` and `exit;<code>` around each program it runs. They are
+ *   parsed out of the output here into `TerminalState` (whether the runner is
+ *   in the foreground, the latest Run).
+ * - Restart touches `.scratchpad/restart`, which the runner watches.
  */
 import * as Clock from "effect/Clock"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as PubSub from "effect/PubSub"
 import type * as Scope from "effect/Scope"
-import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
 import {
@@ -34,6 +30,7 @@ import {
   type TerminalSize,
 } from "./container.ts"
 import { Dependencies, type InstallLog } from "./dependencies.ts"
+import { canRun, installRunner, RESTART_FILE_NAME } from "./diagnostics-file.ts"
 
 /** The terminal text kept for the panel (the end of it). */
 export const TERMINAL_OUTPUT_LIMIT = 256 * 1024
@@ -41,37 +38,55 @@ export const TERMINAL_OUTPUT_LIMIT = 256 * 1024
 /** Until the panel measures the terminal. */
 export const DEFAULT_TERMINAL_SIZE: TerminalSize = { cols: 80, rows: 24 }
 
-/** The OSC sequence the Run wrapper prints: `ESC ] 7777 ; scratchpad-run ; <payload> BEL`. */
+/** The OSC sequence the runner prints: `ESC ] 7777 ; scratchpad-run ; <payload> BEL`. */
 export const RUN_MARKER_PREFIX = "\u001b]7777;scratchpad-run;"
 const RUN_MARKER_END = "\u0007"
 
-/**
- * jsh's prompt, `~/workspace ❯ ` (ANSI stripped). Seeing it after a command
- * means the command finished.
- */
-export const SHELL_PROMPT_PATTERN = /❯ $/
-
-/** How long a Run waits for the foreground to stop after Ctrl+C. */
-export const INTERRUPT_GRACE_MILLIS = 1500
-
-const CTRL_C = "\u0003"
-const CTRL_U = "\u0015"
+/** The command typed into the shell when a Workspace names none. */
+export const DEFAULT_SHELL_COMMAND = "../run src/main.ts"
 
 const ESC = "\u001b["
 const reset = `${ESC}0m`
 
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Markers
 // ---------------------------------------------------------------------------
 
 export type ShellOutputPart =
   | { readonly _tag: "Text"; readonly text: string }
+  /** The runner started (`watch;start`). */
+  | { readonly _tag: "WatchStarted" }
+  /** The runner exited (`watch;exit`), after Ctrl+C. */
+  | { readonly _tag: "WatchExited" }
+  /** The runner started the program (`start`). */
   | { readonly _tag: "RunStarted" }
+  /** The program exited, or the runner killed it (`exit;<code>`). */
   | { readonly _tag: "RunExited"; readonly exitCode: number }
 
+const markerPart = (payload: string): ShellOutputPart | undefined => {
+  switch (payload) {
+    case "start":
+      return { _tag: "RunStarted" }
+    case "watch;start":
+      return { _tag: "WatchStarted" }
+    case "watch;exit":
+      return { _tag: "WatchExited" }
+  }
+  if (payload.startsWith("exit;")) {
+    const exitCode = Number.parseInt(payload.slice(5), 10)
+    return {
+      _tag: "RunExited",
+      exitCode: Number.isNaN(exitCode) ? 1 : exitCode,
+    }
+  }
+  return undefined
+}
+
 /**
- * Splits shell output into text and Run markers. A marker split across
- * chunks is held back until it is complete; unknown payloads are dropped.
+ * Splits shell output into text and the runner's markers. A marker split
+ * across chunks is held back until it is complete; unknown payloads are
+ * dropped.
  */
 export const makeShellOutputParser = () => {
   let pending = ""
@@ -91,15 +106,8 @@ export const makeShellOutputParser = () => {
         pending = text.slice(start)
         return parts
       }
-      const payload = text.slice(start + RUN_MARKER_PREFIX.length, end)
-      if (payload === "start") parts.push({ _tag: "RunStarted" })
-      else if (payload.startsWith("exit;")) {
-        const exitCode = Number.parseInt(payload.slice(5), 10)
-        parts.push({
-          _tag: "RunExited",
-          exitCode: Number.isNaN(exitCode) ? 1 : exitCode,
-        })
-      }
+      const part = markerPart(text.slice(start + RUN_MARKER_PREFIX.length, end))
+      if (part !== undefined) parts.push(part)
       text = text.slice(end + RUN_MARKER_END.length)
     }
     // Hold back a tail that could be the start of a marker.
@@ -119,48 +127,40 @@ export const makeShellOutputParser = () => {
   }
 }
 
-// CSI sequences (colors, cursor moves) and OSC sequences (titles, links).
-const ANSI_PATTERN =
-  // oxlint-disable-next-line no-control-regex
-  /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
-
-/** Removes ANSI escape sequences. */
-export const stripAnsi = (text: string): string =>
-  text.replace(ANSI_PATTERN, "")
-
-const pad = (n: number) => String(n).padStart(2, "0")
-
-/** `HH:MM:SS` in local time. */
-export const formatClockTime = (millis: number): string => {
-  const date = new Date(millis)
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
-
-/** The line the terminal prints when a Run's program exits. */
-export const exitLine = (exitCode: number, at: number): string =>
-  exitCode === 0
-    ? `${ESC}2mexited with code 0 · ${formatClockTime(at)}${reset}\r\n`
-    : `${ESC}31mexited with code ${exitCode}${reset}${ESC}2m · ${formatClockTime(at)}${reset}\r\n`
-
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
-/** What has the shell's foreground. */
-export type ShellForeground = "idle" | "run" | "command" | "stopping"
+export type RunStatus =
+  | { readonly _tag: "running" }
+  | { readonly _tag: "exited"; readonly exitCode: number }
+  /** The runner exited (Ctrl+C) or the shell went away while it ran. */
+  | { readonly _tag: "stopped" }
+
+/** A program the runner started. */
+export interface RunInfo {
+  /** Increments with each Run; identifies it internally, never shown. */
+  readonly id: number
+  /** Epoch milliseconds. */
+  readonly startedAt: number
+  /** When it stopped running, once it has. */
+  readonly endedAt: number | undefined
+  readonly status: RunStatus
+}
 
 export interface TerminalState {
   /** `closed` until the Container is ready and the shell started. */
   readonly shell: "closed" | "open"
-  readonly foreground: ShellForeground
-  /** The visitor has typed at the prompt since the last Enter, Ctrl+C or Ctrl+U. */
-  readonly typing: boolean
+  /** Whether the watch runner is in the foreground (Restart works). */
+  readonly runner: boolean
+  /** The latest Run. */
+  readonly run: RunInfo | undefined
 }
 
 export const initialTerminalState: TerminalState = {
   shell: "closed",
-  foreground: "idle",
-  typing: false,
+  runner: false,
+  run: undefined,
 }
 
 /**
@@ -181,16 +181,6 @@ export const emptyTerminalOutput: TerminalOutput = {
   total: 0,
 }
 
-/** What happened to a Run typed with `run`, by the id it was typed with. */
-export type TerminalRunEvent =
-  | {
-      readonly _tag: "RunExited"
-      readonly id: number
-      readonly exitCode: number
-    }
-  /** Ctrl+C (Stop, a new Run, or the visitor), or the shell went away. */
-  | { readonly _tag: "RunInterrupted"; readonly id: number }
-
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -200,26 +190,13 @@ export interface TerminalService {
   readonly stateChanges: Stream.Stream<TerminalState>
   readonly output: Effect.Effect<TerminalOutput>
   readonly outputChanges: Stream.Stream<TerminalOutput>
-  /** How Runs typed with `run` end. */
-  readonly runEvents: Stream.Stream<TerminalRunEvent>
   /** Starts the shell at this size, if it has not started; resizes it otherwise. */
   readonly open: (size: TerminalSize) => Effect.Effect<void>
   readonly resize: (size: TerminalSize) => Effect.Effect<void>
   /** The visitor's keystrokes (xterm's `onData`). */
   readonly input: (data: string) => Effect.Effect<void>
-  /**
-   * Drops what the visitor typed (Ctrl+U), or stops the command they ran
-   * (Ctrl+C). The typing guard's Esc.
-   */
-  readonly discardInput: Effect.Effect<void>
-  /**
-   * Types a Run's command line: Ctrl+C first if something is in the
-   * foreground (waiting up to `INTERRUPT_GRACE_MILLIS` for it to stop), then
-   * the line. Its end comes as a `runEvents` event.
-   */
-  readonly run: (commandLine: string, id: number) => Effect.Effect<void>
-  /** Ctrl+C, if a Run is in the foreground (Stop). */
-  readonly interrupt: Effect.Effect<void>
+  /** Tells the runner to run again, if it is in the foreground. */
+  readonly restart: Effect.Effect<void>
   /** Prints host text (install output) on a line of its own. */
   readonly print: (text: string) => Effect.Effect<void>
   /** Clears the terminal, keeping the current line (the prompt). */
@@ -234,6 +211,13 @@ export interface MakeTerminalOptions {
   readonly container: ContainerService
   /** Install logs to print into the terminal (`Dependencies.installLogChanges`). */
   readonly installLogs?: Stream.Stream<InstallLog> | undefined
+  /**
+   * The command typed into each boot's first shell, once `awaitRunnable`
+   * succeeds, after the runner is written. Without one, nothing is typed.
+   */
+  readonly command?: string | undefined
+  /** Waits until the Container can run code (installed, types loaded). */
+  readonly awaitRunnable?: Effect.Effect<void> | undefined
 }
 
 const tail = (text: string, limit: number) =>
@@ -247,39 +231,24 @@ export const makeTerminal = (
     const scope = yield* Effect.scope
     const stateRef = yield* SubscriptionRef.make(initialTerminalState)
     const outputRef = yield* SubscriptionRef.make(emptyTerminalOutput)
-    const events = yield* PubSub.unbounded<TerminalRunEvent>()
-    // Run typing happens one at a time.
-    const runLock = yield* Semaphore.make(1)
 
     let shell: ContainerShell | undefined
     let started = false
     let size = DEFAULT_TERMINAL_SIZE
-    // Whether the Run in the foreground printed its start marker: an exit
-    // marker before it belongs to an earlier Run.
-    let runStarted = false
-    // The id of the Run typed last.
-    let runId = 0
-    // Output since the last command was entered, ANSI stripped, for the
-    // prompt.
-    let sinceCommand = ""
+    let nextRunId = 1
 
     const setState = (f: (state: TerminalState) => TerminalState) =>
-      SubscriptionRef.update(stateRef, (state) => {
-        const next = f(state)
-        return next.shell === state.shell &&
-          next.foreground === state.foreground &&
-          next.typing === state.typing
-          ? state
-          : next
-      })
+      SubscriptionRef.update(stateRef, f)
 
-    const setForeground = (foreground: ShellForeground) =>
-      Effect.suspend(() => {
-        if (foreground === "command" || foreground === "stopping") {
-          sinceCommand = ""
-        }
-        if (foreground === "run") runStarted = false
-        return setState((state) => ({ ...state, foreground }))
+    /** Ends the latest Run, if it is running. */
+    const endRun = (status: RunStatus) =>
+      Effect.gen(function* () {
+        const at = yield* Clock.currentTimeMillis
+        yield* setState((state) =>
+          state.run?.status._tag !== "running"
+            ? state
+            : { ...state, run: { ...state.run, status, endedAt: at } },
+        )
       })
 
     const append = (text: string) =>
@@ -308,78 +277,64 @@ export const makeTerminal = (
         shell === undefined ? Effect.void : shell.write(data),
       )
 
-    const onShellText = (text: string) =>
+    const onPart = (part: ShellOutputPart) =>
       Effect.gen(function* () {
-        yield* append(text)
-        const state = yield* SubscriptionRef.get(stateRef)
-        if (state.foreground === "command" || state.foreground === "stopping") {
-          sinceCommand = tail(sinceCommand + stripAnsi(text), 256)
-          if (SHELL_PROMPT_PATTERN.test(sinceCommand)) {
-            yield* setForeground("idle")
+        switch (part._tag) {
+          case "Text":
+            return yield* append(part.text)
+          case "WatchStarted":
+            return yield* setState((state) => ({ ...state, runner: true }))
+          case "WatchExited":
+            yield* endRun({ _tag: "stopped" })
+            return yield* setState((state) => ({ ...state, runner: false }))
+          case "RunStarted": {
+            yield* endRun({ _tag: "stopped" })
+            const at = yield* Clock.currentTimeMillis
+            const run: RunInfo = {
+              id: nextRunId++,
+              startedAt: at,
+              endedAt: undefined,
+              status: { _tag: "running" },
+            }
+            return yield* setState((state) => ({ ...state, run }))
           }
+          case "RunExited":
+            return yield* endRun({ _tag: "exited", exitCode: part.exitCode })
         }
-      })
-
-    const onRunExited = (exitCode: number) =>
-      Effect.gen(function* () {
-        const state = yield* SubscriptionRef.get(stateRef)
-        if (state.foreground === "stopping") {
-          // The Run that was interrupted has ended.
-          yield* setForeground("idle")
-          return
-        }
-        if (state.foreground !== "run" || !runStarted) return
-        yield* appendLine(exitLine(exitCode, yield* Clock.currentTimeMillis))
-        yield* setForeground("idle")
-        yield* PubSub.publish(events, {
-          _tag: "RunExited",
-          id: runId,
-          exitCode,
-        })
       })
 
     const parse = makeShellOutputParser()
     const onShellOutput = (chunk: string) =>
-      Effect.forEach(
-        parse(chunk),
-        (part) => {
-          switch (part._tag) {
-            case "Text":
-              return onShellText(part.text)
-            case "RunStarted":
-              return Effect.sync(() => {
-                runStarted = true
-              })
-            case "RunExited":
-              return onRunExited(part.exitCode)
-          }
-        },
-        { discard: true },
-      )
+      Effect.forEach(parse(chunk), onPart, { discard: true })
 
-    /** Ctrl+C. A Run in the foreground counts as interrupted at once. */
-    const sendInterrupt = Effect.gen(function* () {
-      const state = yield* SubscriptionRef.get(stateRef)
-      // The state changes before the keystroke goes out, so the output it
-      // causes (an exit marker, the prompt) is read against it.
-      if (state.foreground !== "idle") yield* setForeground("stopping")
-      yield* setState((s) => ({ ...s, typing: false }))
-      if (state.foreground === "run") {
-        yield* PubSub.publish(events, { _tag: "RunInterrupted", id: runId })
-      }
-      yield* send(CTRL_C)
-    })
+    // The command is typed into the first shell of each boot.
+    let commandTyped = false
+
+    /** Writes the runner, then types the command once the Container can run code. */
+    const typeCommand = (command: string) =>
+      Effect.gen(function* () {
+        yield* options.awaitRunnable ?? Effect.void
+        const installed = yield* Effect.result(installRunner(container))
+        if (installed._tag === "Failure") {
+          const cause = installed.failure
+          yield* appendLine(
+            `${ESC}31mCould not write the runner: ${cause instanceof Error ? cause.message : String(cause)}${reset}\r\n`,
+          )
+          return
+        }
+        yield* send(`${command}\r`)
+      })
 
     /** One shell's lifetime: start it, read it until it exits. */
     const runShell = Effect.scoped(
       Effect.gen(function* () {
         const opened = yield* container.shell(size)
         shell = opened
-        yield* setState(() => ({
-          shell: "open",
-          foreground: "idle",
-          typing: false,
-        }))
+        yield* setState((state) => ({ ...state, shell: "open" }))
+        if (options.command !== undefined && !commandTyped) {
+          commandTyped = true
+          yield* Effect.forkScoped(typeCommand(options.command))
+        }
         yield* opened.output.pipe(Stream.runForEach(onShellOutput))
         yield* opened.exitCode
       }),
@@ -389,7 +344,9 @@ export const makeTerminal = (
       while (true) {
         const ready = yield* Effect.result(container.awaitReady)
         if (ready._tag === "Failure") {
-          // Wait for the Container to retry its boot.
+          // Wait for the Container to retry its boot; that boot's first
+          // shell gets the command again.
+          commandTyped = false
           yield* container.phaseChanges.pipe(
             Stream.filter((phase) => phase._tag === "booting"),
             Stream.take(1),
@@ -399,11 +356,12 @@ export const makeTerminal = (
         }
         const result = yield* Effect.result(runShell)
         shell = undefined
-        const state = yield* SubscriptionRef.get(stateRef)
-        if (state.foreground === "run") {
-          yield* PubSub.publish(events, { _tag: "RunInterrupted", id: runId })
-        }
-        yield* setState(() => initialTerminalState)
+        yield* endRun({ _tag: "stopped" })
+        yield* setState((state) => ({
+          ...state,
+          shell: "closed",
+          runner: false,
+        }))
         yield* appendLine(
           result._tag === "Failure"
             ? `${ESC}31m${result.failure.message}${reset}\r\n`
@@ -419,105 +377,19 @@ export const makeTerminal = (
       return Effect.asVoid(Effect.forkIn(lifecycle, scope))
     })
 
-    const awaitShell = ensureStarted.pipe(
-      Effect.andThen(
-        stateRef.pipe(
-          SubscriptionRef.changes,
-          Stream.filter((state) => state.shell === "open"),
-          Stream.take(1),
-          Stream.runDrain,
-        ),
-      ),
-    )
-
-    const awaitForeground = (done: (state: TerminalState) => boolean) =>
-      stateRef.pipe(
-        SubscriptionRef.changes,
-        Stream.filter(done),
-        Stream.take(1),
-        Stream.runDrain,
-      )
-
-    const input = (data: string) =>
-      Effect.gen(function* () {
-        const state = yield* SubscriptionRef.get(stateRef)
-        if (data.includes(CTRL_C)) {
-          yield* sendInterrupt
-          return
-        }
-        if (state.foreground === "idle") {
-          let typing = state.typing
-          let entered = false
-          for (let i = 0; i < data.length; i++) {
-            const char = data[i]!
-            if (char === "\r" || char === "\n") {
-              if (typing) entered = true
-              typing = false
-            } else if (char === CTRL_U) {
-              typing = false
-            } else {
-              // Printable text, Backspace, or an escape sequence (arrows
-              // recall history): the line may hold a command now.
-              typing = true
-            }
-          }
-          if (entered) {
-            yield* setForeground("command")
-          }
-          yield* setState((s) => ({ ...s, typing }))
-        }
-        yield* send(data)
-      })
-
-    const discardInput = Effect.gen(function* () {
+    const restart = Effect.gen(function* () {
       const state = yield* SubscriptionRef.get(stateRef)
-      if (state.foreground === "command") {
-        yield* sendInterrupt
-      } else if (state.typing) {
-        yield* send(CTRL_U)
-        yield* setState((s) => ({ ...s, typing: false }))
-      }
-    })
-
-    const run = (commandLine: string, id: number) =>
-      runLock.withPermits(1)(
-        Effect.gen(function* () {
-          yield* awaitShell
-          const state = yield* SubscriptionRef.get(stateRef)
-          if (state.foreground === "run" || state.foreground === "command") {
-            yield* sendInterrupt
-          }
-          yield* awaitForeground((s) => s.foreground === "idle").pipe(
-            Effect.timeoutOption(`${INTERRUPT_GRACE_MILLIS} millis`),
-          )
-          if ((yield* SubscriptionRef.get(stateRef)).typing) yield* send(CTRL_U)
-          yield* setState((s) => ({ ...s, typing: false }))
-          runId = id
-          yield* setForeground("run")
-          yield* send(`${commandLine}\r`)
-        }),
-      )
-
-    const interrupt = Effect.gen(function* () {
-      const state = yield* SubscriptionRef.get(stateRef)
-      if (state.foreground === "run") yield* sendInterrupt
+      if (!state.runner) return
+      const at = yield* Clock.currentTimeMillis
+      yield* container
+        .writeHostDirFile(RESTART_FILE_NAME, String(at))
+        .pipe(Effect.ignore)
     })
 
     if (options.installLogs !== undefined) {
       yield* printInstallLogs(options.installLogs, {
         print: appendLine,
         append,
-        afterInstall: Effect.gen(function* () {
-          // The install's output covered the prompt: ask for a fresh one.
-          const state = yield* SubscriptionRef.get(stateRef)
-          if (
-            state.shell === "open" &&
-            state.foreground === "idle" &&
-            !state.typing
-          ) {
-            yield* send("\r")
-          }
-        }),
       }).pipe(Effect.forkIn(scope))
     }
 
@@ -526,7 +398,6 @@ export const makeTerminal = (
       stateChanges: SubscriptionRef.changes(stateRef),
       output: SubscriptionRef.get(outputRef),
       outputChanges: SubscriptionRef.changes(outputRef),
-      runEvents: Stream.fromPubSub(events),
       open: (next) =>
         Effect.suspend(() => {
           size = next
@@ -541,10 +412,8 @@ export const makeTerminal = (
           size = next
           return shell === undefined ? Effect.void : shell.resize(next)
         }),
-      input,
-      discardInput,
-      run,
-      interrupt,
+      input: send,
+      restart,
       print: appendLine,
       clear: SubscriptionRef.update(outputRef, (output) => {
         const line = output.text.slice(output.text.lastIndexOf("\n") + 1)
@@ -566,7 +435,6 @@ const printInstallLogs = (
   sink: {
     readonly print: (text: string) => Effect.Effect<void>
     readonly append: (text: string) => Effect.Effect<void>
-    readonly afterInstall: Effect.Effect<void>
   },
 ) => {
   let run = 0
@@ -596,25 +464,37 @@ const printInstallLogs = (
               `${ESC}31mpnpm install exited with code ${log.exitCode}${reset}\r\n`,
             )
           }
-          yield* sink.afterInstall
         }
       }),
     ),
   )
 }
 
-/** The page's terminal, on its Container, printing its installs. */
-export const layerTerminal: Layer.Layer<
-  Terminal,
-  never,
-  Container | Dependencies
-> = Layer.effect(
-  Terminal,
-  Effect.gen(function* () {
-    const dependencies = yield* Dependencies
-    return yield* makeTerminal({
-      container: yield* Container,
-      installLogs: dependencies.installLogChanges,
-    })
-  }),
-)
+export interface TerminalLayerOptions {
+  /** The command typed into the shell. Defaults to `DEFAULT_SHELL_COMMAND`. */
+  readonly command?: string | undefined
+}
+
+/**
+ * The page's terminal, on its Container, printing its installs and typing
+ * the Workspace shell's command once the Container can run code.
+ */
+export const layerTerminal = (
+  options: TerminalLayerOptions = {},
+): Layer.Layer<Terminal, never, Container | Dependencies> =>
+  Layer.effect(
+    Terminal,
+    Effect.gen(function* () {
+      const dependencies = yield* Dependencies
+      return yield* makeTerminal({
+        container: yield* Container,
+        installLogs: dependencies.installLogChanges,
+        command: options.command ?? DEFAULT_SHELL_COMMAND,
+        awaitRunnable: dependencies.stateChanges.pipe(
+          Stream.filter(canRun),
+          Stream.take(1),
+          Stream.runDrain,
+        ),
+      })
+    }),
+  )

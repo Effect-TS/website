@@ -145,6 +145,8 @@ export function Scratchpad({
           ? { initialCode }
           : { initialFiles: SCRATCHPAD_SEED.files }),
       entryPath: entryPath ?? SCRATCHPAD_ENTRY_PATH,
+      // The command `/play` typed into the shell (`../run src/main.ts`).
+      shellCommand: metadata?.shells[0]?.command,
     })
     const workspaceMetadataAtom = Atom.make(
       metadata ??
@@ -177,14 +179,12 @@ export function Scratchpad({
       statusAtom: editorSession.statusAtom,
       containerPhaseAtom: editorSession.containerPhaseAtom,
       installLogAtom: editorSession.installLogAtom,
-      runStateAtom: editorSession.runStateAtom,
+      terminalStateAtom: editorSession.terminalStateAtom,
       terminalOutputAtom: editorSession.terminalOutputAtom,
       openTerminalAtom: editorSession.openTerminalAtom,
       resizeTerminalAtom: editorSession.resizeTerminalAtom,
       terminalInputAtom: editorSession.terminalInputAtom,
-      discardTerminalInputAtom: editorSession.discardTerminalInputAtom,
       clearTerminalAtom: editorSession.clearTerminalAtom,
-      stopRunAtom: editorSession.stopRunAtom,
       restartRunAtom: editorSession.restartRunAtom,
       revealPositionAtom: editorSession.revealPositionAtom,
       traceAtoms: editorSession.traceAtoms,

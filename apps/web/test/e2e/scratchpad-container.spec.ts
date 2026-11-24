@@ -12,7 +12,6 @@ import {
   READY_TIMEOUT,
   replaceDocument,
   RUN_TIMEOUT,
-  runBarOf,
   runIdOf,
   runOutputOf,
   skipUnlessContainerReachable,
@@ -21,11 +20,10 @@ import {
   TYPES_TIMEOUT,
 } from "./scratchpad-helpers.ts"
 
-// The Scratchpad against a real WebContainer (ADRs 0004, 0005): boot,
-// install, installed types, Runs typed into the terminal, two-way sync,
-// `pnpm add` typed into the terminal, legacy shares, Stop and Restart,
-// Traces. See playwright.scratchpad-container.config.ts. The skip banner is
-// covered in scratchpad-worker.spec.ts.
+// The Scratchpad against a real WebContainer (ADRs 0004 to 0006): boot,
+// install, installed types, the watch runner in the terminal and the type
+// errors it prints, two-way sync, Ctrl+C and `pnpm add` in the shell, legacy
+// shares, Restart, Traces. See playwright.scratchpad-container.config.ts.
 //
 // Booting needs StackBlitz's servers and installing needs the npm registry.
 // When the Container cannot get there, every test skips rather than fails
@@ -70,8 +68,7 @@ const openSeedReady = async (page: Page) => {
 
 /**
  * Waits for the `id`th Run (internal id, never shown) and for the terminal to
- * print `text`. The terminal keeps earlier Runs' output, so `text` should be
- * new to this Run (or the terminal cleared before it).
+ * print `text`. The runner clears the screen before each Run.
  */
 const expectRun = async (page: Page, id: number, text: string) => {
   const output = runOutputOf(page)
@@ -131,29 +128,67 @@ test("boots the Container, installs the seed's dependencies and loads their type
   await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
 })
 
-test("types each Run into the terminal: the seed's output, then an edit's, with the Run bar and exit line", async ({
+test("the watch runner runs the seed, and an edit runs again on a cleared screen", async ({
   page,
 }) => {
   await openSeedReady(page)
   const output = runOutputOf(page)
   await expectRun(page, 1, WELCOME)
   const terminal = terminalOf(page)
+  await expect(output).toHaveAttribute("data-runner", "true")
   await expect(terminal).toContainText(
-    "node ../.scratchpad/run.cjs src/main.ts",
+    /\[\d\d:\d\d:\d\d\] Starting in watch mode\. Type-checked in the editor: 0 errors\./,
   )
-  await expect(output).toHaveAttribute("data-run-status", "exited", {
-    timeout: RUN_TIMEOUT,
-  })
-  await expect(terminal).toContainText(/exited with code 0 · \d\d:\d\d:\d\d/)
-  await expect(runBarOf(page)).toContainText(/Exited src\/main\.ts/)
-  await expect(runBarOf(page)).toContainText(/initial at \d\d:\d\d:\d\d/)
+  await expect(terminal).toContainText(
+    /\[\d\d:\d\d:\d\d\] Exited with code 0\. Watching for file changes\./,
+    { timeout: RUN_TIMEOUT },
+  )
+  await expect(output).toHaveAttribute("data-run-status", "exited")
+  // No Run bar, banner or chip: just the terminal.
+  await expect(page.getByTestId("run-bar")).toHaveCount(0)
 
   const edited = "Edited by the container e2e"
   await openFile(page, "src/main.ts")
   await replaceDocument(page, seedMainLogging(edited))
   await expectRun(page, 2, edited)
-  await expect(runBarOf(page)).toContainText("src/main.ts changed")
-  await expect(output).toHaveAttribute("data-run-skipped", "false")
+  await expect(terminal).toContainText("File change detected.")
+  // The screen was cleared: the first Run's output is gone.
+  await expect(terminal).not.toContainText(WELCOME)
+  await expect(terminal).not.toContainText("Starting in watch mode")
+})
+
+test("a type error is printed tsc-style and doesn't run; fixing it runs", async ({
+  page,
+}) => {
+  await openSeedReady(page)
+  await expectRun(page, 1, WELCOME)
+  const terminal = terminalOf(page)
+
+  await openFile(page, "src/main.ts")
+  await editorOf(page).locator(".cm-content").click()
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.insertText('\nconst broken: number = "nope"\n')
+
+  await expect(terminal).toContainText(
+    /src\/main\.ts:\d+:7 - error TS2322: Type 'string' is not assignable to type 'number'\./,
+    { timeout: RUN_TIMEOUT },
+  )
+  await expect(terminal).toContainText('const broken: number = "nope"')
+  await expect(terminal).toContainText("~~~~~~")
+  await expect(terminal).toContainText(
+    /Found 1 error\. Not running\. Watching for file changes\./,
+  )
+  await expect(terminal).not.toContainText(WELCOME)
+  // Not a Run: the internal id stays.
+  expect(await runIdOf(page)).toBe(1)
+
+  // Fixing it runs again.
+  await lineWith(page, "const broken").click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Shift+Home")
+  await page.keyboard.press("Backspace")
+  await expectRun(page, 2, WELCOME)
+  await expect(terminal).not.toContainText("Not running")
 })
 
 /**
@@ -222,12 +257,19 @@ test("pnpm add typed into the terminal installs the package; package.json and th
 }) => {
   await openSeedReady(page)
   await expectRun(page, 1, WELCOME)
-  await expect(runOutputOf(page)).toHaveAttribute("data-run-status", "exited", {
+  const output = runOutputOf(page)
+  await expect(output).toHaveAttribute("data-run-status", "exited", {
     timeout: RUN_TIMEOUT,
   })
 
+  // Ctrl+C stops the runner and gives the shell back; Restart has nothing to
+  // restart.
   const terminal = terminalOf(page)
   await terminal.click()
+  await page.keyboard.press("Control+C")
+  await expect(output).toHaveAttribute("data-runner", "false")
+  await expect(page.getByTestId("run-restart")).toBeDisabled()
+  await expect(terminal).toContainText("❯")
   await page.keyboard.type(`pnpm add ${ADDED_PACKAGE}@${ADDED_VERSION}`)
   await page.keyboard.press("Enter")
   await expect(terminal).toContainText(
@@ -258,7 +300,8 @@ test("pnpm add typed into the terminal installs the package; package.json and th
     },
   )
 
-  // Import it: the types resolve (no errors) and the Run prints its output.
+  // Import it: the types resolve (no errors). Nothing runs while the shell
+  // has the terminal; `../run` starts the runner again, which runs it.
   const message = "kleur resolved in the Container"
   await openFile(page, "src/main.ts")
   await replaceDocument(
@@ -267,6 +310,14 @@ test("pnpm add typed into the terminal installs the package; package.json and th
   )
   const importLine = lineWith(page, `from "${ADDED_PACKAGE}"`)
   await expect(importLine).toBeVisible()
+  await page.waitForTimeout(1_000)
+  expect(await runIdOf(page)).toBe(1)
+  await terminal.click()
+  await page.keyboard.type("../run src/main.ts")
+  await page.keyboard.press("Enter")
+  await expect(output).toHaveAttribute("data-runner", "true", {
+    timeout: RUN_TIMEOUT,
+  })
   await expectRun(page, 2, message)
   await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
   // Hover proves the types came from the installed package.
@@ -393,7 +444,13 @@ test("switching to Effect v3 reinstalls, and the v3 seed runs without type error
     lineWith(page, "Welcome to the Effect Playground!"),
   ).toBeVisible()
 
-  // The new package.json reinstalls; the v3 seed runs once it lands.
+  // The new package.json reinstalls; the v3 seed runs once it lands. Wait
+  // for the reinstall to start, so the old `ready` doesn't count.
+  await expect(containerOf(page)).toHaveAttribute(
+    "data-container-phase",
+    /installing|loading-types/,
+    { timeout: TYPES_TIMEOUT },
+  )
   await awaitInstalledTypes(page)
   await expect(runOutputOf(page)).toContainText(
     "Welcome to the Effect Playground!",
@@ -417,7 +474,7 @@ setInterval(() => {
 }, 200)
 `
 
-test("Stop ends a long-running program, and Restart runs it again", async ({
+test("Restart runs a long-running program again, and Ctrl+C stops it and leaves a shell", async ({
   page,
 }) => {
   await openSeedReady(page)
@@ -430,36 +487,35 @@ test("Stop ends a long-running program, and Restart runs it again", async ({
   await expect(output).toHaveAttribute("data-run-status", "running")
   await expect(containerOf(page)).toHaveAttribute("data-run-state", "running")
 
-  const stop = page.getByTestId("run-stop")
-  await expect(stop).toBeEnabled()
-  await stop.click()
-  await expect(output).toHaveAttribute("data-run-status", "stopped")
-  await expect(runBarOf(page)).toContainText("Stopped")
+  // Restart kills it and runs it again on a cleared screen.
+  const restart = page.getByTestId("run-restart")
+  await expect(restart).toBeEnabled()
+  await restart.click()
+  await expectRun(page, 3, "Restarting.")
+  await expect(terminalOf(page)).toContainText("tick 2", {
+    timeout: RUN_TIMEOUT,
+  })
+  await expect(terminalOf(page)).not.toContainText("tick 9")
+  await expect(output).toHaveAttribute("data-run-status", "running")
+
+  // Ctrl+C stops the program and the runner.
+  await terminalOf(page).click()
+  await page.keyboard.press("Control+C")
+  await expect(output).toHaveAttribute("data-runner", "false")
+  await expect(output).toHaveAttribute("data-run-status", /exited|stopped/)
   await expect(containerOf(page)).toHaveAttribute("data-run-state", "idle")
-  await expect(stop).toBeDisabled()
+  await expect(restart).toBeDisabled()
   // Nothing more is printed once it is stopped.
   const terminal = terminalOf(page)
   await page.waitForTimeout(500)
   const stoppedText = await terminal.innerText()
   await page.waitForTimeout(1_000)
   expect(await terminal.innerText()).toBe(stoppedText)
-
-  // The terminal keeps every Run's output: clear it so the next ticks are
-  // the new Run's.
-  await page.getByTestId("terminal-clear").click()
-  await expect(terminal).not.toContainText("tick")
-  await page.getByTestId("run-restart").click()
-  await expectRun(page, 3, "tick 3")
-  await expect(runBarOf(page)).toContainText("restart")
-  await expect(output).toHaveAttribute("data-run-status", "running")
-
-  // Restart while running replaces the program with a new Run.
-  await page.getByTestId("terminal-clear").click()
-  await page.getByTestId("run-restart").click()
-  await expectRun(page, 4, "tick 2")
-  await expect(output).toHaveAttribute("data-run-status", "running")
-  await stop.click()
-  await expect(output).toHaveAttribute("data-run-status", "stopped")
+  // Edits don't run while the shell has the terminal.
+  await replaceDocument(page, seedMainLogging("not run"))
+  await page.waitForTimeout(2_000)
+  expect(await runIdOf(page)).toBe(3)
+  await expect(terminal).not.toContainText("not run")
 })
 
 /** The seed's `src/main.ts` with its span renamed. */
@@ -514,32 +570,4 @@ test("the seed's spans appear in Traces, and a new Run replaces them", async ({
   await expect(runOutputOf(page)).toContainText(WELCOME, {
     timeout: RUN_TIMEOUT,
   })
-})
-
-test("the typing guard: a Run waits for a half-typed command, and Esc discards it and runs", async ({
-  page,
-}) => {
-  await openSeedReady(page)
-  await expectRun(page, 1, WELCOME)
-  const output = runOutputOf(page)
-  await expect(output).toHaveAttribute("data-run-status", "exited", {
-    timeout: RUN_TIMEOUT,
-  })
-
-  await terminalOf(page).click()
-  await page.keyboard.type("echo half typed")
-  await page.getByTestId("run-restart").click()
-  const chip = page.getByTestId("run-waiting")
-  await expect(chip).toBeVisible()
-  await expect(chip).toContainText("Run waiting for your command")
-  await page.waitForTimeout(1_000)
-  expect(await runIdOf(page)).toBe(1)
-
-  await terminalOf(page).click()
-  await page.keyboard.press("Escape")
-  await expect(chip).toHaveCount(0)
-  await expect(output).toHaveAttribute("data-run-id", "2", {
-    timeout: RUN_TIMEOUT,
-  })
-  await expect(runBarOf(page)).toContainText("restart")
 })

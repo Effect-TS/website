@@ -18,6 +18,7 @@ import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
+import * as Queue from "effect/Queue"
 import type * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
@@ -46,19 +47,18 @@ import {
   libraryUriToPath,
 } from "./library-files.ts"
 import {
-  initialRunsState,
-  layerRuns,
-  type RunBlockingError,
-  Runs,
-  runBlockingErrorsOf,
-  type RunsState,
-} from "./runs.ts"
+  type DiagnosticsCheck,
+  diagnosticErrorsOf,
+  runDiagnosticsWriter,
+} from "./diagnostics-file.ts"
 import {
   emptyTerminalOutput,
+  initialTerminalState,
   layerTerminal,
   Terminal,
   type TerminalOutput,
   type TerminalService,
+  type TerminalState,
 } from "./terminal.ts"
 import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
 import { layerTraces } from "./traces.ts"
@@ -113,6 +113,11 @@ export interface ScratchpadEditorSessionConfig extends Omit<
    * installed types before they are shown anyway. Default 60 seconds.
    */
   readonly typesTimeout?: Duration.Input | undefined
+  /**
+   * With a Container, the command typed into its shell once it can run code
+   * (the Workspace's `shells[0].command`). Default `../run src/main.ts`.
+   */
+  readonly shellCommand?: string | undefined
   readonly createEditorView?: EditorViewFactory | undefined
 }
 
@@ -161,19 +166,17 @@ export interface ScratchpadEditorSession {
    * Container). Once true it stays true.
    */
   readonly diagnosticsVisibleAtom: Atom.Atom<boolean>
-  /** Runs: whether they can happen, the latest Run, the latest skip, and the typing guard. */
-  readonly runStateAtom: Atom.Atom<RunsState>
-  /** The terminal's text (the shell, Runs and installs). */
+  /** The shell, whether the watch runner is in the foreground, and the latest Run. */
+  readonly terminalStateAtom: Atom.Atom<TerminalState>
+  /** The terminal's text (the shell, the runner and installs). */
   readonly terminalOutputAtom: Atom.Atom<TerminalOutput>
   /** Starts the terminal's shell at this size (the panel mounting), or resizes it. */
   readonly openTerminalAtom: Atom.AtomResultFn<TerminalSize, void>
   readonly resizeTerminalAtom: Atom.AtomResultFn<TerminalSize, void>
   /** The visitor's keystrokes in the terminal. */
   readonly terminalInputAtom: Atom.AtomResultFn<string, void>
-  /** The typing guard's Esc: drops the typed line, or stops the visitor's command. */
-  readonly discardTerminalInputAtom: Atom.AtomResultFn<void, void>
   readonly clearTerminalAtom: Atom.AtomResultFn<void, void>
-  readonly stopRunAtom: Atom.AtomResultFn<void, void>
+  /** Tells the watch runner to run again (Restart). */
   readonly restartRunAtom: Atom.AtomResultFn<void, void>
   /** Opens a file and puts the cursor at a position (clickable errors). */
   readonly revealPositionAtom: Atom.AtomResultFn<RevealPositionInput, void>
@@ -331,11 +334,8 @@ const resolveInitialFiles = (
   }
 }
 
-/** How long no diagnostics may arrive before a Run trusts them. */
-export const RUN_GATE_QUIET_MS = 400
-/** The longest a Run waits for fresh diagnostics. */
-export const RUN_GATE_TIMEOUT_MS = 5_000
-const RUN_GATE_POLL_MS = 50
+/** How long no diagnostics may arrive before the diagnostics file trusts them. */
+export const DIAGNOSTICS_QUIET_MS = 400
 
 export const makeScratchpadEditorSession = (
   config: ScratchpadEditorSessionConfig,
@@ -362,15 +362,27 @@ export const makeScratchpadEditorSession = (
   let isSwappingState = false
 
   const editorStates = new Map<string, EditorState>()
+  // Told about every diagnostics push (the diagnostics file's wake-ups).
+  const diagnosticsListeners = new Set<() => void>()
+  const diagnosticsPushes = Stream.callback<void>((queue) =>
+    Effect.acquireRelease(
+      Effect.sync(() => {
+        const wake = () => Queue.offerUnsafe(queue, undefined)
+        diagnosticsListeners.add(wake)
+        return wake
+      }),
+      (wake) => Effect.sync(() => diagnosticsListeners.delete(wake)),
+    ),
+  )
   const lastDiagnosticsByUri = new Map<string, string>()
   // The document version each push was for, and when the last push came
-  // (Date.now), for the Run gate.
+  // (Date.now), for the diagnostics file.
   const pushedVersionByUri = new Map<string, number>()
   const pushedAtByUri = new Map<string, number>()
   let lastPushAt = 0
   // When the latest installed types mounted (Date.now). A remount (a Reset
   // or version switch reinstalls) re-pulls every document at the same
-  // version, so the gate also waits for a push after it.
+  // version, so the diagnostics file also waits for a push after it.
   let typesMountedAt = 0
   let mountedTypesInfo: unknown
   // With a Container, diagnostics wait for the installed types (ADR 0004).
@@ -406,6 +418,7 @@ export const makeScratchpadEditorSession = (
     }
     lastPushAt = Date.now()
     pushedAtByUri.set(params.uri, lastPushAt)
+    for (const wake of diagnosticsListeners) wake()
     if ("version" in params && typeof params.version === "number") {
       pushedVersionByUri.set(params.uri, params.version)
     }
@@ -523,77 +536,71 @@ export const makeScratchpadEditorSession = (
   })
 
   /**
-   * The Run gate: the tsrs errors anywhere in the Workspace, as of now. The
-   * client sends pending edits first. The worker pulls every document after
-   * each change and pushes the result with the document's version, so the
-   * gate waits until every TypeScript document has a push for its current
-   * version, made after the latest types mount, and no push came for
-   * `RUN_GATE_QUIET_MS` (cross-file pulls follow an edit after 200 ms), at
-   * most `RUN_GATE_TIMEOUT_MS`. It never pulls by
-   * itself: a document that crashes the language server must only be pulled
-   * by the worker, which quarantines it.
+   * The check for the diagnostics file (ADR 0006), or `None` while the
+   * worker's diagnostics aren't current. The client sends pending edits
+   * first. The worker pulls every document after each change and pushes the
+   * result with the document's version, so they are current once every
+   * TypeScript document has a push for its current version, made after the
+   * latest types mount, and no push came for `DIAGNOSTICS_QUIET_MS`
+   * (cross-file pulls follow an edit after 200 ms). It never pulls by itself:
+   * a document that crashes the language server must only be pulled by the
+   * worker, which quarantines it.
    */
-  const collectRunBlockers: Effect.Effect<ReadonlyArray<RunBlockingError>> =
-    Effect.gen(function* () {
-      const client = activeClient
-      const lspWorkspace = activeLspWorkspace
-      // Library tabs are open documents too, but never block a Run.
-      const isWorkspaceDocument = (uri: string) =>
-        libraryUriToPath(uri, rootUri) === undefined
-      const documents = () =>
-        lspWorkspace === undefined
-          ? []
-          : lspWorkspace.files.filter((file) => isWorkspaceDocument(file.uri))
-      if (client !== undefined && lspWorkspace !== undefined) {
-        if (client.connected) client.sync()
-        // Real time, like the worker it waits on.
-        const startedAt = Date.now()
-        while (true) {
-          const now = Date.now()
-          if (now - startedAt >= RUN_GATE_TIMEOUT_MS) break
-          const fresh = documents().every(
-            (file) =>
-              (pushedVersionByUri.get(file.uri) ?? 0) >= file.version &&
-              (pushedAtByUri.get(file.uri) ?? 0) >= typesMountedAt,
-          )
-          const quiet =
-            now - Math.max(startedAt, lastPushAt) >= RUN_GATE_QUIET_MS
-          if (fresh && quiet) break
-          yield* Effect.promise(
-            () =>
-              new Promise<void>((resolve) =>
-                setTimeout(resolve, RUN_GATE_POLL_MS),
-              ),
-          )
-        }
+  const currentDiagnosticsCheck: Effect.Effect<
+    Option.Option<DiagnosticsCheck>
+  > = Effect.gen(function* () {
+    const client = activeClient
+    const lspWorkspace = activeLspWorkspace
+    const ws = activeWorkspace
+    if (client === undefined || lspWorkspace === undefined || ws === undefined)
+      return Option.none()
+    if (client.connected) client.sync()
+    // Library tabs are open documents too, but are never checked for a Run.
+    const documents = lspWorkspace.files.filter(
+      (file) => libraryUriToPath(file.uri, rootUri) === undefined,
+    )
+    const fresh = documents.every(
+      (file) =>
+        (pushedVersionByUri.get(file.uri) ?? 0) >= file.version &&
+        (pushedAtByUri.get(file.uri) ?? 0) >= typesMountedAt,
+    )
+    if (!fresh || Date.now() - lastPushAt < DIAGNOSTICS_QUIET_MS) {
+      return Option.none()
+    }
+    const open = new Set(documents.map((file) => file.uri))
+    const byUri = new Map<string, ReadonlyArray<unknown>>()
+    for (const [uri, raw] of lastDiagnosticsByUri) {
+      if (!open.has(uri)) continue
+      const message = JSON.parse(raw) as {
+        readonly params: { readonly diagnostics?: ReadonlyArray<unknown> }
       }
-      const open =
-        lspWorkspace === undefined
-          ? undefined
-          : new Set(documents().map((file) => file.uri))
-      const byUri = new Map<string, ReadonlyArray<unknown>>()
-      for (const [uri, raw] of lastDiagnosticsByUri) {
-        if (open !== undefined && !open.has(uri)) continue
-        const message = JSON.parse(raw) as {
-          readonly params: { readonly diagnostics?: ReadonlyArray<unknown> }
-        }
-        byUri.set(uri, message.params.diagnostics ?? [])
-      }
-      const sourceLine = (path: string, line: number) => {
-        const uri = pathToWorkspaceUri(path, rootUri)
-        const doc =
-          editorStates.get(path)?.doc ??
-          lspWorkspace?.files.find((file) => file.uri === uri)?.doc
-        return doc !== undefined && line >= 1 && line <= doc.lines
-          ? doc.line(line).text
-          : undefined
-      }
-      return runBlockingErrorsOf(byUri, rootUri, sourceLine)
+      byUri.set(uri, message.params.diagnostics ?? [])
+    }
+    const sourceLine = (path: string, line: number) => {
+      const uri = pathToWorkspaceUri(path, rootUri)
+      const doc = documents.find((file) => file.uri === uri)?.doc
+      return doc !== undefined && line >= 1 && line <= doc.lines
+        ? doc.line(line).text
+        : undefined
+    }
+    const files: Array<{ readonly path: string; readonly text: string }> = []
+    for (const file of documents) {
+      const path = workspaceUriToPath(file.uri, rootUri)
+      if (path !== undefined) files.push({ path, text: file.doc.toString() })
+    }
+    const packageJson = yield* ws.readFile("package.json").pipe(Effect.option)
+    if (Option.isSome(packageJson)) {
+      files.push({ path: "package.json", text: packageJson.value })
+    }
+    return Option.some({
+      files,
+      errors: diagnosticErrorsOf(byUri, rootUri, sourceLine),
     })
+  })
 
   const traceAtoms = makeTraceAtoms({ keepAlive: true })
 
-  // The Container, its Dependencies, Runs and Traces are optional and looked up with
+  // The Container, its Dependencies, Terminal and Traces are optional and looked up with
   // `serviceOption`, so they are kept out of the runtime's type.
   const baseLayer = Layer.mergeAll(
     config.transportLayer,
@@ -604,8 +611,7 @@ export const makeScratchpadEditorSession = (
     config.containerLayer === undefined
       ? baseLayer
       : (layerTraces(traceAtoms).pipe(
-          Layer.provideMerge(layerRuns({ blockingErrors: collectRunBlockers })),
-          Layer.provideMerge(layerTerminal),
+          Layer.provideMerge(layerTerminal({ command: config.shellCommand })),
           Layer.provideMerge(
             layerDependencies({ typesTimeout: config.typesTimeout }),
           ),
@@ -624,7 +630,7 @@ export const makeScratchpadEditorSession = (
   const diagnosticsVisibleAtom = Atom.make(!diagnosticsHidden).pipe(
     Atom.keepAlive,
   )
-  const runStateAtom = Atom.make<RunsState>(initialRunsState).pipe(
+  const terminalStateAtom = Atom.make<TerminalState>(initialTerminalState).pipe(
     Atom.keepAlive,
   )
   const terminalOutputAtom = Atom.make<TerminalOutput>(
@@ -706,19 +712,16 @@ export const makeScratchpadEditorSession = (
         ),
         Effect.forkScoped,
       )
-      const runs = yield* Effect.serviceOption(Runs)
-      if (Option.isSome(runs)) {
-        yield* runs.value.stateChanges.pipe(
+      const terminal = yield* Effect.serviceOption(Terminal)
+      if (Option.isSome(terminal)) {
+        yield* terminal.value.stateChanges.pipe(
           Stream.runForEach((state) =>
             Effect.sync(() => {
-              registry.set(runStateAtom, state)
+              registry.set(terminalStateAtom, state)
             }),
           ),
           Effect.forkScoped,
         )
-      }
-      const terminal = yield* Effect.serviceOption(Terminal)
-      if (Option.isSome(terminal)) {
         yield* terminal.value.outputChanges.pipe(
           Stream.runForEach((output) =>
             Effect.sync(() => {
@@ -728,31 +731,17 @@ export const makeScratchpadEditorSession = (
           Effect.forkScoped,
         )
       }
-      // Runs hear about a change after Dependencies, so a `package.json`
-      // change starts its install before the Run waits on it.
+      // The watch runner waits for this file before each Run (ADR 0006).
+      yield* runDiagnosticsWriter({
+        container: container.value,
+        dependencies: deps.value,
+        current: currentDiagnosticsCheck,
+        wakeups: Stream.merge(diagnosticsPushes, ws.events),
+      }).pipe(Effect.forkScoped)
       yield* mirrorWorkspace(ws, container.value, {
         onContainerChange: deps.value.onContainerChange,
-        onChange: (change) =>
-          Option.isSome(runs)
-            ? deps.value
-                .onMirrorChange(change)
-                .pipe(Effect.andThen(runs.value.onMirrorChange(change)))
-            : deps.value.onMirrorChange(change),
+        onChange: deps.value.onMirrorChange,
       })
-    }),
-  )
-
-  const stopRunAtom = runtime.fn<void>()(
-    Effect.fnUntraced(function* () {
-      const runs = yield* Effect.serviceOption(Runs)
-      if (Option.isSome(runs)) yield* runs.value.stop
-    }),
-  )
-
-  const restartRunAtom = runtime.fn<void>()(
-    Effect.fnUntraced(function* () {
-      const runs = yield* Effect.serviceOption(Runs)
-      if (Option.isSome(runs)) yield* runs.value.restart
     }),
   )
 
@@ -774,10 +763,8 @@ export const makeScratchpadEditorSession = (
   const terminalInputAtom = terminalFn<string>((terminal, data) =>
     terminal.input(data),
   )
-  const discardTerminalInputAtom = terminalFn<void>(
-    (terminal) => terminal.discardInput,
-  )
   const clearTerminalAtom = terminalFn<void>((terminal) => terminal.clear)
+  const restartRunAtom = terminalFn<void>((terminal) => terminal.restart)
 
   const elementAtom = Atom.make(Option.none<HTMLElement>())
 
@@ -1408,14 +1395,12 @@ export const makeScratchpadEditorSession = (
     containerPhaseAtom,
     installLogAtom,
     diagnosticsVisibleAtom,
-    runStateAtom,
+    terminalStateAtom,
     terminalOutputAtom,
     openTerminalAtom,
     resizeTerminalAtom,
     terminalInputAtom,
-    discardTerminalInputAtom,
     clearTerminalAtom,
-    stopRunAtom,
     restartRunAtom,
     revealPositionAtom,
     traceAtoms,

@@ -197,6 +197,15 @@ export interface ContainerService {
   /** `name` in the host scripts directory, as a path relative to the Workspace root (for spawn arguments). */
   readonly hostDirPath: (name: string) => string
   /**
+   * Writes an executable script next to the Workspace dir, where the shell
+   * reaches it as `../<name>` (the watch runner, `../run`, as on `/play`).
+   * `name` is a plain file name.
+   */
+  readonly writeExecutable: (
+    name: string,
+    content: string,
+  ) => Effect.Effect<void, ContainerError>
+  /**
    * Starts a process. Closing the scope (or interrupting the fiber that owns
    * it) kills the process.
    */
@@ -251,6 +260,8 @@ export interface ContainerBackend {
   readonly writeHostDirFile: (name: string, content: string) => Promise<void>
   readonly readHostDirFile: (name: string) => Promise<Uint8Array>
   readonly removeHostDirFile: (name: string) => Promise<void>
+  /** Writes `../<name>` (seen from the Workspace dir) and makes it executable. */
+  readonly writeExecutable: (name: string, content: string) => Promise<void>
   readonly spawn: (
     command: string,
     args: ReadonlyArray<string>,
@@ -453,6 +464,10 @@ export const makeContainer = <R>(
       removeHostDirFile: (name) =>
         use("remove", name, (backend) => backend.removeHostDirFile(name)),
       hostDirPath: (name) => `${CONTAINER_HOST_DIR_FROM_WORKSPACE}/${name}`,
+      writeExecutable: (name, content) =>
+        use("write", `../${name}`, (backend) =>
+          backend.writeExecutable(name, content),
+        ),
       spawn,
       shell,
     }

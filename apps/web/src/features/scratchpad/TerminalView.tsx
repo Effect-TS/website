@@ -121,8 +121,6 @@ export interface TerminalViewProps {
   readonly onResize: (size: TerminalSize) => void
   /** Keystrokes and pastes. */
   readonly onData: (data: string) => void
-  /** Esc. Return true to keep it from the shell. */
-  readonly onEscape?: (() => boolean) | undefined
   /** Opens a clickable `path:line:col` (stack traces, tsc output). */
   readonly onOpenLocation?: ((location: TerminalLocation) => void) | undefined
   readonly className?: string | undefined
@@ -138,7 +136,6 @@ export function TerminalView({
   onOpen,
   onResize,
   onData,
-  onEscape,
   onOpenLocation,
   className,
 }: TerminalViewProps) {
@@ -146,10 +143,9 @@ export function TerminalView({
     onOpen,
     onResize,
     onData,
-    onEscape,
     onOpenLocation,
   })
-  callbacks.current = { onOpen, onResize, onData, onEscape, onOpenLocation }
+  callbacks.current = { onOpen, onResize, onData, onOpenLocation }
   const hostRef = React.useRef<HTMLDivElement>(null)
   const terminalRef = React.useRef<Terminal | null>(null)
   const written = React.useRef({ generation: -1, total: 0 })
@@ -203,10 +199,6 @@ export function TerminalView({
         })
         callback(found.length === 0 ? undefined : found)
       },
-    })
-    terminal.attachCustomKeyEventHandler((event) => {
-      if (event.key !== "Escape" || event.type !== "keydown") return true
-      return callbacks.current.onEscape?.() !== true
     })
     const data = terminal.onData((input) => callbacks.current.onData(input))
     const resize = terminal.onResize((size) =>

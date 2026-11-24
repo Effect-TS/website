@@ -1,7 +1,6 @@
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
 import type * as Scope from "effect/Scope"
-import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
 import { TestClock } from "effect/testing"
 import { assert, describe, test } from "vite-plus/test"
@@ -17,7 +16,6 @@ import {
   makeShellOutputParser,
   makeTerminal,
   RUN_MARKER_PREFIX,
-  type TerminalRunEvent,
 } from "../../../src/features/scratchpad/terminal.ts"
 import { makeFakeContainerBackend } from "./fake-container.ts"
 
@@ -34,28 +32,35 @@ const plain = (text: string) =>
   // oxlint-disable-next-line no-control-regex
   text.replace(/\u001b\[[0-9;]*m/g, "")
 
+const marker = (payload: string) => `${RUN_MARKER_PREFIX}${payload}\u0007`
+
 const run = <A>(effect: Effect.Effect<A, unknown, Scope.Scope>) =>
   Effect.runPromise(
     Effect.scoped(effect).pipe(Effect.provide(TestClock.layer())),
   )
 
 describe("makeShellOutputParser", () => {
-  test("takes Run markers out of the text, even split across chunks", () => {
+  test("takes the runner's markers out of the text, even split across chunks", () => {
     const parse = makeShellOutputParser()
-    const marker = `${RUN_MARKER_PREFIX}exit;3\u0007`
+    const exit = marker("exit;3")
     assert.deepEqual(
-      parse(`a${RUN_MARKER_PREFIX}start\u0007b${marker.slice(0, 5)}`),
+      parse(`${marker("watch;start")}a${marker("start")}b${exit.slice(0, 5)}`),
       [
+        { _tag: "WatchStarted" },
         { _tag: "Text", text: "a" },
         { _tag: "RunStarted" },
         { _tag: "Text", text: "b" },
       ],
     )
-    assert.deepEqual(parse(`${marker.slice(5, 20)}`), [])
-    assert.deepEqual(parse(`${marker.slice(20)}c\u001b[0m`), [
-      { _tag: "RunExited", exitCode: 3 },
-      { _tag: "Text", text: "c\u001b[0m" },
-    ])
+    assert.deepEqual(parse(`${exit.slice(5, 20)}`), [])
+    assert.deepEqual(
+      parse(`${exit.slice(20)}c\u001b[0m${marker("watch;exit")}`),
+      [
+        { _tag: "RunExited", exitCode: 3 },
+        { _tag: "Text", text: "c\u001b[0m" },
+        { _tag: "WatchExited" },
+      ],
+    )
   })
 
   test("lets other escape sequences through", () => {
@@ -100,7 +105,69 @@ describe("Terminal", () => {
       }),
     ))
 
-  test("starts a new shell when the visitor exits it, and a Run in it is interrupted", () =>
+  test("types the command once the Container can run code, after writing the runner and its preload", () =>
+    run(
+      Effect.gen(function* () {
+        const backend = makeFakeContainerBackend()
+        const container = yield* makeContainer(Effect.succeed(backend))
+        const runnable = yield* Deferred.make<void>()
+        const terminal = yield* makeTerminal({
+          container,
+          command: "../run src/main.ts",
+          awaitRunnable: Deferred.await(runnable),
+        })
+        yield* terminal.open({ cols: 80, rows: 24 })
+        yield* settle
+        const shell = backend.shells[0]!
+        // Still installing: nothing typed, nothing written.
+        assert.deepEqual(shell.lines, [])
+        assert.isFalse(backend.executables.has("run"))
+
+        yield* Deferred.succeed(runnable, undefined)
+        yield* settle
+        assert.deepEqual(shell.lines, ["../run src/main.ts"])
+        assert.include(backend.executables.get("run")!, "#!/usr/bin/env node")
+        assert.include(
+          String(backend.hostFiles.get("run-preload.mjs")),
+          "registerHooks",
+        )
+
+        // A shell started after the visitor exits this one gets no command.
+        shell.exit(0)
+        yield* settle
+        yield* TestClock.adjust("1 second")
+        yield* settle
+        assert.lengthOf(backend.shells, 2)
+        assert.deepEqual(backend.shells[1]!.lines, [])
+      }),
+    ))
+
+  test("after a retried boot, the new boot's shell gets the command", () =>
+    run(
+      Effect.gen(function* () {
+        const backend = makeFakeContainerBackend()
+        let attempts = 0
+        const container = yield* makeContainer(
+          Effect.suspend(() =>
+            ++attempts === 1
+              ? Effect.fail(new ContainerBootFailed({ message: "offline" }))
+              : Effect.succeed(backend),
+          ),
+        )
+        const terminal = yield* makeTerminal({
+          container,
+          command: "../run src/main.ts",
+        })
+        yield* terminal.open({ cols: 80, rows: 24 })
+        yield* settle
+        assert.lengthOf(backend.shells, 0)
+        yield* container.retry
+        yield* settle
+        assert.deepEqual(backend.shells[0]!.lines, ["../run src/main.ts"])
+      }),
+    ))
+
+  test("follows the runner and its Runs from the markers, and the shell going away stops them", () =>
     run(
       Effect.gen(function* () {
         const backend = makeFakeContainerBackend({
@@ -108,58 +175,80 @@ describe("Terminal", () => {
         })
         const container = yield* makeContainer(Effect.succeed(backend))
         const terminal = yield* makeTerminal({ container })
-        const events: Array<TerminalRunEvent> = []
-        yield* terminal.runEvents.pipe(
-          Stream.runForEach((event) => Effect.sync(() => events.push(event))),
-          Effect.forkScoped,
-        )
         yield* terminal.open({ cols: 80, rows: 24 })
         yield* settle
-        yield* terminal.run("node ../.scratchpad/run.cjs src/main.ts", 7)
+        const shell = backend.shells[0]!
+        yield* terminal.input("../run src/main.ts\r")
         yield* settle
-        backend.shells[0]!.exit(0)
+        assert.deepEqual(shell.lines, ["../run src/main.ts"])
+
+        shell.print(
+          `${marker("watch;start")}\u001b[2J${marker("start")}hello\r\n`,
+        )
         yield* settle
-        assert.deepEqual(events, [{ _tag: "RunInterrupted", id: 7 }])
+        let state = yield* terminal.state
+        assert.isTrue(state.runner)
+        assert.equal(state.run?.id, 1)
+        assert.equal(state.run?.status._tag, "running")
+        // The markers never reach the terminal's text.
+        assert.notInclude((yield* terminal.output).text, "scratchpad-run")
+        assert.include((yield* terminal.output).text, "hello")
+
+        shell.print(`${marker("exit;0")}[12:00:00] Exited with code 0.\r\n`)
+        yield* settle
+        state = yield* terminal.state
+        assert.deepEqual(state.run?.status, { _tag: "exited", exitCode: 0 })
+        assert.isTrue(state.runner)
+
+        shell.print(`${marker("start")}`)
+        yield* settle
+        state = yield* terminal.state
+        assert.equal(state.run?.id, 2)
+        assert.equal(state.run?.status._tag, "running")
+
+        // Ctrl+C: the runner kills the program and exits.
+        shell.print(`${marker("exit;130")}${marker("watch;exit")}`)
+        yield* settle
+        state = yield* terminal.state
+        assert.isFalse(state.runner)
+        assert.deepEqual(state.run?.status, { _tag: "exited", exitCode: 130 })
+
+        shell.print(`${marker("watch;start")}${marker("start")}`)
+        yield* settle
+        assert.isTrue((yield* terminal.state).runner)
+        shell.exit(0)
+        yield* settle
+        state = yield* terminal.state
+        assert.equal(state.shell, "closed")
+        assert.isFalse(state.runner)
+        assert.equal(state.run?.status._tag, "stopped")
         assert.include(
           plain((yield* terminal.output).text),
           "The shell exited. Starting a new one…",
         )
-        yield* TestClock.adjust("1 second")
-        yield* settle
-        assert.lengthOf(backend.shells, 2)
-        assert.deepEqual(yield* terminal.state, {
-          shell: "open",
-          foreground: "idle",
-          typing: false,
-        })
       }),
     ))
 
-  test("an exit marker from before the Run started is not the Run's", () =>
+  test("Restart touches the runner's restart file, only while the runner is in the foreground", () =>
     run(
       Effect.gen(function* () {
-        const backend = makeFakeContainerBackend({
-          command: () => ({ hang: true }),
-        })
+        const backend = makeFakeContainerBackend()
         const container = yield* makeContainer(Effect.succeed(backend))
         const terminal = yield* makeTerminal({ container })
-        const events: Array<TerminalRunEvent> = []
-        yield* terminal.runEvents.pipe(
-          Stream.runForEach((event) => Effect.sync(() => events.push(event))),
-          Effect.forkScoped,
-        )
-        // A line the fake shell runs without markers: the test prints them.
-        yield* terminal.run("wrapped", 1)
+        yield* terminal.open({ cols: 80, rows: 24 })
         yield* settle
+        yield* terminal.restart
+        assert.isFalse(backend.hostFiles.has("restart"))
+
         const shell = backend.shells[0]!
-        // A late exit marker of an earlier wrapper, then this Run's own.
-        shell.print(`${RUN_MARKER_PREFIX}exit;130\u0007`)
+        shell.print(marker("watch;start"))
         yield* settle
-        assert.deepEqual(events, [])
-        shell.print(`${RUN_MARKER_PREFIX}start\u0007out\r\n`)
-        shell.print(`${RUN_MARKER_PREFIX}exit;0\u0007`)
-        yield* settle
-        assert.deepEqual(events, [{ _tag: "RunExited", id: 1, exitCode: 0 }])
+        yield* terminal.restart
+        const first = backend.hostFiles.get("restart")
+        assert.isDefined(first)
+        yield* TestClock.adjust("1 second")
+        yield* terminal.restart
+        assert.notEqual(backend.hostFiles.get("restart"), first)
       }),
     ))
 
@@ -213,36 +302,6 @@ describe("Terminal", () => {
         const after = yield* terminal.output
         assert.equal(after.generation, before.generation + 1)
         assert.equal(plain(after.text), "~/workspace ❯ ")
-      }),
-    ))
-
-  test("a Run waits for a stopping command until the prompt comes back", () =>
-    run(
-      Effect.gen(function* () {
-        const backend = makeFakeContainerBackend({
-          command: () => ({ hang: true }),
-        })
-        const container = yield* makeContainer(Effect.succeed(backend))
-        const terminal = yield* makeTerminal({ container })
-        yield* terminal.open({ cols: 80, rows: 24 })
-        yield* settle
-        yield* terminal.input("npx serve\r")
-        yield* settle
-        assert.equal((yield* terminal.state).foreground, "command")
-        const typed = yield* Deferred.make<void>()
-        yield* terminal
-          .run("node ../.scratchpad/run.cjs src/main.ts", 1)
-          .pipe(
-            Effect.andThen(Deferred.succeed(typed, undefined)),
-            Effect.forkScoped,
-          )
-        yield* settle
-        assert.isTrue(yield* Deferred.isDone(typed))
-        assert.deepEqual(backend.shells[0]!.input.slice(-2), [
-          "\u0003",
-          "node ../.scratchpad/run.cjs src/main.ts\r",
-        ])
-        assert.equal((yield* terminal.state).foreground, "run")
       }),
     ))
 })

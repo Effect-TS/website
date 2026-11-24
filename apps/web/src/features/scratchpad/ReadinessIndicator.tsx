@@ -107,15 +107,15 @@ const LINK_BUTTON =
  * popover stays open while the pointer is over it, so its buttons work.
  */
 export function ReadinessIndicator() {
-  const { statusAtom, reconnectAtom, containerPhaseAtom, runStateAtom } =
+  const { statusAtom, reconnectAtom, containerPhaseAtom, terminalStateAtom } =
     useScratchpadSession()
   const lsp = useAtomValue(statusAtom)
   const phase = useAtomValue(containerPhaseAtom)
-  const runs = useAtomValue(runStateAtom)
+  const terminal = useAtomValue(terminalStateAtom)
   const reconnect = useAtomSet(reconnectAtom)
   const failure = useFailureState()
 
-  const runAlive = runs.run?.status._tag === "running"
+  const runAlive = terminal.run?.status._tag === "running"
   const containerPhase = Option.getOrUndefined(phase)
   const view = describeReadiness(lsp, containerPhase, runAlive)
   const lspView = describeLspStatus(lsp)

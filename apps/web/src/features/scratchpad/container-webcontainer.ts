@@ -7,7 +7,9 @@
  *   relative to it, and processes start there.
  * - `.scratchpad/`: host scripts that are not part of the Workspace (the
  *   dev-tools proxy from `traces.ts`, the types collector and its pack, the
- *   Run preload). `ContainerBackend`'s host-dir operations work here.
+ *   Run preload, the page's diagnostics file). `ContainerBackend`'s host-dir
+ *   operations work here.
+ * - `run`: the watch runner (`run-watch.cjs`), `../run` from `workspace/`.
  */
 import type { WebContainer } from "@webcontainer/api"
 import * as Effect from "effect/Effect"
@@ -123,6 +125,12 @@ const makeBackend = (wc: WebContainer): ContainerBackend => {
     readHostDirFile: (name) => wc.fs.readFile(`${CONTAINER_HOST_DIR}/${name}`),
     removeHostDirFile: (name) =>
       wc.fs.rm(`${CONTAINER_HOST_DIR}/${name}`, { force: true }),
+    // In the workdir, so the Workspace dir's shell runs it as `../<name>`.
+    writeExecutable: async (name, content) => {
+      await wc.fs.writeFile(name, content)
+      const chmod = await wc.spawn("chmod", ["+x", name])
+      await chmod.exit
+    },
     spawn: (command, args, options) =>
       wc.spawn(command, [...args], {
         cwd:
