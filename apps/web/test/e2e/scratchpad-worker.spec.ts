@@ -10,7 +10,11 @@ import {
   openFile,
   READY_TIMEOUT,
   replaceDocument,
+  RUN_TIMEOUT,
+  runIdOf,
+  runOutputOf,
   statusOf,
+  terminalOf,
 } from "./scratchpad-helpers.ts"
 
 // The Scratchpad with the Effect tsrs language server running in a Web Worker
@@ -21,7 +25,8 @@ import {
 // Booting needs StackBlitz's servers and installing needs the npm registry:
 // when the Container cannot get there, those tests skip rather than fail.
 // Tests about the Container itself (Runs, installs, `pnpm add`, Stop and
-// Restart) live in scratchpad-container.spec.ts.
+// Restart) live in scratchpad-container.spec.ts. The skip banner is here: it
+// is about tsrs's errors gating a Run.
 
 test.describe.configure({ timeout: 240_000 })
 
@@ -648,4 +653,58 @@ test("Ctrl/Cmd+. lists the code actions at the cursor, refactors included, and p
   await expect(menu).toBeVisible({ timeout: LSP_TIMEOUT })
   await page.keyboard.press("Escape")
   await expect(menu).toBeHidden()
+})
+
+test("a type error skips the Run with a banner whose location opens the file, and fixing it runs again", async ({
+  page,
+}) => {
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready", {
+    timeout: READY_TIMEOUT,
+  })
+  await awaitInstalledTypes(page)
+  const output = runOutputOf(page)
+  await expect(output).toHaveAttribute("data-run-id", "1", {
+    timeout: RUN_TIMEOUT,
+  })
+
+  await openFile(page, "src/main.ts")
+  await editorOf(page).locator(".cm-content").click()
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.insertText('\nconst broken: number = "nope"\n')
+
+  const banner = page.getByTestId("run-skip-banner")
+  await expect(banner).toBeVisible({ timeout: RUN_TIMEOUT })
+  await expect(output).toHaveAttribute("data-run-skipped", "true")
+  await expect(banner).toContainText("Run skipped")
+  await expect(banner).toContainText("1 error")
+  await expect(banner).toContainText("is not assignable to type 'number'")
+  // The report is the banner's, not the terminal's.
+  await expect(terminalOf(page)).not.toContainText("Run skipped")
+  // A skip is not a Run: the internal id stays.
+  expect(await runIdOf(page)).toBe(1)
+
+  // The location is a link that opens the file at the error.
+  await openFile(page, "src/DevTools.ts")
+  const location = banner.getByTestId("run-skip-location")
+  await expect(location).toHaveText(/^src\/main\.ts:\d+:\d+$/)
+  await location.click()
+  await expect(page.getByTestId("editor-tab-src/main.ts")).toHaveAttribute(
+    "aria-selected",
+    "true",
+  )
+  await expect(editorOf(page).locator(".cm-activeLine")).toContainText(
+    'const broken: number = "nope"',
+  )
+
+  // Fixing it runs again, and the banner goes.
+  await lineWith(page, "const broken").click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Shift+Home")
+  await page.keyboard.press("Backspace")
+  await expect(output).toHaveAttribute("data-run-id", "2", {
+    timeout: RUN_TIMEOUT,
+  })
+  await expect(banner).toHaveCount(0)
+  await expect(output).toHaveAttribute("data-run-skipped", "false")
 })

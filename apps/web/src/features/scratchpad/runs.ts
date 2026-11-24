@@ -1,6 +1,7 @@
 /**
  * Runs: the page decides when to run `src/main.ts` in the Container
- * (ADR 0004, ticket 09).
+ * (ADR 0004, ticket 09), and types each Run into the terminal's shell
+ * (ADR 0005, `terminal.ts`).
  *
  * - The first Run starts once the Container can run code (dependencies
  *   installed, and the installed types in the editor or given up on), and
@@ -9,23 +10,28 @@
  *   Run never starts before the Container has the files it runs.
  * - No Run starts while `pnpm install` or the types copy is in progress. A
  *   change made meanwhile runs once they finish.
+ * - The typing guard: a Run waits while the visitor has typed at the prompt,
+ *   or while a command they entered is in the foreground. `waiting` says
+ *   which. Enter (and the command finishing) or Esc (`Terminal.discardInput`)
+ *   lets it go.
  * - Before each Run the gate (`blockingErrors`, the tsrs errors anywhere in
- *   the Workspace) is checked. Any error skips the Run: the previous process
- *   stops, its output stays (the panel dims it), and `skipped` says why.
+ *   the Workspace) is checked. Any error skips the Run: a Run still in the
+ *   foreground gets Ctrl+C, and `skipped` says why until the next Run starts.
  *   Warnings, infos and hints never block.
- * - A new Run kills the previous process and clears the output. There is no
- *   time limit. `stop` kills the current Run; `restart` runs again now, with
- *   no debounce, still gated.
+ * - A Run types Ctrl+C for whatever is in the foreground, then
+ *   `node ../.scratchpad/run.cjs src/main.ts`. There is no time limit.
+ *   `stop` sends Ctrl+C to the current Run; `restart` runs again now, with no
+ *   debounce, still gated.
  *
- * The runner is `node --experimental-transform-types --import <preload>
- * src/main.ts` (spike 01). The preload (`run-preload.mjs`) is written to the
- * host scripts directory, outside the mirrored Workspace.
+ * The wrapper (`run-wrapper.cjs`) runs `node --experimental-transform-types
+ * --import <preload> src/main.ts` (spike 01) and reports the exit code. It
+ * and the preload (`run-preload.mjs`) are written to the host scripts
+ * directory, outside the mirrored Workspace.
  */
 import * as Clock from "effect/Clock"
 import * as Context from "effect/Context"
 import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
-import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Queue from "effect/Queue"
@@ -47,13 +53,20 @@ import {
 // `?raw` is the file's text; the linter resolves the module itself.
 // oxlint-disable-next-line import/default
 import RUN_PRELOAD_SCRIPT from "./run-preload.mjs?raw"
+// oxlint-disable-next-line import/default
+import RUN_WRAPPER_SCRIPT from "./run-wrapper.cjs?raw"
 import { SCRATCHPAD_ENTRY_PATH } from "./config.ts"
+import {
+  formatClockTime,
+  Terminal,
+  type TerminalService,
+  type TerminalState,
+} from "./terminal.ts"
 import { workspaceUriToPath } from "./workspace.ts"
 
 const RUN_PRELOAD_NAME = "run-preload.mjs"
+export const RUN_WRAPPER_NAME = "run.cjs"
 export const DEFAULT_RUN_DEBOUNCE: Duration.Input = "500 millis"
-/** The Run output kept for the panel (the end of it). */
-export const RUN_OUTPUT_LIMIT = 256 * 1024
 
 // ---------------------------------------------------------------------------
 // State
@@ -78,8 +91,9 @@ export interface RunBlockingError {
 export type RunStatus =
   | { readonly _tag: "running" }
   | { readonly _tag: "exited"; readonly exitCode: number }
+  /** Ctrl+C: Stop, the next Run, the visitor, or the shell went away. */
   | { readonly _tag: "stopped" }
-  /** The process could not start. */
+  /** The Run could not start. */
   | { readonly _tag: "failed"; readonly message: string }
 
 export interface RunInfo {
@@ -87,8 +101,12 @@ export interface RunInfo {
   readonly id: number
   /** Why it ran: `initial`, `restart`, `src/main.ts changed`, `2 files changed`. */
   readonly trigger: string
+  /** The entry file it runs. */
+  readonly entry: string
   /** Epoch milliseconds. */
   readonly startedAt: number
+  /** When it stopped running, once it has. */
+  readonly endedAt: number | undefined
   readonly status: RunStatus
 }
 
@@ -97,40 +115,32 @@ export interface RunSkip {
   readonly trigger: string
   readonly at: number
   readonly errors: ReadonlyArray<RunBlockingError>
-  /** The Run whose output stays below the notice, if there was one. */
-  readonly previousRunId: number | undefined
-  /** When that Run started. */
-  readonly previousRunStartedAt: number | undefined
 }
+
+/**
+ * Why the next Run is waiting on the visitor: they have typed at the prompt
+ * (`typing`), or a command they entered is still in the foreground
+ * (`command`).
+ */
+export type RunWait = "typing" | "command"
 
 export interface RunsState {
   /** Whether the Container can run code now (installed, not installing). */
   readonly available: boolean
-  /** The latest Run, which owns the output. */
+  /** The latest Run. */
   readonly run: RunInfo | undefined
   /** Set when the latest attempt was skipped; cleared by the next Run. */
   readonly skipped: RunSkip | undefined
+  /** Set while a Run is due but waits on the visitor (the typing guard). */
+  readonly waiting: RunWait | undefined
 }
 
 export const initialRunsState: RunsState = {
   available: false,
   run: undefined,
   skipped: undefined,
+  waiting: undefined,
 }
-
-/**
- * The output panel's terminal text for one Run, ANSI included: the header,
- * the program's output, and the exit line. `total` counts every character
- * ever appended, so a reader can write only what is new even after `text`
- * was trimmed to its last `RUN_OUTPUT_LIMIT` characters.
- */
-export interface RunOutput {
-  readonly runId: number
-  readonly text: string
-  readonly total: number
-}
-
-export const emptyRunOutput: RunOutput = { runId: 0, text: "", total: 0 }
 
 /** Whether the Container can run code in this dependency state. */
 export const canRun = (state: DependencyState): boolean => {
@@ -138,114 +148,30 @@ export const canRun = (state: DependencyState): boolean => {
   return phase === "ready" || phase === "dependencies-unavailable"
 }
 
+/** What a Run waits for in this terminal state, if anything. */
+export const runWaitOf = (state: TerminalState): RunWait | undefined =>
+  state.typing
+    ? "typing"
+    : state.foreground === "command"
+      ? "command"
+      : undefined
+
 // ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------
 
-const pad = (n: number) => String(n).padStart(2, "0")
-
 /** `HH:MM:SS` in local time. */
-export const formatRunTime = (millis: number): string => {
-  const date = new Date(millis)
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
+export const formatRunTime = formatClockTime
 
-const ESC = "\u001b["
-const reset = `${ESC}0m`
-
-/** `▶ HH:MM:SS · trigger`. */
-export const runHeader = (run: {
-  readonly trigger: string
-  readonly startedAt: number
-}): string =>
-  `${ESC}1;34m▶ ${formatRunTime(run.startedAt)}${reset}${ESC}2m · ${reset}${ESC}35m${run.trigger}${reset}\r\n`
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
-
-// CSI sequences (colors, cursor moves) and OSC sequences (titles, links).
-const ANSI_PATTERN =
-  // oxlint-disable-next-line no-control-regex
-  /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
-
-/** Removes ANSI escape sequences, so text can be re-styled as a whole. */
-const stripAnsi = (text: string): string => text.replace(ANSI_PATTERN, "")
-
-/** `path:line:col` of a blocking error, as the terminal prints it. */
+/** `path:line:col` of a blocking error. */
 export const errorLocation = (error: RunBlockingError): string =>
   `${error.path}:${error.line}:${error.column}`
 
-/**
- * A tsc-style code frame: the source line with its number, and a `~`
- * underline under the error's range (first line only). Leading indentation
- * is dropped so deeply nested lines stay readable.
- */
-const codeFrame = (error: RunBlockingError): string => {
-  if (error.source === undefined) return ""
-  const indent = error.source.length - error.source.trimStart().length
-  const text = error.source.slice(indent)
-  const start = Math.max(0, error.column - 1 - indent)
-  const end =
-    error.endLine === error.line
-      ? Math.max(start + 1, error.endColumn - 1 - indent)
-      : text.length
-  const width = Math.max(1, Math.min(end, text.length) - start)
-  const gutter = String(error.line)
-  const bar = `${ESC}2m│${reset}`
-  return (
-    `    ${ESC}2m${gutter}${reset} ${bar} ${text}\r\n` +
-    `    ${" ".repeat(gutter.length)} ${bar} ${" ".repeat(start)}${ESC}31m${"~".repeat(width)}${reset}\r\n`
-  )
-}
-
-/**
- * The terminal text for a skipped Run: a header, then each blocking error
- * like tsc prints it (location, code, message with its chain on separate
- * lines, code frame), then the previous Run's output, dimmed.
- */
-export const skipReport = (
-  skip: RunSkip,
-  previous: RunOutput | undefined,
-): string => {
-  const files = [...new Set(skip.errors.map((error) => error.path))]
-  let text =
-    `${ESC}1;33m■ Run skipped${reset}${ESC}2m · ${formatRunTime(skip.at)} · ${reset}${ESC}35m${skip.trigger}${reset}\r\n` +
-    `${ESC}2m${plural(skip.errors.length, "type error")} in ${files.join(", ")}. Fix ${skip.errors.length === 1 ? "it" : "them"} to run.${reset}\r\n`
-  for (const error of skip.errors) {
-    text +=
-      `\r\n${ESC}4;36m${errorLocation(error)}${reset} ${ESC}31merror${reset}` +
-      (error.code === undefined ? "" : ` ${ESC}2m${error.code}${reset}`) +
-      "\r\n"
-    for (const line of error.message.split(/\r?\n/)) {
-      text += `  ${line}\r\n`
-    }
-    text += codeFrame(error)
-  }
-  if (skip.previousRunStartedAt !== undefined && previous !== undefined) {
-    text += `\r\n${ESC}2m— previous output · ${formatRunTime(skip.previousRunStartedAt)} —${reset}\r\n`
-    // Re-dim every line: the previous output's own resets would end a
-    // single dim span early.
-    text += stripAnsi(previous.text)
-      .split(/\r?\n/)
-      .map((line) => (line === "" ? "" : `${ESC}2m${line}${reset}`))
-      .join("\r\n")
-  }
-  return text
-}
-
-const statusLine = (status: RunStatus): string => {
-  switch (status._tag) {
-    case "running":
-      return ""
-    case "exited":
-      return status.exitCode === 0
-        ? `${ESC}2mexited with code 0${reset}\r\n`
-        : `${ESC}31mexited with code ${status.exitCode}${reset}\r\n`
-    case "stopped":
-      return `${ESC}2mstopped${reset}\r\n`
-    case "failed":
-      return `${ESC}31m${status.message}${reset}\r\n`
-  }
-}
+/** The line typed into the terminal for a Run of `entry`. */
+export const runCommandLine = (
+  container: ContainerService,
+  entry: string,
+): string => `node ${container.hostDirPath(RUN_WRAPPER_NAME)} ${entry}`
 
 // ---------------------------------------------------------------------------
 // The gate
@@ -318,12 +244,9 @@ export interface RunsService {
   readonly state: Effect.Effect<RunsState>
   /** The current state, then every change. */
   readonly stateChanges: Stream.Stream<RunsState>
-  readonly output: Effect.Effect<RunOutput>
-  /** The current output, then every change. */
-  readonly outputChanges: Stream.Stream<RunOutput>
   /** Feed the Workspace mirror's changes here (after `Dependencies`). */
   readonly onMirrorChange: (change: MirrorChange) => Effect.Effect<void>
-  /** Kills the current Run's process, if it is running. */
+  /** Ctrl+C for the current Run, if it is running. */
   readonly stop: Effect.Effect<void>
   /** Runs again now, without edits and without the debounce. Still gated. */
   readonly restart: Effect.Effect<void>
@@ -336,17 +259,17 @@ export class Runs extends Context.Service<Runs, RunsService>()(
 export interface MakeRunsOptions {
   readonly container: ContainerService
   readonly dependencies: DependenciesService
+  readonly terminal: TerminalService
   /** The tsrs errors anywhere in the Workspace, as of now. */
   readonly blockingErrors: Effect.Effect<ReadonlyArray<RunBlockingError>>
   readonly debounce?: Duration.Input | undefined
+  /** The entry file. Defaults to `src/main.ts`. */
+  readonly entry?: string | undefined
 }
 
 type Signal =
   | { readonly _tag: "Changed"; readonly path: string }
   | { readonly _tag: "Restart" }
-
-const tail = (text: string, limit: number) =>
-  text.length <= limit ? text : text.slice(text.length - limit)
 
 const changedPath = (change: MirrorChange): string | undefined => {
   if (change._tag === "Mounted") return undefined
@@ -367,20 +290,19 @@ export const makeRuns = (
   options: MakeRunsOptions,
 ): Effect.Effect<RunsService, never, Scope.Scope> =>
   Effect.gen(function* () {
-    const { container, dependencies } = options
+    const { container, dependencies, terminal } = options
+    const entry = options.entry ?? SCRATCHPAD_ENTRY_PATH
     const debounce = Duration.fromInputUnsafe(
       options.debounce ?? DEFAULT_RUN_DEBOUNCE,
     )
     const scope = yield* Effect.scope
     const stateRef = yield* SubscriptionRef.make(initialRunsState)
-    const outputRef = yield* SubscriptionRef.make(emptyRunOutput)
     const signals = yield* Queue.unbounded<Signal>()
     // Starting, replacing and stopping Runs happen one at a time.
     const lock = yield* Semaphore.make(1)
 
-    let current: Fiber.Fiber<void> | undefined
     let nextId = 1
-    let preloadWritten = false
+    let scriptsWritten = false
     // What the next Run will be for.
     let pendingInitial = true
     let pendingRestart = false
@@ -408,115 +330,67 @@ export const makeRuns = (
       return trigger
     }
 
-    const append = (id: number, chunk: string) =>
-      SubscriptionRef.update(outputRef, (output) =>
-        output.runId === id
-          ? {
-              runId: id,
-              text: tail(output.text + chunk, RUN_OUTPUT_LIMIT),
-              total: output.total + chunk.length,
-            }
-          : output,
-      )
-
-    /** Records how Run `id` ended and writes the exit line. */
+    /** Records how Run `id` ended. */
     const finish = (id: number, status: RunStatus) =>
       Effect.gen(function* () {
-        const state = yield* SubscriptionRef.get(stateRef)
-        if (state.run?.id !== id || state.run.status._tag !== "running") return
-        yield* SubscriptionRef.set(stateRef, {
-          ...state,
-          run: { ...state.run, status },
-        })
-        const output = yield* SubscriptionRef.get(outputRef)
-        const newline =
-          output.runId === id && !output.text.endsWith("\n") ? "\r\n" : ""
-        yield* append(id, `${newline}${statusLine(status)}`)
+        const endedAt = yield* Clock.currentTimeMillis
+        yield* SubscriptionRef.update(stateRef, (state) =>
+          state.run?.id !== id || state.run.status._tag !== "running"
+            ? state
+            : { ...state, run: { ...state.run, status, endedAt } },
+        )
       })
 
-    const ensurePreload = Effect.suspend(() =>
-      preloadWritten
+    const ensureScripts = Effect.suspend(() =>
+      scriptsWritten
         ? Effect.void
         : container.writeHostDirFile(RUN_PRELOAD_NAME, RUN_PRELOAD_SCRIPT).pipe(
+            Effect.andThen(
+              container.writeHostDirFile(RUN_WRAPPER_NAME, RUN_WRAPPER_SCRIPT),
+            ),
             Effect.tap(() =>
               Effect.sync(() => {
-                preloadWritten = true
+                scriptsWritten = true
               }),
             ),
           ),
     )
-
-    const runProcess = (id: number) =>
-      Effect.scoped(
-        Effect.gen(function* () {
-          yield* ensurePreload
-          const process = yield* container.spawn({
-            command: "node",
-            args: [
-              "--experimental-transform-types",
-              "--disable-warning=ExperimentalWarning",
-              "--import",
-              container.hostDirPath(RUN_PRELOAD_NAME),
-              SCRATCHPAD_ENTRY_PATH,
-            ],
-          })
-          yield* process.output.pipe(
-            Stream.runForEach((chunk) => append(id, chunk)),
-            Effect.catch((error) => append(id, `\r\n${error.message}\r\n`)),
-          )
-          const exitCode = yield* process.exitCode
-          yield* finish(id, { _tag: "exited", exitCode })
-        }),
-      ).pipe(
-        Effect.catch((error) =>
-          finish(id, { _tag: "failed", message: error.message }),
-        ),
-        Effect.onInterrupt(() => finish(id, { _tag: "stopped" })),
-      )
-
-    const stopCurrent = Effect.suspend(() => {
-      const fiber = current
-      current = undefined
-      return fiber === undefined ? Effect.void : Fiber.interrupt(fiber)
-    })
 
     const start = (trigger: string) =>
       lock.withPermits(1)(
         Effect.gen(function* () {
           const errors = yield* options.blockingErrors
           const at = yield* Clock.currentTimeMillis
-          yield* stopCurrent
           if (errors.length > 0) {
+            yield* terminal.interrupt
             yield* SubscriptionRef.update(stateRef, (state) => ({
               ...state,
-              skipped: {
-                trigger,
-                at,
-                errors,
-                previousRunId: state.run?.id,
-                previousRunStartedAt: state.run?.startedAt,
-              },
+              skipped: { trigger, at, errors },
             }))
             return
           }
           const run: RunInfo = {
             id: nextId++,
             trigger,
+            entry,
             startedAt: at,
+            endedAt: undefined,
             status: { _tag: "running" },
           }
-          const header = runHeader(run)
           yield* SubscriptionRef.update(stateRef, (state) => ({
             ...state,
             run,
             skipped: undefined,
           }))
-          yield* SubscriptionRef.set(outputRef, {
-            runId: run.id,
-            text: header,
-            total: header.length,
-          })
-          current = yield* Effect.forkIn(runProcess(run.id), scope)
+          const written = yield* Effect.result(ensureScripts)
+          if (written._tag === "Failure") {
+            yield* finish(run.id, {
+              _tag: "failed",
+              message: written.failure.message,
+            })
+            return
+          }
+          yield* terminal.run(runCommandLine(container, entry), run.id)
         }),
       )
 
@@ -525,6 +399,25 @@ export const makeRuns = (
       Stream.take(1),
       Stream.runDrain,
     )
+
+    const setWaiting = (waiting: RunWait | undefined) =>
+      SubscriptionRef.update(stateRef, (state) =>
+        state.waiting === waiting ? state : { ...state, waiting },
+      )
+
+    /** The typing guard: waits until the visitor isn't using the prompt. */
+    const awaitPromptFree = Effect.gen(function* () {
+      while (true) {
+        const waiting = runWaitOf(yield* terminal.state)
+        yield* setWaiting(waiting)
+        if (waiting === undefined) return
+        yield* terminal.stateChanges.pipe(
+          Stream.filter((state) => runWaitOf(state) !== waiting),
+          Stream.take(1),
+          Stream.runDrain,
+        )
+      }
+    })
 
     const scheduler = Effect.gen(function* () {
       while (true) {
@@ -541,10 +434,24 @@ export const makeRuns = (
         // Changes that landed while waiting (an install's sync-back, more
         // edits) get their own debounce before the Run.
         if (!pendingRestart && (yield* Queue.size(signals)) > 0) continue
+        yield* awaitPromptFree
+        // Changes made while the visitor typed go in this Run.
+        for (const signal of yield* Queue.clear(signals)) apply(signal)
         yield* start(takeTrigger())
       }
     })
 
+    yield* terminal.runEvents.pipe(
+      Stream.runForEach((event) =>
+        finish(
+          event.id,
+          event._tag === "RunExited"
+            ? { _tag: "exited", exitCode: event.exitCode }
+            : { _tag: "stopped" },
+        ),
+      ),
+      Effect.forkIn(scope),
+    )
     yield* dependencies.stateChanges.pipe(
       Stream.runForEach((deps) =>
         SubscriptionRef.update(stateRef, (state) =>
@@ -560,23 +467,21 @@ export const makeRuns = (
     return {
       state: SubscriptionRef.get(stateRef),
       stateChanges: SubscriptionRef.changes(stateRef),
-      output: SubscriptionRef.get(outputRef),
-      outputChanges: SubscriptionRef.changes(outputRef),
       onMirrorChange: (change) => {
         const path = changedPath(change)
         return path === undefined
           ? Effect.void
           : Queue.offer(signals, { _tag: "Changed", path }).pipe(Effect.asVoid)
       },
-      stop: lock.withPermits(1)(stopCurrent),
+      stop: terminal.interrupt,
       restart: Queue.offer(signals, { _tag: "Restart" }).pipe(Effect.asVoid),
     }
   })
 
-/** `Runs` for the page's Container and Dependencies, gated by `blockingErrors`. */
+/** `Runs` for the page's Container, Dependencies and Terminal, gated by `blockingErrors`. */
 export const layerRuns = (
-  options: Omit<MakeRunsOptions, "container" | "dependencies">,
-): Layer.Layer<Runs, never, Container | Dependencies> =>
+  options: Omit<MakeRunsOptions, "container" | "dependencies" | "terminal">,
+): Layer.Layer<Runs, never, Container | Dependencies | Terminal> =>
   Layer.effect(
     Runs,
     Effect.gen(function* () {
@@ -584,6 +489,7 @@ export const layerRuns = (
         ...options,
         container: yield* Container,
         dependencies: yield* Dependencies,
+        terminal: yield* Terminal,
       })
     }),
   )

@@ -8,18 +8,21 @@ import {
 } from "../../../src/features/scratchpad/container.ts"
 import {
   type FakeContainerBackend,
-  type FakeSpawnCall,
-  type FakeSpawnResult,
+  type FakeJshCommand,
+  type FakeShell,
   makeFakeContainerBackend,
 } from "./fake-container.ts"
 import { makeDependencies } from "../../../src/features/scratchpad/dependencies.ts"
 import {
   makeRuns,
   runBlockingErrorsOf,
-  skipReport,
   type RunBlockingError,
   type RunsService,
 } from "../../../src/features/scratchpad/runs.ts"
+import {
+  makeTerminal,
+  type TerminalService,
+} from "../../../src/features/scratchpad/terminal.ts"
 import type { LspWorkspaceMirrorService } from "../../../src/features/scratchpad/worker-transport.ts"
 import {
   makeMemoryWorkspace,
@@ -32,8 +35,8 @@ const SEED = {
   "src/main.ts": 'console.log("hello")',
 }
 
-const RUNNER =
-  "node --experimental-transform-types --disable-warning=ExperimentalWarning --import ../.scratchpad/run-preload.mjs src/main.ts"
+/** The line a Run types into the terminal. */
+const RUN_LINE = "node ../.scratchpad/run.cjs src/main.ts"
 
 const TYPE_ERROR: RunBlockingError = {
   path: "src/main.ts",
@@ -77,19 +80,35 @@ interface Ctx {
   readonly ws: WorkspaceService
   readonly backend: FakeContainerBackend
   readonly runs: RunsService
+  readonly terminal: TerminalService
   /** What the gate (tsrs) reports next. */
   readonly setErrors: (errors: ReadonlyArray<RunBlockingError>) => void
-  /** The Runs' `node src/main.ts` spawns so far. */
-  readonly runSpawns: () => ReadonlyArray<FakeSpawnCall>
+  /** The terminal's shell. */
+  readonly shell: () => FakeShell
+  /** The Run lines typed into the shell so far. */
+  readonly runLines: () => ReadonlyArray<string>
+  /** The terminal's text, without colors. */
   readonly output: () => Effect.Effect<string>
+  /** The visitor types into the terminal. */
+  readonly type: (data: string) => Effect.Effect<void>
 }
 
 interface Scenario {
-  /** Answers each Run's spawn; by default it prints "hello" and exits 0. */
-  readonly run?: (index: number) => FakeSpawnResult
+  /** Answers each Run; by default it prints "hello" and exits 0. */
+  readonly run?: (index: number) => FakeJshCommand
+  /** Answers each visitor command; by default it exits 0. */
+  readonly command?: (line: string) => FakeJshCommand
   /** Answers each `pnpm install` after the first; by default it succeeds. */
-  readonly reinstall?: (index: number) => FakeSpawnResult
+  readonly reinstall?: (index: number) => {
+    readonly exit?: Promise<number>
+    readonly exitCode?: number
+  }
 }
+
+/** Terminal text without colors. */
+const plain = (text: string) =>
+  // oxlint-disable-next-line no-control-regex
+  text.replace(/\u001b\[[0-9;]*m/g, "")
 
 const setup = <A>(
   scenario: Scenario,
@@ -115,13 +134,19 @@ const setup = <A>(
               backend.hostFiles.set(out, new Uint8Array([1]))
               return { exitCode: 0 }
             }
-            runCount += 1
-            return (
-              scenario.run?.(runCount) ?? {
-                exitCode: 0,
-                output: ["hello\n"],
-              }
-            )
+            return { exitCode: 0 }
+          },
+          command: (line) => {
+            if (line === RUN_LINE) {
+              runCount += 1
+              return (
+                scenario.run?.(runCount) ?? {
+                  exitCode: 0,
+                  output: ["hello\r\n"],
+                }
+              )
+            }
+            return scenario.command?.(line) ?? {}
           },
         })
         const container = yield* makeContainer(Effect.succeed(backend))
@@ -130,10 +155,15 @@ const setup = <A>(
           container,
           mirror: Option.some(mirror),
         })
+        const terminal = yield* makeTerminal({
+          container,
+          installLogs: deps.installLogChanges,
+        })
         let errors: ReadonlyArray<RunBlockingError> = []
         const runs = yield* makeRuns({
           container,
           dependencies: deps,
+          terminal,
           blockingErrors: Effect.sync(() => errors),
         })
         yield* mirrorWorkspace(ws, container, {
@@ -142,47 +172,53 @@ const setup = <A>(
               .onMirrorChange(change)
               .pipe(Effect.andThen(runs.onMirrorChange(change))),
         })
+        yield* terminal.open({ cols: 100, rows: 30 })
         yield* settle
         return yield* body({
           ws,
           backend,
           runs,
+          terminal,
           setErrors: (next) => {
             errors = next
           },
-          runSpawns: () =>
-            backend.spawned.filter((call) => call.args.includes("src/main.ts")),
-          output: () => runs.output.pipe(Effect.map((output) => output.text)),
+          shell: () => backend.shells.at(-1)!,
+          runLines: () =>
+            (backend.shells.at(-1)?.lines ?? []).filter(
+              (line) => line === RUN_LINE,
+            ),
+          output: () =>
+            terminal.output.pipe(Effect.map((output) => plain(output.text))),
+          type: (data) => terminal.input(data).pipe(Effect.andThen(settle)),
         })
       }),
     ).pipe(Effect.provide(TestClock.layer())),
   )
 
-const command = (call: FakeSpawnCall) => [call.command, ...call.args].join(" ")
-
-/** Terminal text without colors. */
-const plain = (text: string) =>
-  // oxlint-disable-next-line no-control-regex
-  text.replace(/\u001b\[[0-9;]*m/g, "")
+const edit = (ctx: Ctx, content: string) =>
+  ctx.ws.writeFile("src/main.ts", content).pipe(Effect.andThen(settle))
 
 describe("Runs", () => {
-  test("starts the first Run once the installed types are ready, with the preload in the host dir and a header", async () => {
+  test("the first Run is typed into the terminal once the installed types are ready, with its scripts in the host dir", async () => {
     await setup({}, (ctx) =>
       Effect.gen(function* () {
         assert.isTrue((yield* ctx.runs.state).available)
-        assert.lengthOf(ctx.runSpawns(), 0, "the first Run waits ~500 ms")
+        assert.lengthOf(ctx.runLines(), 0, "the first Run waits ~500 ms")
         yield* advance(500)
 
-        assert.deepEqual(ctx.runSpawns().map(command), [RUNNER])
+        assert.deepEqual(ctx.runLines(), [RUN_LINE])
         assert.isTrue(ctx.backend.hostFiles.has("run-preload.mjs"))
-        assert.isFalse(ctx.backend.files.has("run-preload.mjs"))
+        assert.isTrue(ctx.backend.hostFiles.has("run.cjs"))
+        assert.isFalse(ctx.backend.files.has("run.cjs"))
         const state = yield* ctx.runs.state
         assert.equal(state.run?.trigger, "initial")
+        assert.equal(state.run?.entry, "src/main.ts")
         assert.deepEqual(state.run?.status, { _tag: "exited", exitCode: 0 })
-        const text = plain(yield* ctx.output())
-        assert.match(text, /^▶ \d\d:\d\d:\d\d · initial\r\n/)
-        assert.include(text, "hello\n")
-        assert.include(text, "exited with code 0")
+        assert.equal(state.run?.endedAt, 500)
+        const text = yield* ctx.output()
+        assert.include(text, `❯ ${RUN_LINE}`)
+        assert.include(text, "hello\r\nexited with code 0 · ")
+        assert.notInclude(text, "scratchpad-run", "markers are not shown")
       }),
     )
   })
@@ -191,17 +227,15 @@ describe("Runs", () => {
     await setup({}, (ctx) =>
       Effect.gen(function* () {
         yield* advance(500)
-        assert.lengthOf(ctx.runSpawns(), 1)
+        assert.lengthOf(ctx.runLines(), 1)
 
-        yield* ctx.ws.writeFile("src/main.ts", 'console.log("a")')
-        yield* settle
+        yield* edit(ctx, 'console.log("a")')
         yield* advance(300)
-        yield* ctx.ws.writeFile("src/main.ts", 'console.log("ab")')
-        yield* settle
+        yield* edit(ctx, 'console.log("ab")')
         yield* advance(300)
-        assert.lengthOf(ctx.runSpawns(), 1, "still typing")
+        assert.lengthOf(ctx.runLines(), 1, "still typing")
         yield* advance(200)
-        assert.lengthOf(ctx.runSpawns(), 2)
+        assert.lengthOf(ctx.runLines(), 2)
         assert.equal(ctx.backend.files.get("src/main.ts"), 'console.log("ab")')
         const state = yield* ctx.runs.state
         assert.equal(state.run?.trigger, "src/main.ts changed")
@@ -223,11 +257,9 @@ describe("Runs", () => {
     )
   })
 
-  test("a new Run kills the previous process and clears the output", async () => {
+  test("a new Run sends Ctrl+C to the running one before typing its command, and keeps the terminal's history", async () => {
     await setup(
-      {
-        run: (index) => ({ hang: true, output: [`run ${index}\n`] }),
-      },
+      { run: (index) => ({ hang: true, output: [`run ${index}\r\n`] }) },
       (ctx) =>
         Effect.gen(function* () {
           yield* advance(500)
@@ -236,14 +268,17 @@ describe("Runs", () => {
             _tag: "running",
           })
 
-          yield* ctx.ws.writeFile("src/main.ts", "edited")
-          yield* settle
+          yield* edit(ctx, "edited")
           yield* advance(500)
-          assert.equal(ctx.backend.killed(), 1)
-          const text = plain(yield* ctx.output())
-          assert.include(text, "src/main.ts changed")
+          const input = ctx.shell().input.join("")
+          assert.include(input, `\u0003${RUN_LINE}\r`)
+          assert.lengthOf(ctx.runLines(), 2)
+          const state = yield* ctx.runs.state
+          assert.equal(state.run?.id, 2)
+          assert.deepEqual(state.run?.status, { _tag: "running" })
+          const text = yield* ctx.output()
+          assert.include(text, "run 1")
           assert.include(text, "run 2")
-          assert.notInclude(text, "run 1")
         }),
     )
   })
@@ -253,7 +288,7 @@ describe("Runs", () => {
       Effect.gen(function* () {
         yield* advance(500)
         yield* advance(60 * 60 * 1000)
-        assert.equal(ctx.backend.killed(), 0)
+        assert.notInclude(ctx.shell().input.join(""), "\u0003")
         assert.deepEqual((yield* ctx.runs.state).run?.status, {
           _tag: "running",
         })
@@ -261,37 +296,35 @@ describe("Runs", () => {
     )
   })
 
-  test("a type error skips the Run, stops the previous process and keeps its output; fixing it runs again", async () => {
+  test("a type error skips the Run and stops the running one; the next Run clears the skip", async () => {
     await setup(
-      { run: (index) => ({ hang: true, output: [`run ${index}\n`] }) },
+      { run: (index) => ({ hang: true, output: [`run ${index}\r\n`] }) },
       (ctx) =>
         Effect.gen(function* () {
           yield* advance(500)
 
           ctx.setErrors([TYPE_ERROR])
-          yield* ctx.ws.writeFile("src/main.ts", "broken")
-          yield* settle
+          yield* edit(ctx, "broken")
           yield* advance(500)
 
-          assert.lengthOf(ctx.runSpawns(), 1, "skipped: nothing spawned")
-          assert.equal(ctx.backend.killed(), 1, "the previous process stops")
+          assert.lengthOf(ctx.runLines(), 1, "skipped: nothing typed")
+          assert.include(ctx.shell().input.join(""), "\u0003")
           const state = yield* ctx.runs.state
           assert.deepEqual(state.skipped, {
             trigger: "src/main.ts changed",
             at: 1000,
             errors: [TYPE_ERROR],
-            previousRunId: 1,
-            previousRunStartedAt: 500,
           })
           assert.equal(state.run?.id, 1)
           assert.deepEqual(state.run?.status, { _tag: "stopped" })
-          const text = yield* ctx.output()
-          assert.include(text, "run 1", "the previous output stays")
-          assert.include(text, "stopped")
+          assert.notInclude(
+            yield* ctx.output(),
+            "TS2345",
+            "the report is a banner, not terminal text",
+          )
 
           ctx.setErrors([])
-          yield* ctx.ws.writeFile("src/main.ts", "fixed")
-          yield* settle
+          yield* edit(ctx, "fixed")
           yield* advance(500)
           const after = yield* ctx.runs.state
           assert.isUndefined(after.skipped)
@@ -306,16 +339,15 @@ describe("Runs", () => {
       Effect.gen(function* () {
         ctx.setErrors([TYPE_ERROR])
         yield* advance(500)
-        assert.lengthOf(ctx.runSpawns(), 0)
+        assert.lengthOf(ctx.runLines(), 0)
         const state = yield* ctx.runs.state
         assert.isUndefined(state.run)
         assert.equal(state.skipped?.trigger, "initial")
-        assert.isUndefined(state.skipped?.previousRunId)
       }),
     )
   })
 
-  test("waits for an install to finish before running edits made during it", async () => {
+  test("waits for an install to finish before running edits made during it, and prints the install into the terminal", async () => {
     let finishInstall!: (code: number) => void
     await setup(
       {
@@ -328,7 +360,7 @@ describe("Runs", () => {
       (ctx) =>
         Effect.gen(function* () {
           yield* advance(500)
-          assert.lengthOf(ctx.runSpawns(), 1)
+          assert.lengthOf(ctx.runLines(), 1)
 
           // As `pnpm add` will: the host writes it, the mirror installs.
           yield* ctx.ws.writeHostFile(
@@ -339,47 +371,50 @@ describe("Runs", () => {
           yield* advance(500)
           yield* advance(5000)
           assert.isFalse((yield* ctx.runs.state).available)
-          assert.lengthOf(ctx.runSpawns(), 1, "no Run while installing")
+          assert.lengthOf(ctx.runLines(), 1, "no Run while installing")
 
           finishInstall(0)
           yield* settle
           yield* advance(500)
           assert.isTrue((yield* ctx.runs.state).available)
-          assert.lengthOf(ctx.runSpawns(), 2)
+          assert.lengthOf(ctx.runLines(), 2)
+          const text = yield* ctx.output()
+          assert.equal(text.split("$ pnpm install").length - 1, 2)
         }),
     )
   })
 
-  test("Stop kills the Run; Restart runs again without edits and is still gated", async () => {
+  test("Stop sends Ctrl+C to the Run; Restart runs again without edits and is still gated", async () => {
     await setup({ run: () => ({ hang: true }) }, (ctx) =>
       Effect.gen(function* () {
         yield* advance(500)
         yield* ctx.runs.stop
         yield* settle
-        assert.equal(ctx.backend.killed(), 1)
+        assert.equal(ctx.shell().input.at(-1), "\u0003")
         assert.deepEqual((yield* ctx.runs.state).run?.status, {
           _tag: "stopped",
         })
-        assert.include(plain(yield* ctx.output()), "stopped")
 
         yield* ctx.runs.restart
         yield* settle
-        assert.lengthOf(ctx.runSpawns(), 2, "Restart does not wait 500 ms")
+        assert.lengthOf(ctx.runLines(), 2, "Restart does not wait 500 ms")
         assert.equal((yield* ctx.runs.state).run?.trigger, "restart")
 
         ctx.setErrors([TYPE_ERROR])
         yield* ctx.runs.restart
         yield* settle
-        assert.lengthOf(ctx.runSpawns(), 2)
-        assert.equal(ctx.backend.killed(), 2)
+        assert.lengthOf(ctx.runLines(), 2)
         assert.equal((yield* ctx.runs.state).skipped?.trigger, "restart")
+        assert.deepEqual((yield* ctx.runs.state).run?.status, {
+          _tag: "stopped",
+        })
       }),
     )
   })
 
   test("reports a non-zero exit code", async () => {
     await setup(
-      { run: () => ({ exitCode: 1, output: ["Error: boom\n"] }) },
+      { run: () => ({ exitCode: 1, output: ["Error: boom\r\n"] }) },
       (ctx) =>
         Effect.gen(function* () {
           yield* advance(500)
@@ -387,8 +422,121 @@ describe("Runs", () => {
             _tag: "exited",
             exitCode: 1,
           })
-          assert.match(yield* ctx.output(), /exited with code 1/)
+          assert.match(yield* ctx.output(), /exited with code 1 · /)
         }),
+    )
+  })
+
+  test("Ctrl+C typed by the visitor stops the Run", async () => {
+    await setup({ run: () => ({ hang: true }) }, (ctx) =>
+      Effect.gen(function* () {
+        yield* advance(500)
+        yield* ctx.type("\u0003")
+        assert.deepEqual((yield* ctx.runs.state).run?.status, {
+          _tag: "stopped",
+        })
+      }),
+    )
+  })
+})
+
+describe("the typing guard", () => {
+  test("a Run waits while the visitor has typed at the prompt; Enter runs their command, then the Run goes once it finishes", async () => {
+    let finishCommand!: () => void
+    await setup(
+      {
+        command: () => ({ hang: true, output: ["Packages: +1\r\n"] }),
+      },
+      (ctx) =>
+        Effect.gen(function* () {
+          yield* advance(500)
+          assert.lengthOf(ctx.runLines(), 1)
+
+          yield* ctx.type("pnpm add zo")
+          yield* edit(ctx, "edited")
+          yield* advance(500)
+          assert.lengthOf(ctx.runLines(), 1, "the Run waits")
+          assert.equal((yield* ctx.runs.state).waiting, "typing")
+          assert.notInclude(ctx.shell().input.join(""), "\u0003")
+
+          yield* ctx.type("d\r")
+          assert.deepEqual(ctx.shell().lines.at(-1), "pnpm add zod")
+          assert.equal(
+            (yield* ctx.runs.state).waiting,
+            "command",
+            "the Run waits for the command too",
+          )
+          yield* advance(5000)
+          assert.lengthOf(ctx.runLines(), 1)
+
+          finishCommand = () => ctx.shell().finish(0)
+          finishCommand()
+          yield* settle
+          assert.isUndefined((yield* ctx.runs.state).waiting)
+          assert.lengthOf(ctx.runLines(), 2)
+          assert.notInclude(
+            ctx.shell().input.join(""),
+            "\u0003",
+            "the finished command was not interrupted",
+          )
+          assert.equal(
+            (yield* ctx.runs.state).run?.trigger,
+            "src/main.ts changed",
+          )
+        }),
+    )
+  })
+
+  test("Esc discards the typed line with Ctrl+U, then the Run goes", async () => {
+    await setup({}, (ctx) =>
+      Effect.gen(function* () {
+        yield* advance(500)
+        yield* ctx.type("ls -l")
+        yield* ctx.runs.restart
+        yield* settle
+        assert.equal((yield* ctx.runs.state).waiting, "typing")
+
+        yield* ctx.terminal.discardInput
+        yield* settle
+        assert.include(ctx.shell().input.join(""), `\u0015`)
+        assert.lengthOf(ctx.runLines(), 2)
+        assert.notInclude(ctx.shell().lines, "ls -l")
+        assert.isUndefined((yield* ctx.runs.state).waiting)
+      }),
+    )
+  })
+
+  test("Esc stops the visitor's running command with Ctrl+C, then the Run goes", async () => {
+    await setup({ command: () => ({ hang: true }) }, (ctx) =>
+      Effect.gen(function* () {
+        yield* advance(500)
+        yield* ctx.type("npx serve\r")
+        yield* ctx.runs.restart
+        yield* settle
+        assert.equal((yield* ctx.runs.state).waiting, "command")
+
+        yield* ctx.terminal.discardInput
+        yield* settle
+        assert.include(ctx.shell().input.join(""), "\u0003")
+        assert.lengthOf(ctx.runLines(), 2)
+      }),
+    )
+  })
+
+  test("Ctrl+U and Ctrl+C clear the typed line, and an empty Enter is not a command", async () => {
+    await setup({}, (ctx) =>
+      Effect.gen(function* () {
+        yield* advance(500)
+        yield* ctx.type("abc")
+        assert.isTrue((yield* ctx.terminal.state).typing)
+        yield* ctx.type("\u0015")
+        assert.isFalse((yield* ctx.terminal.state).typing)
+        yield* ctx.type("abc")
+        yield* ctx.type("\u0003")
+        assert.isFalse((yield* ctx.terminal.state).typing)
+        yield* ctx.type("\r")
+        assert.equal((yield* ctx.terminal.state).foreground, "idle")
+      }),
     )
   })
 })
@@ -458,52 +606,5 @@ describe("runBlockingErrorsOf", () => {
         },
       ],
     )
-  })
-})
-
-describe("skipReport", () => {
-  const skip = {
-    trigger: "src/main.ts changed",
-    at: 0,
-    errors: [
-      {
-        path: "src/main.ts",
-        line: 12,
-        column: 21,
-        endLine: 12,
-        endColumn: 33,
-        message:
-          "No overload matches this call.\n  The last overload gave the following error.",
-        code: "TS2769",
-        source: "    NodeRuntime.runMain(program.pipe(",
-      },
-    ],
-    previousRunId: 1,
-    previousRunStartedAt: 0,
-  }
-
-  test("prints errors like tsc, with the message chain and a code frame", () => {
-    const text = plain(skipReport(skip, undefined))
-    const lines = text.split("\r\n")
-    assert.include(lines[0], "src/main.ts changed")
-    assert.equal(lines[3], "src/main.ts:12:21 error TS2769")
-    assert.equal(lines[4], "  No overload matches this call.")
-    assert.equal(lines[5], "    The last overload gave the following error.")
-    // Indentation is dropped from the frame, and the underline follows it.
-    assert.equal(lines[6], "    12 │ NodeRuntime.runMain(program.pipe(")
-    assert.equal(lines[7], `       │ ${" ".repeat(16)}${"~".repeat(12)}`)
-    assert.notInclude(text, "previous output")
-  })
-
-  test("keeps the previous Run's output below, dimmed line by line", () => {
-    const previous = {
-      runId: 1,
-      text: "\u001b[1;34m▶ 00:00:00\u001b[0m · initial\r\n\u001b[32mhello\u001b[0m\r\n",
-      total: 0,
-    }
-    const report = skipReport(skip, previous)
-    assert.include(report, "\u001b[2mhello\u001b[0m")
-    assert.include(report, "\u001b[2m▶ 00:00:00 · initial\u001b[0m")
-    assert.notInclude(report, "\u001b[32m")
   })
 })

@@ -24,7 +24,12 @@ import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
 import { makeTraceAtoms, type TraceAtoms } from "@/features/devtools/traces"
 import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
-import { Container, type ContainerPhase, mirrorWorkspace } from "./container.ts"
+import {
+  Container,
+  type ContainerPhase,
+  mirrorWorkspace,
+  type TerminalSize,
+} from "./container.ts"
 import {
   containerPhaseOf,
   Dependencies,
@@ -41,15 +46,20 @@ import {
   libraryUriToPath,
 } from "./library-files.ts"
 import {
-  emptyRunOutput,
   initialRunsState,
   layerRuns,
   type RunBlockingError,
-  type RunOutput,
   Runs,
   runBlockingErrorsOf,
   type RunsState,
 } from "./runs.ts"
+import {
+  emptyTerminalOutput,
+  layerTerminal,
+  Terminal,
+  type TerminalOutput,
+  type TerminalService,
+} from "./terminal.ts"
 import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
 import { layerTraces } from "./traces.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
@@ -151,10 +161,18 @@ export interface ScratchpadEditorSession {
    * Container). Once true it stays true.
    */
   readonly diagnosticsVisibleAtom: Atom.Atom<boolean>
-  /** Runs: whether they can happen, the latest Run, and the latest skip. */
+  /** Runs: whether they can happen, the latest Run, the latest skip, and the typing guard. */
   readonly runStateAtom: Atom.Atom<RunsState>
-  /** The latest Run's terminal output. */
-  readonly runOutputAtom: Atom.Atom<RunOutput>
+  /** The terminal's text (the shell, Runs and installs). */
+  readonly terminalOutputAtom: Atom.Atom<TerminalOutput>
+  /** Starts the terminal's shell at this size (the panel mounting), or resizes it. */
+  readonly openTerminalAtom: Atom.AtomResultFn<TerminalSize, void>
+  readonly resizeTerminalAtom: Atom.AtomResultFn<TerminalSize, void>
+  /** The visitor's keystrokes in the terminal. */
+  readonly terminalInputAtom: Atom.AtomResultFn<string, void>
+  /** The typing guard's Esc: drops the typed line, or stops the visitor's command. */
+  readonly discardTerminalInputAtom: Atom.AtomResultFn<void, void>
+  readonly clearTerminalAtom: Atom.AtomResultFn<void, void>
   readonly stopRunAtom: Atom.AtomResultFn<void, void>
   readonly restartRunAtom: Atom.AtomResultFn<void, void>
   /** Opens a file and puts the cursor at a position (clickable errors). */
@@ -587,6 +605,7 @@ export const makeScratchpadEditorSession = (
       ? baseLayer
       : (layerTraces(traceAtoms).pipe(
           Layer.provideMerge(layerRuns({ blockingErrors: collectRunBlockers })),
+          Layer.provideMerge(layerTerminal),
           Layer.provideMerge(
             layerDependencies({ typesTimeout: config.typesTimeout }),
           ),
@@ -608,9 +627,9 @@ export const makeScratchpadEditorSession = (
   const runStateAtom = Atom.make<RunsState>(initialRunsState).pipe(
     Atom.keepAlive,
   )
-  const runOutputAtom = Atom.make<RunOutput>(emptyRunOutput).pipe(
-    Atom.keepAlive,
-  )
+  const terminalOutputAtom = Atom.make<TerminalOutput>(
+    emptyTerminalOutput,
+  ).pipe(Atom.keepAlive)
 
   /**
    * Shows the diagnostics held back while waiting for types. When types
@@ -697,10 +716,13 @@ export const makeScratchpadEditorSession = (
           ),
           Effect.forkScoped,
         )
-        yield* runs.value.outputChanges.pipe(
+      }
+      const terminal = yield* Effect.serviceOption(Terminal)
+      if (Option.isSome(terminal)) {
+        yield* terminal.value.outputChanges.pipe(
           Stream.runForEach((output) =>
             Effect.sync(() => {
-              registry.set(runOutputAtom, output)
+              registry.set(terminalOutputAtom, output)
             }),
           ),
           Effect.forkScoped,
@@ -733,6 +755,29 @@ export const makeScratchpadEditorSession = (
       if (Option.isSome(runs)) yield* runs.value.restart
     }),
   )
+
+  const terminalFn = <A>(
+    f: (terminal: TerminalService, input: A) => Effect.Effect<void>,
+  ) =>
+    runtime.fn<A>()(
+      Effect.fnUntraced(function* (input) {
+        const terminal = yield* Effect.serviceOption(Terminal)
+        if (Option.isSome(terminal)) yield* f(terminal.value, input)
+      }),
+    )
+  const openTerminalAtom = terminalFn<TerminalSize>((terminal, size) =>
+    terminal.open(size),
+  )
+  const resizeTerminalAtom = terminalFn<TerminalSize>((terminal, size) =>
+    terminal.resize(size),
+  )
+  const terminalInputAtom = terminalFn<string>((terminal, data) =>
+    terminal.input(data),
+  )
+  const discardTerminalInputAtom = terminalFn<void>(
+    (terminal) => terminal.discardInput,
+  )
+  const clearTerminalAtom = terminalFn<void>((terminal) => terminal.clear)
 
   const elementAtom = Atom.make(Option.none<HTMLElement>())
 
@@ -1364,7 +1409,12 @@ export const makeScratchpadEditorSession = (
     installLogAtom,
     diagnosticsVisibleAtom,
     runStateAtom,
-    runOutputAtom,
+    terminalOutputAtom,
+    openTerminalAtom,
+    resizeTerminalAtom,
+    terminalInputAtom,
+    discardTerminalInputAtom,
+    clearTerminalAtom,
     stopRunAtom,
     restartRunAtom,
     revealPositionAtom,

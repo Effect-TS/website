@@ -3,7 +3,7 @@
  * ticket 03): a strip across the top of the Output panel with a
  * plain-language explanation, Retry where it can help, browser-support help
  * and dismiss. The strip covers nothing. The pnpm output of a failed install
- * is printed by the Output panel as ordinary output, not by the strip.
+ * is printed into the terminal like every install, not by the strip.
  *
  * "Dependencies unavailable" (installed, but types never reached the editor)
  * is not a failure here: it gets the status badge plus one output line.
