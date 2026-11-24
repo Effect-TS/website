@@ -29,8 +29,6 @@ export interface CardDiagnostic {
 export interface CardOptions {
   /** The docs URL for a path under `/docs/<version>/`. */
   readonly docsHref: (path: string) => string
-  /** How to write Mod-. for this platform, e.g. "⌘ ." or "Ctrl ." */
-  readonly codeActionKey: string
 }
 
 // --- Reading a diagnostic --------------------------------------------------
@@ -223,7 +221,6 @@ const menuItem = (
  */
 const fixMenu = (
   fixes: ReadonlyArray<CardFix>,
-  codeActionKey: string,
 ): { readonly row: HTMLElement; readonly menu: HTMLElement } => {
   const { primary, others, ignores } = groupFixes(fixes)
   const real = primary === undefined ? others : [primary, ...others]
@@ -282,18 +279,7 @@ const fixMenu = (
     }
   })
 
-  const row = el(
-    "div",
-    "cm-diagnosticCard-actions",
-    toggle,
-    el("span", "cm-diagnosticCard-spacer"),
-    el(
-      "span",
-      "cm-diagnosticCard-hint",
-      "or ",
-      el("kbd", undefined, codeActionKey),
-    ),
-  )
+  const row = el("div", "cm-diagnosticCard-actions", toggle)
   return { row, menu }
 }
 
@@ -342,7 +328,7 @@ const renderSection = (
   }
 
   if (diagnostic.fixes.length > 0) {
-    const { row, menu } = fixMenu(diagnostic.fixes, options.codeActionKey)
+    const { row, menu } = fixMenu(diagnostic.fixes)
     section.append(row, menu)
   }
   return section
@@ -376,12 +362,6 @@ export const renderDiagnosticCard = (
   }
   return card
 }
-
-export const codeActionKeyLabel = (): string =>
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad/.test(navigator.userAgent)
-    ? "⌘ ."
-    : "Ctrl ."
 
 // --- Styles ----------------------------------------------------------------
 
@@ -579,22 +559,4 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     },
   },
   ".cm-diagnosticCard-menu[hidden]": { display: "none" },
-  ".cm-diagnosticCard-spacer": { flex: "1" },
-  ".cm-diagnosticCard-hint": {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    color: muted,
-    fontSize: "12.5px",
-    whiteSpace: "nowrap",
-    "& kbd": {
-      fontFamily:
-        "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-      fontSize: "11.5px",
-      padding: "1px 5px",
-      borderRadius: "4px",
-      border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
-      borderBottomWidth: "2px",
-    },
-  },
 })

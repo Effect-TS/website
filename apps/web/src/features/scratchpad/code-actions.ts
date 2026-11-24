@@ -45,7 +45,6 @@ import {
 } from "@codemirror/view"
 import {
   type CardDiagnostic,
-  codeActionKeyLabel,
   diagnosticCardTheme,
   renderDiagnosticCard,
 } from "./diagnostic-card.ts"
@@ -501,7 +500,6 @@ const diagnosticCard = (docsVersion: () => string): Extension => [
             found.map((placed) => cardDiagnostic(target, placed)),
             {
               docsHref: (path) => `/docs/${docsVersion()}/${path}/`,
-              codeActionKey: codeActionKeyLabel(),
             },
           ),
         }),
