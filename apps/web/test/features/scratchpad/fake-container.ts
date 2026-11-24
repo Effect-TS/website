@@ -26,8 +26,8 @@ export interface FakeSpawnCall {
 }
 
 export interface FakeContainerBackend extends ContainerBackend {
-  /** The Container's files, by Workspace-relative path. */
-  readonly files: Map<string, string>
+  /** The Container's files, by Workspace-relative path (bytes for binary files). */
+  readonly files: Map<string, string | Uint8Array>
   /** The host scripts directory's files, by name. */
   readonly hostFiles: Map<string, string | Uint8Array>
   /** Every file system call, in order (`write a`, `remove b`, …). */
@@ -35,6 +35,17 @@ export interface FakeContainerBackend extends ContainerBackend {
   readonly spawned: Array<FakeSpawnCall>
   /** Number of processes killed before they exited. */
   readonly killed: () => number
+  /**
+   * Container-side changes, as a terminal command would make them: they
+   * change `files` and notify the watch (`backend.watch`) without going
+   * through the mirror or the `log`.
+   */
+  readonly containerWrite: (path: string, content: string | Uint8Array) => void
+  readonly containerRemove: (path: string) => void
+  /** Notifies the watch of a change at `path` without changing a file (`node_modules/…` activity). */
+  readonly touch: (path: string) => void
+  /** Number of watches open now. */
+  readonly watchers: () => number
 }
 
 export const makeFakeContainerBackend = (
@@ -45,7 +56,9 @@ export const makeFakeContainerBackend = (
     readonly failWrites?: ReadonlySet<string> | undefined
   } = {},
 ): FakeContainerBackend => {
-  const files = new Map(Object.entries(options.files ?? {}))
+  const files = new Map<string, string | Uint8Array>(
+    Object.entries(options.files ?? {}),
+  )
   const hostFiles = new Map<string, string | Uint8Array>()
   const log: Array<string> = []
   const spawned: Array<FakeSpawnCall> = []
@@ -53,22 +66,42 @@ export const makeFakeContainerBackend = (
   let killed = 0
   const under = (path: string, root: string) =>
     path === root || path.startsWith(`${root}/`)
+  const listeners = new Set<(path: string) => void>()
+  // Like a real watch, every change is reported, the mirror's own included.
+  const notify = (path: string) => {
+    for (const listener of [...listeners]) listener(path)
+  }
+  const removeUnder = (path: string) => {
+    for (const key of [...files.keys()]) {
+      if (under(key, path)) files.delete(key)
+    }
+  }
   return {
     files,
     hostFiles,
     log,
     spawned,
     killed: () => killed,
+    containerWrite: (path, content) => {
+      files.set(path, content)
+      notify(path)
+    },
+    containerRemove: (path) => {
+      removeUnder(path)
+      notify(path)
+    },
+    touch: notify,
+    watchers: () => listeners.size,
     writeFile: async (path, content) => {
       log.push(`write ${path}`)
       if (options.failWrites?.has(path)) throw new Error(`EIO: ${path}`)
       files.set(path, content)
+      notify(path)
     },
     remove: async (path) => {
       log.push(`remove ${path}`)
-      for (const key of [...files.keys()]) {
-        if (under(key, path)) files.delete(key)
-      }
+      removeUnder(path)
+      notify(path)
     },
     rename: async (from, to) => {
       log.push(`rename ${from} ${to}`)
@@ -78,11 +111,34 @@ export const makeFakeContainerBackend = (
           files.set(`${to}${key.slice(from.length)}`, content)
         }
       }
+      notify(from)
+      notify(to)
     },
     readFile: async (path) => {
       const content = files.get(path)
       if (content === undefined) throw new Error(`ENOENT: ${path}`)
-      return encoder.encode(content)
+      return typeof content === "string" ? encoder.encode(content) : content
+    },
+    readDirectory: async (path) => {
+      const prefix = path === "" ? "" : `${path}/`
+      const entries = new Map<string, "file" | "directory">()
+      for (const key of files.keys()) {
+        if (!key.startsWith(prefix)) continue
+        const rest = key.slice(prefix.length)
+        const slash = rest.indexOf("/")
+        if (slash === -1) entries.set(rest, "file")
+        else entries.set(rest.slice(0, slash), "directory")
+      }
+      if (path !== "" && entries.size === 0) {
+        throw new Error(`ENOENT: ${path}`)
+      }
+      return [...entries].map(([name, kind]) => ({ name, kind }))
+    },
+    watch: (onChange) => {
+      listeners.add(onChange)
+      return () => {
+        listeners.delete(onChange)
+      }
     },
     writeHostDirFile: async (name, content) => {
       hostFiles.set(name, content)

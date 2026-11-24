@@ -7,6 +7,7 @@ import {
   type LSPClientExtension,
 } from "@codemirror/lsp-client"
 import {
+  Annotation,
   EditorState,
   type Extension,
   type TransactionSpec,
@@ -192,6 +193,35 @@ export const diagnosticCapabilities: LSPClientExtension = {
 
 const defaultEditorViewFactory: EditorViewFactory = ({ parent, state }) =>
   new EditorView({ parent, state })
+
+/** Marks a transaction that applies a write the Workspace already has. */
+const externalWrite = Annotation.define<boolean>()
+
+/**
+ * The single span that turns `from` into `to`: their common prefix and
+ * suffix stay, so a cursor outside the changed span keeps its place.
+ */
+export const changedSpan = (
+  from: string,
+  to: string,
+): { readonly from: number; readonly to: number; readonly insert: string } => {
+  const max = Math.min(from.length, to.length)
+  let start = 0
+  while (start < max && from.charCodeAt(start) === to.charCodeAt(start)) {
+    start++
+  }
+  let endFrom = from.length
+  let endTo = to.length
+  while (
+    endFrom > start &&
+    endTo > start &&
+    from.charCodeAt(endFrom - 1) === to.charCodeAt(endTo - 1)
+  ) {
+    endFrom--
+    endTo--
+  }
+  return { from: start, to: endFrom, insert: to.slice(start, endTo) }
+}
 
 const languageIdForPath = (relPath: string): string =>
   relPath.endsWith(".tsx") ? "typescriptreact" : "typescript"
@@ -587,6 +617,7 @@ export const makeScratchpadEditorSession = (
       // Runs hear about a change after Dependencies, so a `package.json`
       // change starts its install before the Run waits on it.
       yield* mirrorWorkspace(ws, container.value, {
+        onContainerChange: deps.value.onContainerChange,
         onChange: (change) =>
           Option.isSome(runs)
             ? deps.value
@@ -628,9 +659,12 @@ export const makeScratchpadEditorSession = (
       if (update.docChanged) {
         const text = update.state.doc.toString()
         editorStates.set(relPath, update.state)
-        // Read-only files only change through the host, which already wrote
-        // them to the Workspace.
-        if (!readOnly) {
+        // Read-only files only change through the host, and external writes
+        // (sync-back, the Container) are already in the Workspace.
+        const external = update.transactions.some(
+          (tr) => tr.annotation(externalWrite) === true,
+        )
+        if (!readOnly && !external) {
           void Effect.runPromise(
             ws.writeFile(relPath, text).pipe(
               Effect.catch((err) =>
@@ -756,31 +790,75 @@ export const makeScratchpadEditorSession = (
   switchViewToFile = mountFileInView
 
   /**
-   * Brings an open read-only file (`package.json`, `pnpm-lock.yaml`) up to
-   * date after the host wrote it (Container sync-back). Editor writes never
-   * need this: the editor is where they came from.
+   * Brings an open file up to date after a write that didn't come from the
+   * editor: the host's sync-back of a read-only file (`package.json`,
+   * `pnpm-lock.yaml`), or any file the Container changed (two-way sync).
+   * The edit covers only the changed span, so the cursor stays put where it
+   * can, and the language server gets it like any other edit.
    */
-  const applyHostWrite = (relPath: string, content: string) => {
-    if (!isReadOnlyPath(relPath)) return
+  const applyExternalWrite = (
+    relPath: string,
+    content: string,
+    fromContainer: boolean,
+  ) => {
+    if (!fromContainer && !isReadOnlyPath(relPath)) return
     const view = activeView
     const mounted = view !== undefined && mountedFilePath === relPath
     const state = mounted ? view.state : editorStates.get(relPath)
-    if (state === undefined) return
-    const current = state.doc.toString()
-    if (current === content) return
-    const next = state.update({
-      changes: { from: 0, to: current.length, insert: content },
-    }).state
-    editorStates.set(relPath, next)
-    if (mounted) {
-      isSwappingState = true
-      try {
-        view.setState(next)
-      } finally {
-        isSwappingState = false
+    if (state !== undefined) {
+      const current = state.doc.toString()
+      if (current === content) return
+      const spec = {
+        changes: changedSpan(current, content),
+        annotations: externalWrite.of(true),
       }
+      if (mounted) {
+        view.dispatch(spec)
+        return
+      }
+      editorStates.set(relPath, state.update(spec).state)
     }
+    // Not in a view: the language server's copy is updated directly.
+    activeLspWorkspace?.upsertWorkspaceFile(relPath, content)
   }
+
+  /** Closes the tabs and drops the editor state of files that are gone. */
+  const forgetFiles = (
+    registry: AtomRegistry.AtomRegistry,
+    isDeleted: (path: string) => boolean,
+    deletedFiles: ReadonlyArray<string>,
+  ) =>
+    Effect.gen(function* () {
+      for (const path of deletedFiles) {
+        activeLspWorkspace?.removeWorkspaceFile(path)
+        editorStates.delete(path)
+        lastDiagnosticsByUri.delete(pathToWorkspaceUri(path, rootUri))
+      }
+
+      const prevDiags = registry.get(diagnosticsAtom)
+      const nextDiags = new Map<string, FileDiagnosticSummary>()
+      for (const [k, v] of prevDiags.entries()) {
+        if (!isDeleted(k)) {
+          nextDiags.set(k, v)
+        }
+      }
+      registry.set(diagnosticsAtom, nextDiags)
+
+      const prevTabs = registry.get(openTabsAtom)
+      const nextTabs = prevTabs.filter((t) => !isDeleted(t))
+      registry.set(openTabsAtom, nextTabs)
+
+      const prevActive = registry.get(activeFileAtom)
+      if (Option.isSome(prevActive) && isDeleted(prevActive.value)) {
+        mountedFilePath = undefined
+        const fallback = nextTabs[0]
+        if (fallback !== undefined) {
+          yield* mountFileInView(fallback)
+        } else {
+          registry.set(activeFileAtom, Option.none())
+        }
+      }
+    })
 
   const editorAtom = runtime.atom(
     Effect.fnUntraced(function* (get) {
@@ -811,19 +889,38 @@ export const makeScratchpadEditorSession = (
         yield* Effect.yieldNow
       }
 
-      // Host writes (Container sync-back) add files the explorer has not
-      // seen and change read-only files that may be open.
+      // Host writes (Container sync-back) and the Container's own changes
+      // (two-way sync) add and delete files the explorer has not seen, and
+      // change files that may be open.
       yield* ws.events.pipe(
         Stream.runForEach((event) => {
           switch (event._tag) {
-            case "FileChanged":
-              applyHostWrite(event.path, event.content)
-              return isReadOnlyPath(event.path)
+            case "FileChanged": {
+              const fromContainer = event.origin === "container"
+              applyExternalWrite(event.path, event.content, fromContainer)
+              return fromContainer || isReadOnlyPath(event.path)
                 ? refreshTree(ws, registry).pipe(Effect.ignore)
                 : Effect.void
+            }
             case "FileCreated":
-              applyHostWrite(event.path, event.content)
+              if (event.origin === "container") {
+                activeLspWorkspace?.upsertWorkspaceFile(
+                  event.path,
+                  event.content,
+                )
+              } else {
+                applyExternalWrite(event.path, event.content, false)
+              }
               return refreshTree(ws, registry).pipe(Effect.ignore)
+            case "FileDeleted":
+              return event.origin === "container"
+                ? forgetFiles(registry, (path) => path === event.path, [
+                    event.path,
+                  ]).pipe(
+                    Effect.andThen(refreshTree(ws, registry)),
+                    Effect.ignore,
+                  )
+                : refreshTree(ws, registry).pipe(Effect.ignore)
             default:
               return refreshTree(ws, registry).pipe(Effect.ignore)
           }
@@ -1066,39 +1163,12 @@ export const makeScratchpadEditorSession = (
       const isDeleted = (p: string) =>
         p === cleanTarget || p.startsWith(`${cleanTarget}/`)
 
-      for (const prev of beforeFiles) {
-        if (isDeleted(prev.path)) {
-          activeLspWorkspace?.removeWorkspaceFile(prev.path)
-          editorStates.delete(prev.path)
-          lastDiagnosticsByUri.delete(pathToWorkspaceUri(prev.path, rootUri))
-        }
-      }
-
-      const prevDiags = registry.get(diagnosticsAtom)
-      const nextDiags = new Map<string, FileDiagnosticSummary>()
-      for (const [k, v] of prevDiags.entries()) {
-        if (!isDeleted(k)) {
-          nextDiags.set(k, v)
-        }
-      }
-      registry.set(diagnosticsAtom, nextDiags)
-
-      const prevTabs = registry.get(openTabsAtom)
-      const nextTabs = prevTabs.filter((t) => !isDeleted(t))
-      registry.set(openTabsAtom, nextTabs)
-
       yield* refreshTree(ws, registry).pipe(Effect.ignore)
-
-      const prevActive = registry.get(activeFileAtom)
-      if (Option.isSome(prevActive) && isDeleted(prevActive.value)) {
-        mountedFilePath = undefined
-        const fallback = nextTabs[0]
-        if (fallback !== undefined) {
-          yield* mountFileInView(fallback)
-        } else {
-          registry.set(activeFileAtom, Option.none())
-        }
-      }
+      yield* forgetFiles(
+        registry,
+        isDeleted,
+        beforeFiles.map((file) => file.path).filter(isDeleted),
+      )
     }),
   )
 

@@ -1,10 +1,12 @@
 /**
  * The Scratchpad's Container: the in-browser Node.js runtime (a WebContainer)
- * that mirrors the Workspace one way and runs commands. See ADR 0004.
+ * that runs commands on a copy of the Workspace, kept in step both ways by
+ * `container-sync.ts`. See ADRs 0004 and 0005.
  *
  * `makeContainer` holds everything that does not depend on WebContainer (the
  * phase, waiting for boot, typed errors, scoped processes). It runs on a
  * `ContainerBackend`: the real one is in `container-webcontainer.ts`, and
+ * tests use the in-memory one in `test/features/scratchpad/fake-container.ts`.
  */
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
@@ -16,7 +18,6 @@ import * as Scope from "effect/Scope"
 import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
-import type { WorkspaceEvent, WorkspaceService } from "./workspace.ts"
 
 // ---------------------------------------------------------------------------
 // Errors and phases
@@ -108,6 +109,11 @@ export interface ContainerSpawnOptions {
   readonly env?: Readonly<Record<string, string>> | undefined
 }
 
+export interface ContainerDirectoryEntry {
+  readonly name: string
+  readonly kind: "file" | "directory"
+}
+
 export interface ContainerProcess {
   /** Terminal output (stdout and stderr). Read it at most once. */
   readonly output: Stream.Stream<string, ContainerOperationFailed>
@@ -145,6 +151,16 @@ export interface ContainerService {
   ) => Effect.Effect<void, ContainerError>
   readonly readFile: (path: string) => Effect.Effect<Uint8Array, ContainerError>
   readonly readTextFile: (path: string) => Effect.Effect<string, ContainerError>
+  /** The entries of a Workspace directory (`""` is the root). */
+  readonly readDirectory: (
+    path: string,
+  ) => Effect.Effect<ReadonlyArray<ContainerDirectoryEntry>, ContainerError>
+  /**
+   * Watches the Workspace directory recursively once booted, emitting the
+   * Workspace-relative path of every change, ignored paths
+   * (`node_modules/…`) included. The watch closes with the stream.
+   */
+  readonly watch: Stream.Stream<string, ContainerError>
   /**
    * The host scripts directory sits next to the Workspace, outside it, for
    * files the Workspace must not see (the types collector and its pack).
@@ -195,6 +211,14 @@ export interface ContainerBackend {
   readonly remove: (path: string) => Promise<void>
   readonly rename: (from: string, to: string) => Promise<void>
   readonly readFile: (path: string) => Promise<Uint8Array>
+  readonly readDirectory: (
+    path: string,
+  ) => Promise<ReadonlyArray<ContainerDirectoryEntry>>
+  /**
+   * Starts a recursive watch on the Workspace directory and returns a
+   * function that stops it. `onChange` gets Workspace-relative paths.
+   */
+  readonly watch: (onChange: (path: string) => void) => () => void
   readonly writeHostDirFile: (name: string, content: string) => Promise<void>
   readonly readHostDirFile: (name: string) => Promise<Uint8Array>
   readonly removeHostDirFile: (name: string) => Promise<void>
@@ -342,6 +366,26 @@ export const makeContainer = <R>(
       readFile,
       readTextFile: (path) =>
         readFile(path).pipe(Effect.map((bytes) => textDecoder.decode(bytes))),
+      readDirectory: (path) =>
+        use("readdir", path, (backend) => backend.readDirectory(path)),
+      watch: Stream.unwrap(
+        awaitBooted.pipe(
+          Effect.map((backend) =>
+            Stream.callback<string, ContainerOperationFailed>((queue) =>
+              Effect.acquireRelease(
+                Effect.try({
+                  try: () =>
+                    backend.watch((path) => {
+                      Queue.offerUnsafe(queue, path.replace(/^(\.\/|\/)+/, ""))
+                    }),
+                  catch: operationFailed("watch"),
+                }),
+                (stop) => Effect.sync(stop),
+              ),
+            ),
+          ),
+        ),
+      ),
       writeHostDirFile: (name, content) =>
         use("write", name, (backend) =>
           backend.writeHostDirFile(name, content),
@@ -356,122 +400,13 @@ export const makeContainer = <R>(
   })
 
 // ---------------------------------------------------------------------------
-// One-way Workspace mirror
+// Workspace sync (`container-sync.ts`)
 // ---------------------------------------------------------------------------
 
-/**
- * Applies one Workspace event to the Container. A rename writes the new path
- * (the event carries the content) and then removes the old one, so applying
- * an event twice is harmless.
- */
-export const applyWorkspaceEvent = (
-  container: ContainerService,
-  event: WorkspaceEvent,
-): Effect.Effect<void, ContainerError> => {
-  switch (event._tag) {
-    case "FileCreated":
-    case "FileChanged":
-      return container.writeFile(event.path, event.content)
-    case "FileDeleted":
-      return container.remove(event.path)
-    case "FileRenamed":
-      return container
-        .writeFile(event.newPath, event.content)
-        .pipe(Effect.andThen(container.remove(event.oldPath)))
-    case "DirectoryChanged":
-      return Effect.void
-  }
-}
-
-/**
- * Mirrors the Workspace into the Container until the scope closes: mounts
- * every Workspace file once the Container is ready, then applies Workspace
- * events one at a time, in order. Events that happen while the Container
- * boots are buffered and applied after the mount.
- *
- * Returns once the mirror is subscribed. A Container that fails to boot
- * leaves the Workspace untouched: the mirror drops its buffer and waits for
- * `retry`, then mounts the Workspace as it is by then. A failed operation is
- * logged and the mirror moves on.
- */
-export type MirrorChange =
-  | {
-      readonly _tag: "Mounted"
-      readonly files: Readonly<Record<string, string>>
-    }
-  | { readonly _tag: "Applied"; readonly event: WorkspaceEvent }
-
-export interface MirrorWorkspaceOptions {
-  /**
-   * Runs after the mount and after each event lands in the Container, in
-   * order, on the mirror's fiber (the next event waits for it).
-   */
-  readonly onChange?:
-    | ((change: MirrorChange) => Effect.Effect<void>)
-    | undefined
-}
-
-export const mirrorWorkspace = (
-  workspace: WorkspaceService,
-  container: ContainerService,
-  options: MirrorWorkspaceOptions = {},
-): Effect.Effect<void, never, Scope.Scope> =>
-  Effect.gen(function* () {
-    const pending = yield* Queue.unbounded<WorkspaceEvent>()
-    // Subscribe before listing so no change falls in between. A change that
-    // lands in both the listing and the buffer is applied twice, which every
-    // mapping above tolerates.
-    yield* workspace.events.pipe(
-      Stream.runForEach((event) => Queue.offer(pending, event)),
-      Effect.forkScoped,
-    )
-    yield* Effect.yieldNow
-    const listFiles = workspace.listFiles.pipe(Effect.orElseSucceed(() => []))
-    const files = yield* listFiles
-
-    // After a failed boot, waits for `retry` to start the next attempt.
-    const awaitRetry = container.phaseChanges.pipe(
-      Stream.filter((phase) => phase._tag !== "failed"),
-      Stream.take(1),
-      Stream.runDrain,
-    )
-
-    const onChange = options.onChange ?? (() => Effect.void)
-    const run = (
-      files: ReadonlyArray<{ readonly path: string; readonly content: string }>,
-    ): Effect.Effect<void> =>
-      Effect.gen(function* () {
-        const mounted = Object.fromEntries(
-          files.map((file) => [file.path, file.content]),
-        )
-        yield* container.mount(mounted)
-        yield* onChange({ _tag: "Mounted", files: mounted })
-        while (true) {
-          const event = yield* Queue.take(pending)
-          yield* applyWorkspaceEvent(container, event).pipe(
-            Effect.andThen(onChange({ _tag: "Applied", event })),
-            Effect.catch((error) =>
-              Effect.logWarning("Container mirror", error.message),
-            ),
-          )
-        }
-      }).pipe(
-        Effect.catch((error) =>
-          error._tag === "ContainerOperationFailed"
-            ? Effect.logWarning("Container mount failed", error.message)
-            : // Boot failed. The next mount lists the Workspace again, so
-              // the events buffered until then are not needed.
-              Effect.gen(function* () {
-                yield* Queue.clear(pending)
-                yield* awaitRetry
-                yield* Queue.clear(pending)
-                return yield* run(yield* listFiles)
-              }),
-        ),
-      )
-
-    yield* run(files).pipe(
-      Effect.ensuring(Queue.shutdown(pending)),
-      Effect.forkScoped,
-    )
-  })
+export {
+  applyWorkspaceEvent,
+  type ContainerChanges,
+  type MirrorChange,
+  mirrorWorkspace,
+  type MirrorWorkspaceOptions,
+} from "./container-sync.ts"

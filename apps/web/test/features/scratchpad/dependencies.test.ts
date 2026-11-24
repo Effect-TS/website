@@ -172,6 +172,8 @@ const run = <A>(
         )
         yield* mirrorWorkspace(ws, container, {
           onChange: deps.onMirrorChange,
+          onContainerChange: deps.onContainerChange,
+          watchDebounce: "100 millis",
         })
         yield* settle
         return yield* body({
@@ -191,7 +193,66 @@ const run = <A>(
 const commands = (backend: FakeContainerBackend) =>
   backend.spawned.map((call) => [call.command, ...call.args].join(" "))
 
+/** Runs the watch debounce and whatever it starts. */
+const afterWatch = Effect.gen(function* () {
+  yield* settle
+  yield* TestClock.adjust("100 millis")
+  yield* settle
+})
+
 describe("Dependencies", () => {
+  test("a package.json change made in the Container reloads the types once it settles, without installing again", async () => {
+    const added =
+      '{\n  "dependencies": { "effect": "latest", "kleur": "4.1.5" }\n}'
+    await run({}, (ctx) =>
+      Effect.gen(function* () {
+        assert.deepEqual(
+          commands(ctx.backend).map((c) => c.split(" ")[0]),
+          ["pnpm", "node"],
+        )
+        // A terminal `pnpm add`: node_modules, then package.json and the lockfile.
+        ctx.backend.touch("node_modules/kleur/index.d.ts")
+        ctx.backend.containerWrite("package.json", added)
+        ctx.backend.containerWrite("pnpm-lock.yaml", "kleur: 4.1.5\n")
+        yield* afterWatch
+        assert.equal(yield* ctx.ws.readFile("package.json"), added)
+        assert.equal(yield* ctx.ws.readFile("pnpm-lock.yaml"), "kleur: 4.1.5\n")
+
+        // Still busy: more node_modules activity restarts the quiet period.
+        yield* TestClock.adjust("1 second")
+        ctx.backend.touch("node_modules/.pnpm/lock.yaml")
+        yield* afterWatch
+        yield* TestClock.adjust("1 second")
+        yield* settle
+        assert.equal(ctx.packs.length, 1, "no reload while pnpm is busy")
+
+        yield* TestClock.adjust("500 millis")
+        yield* settle
+        assert.equal(ctx.packs.length, 2, "the types reloaded")
+        assert.deepEqual(
+          commands(ctx.backend).filter((c) => c.startsWith("pnpm")),
+          ["pnpm install"],
+          "no second install",
+        )
+        assert.deepEqual(ctx.phases.slice(-2), ["loading-types", "ready"])
+      }),
+    )
+  })
+
+  test("Container changes that don't touch the dependency files don't reload types", async () => {
+    await run({}, (ctx) =>
+      Effect.gen(function* () {
+        ctx.backend.containerWrite("src/extra.ts", "export {}")
+        ctx.backend.touch("node_modules/x/index.js")
+        yield* afterWatch
+        yield* TestClock.adjust("5 seconds")
+        yield* settle
+        assert.equal(yield* ctx.ws.readFile("src/extra.ts"), "export {}")
+        assert.equal(ctx.packs.length, 1)
+      }),
+    )
+  })
+
   test("installs after the mount, syncs the lockfile back, copies the installed types and releases diagnostics", async () => {
     await run({}, (ctx) =>
       Effect.gen(function* () {

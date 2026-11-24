@@ -17,8 +17,12 @@ The mutable tree of source files and directories backing an editing surface, sep
 _Avoid_: Project, file tree, virtual disk
 
 **Container**:
-The in-browser Node.js runtime (a WebContainer) that installs a Workspace's dependencies and executes its code, mirroring the Workspace rather than owning it.
+The in-browser Node.js runtime (a WebContainer) that installs a Workspace's dependencies and executes its code, holding a synced copy of the Workspace rather than owning it.
 _Avoid_: Sandbox, VM, runtime
+
+**Sync**:
+The two-way link between the Workspace and its copy in the Container: page changes are written to the Container (the mirror), and changes made in the Container are pulled back, except to files the page changed and the Container hasn't written yet (dirty files).
+_Avoid_: Mirror (that is only the page-to-Container half), watcher
 
 **Run**:
 One execution of the Workspace's entry file inside the Container, started by the editing surface and replaced by the next Run.

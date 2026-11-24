@@ -82,20 +82,31 @@ export const WorkspaceSnapshotSchema = Schema.Struct({
 
 export type WorkspaceSnapshot = typeof WorkspaceSnapshotSchema.Type
 
+/**
+ * Where a file event came from. Untagged events are the page's (the editor,
+ * the explorer, loads, the host's sync-back). `container` events were pulled
+ * back from the Container by the two-way sync (ADR 0005), so the sync does
+ * not write them back.
+ */
+export type WorkspaceEventOrigin = "container"
+
 export type WorkspaceEvent =
   | {
       readonly _tag: "FileCreated"
       readonly path: string
       readonly content: string
+      readonly origin?: WorkspaceEventOrigin | undefined
     }
   | {
       readonly _tag: "FileChanged"
       readonly path: string
       readonly content: string
+      readonly origin?: WorkspaceEventOrigin | undefined
     }
   | {
       readonly _tag: "FileDeleted"
       readonly path: string
+      readonly origin?: WorkspaceEventOrigin | undefined
     }
   | {
       readonly _tag: "FileRenamed"
@@ -106,6 +117,10 @@ export type WorkspaceEvent =
   | {
       readonly _tag: "DirectoryChanged"
     }
+
+/** Whether the two-way sync pulled this event back from the Container. */
+export const isFromContainer = (event: WorkspaceEvent): boolean =>
+  "origin" in event && event.origin === "container"
 
 export interface WorkspaceLimits {
   readonly maxFiles?: number | undefined
@@ -133,6 +148,22 @@ export interface WorkspaceService {
   readonly writeHostFile: (
     path: string,
     content: string,
+  ) => Effect.Effect<void, WorkspaceError>
+  /**
+   * A write pulled back from the Container (two-way sync). Like
+   * `writeHostFile`, but its event has `origin: "container"`.
+   */
+  readonly writeContainerFile: (
+    path: string,
+    content: string,
+  ) => Effect.Effect<void, WorkspaceError>
+  /**
+   * A file or folder deleted in the Container (two-way sync). Like `remove`
+   * (protected files still fail; the sync restores them in the Container
+   * instead), but its events have `origin: "container"`.
+   */
+  readonly removeContainerPath: (
+    path: string,
   ) => Effect.Effect<void, WorkspaceError>
   readonly createFile: (
     path: string,
@@ -403,7 +434,7 @@ export const makeMemoryWorkspace = (options?: {
       rawPath: string,
       content: string,
       mode: "create" | "upsert",
-      origin: "editor" | "host",
+      origin: "editor" | "host" | "container",
     ): Effect.Effect<void, WorkspaceError> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
@@ -442,11 +473,12 @@ export const makeMemoryWorkspace = (options?: {
           }
 
           store.setFile(relPath, content, fileBytes)
+          const tag = origin === "container" ? { origin } : {}
           yield* PubSub.publish(
             pubsub,
             previous === undefined
-              ? { _tag: "FileCreated", path: relPath, content }
-              : { _tag: "FileChanged", path: relPath, content },
+              ? { _tag: "FileCreated", path: relPath, content, ...tag }
+              : { _tag: "FileChanged", path: relPath, content, ...tag },
           )
         }),
       )
@@ -571,7 +603,10 @@ export const makeMemoryWorkspace = (options?: {
         }),
       )
 
-    const remove = (rawPath: string): Effect.Effect<void, WorkspaceError> =>
+    const removeInternal = (
+      rawPath: string,
+      origin: "editor" | "container",
+    ): Effect.Effect<void, WorkspaceError> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
           const relPath = yield* normalizeRelativePath(rawPath)
@@ -587,8 +622,9 @@ export const makeMemoryWorkspace = (options?: {
           for (const dir of store.directoriesUnder(relPath)) {
             store.directories.delete(dir)
           }
+          const tag = origin === "container" ? { origin } : {}
           for (const [path] of removed) {
-            yield* PubSub.publish(pubsub, { _tag: "FileDeleted", path })
+            yield* PubSub.publish(pubsub, { _tag: "FileDeleted", path, ...tag })
           }
           if (isDirectory) {
             yield* PubSub.publish(pubsub, { _tag: "DirectoryChanged" })
@@ -686,11 +722,14 @@ export const makeMemoryWorkspace = (options?: {
         writeInternal(path, content, "upsert", "editor"),
       writeHostFile: (path, content) =>
         writeInternal(path, content, "upsert", "host"),
+      writeContainerFile: (path, content) =>
+        writeInternal(path, content, "upsert", "container"),
+      removeContainerPath: (path) => removeInternal(path, "container"),
       createFile: (path, content = "") =>
         writeInternal(path, content, "create", "editor"),
       createDirectory,
       rename,
-      remove,
+      remove: (path) => removeInternal(path, "editor"),
       snapshot,
       restoreSnapshot,
       events: Stream.fromPubSub(pubsub),
