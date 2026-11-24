@@ -50,12 +50,12 @@ export function ShareButton() {
         disabled={waiting}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex h-6 cursor-pointer items-center gap-1.5 rounded border border-zinc-300 bg-white px-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        className="flex h-8 cursor-pointer items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
       >
         {waiting ? (
-          <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+          <Loader2Icon className="h-4 w-4 animate-spin" />
         ) : (
-          <Share2Icon className="h-3.5 w-3.5" />
+          <Share2Icon className="h-4 w-4" />
         )}
         Share
       </button>

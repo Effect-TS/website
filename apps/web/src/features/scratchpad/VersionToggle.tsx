@@ -33,7 +33,7 @@ export function VersionToggle() {
               onClick={() => {
                 if (!active) setPending(value)
               }}
-              className={`h-5 cursor-pointer rounded-sm px-2 font-mono text-xs leading-none ${
+              className={`h-7 cursor-pointer rounded-sm px-2.5 font-mono text-sm leading-none ${
                 active
                   ? "bg-white font-semibold text-zinc-900 shadow-xs dark:bg-zinc-700 dark:text-white"
                   : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"

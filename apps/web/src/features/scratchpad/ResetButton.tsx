@@ -20,9 +20,9 @@ export function ResetButton() {
         type="button"
         data-testid="scratchpad-reset"
         onClick={() => setOpen(true)}
-        className="flex h-6 cursor-pointer items-center gap-1.5 rounded border border-zinc-300 bg-white px-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        className="flex h-8 cursor-pointer items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
       >
-        <RotateCcwIcon className="h-3.5 w-3.5" />
+        <RotateCcwIcon className="h-4 w-4" />
         Reset
       </button>
       <ConfirmDialog

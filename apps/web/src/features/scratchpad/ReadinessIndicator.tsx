@@ -152,9 +152,9 @@ export function ReadinessIndicator() {
         // During a Container failure, clicking also brings back a hidden
         // failure strip.
         onClick={() => Option.map(failure, (failure) => failure.show())}
-        className={`relative flex h-6 w-6 cursor-pointer items-center justify-center rounded border bg-white transition-colors hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 data-[popup-open]:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:data-[popup-open]:bg-zinc-800 ${BUTTON[view.icon]}`}
+        className={`relative flex h-8 w-8 cursor-pointer items-center justify-center rounded border bg-white transition-colors hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 data-[popup-open]:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:data-[popup-open]:bg-zinc-800 ${BUTTON[view.icon]}`}
       >
-        <Box aria-hidden="true" className="h-3.5 w-3.5" />
+        <Box aria-hidden="true" className="h-4 w-4" />
         <span
           aria-hidden="true"
           data-testid="readiness-badge"

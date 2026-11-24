@@ -78,8 +78,8 @@ export function EditorTabs() {
               }}
               className={
                 isActive
-                  ? "group flex shrink-0 items-center gap-1.5 border-r border-b-2 border-r-zinc-200 border-b-blue-500 bg-white px-3 py-2 font-mono text-xs font-medium text-zinc-950 dark:border-r-zinc-800 dark:border-b-blue-400 dark:bg-zinc-950 dark:text-zinc-50"
-                  : "group flex shrink-0 items-center gap-1.5 border-r border-r-zinc-200 px-3 py-2 font-mono text-xs text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-r-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+                  ? "group flex shrink-0 items-center gap-1.5 border-r border-b-2 border-r-zinc-200 border-b-blue-500 bg-white px-3.5 py-2.5 font-mono text-sm font-medium text-zinc-950 dark:border-r-zinc-800 dark:border-b-blue-400 dark:bg-zinc-950 dark:text-zinc-50"
+                  : "group flex shrink-0 items-center gap-1.5 border-r border-r-zinc-200 px-3.5 py-2.5 font-mono text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-r-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
               }
             >
               <button
@@ -87,7 +87,7 @@ export function EditorTabs() {
                 onClick={() => openFile(tabPath)}
                 className="flex items-center gap-1.5"
               >
-                <FileCode2 className="h-3.5 w-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
+                <FileCode2 className="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
                 <span>{label}</span>
                 {hasErrors && (
                   <span
@@ -112,14 +112,14 @@ export function EditorTabs() {
                 }}
                 className="ml-0.5 rounded p-0.5 text-zinc-400 opacity-70 hover:bg-zinc-200 hover:text-zinc-900 hover:opacity-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           )
         })}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 py-1.5">
+      <div className="flex shrink-0 items-center gap-2 py-2">
         <VersionToggle />
         <ResetButton />
         <ShareButton />
