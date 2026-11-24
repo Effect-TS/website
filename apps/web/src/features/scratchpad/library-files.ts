@@ -1,7 +1,7 @@
 /**
  * Library files: installed declarations below `node_modules` that
  * go-to-definition opens in a read-only tab. They live in the language server
- * worker's file system (copied from the Container, ADR 0004), never in the
+ * worker's file system (copied from the Container), never in the
  * Scratchpad Workspace: they are not in the explorer, not autosaved and not
  * shared. The Workspace rejects `node_modules` paths, so a library path never
  * names a Workspace file.

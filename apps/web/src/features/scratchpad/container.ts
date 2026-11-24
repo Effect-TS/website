@@ -1,7 +1,7 @@
 /**
  * The Scratchpad's Container: the in-browser Node.js runtime (a WebContainer)
  * that runs commands and the terminal's shell on a copy of the Workspace,
- * kept in step both ways by `container-sync.ts`. See ADRs 0004 and 0005.
+ * kept in step both ways by `container-sync.ts`.
  *
  * `makeContainer` holds everything that does not depend on WebContainer (the
  * phase, waiting for boot, typed errors, scoped processes). It runs on a

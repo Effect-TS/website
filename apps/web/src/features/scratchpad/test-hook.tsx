@@ -3,7 +3,7 @@
  * (`test/e2e/scratchpad-container.spec.ts`). It exposes the host spawn API
  * on `window.__scratchpadTest` so a test can run commands (`pnpm add <pkg>`,
  * `echo … > src/extra.ts`) in the Container the way a terminal will. The
- * two-way sync pulls their changes back (ADR 0005). `install` starts a page
+ * two-way sync pulls their changes back. `install` starts a page
  * install cycle.
  *
  * `Scratchpad.tsx` only renders `ScratchpadTestHook` when

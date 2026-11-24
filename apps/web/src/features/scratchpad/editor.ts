@@ -392,7 +392,7 @@ export const makeScratchpadEditorSession = (
   // version, so the diagnostics file also waits for a push after it.
   let typesMountedAt = 0
   let mountedTypesInfo: unknown
-  // With a Container, diagnostics wait for the installed types (ADR 0004).
+  // With a Container, diagnostics wait for the installed types.
   let diagnosticsHidden = config.containerLayer !== undefined
 
   const treeAtom = Atom.make<ReadonlyArray<WorkspaceNode>>([]).pipe(
@@ -551,7 +551,7 @@ export const makeScratchpadEditorSession = (
   })
 
   /**
-   * The check for the diagnostics file (ADR 0006), or `None` while the
+   * The check for the diagnostics file, or `None` while the
    * worker's diagnostics aren't current. It reads the documents as the client
    * last sent them, and never forces a sync: called on every poll, that
    * would send each keystroke at once and keep the worker re-pulling. The
@@ -745,7 +745,7 @@ export const makeScratchpadEditorSession = (
           Effect.forkScoped,
         )
       }
-      // The watch runner waits for this file before each Run (ADR 0006).
+      // The watch runner waits for this file before each Run.
       yield* runDiagnosticsWriter({
         container: container.value,
         dependencies: deps.value,

@@ -19,7 +19,7 @@ Nothing here changes either upstream repository.
 - `upstream/crates/ets_wasm_lsp/` is the module crate. The build copies it into the effect-tsgo checkout.
 - `scripts/build-wasm.ts` builds `dist/tsrs-effect-lsp.wasm`.
 - `scripts/types-pack.ts` collects packages' declaration files into a types pack for the tests. The Scratchpad
-  ships no pack: its Container collects one from the installed packages after each install (ADR 0004).
+  ships no pack: its Container collects one from the installed packages after each install.
 - `src/` is the runtime host. It uses no Node built-ins and no dependencies.
 - `dist/manifest.json` records sizes, sha256 sums, the upstream SHAs and the build mode. Nothing in `dist/` is
   committed.
@@ -98,8 +98,7 @@ The Scratchpad does this in `apps/web/src/features/scratchpad/lsp.worker.ts`, wi
 `astro build` with the build command when the files are missing. `pnpm run setup:scratchpad` at the repo root (inside
 `nix develop`) builds everything. The app needs the files built before `astro dev` or `astro build`. Over the network the module is about 3.0 MB
 brotli. The manifest has exact numbers. The Scratchpad starts the host with no types pack and `tsconfig: null`: the
-Workspace's own `tsconfig.json` is mirrored in, and the Container's installed declarations arrive later as a pack
-(ADR 0004).
+Workspace's own `tsconfig.json` is mirrored in, and the Container's installed declarations arrive later as a pack.
 
 ## Runtime API
 

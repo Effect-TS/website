@@ -2,7 +2,7 @@
  * The terminal: one interactive `jsh` in the Container. After the first
  * install the page types the Workspace shell's command into it once
  * (`../run src/main.ts`), and the watch runner (`run-watch.cjs`) owns it
- * until Ctrl+C, as on `/play` (ADR 0006).
+ * until Ctrl+C, as on `/play`.
  *
  * - The shell starts on the first `open` (the panel mounting), once the
  *   Container is ready. It starts again after the Container retries a failed

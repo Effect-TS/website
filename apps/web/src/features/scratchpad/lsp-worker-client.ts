@@ -3,7 +3,7 @@
  * the wasm module as a Vite URL. The module stays a separate hashed file
  * (never inlined into JavaScript); the worker fetches it. It comes from
  * `packages/tsrs-lsp-wasm/dist/` through `virtual:tsrs-lsp-assets` (see
- * `tsrs-lsp-assets-plugin.ts`). Types come from the Container (ADR 0004).
+ * `tsrs-lsp-assets-plugin.ts`). Types come from the Container.
  */
 import type * as Layer from "effect/Layer"
 import { wasmBytes, wasmUrl } from "virtual:tsrs-lsp-assets"

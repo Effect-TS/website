@@ -16,7 +16,7 @@ import {
 // The Scratchpad with the Effect tsrs language server running in a Web Worker
 // on the page: see playwright.scratchpad-worker.config.ts.
 //
-// Types come from the packages the real Container installs (ADR 0004), so
+// Types come from the packages the real Container installs, so
 // tests that need Effect's types wait for the Container to reach `ready`.
 // Booting needs StackBlitz's servers and installing needs the npm registry:
 // when the Container cannot get there, those tests skip rather than fail.
@@ -165,7 +165,7 @@ test("loads the in-browser language server on the cross-origin isolated page and
     crossOriginIsolated: globalThis.crossOriginIsolated,
     sharedArrayBuffer: typeof SharedArrayBuffer,
   }))
-  // Isolated for the Container (ADR 0004); the worker must still load.
+  // Isolated for the Container; the worker must still load.
   expect(isolation.crossOriginIsolated).toBe(true)
   expect(isolation.sharedArrayBuffer).toBe("function")
   const worker = page

@@ -49,7 +49,7 @@ export interface WorkerAsset {
 
 /**
  * What the worker downloads. Types are not bundled: they come from the
- * Container's installed packages through `ReplaceNodeModules` (ADR 0004).
+ * Container's installed packages through `ReplaceNodeModules`.
  */
 export interface WorkerAssets {
   readonly wasm: WorkerAsset

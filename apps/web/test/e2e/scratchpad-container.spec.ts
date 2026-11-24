@@ -20,7 +20,7 @@ import {
   TYPES_TIMEOUT,
 } from "./scratchpad-helpers.ts"
 
-// The Scratchpad against a real WebContainer (ADRs 0004 to 0006): boot,
+// The Scratchpad against a real WebContainer: boot,
 // install, installed types, the watch runner in the terminal and the type
 // errors it prints, two-way sync, Ctrl+C and `pnpm add` in the shell, legacy
 // shares, Restart, Traces. See playwright.scratchpad-container.config.ts.

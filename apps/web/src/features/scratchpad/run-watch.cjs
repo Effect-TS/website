@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The watch runner (ADR 0006), installed next to the Workspace dir as `run`
+// The watch runner, installed next to the Workspace dir as `run`
 // and typed into the terminal as `../run src/main.ts`, like `/play`'s.
 //
 // It owns the terminal until Ctrl+C. On start, on a change to a watched file

@@ -22,7 +22,7 @@
  *   open, creations, deletions and renames go straight to the file system,
  *   which the host turns into `workspace/didChangeWatchedFiles`.
  *   `tsconfig.json` is a Workspace file like any other: the worker writes no
- *   hidden one (ADR 0004).
+ *   hidden one.
  * - Installed types. `ReplaceNodeModules` swaps everything below
  *   `node_modules` for the Container's types pack in one synchronous step, so
  *   the host reports it in one coalesced watched-files flush, and answers

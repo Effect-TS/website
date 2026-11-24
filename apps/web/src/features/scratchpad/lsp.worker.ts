@@ -6,7 +6,7 @@
  *
  * Types are not downloaded: the page sends the Container's installed
  * declarations with `ReplaceNodeModules`, and `tsconfig.json` arrives as a
- * Workspace file (ADR 0004).
+ * Workspace file.
  */
 import {
   MemoryFileSystem,

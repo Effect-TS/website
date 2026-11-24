@@ -1,5 +1,5 @@
 /**
- * Two-way sync between the Workspace and the Container (ADR 0005).
+ * Two-way sync between the Workspace and the Container.
  *
  * - Page → Container (the mirror): each Workspace change is written to the
  *   Container as it happens, in order.

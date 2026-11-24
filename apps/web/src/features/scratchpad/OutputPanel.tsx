@@ -68,7 +68,7 @@ export interface OutputPanelProps {
 /**
  * The bottom panel under the editor: a resizable, collapsible panel whose
  * "Terminal" tab is the Container's interactive shell, where the watch runner
- * runs the program (ADR 0006). The header has Restart and Clear.
+ * runs the program. The header has Restart and Clear.
  */
 export function OutputPanel({ banner }: OutputPanelProps) {
   const {

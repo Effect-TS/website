@@ -101,9 +101,9 @@ const makeBackend = (wc: WebContainer): ContainerBackend => {
         kind: entry.isDirectory() ? "directory" : "file",
       }))
     },
-    // Recursive watches on the workdir froze the Container after installs
-    // (ADR 0004), so the watch is on the Workspace directory. `node_modules`
-    // events still arrive; the sync ignores them (ADR 0005).
+    // Recursive watches on the workdir froze the Container after installs,
+    // so the watch is on the Workspace directory. `node_modules`
+    // events still arrive; the sync ignores them.
     watch: (onChange) => {
       const watcher = wc.fs.watch(
         CONTAINER_WORKSPACE_DIR,

@@ -11,7 +11,7 @@ import type { Plugin } from "vite"
  * - `virtual:tsrs-lsp-assets` exports the wasm module as a Vite asset URL (a
  *   hashed file under `/_astro/` in a build, never inlined) plus its size
  *   from the package manifest. Types are not bundled: they come from the
- *   Container's installed packages (ADR 0004). Keeping the imports
+ *   Container's installed packages. Keeping the imports
  *   here means type checking does not need the artifacts.
  * - The upstream license files are copied next to them, to
  *   `/_astro/tsrs-lsp-wasm/licenses/`, and served from the same path in dev.

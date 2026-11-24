@@ -85,7 +85,7 @@ export type WorkspaceSnapshot = typeof WorkspaceSnapshotSchema.Type
 /**
  * Where a file event came from. Untagged events are the page's (the editor,
  * the explorer, loads, the host's sync-back). `container` events were pulled
- * back from the Container by the two-way sync (ADR 0005), so the sync does
+ * back from the Container by the two-way sync, so the sync does
  * not write them back.
  */
 export type WorkspaceEventOrigin = "container"

@@ -1,6 +1,5 @@
 /**
- * The Container's dependencies: install, sync-back and installed types
- * (ADR 0004, ticket 08).
+ * The Container's dependencies: install, sync-back and installed types.
  *
  * After the Workspace is mounted, and whenever the mirror writes a new
  * `package.json` into the Container, the Scratchpad runs one cycle:

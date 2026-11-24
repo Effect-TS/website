@@ -1,5 +1,5 @@
 /**
- * The diagnostics file (ADR 0006): tsrs in the web worker is the only type
+ * The diagnostics file: tsrs in the web worker is the only type
  * checker, and the watch runner in the Container (`run-watch.cjs`) waits for
  * its verdict on the files it is about to run.
  *
