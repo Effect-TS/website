@@ -160,6 +160,7 @@ const makeBackend = (
 
 const typesMirror = Layer.succeed(LspWorkspaceMirror, {
   apply: () => {},
+  readFile: () => Effect.succeed(Option.none()),
   mountTypes: () =>
     Effect.succeed({
       _tag: "TypesMounted" as const,

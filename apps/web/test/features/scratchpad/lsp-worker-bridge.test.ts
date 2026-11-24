@@ -475,3 +475,42 @@ describe("LspWorkerBridge ReplaceNodeModules", () => {
     assert.isTrue(ctx.fs.exists("/workspace/node_modules/effect/package.json"))
   })
 })
+
+describe("LspWorkerBridge readFile", () => {
+  test("reads installed declarations and Workspace files by relative path", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 1,
+      pack: packOf({ "effect/dist/Effect.d.ts": "export declare const x: 1" }),
+    })
+    assert.equal(
+      ctx.bridge.readFile("node_modules/effect/dist/Effect.d.ts"),
+      "export declare const x: 1",
+    )
+    assert.equal(ctx.bridge.readFile("src/main.ts"), "main")
+  })
+
+  test("returns the newest content of an open document", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "v1" } })
+    ctx.bridge.connect(ctx.server)
+    ctx.open(MAIN_URI, "v1")
+    ctx.bridge.applyFsOp({
+      _tag: "WriteFile",
+      path: "src/main.ts",
+      content: "v2",
+    })
+    assert.equal(ctx.bridge.readFile("src/main.ts"), "v2")
+  })
+
+  test("answers nothing for missing files, directories and paths that leave the root", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
+    assert.isUndefined(ctx.bridge.readFile("node_modules/effect/index.d.ts"))
+    assert.isUndefined(ctx.bridge.readFile("src"))
+    assert.isUndefined(ctx.bridge.readFile("../etc/passwd"))
+    assert.isUndefined(ctx.bridge.readFile(""))
+  })
+})

@@ -136,6 +136,13 @@ self.onmessage = (event) => {
     case "Fs":
       bridge.applyFsOp(data.op)
       break
+    case "ReadFile":
+      post({
+        _tag: "FileRead",
+        id: data.id,
+        content: bridge.readFile(data.path) ?? null,
+      })
+      break
     case "Dispose":
       stopped = true
       bridge.dispose()

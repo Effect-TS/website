@@ -62,6 +62,7 @@ const advance = (millis: number) =>
 
 const mirror: LspWorkspaceMirrorService = {
   apply: () => {},
+  readFile: () => Effect.succeed(Option.none()),
   mountTypes: (pack) =>
     Effect.succeed({
       _tag: "TypesMounted",

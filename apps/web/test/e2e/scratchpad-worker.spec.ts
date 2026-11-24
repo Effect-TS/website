@@ -508,3 +508,135 @@ test("Ctrl/Cmd+S formats the active file with the Workspace's dprint.json", asyn
   await page.keyboard.press("ControlOrMeta+z")
   await expect(lines.nth(0)).toHaveText("const   greeting='hello';")
 })
+
+/** Clicks the middle of the first whole-word `word` in `line`. */
+const clickWord = async (
+  line: ReturnType<typeof lineWith>,
+  word: string,
+  modifiers: Array<"ControlOrMeta"> = [],
+) => {
+  const position = await line.evaluate((el, target) => {
+    const pattern = new RegExp(`\\b${target}\\b`)
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    const origin = el.getBoundingClientRect()
+    for (
+      let node = walker.nextNode();
+      node !== null;
+      node = walker.nextNode()
+    ) {
+      const index = (node.textContent ?? "").search(pattern)
+      if (index === -1) continue
+      const range = document.createRange()
+      range.setStart(node, index)
+      range.setEnd(node, index + target.length)
+      const rect = range.getBoundingClientRect()
+      return {
+        x: rect.left - origin.left + rect.width / 2,
+        y: rect.top - origin.top + rect.height / 2,
+      }
+    }
+    return null
+  }, word)
+  expect(position, `"${word}" in the line`).not.toBeNull()
+  await line.click({ position: position!, modifiers })
+}
+
+const libraryTab = (page: Page, file: string) =>
+  page.locator(
+    `[data-testid^="editor-tab-node_modules/effect/"][data-testid$="/${file}"]`,
+  )
+
+test("Cmd/Ctrl-click into a library opens its declarations in a read-only tab, and go-to-definition works from there", async ({
+  page,
+}) => {
+  await openReady(page)
+
+  await clickWord(lineWith(page, 'import { Effect } from "effect"'), "Effect", [
+    "ControlOrMeta",
+  ])
+  const effectTab = libraryTab(page, "Effect.d.ts")
+  await expect(effectTab).toBeVisible({ timeout: LSP_TIMEOUT })
+  await expect(effectTab).toHaveAttribute("aria-selected", "true")
+  await expect(effectTab).toContainText(
+    /^node_modules\/effect\/.*Effect\.d\.ts$/,
+  )
+  await expect(editorOf(page).locator(".cm-content")).toHaveAttribute(
+    "aria-readonly",
+    "true",
+  )
+  // Scrolled to the target: the cursor's line is on screen.
+  await expect(editorOf(page).locator(".cm-activeLine")).toBeInViewport()
+  // Not a Workspace file.
+  await expect(
+    page.locator('[data-testid^="explorer-file-node_modules"]'),
+  ).toHaveCount(0)
+
+  // The library document is known to the language server: jump on.
+  await clickWord(lineWith(page, "* as Cause from"), "Cause", ["ControlOrMeta"])
+  const causeTab = libraryTab(page, "Cause.d.ts")
+  await expect(causeTab).toBeVisible({ timeout: LSP_TIMEOUT })
+  await expect(causeTab).toHaveAttribute("aria-selected", "true")
+
+  // Library tabs close like any tab.
+  await causeTab.getByRole("button", { name: /^Close / }).click()
+  await effectTab.getByRole("button", { name: /^Close / }).click()
+  await expect(page.locator("[data-library]")).toHaveCount(0)
+  await expect(page.getByTestId("editor-tab-src/main.ts")).toHaveAttribute(
+    "aria-selected",
+    "true",
+  )
+})
+
+test("a diagnostic's quick fix is a button in its tooltip, and applying it clears the error", async ({
+  page,
+}) => {
+  await openReady(page)
+  const floating = 'Effect.succeed("unhandled")'
+  const fix = page.getByRole("button", {
+    name: "Disable floatingEffect for this line",
+  })
+  // The fixes are asked for after the diagnostics render.
+  await expect(async () => {
+    await dismissTooltips(page)
+    await lintMessages(page, floating)
+    await expect(fix).toBeVisible({ timeout: 2_000 })
+  }).toPass({ timeout: LSP_TIMEOUT })
+  await fix.click()
+
+  await expect(
+    lineWith(page, "@effect-diagnostics-next-line floatingEffect:off"),
+  ).toBeVisible()
+  await expect(lineWith(page, floating).locator(".cm-lintRange")).toHaveCount(
+    0,
+    { timeout: LSP_TIMEOUT },
+  )
+  await expect(
+    page.getByTestId("editor-tab-src/main.ts").getByLabel(/errors/),
+  ).toHaveCount(0)
+})
+
+test("Ctrl/Cmd+. lists the code actions at the cursor, refactors included, and picking one applies it", async ({
+  page,
+}) => {
+  await openReady(page)
+  await clickWord(lineWith(page, 'Effect.succeed("unhandled")'), "succeed")
+  await page.keyboard.press("ControlOrMeta+.")
+
+  const menu = page.getByRole("listbox", { name: "Code actions" })
+  await expect(menu).toBeVisible({ timeout: LSP_TIMEOUT })
+  await expect(
+    menu.getByRole("option", { name: "Disable floatingEffect for this line" }),
+  ).toBeVisible()
+  await menu.getByRole("option", { name: "Wrap with Effect.gen" }).click()
+
+  await expect(menu).toBeHidden()
+  await expect(
+    lineWith(page, 'return yield* Effect.succeed("unhandled")'),
+  ).toBeVisible()
+
+  // Escape closes the menu without applying anything.
+  await page.keyboard.press("ControlOrMeta+.")
+  await expect(menu).toBeVisible({ timeout: LSP_TIMEOUT })
+  await page.keyboard.press("Escape")
+  await expect(menu).toBeHidden()
+})

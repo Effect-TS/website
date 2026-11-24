@@ -3,6 +3,7 @@ import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import * as Queue from "effect/Queue"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
@@ -229,6 +230,60 @@ describe("layerWorker", () => {
             assert.equal(replayed.id, 2)
             assert.deepEqual([...new Uint8Array(replayed.pack)], [9])
           }
+        }).pipe(
+          Effect.provide(
+            layerWorker({ makeWorker: fakes.makeWorker, assets: ASSETS }),
+          ),
+        ),
+      ),
+    )
+  })
+  test("readFile asks the running worker by id and answers None when the worker has no file, goes away, or does not exist", async () => {
+    const fakes = makeFakeWorkers()
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const lsp = yield* LspTransport
+          const mirror = yield* LspWorkspaceMirror
+
+          assert.isTrue(
+            Option.isNone(yield* mirror.readFile("node_modules/a.d.ts")),
+          )
+
+          yield* lsp.reconnect
+          const worker = fakes.workers[0]!
+          const readsOf = (target: FakeWorker) =>
+            target.controls().flatMap((m) => (m._tag === "ReadFile" ? [m] : []))
+
+          const found = yield* mirror
+            .readFile("node_modules/effect/dist/Effect.d.ts")
+            .pipe(Effect.forkChild)
+          const missing = yield* mirror
+            .readFile("node_modules/nope.d.ts")
+            .pipe(Effect.forkChild)
+          yield* Effect.yieldNow
+          const [first, second] = readsOf(worker)
+          assert.equal(first?.path, "node_modules/effect/dist/Effect.d.ts")
+          assert.equal(second?.path, "node_modules/nope.d.ts")
+          // Answers are matched by id, not by order.
+          worker.emit({ _tag: "FileRead", id: second!.id, content: null })
+          worker.emit({
+            _tag: "FileRead",
+            id: first!.id,
+            content: "export declare const Effect: unique symbol",
+          })
+          assert.deepEqual(
+            yield* Fiber.join(found),
+            Option.some("export declare const Effect: unique symbol"),
+          )
+          assert.isTrue(Option.isNone(yield* Fiber.join(missing)))
+
+          const pending = yield* mirror
+            .readFile("node_modules/effect/package.json")
+            .pipe(Effect.forkChild)
+          yield* Effect.yieldNow
+          worker.emit({ _tag: "Fatal", message: "boom" })
+          assert.isTrue(Option.isNone(yield* Fiber.join(pending)))
         }).pipe(
           Effect.provide(
             layerWorker({ makeWorker: fakes.makeWorker, assets: ASSETS }),

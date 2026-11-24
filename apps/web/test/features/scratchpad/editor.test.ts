@@ -9,6 +9,10 @@ import * as Option from "effect/Option"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import { TestClock } from "effect/testing"
 import { assert, describe, test } from "vite-plus/test"
+import {
+  applyWorkspaceEdit,
+  type LspRange,
+} from "../../../src/features/scratchpad/code-actions.ts"
 import { SCRATCHPAD_ROOT_URI } from "../../../src/features/scratchpad/config.ts"
 import {
   makeScratchpadEditorSession,
@@ -232,6 +236,7 @@ describe("ScratchpadEditorSession", () => {
     const answer = Deferred.makeUnsafe<TypesMountResult>()
     const mirrorLayer = Layer.succeed(LspWorkspaceMirror, {
       apply: () => {},
+      readFile: () => Effect.succeed(Option.none()),
       mountTypes: () => Deferred.await(answer),
     }) as Layer.Layer<never>
     const backend = makeFakeContainerBackend({
@@ -316,6 +321,7 @@ describe("ScratchpadEditorSession", () => {
   test("shows the held-back diagnostics when types do not arrive within 60 seconds", async () => {
     const mirrorLayer = Layer.succeed(LspWorkspaceMirror, {
       apply: () => {},
+      readFile: () => Effect.succeed(Option.none()),
       mountTypes: () => Effect.never,
     }) as Layer.Layer<never>
     const backend = makeFakeContainerBackend({
@@ -798,6 +804,251 @@ describe("ScratchpadEditorSession", () => {
         Option.isNone(ctx.registry.get(ctx.session.workspaceErrorAtom)),
       )
       unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+})
+
+const EFFECT_DTS = "node_modules/effect/dist/Effect.d.ts"
+const EFFECT_DTS_TEXT = "export declare const succeed: <A>(a: A) => A\n"
+
+const libraryMirror = (files: Readonly<Record<string, string>>) =>
+  Layer.succeed(LspWorkspaceMirror, {
+    apply: () => {},
+    readFile: (path: string) =>
+      Effect.succeed(Option.fromNullishOr(files[path])),
+    mountTypes: () => Effect.never,
+  }) as Layer.Layer<never>
+
+const mountedEditor = async (
+  ctx: Awaited<ReturnType<typeof setupEditorTest>>,
+) => {
+  const unmount = ctx.registry.mount(ctx.session.editorAtom)
+  ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+  await flushMicrotasks(60)
+  const editor = ctx.registry.get(ctx.session.editorAtom)
+  if (editor._tag !== "Success") throw new Error(`editor is ${editor._tag}`)
+  return { unmount, ...editor.value }
+}
+
+describe("library files", () => {
+  test("go-to-definition into node_modules opens a read-only tab read from the language server's file system, outside the explorer", async () => {
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      { "src/main.ts": 'import { Effect } from "effect"\n' },
+      undefined,
+      libraryMirror({ [EFFECT_DTS]: EFFECT_DTS_TEXT }),
+    )
+    try {
+      const { unmount, client, workspace } = await mountedEditor(ctx)
+
+      const view = await client.workspace.displayFile(
+        `${SCRATCHPAD_ROOT_URI}/${EFFECT_DTS}`,
+      )
+      await flushMicrotasks(20)
+      assert.isNotNull(view)
+      assert.deepEqual(ctx.registry.get(ctx.session.openTabsAtom), [
+        "src/main.ts",
+        EFFECT_DTS,
+      ])
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.activeFileAtom),
+        Option.some(EFFECT_DTS),
+      )
+      const state = ctx.fakeEditors.handles[0]!.getState()
+      assert.equal(state.doc.toString(), EFFECT_DTS_TEXT)
+      assert.isTrue(state.readOnly)
+      assert.equal(state.facet(language)?.name, "typescript")
+
+      // Not a Workspace file: not in the explorer, not saved or shared.
+      const paths = (await Effect.runPromise(workspace.listFiles)).map(
+        (file) => file.path,
+      )
+      assert.deepEqual(paths, ["src/main.ts"])
+      assert.notInclude(
+        JSON.stringify(ctx.registry.get(ctx.session.treeAtom)),
+        "node_modules",
+      )
+
+      // A change reaching the library document is not written anywhere.
+      ctx.fakeEditors.handles[0]!.emitDocChange("changed")
+      await flushMicrotasks(20)
+      assert.isTrue(
+        Option.isNone(ctx.registry.get(ctx.session.workspaceErrorAtom)),
+      )
+
+      ctx.registry.set(ctx.session.closeTabAtom, EFFECT_DTS)
+      await flushMicrotasks(20)
+      assert.deepEqual(ctx.registry.get(ctx.session.openTabsAtom), [
+        "src/main.ts",
+      ])
+      assert.deepEqual(
+        ctx.registry.get(ctx.session.activeFileAtom),
+        Option.some("src/main.ts"),
+      )
+
+      // Reopened after closing, it is read again (the types may have changed).
+      await client.workspace.displayFile(`${SCRATCHPAD_ROOT_URI}/${EFFECT_DTS}`)
+      await flushMicrotasks(20)
+      assert.equal(
+        ctx.fakeEditors.handles[0]!.getState().doc.toString(),
+        EFFECT_DTS_TEXT,
+      )
+      unmount()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("a library file the language server does not have opens no tab", async () => {
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      { "src/main.ts": "main" },
+      undefined,
+      libraryMirror({}),
+    )
+    try {
+      const { unmount, client } = await mountedEditor(ctx)
+      const view = await client.workspace.displayFile(
+        `${SCRATCHPAD_ROOT_URI}/node_modules/effect/dist/Missing.d.ts`,
+      )
+      assert.isNull(view)
+      assert.deepEqual(ctx.registry.get(ctx.session.openTabsAtom), [
+        "src/main.ts",
+      ])
+      assert.isNull(
+        await client.workspace.displayFile("file:///elsewhere/lib.d.ts"),
+      )
+      unmount()
+    } finally {
+      ctx.dispose()
+    }
+  })
+})
+
+describe("applyWorkspaceEdit", () => {
+  const files = {
+    "src/main.ts": 'import { greet } from "./greeter.ts"\n',
+    "src/greeter.ts": "export const greet = 1\n",
+    "src/util.ts": "export const util = 1\n",
+  }
+  const range = (
+    line: number,
+    start: number,
+    end: number = start,
+  ): LspRange => ({
+    start: { line, character: start },
+    end: { line, character: end },
+  })
+
+  test("edits to files that are not mounted go through the Workspace store, and open tabs show them", async () => {
+    const ctx = await setupEditorTest({ autoHandshake: true }, files)
+    try {
+      const { unmount, client, workspace } = await mountedEditor(ctx)
+      // util.ts has an editor state from being opened before; greeter.ts
+      // has never been opened.
+      ctx.registry.set(ctx.session.openFileAtom, "src/util.ts")
+      ctx.registry.set(ctx.session.openFileAtom, "src/main.ts")
+      await flushMicrotasks(20)
+
+      const result = applyWorkspaceEdit(client, {
+        changes: {
+          [`${SCRATCHPAD_ROOT_URI}/src/greeter.ts`]: [
+            { range: range(0, 13, 18), newText: "greetUser" },
+          ],
+          [`${SCRATCHPAD_ROOT_URI}/src/util.ts`]: [
+            { range: range(0, 0), newText: "// fixed\n" },
+            { range: range(0, 13, 17), newText: "helper" },
+          ],
+        },
+      })
+      await flushMicrotasks(40)
+      assert.sameMembers(
+        [...result.applied],
+        [
+          `${SCRATCHPAD_ROOT_URI}/src/greeter.ts`,
+          `${SCRATCHPAD_ROOT_URI}/src/util.ts`,
+        ],
+      )
+
+      const read = (path: string) => Effect.runPromise(workspace.readFile(path))
+      assert.equal(await read("src/greeter.ts"), "export const greetUser = 1\n")
+      assert.equal(
+        await read("src/util.ts"),
+        "// fixed\nexport const helper = 1\n",
+      )
+
+      const sent = await Effect.runPromise(ctx.fake.controller.sentMessages)
+      const changedUris = sent
+        .filter((m) => m.method === "textDocument/didChange")
+        .map(
+          (m) =>
+            (m.params as { textDocument: { uri: string } }).textDocument.uri,
+        )
+      assert.includeMembers(changedUris, [
+        `${SCRATCHPAD_ROOT_URI}/src/greeter.ts`,
+        `${SCRATCHPAD_ROOT_URI}/src/util.ts`,
+      ])
+
+      ctx.registry.set(ctx.session.openFileAtom, "src/util.ts")
+      await flushMicrotasks(20)
+      assert.equal(
+        ctx.fakeEditors.handles[0]!.getState().doc.toString(),
+        "// fixed\nexport const helper = 1\n",
+      )
+      ctx.registry.set(ctx.session.openFileAtom, "src/greeter.ts")
+      await flushMicrotasks(20)
+      assert.equal(
+        ctx.fakeEditors.handles[0]!.getState().doc.toString(),
+        "export const greetUser = 1\n",
+      )
+      unmount()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("documentChanges win over changes, and documents outside the Workspace are skipped", async () => {
+    const ctx = await setupEditorTest({ autoHandshake: true }, files)
+    try {
+      const { unmount, client, workspace } = await mountedEditor(ctx)
+      const result = applyWorkspaceEdit(client, {
+        changes: {
+          [`${SCRATCHPAD_ROOT_URI}/src/util.ts`]: [
+            { range: range(0, 0), newText: "// from changes\n" },
+          ],
+        },
+        documentChanges: [
+          {
+            textDocument: {
+              uri: `${SCRATCHPAD_ROOT_URI}/src/util.ts`,
+              version: null,
+            },
+            edits: [
+              { range: range(0, 0), newText: "// from documentChanges\n" },
+            ],
+          },
+          { kind: "create" },
+          {
+            textDocument: {
+              uri: `${SCRATCHPAD_ROOT_URI}/node_modules/effect/index.d.ts`,
+              version: null,
+            },
+            edits: [{ range: range(0, 0), newText: "nope" }],
+          },
+        ],
+      })
+      await flushMicrotasks(40)
+      assert.deepEqual(result, {
+        applied: [`${SCRATCHPAD_ROOT_URI}/src/util.ts`],
+        skipped: [`${SCRATCHPAD_ROOT_URI}/node_modules/effect/index.d.ts`],
+      })
+      assert.equal(
+        await Effect.runPromise(workspace.readFile("src/util.ts")),
+        "// from documentChanges\nexport const util = 1\n",
+      )
+      unmount()
     } finally {
       ctx.dispose()
     }
