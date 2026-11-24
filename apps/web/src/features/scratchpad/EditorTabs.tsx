@@ -3,6 +3,7 @@ import * as Option from "effect/Option"
 import { FileCode2, X } from "lucide-react"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
+import { isLibraryPath, libraryTabLabel } from "./library-files.ts"
 import { ShareButton } from "./ShareButton.tsx"
 import { ReadinessIndicator } from "./ReadinessIndicator.tsx"
 
@@ -48,7 +49,12 @@ export function EditorTabs() {
           const isActive =
             Option.isSome(activeFile) && activeFile.value === tabPath
           const base = basenameOf(tabPath)
-          const label = (basenameCounts.get(base) ?? 0) > 1 ? tabPath : base
+          const isLibrary = isLibraryPath(tabPath)
+          const label = isLibrary
+            ? libraryTabLabel(tabPath)
+            : (basenameCounts.get(base) ?? 0) > 1
+              ? tabPath
+              : base
           const diag = diagnostics.get(tabPath)
           const hasErrors = (diag?.errors ?? 0) > 0
           const hasWarnings = !hasErrors && (diag?.warnings ?? 0) > 0
@@ -60,6 +66,7 @@ export function EditorTabs() {
               aria-selected={isActive}
               title={tabPath}
               data-testid={`editor-tab-${tabPath}`}
+              data-library={isLibrary ? "" : undefined}
               onAuxClick={(e) => {
                 if (e.button === 1) {
                   e.preventDefault()

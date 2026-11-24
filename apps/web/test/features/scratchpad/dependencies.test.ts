@@ -61,6 +61,7 @@ const makeFakeMirror = (answer: () => MirrorAnswer) => {
   let id = 0
   const mirror: LspWorkspaceMirrorService = {
     apply: () => {},
+    readFile: () => Effect.succeed(Option.none()),
     mountTypes: (pack) =>
       Effect.suspend((): Effect.Effect<TypesMountResult> => {
         packs.push(pack)

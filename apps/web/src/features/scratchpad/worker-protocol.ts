@@ -58,6 +58,17 @@ export interface WorkerAssets {
 export type PageToWorker =
   | { readonly _tag: "Start"; readonly assets: WorkerAssets }
   | { readonly _tag: "Fs"; readonly op: WorkspaceFsOp }
+  | {
+      /**
+       * Reads a file from the worker's file system, for example a library
+       * declaration below `node_modules` (the Container's types). `path` is
+       * relative to the Workspace root. Answered by `FileRead` with the same
+       * `id`.
+       */
+      readonly _tag: "ReadFile"
+      readonly id: number
+      readonly path: string
+    }
   | { readonly _tag: "Dispose" }
 
 export type LoadPhase = TransportLoadPhase
@@ -79,6 +90,12 @@ export type WorkerToPage =
       readonly _tag: "TypesRejected"
       readonly id: number
       readonly message: string
+    }
+  | {
+      /** The answer to `ReadFile`: the file's text, or `null` when it is missing. */
+      readonly _tag: "FileRead"
+      readonly id: number
+      readonly content: string | null
     }
 
 /** What a `ReplaceNodeModules` op mounted. */
@@ -110,8 +127,9 @@ const WORKER_TO_PAGE_TAGS = new Set([
   "Fatal",
   "TypesMounted",
   "TypesRejected",
+  "FileRead",
 ])
-const PAGE_TO_WORKER_TAGS = new Set(["Start", "Fs", "Dispose"])
+const PAGE_TO_WORKER_TAGS = new Set(["Start", "Fs", "ReadFile", "Dispose"])
 
 export const isWorkerToPage = (value: unknown): value is WorkerToPage =>
   isTagged(value) && WORKER_TO_PAGE_TAGS.has(value._tag)

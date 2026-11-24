@@ -28,6 +28,9 @@
  *   the host reports it in one coalesced watched-files flush, and answers
  *   with `TypesMounted` or `TypesRejected` through `onTypes`. A pack that
  *   does not decode leaves the previous types in place.
+ * - Reads. `readFile` answers the page's `ReadFile` op with a file below the
+ *   workspace root, such as a library declaration the page shows in a
+ *   read-only tab after go-to-definition.
  * - Quarantine. When the host quarantines a document whose text crashes the
  *   server, its pulls fail. The bridge then pushes one warning diagnostic that
  *   says why the file has no language features until it is edited.
@@ -53,6 +56,8 @@ export const QUARANTINE_MESSAGE =
 /** The subset of the host's `MemoryFileSystem` the bridge uses. */
 export interface BridgeFileSystem {
   readonly exists: (path: string) => boolean
+  readonly isFile: (path: string) => boolean
+  readonly readTextFile: (path: string) => string
   readonly writeFile: (path: string, data: string | Uint8Array) => void
   readonly remove: (path: string) => boolean
   readonly rename: (from: string, to: string) => void
@@ -100,6 +105,12 @@ export interface LspWorkerBridge {
   readonly handleServerMessage: (raw: string) => void
   /** A Workspace change from the page. Works before `connect` too. */
   readonly applyFsOp: (op: WorkspaceFsOp) => void
+  /**
+   * A file's text, by path relative to the workspace root, or `undefined`
+   * when it is missing or the path leaves the root. Content held back for an
+   * open document counts.
+   */
+  readonly readFile: (relPath: string) => string | undefined
   /** Open documents and the version the bridge last saw. */
   readonly openDocuments: () => ReadonlyMap<string, number | undefined>
   readonly dispose: () => void
@@ -528,6 +539,25 @@ export const makeLspWorkerBridge = (
     if (touched) markOthersDirty(undefined)
   }
 
+  const readFile = (relPath: string): string | undefined => {
+    const segments = relPath.split("/").filter((segment) => segment !== "")
+    if (
+      segments.length === 0 ||
+      segments.some((s) => s === "." || s === "..")
+    ) {
+      return undefined
+    }
+    const absPath = `${rootPath}/${segments.join("/")}`
+    const held = shadow.get(absPath)
+    if (held !== undefined) return held
+    if (!fs.isFile(absPath)) return undefined
+    try {
+      return fs.readTextFile(absPath)
+    } catch {
+      return undefined
+    }
+  }
+
   return {
     connect: (next) => {
       if (disposed) return
@@ -538,6 +568,7 @@ export const makeLspWorkerBridge = (
     handleClientMessage,
     handleServerMessage,
     applyFsOp,
+    readFile,
     openDocuments: () =>
       new Map([...open].map(([uri, doc]) => [uri, doc.version])),
     dispose: () => {

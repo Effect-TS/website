@@ -11,6 +11,7 @@ import {
   type TransactionSpec,
 } from "@codemirror/state"
 import type { EditorView } from "@codemirror/view"
+import { libraryUriToPath } from "./library-files.ts"
 import {
   pathToWorkspaceUri,
   WORKSPACE_ROOT_URI,
@@ -54,7 +55,10 @@ export const isLspDocumentPath = (relPath: string): boolean =>
  * - `didClose` is only sent when a file is deleted or renamed out of the
  *   workspace.
  * - `displayFile` handles cross-file `jumpToDefinition` for workspace files
- *   and returns `null` for `node_modules` / external URIs.
+ *   and for library files below `node_modules` (shown read-only, see
+ *   `library-files.ts`), and returns `null` for other URIs.
+ * - Library files are tracked only while their tab is open: the editor's
+ *   `LSPPlugin` opens them, and `removeWorkspaceFile` closes them.
  */
 export class MultiFileLspWorkspace extends CMLSWorkspace {
   readonly files: Array<ManagedWorkspaceFile> = []
@@ -248,6 +252,7 @@ export class MultiFileLspWorkspace extends CMLSWorkspace {
       existing.view.dispatch(update)
       return
     }
+    // Library files have no Workspace path: they are read-only.
     const relPath = workspaceUriToPath(uri, this.rootUri)
     if (relPath !== undefined) {
       this.callbacks.onServerUpdateFile?.(relPath, update)
@@ -255,9 +260,13 @@ export class MultiFileLspWorkspace extends CMLSWorkspace {
   }
 
   override async displayFile(uri: string): Promise<EditorView | null> {
+    const libraryPath = libraryUriToPath(uri, this.rootUri)
+    if (libraryPath !== undefined) {
+      return this.callbacks.onDisplayFile(libraryPath)
+    }
     const relPath = workspaceUriToPath(uri, this.rootUri)
     if (relPath === undefined) {
-      // External / node_modules URI: out of scope for jump-to-definition
+      // Outside the workspace root: nothing to show
       return null
     }
     if (!this.filesByUri.has(uri)) {

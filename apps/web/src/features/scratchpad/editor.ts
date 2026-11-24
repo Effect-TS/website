@@ -30,7 +30,13 @@ import {
   type InstallLog,
   layerDependencies,
 } from "./dependencies.ts"
+import { diagnosticsWithCodeActions } from "./code-actions.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
+import {
+  isLibraryDocumentPath,
+  isLibraryPath,
+  libraryUriToPath,
+} from "./library-files.ts"
 import {
   emptyRunOutput,
   initialRunsState,
@@ -49,7 +55,11 @@ import {
   type ScratchpadSessionConfig,
 } from "./session.ts"
 import type { LspTransport } from "./transport.ts"
-import { LspWorkspaceMirror, workspaceEventToFsOp } from "./worker-transport.ts"
+import {
+  LspWorkspaceMirror,
+  type LspWorkspaceMirrorService,
+  workspaceEventToFsOp,
+} from "./worker-transport.ts"
 import {
   isReadOnlyPath,
   layerMemoryWorkspace,
@@ -275,6 +285,7 @@ export const makeScratchpadEditorSession = (
   let activeWorkspace: WorkspaceService | undefined
   let activeRegistry: AtomRegistry.AtomRegistry | undefined
   let activeLspWorkspace: MultiFileLspWorkspace | undefined
+  let activeMirror: LspWorkspaceMirrorService | undefined
   let mountedFilePath: string | undefined
   let isSwappingState = false
 
@@ -362,7 +373,13 @@ export const makeScratchpadEditorSession = (
     ...config,
     rootUri,
     lspClientConfig: {
-      extensions: [...languageServerExtensions(), diagnosticCapabilities],
+      // Before `languageServerExtensions()`: it renders the diagnostics
+      // pushes with their quick fixes, and adds Ctrl/Cmd+. code actions.
+      extensions: [
+        diagnosticsWithCodeActions(),
+        ...languageServerExtensions(),
+        diagnosticCapabilities,
+      ],
       workspace: (client) => {
         const ws = new MultiFileLspWorkspace(client, {
           rootUri,
@@ -370,12 +387,10 @@ export const makeScratchpadEditorSession = (
             if (switchViewToFile === undefined) return null
             return Effect.runPromise(switchViewToFile(relPath))
           },
+          // Server edits (rename, code actions) to a file that is not
+          // mounted: its cached editor state, or else its Workspace content.
           onServerUpdateFile: (relPath, update: TransactionSpec) => {
-            const existingState = editorStates.get(relPath)
-            if (existingState !== undefined) {
-              const nextState = existingState.update(update).state
-              editorStates.set(relPath, nextState)
-              const nextText = nextState.doc.toString()
+            const write = (nextText: string) => {
               activeLspWorkspace?.upsertWorkspaceFile(relPath, nextText)
               if (activeWorkspace !== undefined) {
                 void Effect.runPromise(
@@ -385,6 +400,32 @@ export const makeScratchpadEditorSession = (
                 )
               }
             }
+            const existingState = editorStates.get(relPath)
+            if (existingState !== undefined) {
+              const nextState = existingState.update(update).state
+              editorStates.set(relPath, nextState)
+              write(nextState.doc.toString())
+              return
+            }
+            const ws = activeWorkspace
+            if (ws === undefined || isReadOnlyPath(relPath)) return
+            void Effect.runPromise(
+              ws.readFile(relPath).pipe(
+                Effect.tap((content) =>
+                  Effect.sync(() => {
+                    // Opened in the meantime: apply to that state instead.
+                    const opened = editorStates.get(relPath)
+                    const base = opened ?? EditorState.create({ doc: content })
+                    const nextState = base.update(update).state
+                    if (opened !== undefined) {
+                      editorStates.set(relPath, nextState)
+                    }
+                    write(nextState.doc.toString())
+                  }),
+                ),
+                Effect.ignore,
+              ),
+            )
           },
         })
         activeLspWorkspace = ws
@@ -416,6 +457,13 @@ export const makeScratchpadEditorSession = (
     Effect.gen(function* () {
       const client = activeClient
       const lspWorkspace = activeLspWorkspace
+      // Library tabs are open documents too, but never block a Run.
+      const isWorkspaceDocument = (uri: string) =>
+        libraryUriToPath(uri, rootUri) === undefined
+      const documents = () =>
+        lspWorkspace === undefined
+          ? []
+          : lspWorkspace.files.filter((file) => isWorkspaceDocument(file.uri))
       if (client !== undefined && lspWorkspace !== undefined) {
         if (client.connected) client.sync()
         // Real time, like the worker it waits on.
@@ -423,7 +471,7 @@ export const makeScratchpadEditorSession = (
         while (true) {
           const now = Date.now()
           if (now - startedAt >= RUN_GATE_TIMEOUT_MS) break
-          const fresh = lspWorkspace.files.every(
+          const fresh = documents().every(
             (file) => (pushedVersionByUri.get(file.uri) ?? 0) >= file.version,
           )
           const quiet =
@@ -440,7 +488,7 @@ export const makeScratchpadEditorSession = (
       const open =
         lspWorkspace === undefined
           ? undefined
-          : new Set(lspWorkspace.files.map((file) => file.uri))
+          : new Set(documents().map((file) => file.uri))
       const byUri = new Map<string, ReadonlyArray<unknown>>()
       for (const [uri, raw] of lastDiagnosticsByUri) {
         if (open !== undefined && !open.has(uri)) continue
@@ -621,7 +669,7 @@ export const makeScratchpadEditorSession = (
     ws: WorkspaceService,
   ): EditorState => {
     const uri = pathToWorkspaceUri(relPath, rootUri)
-    const readOnly = isReadOnlyPath(relPath)
+    const readOnly = isReadOnlyPath(relPath) || isLibraryPath(relPath)
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (isSwappingState) return
@@ -665,7 +713,7 @@ export const makeScratchpadEditorSession = (
       extensions: [
         basicSetup,
         languageSupportForPath(relPath),
-        isLspDocumentPath(relPath)
+        isLspDocumentPath(relPath) || isLibraryDocumentPath(relPath)
           ? [client.plugin(uri, languageIdForPath(relPath)), cmdClickHandler]
           : [],
         readOnly ? EditorState.readOnly.of(true) : [],
@@ -703,6 +751,18 @@ export const makeScratchpadEditorSession = (
         return null
       }
 
+      // Library files come from the language server's file system (where
+      // the installed declarations are). Without one, there is no tab.
+      let libraryContent: string | undefined
+      if (isLibraryPath(relPath) && !editorStates.has(relPath)) {
+        const content =
+          activeMirror === undefined
+            ? Option.none<string>()
+            : yield* activeMirror.readFile(relPath)
+        if (Option.isNone(content)) return null
+        libraryContent = content.value
+      }
+
       // Open tab if not already in tab bar
       const tabs = registry.get(openTabsAtom)
       if (!tabs.includes(relPath)) {
@@ -721,7 +781,10 @@ export const makeScratchpadEditorSession = (
 
       let nextState = editorStates.get(relPath)
       if (nextState === undefined) {
-        const contentResult = yield* ws.readFile(relPath).pipe(Effect.option)
+        const contentResult =
+          libraryContent !== undefined
+            ? Option.some(libraryContent)
+            : yield* ws.readFile(relPath).pipe(Effect.option)
         if (Option.isNone(contentResult)) {
           return null
         }
@@ -798,6 +861,7 @@ export const makeScratchpadEditorSession = (
       // gets every Workspace change, including files that are not open in a
       // tab. Subscribe before listing so no change falls in between.
       const mirror = yield* Effect.serviceOption(LspWorkspaceMirror)
+      activeMirror = Option.getOrUndefined(mirror)
       if (Option.isSome(mirror)) {
         yield* ws.events.pipe(
           Stream.runForEach((event) =>
@@ -922,6 +986,15 @@ export const makeScratchpadEditorSession = (
           registry.set(activeFileAtom, Option.none())
           mountedFilePath = undefined
         }
+      }
+
+      // A library file exists only while its tab is open.
+      if (isLibraryPath(relPath)) {
+        editorStates.delete(relPath)
+        activeLspWorkspace?.removeWorkspaceFile(relPath)
+        const uri = pathToWorkspaceUri(relPath, rootUri)
+        lastDiagnosticsByUri.delete(uri)
+        pushedVersionByUri.delete(uri)
       }
     }),
   )

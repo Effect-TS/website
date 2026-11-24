@@ -4,6 +4,7 @@ import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import * as PubSub from "effect/PubSub"
 import * as Stream from "effect/Stream"
 import {
@@ -46,6 +47,13 @@ export interface LspWorkspaceMirrorService {
    * a worker answers, so callers should add a timeout.
    */
   readonly mountTypes: (pack: Uint8Array) => Effect.Effect<TypesMountResult>
+  /**
+   * Reads a file from the language server's file system by Workspace-relative
+   * path, such as an installed declaration below `node_modules`. `None` when
+   * the file is missing, no worker is running, or the worker goes away before
+   * it answers.
+   */
+  readonly readFile: (path: string) => Effect.Effect<Option.Option<string>>
 }
 
 /**
@@ -152,7 +160,10 @@ export const layerWorker = (
         readonly id: number
         ready: boolean
         closed: boolean
+        /** `ReadFile` ids waiting for this worker's answer. */
+        readonly reads: Map<number, Deferred.Deferred<Option.Option<string>>>
       }
+      let nextReadId = 0
       let active: Active | undefined
       let connectionId = 0
 
@@ -176,6 +187,10 @@ export const layerWorker = (
       const close = (target: Active) => {
         if (target.closed) return
         target.closed = true
+        for (const waiter of target.reads.values()) {
+          Deferred.doneUnsafe(waiter, Exit.succeed(Option.none()))
+        }
+        target.reads.clear()
         try {
           target.worker.postMessage({ _tag: "Dispose" } satisfies PageToWorker)
         } catch {
@@ -201,6 +216,7 @@ export const layerWorker = (
           id: ++connectionId,
           ready: false,
           closed: false,
+          reads: new Map(),
         }
         active = target
 
@@ -244,6 +260,17 @@ export const layerWorker = (
               typesWaiters.delete(data.id)
               if (waiter !== undefined) {
                 Deferred.doneUnsafe(waiter, Exit.succeed(data))
+              }
+              break
+            }
+            case "FileRead": {
+              const waiter = target.reads.get(data.id)
+              target.reads.delete(data.id)
+              if (waiter !== undefined) {
+                Deferred.doneUnsafe(
+                  waiter,
+                  Exit.succeed(Option.fromNullishOr(data.content)),
+                )
               }
               break
             }
@@ -308,6 +335,24 @@ export const layerWorker = (
               Effect.ensuring(
                 Effect.sync(() => {
                   typesWaiters.delete(id)
+                }),
+              ),
+            )
+          }),
+        readFile: (path) =>
+          Effect.suspend(() => {
+            const target = active
+            if (target === undefined || target.closed) {
+              return Effect.succeed(Option.none<string>())
+            }
+            const id = ++nextReadId
+            const waiter = Deferred.makeUnsafe<Option.Option<string>>()
+            target.reads.set(id, waiter)
+            post(target, { _tag: "ReadFile", id, path })
+            return Deferred.await(waiter).pipe(
+              Effect.ensuring(
+                Effect.sync(() => {
+                  target.reads.delete(id)
                 }),
               ),
             )
