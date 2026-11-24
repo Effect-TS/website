@@ -1,6 +1,6 @@
 import type { Row } from "@tanstack/react-table"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Span } from "../../domain/devtools"
+import { Span } from "../span.ts"
 import type { features } from "./trace-waterfall"
 
 type SpanRow = Row<typeof features, Span>

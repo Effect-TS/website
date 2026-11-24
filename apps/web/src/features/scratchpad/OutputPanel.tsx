@@ -5,6 +5,7 @@ import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
 import { RunOutputTerminal } from "./RunOutputTerminal.tsx"
 import { type RunOutput, skipReport } from "./runs.ts"
+import { TracesPanel } from "./TracesPanel.tsx"
 
 const HEIGHT_KEY = "scratchpad-output-panel"
 const DEFAULT_HEIGHT = 260
@@ -44,6 +45,10 @@ const writeLayout = (layout: PanelLayout) => {
 
 const TAB_BASE =
   "flex items-center gap-1.5 px-4 py-2 font-mono text-[11px] tracking-wider uppercase"
+const TAB_SELECTED = `${TAB_BASE} border-b-2 border-zinc-900 font-medium text-zinc-900 dark:border-zinc-100 dark:text-zinc-100`
+const TAB_IDLE = `${TAB_BASE} border-b-2 border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100`
+
+type PanelTab = "output" | "traces"
 
 function SoonTab({ label }: { readonly label: string }) {
   return (
@@ -74,8 +79,9 @@ export interface OutputPanelProps {
 
 /**
  * The bottom panel under the editor: a resizable, collapsible panel with the
- * "Output" tab (the latest Run's read-only terminal), plus "Terminal" and
- * "Traces", which come later. Stop and Restart control the Run.
+ * "Output" tab (the latest Run's read-only terminal), the "Traces" tab
+ * (`TracesPanel`), and "Terminal", which comes later. Stop and Restart
+ * control the Run.
  */
 export function OutputPanel({ banner }: OutputPanelProps) {
   const {
@@ -121,6 +127,11 @@ export function OutputPanel({ banner }: OutputPanelProps) {
   const stop = useAtomSet(stopRunAtom)
   const restart = useAtomSet(restartRunAtom)
   const [layout, setLayout] = React.useState(readLayout)
+  const [tab, setTab] = React.useState<PanelTab>("output")
+  const selectTab = (next: PanelTab) => {
+    setTab(next)
+    if (layout.collapsed) updateLayout({ ...layout, collapsed: false })
+  }
   const panelRef = React.useRef<HTMLDivElement>(null)
 
   const updateLayout = (next: PanelLayout) => {
@@ -191,16 +202,24 @@ export function OutputPanel({ banner }: OutputPanelProps) {
           <button
             type="button"
             role="tab"
-            aria-selected={true}
-            onClick={() =>
-              layout.collapsed && updateLayout({ ...layout, collapsed: false })
-            }
-            className={`${TAB_BASE} border-b-2 border-zinc-900 font-medium text-zinc-900 dark:border-zinc-100 dark:text-zinc-100`}
+            data-testid="panel-tab-output"
+            aria-selected={tab === "output"}
+            onClick={() => selectTab("output")}
+            className={tab === "output" ? TAB_SELECTED : TAB_IDLE}
           >
             Output
           </button>
           <SoonTab label="Terminal" />
-          <SoonTab label="Traces" />
+          <button
+            type="button"
+            role="tab"
+            data-testid="panel-tab-traces"
+            aria-selected={tab === "traces"}
+            onClick={() => selectTab("traces")}
+            className={tab === "traces" ? TAB_SELECTED : TAB_IDLE}
+          >
+            Traces
+          </button>
         </div>
         <div className="flex items-center gap-1 font-mono text-xs">
           <button
@@ -260,7 +279,9 @@ export function OutputPanel({ banner }: OutputPanelProps) {
         data-run-status={runs.run?.status._tag ?? "none"}
         data-run-skipped={skipped !== undefined}
         className={
-          layout.collapsed ? "hidden" : "relative flex min-h-0 flex-1 flex-col"
+          layout.collapsed || tab !== "output"
+            ? "hidden"
+            : "relative flex min-h-0 flex-1 flex-col"
         }
       >
         {banner}
@@ -287,6 +308,7 @@ export function OutputPanel({ banner }: OutputPanelProps) {
           onOpenLocation={skipText === undefined ? undefined : reveal}
         />
       </div>
+      {!layout.collapsed && tab === "traces" && <TracesPanel />}
     </div>
   )
 }

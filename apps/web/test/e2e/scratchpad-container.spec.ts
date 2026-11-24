@@ -421,3 +421,57 @@ test("Stop ends a long-running program, and Restart runs it again", async ({
   await stop.click()
   await expect(output).toHaveAttribute("data-run-status", "stopped")
 })
+
+/** The seed's `src/main.ts` with its span renamed. */
+const seedMainWithSpan = (name: string) =>
+  seedMainLogging(WELCOME).replace(
+    'Effect.withSpan("program"',
+    `Effect.withSpan("${name}"`,
+  )
+
+test("the seed's spans appear in Traces, and a new Run replaces them", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "scratchpad-output-panel",
+      JSON.stringify({ height: 360, collapsed: false }),
+    ),
+  )
+  await openSeedReady(page)
+  await expectRun(page, 1, WELCOME)
+
+  // The seed provides `DevToolsLayer`, so its "program" span arrives with no
+  // setup.
+  await page.getByTestId("panel-tab-traces").click()
+  const traces = page.getByTestId("traces-panel")
+  await expect(traces).toHaveAttribute("data-trace-count", "1", {
+    timeout: RUN_TIMEOUT,
+  })
+  await expect(traces).toContainText("program")
+  await expect(traces).toContainText("1 span")
+  await expect(runOutputOf(page)).toBeHidden()
+  const screenshot = process.env.SCRATCHPAD_TRACES_SCREENSHOT
+  if (screenshot !== undefined) {
+    await traces.getByText("program").first().click()
+    await page.screenshot({ path: screenshot })
+  }
+
+  // The next Run starts with an empty trace list: only its own span shows.
+  await openFile(page, "src/main.ts")
+  await replaceDocument(page, seedMainWithSpan("edited-span"))
+  // The Traces tab stays open; the Output tab's terminal is hidden.
+  await expect(runOutputOf(page)).toHaveAttribute("data-run-id", "2", {
+    timeout: RUN_TIMEOUT,
+  })
+  await expect(traces).toContainText("edited-span", { timeout: RUN_TIMEOUT })
+  await expect(traces).toHaveAttribute("data-trace-count", "1")
+  await expect(traces).not.toContainText(/\bprogram\b/)
+
+  // Back on Output, the terminal shows Run #2's output.
+  await page.getByTestId("panel-tab-output").click()
+  await expect(runOutputOf(page)).toBeVisible()
+  await expect(runOutputOf(page)).toContainText(WELCOME, {
+    timeout: RUN_TIMEOUT,
+  })
+})

@@ -33,6 +33,7 @@ import {
   layerFakeContainer,
   makeFakeContainerBackend,
 } from "./fake-container.ts"
+import { DEV_TOOLS_PROXY_NAME } from "../../../src/features/scratchpad/traces.ts"
 import { makeFakeWorkers } from "./fake-worker.ts"
 import { MAIN_SNIPPET } from "./fixtures.ts"
 
@@ -197,8 +198,11 @@ describe("ScratchpadEditorSession", () => {
           reason: "The language server cannot receive types.",
         }),
       )
+      // The dev-tools proxy (traces.ts) is the only other process.
       assert.deepEqual(
-        backend.spawned.map((call) => [call.command, ...call.args].join(" ")),
+        backend.spawned
+          .map((call) => [call.command, ...call.args].join(" "))
+          .filter((command) => !command.includes(DEV_TOOLS_PROXY_NAME)),
         ["pnpm install"],
       )
       assert.deepEqual(Object.fromEntries(backend.files), {

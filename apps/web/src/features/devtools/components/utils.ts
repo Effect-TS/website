@@ -1,5 +1,5 @@
 import * as Duration from "effect/Duration"
-import { Span } from "../../domain/devtools"
+import { Span } from "../span.ts"
 
 export function getTotalSpans(span: Span): number {
   let total = 1
