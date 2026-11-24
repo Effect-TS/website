@@ -537,8 +537,10 @@ export const makeScratchpadEditorSession = (
 
   /**
    * The check for the diagnostics file (ADR 0006), or `None` while the
-   * worker's diagnostics aren't current. The client sends pending edits
-   * first. The worker pulls every document after each change and pushes the
+   * worker's diagnostics aren't current. It reads the documents as the client
+   * last sent them, and never forces a sync: called on every poll, that
+   * would send each keystroke at once and keep the worker re-pulling. The
+   * worker pulls every document after each change and pushes the
    * result with the document's version, so they are current once every
    * TypeScript document has a push for its current version, made after the
    * latest types mount, and no push came for `DIAGNOSTICS_QUIET_MS`
@@ -549,12 +551,9 @@ export const makeScratchpadEditorSession = (
   const currentDiagnosticsCheck: Effect.Effect<
     Option.Option<DiagnosticsCheck>
   > = Effect.gen(function* () {
-    const client = activeClient
     const lspWorkspace = activeLspWorkspace
     const ws = activeWorkspace
-    if (client === undefined || lspWorkspace === undefined || ws === undefined)
-      return Option.none()
-    if (client.connected) client.sync()
+    if (lspWorkspace === undefined || ws === undefined) return Option.none()
     // Library tabs are open documents too, but are never checked for a Run.
     const documents = lspWorkspace.files.filter(
       (file) => libraryUriToPath(file.uri, rootUri) === undefined,
