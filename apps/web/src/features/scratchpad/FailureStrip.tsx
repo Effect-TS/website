@@ -57,8 +57,8 @@ const ICONS: Record<
 
 /**
  * Variant B2 from ticket 03: a full-width strip that covers nothing. It
- * belongs at the top of the Output panel; for an install failure the panel
- * prints the pnpm output below it as ordinary output.
+ * belongs at the top of the Output panel; for an install failure the
+ * terminal below it has pnpm's output, as for every install.
  */
 export function FailureStrip() {
   const state = useFailureState()

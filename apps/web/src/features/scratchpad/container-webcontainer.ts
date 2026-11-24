@@ -123,6 +123,21 @@ const makeBackend = (wc: WebContainer): ContainerBackend => {
             : abs(options.cwd),
         env: { ...options.env },
       }),
+    shell: async (size, options) => {
+      const process = await wc.spawn("jsh", [], {
+        cwd: CONTAINER_WORKSPACE_DIR,
+        env: { ...options.env },
+        terminal: { cols: size.cols, rows: size.rows },
+      })
+      const writer = process.input.getWriter()
+      return {
+        exit: process.exit,
+        output: process.output,
+        kill: () => process.kill(),
+        write: (data) => writer.write(data),
+        resize: (next) => process.resize({ cols: next.cols, rows: next.rows }),
+      }
+    },
   }
 }
 

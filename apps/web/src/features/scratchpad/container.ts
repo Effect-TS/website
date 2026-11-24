@@ -1,6 +1,7 @@
 /**
  * The Scratchpad's Container: the in-browser Node.js runtime (a WebContainer)
- * that mirrors the Workspace one way and runs commands. See ADR 0004.
+ * that mirrors the Workspace and runs commands and the terminal's shell.
+ * See ADR 0004 and 0005.
  *
  * `makeContainer` holds everything that does not depend on WebContainer (the
  * phase, waiting for boot, typed errors, scoped processes). It runs on a
@@ -116,6 +117,23 @@ export interface ContainerProcess {
   readonly kill: Effect.Effect<void>
 }
 
+/** A terminal's size in character cells. */
+export interface TerminalSize {
+  readonly cols: number
+  readonly rows: number
+}
+
+/** An interactive `jsh` in the Workspace dir, with a pseudo-terminal. */
+export interface ContainerShell {
+  /** Terminal output. Read it at most once. */
+  readonly output: Stream.Stream<string, ContainerOperationFailed>
+  /** Sends keystrokes (or any text) to the shell's input. */
+  readonly write: (data: string) => Effect.Effect<void>
+  readonly resize: (size: TerminalSize) => Effect.Effect<void>
+  /** Waits for the shell to exit and returns its exit code. */
+  readonly exitCode: Effect.Effect<number>
+}
+
 export interface ContainerService {
   /** The current phase. Operations wait for `ready` and fail if boot failed. */
   readonly phase: Effect.Effect<ContainerBootPhase>
@@ -170,6 +188,13 @@ export interface ContainerService {
   readonly spawn: (
     options: ContainerSpawnOptions,
   ) => Effect.Effect<ContainerProcess, ContainerError, Scope.Scope>
+  /**
+   * Starts an interactive `jsh` in the Workspace dir, with
+   * `CONTAINER_BIN_PATH` as its `PATH`. Closing the scope kills it.
+   */
+  readonly shell: (
+    size: TerminalSize,
+  ) => Effect.Effect<ContainerShell, ContainerError, Scope.Scope>
 }
 
 export class Container extends Context.Service<Container, ContainerService>()(
@@ -184,6 +209,11 @@ export interface ContainerBackendProcess {
   readonly exit: Promise<number>
   readonly output: ReadableStream<string>
   readonly kill: () => void
+}
+
+export interface ContainerBackendShell extends ContainerBackendProcess {
+  readonly write: (data: string) => Promise<void>
+  readonly resize: (size: TerminalSize) => void
 }
 
 /**
@@ -206,6 +236,11 @@ export interface ContainerBackend {
       readonly env: Readonly<Record<string, string>>
     },
   ) => Promise<ContainerBackendProcess>
+  /** Starts `jsh` in the Workspace dir with a pseudo-terminal of `size`. */
+  readonly shell: (
+    size: TerminalSize,
+    options: { readonly env: Readonly<Record<string, string>> },
+  ) => Promise<ContainerBackendShell>
 }
 
 const textDecoder = new TextDecoder()
@@ -320,6 +355,30 @@ export const makeContainer = <R>(
         })),
       )
 
+    const shell = (
+      size: TerminalSize,
+    ): Effect.Effect<ContainerShell, ContainerError, Scope.Scope> =>
+      Effect.acquireRelease(
+        use("spawn", "jsh", (backend) =>
+          backend.shell(size, {
+            env: { PATH: CONTAINER_BIN_PATH, NODE_NO_WARNINGS: "1" },
+          }),
+        ),
+        (process) => Effect.sync(() => process.kill()),
+      ).pipe(
+        Effect.map((process): ContainerShell => ({
+          output: Stream.fromReadableStream({
+            evaluate: () => process.output,
+            onError: operationFailed("output", "jsh"),
+            releaseLockOnEnd: true,
+          }),
+          write: (data) =>
+            Effect.promise(() => process.write(data).catch(() => {})),
+          resize: (size) => Effect.sync(() => process.resize(size)),
+          exitCode: Effect.promise(() => process.exit),
+        })),
+      )
+
     return {
       phase: SubscriptionRef.get(phaseRef),
       phaseChanges: SubscriptionRef.changes(phaseRef),
@@ -352,6 +411,7 @@ export const makeContainer = <R>(
         use("remove", name, (backend) => backend.removeHostDirFile(name)),
       hostDirPath: (name) => `${CONTAINER_HOST_DIR_FROM_WORKSPACE}/${name}`,
       spawn,
+      shell,
     }
   })
 

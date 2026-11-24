@@ -1,10 +1,10 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { ChevronDown, ChevronUp, Play, RotateCcw, Square } from "lucide-react"
+import { ChevronDown, ChevronUp, Eraser } from "lucide-react"
 import * as Option from "effect/Option"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
-import { RunOutputTerminal } from "./RunOutputTerminal.tsx"
-import { type RunOutput, skipReport } from "./runs.ts"
+import { RunBar, RunWaitingChip, SkipBanner } from "./RunBar.tsx"
+import { TerminalView } from "./TerminalView.tsx"
 
 const HEIGHT_KEY = "scratchpad-output-panel"
 const DEFAULT_HEIGHT = 260
@@ -45,79 +45,55 @@ const writeLayout = (layout: PanelLayout) => {
 const TAB_BASE =
   "flex items-center gap-1.5 px-4 py-2 font-mono text-[11px] tracking-wider uppercase"
 
-function SoonTab({ label }: { readonly label: string }) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={false}
-      aria-disabled="true"
-      disabled
-      title={`${label} is coming soon`}
-      className={`${TAB_BASE} cursor-not-allowed text-zinc-400 dark:text-zinc-600`}
-    >
-      {label}
-      <span className="rounded border border-zinc-300 px-1 text-[9px] tracking-normal normal-case dark:border-zinc-700">
-        soon
-      </span>
-    </button>
-  )
-}
+/**
+ * The panel's tabs, in order. A tab is an entry here and a body in
+ * `OutputPanel`; every body stays mounted while hidden (the terminal keeps
+ * its xterm).
+ */
+const PANEL_TABS = [{ id: "terminal", label: "Terminal" }] as const
+
+type PanelTabId = (typeof PANEL_TABS)[number]["id"]
 
 export interface OutputPanelProps {
   /**
-   * Rendered across the top of the panel body, above the Run output (the
-   * Container failure strip). It covers nothing: the output stays below it.
+   * Rendered across the top of the panel body, above the Run bar and the
+   * terminal (the Container failure strip). It covers nothing.
    */
   readonly banner?: React.ReactNode
 }
 
 /**
- * The bottom panel under the editor: a resizable, collapsible panel with the
- * "Output" tab (the latest Run's read-only terminal), plus "Terminal" and
- * "Traces", which come later. Stop and Restart control the Run.
+ * The bottom panel under the editor: a resizable, collapsible panel whose
+ * "Terminal" tab is the Container's interactive shell, with the Run bar,
+ * the skip banner and the typing guard's chip (ADR 0005).
  */
 export function OutputPanel({ banner }: OutputPanelProps) {
   const {
     runStateAtom,
-    runOutputAtom,
+    terminalOutputAtom,
+    openTerminalAtom,
+    resizeTerminalAtom,
+    terminalInputAtom,
+    discardTerminalInputAtom,
+    clearTerminalAtom,
     stopRunAtom,
     restartRunAtom,
-    installLogAtom,
-    failureAtom,
     dependenciesUnavailableLineAtom,
     revealPositionAtom,
   } = useScratchpadSession()
   const reveal = useAtomSet(revealPositionAtom)
   const runs = useAtomValue(runStateAtom)
-  const runOutput = useAtomValue(runOutputAtom)
-  const installLog = useAtomValue(installLogAtom)
-  const failure = useAtomValue(failureAtom)
+  const terminalOutput = useAtomValue(terminalOutputAtom)
   const dependenciesLine = useAtomValue(dependenciesUnavailableLineAtom)
-  // After a failed install nothing can run, so the terminal shows pnpm's
-  // output as ordinary output under the failure strip. Negative ids keep the
-  // install log and Runs from being mistaken for each other.
-  const installFailed =
-    Option.isSome(failure) && failure.value.kind === "install-failed"
-  // A skipped Run shows its type errors in the terminal, above the previous
-  // Run's output (dimmed). Keyed by the skip's time so a new skip redraws.
-  const skipText =
-    !installFailed && runs.skipped !== undefined
-      ? skipReport(runs.skipped, runOutput)
-      : undefined
-  const output: RunOutput = installFailed
-    ? {
-        runId: -installLog.run,
-        text: installLog.output,
-        total: installLog.output.length,
-      }
-    : skipText !== undefined
-      ? {
-          runId: -(runs.skipped?.at ?? 0),
-          text: skipText,
-          total: skipText.length,
-        }
-      : runOutput
+  const openTerminal = useAtomSet(openTerminalAtom)
+  const resizeTerminal = useAtomSet(resizeTerminalAtom)
+  const terminalInput = useAtomSet(terminalInputAtom)
+  const discardInput = useAtomSet(discardTerminalInputAtom)
+  const clearTerminal = useAtomSet(clearTerminalAtom)
+  const [tab, setTab] = React.useState<PanelTabId>("terminal")
+  // Esc reaches the shell unless a Run is waiting on the visitor.
+  const waitingRef = React.useRef(runs.waiting)
+  waitingRef.current = runs.waiting
   const stop = useAtomSet(stopRunAtom)
   const restart = useAtomSet(restartRunAtom)
   const [layout, setLayout] = React.useState(readLayout)
@@ -159,10 +135,7 @@ export function OutputPanel({ banner }: OutputPanelProps) {
     handle.addEventListener("pointercancel", onUp)
   }
 
-  const running = runs.run?.status._tag === "running"
   const skipped = runs.skipped
-  const empty =
-    runs.run === undefined && skipped === undefined && !installFailed
 
   return (
     <div
@@ -188,50 +161,41 @@ export function OutputPanel({ banner }: OutputPanelProps) {
       />
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-zinc-50 pr-2 dark:border-zinc-800 dark:bg-zinc-900/60">
         <div role="tablist" aria-label="Panel" className="flex items-center">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={true}
-            onClick={() =>
-              layout.collapsed && updateLayout({ ...layout, collapsed: false })
-            }
-            className={`${TAB_BASE} border-b-2 border-zinc-900 font-medium text-zinc-900 dark:border-zinc-100 dark:text-zinc-100`}
-          >
-            Output
-          </button>
-          <SoonTab label="Terminal" />
-          <SoonTab label="Traces" />
+          {PANEL_TABS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              data-testid={`panel-tab-${entry.id}`}
+              aria-selected={tab === entry.id}
+              onClick={() => {
+                setTab(entry.id)
+                if (layout.collapsed)
+                  updateLayout({ ...layout, collapsed: false })
+              }}
+              className={`${TAB_BASE} border-b-2 ${
+                tab === entry.id
+                  ? "border-blue-500 font-medium text-zinc-900 dark:border-blue-400 dark:text-zinc-100"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200"
+              }`}
+            >
+              {entry.label}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-1 font-mono text-xs">
-          <button
-            type="button"
-            data-testid="run-stop"
-            disabled={!running}
-            onClick={() => stop()}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            <Square className="h-3 w-3 fill-current" aria-hidden="true" />
-            Stop
-          </button>
-          <button
-            type="button"
-            data-testid="run-restart"
-            disabled={!runs.available}
-            title={
-              runs.available
-                ? "Run src/main.ts again"
-                : "Runs start once the Container has installed the dependencies"
-            }
-            onClick={() => restart()}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            {running ? (
-              <RotateCcw className="h-3 w-3" aria-hidden="true" />
-            ) : (
-              <Play className="h-3 w-3" aria-hidden="true" />
-            )}
-            Restart
-          </button>
+        <div className="flex items-center gap-1 text-xs">
+          {tab === "terminal" && (
+            <button
+              type="button"
+              data-testid="terminal-clear"
+              title="Clear the terminal"
+              onClick={() => clearTerminal()}
+              className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <Eraser className="h-3 w-3" aria-hidden="true" />
+              Clear
+            </button>
+          )}
           <button
             type="button"
             data-testid="output-panel-toggle"
@@ -255,37 +219,54 @@ export function OutputPanel({ banner }: OutputPanelProps) {
         </div>
       </div>
       <div
+        role="tabpanel"
         data-testid="run-output"
         data-run-id={runs.run?.id ?? 0}
         data-run-status={runs.run?.status._tag ?? "none"}
         data-run-skipped={skipped !== undefined}
+        data-run-waiting={runs.waiting ?? "none"}
         className={
-          layout.collapsed ? "hidden" : "relative flex min-h-0 flex-1 flex-col"
+          layout.collapsed || tab !== "terminal"
+            ? "hidden"
+            : "relative flex min-h-0 flex-1 flex-col"
         }
       >
         {banner}
         {Option.isSome(dependenciesLine) && (
           <div
             data-testid="dependencies-unavailable-line"
-            className="shrink-0 px-4 pt-2 font-mono text-xs text-amber-700 dark:text-amber-400"
+            className="shrink-0 border-b border-zinc-200 px-3 py-1.5 font-mono text-xs text-amber-700 dark:border-zinc-800 dark:text-amber-400"
           >
             {dependenciesLine.value}
           </div>
         )}
-        {empty && (
-          <div
-            data-testid="run-output-empty"
-            className="shrink-0 px-4 pt-3 font-mono text-xs text-zinc-400 dark:text-zinc-500"
-          >
-            {runs.available
-              ? "Running src/main.ts…"
-              : "Your program's output appears here once the Container has installed the dependencies."}
-          </div>
+        <RunBar runs={runs} onStop={() => stop()} onRestart={() => restart()} />
+        {skipped !== undefined && (
+          <SkipBanner key={skipped.at} skip={skipped} onOpenLocation={reveal} />
         )}
-        <RunOutputTerminal
-          output={output}
-          onOpenLocation={skipText === undefined ? undefined : reveal}
-        />
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <TerminalView
+            output={terminalOutput}
+            onOpen={(size) => openTerminal(size)}
+            onResize={(size) => resizeTerminal(size)}
+            onData={(data) => terminalInput(data)}
+            onEscape={() => {
+              if (waitingRef.current === undefined) return false
+              discardInput()
+              return true
+            }}
+            onOpenLocation={reveal}
+          />
+          {runs.waiting !== undefined && (
+            // Below the terminal, so it covers none of the prompt.
+            <div className="shrink-0 px-3 pb-2">
+              <RunWaitingChip
+                waiting={runs.waiting}
+                onDiscard={() => discardInput()}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

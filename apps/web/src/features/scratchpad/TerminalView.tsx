@@ -2,7 +2,8 @@ import { FitAddon } from "@xterm/addon-fit"
 import { type ITheme, Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import * as React from "react"
-import type { RunOutput } from "./runs.ts"
+import type { TerminalSize } from "./container.ts"
+import type { TerminalOutput } from "./terminal.ts"
 
 /** A clickable `path:line:col` in the terminal. */
 export interface TerminalLocation {
@@ -11,9 +12,24 @@ export interface TerminalLocation {
   readonly column: number
 }
 
-const LOCATION_PATTERN = /([\w./-]+\.(?:tsx?|mts|cts)):(\d+):(\d+)/g
+const LOCATION_PATTERN =
+  /((?:file:\/\/)?[\w./@-]+\.(?:tsx?|mts|cts|[cm]?js)):(\d+):(\d+)/g
 
-const HIDE_CURSOR = "\u001b[?25l"
+/**
+ * A location as the terminal prints it (`src/main.ts`, or a stack trace's
+ * `file:///home/scratchpad/workspace/src/main.ts`), relative to the
+ * Workspace, or `undefined` outside it (`node_modules`, Node internals).
+ */
+export const workspacePathOf = (raw: string): string | undefined => {
+  let path = raw.replace(/^file:\/\//, "")
+  const root = path.lastIndexOf("/workspace/")
+  if (root !== -1) path = path.slice(root + "/workspace/".length)
+  else if (path.startsWith("/")) return undefined
+  path = path.replace(/^\.\//, "")
+  return path.startsWith("node_modules/") || path.startsWith("../")
+    ? undefined
+    : path
+}
 
 const ansi = {
   light: {
@@ -55,20 +71,22 @@ const ansi = {
 }
 
 /** The panel's colors; the background matches the panel (white / zinc-950). */
-export const runOutputTheme = (dark: boolean): ITheme =>
+export const terminalTheme = (dark: boolean): ITheme =>
   dark
     ? {
         ...ansi.dark,
         background: "#09090b",
         foreground: "#e4e4e7",
-        cursor: "#09090b",
+        cursor: "#d4d4d8",
+        cursorAccent: "#09090b",
         selectionBackground: "#3f3f46",
       }
     : {
         ...ansi.light,
         background: "#ffffff",
         foreground: "#27272a",
-        cursor: "#ffffff",
+        cursor: "#3f3f46",
+        cursorAccent: "#ffffff",
         selectionBackground: "#bfdbfe",
       }
 
@@ -96,73 +114,104 @@ export const useIsDark = (): boolean => {
   return dark
 }
 
-/**
- * A read-only xterm showing the latest Run's output. It writes only what is
- * new, and starts over when a new Run replaces the output.
- */
-export function RunOutputTerminal({
-  output,
-  className,
-  onOpenLocation,
-}: {
-  readonly output: RunOutput
-  readonly className?: string | undefined
-  /**
-   * Makes `path:line:col` locations clickable. Leave it unset for program
-   * output: stack-trace line numbers are unreliable inside WebContainer.
-   */
+export interface TerminalViewProps {
+  readonly output: TerminalOutput
+  /** The terminal's size once it has been measured, then every resize. */
+  readonly onOpen: (size: TerminalSize) => void
+  readonly onResize: (size: TerminalSize) => void
+  /** Keystrokes and pastes. */
+  readonly onData: (data: string) => void
+  /** Esc. Return true to keep it from the shell. */
+  readonly onEscape?: (() => boolean) | undefined
+  /** Opens a clickable `path:line:col` (stack traces, tsc output). */
   readonly onOpenLocation?: ((location: TerminalLocation) => void) | undefined
-}) {
-  const openLocation = React.useRef(onOpenLocation)
-  openLocation.current = onOpenLocation
+  readonly className?: string | undefined
+}
+
+/**
+ * The interactive xterm for the terminal's shell. It writes only what is new
+ * in `output`, and replays it when `output.generation` changes (Clear) or
+ * when it is created again.
+ */
+export function TerminalView({
+  output,
+  onOpen,
+  onResize,
+  onData,
+  onEscape,
+  onOpenLocation,
+  className,
+}: TerminalViewProps) {
+  const callbacks = React.useRef({
+    onOpen,
+    onResize,
+    onData,
+    onEscape,
+    onOpenLocation,
+  })
+  callbacks.current = { onOpen, onResize, onData, onEscape, onOpenLocation }
   const hostRef = React.useRef<HTMLDivElement>(null)
   const terminalRef = React.useRef<Terminal | null>(null)
-  const written = React.useRef({ runId: -1, total: 0 })
+  const written = React.useRef({ generation: -1, total: 0 })
   const dark = useIsDark()
 
   React.useEffect(() => {
     const host = hostRef.current
     if (host === null) return
     const terminal = new Terminal({
-      disableStdin: true,
-      convertEol: true,
-      cursorBlink: false,
-      cursorInactiveStyle: "none",
+      cursorBlink: true,
       fontFamily: monoFontFamily(),
       // xterm's default, which the Playground's terminal uses.
       fontSize: 15,
       lineHeight: 1.4,
       scrollback: 5000,
-      theme: runOutputTheme(isDarkNow()),
+      theme: terminalTheme(isDarkNow()),
     })
     const fit = new FitAddon()
     terminal.loadAddon(fit)
     terminal.open(host)
     const links = terminal.registerLinkProvider({
       provideLinks(row, callback) {
-        const open = openLocation.current
         const text = terminal.buffer.active
           .getLine(row - 1)
           ?.translateToString(true)
-        if (open === undefined || text === undefined) return callback(undefined)
-        const found = [...text.matchAll(LOCATION_PATTERN)].map((match) => ({
-          text: match[0],
-          range: {
-            start: { x: match.index + 1, y: row },
-            end: { x: match.index + match[0].length, y: row },
-          },
-          decorations: { pointerCursor: true, underline: true },
-          activate: () =>
-            openLocation.current?.({
-              path: match[1]!,
-              line: Number(match[2]),
-              column: Number(match[3]),
-            }),
-        }))
+        if (
+          callbacks.current.onOpenLocation === undefined ||
+          text === undefined
+        ) {
+          return callback(undefined)
+        }
+        const found = [...text.matchAll(LOCATION_PATTERN)].flatMap((match) => {
+          const path = workspacePathOf(match[1]!)
+          if (path === undefined) return []
+          return [
+            {
+              text: match[0],
+              range: {
+                start: { x: match.index + 1, y: row },
+                end: { x: match.index + match[0].length, y: row },
+              },
+              decorations: { pointerCursor: true, underline: true },
+              activate: () =>
+                callbacks.current.onOpenLocation?.({
+                  path,
+                  line: Number(match[2]),
+                  column: Number(match[3]),
+                }),
+            },
+          ]
+        })
         callback(found.length === 0 ? undefined : found)
       },
     })
-    terminal.write(HIDE_CURSOR)
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.key !== "Escape" || event.type !== "keydown") return true
+      return callbacks.current.onEscape?.() !== true
+    })
+    const data = terminal.onData((input) => callbacks.current.onData(input))
+    const resize = terminal.onResize((size) =>
+      callbacks.current.onResize({ cols: size.cols, rows: size.rows }),
+    )
     const refit = () => {
       try {
         fit.fit()
@@ -174,7 +223,8 @@ export function RunOutputTerminal({
     const observer = new ResizeObserver(refit)
     observer.observe(host)
     terminalRef.current = terminal
-    written.current = { runId: -1, total: 0 }
+    written.current = { generation: -1, total: 0 }
+    callbacks.current.onOpen({ cols: terminal.cols, rows: terminal.rows })
     // Measure again once the web font has loaded.
     let disposed = false
     void document.fonts?.ready.then(() => {
@@ -186,6 +236,8 @@ export function RunOutputTerminal({
       disposed = true
       observer.disconnect()
       links.dispose()
+      data.dispose()
+      resize.dispose()
       terminal.dispose()
       terminalRef.current = null
     }
@@ -193,7 +245,7 @@ export function RunOutputTerminal({
 
   React.useEffect(() => {
     if (terminalRef.current !== null) {
-      terminalRef.current.options.theme = runOutputTheme(dark)
+      terminalRef.current.options.theme = terminalTheme(dark)
     }
   }, [dark])
 
@@ -203,28 +255,22 @@ export function RunOutputTerminal({
     const done = written.current
     const delta = output.total - done.total
     if (
-      output.runId !== done.runId ||
+      output.generation !== done.generation ||
       delta < 0 ||
       delta > output.text.length
     ) {
       terminal.reset()
-      // A report (locations clickable) reads from the top; program output
-      // follows its tail.
-      terminal.write(HIDE_CURSOR + output.text, () => {
-        if (openLocation.current !== undefined) terminal.scrollToTop()
-      })
+      terminal.write(output.text)
     } else if (delta > 0) {
-      terminal.write(output.text.slice(output.text.length - delta), () => {
-        if (openLocation.current !== undefined) terminal.scrollToTop()
-      })
+      terminal.write(output.text.slice(output.text.length - delta))
     }
-    written.current = { runId: output.runId, total: output.total }
+    written.current = { generation: output.generation, total: output.total }
   }, [output])
 
   return (
     <div
       ref={hostRef}
-      data-testid="run-output-terminal"
+      data-testid="terminal"
       className={`min-h-0 flex-1 overflow-hidden px-3 py-2 ${className ?? ""}`}
     />
   )
