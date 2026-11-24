@@ -125,7 +125,7 @@ const theme = EditorView.theme({
     border: `1px solid ${border}`,
     borderRadius: "6px",
     boxShadow: `0 8px 24px ${ld("#18181b26", "#00000080")}`,
-    fontSize: "13px",
+    fontSize: "14px",
     overflow: "hidden",
   },
   ".cm-tooltip.cm-tooltip-hover": {
@@ -149,15 +149,18 @@ const theme = EditorView.theme({
     overflow: "auto",
   },
   ".cm-lsp-documentation": {
-    padding: "6px 10px",
-    lineHeight: "1.5",
+    padding: "10px 14px",
+    fontSize: "14px",
+    lineHeight: "1.55",
     fontFamily: "var(--font-inter, ui-sans-serif, system-ui, sans-serif)",
     "& p": {
-      margin: "4px 0",
+      margin: "6px 0",
     },
+    "& > :first-child": { marginTop: "0" },
+    "& > :last-child": { marginBottom: "0" },
     "& pre": {
-      margin: "4px 0",
-      padding: "6px 8px",
+      margin: "8px 0",
+      padding: "8px 10px",
       borderRadius: "4px",
       backgroundColor: surfaceRaised,
       whiteSpace: "pre-wrap",
@@ -166,7 +169,7 @@ const theme = EditorView.theme({
     "& pre, & code": {
       fontFamily:
         "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-      fontSize: "12.5px",
+      fontSize: "13px",
     },
     "& :not(pre) > code": {
       padding: "1px 4px",

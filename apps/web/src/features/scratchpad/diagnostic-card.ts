@@ -276,7 +276,7 @@ const renderSection = (
       link.href = options.docsHref(parsed.rule.docs.path)
       link.target = "_blank"
       link.rel = "noopener"
-      why.append(" ", link)
+      why.append(link)
     }
     section.append(why)
   }
@@ -356,25 +356,27 @@ export const diagnosticCardTheme = EditorView.baseTheme({
   ".cm-tooltip .cm-diagnosticCard": {
     margin: "0",
     padding: "0",
-    width: "max-content",
-    maxWidth: "min(520px, 80vw)",
+    // Fills the hover tooltip, so it lines up with a type's docs under it.
+    // The tooltip itself caps the width.
+    width: "auto",
+    minWidth: "min(460px, 80vw)",
     fontFamily: "var(--font-inter, ui-sans-serif, system-ui, sans-serif)",
-    fontSize: "13px",
-    lineHeight: "1.5",
+    fontSize: "14px",
+    lineHeight: "1.55",
   },
   ".cm-diagnosticCard code": {
     fontFamily:
       "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-    fontSize: "12px",
-    padding: "0 3px",
-    borderRadius: "3px",
+    fontSize: "12.5px",
+    padding: "1px 4px",
+    borderRadius: "4px",
     backgroundColor: raised,
   },
   ".cm-diagnosticCard-summary": {
     display: "flex",
     gap: "12px",
-    padding: "6px 12px",
-    fontSize: "12px",
+    padding: "8px 14px",
+    fontSize: "13px",
     borderBottom: `1px solid ${border}`,
     backgroundColor: ld("#fafafa", "#111114"),
   },
@@ -384,7 +386,7 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     gap: "5px",
   },
   ".cm-diagnosticCard-item": {
-    padding: "9px 12px 10px",
+    padding: "12px 14px 14px",
   },
   ".cm-diagnosticCard-item + .cm-diagnosticCard-item": {
     borderTop: `1px solid ${border}`,
@@ -392,12 +394,12 @@ export const diagnosticCardTheme = EditorView.baseTheme({
   ".cm-diagnosticCard-header": {
     display: "flex",
     alignItems: "center",
-    gap: "7px",
-    marginBottom: "2px",
+    gap: "8px",
+    marginBottom: "4px",
   },
   ".cm-diagnosticCard-icon": {
-    width: "14px",
-    height: "14px",
+    width: "16px",
+    height: "16px",
     flexShrink: "0",
     fill: "none",
     stroke: "currentColor",
@@ -419,13 +421,14 @@ export const diagnosticCardTheme = EditorView.baseTheme({
   },
   ".cm-diagnosticCard-title": {
     fontWeight: "600",
+    fontSize: "14.5px",
   },
   ".cm-diagnosticCard-chip": {
     marginLeft: "auto",
-    paddingLeft: "16px",
+    paddingLeft: "20px",
     fontFamily:
       "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-    fontSize: "11px",
+    fontSize: "12px",
     color: muted,
     whiteSpace: "nowrap",
   },
@@ -434,12 +437,13 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     overflowWrap: "anywhere",
   },
   ".cm-diagnosticCard-why": {
-    marginTop: "8px",
-    padding: "7px 10px",
-    borderRadius: "6px",
+    marginTop: "10px",
+    padding: "10px 12px",
+    borderRadius: "8px",
     backgroundColor: raised,
-    color: ld("#52525b", "#a1a1aa"),
-    fontSize: "12.5px",
+    color: ld("#3f3f46", "#c4c4cc"),
+    fontSize: "13.5px",
+    lineHeight: "1.6",
   },
   ".cm-diagnosticCard-why code": {
     backgroundColor: ld("#e4e4e7", "#2a2a30"),
@@ -448,27 +452,30 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     color: ld("#2563eb", "#93c5fd"),
     textDecoration: "none",
     whiteSpace: "nowrap",
+    display: "block",
+    width: "fit-content",
+    marginTop: "6px",
     "&:hover": { textDecoration: "underline" },
   },
   ".cm-diagnosticCard-actions": {
     display: "flex",
     flexWrap: "wrap",
     alignItems: "center",
-    gap: "6px",
-    marginTop: "10px",
+    gap: "8px",
+    marginTop: "14px",
   },
   ".cm-diagnosticCard-fix": {
     display: "inline-flex",
     alignItems: "center",
     gap: "4px",
-    height: "26px",
-    padding: "0 10px",
-    borderRadius: "5px",
+    height: "30px",
+    padding: "0 12px",
+    borderRadius: "6px",
     border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
     backgroundColor: ld("#ffffff", "#1b1b1f"),
     color: "inherit",
     font: "inherit",
-    fontSize: "12.5px",
+    fontSize: "13.5px",
     cursor: "pointer",
     "&:hover": { backgroundColor: ld("#f4f4f5", "#26262b") },
   },
@@ -495,8 +502,8 @@ export const diagnosticCardTheme = EditorView.baseTheme({
     display: "flex",
     flexDirection: "column",
     width: "fit-content",
-    minWidth: "200px",
-    marginTop: "6px",
+    minWidth: "220px",
+    marginTop: "8px",
     padding: "3px",
     borderRadius: "6px",
     border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
@@ -505,13 +512,13 @@ export const diagnosticCardTheme = EditorView.baseTheme({
       display: "block",
       width: "100%",
       textAlign: "left",
-      padding: "4px 8px",
+      padding: "6px 10px",
       border: "none",
       borderRadius: "4px",
       background: "none",
       color: "inherit",
       font: "inherit",
-      fontSize: "12.5px",
+      fontSize: "13.5px",
       whiteSpace: "nowrap",
       cursor: "pointer",
     },
@@ -524,15 +531,15 @@ export const diagnosticCardTheme = EditorView.baseTheme({
   ".cm-diagnosticCard-hint": {
     display: "inline-flex",
     alignItems: "center",
-    gap: "5px",
+    gap: "6px",
     color: muted,
-    fontSize: "11.5px",
+    fontSize: "12.5px",
     whiteSpace: "nowrap",
     "& kbd": {
       fontFamily:
         "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-      fontSize: "10.5px",
-      padding: "0 4px",
+      fontSize: "11.5px",
+      padding: "1px 5px",
       borderRadius: "4px",
       border: `1px solid ${ld("#d4d4d8", "#3a3a40")}`,
       borderBottomWidth: "2px",
