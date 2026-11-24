@@ -471,3 +471,40 @@ test("the file explorer resizes by dragging its edge and remembers the width", a
     .poll(async () => (await explorer.boundingBox())!.width)
     .toBeCloseTo(before, -1)
 })
+
+test("Ctrl/Cmd+S formats the active file with the Workspace's dprint.json", async ({
+  page,
+}) => {
+  // The plugins come from plugins.dprint.dev through /api/dprint/plugins.
+  const offline = await fetch("https://plugins.dprint.dev", {
+    method: "HEAD",
+    signal: AbortSignal.timeout(10_000),
+  }).then(
+    () => undefined,
+    (error: unknown) => String(error),
+  )
+  test.skip(offline !== undefined, `plugins.dprint.dev unreachable: ${offline}`)
+
+  // The seed, whose dprint.json has the TypeScript plugin with
+  // `quoteStyle: "alwaysDouble"` and `semiColons: "asi"`.
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  await expect(page.getByTestId("editor-tab-src/main.ts")).toBeVisible({
+    timeout: READY_TIMEOUT,
+  })
+  await replaceDocument(
+    page,
+    "const   greeting='hello';\nexport   {greeting}\n",
+  )
+  await page.keyboard.press("ControlOrMeta+s")
+
+  const lines = editorOf(page).locator(".cm-line")
+  await expect(lines.nth(0)).toHaveText('const greeting = "hello"', {
+    timeout: LSP_TIMEOUT,
+  })
+  await expect(lines.nth(1)).toHaveText("export { greeting }")
+  await expect(page.getByTestId("format-message")).toHaveCount(0)
+
+  // One undo brings the unformatted text back.
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(lines.nth(0)).toHaveText("const   greeting='hello';")
+})

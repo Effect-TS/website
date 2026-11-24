@@ -31,6 +31,7 @@ import {
   layerDependencies,
 } from "./dependencies.ts"
 import { scratchpadEditorTheme } from "./editor-theme.ts"
+import { formatOnSave, makeDprintDocumentFormatter } from "./format.ts"
 import {
   emptyRunOutput,
   initialRunsState,
@@ -613,6 +614,18 @@ export const makeScratchpadEditorSession = (
 
   const elementAtom = Atom.make(Option.none<HTMLElement>())
 
+  // Ctrl/Cmd+S formats with the Workspace's dprint.json.
+  const formatter = makeDprintDocumentFormatter({
+    readConfig: () =>
+      activeWorkspace === undefined
+        ? Promise.resolve(undefined)
+        : Effect.runPromise(
+            activeWorkspace
+              .readFile("dprint.json")
+              .pipe(Effect.option, Effect.map(Option.getOrUndefined)),
+          ),
+  })
+
   const createFileEditorState = (
     relPath: string,
     content: string,
@@ -669,6 +682,7 @@ export const makeScratchpadEditorSession = (
           ? [client.plugin(uri, languageIdForPath(relPath)), cmdClickHandler]
           : [],
         readOnly ? EditorState.readOnly.of(true) : [],
+        formatOnSave(formatter, relPath),
         updateListener,
         scratchpadEditorTheme,
       ],
