@@ -1,0 +1,521 @@
+.nst {
+  --nst-ink: #27272a;
+  --nst-muted: #71717a;
+  --nst-line: #e4e4e7;
+  --nst-surface: #ffffff;
+  --nst-card: #fafafa;
+  --nst-laptop: #0072b2;
+  --nst-phone: #d55e00;
+  --nst-ok: #007a5e;
+  --nst-stop: #dc2626;
+  margin: 1.5rem 0;
+  border: 1px solid var(--nst-line);
+  border-radius: 0.9rem;
+  background: var(--nst-card);
+  overflow: hidden;
+  user-select: none;
+}
+
+html.dark .nst {
+  --nst-ink: #e4e4e7;
+  --nst-muted: #a1a1aa;
+  --nst-line: #27272a;
+  --nst-surface: #09090b;
+  --nst-card: #0f0f12;
+  --nst-laptop: #56b4e9;
+  --nst-phone: #e69f00;
+  --nst-ok: #3cc39b;
+  --nst-stop: #f87171;
+}
+
+.nst-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--nst-surface);
+}
+
+.nst-svg {
+  display: block;
+  width: 100%;
+  min-width: 560px;
+  height: auto;
+  background: var(--nst-surface);
+}
+
+/* Left track labels */
+.nst-dev-title {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.nst-dev-title.is-laptop {
+  fill: var(--nst-laptop);
+}
+
+.nst-dev-title.is-phone {
+  fill: var(--nst-phone);
+}
+
+/* Shaded OFFLINE zones */
+.nst-zone {
+  opacity: 0.45;
+  transition: opacity 220ms ease;
+}
+
+.nst-zone.is-active {
+  opacity: 1;
+}
+
+.nst-zone-box {
+  fill: color-mix(in oklab, var(--nst-muted) 7%, var(--nst-surface));
+  stroke: color-mix(in oklab, var(--nst-muted) 38%, var(--nst-line));
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
+}
+
+.nst-zone-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--nst-muted);
+}
+
+/* Horizontal tracks & vertical drops */
+.nst-guide {
+  stroke: var(--nst-line);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+
+.nst-edge {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.nst-drop {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: butt;
+}
+
+.nst-edge.is-laptop,
+.nst-drop.is-laptop {
+  stroke: var(--nst-laptop);
+}
+
+.nst-edge.is-phone,
+.nst-drop.is-phone {
+  stroke: var(--nst-phone);
+}
+
+.nst-drop.is-stop {
+  stroke: var(--nst-stop);
+}
+
+.nst-edge.is-draw,
+.nst-drop.is-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: nst-draw 300ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+@keyframes nst-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.nst-root-dot {
+  fill: var(--nst-muted);
+  stroke: var(--nst-surface);
+  stroke-width: 2;
+}
+
+.nst-root-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--nst-muted);
+}
+
+.nst-vcard.is-empty .nst-vcard-box {
+  stroke-dasharray: 4 3;
+  fill: transparent;
+}
+
+.nst-vcard.is-empty .nst-vcard-text {
+  font-style: italic;
+  font-weight: 500;
+}
+
+.nst-sync-tick.is-laptop {
+  fill: var(--nst-laptop);
+  stroke: var(--nst-surface);
+  stroke-width: 2;
+}
+
+/* Clickable nodes */
+.nst-hit {
+  cursor: pointer;
+}
+
+.nst-hit:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.nst-hit:focus-visible {
+  outline: 2px solid var(--nst-ink);
+  outline-offset: 6px;
+  border-radius: 6px;
+}
+
+.nst-node.is-laptop,
+.nst-ghost.is-laptop {
+  --c: var(--nst-laptop);
+}
+
+.nst-node.is-phone,
+.nst-ghost.is-phone {
+  --c: var(--nst-phone);
+}
+
+.nst-node.is-ok {
+  --c: var(--nst-ok);
+}
+
+.nst-node.is-stop {
+  --c: var(--nst-stop);
+}
+
+.nst-node-dot {
+  fill: var(--c);
+  stroke: var(--nst-surface);
+  stroke-width: 2.5;
+  animation: nst-pop 280ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes nst-pop {
+  from {
+    transform: scale(0.25);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.nst-tip-ring {
+  fill: var(--c);
+  opacity: 0.16;
+  animation: nst-breathe 2.2s ease-in-out infinite;
+}
+
+@keyframes nst-breathe {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.26;
+    transform: scale(1.12);
+  }
+}
+
+.nst-node-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--nst-ink);
+}
+
+.nst-node-label.is-ok {
+  fill: var(--nst-ok);
+}
+
+.nst-node-label.is-stop {
+  fill: var(--nst-stop);
+}
+
+/* Ghost nodes */
+.nst-ghost.is-future {
+  opacity: 0.4;
+  transition: opacity 160ms ease;
+}
+
+.nst-ghost.is-future:hover {
+  opacity: 0.9;
+}
+
+.nst-ghost-pulse {
+  fill: var(--c);
+  opacity: 0.08;
+  animation: nst-breathe 2s ease-in-out infinite;
+}
+
+.nst-ghost-dot {
+  fill: var(--nst-surface);
+  stroke: var(--c);
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+  transition:
+    fill 150ms ease,
+    transform 150ms ease;
+}
+
+.nst-ghost:hover .nst-ghost-dot {
+  fill: var(--c);
+  stroke-dasharray: none;
+  transform: scale(1.15);
+}
+
+.nst-ghost-plus {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--c);
+  pointer-events: none;
+  transition: fill 150ms ease;
+}
+
+.nst-ghost:hover .nst-ghost-plus {
+  fill: var(--nst-surface);
+}
+
+.nst-ghost-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.8px;
+  font-weight: 600;
+  fill: var(--nst-muted);
+  transition: fill 150ms ease;
+}
+
+.nst-ghost:hover .nst-ghost-label {
+  fill: var(--c);
+}
+
+/* Bottom VAULT bar & state cards */
+.nst-vault-bg {
+  fill: var(--nst-card);
+  stroke: var(--nst-line);
+  stroke-width: 1.5;
+}
+
+.nst-vault-head {
+  color: var(--nst-muted);
+}
+
+.nst-vault-kicker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--nst-muted);
+}
+
+.nst-vault-entry {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--nst-muted);
+  opacity: 0.85;
+}
+
+.nst-vlink {
+  stroke: var(--nst-line);
+  stroke-width: 2;
+  stroke-linecap: butt;
+}
+
+.nst-vlink.is-dashed {
+  stroke-dasharray: 4 4;
+}
+
+.nst-vlink.is-stop {
+  stroke: var(--nst-stop);
+}
+
+.nst-vcard-box {
+  fill: var(--nst-surface);
+  stroke: var(--nst-line);
+  stroke-width: 1.75;
+}
+
+.nst-vcard-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  fill: var(--nst-muted);
+}
+
+.nst-vcard.is-laptop .nst-vcard-box {
+  stroke: var(--nst-laptop);
+  fill: color-mix(in oklab, var(--nst-laptop) 10%, var(--nst-surface));
+}
+
+.nst-vcard.is-laptop .nst-vcard-text {
+  fill: var(--nst-laptop);
+}
+
+.nst-vcard.is-phone .nst-vcard-box {
+  stroke: var(--nst-phone);
+  fill: color-mix(in oklab, var(--nst-phone) 10%, var(--nst-surface));
+}
+
+.nst-vcard.is-phone .nst-vcard-text {
+  fill: var(--nst-phone);
+}
+
+.nst-vcard.is-stop .nst-vcard-box {
+  stroke: var(--nst-stop);
+  fill: color-mix(in oklab, var(--nst-stop) 8%, var(--nst-surface));
+}
+
+.nst-vcard.is-stop .nst-vcard-text {
+  fill: var(--nst-stop);
+}
+
+/* Split colliding values inside Step 6 Vault card */
+.nst-split.is-laptop {
+  fill: color-mix(in oklab, var(--nst-laptop) 14%, var(--nst-surface));
+}
+
+.nst-split.is-phone {
+  fill: color-mix(in oklab, var(--nst-phone) 14%, var(--nst-surface));
+}
+
+.nst-split-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.nst-split-text.is-laptop {
+  fill: var(--nst-laptop);
+}
+
+.nst-split-text.is-phone {
+  fill: var(--nst-phone);
+}
+
+.nst-conflict-dot {
+  fill: var(--nst-stop);
+}
+
+.nst-conflict-x {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  fill: #ffffff;
+}
+
+html.dark .nst-conflict-x {
+  fill: #09090b;
+}
+
+.nst-pop {
+  animation: nst-fade 220ms ease;
+}
+
+@keyframes nst-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.nst-vcard.is-shake {
+  animation: nst-shake 360ms ease;
+}
+
+@keyframes nst-shake {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: -5px 0;
+  }
+  50% {
+    translate: 5px 0;
+  }
+  75% {
+    translate: -4px 0;
+  }
+}
+
+/* Bottom bar */
+.nst-bar {
+  display: flex;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--nst-line);
+}
+
+.nst-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.nst-btn {
+  padding: 0.34rem 0.9rem;
+  border: 1.5px solid var(--nst-ink);
+  border-radius: var(--radius-md, 6px);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--nst-ink);
+  cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.nst-btn:focus-visible {
+  outline: 2px solid var(--nst-ink);
+  outline-offset: 3px;
+}
+
+.nst-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.nst-btn.is-primary {
+  border-color: var(--nst-ink);
+  background: var(--nst-ink);
+  color: var(--nst-surface);
+}
+
+.nst-btn.is-danger {
+  border-color: var(--nst-stop);
+  background: var(--nst-stop);
+  color: #ffffff;
+}
+
+html.dark .nst-btn.is-danger {
+  color: #09090b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nst-edge.is-draw,
+  .nst-drop.is-draw,
+  .nst-node-dot,
+  .nst-tip-ring,
+  .nst-ghost-pulse,
+  .nst-pop,
+  .nst-vcard.is-shake {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .nst-ghost,
+  .nst-ghost-dot,
+  .nst-zone {
+    transition: none;
+  }
+}
