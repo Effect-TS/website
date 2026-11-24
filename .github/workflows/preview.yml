@@ -101,12 +101,6 @@ jobs:
             ${{ steps.astro-cache.outputs.prefix }}-main-
             astro-incremental-${{ runner.os }}-
 
-      - name: Write public build inputs
-        run: node apps/web/scripts/write-alchemy-build-input.mjs
-        env:
-          PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
-          PUBLIC_POSTHOG_API_HOST: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
-
       - name: Deploy Cloudflare preview
         run: |
           stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
@@ -122,8 +116,6 @@ jobs:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
           MAPLE_INGEST_KEY: ${{ secrets.MAPLE_INGEST_KEY }}
-          PUBLIC_POSTHOG_KEY: ${{ vars.PUBLIC_POSTHOG_KEY }}
-          PUBLIC_POSTHOG_API_HOST: ${{ vars.PUBLIC_POSTHOG_API_HOST }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
           WEBSITE_REVISION: ${{ github.event.pull_request.head.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

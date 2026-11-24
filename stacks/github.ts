@@ -97,28 +97,6 @@ export default Alchemy.Stack(
         }),
     })
 
-    const publicPosthogKey = yield* Config.option(
-      Config.String("PUBLIC_POSTHOG_KEY"),
-    )
-    const publicPosthogApiHost = yield* Config.String(
-      "PUBLIC_POSTHOG_API_HOST",
-    ).pipe(Config.withDefault("https://us.i.posthog.com"))
-
-    yield* GitHub.Variable("public-posthog-api-host", {
-      ...repository,
-      name: "PUBLIC_POSTHOG_API_HOST",
-      value: publicPosthogApiHost,
-    })
-    yield* Option.match(publicPosthogKey, {
-      onNone: () => Effect.void,
-      onSome: (value) =>
-        GitHub.Variable("public-posthog-key", {
-          ...repository,
-          name: "PUBLIC_POSTHOG_KEY",
-          value,
-        }),
-    })
-
     return {
       apiTokenName: apiToken.name,
       repository: `${repository.owner}/${repository.repository}`,

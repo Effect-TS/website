@@ -62,7 +62,6 @@ const Website = (
         rootDir: "./apps/web",
         memo: {
           include: [
-            ".alchemy-build-input.json",
             ".data/api-reference/**",
             "src/**",
             "public/**",
@@ -77,7 +76,7 @@ const Website = (
         astro: { output: "static" as const },
         assets: {
           htmlHandling: "drop-trailing-slash" as const,
-          // Route the PostHog proxy through the Worker before the asset layer.
+          // Route the Maple ingest proxy through the Worker before the asset layer.
           runWorkerFirst: ["/_ingest/*"],
         },
         ...(stage === "prod"

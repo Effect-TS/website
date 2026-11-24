@@ -3,12 +3,7 @@ import react from "@astrojs/react"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import { rehypeHeadingIds, unified } from "@astrojs/markdown-remark"
-import {
-  defineConfig,
-  envField,
-  fontProviders,
-  svgoOptimizer,
-} from "astro/config"
+import { defineConfig, fontProviders, svgoOptimizer } from "astro/config"
 import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
 import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
@@ -112,33 +107,16 @@ const config = defineConfig({
     },
   },
 
-  env: {
-    schema: {
-      PUBLIC_POSTHOG_KEY: envField.string({
-        context: "client",
-        access: "public",
-        optional: true,
-      }),
-      PUBLIC_POSTHOG_API_HOST: envField.string({
-        context: "client",
-        access: "public",
-        optional: true,
-        default: "https://us.i.posthog.com",
-      }),
-    },
-  },
-
   integrations: [
     expressiveCode(),
     react(),
     mdx(),
     incrementalBuildReport(),
     {
-      name: "posthog-ingest-proxy",
+      name: "maple-ingest-proxy",
       hooks: {
         "astro:config:setup": ({ injectRoute }) => {
-          // `/_ingest` so the `/_` prefix skips Astro's
-          // trailing-slash 308 on PostHog's `/flags/`, `/e/` endpoints.
+          // Browser analytics for Maple, sent through effect.website.
           injectRoute({
             pattern: "/_ingest/[...path]",
             entrypoint: "./src/lib/ingest-proxy.ts",

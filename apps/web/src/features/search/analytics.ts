@@ -18,23 +18,6 @@ type SearchResultsView = "grouped" | "section"
 
 type AnalyticsProperty = boolean | number | string
 
-interface PostHogClient {
-  readonly capture: (
-    event: string,
-    properties?: Readonly<Record<string, AnalyticsProperty>>,
-    options?: {
-      readonly send_instantly?: boolean
-      readonly transport?: "sendBeacon"
-    },
-  ) => void
-}
-
-declare global {
-  interface Window {
-    readonly posthog?: PostHogClient
-  }
-}
-
 interface SearchSession {
   readonly id: string
   readonly openedAt: number
@@ -47,30 +30,14 @@ let session: SearchSession | undefined
 function capture(
   event: string,
   properties: Readonly<Record<string, AnalyticsProperty>>,
-  options?: {
-    readonly send_instantly?: boolean
-    readonly transport?: "sendBeacon"
-  },
 ): void {
   if (typeof window === "undefined") return
 
-  const withSession = {
-    ...properties,
-    ...(session === undefined ? {} : { search_session_id: session.id }),
-  }
-
   try {
-    MapleBrowser.track(event, withSession)
-  } catch {
-    // Analytics must never affect search behavior.
-  }
-
-  try {
-    window.posthog?.capture(
-      event,
-      { ...withSession, $process_person_profile: false },
-      options,
-    )
+    MapleBrowser.track(event, {
+      ...properties,
+      ...(session === undefined ? {} : { search_session_id: session.id }),
+    })
   } catch {
     // Analytics must never affect search behavior.
   }
@@ -172,20 +139,16 @@ export const SearchAnalytics = {
     readonly destinationPath: string
   }): void {
     if (session !== undefined) session.didSelectResult = true
-    capture(
-      "search:result_click",
-      {
-        result_kind: properties.kind,
-        result_level: properties.level,
-        result_rank: properties.rank,
-        ...(properties.chunkRank === undefined
-          ? {}
-          : { chunk_rank: properties.chunkRank }),
-        results_view: properties.view,
-        destination_path: properties.destinationPath,
-      },
-      { transport: "sendBeacon", send_instantly: true },
-    )
+    capture("search:result_click", {
+      result_kind: properties.kind,
+      result_level: properties.level,
+      result_rank: properties.rank,
+      ...(properties.chunkRank === undefined
+        ? {}
+        : { chunk_rank: properties.chunkRank }),
+      results_view: properties.view,
+      destination_path: properties.destinationPath,
+    })
   },
 
   versionChange(previousVersion: string, nextVersion: string): void {

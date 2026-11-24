@@ -30,6 +30,8 @@ export function startBrowserTelemetry(): void {
     ingestKey: INGEST_KEY,
     serviceName: "effect-website-browser",
     environment,
+    // Our proxy to Maple's ingest (src/lib/ingest-proxy.ts).
+    endpoint: `${location.origin}/_ingest`,
     privacy: {
       // Nothing is stored on the device. Maple counts unique visitors within a
       // day from an id it derives on its servers and rotates daily.
