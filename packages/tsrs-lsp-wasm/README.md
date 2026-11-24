@@ -204,11 +204,3 @@ defaults and the scheduler. It also runs an integration test that loads `dist/ts
 a real session. That covers Effect 377001 and TS2322 with their ranges, hover, completion, an edit that clears a
 diagnostic, changes made only in the virtual file system, and crash recovery. Without a built module the
 integration test is skipped with a banner saying how to build it.
-
-## Background
-
-The experiments behind this package are in `.scratch/tsrs-web-worker/` at the repo root. That folder is not
-committed on every branch. `research/05-effect-single-thread-lsp.md` covers this module, its feature parity with
-native, its timings and its nesting limits. `research/03-single-thread-lsp.md` covers the pump and the ABI.
-`research/04-effect-wasm.md` covers how Effect's tsrs tree is put together, and `research/01-batch-worker.md` the
-pack format.

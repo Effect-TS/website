@@ -28,7 +28,7 @@ ADR 0004 made the Container a one-way mirror of the page Workspace, and it made 
 
 - **Keep the one-way mirror and only sync back `package.json` and the lockfile.** Rejected. Files created or changed in the terminal would silently vanish from the editor, shares and autosave, which is worse than `/play`.
 - **`/play`'s model exactly: the terminal runs `tsc --watch` and node.** Rejected for the reasons in ADR 0004 (double type-checking, slower, no clickable skip report).
-- **Separate Output and Terminal panes, or Warp-style blocks.** Not chosen for now. mockups are in `.scratch/playground-parity/terminal-variants.html`. Blocks would mean replacing xterm's model, and split panes stray from `/play`'s single terminal.
+- **Separate Output and Terminal panes, or Warp-style blocks.** Not chosen for now. Blocks would mean replacing xterm's model, and split panes stray from `/play`'s single terminal.
 
 ## Consequences
 
