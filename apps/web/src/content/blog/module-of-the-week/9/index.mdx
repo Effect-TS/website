@@ -1,0 +1,455 @@
+---
+pagefind: false
+title: Module of the Week - EventLog
+slug: module-of-the-week/event-log
+packageName: effect/eventlog
+apiModules:
+  - effect/eventlog/EventLog
+  - effect/eventlog/EventGroup
+  - effect/eventlog/EventJournal
+  - effect/eventlog/EventLogEncryption
+  - effect/eventlog/EventLogRemote
+  - effect/eventlog/EventRow
+excerpt: Learn how effect/eventlog keeps offline-first devices in sync with typed event journals, encrypted remotes, and per-event or per-field conflict resolution.
+date: 2026-11-23
+authors:
+  - maxwell_brown
+tags:
+  - module-of-the-week
+---
+
+import Aside from "@/components/docs/Aside.astro"
+import ReaderAsks from "../5/ReaderAsks.astro"
+import SebastianSays from "./SebastianSays.astro"
+import SideQuestIncidentVisual from "./SideQuestIncidentVisual.astro"
+import NaivePutQueueVisual from "./NaivePutQueueVisual.astro"
+import JournalReplicaVisual from "./JournalReplicaVisual.astro"
+import ConflictReplayVisual from "./ConflictReplayVisual.astro"
+import EventRowMergeVisual from "./EventRowMergeVisual.astro"
+
+Most apps stay in sync across devices because a server sits in the middle and holds the latest state. That stops working the moment your laptop or phone goes offline and starts taking edits on its own.
+
+Effect's `EventLog` is built for that case. Each device writes what happened to its own local log while it's offline, and `EventLog` gives you the tools to sync those logs and bring your devices back into agreement when they reconnect.
+
+By the end of this post, you'll know:
+
+<ol class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>How to describe events and project them into state you own</li>
+  <li>
+    How two offline journals sync into the same order and handle conflicts
+  </li>
+  <li>How `EventRow` merges concurrent edits field by field</li>
+</ol>
+
+## The idea vault
+
+Sebastian can sit down to fix a typo in a README and walk away four hours later with a half-built CSS compiler, an almost-working markdown parser, and nine `.dev` domains he'll never use. He loves telling the rest of the team about every one of them, he just has trouble keeping track of them all. So he built an **Idea Vault** to keep them in one place.
+
+He wanted it to work across all his devices, even when he's on the go without signal. Start an idea on his laptop, tweak it on his phone later, and have everything line up once both devices are back online.
+
+Press **Step** (or click any idea) to follow `custom lexer` from online into offline mode and back.
+
+<SideQuestIncidentVisual />
+
+While both devices are online, the vault updates right away. The moment they go offline and tweak the same idea in different directions, those threads collide as soon as they reconnect.
+
+<SebastianSays>
+  It's basically done. I just don't know which version of the lexer is the real
+  one.
+</SebastianSays>
+
+Before we rebuild Sebastian's vault with `EventLog`, let's look at why the obvious offline approach falls apart.
+
+## The naive approach
+
+The obvious way to sync Sebastian's vault is a plain HTTP server with one `PUT /vault/:slug` route. Since his laptop and phone go offline, each device queues up its `fetch` calls and flushes them when it reconnects:
+
+```ts showLineNumbers=false title="naive.ts"
+// Server: one map holding the latest state of each project
+const vault = new Map<string, { pitch: string; domains: number }>()
+
+app.put("/vault/:slug", async (req, res) => {
+  const body = await req.json()
+  // Overwrites the entire entry in place; whatever was here before is gone
+  vault.set(req.params.slug, body)
+  res.status(200).end()
+})
+
+// Client: buffer writes locally while this device is offline
+const queue: Array<{ url: string; body: { pitch: string; domains: number } }> =
+  []
+
+const saveIdea = (slug: string, pitch: string) => {
+  queue.push({
+    url: `/vault/${slug}`,
+    body: { pitch, domains: 0 },
+  })
+}
+
+// Replay queued requests once signal comes back (no ordering across devices)
+const flush = async () => {
+  for (const item of queue) {
+    // Whichever device's request hits the server last wins
+    await fetch(item.url, {
+      method: "PUT",
+      body: JSON.stringify(item.body),
+    })
+  }
+}
+```
+
+The server keeps one `vault` map and overwrites the whole entry on every `PUT`. Each offline device pushes updates into `queue`, and `flush` replays them once the network comes back.
+
+That works until both devices reconnect after editing the same entry. Say his laptop logs `readme-typo` as `just-a-typo` at `09:14:09`, and thirty-two seconds later his phone changes it to `new-parser`. Press **Step** to watch what happens when they flush.
+
+<NaivePutQueueVisual />
+
+Whichever request arrives last overwrites the previous one, even if it's the older edit. Once both devices sync back from the server, Phone's newer edit is gone everywhere.
+
+<ReaderAsks>
+  Couldn't each device send a timestamp with its `PUT`, and let the server keep
+  the newer one?
+</ReaderAsks>
+
+It could, and that fixes the simplest single-field overwrite. Even then, device clocks drift, so "newer" depends on whose clock happens to be ahead. A newer whole-object `PUT` still wipes out unrelated fields changed on the other device. Worse, overwriting the entry in place throws away what happened, so your code never even sees that a collision occurred.
+
+If overwriting the vault loses work, we need to stop sending the whole entry and record what actually happened instead.
+
+## Write everything down
+
+Instead of sending the whole state of `readme-typo` to a server, each device records a short fact whenever something happens: Sebastian logged `readme-typo`, then he nerd-sniped himself into building a custom markdown parser. Rather than mutating an entry in place, the device appends a new **event** and keeps the earlier ones.
+
+In Effect, related events live in an `EventGroup`, built up from `EventGroup.empty`:
+
+```ts showLineNumbers=false title="events.ts"
+import { Schema } from "effect"
+import { EventGroup } from "effect/eventlog"
+
+export const VaultEvents = EventGroup.empty
+  .add({
+    tag: "IdeaLogged",
+    // Events with the same primaryKey belong to the same vault entry
+    primaryKey: (payload) => payload.slug,
+    // Validates the payload and encodes it to bytes for storage and sync
+    payload: Schema.Struct({
+      slug: Schema.String,
+      pitch: Schema.String,
+    }),
+  })
+  .add({
+    tag: "NerdSniped",
+    primaryKey: (payload) => payload.slug,
+    payload: Schema.Struct({
+      slug: Schema.String,
+      pitch: Schema.String,
+      domains: Schema.Number,
+    }),
+  })
+```
+
+Each `.add` registers one event tag. `payload` is an Effect Schema that validates the data and encodes it into bytes for storage and sync.
+
+`primaryKey` pulls a **primary key** string out of each payload so `EventLog` knows which events belong to the same entry. Here both `IdeaLogged` and `NerdSniped` return `payload.slug`, so every event about `"readme-typo"` shares one key, while events about `"regex-engine"` stay under their own. Later, when two devices sync offline edits, `EventLog` uses that key to tell when two writes touched the same idea instead of unrelated ones.
+
+Notice there's no storage or update logic in `events.ts`. This file only describes what events a device can record.
+
+<SebastianSays>
+  Hear me out. What if I wrote my own binary codec for the vault? Just over the
+  weekend.
+</SebastianSays>
+
+A log of events is useful, but Sebastian still needs a vault he can actually read.
+
+## Projecting events into state
+
+`VaultEvents` only describes the shape of the events. To turn those events into state your app can actually query, you register a **handler** for every event in the group with `EventLog.group`. Each handler runs whenever its event is written locally or replayed from another device:
+
+```ts showLineNumbers=false title="handlers.ts"
+import { Context, Effect, Layer } from "effect"
+import { EventLog } from "effect/eventlog"
+import { VaultEvents } from "./events"
+
+export interface Idea {
+  readonly pitch: string
+  readonly domains: number
+}
+
+// Separate service holding the projected state so anything can query it later
+export class Vault extends Context.Service<
+  Vault,
+  {
+    readonly set: (slug: string, idea: Idea) => Effect.Effect<void>
+    readonly update: (
+      slug: string,
+      fields: Partial<Idea>,
+    ) => Effect.Effect<void>
+    readonly remove: (slug: string) => Effect.Effect<void>
+    readonly all: Effect.Effect<Record<string, Idea>>
+  }
+>()("Vault") {
+  static readonly layer = Layer.sync(Vault, () => {
+    const map = new Map<string, Idea>()
+    return Vault.of({
+      set: (slug, idea) =>
+        Effect.sync(() => {
+          map.set(slug, idea)
+        }),
+      update: (slug, fields) =>
+        Effect.sync(() => {
+          const existing = map.get(slug)
+          if (existing !== undefined) map.set(slug, { ...existing, ...fields })
+        }),
+      remove: (slug) =>
+        Effect.sync(() => {
+          map.delete(slug)
+        }),
+      all: Effect.sync(() => Object.fromEntries(map)),
+    })
+  })
+}
+
+// Build a Layer that registers a handler for every event in VaultEvents
+export const VaultHandlers = EventLog.group(
+  VaultEvents,
+  Effect.fn(function* (handlers) {
+    const vault = yield* Vault
+
+    return (
+      handlers
+        // Runs on local writes and whenever this event replays from another device
+        .handle("IdeaLogged", ({ payload }) =>
+          vault.set(payload.slug, { pitch: payload.pitch, domains: 0 }),
+        )
+        .handle("NerdSniped", ({ payload }) =>
+          vault.update(payload.slug, {
+            pitch: payload.pitch,
+            domains: payload.domains,
+          }),
+        )
+    )
+  }),
+)
+```
+
+`Vault` is an Effect service backed by a `Map`, so the rest of the app can query the projected state later. In a real app, `Vault` could talk to SQLite or IndexedDB behind the same interface.
+
+`EventLog.group` takes the `EventGroup` specification and returns a handler builder. Each `.handle` call pairs an event tag with a callback that receives the decoded `payload` and returns an Effect.
+
+<Aside type="caution" title="Every event needs a handler">
+  If you forget to handle an event from `VaultEvents`, `EventLog.group` fails to
+  compile with the missing event's name (for example, `"Event not handled:
+  NerdSniped"`).
+</Aside>
+
+Drag the **Replay** slider or press **Step** to fold each event into the vault map.
+
+<JournalReplicaVisual stage="projection" />
+
+Now that we have events and handlers, let's wire up two devices and sync them.
+
+## Syncing two devices
+
+To run an `EventLog` on a device, you combine your event groups with `EventLog.schema` and wire them up with your handlers in `EventLog.layer`. Every device needs two services to run: an **EventJournal** to store committed entries, and an **Identity** identifying who owns the log.
+
+Because Sebastian's laptop and phone belong to the same person, they share one `Identity`. You generate it once with `EventLog.makeIdentity`, serialize it with `EventLog.encodeIdentityString`, and decode that string on the other device with `EventLog.decodeIdentityString`:
+
+```ts showLineNumbers=false title="sync.ts"
+import { Effect, Layer } from "effect"
+import { EventJournal, EventLog, EventLogRemote } from "effect/eventlog"
+import { RpcClient, RpcSerialization } from "effect/rpc"
+import { Socket } from "effect/socket"
+import { VaultEvents } from "./events"
+import { Vault, VaultHandlers } from "./handlers"
+
+const schema = EventLog.schema(VaultEvents)
+
+// Copied from EventLog.encodeIdentityString
+const identityString = "eyJwdWJsaWNLZXkiOiI2YjJlNzFkZS05..."
+
+const IdentityLayer = Layer.succeed(
+  EventLog.Identity,
+  EventLog.decodeIdentityString(identityString),
+)
+
+// Local device runtime: Vault + EventJournal + shared Identity
+const DeviceLayer = EventLog.layer(schema, VaultHandlers).pipe(
+  Layer.provideMerge(Vault.layer),
+  Layer.provide(EventJournal.layerMemory),
+  Layer.provide(IdentityLayer),
+)
+
+// Syncs encrypted entries over WebSocket
+const SyncedDeviceLayer = EventLogRemote.layerEncrypted.pipe(
+  Layer.provide(RpcClient.layerProtocolSocket()),
+  Layer.provide(Socket.layerWebSocket("wss://vault.example.com/sync")),
+  Layer.provide(Socket.layerWebSocketConstructorGlobal),
+  Layer.provide(RpcSerialization.layerJson),
+  Layer.provideMerge(DeviceLayer),
+)
+
+const laptop = Effect.gen(function* () {
+  const client = yield* EventLog.makeClient(schema)
+  yield* client({
+    event: "IdeaLogged",
+    payload: {
+      slug: "readme-typo",
+      pitch: "just-a-typo",
+    },
+  })
+  yield* client({
+    event: "NerdSniped",
+    payload: {
+      slug: "readme-typo",
+      pitch: "custom AST",
+      domains: 3,
+    },
+  })
+})
+
+const phone = Effect.gen(function* () {
+  const client = yield* EventLog.makeClient(schema)
+  yield* client({
+    event: "IdeaLogged",
+    payload: {
+      slug: "regex-engine",
+      pitch: "zero-dep NFA",
+    },
+  })
+})
+
+// Each run gets its own Vault and EventJournal
+Effect.runPromise(laptop.pipe(Effect.provide(SyncedDeviceLayer)))
+Effect.runPromise(phone.pipe(Effect.provide(SyncedDeviceLayer)))
+```
+
+Each `Effect.runPromise` call builds its own `Vault` and `EventJournal.layerMemory`, so the two devices stay isolated while they're offline. On a local write, `EventLog` runs the matching handler first and only commits the entry to the journal if the handler succeeds.
+
+`EventLogRemote.layerEncrypted` connects the device to a sync server over WebSocket and encrypts every entry with the shared `Identity` before it leaves the device. The server (`EventLogServerEncrypted`) only ever sees opaque bytes it can't read, so syncing stays end-to-end encrypted. Once both devices are online, each uploads its uncommitted entries and streams down the ones it missed.
+
+If your server needs to read, index, or query entries itself, you can swap in `EventLogRemote.layerUnencrypted` with `EventLogServerUnencrypted` instead. Both layers take the exact same dependencies, so switching between encrypted and plaintext sync is a one-line change. You can find a working server setup in the companion repo.
+
+Step through the sync and toggle between **Encrypted** and **Unencrypted** to see what the server sees on the wire.
+
+<JournalReplicaVisual stage="sync" />
+
+Notice where the `regex-engine` event is in the EventLog after the devices sync. Every entry in the EventLog gets a UUID v7 identifier. Unlike random UUIDs, UUID v7 starts with a timestamp, so both devices can sort events into the same chronological order by ID.
+
+In this example, the laptop and phone wrote to different primary keys. Let's take a look at what happens when both devices write to the same primary key while offline.
+
+## Handling conflicts
+
+While offline, Sebastian's laptop logs `IdeaLogged` for `readme-typo` with `pitch: "just-a-typo"`. A few seconds later, his phone logs `IdeaLogged` for `readme-typo` with `pitch: "new-parser"`.
+
+When they sync, our current handler applies every incoming event as it arrives. The laptop updates to `"new-parser"`, and the phone overwrites `"new-parser"` with the laptop's older `"just-a-typo"`. Both devices now have the exact same events, but different state.
+
+Every handler receives a second field alongside `payload` called **conflicts**. When a remote event arrives, `conflicts` lists any newer events of the same type and `primaryKey` that this device already has. If `conflicts` isn't empty, the incoming event is out of date, so we can skip it and keep `"new-parser"` on both devices:
+
+```ts showLineNumbers=false title="handlers.ts" ins={3, 5}
+.handle(
+  "IdeaLogged",
+  Effect.fn(function* ({ payload, conflicts }) {
+    // Skip older writes when a newer entry already exists
+    if (conflicts.length > 0) return
+    yield* vault.set(payload.slug, { pitch: payload.pitch, domains: 0 })
+  }),
+)
+```
+
+<SebastianSays>
+  See? Even the distributed system agrees we need a new parser.
+</SebastianSays>
+
+Press **Step** to replay the sync, then flip to **Always apply** to see what breaks without the `conflicts` check.
+
+<ConflictReplayVisual />
+
+Only the phone saw a conflict in step 2, because only the phone already had a newer `IdeaLogged` entry for `readme-typo`.
+
+<ReaderAsks>
+  So wait, the library doesn't merge conflicting events for me?
+</ReaderAsks>
+
+Not by default. `EventLog` can't know what your app wants to do with a conflict, so it gives you the list of conflicts and lets you decide.
+
+But what happens when you can't just throw away conflicting events?
+
+## Merging conflicts
+
+Suppose `readme-typo` is already in the vault. While offline, Sebastian's laptop bumps `domains` to `4`, and shortly after his phone updates `pitch` to `"new-parser"`. If the handler skips the entire older event, `domains: 4` gets thrown away.
+
+For record-shaped data, `effect/eventlog` ships `EventRow`. Instead of deciding per event, `EventRow` resolves `conflicts` one top-level field at a time using last write wins:
+
+```ts showLineNumbers=false title="row.ts"
+import { Effect, Schema } from "effect"
+import { EventGroup, EventLog, EventRow } from "effect/eventlog"
+import { Vault } from "./handlers"
+
+export const IdeaRow = EventRow.make("idea", {
+  key: "slug",
+  schema: Schema.Struct({
+    slug: Schema.String,
+    pitch: Schema.String,
+    domains: Schema.Number,
+    shipped: Schema.Boolean,
+  }),
+})
+
+export const RowEvents = EventGroup.empty.add(IdeaRow)
+
+// EventRow.handler filters out fields overwritten by newer conflicts
+export const RowHandlers = EventLog.group(
+  RowEvents,
+  Effect.fn(function* (handlers) {
+    const vault = yield* Vault
+
+    return handlers.handle(
+      "idea",
+      EventRow.handler(IdeaRow, {
+        set: (row) => vault.set(row.slug, row),
+        patch: (slug, fields) => vault.update(slug, fields),
+        remove: (slug) => vault.remove(slug),
+      }),
+    )
+  }),
+)
+```
+
+`EventRow.make` defines a single `"idea"` event keyed by `slug`, with built-in `IdeaRow.set`, `IdeaRow.patch`, and `IdeaRow.remove` methods. A laptop updating domains sends `IdeaRow.patch("readme-typo", { domains: 4 })`, and a phone updating the pitch sends `IdeaRow.patch("readme-typo", { pitch: "new-parser" })`.
+
+`EventRow.handler` resolves `conflicts` before calling your `set`, `patch`, or `remove` callback. When the laptop's older `{ domains: 4 }` patch arrives on the phone, `EventRow.handler` checks the newer conflict, sees it only touched `pitch`, and lets `{ domains: 4 }` through to `vault.update`. Any field that a newer event already changed gets dropped, so each top-level field uses last write wins independently.
+
+<Aside title="Top-level fields only">
+  `EventRow` resolves conflicts per top-level field. Nested objects are still
+  replaced as one value, so keep fields you want merged independently at the top
+  level.
+</Aside>
+
+Press **Step** to watch `EventRow` merge the two offline patches field by field, then switch to **Whole event** to see what gets dropped.
+
+<EventRowMergeVisual />
+
+With `EventRow`, `domains: 4` stays in the row even though the phone wrote later. A field is only overwritten when a newer event also changes that same field.
+
+## Wrapping up
+
+That's it for this week! To recap what we've learned:
+
+<ul class="[&>li]:my-0 [&>li>p]:my-0">
+  <li>
+    Define typed events with `EventGroup` and link related ones by `primaryKey`
+  </li>
+  <li>Write event handlers with `EventLog.group` to update your app's state</li>
+  <li>
+    Sync devices over `EventLogRemote` with a shared `Identity` in UUID v7 order
+  </li>
+  <li>
+    Check `conflicts` in your handler to resolve overlapping offline edits
+  </li>
+  <li>
+    Use `EventRow` to merge conflicting record updates one field at a time
+  </li>
+</ul>
+
+All of the code from this post is [on GitHub](https://github.com/Effect-TS/office-hours/tree/main/packages/module-of-the-week/src/0009-event-log), if you'd like to run it yourself.
+
+Until next time, Happy Effecting!

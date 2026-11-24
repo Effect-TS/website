@@ -1,0 +1,554 @@
+---
+// Step-through Naive PUT replay using StepPills + StepControls:
+// 1. Offline edits: Laptop (09:14:09 · just-a-typo) & Phone (09:14:41 · new-parser) queue PUTs
+// 2. Phone flushes: newer PUT lands in server's readme-typo slot
+// 3. Laptop flushes: older PUT arrives second and overwrites new-parser
+// 4. Devices sync: both devices pull from the server; Phone's newer edit is gone everywhere
+import StepControls from "@/components/blog/module-of-the-week/stepper/StepControls.astro"
+import StepPills from "@/components/blog/module-of-the-week/stepper/StepPills.astro"
+
+const steps = ["Queue", "Phone", "Laptop", "Sync"]
+---
+
+<figure
+  class="np st"
+  data-naive-put
+  aria-label="Step-through diagram: Laptop and Phone queue offline PUT requests for readme-typo. Phone flushes first, Laptop's older request arrives second and overwrites it, and syncing back wipes Phone's newer edit everywhere."
+>
+  <StepPills steps={steps} />
+
+  <div class="np-stage" data-stage>
+    <svg class="np-wires" data-wires aria-hidden="true">
+      <path data-wire="1"></path>
+      <path data-wire="2"></path>
+      <circle class="np-marble" data-marble="1" r="0" cx="0" cy="0"></circle>
+      <circle class="np-marble" data-marble="2" r="0" cx="0" cy="0"></circle>
+    </svg>
+
+    <div class="np-left">
+      <div class="np-dev is-t1" data-src="1">
+        <div class="np-dev-head">
+          <strong>Laptop</strong>
+          <span class="np-badge" data-state="1">offline</span>
+        </div>
+        <div class="np-pkt" data-pkt="1">
+          <span class="np-val" data-val="1">just-a-typo</span>
+          <span class="np-time">09:14:09</span>
+        </div>
+      </div>
+
+      <div class="np-dev is-t2" data-src="2">
+        <div class="np-dev-head">
+          <strong>Phone</strong>
+          <span class="np-badge" data-state="2">offline</span>
+        </div>
+        <div class="np-pkt" data-pkt="2">
+          <span class="np-val" data-val="2">new-parser</span>
+          <span class="np-time">09:14:41</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="np-right">
+      <div class="np-slot-wrap">
+        <div class="np-slot" data-slot>
+          <span class="np-slot-label" data-slot-label>server</span>
+          <span class="np-empty" data-empty>empty</span>
+          <div class="np-occupant" data-occupant hidden></div>
+        </div>
+        <div class="np-dropped" data-dropped aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <StepControls reset />
+</figure>
+
+<script>
+  import {
+    createStepper,
+    rel as relTo,
+    toPath,
+    type Point,
+  } from "@/components/blog/module-of-the-week/stepper/stepper"
+
+  type Id = "1" | "2"
+
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  const captions: ReadonlyArray<string> = [
+    "Press Step to trace two offline PUT requests flushing to the server.",
+    "1. Both devices queue a PUT locally while offline. The server still has nothing.",
+    "2. Phone comes online first and flushes new-parser into readme-typo.",
+    "3. Laptop comes online second. Its older PUT overwrites new-parser in place.",
+    "4. Both devices sync from the server. Phone's newer edit is gone everywhere.",
+  ]
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-naive-put]")) {
+    const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!
+    const stage = q<HTMLElement>("[data-stage]")
+    const wires = q<SVGSVGElement>("[data-wires]")
+    const slot = q<HTMLElement>("[data-slot]")
+    const slotLabel = q<HTMLElement>("[data-slot-label]")
+    const empty = q<HTMLElement>("[data-empty]")
+    const occupant = q<HTMLElement>("[data-occupant]")
+    const dropped = q<HTMLElement>("[data-dropped]")
+    const caption = q<HTMLElement>("[data-caption]")
+    const state1 = q<HTMLElement>('[data-state="1"]')
+    const state2 = q<HTMLElement>('[data-state="2"]')
+    const pkt1 = q<HTMLElement>('[data-pkt="1"]')
+    const pkt2 = q<HTMLElement>('[data-pkt="2"]')
+    const val1 = q<HTMLElement>('[data-val="1"]')
+    const val2 = q<HTMLElement>('[data-val="2"]')
+
+    const rel = (el: Element) => relTo(stage, el)
+    const marble1 = q<SVGCircleElement>('[data-marble="1"]')
+    const marble2 = q<SVGCircleElement>('[data-marble="2"]')
+
+    let prevStep = 0
+    let rafs: Array<number> = []
+
+    const cancelMarbles = () => {
+      for (const id of rafs) cancelAnimationFrame(id)
+      rafs = []
+      marble1.setAttribute("r", "0")
+      marble2.setAttribute("r", "0")
+    }
+
+    const sendMarble = (wireId: Id, tone: "is-t1" | "is-t2", reverse = false, duration = 900) => {
+      if (reduceMotion()) return
+      const path = q<SVGPathElement>(`[data-wire="${wireId}"]`)
+      const dot = wireId === "1" ? marble1 : marble2
+      const len = path.getTotalLength()
+      if (len <= 0) return
+
+      dot.setAttribute("class", `np-marble ${tone}`)
+      const t0 = performance.now()
+      const maxR = 6.5
+
+      const tick = (now: number) => {
+        const p = Math.min(1, (now - t0) / duration)
+        // Smooth ease-in-out along the pipe
+        const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2
+        const dist = reverse ? len * (1 - eased) : len * eased
+        const pt = path.getPointAtLength(dist)
+        dot.setAttribute("cx", String(pt.x))
+        dot.setAttribute("cy", String(pt.y))
+
+        // Grow smoothly at start (0..22%), hold full size, shrink into target (78..100%)
+        let scale = 1
+        if (p < 0.22) scale = p / 0.22
+        else if (p > 0.78) scale = (1 - p) / 0.22
+        dot.setAttribute("r", String(Math.max(0, maxR * scale)))
+
+        if (p < 1) {
+          rafs.push(requestAnimationFrame(tick))
+        } else {
+          dot.setAttribute("r", "0")
+        }
+      }
+
+      rafs.push(requestAnimationFrame(tick))
+    }
+
+    const routeFor = (id: Id): Array<Point> => {
+      const src = rel(q(`[data-src="${id}"]`))
+      const dst = rel(slot)
+      if (dst.left >= src.right) {
+        const y1 = (src.top + src.bottom) / 2
+        const y2 = (dst.top + dst.bottom) / 2
+        const midX = (src.right + dst.left) / 2
+        return [
+          { x: src.right, y: y1 },
+          { x: midX, y: y1 },
+          { x: midX, y: y2 },
+          { x: dst.left, y: y2 },
+        ]
+      }
+      const x1 = (src.left + src.right) / 2
+      const x2 = (dst.left + dst.right) / 2
+      const midY = (src.bottom + dst.top) / 2
+      return [
+        { x: x1, y: src.bottom },
+        { x: x1, y: midY },
+        { x: x2, y: midY },
+        { x: x2, y: dst.top },
+      ]
+    }
+
+    const drawWires = (k: number) => {
+      wires.setAttribute("viewBox", `0 0 ${stage.clientWidth} ${stage.clientHeight}`)
+      const w1 = q<SVGPathElement>('[data-wire="1"]')
+      const w2 = q<SVGPathElement>('[data-wire="2"]')
+      w1.setAttribute("d", toPath(routeFor("1")))
+      w2.setAttribute("d", toPath(routeFor("2")))
+      w1.classList.toggle("is-on", k >= 3)
+      w2.classList.toggle("is-on", k >= 2)
+      w1.classList.toggle("is-sync", k >= 4)
+      w2.classList.toggle("is-sync", k >= 4)
+    }
+
+    const apply = (k: number) => {
+      const forward = k === prevStep + 1
+      prevStep = k
+      cancelMarbles()
+
+      // Device badges & local packet states
+      const hasQueued = k >= 1
+      pkt1.classList.toggle("is-queued", hasQueued && k < 3)
+      pkt2.classList.toggle("is-queued", hasQueued && k < 2)
+      pkt1.classList.toggle("is-sent", k === 3)
+      pkt2.classList.toggle("is-sent", k === 2 || k === 3)
+      pkt1.classList.toggle("is-synced", k >= 4)
+      pkt2.classList.toggle("is-synced", k >= 4)
+      pkt2.classList.toggle("is-overwritten", k >= 4)
+
+      state1.textContent = k < 3 ? "offline" : k === 3 ? "online" : "synced"
+      state2.textContent = k < 2 ? "offline" : k < 4 ? "online" : "synced"
+      state1.dataset.mode = k < 3 ? "off" : "on"
+      state2.dataset.mode = k < 2 ? "off" : "on"
+
+      val1.textContent = k === 0 ? "idle" : k < 4 ? "PUT just-a-typo" : "just-a-typo"
+      val2.textContent = k === 0 ? "idle" : k < 4 ? "PUT new-parser" : "just-a-typo"
+
+      // Server slot
+      if (k < 2) {
+        slotLabel.textContent = "server"
+        empty.hidden = false
+        occupant.hidden = true
+        slot.dataset.owner = ""
+        dropped.innerHTML = ""
+      } else if (k === 2) {
+        slotLabel.textContent = "server · readme-typo"
+        empty.hidden = true
+        occupant.hidden = false
+        occupant.innerHTML = `<strong>new-parser</strong><span>Phone · 09:14:41</span>`
+        slot.dataset.owner = "2"
+        dropped.innerHTML = ""
+      } else {
+        slotLabel.textContent = "server · readme-typo"
+        empty.hidden = true
+        occupant.hidden = false
+        occupant.innerHTML = `<strong>just-a-typo</strong><span>Laptop · 09:14:09</span>`
+        slot.dataset.owner = "1"
+        dropped.innerHTML = `<span class="np-lost">✕ overwritten: new-parser</span>`
+        if (forward && k === 3 && !reduceMotion()) {
+          dropped.animate(
+            [
+              { opacity: 0, transform: "translateY(-12px)" },
+              { opacity: 1, transform: "translateY(0)" },
+            ],
+            { duration: 260, easing: "ease-out" },
+          )
+        }
+      }
+
+      drawWires(k)
+      caption.textContent = captions[k] ?? ""
+
+      // Play pipe-marble animations on forward step
+      if (forward && !reduceMotion()) {
+        if (k === 2) {
+          sendMarble("2", "is-t2", false, 900)
+        } else if (k === 3) {
+          sendMarble("1", "is-t1", false, 900)
+        } else if (k === 4) {
+          sendMarble("1", "is-t1", true, 900)
+          sendMarble("2", "is-t1", true, 900)
+        }
+      }
+    }
+
+    new ResizeObserver(() => drawWires(prevStep)).observe(stage)
+
+    createStepper({
+      root,
+      first: 1,
+      last: 4,
+      apply,
+    })
+  }
+</script>
+
+<style is:global>
+  .np {
+    --np-ink: #3f3f46;
+    --np-muted: #71717a;
+    --np-line: #e4e4e7;
+    --np-surface: #ffffff;
+    --np-card: #fafafa;
+    --np-t1: #0072b2;
+    --np-t2: #d55e00;
+    --np-ok: #007a5e;
+    --np-stop: #dc2626;
+    --st-ink: var(--np-ink);
+    --st-muted: var(--np-muted);
+    --st-line: var(--np-line);
+    --st-surface: var(--np-surface);
+    margin: 1.5rem 0;
+    padding: 0.95rem 1rem 1rem;
+    border: 1px solid var(--np-line);
+    border-radius: 0.9rem;
+    background: var(--np-card);
+  }
+  html.dark .np {
+    --np-ink: #e4e4e7;
+    --np-muted: #a1a1aa;
+    --np-line: #27272a;
+    --np-surface: #09090b;
+    --np-card: #0f0f12;
+    --np-t1: #56b4e9;
+    --np-t2: #e69f00;
+    --np-ok: #3cc39b;
+    --np-stop: #f87171;
+  }
+
+  .np .st-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .np .st-controls {
+    margin-top: 0.85rem;
+  }
+
+  .np-stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem 3rem;
+    padding: 1.1rem 0.6rem;
+    background: transparent;
+  }
+  .np-wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .np-wires path {
+    fill: none;
+    stroke: var(--np-line);
+    stroke-width: 1.75;
+    stroke-dasharray: 4 4;
+    stroke-linejoin: round;
+    transition: stroke 200ms ease;
+  }
+  .np-wires path.is-on {
+    stroke: var(--np-ink);
+    stroke-dasharray: none;
+  }
+  .np-wires path.is-sync {
+    stroke: var(--np-t1);
+  }
+
+  .np-marble {
+    stroke: var(--np-surface);
+    stroke-width: 2;
+  }
+  .np-marble.is-t1 {
+    fill: var(--np-t1);
+  }
+  .np-marble.is-t2 {
+    fill: var(--np-t2);
+  }
+
+  .np-left {
+    display: grid;
+    gap: 0.85rem;
+  }
+  .np-dev {
+    display: grid;
+    gap: 0.3rem;
+    padding: 0.65rem 0.8rem;
+    border: 1.5px solid color-mix(in oklab, var(--c) 45%, var(--np-line));
+    border-radius: 0.6rem;
+    background: var(--np-surface);
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease;
+  }
+  .np-dev.is-t1 {
+    --c: var(--np-t1);
+  }
+  .np-dev.is-t2 {
+    --c: var(--np-t2);
+  }
+  .np-dev-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .np-dev-head strong {
+    font-size: 0.8rem;
+    color: var(--c);
+  }
+  .np-badge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--np-muted);
+  }
+  .np-badge[data-mode="on"] {
+    color: var(--np-ok);
+  }
+
+  .np-pkt {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.76rem;
+    transition: opacity 180ms ease;
+  }
+  .np-pkt.is-sent {
+    opacity: 0.45;
+  }
+  .np-pkt.is-synced {
+    opacity: 1;
+  }
+  .np-val {
+    font-weight: 700;
+    color: var(--np-muted);
+  }
+  .np-pkt.is-queued .np-val {
+    color: var(--c);
+  }
+  .np-pkt.is-synced .np-val {
+    color: var(--np-t1);
+  }
+  .np-pkt.is-overwritten .np-val {
+    color: var(--np-stop);
+  }
+  .np-time {
+    font-size: 0.66rem;
+    color: var(--np-muted);
+  }
+
+  .np-right {
+    display: grid;
+    justify-items: center;
+  }
+  .np-slot-wrap {
+    display: grid;
+    justify-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    max-width: 13.5rem;
+  }
+  .np-slot-label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--np-muted);
+  }
+  .np-slot {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 0.25rem;
+    width: 100%;
+    min-height: 5.1rem;
+    padding: 0.55rem 0.65rem;
+    border: 2px dashed var(--np-line);
+    border-radius: 0.6rem;
+    background: var(--np-card);
+    transition:
+      border-color 200ms ease,
+      background-color 200ms ease;
+  }
+  .np-slot[data-owner="1"] {
+    --c: var(--np-t1);
+    border-style: solid;
+    border-color: var(--c);
+    background: color-mix(in oklab, var(--c) 12%, var(--np-surface));
+  }
+  .np-slot[data-owner="2"] {
+    --c: var(--np-t2);
+    border-style: solid;
+    border-color: var(--c);
+    background: color-mix(in oklab, var(--c) 12%, var(--np-surface));
+  }
+  .np-empty {
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--np-muted);
+  }
+  .np-empty[hidden],
+  .np-occupant[hidden] {
+    display: none;
+  }
+  .np-occupant {
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+  }
+  .np-occupant strong {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.86rem;
+    color: var(--c);
+  }
+  .np-occupant span {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--np-muted);
+  }
+  .np-dropped {
+    min-height: 1.5rem;
+    display: grid;
+    place-items: center;
+  }
+  .np-lost {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--np-stop);
+  }
+
+  @media (max-width: 580px) {
+    .np {
+      padding: 0.75rem;
+    }
+    .np .st-caption {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .np .st-controls {
+      margin-top: 0.85rem;
+    }
+
+    .np-stage {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.75rem;
+      padding: 1rem 0.85rem;
+    }
+    .np-left {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+    .np-pkt {
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .np-pkt,
+    .np-slot,
+    .np-wires path {
+      transition: none;
+    }
+  }
+</style>

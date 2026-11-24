@@ -1,0 +1,223 @@
+.pp {
+  --pp-ink: #27272a;
+  --pp-muted: #71717a;
+  --pp-line: #e4e4e7;
+  --pp-surface: #ffffff;
+  --pp-card: #fafafa;
+  --pp-d1: #0072b2;
+  --pp-d2: #d55e00;
+  --pp-ok: #007a5e;
+  --pp-stop: #dc2626;
+  margin: 1.5rem 0;
+  border: 1px solid var(--pp-line);
+  border-radius: 0.9rem;
+  background: var(--pp-card);
+  overflow: hidden;
+  user-select: none;
+}
+
+html.dark .pp {
+  --pp-ink: #e4e4e7;
+  --pp-muted: #a1a1aa;
+  --pp-line: #27272a;
+  --pp-surface: #09090b;
+  --pp-card: #0f0f12;
+  --pp-d1: #56b4e9;
+  --pp-d2: #e69f00;
+  --pp-ok: #3cc39b;
+  --pp-stop: #f87171;
+}
+
+.pp-body {
+  padding: 1.05rem 1.15rem;
+  background: var(--pp-surface);
+}
+
+.pp-kicker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--pp-muted);
+  margin-bottom: 0.4rem;
+}
+
+.pp-scrub-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 0.95rem;
+  align-items: start;
+}
+
+.pp-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pp-list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1.5px dashed var(--pp-line);
+  border-radius: 6px;
+  background: var(--pp-card);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--pp-muted);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.pp-list-item.is-d1 {
+  --c: var(--pp-d1);
+}
+
+.pp-list-item.is-d2 {
+  --c: var(--pp-d2);
+}
+
+.pp-list-item.is-seen {
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--c) 50%, var(--pp-line));
+  color: var(--pp-ink);
+}
+
+.pp-list-item.is-active {
+  border-color: var(--c);
+  background: color-mix(in oklab, var(--c) 14%, var(--pp-surface));
+  color: var(--c);
+  font-weight: 700;
+}
+
+.pp-map {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  min-height: 8.6rem;
+  padding: 0.55rem 0.65rem;
+  border: 1.5px solid var(--pp-line);
+  border-radius: 6px;
+  background: var(--pp-card);
+}
+
+.pp-empty {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.74rem;
+  font-style: italic;
+  color: var(--pp-muted);
+  margin: auto 0;
+  text-align: center;
+}
+
+.pp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.74rem;
+  transition: background-color 200ms ease;
+}
+
+.pp-row.is-hit {
+  background: color-mix(in oklab, var(--pp-ok) 14%, transparent);
+}
+
+.pp-key {
+  font-weight: 700;
+  color: var(--pp-ink);
+}
+
+.pp-val {
+  color: var(--pp-d1);
+  font-weight: 600;
+}
+
+.pp-meta {
+  font-size: 0.68rem;
+  color: var(--pp-muted);
+}
+
+.pp-miss-note {
+  margin-top: 0.3rem;
+  padding: 0 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--pp-stop);
+}
+
+/* Bottom bar: scrubber + Step/Reset side by side */
+.pp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.7rem 1.15rem;
+  border-top: 1px solid var(--pp-line);
+}
+
+.pp-scrubber {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 13rem;
+}
+
+.pp-scrubber input {
+  flex: 1;
+  accent-color: var(--pp-ink);
+  cursor: pointer;
+}
+
+.pp-scrub-lbl,
+.pp-scrub-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.74rem;
+  color: var(--pp-muted);
+  white-space: nowrap;
+}
+
+.pp-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.pp-btn {
+  padding: 0.34rem 0.9rem;
+  border: 1.5px solid var(--pp-ink);
+  border-radius: var(--radius-md, 6px);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pp-ink);
+  cursor: pointer;
+}
+
+.pp-btn:focus-visible {
+  outline: 2px solid var(--pp-ink);
+  outline-offset: 3px;
+}
+
+.pp-btn.is-primary {
+  background: var(--pp-ink);
+  color: var(--pp-surface);
+}
+
+.pp-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  .pp-scrub-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pp-bar {
+    justify-content: center;
+  }
+}

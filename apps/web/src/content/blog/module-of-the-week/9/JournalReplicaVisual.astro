@@ -1,0 +1,604 @@
+---
+// Minimalist progressive visual reused across Sections 5, 6, and 7:
+// - projection: Log idea / NerdSnipe -> Handler -> readme-typo vault tile
+// - local: Log idea / Ship -> Handler gate -> Vault tile + horizontal Journal tape (Ship rejected)
+// - sync: Laptop & Phone aligned horizontal Journal tapes merge into one UUID v7 order
+import { ProjectionPlayground } from "./ProjectionPlayground"
+import { SyncPlayground } from "./SyncPlayground"
+
+interface Props {
+  stage: "projection" | "local" | "sync"
+}
+const { stage } = Astro.props
+
+const labels: Record<Props["stage"], string> = {
+  projection:
+    "Interactive diagram: IdeaLogged and NerdSniped events pass through the handler to update readme-typo in the vault.",
+  local:
+    "Interactive diagram: Log idea passes the handler into the vault and journal tape, while Ship is rejected with NeverShipped and adds nothing to the journal.",
+  sync: "Interactive diagram: flipping Sync copies missing blocks between Sebastian's laptop and phone so both horizontal journal tapes end in the same UUID v7 order.",
+}
+---
+
+{
+  stage === "projection" ? (
+    <ProjectionPlayground client:visible />
+  ) : stage === "sync" ? (
+    <SyncPlayground client:visible />
+  ) : (
+    <figure
+      class:list={["jr", `jr--${stage}`]}
+      data-journal-replica
+      data-stage={stage}
+      aria-label={labels[stage]}
+    >
+      {stage === "local" && (
+        <>
+          <div class="jr-stage jr-local" data-stage>
+            <div class="jr-local-top">
+              <div class="jr-node">
+                <span class="jr-cap">Write</span>
+                <div class="jr-stack">
+                  <button type="button" class="jr-chip is-d1" data-local="log">
+                    Log idea
+                  </button>
+                  <button type="button" class="jr-chip is-stop" data-local="ship">
+                    Ship
+                  </button>
+                </div>
+              </div>
+
+              <span class="jr-arrow" aria-hidden="true">
+                →
+              </span>
+
+              <div class="jr-node">
+                <span class="jr-cap">Handler</span>
+                <div class="jr-gate" data-gate>
+                  <span data-gate-text>gate</span>
+                </div>
+              </div>
+
+              <span class="jr-arrow" aria-hidden="true">
+                →
+              </span>
+
+              <div class="jr-node">
+                <span class="jr-cap">css-compiler</span>
+                <div class="jr-tile" data-tile>
+                  <span data-tile-text>empty</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="jr-tape-row">
+              <span class="jr-cap">Journal</span>
+              <div class="jr-tape" data-tape>
+                <span class="jr-slot" data-slot="0" />
+                <span class="jr-slot" data-slot="1" />
+                <span class="jr-slot" data-slot="2" />
+              </div>
+              <span class="jr-tally" data-tally aria-live="polite">
+                0 entries
+              </span>
+            </div>
+          </div>
+          <div class="jr-bar">
+            <button type="button" class="jr-reset" data-reset>
+              Reset
+            </button>
+          </div>
+        </>
+      )}
+    </figure>
+  )
+}
+
+<script>
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  const shake = (el: HTMLElement) => {
+    if (reduceMotion()) return
+    el.animate(
+      [
+        { transform: "translateX(0)" },
+        { transform: "translateX(-4px)" },
+        { transform: "translateX(4px)" },
+        { transform: "translateX(0)" },
+      ],
+      { duration: 220, iterations: 2 },
+    )
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-journal-replica]")) {
+    const stage = root.dataset.stage
+
+    if (stage === "projection") {
+      const gate = root.querySelector<HTMLElement>("[data-gate]")!
+      const gateText = root.querySelector<HTMLElement>("[data-gate-text]")!
+      const tile = root.querySelector<HTMLElement>("[data-tile]")!
+      const tileText = root.querySelector<HTMLElement>("[data-tile-text]")!
+      const reset = root.querySelector<HTMLButtonElement>("[data-reset]")!
+      const btns = [...root.querySelectorAll<HTMLButtonElement>("[data-proj]")]
+
+      let state: "empty" | "logged" | "spiraled" = "empty"
+
+      const render = () => {
+        tile.dataset.state = state === "empty" ? "empty" : state === "logged" ? "started" : "crept"
+        tileText.textContent =
+          state === "empty" ? "empty" : state === "logged" ? "0 domains · typo" : "3 domains · AST"
+      }
+
+      for (const btn of btns) {
+        btn.addEventListener("click", () => {
+          const kind = btn.dataset.proj
+          if (kind === "log") {
+            state = "logged"
+            gate.dataset.state = "ok"
+            gateText.textContent = "set"
+          } else if (state === "empty") {
+            gate.dataset.state = "miss"
+            gateText.textContent = "no entry"
+            shake(gate)
+          } else {
+            state = "spiraled"
+            gate.dataset.state = "warn"
+            gateText.textContent = "+3 domains"
+          }
+          render()
+        })
+      }
+
+      reset.addEventListener("click", () => {
+        state = "empty"
+        gate.dataset.state = ""
+        gateText.textContent = "ready"
+        render()
+      })
+
+      render()
+    }
+
+    if (stage === "local") {
+      const gate = root.querySelector<HTMLElement>("[data-gate]")!
+      const gateText = root.querySelector<HTMLElement>("[data-gate-text]")!
+      const tile = root.querySelector<HTMLElement>("[data-tile]")!
+      const tileText = root.querySelector<HTMLElement>("[data-tile-text]")!
+      const slot0 = root.querySelector<HTMLElement>('[data-slot="0"]')!
+      const tally = root.querySelector<HTMLElement>("[data-tally]")!
+      const reset = root.querySelector<HTMLButtonElement>("[data-reset]")!
+      const logBtn = root.querySelector<HTMLButtonElement>('[data-local="log"]')!
+      const shipBtn = root.querySelector<HTMLButtonElement>('[data-local="ship"]')!
+
+      let logged = false
+
+      const render = () => {
+        logBtn.disabled = logged
+        tile.dataset.state = logged ? "started" : "empty"
+        tileText.textContent = logged ? "0 domains · div" : "empty"
+        slot0.classList.toggle("is-filled", logged)
+        slot0.textContent = logged ? "IdeaLogged" : ""
+        tally.textContent = logged ? "1 entry" : "0 entries"
+      }
+
+      logBtn.addEventListener("click", () => {
+        logged = true
+        gate.dataset.state = "ok"
+        gateText.textContent = "✓ ok"
+        render()
+      })
+
+      shipBtn.addEventListener("click", () => {
+        gate.dataset.state = "fail"
+        gateText.textContent = "✕ NeverShipped"
+        shake(gate)
+      })
+
+      reset.addEventListener("click", () => {
+        logged = false
+        gate.dataset.state = ""
+        gateText.textContent = "gate"
+        render()
+      })
+
+      render()
+    }
+
+    if (stage === "sync") {
+      const toggle = root.querySelector<HTMLButtonElement>("[data-sync]")!
+      let synced = false
+
+      const render = () => {
+        root.classList.toggle("is-synced", synced)
+        toggle.setAttribute("aria-checked", String(synced))
+      }
+
+      toggle.addEventListener("click", () => {
+        synced = !synced
+        render()
+      })
+
+      render()
+    }
+  }
+</script>
+
+<style is:global>
+  .jr {
+    --jr-ink: #3f3f46;
+    --jr-muted: #71717a;
+    --jr-line: #e4e4e7;
+    --jr-surface: #ffffff;
+    --jr-card: #fafafa;
+    --jr-d1: #0072b2;
+    --jr-d2: #d55e00;
+    --jr-ok: #007a5e;
+    --jr-stop: #dc2626;
+    --jr-warn: #b45309;
+    margin: 1.5rem 0;
+    border: 1px solid var(--jr-line);
+    border-radius: 0.9rem;
+    background: var(--jr-card);
+    overflow: hidden;
+  }
+  html.dark .jr {
+    --jr-ink: #e4e4e7;
+    --jr-muted: #a1a1aa;
+    --jr-line: #27272a;
+    --jr-surface: #09090b;
+    --jr-card: #0f0f12;
+    --jr-d1: #56b4e9;
+    --jr-d2: #e69f00;
+    --jr-ok: #3cc39b;
+    --jr-stop: #f87171;
+    --jr-warn: #fbbf24;
+  }
+
+  .jr-stage {
+    padding: 1.35rem 1.25rem;
+    background: var(--jr-surface);
+  }
+  .jr-cap {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--jr-muted);
+  }
+
+  .jr-pipe,
+  .jr-local-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) auto minmax(0, 0.85fr) auto minmax(0, 1.15fr);
+    align-items: center;
+    gap: 0.7rem;
+  }
+  .jr-local {
+    display: grid;
+    gap: 1.15rem;
+  }
+  .jr-node {
+    display: grid;
+    justify-items: center;
+    gap: 0.45rem;
+  }
+  .jr-arrow {
+    padding-top: 1.1rem;
+    font-size: 1rem;
+    color: var(--jr-muted);
+  }
+  .jr-stack {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.45rem;
+  }
+  .jr-chip {
+    padding: 0.35rem 0.8rem;
+    border: 1.5px solid var(--c);
+    border-radius: 999px;
+    background: var(--c);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #ffffff;
+    cursor: pointer;
+  }
+  html.dark .jr-chip {
+    color: #09090b;
+  }
+  .jr-chip.is-d1 {
+    --c: var(--jr-d1);
+  }
+  .jr-chip.is-d2 {
+    --c: var(--jr-d2);
+  }
+  .jr-chip.is-stop {
+    --c: var(--jr-stop);
+    background: transparent;
+    color: var(--jr-stop);
+  }
+  .jr-chip:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .jr-gate {
+    display: grid;
+    place-items: center;
+    min-width: 5.8rem;
+    height: 3.1rem;
+    padding: 0 0.75rem;
+    border: 2px solid var(--jr-line);
+    border-radius: 999px;
+    background: var(--jr-card);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--jr-muted);
+    white-space: nowrap;
+    transition:
+      border-color 180ms ease,
+      color 180ms ease,
+      background-color 180ms ease;
+  }
+  .jr-gate[data-state="ok"] {
+    border-color: var(--jr-ok);
+    background: color-mix(in oklab, var(--jr-ok) 10%, var(--jr-surface));
+    color: var(--jr-ok);
+  }
+  .jr-gate[data-state="miss"],
+  .jr-gate[data-state="warn"] {
+    border-color: var(--jr-warn);
+    background: color-mix(in oklab, var(--jr-warn) 10%, var(--jr-surface));
+    color: var(--jr-warn);
+  }
+  .jr-gate[data-state="fail"] {
+    border-color: var(--jr-stop);
+    background: color-mix(in oklab, var(--jr-stop) 12%, var(--jr-surface));
+    color: var(--jr-stop);
+  }
+
+  .jr-tile {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-width: 11.5rem;
+    height: 3.1rem;
+    padding: 0 0.75rem;
+    border: 2px dashed var(--jr-line);
+    border-radius: 0.65rem;
+    background: var(--jr-card);
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--jr-muted);
+    white-space: nowrap;
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+  .jr-tile[data-state="started"] {
+    border-style: solid;
+    border-color: var(--jr-d1);
+    background: color-mix(in oklab, var(--jr-d1) 12%, var(--jr-surface));
+    font-style: normal;
+    font-weight: 700;
+    color: var(--jr-d1);
+  }
+  .jr-tile[data-state="crept"] {
+    border-style: solid;
+    border-color: var(--jr-d2);
+    background: color-mix(in oklab, var(--jr-d2) 12%, var(--jr-surface));
+    font-style: normal;
+    font-weight: 700;
+    color: var(--jr-d2);
+  }
+
+  /* Horizontal journal tape (local stage) */
+  .jr-tape-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
+    padding-top: 0.9rem;
+    border-top: 1px dashed var(--jr-line);
+  }
+  .jr-tape {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+  .jr-slot {
+    display: grid;
+    place-items: center;
+    height: 2.35rem;
+    border: 1.5px dashed var(--jr-line);
+    border-radius: 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--jr-surface);
+    transition:
+      background-color 220ms ease,
+      border-color 220ms ease;
+  }
+  .jr-slot.is-filled {
+    border-style: solid;
+    border-color: var(--jr-d1);
+    background: var(--jr-d1);
+  }
+  .jr-tally {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--jr-muted);
+    white-space: nowrap;
+  }
+
+  /* Sync stage */
+  .jr-sync {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .jr-axis,
+  .jr-sync-row {
+    display: grid;
+    grid-template-columns: 3.9rem repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .jr-axis span {
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--jr-muted);
+  }
+  .jr-who {
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .jr-who.is-d1 {
+    color: var(--jr-d1);
+  }
+  .jr-who.is-d2 {
+    color: var(--jr-d2);
+  }
+  .jr-cell {
+    display: grid;
+    height: 2.6rem;
+    border: 1.5px dashed var(--jr-line);
+    border-radius: 0.55rem;
+    background: var(--jr-card);
+  }
+  .jr-blk {
+    display: grid;
+    place-items: center;
+    border-radius: 0.45rem;
+    background: var(--c);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #ffffff;
+    transition:
+      opacity 280ms ease,
+      transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  html.dark .jr-blk {
+    color: #09090b;
+  }
+  .jr-blk.is-d1 {
+    --c: var(--jr-d1);
+  }
+  .jr-blk.is-d2 {
+    --c: var(--jr-d2);
+  }
+  .jr-blk.is-remote {
+    opacity: 0;
+  }
+  .jr-blk.is-remote[data-from="2"] {
+    transform: translateY(3.15rem);
+  }
+  .jr-blk.is-remote[data-from="1"] {
+    transform: translateY(-3.15rem);
+  }
+  .jr.is-synced .jr-blk.is-remote {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .jr-bar {
+    display: flex;
+    justify-content: center;
+    padding: 0.65rem;
+    border-top: 1px solid var(--jr-line);
+  }
+  .jr-reset {
+    padding: 0.3rem 0.85rem;
+    border: 1.5px solid var(--jr-ink);
+    border-radius: var(--radius-md, 6px);
+    background: transparent;
+    font-size: 0.8rem;
+    color: var(--jr-ink);
+    cursor: pointer;
+  }
+  .jr-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--jr-ink);
+    cursor: pointer;
+  }
+  .jr-track {
+    position: relative;
+    width: 2.4rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--jr-line);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--jr-muted) 40%, transparent);
+    transition: background 200ms;
+  }
+  .jr-knob {
+    position: absolute;
+    top: 0.175rem;
+    left: 0.175rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    background: var(--jr-surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    transition: transform 200ms;
+  }
+  .jr-switch[aria-checked="true"] .jr-track {
+    background: var(--jr-ok);
+  }
+  .jr-switch[aria-checked="true"] .jr-knob {
+    transform: translateX(1.05rem);
+  }
+
+  @media (max-width: 560px) {
+    .jr-stage {
+      padding: 1rem 0.75rem;
+    }
+    .jr-pipe,
+    .jr-local-top {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      gap: 0.45rem;
+    }
+    .jr-arrow {
+      padding-top: 0;
+      transform: rotate(90deg);
+    }
+    .jr-tape-row {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      gap: 0.45rem;
+    }
+    .jr-tape {
+      width: 100%;
+    }
+    .jr-axis,
+    .jr-sync-row {
+      grid-template-columns: 3.1rem repeat(3, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+    .jr-blk,
+    .jr-who {
+      font-size: 0.64rem;
+    }
+    .jr-axis span {
+      font-size: 0.56rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .jr-gate,
+    .jr-tile,
+    .jr-slot,
+    .jr-blk,
+    .jr-track,
+    .jr-knob {
+      transition: none;
+    }
+  }
+</style>
