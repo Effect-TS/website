@@ -1,8 +1,6 @@
-import { createStreaming, type Formatter } from "@dprint/formatter"
 import * as monaco from "@effect/monaco-editor"
 import * as Array from "effect/Array"
 import * as Cache from "effect/Cache"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
@@ -17,6 +15,10 @@ import {
   makeDefaultWorkspace,
   Workspace,
 } from "@/features/share/workspace"
+import {
+  type FormatterPlugin,
+  loadDprintPlugin,
+} from "@/features/format/dprint"
 import { WorkspaceTerminal } from "../domain/terminal"
 import { DevToolsLayer } from "../services/devtools"
 import { Loader } from "../services/loader"
@@ -457,34 +459,8 @@ function setupWorkspaceTypeAcquisition(
   })
 }
 
-interface FormatterPlugin {
-  readonly language: string
-  readonly formatter: Formatter
-}
-
 interface InstalledFormatter extends FormatterPlugin {
   readonly dispose: () => void
-}
-
-class FormatterPluginLoadError extends Data.TaggedError(
-  "FormatterPluginLoadError",
-)<{
-  readonly plugin: string
-  readonly cause: unknown
-}> {
-  override get message(): string {
-    return `Failed to load formatter plugin '${this.plugin}'. Verify that the URL points to an available dprint WASM plugin.`
-  }
-}
-
-class FormatterPluginUrlError extends Data.TaggedError(
-  "FormatterPluginUrlError",
-)<{
-  readonly plugin: string
-}> {
-  override get message(): string {
-    return `Invalid formatter plugin URL '${this.plugin}'. Use a fully qualified dprint plugin URL such as 'https://plugins.dprint.dev/json-0.23.0.wasm'.`
-  }
 }
 
 function setupWorkspaceFormatters(workspace: Workspace) {
@@ -503,41 +479,8 @@ function setupWorkspaceFormatters(workspace: Workspace) {
     const pluginCache = yield* Cache.make({
       capacity: 10,
       timeToLive: Number.MAX_SAFE_INTEGER,
-      lookup: (plugin: string) => loadPlugin(plugin),
+      lookup: (plugin: string) => loadDprintPlugin(plugin),
     })
-
-    const PLUGIN_URL_REGEX =
-      /^(?:https:\/\/plugins\.dprint\.dev|\/vendor\/dprint\/plugins)\/([a-zA-Z0-9][a-zA-Z0-9._-]*\.wasm)$/
-
-    function parsePluginUrl(plugin: string) {
-      const match = plugin.match(PLUGIN_URL_REGEX)
-      return match
-        ? {
-            url: `/api/dprint/plugins/${match[1]}`,
-          }
-        : null
-    }
-
-    function loadPlugin(
-      plugin: string,
-    ): Effect.Effect<
-      FormatterPlugin,
-      FormatterPluginUrlError | FormatterPluginLoadError
-    > {
-      const parsed = parsePluginUrl(plugin)
-      if (parsed === null) {
-        return Effect.fail(new FormatterPluginUrlError({ plugin }))
-      }
-      return Effect.tryPromise({
-        try: () => createStreaming(fetch(parsed.url)),
-        catch: (cause) => new FormatterPluginLoadError({ plugin, cause }),
-      }).pipe(
-        Effect.map((formatter) => ({
-          language: formatter.getPluginInfo().configKey,
-          formatter,
-        })),
-      )
-    }
 
     function loadPlugins(plugins: Array<string>) {
       return Effect.forEach(
