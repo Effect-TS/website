@@ -657,6 +657,10 @@ const main = () => {
   const pins = JSON.parse(
     fs.readFileSync(path.join(UPSTREAM_DIR, "pins.json"), "utf8"),
   ) as Pins
+  // Every rustc/cargo call (the tool checks and the sysroot lookups too, not only the build) must use the pinned
+  // toolchain under rustup: the default toolchain can report the same version without the wasm target installed.
+  // Without rustup (the nix dev shell) the variable is ignored.
+  process.env.RUSTUP_TOOLCHAIN = pins.rust.toolchain
   fs.mkdirSync(TMP_DIR, { recursive: true })
   const tools = checkTools(pins, mode)
 
