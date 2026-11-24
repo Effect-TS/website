@@ -74,10 +74,20 @@ const markdownHref = /^\/docs\/v4\/(?!api(?:\/|$))/.test(pagePathname)
 ---
 
 <!doctype html>
-<html lang="en" class:list={[{ dark: forceDark }]} {...forceDark ? { "data-force-dark": "" } : {}}>
+<html
+  lang="en"
+  class:list={[{ dark: forceDark }]}
+  data-route={Astro.routePattern}
+  {...forceDark ? { "data-force-dark": "" } : {}}
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+
+    <script>
+      import { startBrowserTelemetry } from "@/lib/maple-browser"
+      startBrowserTelemetry()
+    </script>
 
     {/* Tint Firefox's initial canvas before first paint (bug 1488384). */}
     <meta name="color-scheme" content={forceDark ? "dark" : "light dark"} />

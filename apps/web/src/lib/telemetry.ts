@@ -2,6 +2,7 @@ import { make } from "@maple-dev/effect-sdk/cloudflare"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as UrlParams from "effect/http/UrlParams"
+import { REDACTED_URL_PARAMS } from "./redacted-url-params"
 
 // Server traces and logs from the Worker's API routes, sent to Maple. The SDK
 // reads `MAPLE_INGEST_KEY`, `MAPLE_ENVIRONMENT` and `COMMIT_SHA` from the
@@ -10,12 +11,9 @@ import * as UrlParams from "effect/http/UrlParams"
 export const telemetry = make({ serviceName: "effect-website" })
 
 /**
- * URL parameters recorded as `REDACTED` in span attributes such as `url.full`.
- * `query` is what visitors type into search.
+ * Adds {@link REDACTED_URL_PARAMS} to Effect's redacted URL parameters, so span
+ * attributes such as `url.full` record them as `REDACTED`.
  */
-export const REDACTED_URL_PARAMS: ReadonlyArray<string> = ["query"]
-
-/** Adds {@link REDACTED_URL_PARAMS} to Effect's redacted URL parameters. */
 export const RedactUrlParamsLayer = Layer.effect(
   UrlParams.CurrentRedactedNames,
   Effect.gen(function* () {

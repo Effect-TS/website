@@ -1,3 +1,4 @@
+import { MapleBrowser } from "@maple-dev/browser"
 import type { SearchResult } from "./domain"
 import { queryShape } from "./query-shape"
 
@@ -53,14 +54,21 @@ function capture(
 ): void {
   if (typeof window === "undefined") return
 
+  const withSession = {
+    ...properties,
+    ...(session === undefined ? {} : { search_session_id: session.id }),
+  }
+
+  try {
+    MapleBrowser.track(event, withSession)
+  } catch {
+    // Analytics must never affect search behavior.
+  }
+
   try {
     window.posthog?.capture(
       event,
-      {
-        ...properties,
-        ...(session === undefined ? {} : { search_session_id: session.id }),
-        $process_person_profile: false,
-      },
+      { ...withSession, $process_person_profile: false },
       options,
     )
   } catch {
