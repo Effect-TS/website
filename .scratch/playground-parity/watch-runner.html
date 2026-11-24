@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<style>
+  body{margin:0;font-family:var(--font-sans);color:var(--foreground)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  .cap{font-size:12px;color:var(--muted-foreground);margin:0 0 6px}
+  .cap b{color:var(--foreground);font-size:13px}
+  .panel{background:#0b0b0d;border:1px solid #2a2a2e;border-radius:var(--radius);overflow:hidden;color:#d4d4d8;font:12px/1.6 var(--font-mono)}
+  .tabs{display:flex;align-items:center;padding:0 8px;height:30px;border-bottom:1px solid #222226;background:#111114;font:11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+  .tab{padding:6px 10px;color:#71717a;border-bottom:2px solid transparent}.tab.on{color:#f4f4f5;border-color:#e4e4e7}
+  .sp{flex:1}.btn{font:11px var(--font-sans);text-transform:none;letter-spacing:0;color:#a1a1aa;padding:2px 6px}
+  .body{padding:8px 12px;min-height:250px}
+  .g{color:#4ade80}.r{color:#f87171}.y{color:#fbbf24}.b{color:#60a5fa}.m{color:#71717a}.w{color:#fafafa}.c{color:#22d3ee}
+  .ln{text-decoration:underline;text-decoration-color:#52525b;color:#7dd3fc}
+  .cur{background:#d4d4d8;color:#0b0b0d}
+  .note{font-size:12px;color:var(--muted-foreground);margin-top:6px;line-height:1.5}
+</style></head><body>
+<div class="grid">
+  <div>
+    <p class="cap"><b>Clean Run</b> · the screen clears each Run, like /play</p>
+    <div class="panel">
+      <div class="tabs"><span class="tab on">Terminal</span><span class="tab">Traces</span><span class="sp"></span><span class="btn">⌫ Clear</span></div>
+      <div class="body">
+        <div><span class="g">~/workspace</span> <span class="b">❯</span> ../run src/main.ts</div>
+        <div><span class="m">[</span><span class="m">12:04:31</span><span class="m">]</span> File change detected. Type-checked in the editor: <span class="g">0 errors</span>.</div>
+        <div class="m">[12:04:31] Running src/main.ts…</div>
+        <div>&nbsp;</div>
+        <div class="w">timestamp=2026-11-24T12:04:32.118Z level=INFO fiber=#1 message="Welcome to the Effect v4 Playground!"</div>
+        <div>&nbsp;</div>
+        <div class="m">[12:04:32] Exited with code 0. Watching for file changes.</div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <p class="cap"><b>Type error</b> · tsc-style, printed by the runner, not the page</p>
+    <div class="panel">
+      <div class="tabs"><span class="tab on">Terminal</span><span class="tab">Traces</span><span class="sp"></span><span class="btn">⌫ Clear</span></div>
+      <div class="body">
+        <div><span class="g">~/workspace</span> <span class="b">❯</span> ../run src/main.ts</div>
+        <div class="m">[12:05:10] File change detected. Type-checked in the editor:</div>
+        <div>&nbsp;</div>
+        <div><span class="ln">src/main.ts:4:7</span> - <span class="r">error</span> <span class="m">TS2322:</span> Type 'string' is not assignable to type 'number'.</div>
+        <div>&nbsp;</div>
+        <div><span class="c">4</span> const n: number = "nope"</div>
+        <div>&nbsp;&nbsp;<span class="r">~~~~~~~~~~~~~~~~~</span></div>
+        <div>&nbsp;</div>
+        <div class="m">[12:05:10] Found 1 error. Not running. Watching for file changes.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">No Run bar, banner or chip: just the terminal, as on /play. Ctrl+C stops the runner and gives you the shell; <code>../run src/main.ts</code> (or ↑ Enter) starts it again. The errors come from tsrs in the web worker; the runner only prints them.</p>
+</body></html>
