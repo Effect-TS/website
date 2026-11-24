@@ -1,0 +1,117 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<style>
+  body{margin:0;font-family:var(--font-sans);color:var(--foreground)}
+  .v{margin-bottom:26px}
+  .h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .h b{font-size:14px}
+  .h span{font-size:12px;color:var(--muted-foreground)}
+  .panel{background:#0b0b0d;border:1px solid #2a2a2e;border-radius:var(--radius);overflow:hidden;color:#d4d4d8;font:12.5px/1.55 var(--font-mono)}
+  .tabs{display:flex;align-items:center;gap:2px;padding:0 8px;height:32px;border-bottom:1px solid #222226;background:#111114;font:12px var(--font-sans)}
+  .tab{padding:6px 10px;color:#8a8a93;border-bottom:2px solid transparent}
+  .tab.on{color:#f4f4f5;border-color:#60a5fa}
+  .sp{flex:1}
+  .btn{font:11.5px var(--font-sans);color:#d4d4d8;border:1px solid #3a3a40;border-radius:5px;padding:2px 8px;margin-left:6px;background:#18181b}
+  .btn.pri{background:#e4e4e7;color:#09090b;border-color:#e4e4e7;font-weight:600}
+  .chip{font:11.5px var(--font-sans);border-radius:999px;padding:2px 8px;display:inline-flex;gap:6px;align-items:center}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .body{padding:8px 12px;min-height:150px}
+  .rule{color:#71717a;display:flex;gap:8px;align-items:center;margin:4px 0}
+  .rule:after{content:"";flex:1;border-top:1px solid #27272a}
+  .g{color:#4ade80}.r{color:#f87171}.y{color:#fbbf24}.b{color:#60a5fa}.m{color:#71717a}.w{color:#fafafa}
+  .ln{text-decoration:underline;text-decoration-color:#52525b;color:#7dd3fc}
+  .cur{background:#d4d4d8;color:#0b0b0d}
+  .note{font-size:12px;color:var(--muted-foreground);margin-top:6px;line-height:1.5}
+  .bar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid #222226;font:12px var(--font-sans);background:#0f1520}
+  .banner{display:flex;align-items:center;gap:8px;padding:6px 12px;font:12px var(--font-sans);background:#2a1f08;color:#fde68a;border-bottom:1px solid #4a3510}
+  .blk{border:1px solid #232327;border-left:3px solid #3f3f46;border-radius:6px;margin:6px 0;overflow:hidden}
+  .blk .bh{display:flex;gap:8px;align-items:center;padding:3px 8px;background:#141417;font:11.5px var(--font-sans);color:#a1a1aa}
+  .blk .bb{padding:4px 10px}
+  .blk.ok{border-left-color:#4ade80}.blk.bad{border-left-color:#f87171}.blk.skip{border-left-color:#fbbf24}.blk.run{border-left-color:#60a5fa}
+  .input{border-top:1px solid #222226;padding:6px 12px;display:flex;gap:8px;background:#0e0e11}
+  .split{display:grid;grid-template-rows:auto auto}
+  .pane-h{font:11px var(--font-sans);color:#71717a;padding:3px 12px;background:#111114;border-top:1px solid #222226;border-bottom:1px solid #222226;display:flex;align-items:center}
+</style></head><body>
+
+<!-- A -->
+<div class="v">
+  <div class="h"><b>A · One stream</b><span>closest to /play</span></div>
+  <div class="panel">
+    <div class="tabs"><span class="tab on">Terminal</span><span class="tab">Traces</span><span class="sp"></span>
+      <span class="chip" style="background:#10213a;color:#93c5fd"><span class="dot" style="background:#60a5fa"></span>Running</span>
+      <span class="btn">■ Stop</span><span class="btn">⟳ Restart</span><span class="btn">Clear</span></div>
+    <div class="body">
+      <div class="rule">▶ 12:04:12 · edit</div>
+      <div class="w">Hello, World!</div>
+      <div class="m">exited 0</div>
+      <div><span class="g">~/workspace</span> <span class="b">❯</span> pnpm add zod</div>
+      <div class="m">Packages: +1 · Done in 1.8s</div>
+      <div class="m">↻ types reloaded</div>
+      <div class="rule">▶ 12:04:31 · edit · skipped</div>
+      <div><span class="y">✗ 1 error</span> — fix it and the Run starts again</div>
+      <div><span class="ln">src/main.ts:4:7</span> <span class="r">error TS2322</span>: Type 'string' is not assignable to type 'number'.</div>
+      <div><span class="g">~/workspace</span> <span class="b">❯</span> <span class="cur">&nbsp;</span></div>
+    </div>
+  </div>
+  <div class="note">Everything goes in one xterm with a header line per Run, and the prompt comes back when the program exits. A Run cancels whatever is in the foreground (Ctrl+C) and types the command itself. <b>The catch:</b> text you've half typed gets wiped, and errors scroll away with the history.</div>
+</div>
+
+<!-- B -->
+<div class="v">
+  <div class="h"><b>B · Run bar + shell</b><span>the Run's status sits above the terminal</span></div>
+  <div class="panel">
+    <div class="tabs"><span class="tab on">Terminal</span><span class="tab">Traces</span><span class="sp"></span><span class="btn">Clear</span></div>
+    <div class="bar">
+      <span class="dot" style="background:#60a5fa"></span><span style="color:#bfdbfe">Running <b>src/main.ts</b></span><span style="color:#64748b">· edit at 12:04:31 · 3.2 s</span>
+      <span class="sp"></span><span class="btn">■ Stop</span><span class="btn">⟳ Restart</span>
+    </div>
+    <div class="banner"><span>⚠</span><span><b>Run skipped</b>: 1 error in <span class="ln" style="color:#fcd34d">src/main.ts:4:7</span> · Type 'string' is not assignable to type 'number'</span><span class="sp"></span><span style="color:#fcd34d">all 3 ▾</span></div>
+    <div class="body">
+      <div class="w">Hello, World!</div>
+      <div class="m">exited 0 · 12:04:12</div>
+      <div><span class="g">~/workspace</span> <span class="b">❯</span> pnpm add zo<span class="cur">&nbsp;</span></div>
+      <div style="margin-top:6px"><span class="chip" style="background:#1f1f24;color:#a1a1aa">‖ Run waiting for your command · <b style="color:#e4e4e7">Enter</b> to finish · <b style="color:#e4e4e7">Esc</b> to discard it and run</span></div>
+    </div>
+  </div>
+  <div class="note">The bar always shows the current Run, and a skip appears as a banner that stays put until you fix the error. The terminal itself only holds program output and your commands. If you're halfway through typing a command, the Run waits for you to finish it, so nothing gets wiped.</div>
+</div>
+
+<!-- C -->
+<div class="v">
+  <div class="h"><b>C · Blocks</b><span>Warp-style: each Run or command is a collapsible block</span></div>
+  <div class="panel">
+    <div class="tabs"><span class="tab on">Terminal</span><span class="tab">Traces</span><span class="sp"></span><span class="btn">⟳ Restart</span><span class="btn">Collapse all</span></div>
+    <div class="body" style="padding-bottom:4px">
+      <div class="blk ok"><div class="bh">▾ <span class="g">✓</span> Run · edit · 12:04:12 <span class="sp"></span>0.4 s</div><div class="bb w">Hello, World!</div></div>
+      <div class="blk ok"><div class="bh">▸ <span class="g">✓</span> pnpm add zod <span class="sp"></span>1.8 s · types reloaded</div></div>
+      <div class="blk skip"><div class="bh">▾ <span class="y">⚠</span> Run skipped · 1 error <span class="sp"></span>12:04:31</div><div class="bb"><span class="ln">src/main.ts:4:7</span> <span class="r">TS2322</span> Type 'string' is not assignable to type 'number'.</div></div>
+      <div class="blk run"><div class="bh">▾ <span class="b">●</span> Run · edit · 12:04:40 <span class="sp"></span><span class="btn" style="margin:0">■ Stop</span></div><div class="bb">Listening on :3000…</div></div>
+    </div>
+    <div class="input"><span class="b">❯</span><span>pnpm add zo<span class="cur">&nbsp;</span></span><span class="sp"></span><span class="m" style="font-family:var(--font-sans);font-size:11px">a Run never touches this line</span></div>
+  </div>
+  <div class="note">The input line is separate from the Runs, so a Run can't wipe what you're typing, and old Runs fold away. <b>The catch:</b> it's no longer a raw xterm, and full-screen or interactive programs (<code>vim</code>, prompts) need the block to take focus. It's the most work of the four.</div>
+</div>
+
+<!-- D -->
+<div class="v">
+  <div class="h"><b>D · Split panes</b><span>Runs on top, shell underneath, one panel</span></div>
+  <div class="panel">
+    <div class="tabs"><span class="tab on">Terminal</span><span class="tab">Traces</span><span class="sp"></span>
+      <span class="chip" style="background:#10213a;color:#93c5fd"><span class="dot" style="background:#60a5fa"></span>Running · edit 12:04:40</span><span class="btn">■ Stop</span><span class="btn">⟳ Restart</span></div>
+    <div class="body" style="min-height:90px">
+      <div class="rule">▶ 12:04:31 · edit · skipped</div>
+      <div><span class="ln">src/main.ts:4:7</span> <span class="r">TS2322</span> Type 'string' is not assignable to type 'number'.</div>
+      <div class="rule">▶ 12:04:40 · edit</div>
+      <div class="w">Listening on :3000…</div>
+    </div>
+    <div class="pane-h">Shell<span class="sp"></span>⇕ drag</div>
+    <div class="body" style="min-height:60px">
+      <div><span class="g">~/workspace</span> <span class="b">❯</span> pnpm add zod</div>
+      <div class="m">Packages: +1 · Done in 1.8s · ↻ types reloaded</div>
+      <div><span class="g">~/workspace</span> <span class="b">❯</span> <span class="cur">&nbsp;</span></div>
+    </div>
+  </div>
+  <div class="note">Two xterms: the top one is today's Output with a Ctrl+C-able program, the bottom one is a real jsh. They never step on each other. <b>The catch:</b> it's further from /play's single terminal, and it costs vertical space.</div>
+</div>
+
+</body></html>

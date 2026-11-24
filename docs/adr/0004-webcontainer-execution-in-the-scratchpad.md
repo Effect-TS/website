@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (amended by 0005)
 ---
 
 # WebContainer execution in the Scratchpad, with the page Workspace as source of truth
