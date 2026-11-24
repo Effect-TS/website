@@ -130,6 +130,15 @@ const killProgram = () => {
   out(mark("exit;137"))
 }
 
+// Enums, namespaces and parameter properties need Node's type transform. The
+// Container's Node takes `--experimental-transform-types`; Node 26 removed the
+// flag (it only strips types) and refuses to start with it.
+const TRANSFORM_TYPES = process.allowedNodeEnvironmentFlags.has(
+  "--experimental-transform-types",
+)
+  ? ["--experimental-transform-types"]
+  : []
+
 const runProgram = () => {
   status(`Running ${entry}…\r\n`)
   out(mark("start"))
@@ -137,7 +146,7 @@ const runProgram = () => {
   const program = ChildProcess.spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
+      ...TRANSFORM_TYPES,
       "--disable-warning=ExperimentalWarning",
       "--import",
       preload,
