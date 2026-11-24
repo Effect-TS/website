@@ -2,6 +2,8 @@ import * as Effect from "effect/Effect"
 import { toFlatWorkspace, type FlatWorkspace } from "@/features/share/flat"
 import { patchScratchpadTsConfig } from "@/features/share/tsconfig"
 import {
+  effectVersionOf,
+  type EffectVersion,
   makeDefaultWorkspace,
   type Workspace,
 } from "@/features/share/workspace"
@@ -22,10 +24,42 @@ export const DevToolsLayer = DevTools.layerSocket.pipe(
 )
 `
 
+/**
+ * The v3 template imports `DevTools` and `NodeSocket` from the package roots,
+ * which load every module of both packages at startup. The Scratchpad imports
+ * the two modules it needs.
+ */
+export const SCRATCHPAD_SEED_DEVTOOLS_V3 = `import * as DevTools from "@effect/experimental/DevTools"
+import * as NodeSocket from "@effect/platform-node/NodeSocket"
+import { Layer } from "effect"
+
+export const DevToolsLayer = DevTools.layerSocket.pipe(
+  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
+)
+`
+
+const seedDevTools: Record<EffectVersion, string> = {
+  v3: SCRATCHPAD_SEED_DEVTOOLS_V3,
+  v4: SCRATCHPAD_SEED_DEVTOOLS,
+}
+
 /** The Container runs Node 24, so its types match `@types/node@^24`. */
 const SEED_TYPES_NODE_RANGE = "^24"
 
-const patchSeedPackageJson = (content: string): string => {
+/**
+ * tsrs runs the Effect language service built in, so this entry only matters
+ * to editors outside the Scratchpad (a downloaded zip). v3 seeds list it, as
+ * the v3 docs tell people to.
+ */
+const seedExtraDependencies: Record<EffectVersion, Record<string, string>> = {
+  v3: { "@effect/language-service": "latest" },
+  v4: {},
+}
+
+const patchSeedPackageJson = (
+  content: string,
+  version: EffectVersion,
+): string => {
   const pkg = JSON.parse(content) as {
     readonly dependencies?: Record<string, string>
   }
@@ -34,6 +68,7 @@ const patchSeedPackageJson = (content: string): string => {
       ...pkg,
       dependencies: {
         ...pkg.dependencies,
+        ...seedExtraDependencies[version],
         "@types/node": SEED_TYPES_NODE_RANGE,
       },
     },
@@ -42,43 +77,83 @@ const patchSeedPackageJson = (content: string): string => {
   )
 }
 
-const patchSeedFile = (path: string, content: string): string => {
+const patchSeedFile = (
+  path: string,
+  content: string,
+  version: EffectVersion,
+): string => {
   switch (path) {
     case "tsconfig.json":
       return patchScratchpadTsConfig(content) ?? content
     case "package.json":
-      return patchSeedPackageJson(content)
+      return patchSeedPackageJson(content, version)
     case "src/DevTools.ts":
-      return SCRATCHPAD_SEED_DEVTOOLS
+      return seedDevTools[version]
     default:
       return content
   }
 }
 
 /**
- * The Scratchpad seed in the share format: the Playground v4 template with
- * the language-service plugin and `verbatimModuleSyntax` in `tsconfig.json`,
- * `src/DevTools.ts` importing `@effect/platform-node/NodeSocket`, and
- * `@types/node` pinned to the Container's Node major. Every other dependency
- * keeps the template's range.
+ * The Scratchpad seed for an Effect version, in the share format: the
+ * Playground template for that version with the language-service plugin and
+ * `verbatimModuleSyntax` in `tsconfig.json`, `src/DevTools.ts` importing only
+ * the modules it uses, and `@types/node` pinned to the Container's Node
+ * major. Every other dependency keeps the template's range.
  */
-export const makeScratchpadSeedWorkspace = (): Workspace =>
+export const makeScratchpadSeedWorkspace = (
+  version: EffectVersion = "v4",
+): Workspace =>
   Effect.runSync(
-    makeDefaultWorkspace("v4").updateFiles((file, path) => {
-      const content = patchSeedFile(path, file.initialContent)
+    makeDefaultWorkspace(version).updateFiles((file, path) => {
+      const content = patchSeedFile(path, file.initialContent, version)
       return Effect.succeed(
         content === file.initialContent ? file : file.withContent(content),
       )
     }),
   )
 
-const seedWorkspace = makeScratchpadSeedWorkspace()
-
 /**
- * The seed as a flat file map, with the share-format metadata (name, shells,
- * initial file) a Share of an unchanged seed writes back.
+ * Each version's seed as a flat file map, with the share-format metadata
+ * (name, shells, initial file) a Share of an unchanged seed writes back.
  */
-export const SCRATCHPAD_SEED: FlatWorkspace = toFlatWorkspace(seedWorkspace)
+export const SCRATCHPAD_SEEDS: Readonly<Record<EffectVersion, FlatWorkspace>> =
+  {
+    v3: toFlatWorkspace(makeScratchpadSeedWorkspace("v3")),
+    v4: toFlatWorkspace(makeScratchpadSeedWorkspace("v4")),
+  }
+
+export const scratchpadSeed = (version: EffectVersion): FlatWorkspace =>
+  SCRATCHPAD_SEEDS[version]
+
+/** The v4 seed, the default when nothing picks a version. */
+export const SCRATCHPAD_SEED: FlatWorkspace = SCRATCHPAD_SEEDS.v4
 
 export const SCRATCHPAD_SEED_FILES: Readonly<Record<string, string>> =
   SCRATCHPAD_SEED.files
+
+/**
+ * The Effect version a Workspace targets, read from its `package.json` the
+ * way `/play` reads it. A missing or unparsable `package.json` counts as v4,
+ * the Scratchpad's default.
+ */
+export const effectVersionOfFiles = (
+  files: Readonly<Record<string, string>>,
+): EffectVersion => {
+  const content = files["package.json"]
+  if (content === undefined) {
+    return "v4"
+  }
+  try {
+    const pkg: unknown = JSON.parse(content)
+    const dependencies =
+      typeof pkg === "object" && pkg !== null && "dependencies" in pkg
+        ? pkg.dependencies
+        : undefined
+    return typeof dependencies === "object" && dependencies !== null
+      ? effectVersionOf(dependencies as Record<string, string>)
+      : "v4"
+  } catch {
+    return "v4"
+  }
+}

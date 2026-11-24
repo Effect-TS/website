@@ -10,7 +10,7 @@ import {
 } from "@/features/share/flat"
 import { Workspace } from "@/features/share/workspace"
 import { SCRATCHPAD_AUTOSAVE_KEY } from "./load.ts"
-import { SCRATCHPAD_SEED } from "./seed.ts"
+import { SCRATCHPAD_SEEDS } from "./seed.ts"
 import { shareSourceFromSnapshot, toShareWorkspace } from "./share.ts"
 import type { WorkspaceService } from "./workspace.ts"
 
@@ -24,8 +24,8 @@ export interface AutosaveOptions {
   /** Read at each save, so a later metadata change is picked up. */
   readonly metadata: Effect.Effect<FlatWorkspaceMetadata | undefined>
   /**
-   * The files the Scratchpad opened with (the seed or an import). A save that
-   * matches them, or the seed, is skipped.
+   * The files the Scratchpad opened with (a seed or an import). A save that
+   * matches them, or either version's seed, is skipped.
    */
   readonly initialFiles: Readonly<Record<string, string>>
   readonly debounce?: Duration.Input | undefined
@@ -33,9 +33,10 @@ export interface AutosaveOptions {
 
 /**
  * Saves the Workspace once if it differs from what the Scratchpad opened with
- * and from the seed. Skipping unchanged content keeps a visit without edits
- * from overwriting a real autosave (say, after a v3 link loaded the seed with
- * a notice) and leaves `/play`'s autosave to be read on a later visit.
+ * and from both seeds, so a Reset or a version switch saves nothing.
+ * Skipping unchanged content keeps a visit without edits from overwriting a
+ * real autosave (say, after an over-limit share loaded the seed with a
+ * notice) and leaves `/play`'s autosave to be read on a later visit.
  */
 export const saveAutosave = Effect.fnUntraced(function* (
   options: AutosaveOptions,
@@ -43,7 +44,11 @@ export const saveAutosave = Effect.fnUntraced(function* (
   const metadata = yield* options.metadata
   const snapshot = yield* options.workspace.snapshot
   const current = toShareWorkspace(shareSourceFromSnapshot(snapshot, metadata))
-  const baselines = [options.initialFiles, SCRATCHPAD_SEED.files]
+  const baselines = [
+    options.initialFiles,
+    SCRATCHPAD_SEEDS.v3.files,
+    SCRATCHPAD_SEEDS.v4.files,
+  ]
   if (baselines.some((files) => hasContent(current, files))) {
     return false
   }

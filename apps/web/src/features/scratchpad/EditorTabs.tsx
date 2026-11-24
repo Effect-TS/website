@@ -7,6 +7,8 @@ import { DownloadButton } from "./DownloadButton.tsx"
 import { isLibraryPath, libraryTabLabel } from "./library-files.ts"
 import { ShareButton } from "./ShareButton.tsx"
 import { ReadinessIndicator } from "./ReadinessIndicator.tsx"
+import { ResetButton } from "./ResetButton.tsx"
+import { VersionToggle } from "./VersionToggle.tsx"
 
 const basenameOf = (path: string): string => {
   const idx = path.lastIndexOf("/")
@@ -118,6 +120,8 @@ export function EditorTabs() {
       </div>
 
       <div className="flex shrink-0 items-center gap-2 py-1.5">
+        <VersionToggle />
+        <ResetButton />
         <ShareButton />
         <DownloadButton />
         <ReadinessIndicator />

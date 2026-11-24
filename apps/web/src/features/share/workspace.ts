@@ -34,7 +34,13 @@ const isLegacyV3 = (dependencies: object) =>
 
 const v4Range = /^(rc|beta)$|^\D*4(\.|$)/
 
-const effectVersionOf = (dependencies: Record<string, string>): EffectVersion =>
+/**
+ * The Effect major a `package.json`'s dependencies target. A missing `effect`
+ * entry counts as v3, like a workspace from before the version toggle.
+ */
+export const effectVersionOf = (
+  dependencies: Readonly<Record<string, string>>,
+): EffectVersion =>
   Record.get(dependencies, "effect").pipe(
     Option.map((range) =>
       range === "latest" ? !isLegacyV3(dependencies) : v4Range.test(range),

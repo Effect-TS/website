@@ -129,6 +129,12 @@ export interface RenamePathInput {
   readonly newPath: string
 }
 
+/** Every file of the next Workspace, and the one to open. */
+export interface ReplaceWorkspaceInput {
+  readonly files: Readonly<Record<string, string>>
+  readonly entryPath: string
+}
+
 export interface ScratchpadEditorSession {
   readonly runtime: Atom.AtomRuntime<LspTransport | Workspace>
   readonly elementAtom: Atom.Writable<Option.Option<HTMLElement>>
@@ -173,6 +179,19 @@ export interface ScratchpadEditorSession {
   readonly renamePathAtom: Atom.AtomResultFn<RenamePathInput, void>
   readonly deletePathAtom: Atom.AtomResultFn<string, void>
   readonly clearErrorAtom: Atom.AtomResultFn<void, void>
+  /**
+   * Swaps every Workspace file for `files` in place (Reset, version switch)
+   * and opens `entryPath` in a single tab. The Container and the language
+   * server follow through the Workspace's events. Fails, leaving the
+   * Workspace as it was, when `files` breaks the Workspace limits.
+   */
+  readonly replaceWorkspace: (
+    input: ReplaceWorkspaceInput,
+  ) => Effect.Effect<
+    void,
+    WorkspaceError,
+    Workspace | AtomRegistry.AtomRegistry
+  >
 }
 
 /**
@@ -329,7 +348,13 @@ export const makeScratchpadEditorSession = (
   // The document version each push was for, and when the last push came
   // (Date.now), for the Run gate.
   const pushedVersionByUri = new Map<string, number>()
+  const pushedAtByUri = new Map<string, number>()
   let lastPushAt = 0
+  // When the latest installed types mounted (Date.now). A remount (a Reset
+  // or version switch reinstalls) re-pulls every document at the same
+  // version, so the gate also waits for a push after it.
+  let typesMountedAt = 0
+  let mountedTypesInfo: unknown
   // With a Container, diagnostics wait for the installed types (ADR 0004).
   let diagnosticsHidden = config.containerLayer !== undefined
 
@@ -362,6 +387,7 @@ export const makeScratchpadEditorSession = (
       return
     }
     lastPushAt = Date.now()
+    pushedAtByUri.set(params.uri, lastPushAt)
     if ("version" in params && typeof params.version === "number") {
       pushedVersionByUri.set(params.uri, params.version)
     }
@@ -483,8 +509,9 @@ export const makeScratchpadEditorSession = (
    * client sends pending edits first. The worker pulls every document after
    * each change and pushes the result with the document's version, so the
    * gate waits until every TypeScript document has a push for its current
-   * version and no push came for `RUN_GATE_QUIET_MS` (cross-file pulls follow
-   * an edit after 200 ms), at most `RUN_GATE_TIMEOUT_MS`. It never pulls by
+   * version, made after the latest types mount, and no push came for
+   * `RUN_GATE_QUIET_MS` (cross-file pulls follow an edit after 200 ms), at
+   * most `RUN_GATE_TIMEOUT_MS`. It never pulls by
    * itself: a document that crashes the language server must only be pulled
    * by the worker, which quarantines it.
    */
@@ -507,7 +534,9 @@ export const makeScratchpadEditorSession = (
           const now = Date.now()
           if (now - startedAt >= RUN_GATE_TIMEOUT_MS) break
           const fresh = documents().every(
-            (file) => (pushedVersionByUri.get(file.uri) ?? 0) >= file.version,
+            (file) =>
+              (pushedVersionByUri.get(file.uri) ?? 0) >= file.version &&
+              (pushedAtByUri.get(file.uri) ?? 0) >= typesMountedAt,
           )
           const quiet =
             now - Math.max(startedAt, lastPushAt) >= RUN_GATE_QUIET_MS
@@ -636,6 +665,13 @@ export const makeScratchpadEditorSession = (
               containerPhaseAtom,
               Option.some(containerPhaseOf(state)),
             )
+            if (
+              state.types._tag === "mounted" &&
+              state.types.info !== mountedTypesInfo
+            ) {
+              mountedTypesInfo = state.types.info
+              typesMountedAt = Date.now()
+            }
             if (state.diagnosticsVisible) {
               releaseDiagnostics(registry, state.types._tag === "mounted")
             }
@@ -1266,6 +1302,38 @@ export const makeScratchpadEditorSession = (
     }),
   )
 
+  const replaceWorkspace = Effect.fnUntraced(function* ({
+    files,
+    entryPath: nextEntry,
+  }: ReplaceWorkspaceInput) {
+    const registry = yield* AtomRegistry.AtomRegistry
+    const ws = yield* Workspace
+    const beforeFiles = yield* ws.listFiles.pipe(Effect.orElseSucceed(() => []))
+    yield* ws.restoreSnapshot({ version: 1, files })
+    registry.set(workspaceErrorAtom, Option.none())
+
+    for (const prev of beforeFiles) {
+      activeLspWorkspace?.removeWorkspaceFile(prev.path)
+      lastDiagnosticsByUri.delete(pathToWorkspaceUri(prev.path, rootUri))
+    }
+    for (const [path, content] of Object.entries(files)) {
+      activeLspWorkspace?.upsertWorkspaceFile(path, content)
+    }
+    // Undo history and cursors belong to the old files.
+    editorStates.clear()
+    registry.set(diagnosticsAtom, new Map())
+    yield* refreshTree(ws, registry).pipe(Effect.ignore)
+
+    const entry =
+      files[nextEntry] !== undefined ? nextEntry : Object.keys(files)[0]
+    registry.set(openTabsAtom, entry === undefined ? [] : [entry])
+    registry.set(activeFileAtom, Option.fromNullishOr(entry))
+    mountedFilePath = undefined
+    if (entry !== undefined) {
+      yield* mountFileInView(entry)
+    }
+  })
+
   const revealPositionAtom = runtime.fn<RevealPositionInput>()(
     Effect.fnUntraced(function* ({ path, line, column }) {
       const view = yield* mountFileInView(path)
@@ -1315,5 +1383,6 @@ export const makeScratchpadEditorSession = (
     renamePathAtom,
     deletePathAtom,
     clearErrorAtom,
+    replaceWorkspace,
   }
 }

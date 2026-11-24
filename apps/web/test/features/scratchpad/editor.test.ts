@@ -314,7 +314,10 @@ describe("ScratchpadEditorSession", () => {
       await flushMicrotasks(40)
       assert.deepEqual(
         ctx.registry.get(ctx.session.diagnosticsAtom).get("src/main.ts"),
-        { errors: 1, warnings: 0 },
+        {
+          errors: 1,
+          warnings: 0,
+        },
       )
       unmountEditor()
     } finally {
@@ -373,7 +376,10 @@ describe("ScratchpadEditorSession", () => {
       assert.isTrue(ctx.registry.get(ctx.session.diagnosticsVisibleAtom))
       assert.deepEqual(
         ctx.registry.get(ctx.session.diagnosticsAtom).get("src/main.ts"),
-        { errors: 0, warnings: 1 },
+        {
+          errors: 0,
+          warnings: 1,
+        },
       )
       const phase = ctx.registry.get(ctx.session.containerPhaseAtom)
       assert.equal(
@@ -482,6 +488,74 @@ describe("ScratchpadEditorSession", () => {
       assert.deepEqual(ctx.registry.get(ctx.session.openTabsAtom), [
         "src/main.ts",
       ])
+      unmountEditor()
+    } finally {
+      ctx.dispose()
+    }
+  })
+
+  test("replaceWorkspace swaps every file in place: one tab, fresh editor, Container reinstall", async () => {
+    const backend = makeFakeContainerBackend()
+    const ctx = await setupEditorTest(
+      { autoHandshake: true },
+      {
+        "src/main.ts": "export const old = 1\n",
+        "src/extra.ts": "export const extra = 1\n",
+        "package.json": '{ "dependencies": { "effect": "4.1.5" } }\n',
+      },
+      layerFakeContainer(backend),
+    )
+    const replace = ctx.session.runtime.fn(ctx.session.replaceWorkspace)
+    const pnpmRuns = () =>
+      backend.spawned.filter((call) => call.command === "pnpm").length
+    try {
+      const unmountEditor = ctx.registry.mount(ctx.session.editorAtom)
+      const unmountReplace = ctx.registry.mount(replace)
+      ctx.registry.set(ctx.session.elementAtom, Option.some(ctx.fakeElement))
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      await flushMicrotasks(80)
+      ctx.registry.set(ctx.session.openFileAtom, "src/extra.ts")
+      await flushMicrotasks(40)
+      ctx.fakeEditors.handles[0]!.emitDocChange("export const edited = 1\n")
+      await flushMicrotasks(40)
+      const installsBefore = pnpmRuns()
+
+      ctx.registry.set(replace, {
+        files: {
+          "src/main.ts": "export const seed = 1\n",
+          "package.json": '{ "dependencies": { "effect": "^3.22.2" } }\n',
+        },
+        entryPath: "src/main.ts",
+      })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      await flushMicrotasks(80)
+
+      assert.deepStrictEqual(ctx.registry.get(ctx.session.openTabsAtom), [
+        "src/main.ts",
+      ])
+      assert.deepStrictEqual(
+        ctx.registry.get(ctx.session.activeFileAtom),
+        Option.some("src/main.ts"),
+      )
+      const view = ctx.fakeEditors.handles[0]!
+      assert.equal(view.getState().doc.toString(), "export const seed = 1\n")
+      assert.deepStrictEqual(
+        ctx.registry
+          .get(ctx.session.treeAtom)
+          .flatMap((node) =>
+            node._tag === "Directory"
+              ? node.children.map((child) => child.path)
+              : [node.path],
+          )
+          .sort(),
+        ["package.json", "src/main.ts"],
+      )
+      // The Container follows: old files gone, the new package.json
+      // installs.
+      assert.isFalse(backend.files.has("src/extra.ts"))
+      assert.equal(backend.files.get("src/main.ts"), "export const seed = 1\n")
+      assert.isAbove(pnpmRuns(), installsBefore)
+      unmountReplace()
       unmountEditor()
     } finally {
       ctx.dispose()

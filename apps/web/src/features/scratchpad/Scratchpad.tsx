@@ -9,6 +9,7 @@ import * as Atom from "effect/reactivity/Atom"
 import { X } from "lucide-react"
 import * as React from "react"
 import type { FlatWorkspaceMetadata } from "@/features/share/flat"
+import type { EffectVersion } from "@/features/share/workspace"
 import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
 import {
   ScratchpadSessionContext,
@@ -25,7 +26,8 @@ import type { LoadNotice } from "./load.ts"
 import { LoadNoticeBar } from "./LoadNoticeBar.tsx"
 import { OutputPanel } from "./OutputPanel.tsx"
 import { layerBrowserWorker } from "./lsp-worker-client.ts"
-import { SCRATCHPAD_SEED } from "./seed.ts"
+import { makeScratchpadResetAtoms } from "./reset.ts"
+import { effectVersionOfFiles, SCRATCHPAD_SEED } from "./seed.ts"
 import { makeScratchpadShareAtoms } from "./share-atoms.ts"
 
 // `window.__scratchpadTest` for the real-Container e2e suite: dev server only,
@@ -41,6 +43,8 @@ export interface ScratchpadProps {
   /** Share-format metadata of the loaded Workspace, kept for Shares. */
   readonly metadata?: FlatWorkspaceMetadata | undefined
   readonly notice?: Option.Option<LoadNotice> | undefined
+  /** The version the files target; read from `package.json` when omitted. */
+  readonly effectVersion?: EffectVersion | undefined
 }
 
 function WorkspaceErrorBanner() {
@@ -127,6 +131,7 @@ export function Scratchpad({
   entryPath,
   metadata,
   notice = Option.none(),
+  effectVersion,
 }: ScratchpadProps) {
   const [{ session, runtime }] = React.useState(() => {
     const transportLayer = layerBrowserWorker()
@@ -151,6 +156,15 @@ export function Scratchpad({
       runtime: editorSession.runtime,
       metadataAtom: workspaceMetadataAtom,
       initialFiles: initialFiles ?? SCRATCHPAD_SEED.files,
+    })
+
+    const resetAtoms = makeScratchpadResetAtoms({
+      runtime: editorSession.runtime,
+      metadataAtom: workspaceMetadataAtom,
+      initialVersion:
+        effectVersion ??
+        effectVersionOfFiles(initialFiles ?? SCRATCHPAD_SEED.files),
+      replaceWorkspace: editorSession.replaceWorkspace,
     })
 
     const failureAtoms = makeContainerFailureAtoms({
@@ -185,6 +199,7 @@ export function Scratchpad({
       clearErrorAtom: editorSession.clearErrorAtom,
       workspaceMetadataAtom,
       ...shareAtoms,
+      ...resetAtoms,
       ...failureAtoms,
     }
     return { session, runtime: editorSession.runtime }
