@@ -137,7 +137,7 @@ test("the watch runner runs the seed, and an edit runs again on a cleared screen
   const terminal = terminalOf(page)
   await expect(output).toHaveAttribute("data-runner", "true")
   await expect(terminal).toContainText(
-    /\[\d\d:\d\d:\d\d\] Starting in watch mode\. Type-checked in the editor: 0 errors\./,
+    /\[\d\d:\d\d:\d\d\] Starting in watch mode\./,
   )
   await expect(terminal).toContainText(
     /\[\d\d:\d\d:\d\d\] Exited with code 0\. Watching for file changes\./,

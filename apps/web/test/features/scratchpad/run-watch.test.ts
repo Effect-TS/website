@@ -169,7 +169,7 @@ describe("the watch runner", { timeout: 30_000 }, () => {
     const screen = runner.screen()
     assert.match(
       screen,
-      /^\[\d\d:\d\d:\d\d\] Starting in watch mode\. Type-checked in the editor: 0 errors\.\n\[\d\d:\d\d:\d\d\] Running src\/main\.ts…\n\nhello 1\n\n\[\d\d:\d\d:\d\d\] Exited with code 0\. Watching for file changes\.\n$/,
+      /^\[\d\d:\d\d:\d\d\] Starting in watch mode\.\n\[\d\d:\d\d:\d\d\] Running src\/main\.ts…\n\nhello 1\n\n\[\d\d:\d\d:\d\d\] Exited with code 0\. Watching for file changes\.\n$/,
     )
     assert.deepEqual(runner.markers(), ["watch;start", "start", "exit;0"])
   })
@@ -190,7 +190,7 @@ describe("the watch runner", { timeout: 30_000 }, () => {
     )
     assert.include(
       runner.screen(),
-      "Type-checked in the editor:\n\nsrc/main.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'.\n\n",
+      "Starting in watch mode.\n\nsrc/main.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'.\n\n",
     )
     assert.match(
       runner.screen(),
@@ -283,12 +283,7 @@ describe("the watch runner", { timeout: 30_000 }, () => {
     )
     runner.check(["src/main.ts"])
     await runner.waitFor(
-      () =>
-        runner
-          .screen()
-          .includes(
-            "Type check arrived. Type-checked in the editor: 0 errors.",
-          ),
+      () => runner.screen().includes("Type check arrived."),
       "the checked Run",
     )
   })
@@ -326,7 +321,6 @@ describe("the watch runner", { timeout: 30_000 }, () => {
       () => runner.screen().includes("Exited with code 0"),
       "the Run",
     )
-    assert.include(runner.screen(), "Type-checked in the editor: 0 errors.")
   })
 
   test("Ctrl+C kills the program and exits the runner", async () => {

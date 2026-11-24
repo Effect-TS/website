@@ -179,11 +179,11 @@ const report = (reason, diagnostics) => {
     return
   }
   if (errors.length === 0) {
-    status(`${reason} Type-checked in the editor: 0 errors.`)
+    status(reason)
     runProgram()
     return
   }
-  status(`${reason} Type-checked in the editor:\r\n`)
+  status(`${reason}\r\n`)
   for (const error of errors) out(`${error.text}\r\n`)
   status(
     `Found ${plural(errors.length, "error")}. Not running. Watching for file changes.`,
