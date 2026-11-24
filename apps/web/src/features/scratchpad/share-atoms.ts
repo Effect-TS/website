@@ -6,7 +6,11 @@ import { WorkspaceCompression } from "@/features/share/compression"
 import type { FlatWorkspaceMetadata } from "@/features/share/flat"
 import { ShortenClient } from "@/features/share/shorten/client"
 import { runAutosave } from "./autosave.ts"
-import { shareScratchpad, shareSourceFromSnapshot } from "./share.ts"
+import {
+  downloadScratchpad,
+  shareScratchpad,
+  shareSourceFromSnapshot,
+} from "./share.ts"
 import { Workspace } from "./workspace.ts"
 
 export interface ScratchpadShareResult {
@@ -18,6 +22,8 @@ export interface ScratchpadShareResult {
 export interface ScratchpadShareAtoms {
   /** Shares the Workspace, copies the link and puts the hash in the page URL. */
   readonly shareAtom: Atom.AtomResultFn<void, ScratchpadShareResult, unknown>
+  /** Zips the Workspace and saves it as `<Workspace name>.zip`. */
+  readonly downloadAtom: Atom.AtomResultFn<void, void, unknown>
   /** Mount to autosave the Workspace while the Scratchpad is open. */
   readonly autosaveAtom: Atom.Atom<unknown>
 }
@@ -26,6 +32,21 @@ const shareLayer = Layer.mergeAll(
   ShortenClient.layer,
   WorkspaceCompression.layer,
 )
+
+/** Hands `content` to the browser as a download named `name`. */
+const saveFile = (name: string, content: Blob) =>
+  Effect.sync(() => {
+    const url = URL.createObjectURL(content)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = name
+    link.style.display = "none"
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    // Revoking right away can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  })
 
 const copyToClipboard = (text: string) =>
   Effect.tryPromise(() => navigator.clipboard.writeText(text)).pipe(
@@ -68,6 +89,17 @@ export const makeScratchpadShareAtoms = <R, ER>(options: {
     ),
   )
 
+  const downloadAtom = options.runtime.fn<void>()(
+    Effect.fnUntraced(function* (_, get) {
+      const workspace = yield* Workspace
+      const snapshot = yield* workspace.snapshot
+      const file = yield* downloadScratchpad(
+        shareSourceFromSnapshot(snapshot, get(options.metadataAtom)),
+      )
+      yield* saveFile(file.name, file.content)
+    }, Effect.tapCause(Effect.logError)),
+  )
+
   const autosaveAtom = options.runtime
     .atom(
       Effect.fnUntraced(function* (get) {
@@ -81,5 +113,5 @@ export const makeScratchpadShareAtoms = <R, ER>(options: {
     )
     .pipe(Atom.keepAlive)
 
-  return { shareAtom, autosaveAtom }
+  return { shareAtom, downloadAtom, autosaveAtom }
 }

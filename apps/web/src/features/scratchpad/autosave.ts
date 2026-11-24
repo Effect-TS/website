@@ -4,12 +4,15 @@ import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Stream from "effect/Stream"
 import * as KeyValueStore from "effect/persistence/KeyValueStore"
-import type { FlatWorkspaceMetadata } from "@/features/share/flat"
+import {
+  toFlatWorkspace,
+  type FlatWorkspaceMetadata,
+} from "@/features/share/flat"
 import { Workspace } from "@/features/share/workspace"
 import { SCRATCHPAD_AUTOSAVE_KEY } from "./load.ts"
 import { SCRATCHPAD_SEED } from "./seed.ts"
 import { shareSourceFromSnapshot, toShareWorkspace } from "./share.ts"
-import { comparePaths, type WorkspaceService } from "./workspace.ts"
+import type { WorkspaceService } from "./workspace.ts"
 
 /** How long the Workspace must be quiet before an autosave. */
 export const AUTOSAVE_DEBOUNCE: Duration.Input = "2 seconds"
@@ -40,11 +43,8 @@ export const saveAutosave = Effect.fnUntraced(function* (
   const metadata = yield* options.metadata
   const snapshot = yield* options.workspace.snapshot
   const current = toShareWorkspace(shareSourceFromSnapshot(snapshot, metadata))
-  const baselines = [
-    toShareWorkspace({ files: sortByPath(options.initialFiles), metadata }),
-    toShareWorkspace(SCRATCHPAD_SEED),
-  ]
-  if (baselines.some((baseline) => current.isUnchangedFrom(baseline))) {
+  const baselines = [options.initialFiles, SCRATCHPAD_SEED.files]
+  if (baselines.some((files) => hasContent(current, files))) {
     return false
   }
   const store = KeyValueStore.toSchemaStore(
@@ -74,12 +74,25 @@ export const runAutosave = (options: AutosaveOptions) =>
   )
 
 /**
- * The Workspace lists files sorted by path; sort the initial files the same
- * way so files the metadata doesn't list come out in the same tree order.
+ * Whether `workspace` holds exactly `files` (same paths, same contents) and
+ * no empty directories. Only content counts: metadata such as `language` and
+ * `userManaged` differs between the seed and the same files decoded from an
+ * autosave, so comparing it would save a Workspace nobody changed.
+ * `package.json` is left out as in `Workspace.isUnchangedFrom`: `pnpm install
+ * -E` rewrites it without a user edit.
  */
-const sortByPath = (
+const hasContent = (
+  workspace: Workspace,
   files: Readonly<Record<string, string>>,
-): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(files).sort(([a], [b]) => comparePaths(a, b)),
+): boolean => {
+  const flat = toFlatWorkspace(workspace)
+  if (flat.directories.length > 0) return false
+  const withoutManifest = (entries: Readonly<Record<string, string>>) =>
+    Object.entries(entries).filter(([path]) => path !== "package.json")
+  const actual = withoutManifest(flat.files)
+  const expected = withoutManifest(files)
+  return (
+    actual.length === expected.length &&
+    actual.every(([path, content]) => files[path] === content)
   )
+}

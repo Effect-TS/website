@@ -3,6 +3,7 @@ import * as Option from "effect/Option"
 import { FileCode2, X } from "lucide-react"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
+import { DownloadButton } from "./DownloadButton.tsx"
 import { ShareButton } from "./ShareButton.tsx"
 import { ReadinessIndicator } from "./ReadinessIndicator.tsx"
 
@@ -111,6 +112,7 @@ export function EditorTabs() {
 
       <div className="flex shrink-0 items-center gap-2 py-1.5">
         <ShareButton />
+        <DownloadButton />
         <ReadinessIndicator />
       </div>
     </div>

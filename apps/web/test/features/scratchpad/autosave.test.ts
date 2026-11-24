@@ -179,6 +179,47 @@ describe("runAutosave", () => {
     assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
   })
 
+  test("after a reload from the autosave, editing back to the seed doesn't save", async () => {
+    const storage = makeStorage()
+    await withAutosave(
+      storage,
+      SCRATCHPAD_SEED.files,
+      SCRATCHPAD_SEED.metadata,
+      ({ workspace, tick }) =>
+        Effect.gen(function* () {
+          yield* workspace.writeFile("src/main.ts", EDIT)
+          yield* tick(3)
+        }),
+    )
+    assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
+
+    const loaded = await loadScratchpadWorkspace({ hash: "", search: "" }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          storage.layer,
+          WorkspaceCompression.layer,
+          Layer.succeed(ShortenClient, {} as ShortenClient["Service"]),
+        ),
+      ),
+      Effect.runPromise,
+    )
+    assert.equal(loaded.source, "autosave")
+    await withAutosave(
+      storage,
+      loaded.files,
+      loaded.metadata,
+      ({ workspace, tick }) =>
+        Effect.gen(function* () {
+          yield* workspace.writeFile(
+            "src/main.ts",
+            SCRATCHPAD_SEED.files["src/main.ts"]!,
+          )
+          yield* tick(3)
+        }),
+    )
+    assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
+  })
+
   test("a failed write is logged and the next change tries again", async () => {
     const storage = makeStorage({ failingWrites: 1 })
     await withAutosave(

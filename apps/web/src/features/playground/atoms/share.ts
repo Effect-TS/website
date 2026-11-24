@@ -6,7 +6,7 @@ import * as Atom from "effect/reactivity/Atom"
 import { ShortenClient } from "@/features/share/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import { WorkspaceCompression } from "@/features/share/compression"
-import { WorkspaceDownload } from "../services/download"
+import { WorkspaceDownload } from "@/features/share/download"
 import { WebContainer } from "../services/webcontainer"
 import { editorAtom } from "./editor"
 
