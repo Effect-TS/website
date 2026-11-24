@@ -2,10 +2,11 @@ import { useAtom, useAtomValue } from "@effect/atom-react"
 import { ChevronDownIcon, CheckIcon } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
-import { selectedSpanIndexAtom, selectedSpanAtom } from "../../atoms/devtools"
-import { rootSpansAtom } from "../../services/devtools"
+import { useTraceAtoms } from "./context.ts"
 
 export function TraceSelector() {
+  const { rootSpansAtom, selectedSpanAtom, selectedSpanIndexAtom } =
+    useTraceAtoms()
   const [open, setOpen] = useState(false)
   const rootSpans = useAtomValue(rootSpansAtom)
   const [span, setSelectedSpan] = useAtom(selectedSpanAtom)

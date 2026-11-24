@@ -2,11 +2,11 @@ import { useAtomValue } from "@effect/atom-react"
 import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
 import { useMemo } from "react"
-import { selectedSpanAtom } from "../../atoms/devtools"
+import { useTraceAtoms } from "./context.ts"
 import { formatDuration, getTotalSpans } from "./utils"
 
 export function TraceSummary() {
-  const selectedSpan = useAtomValue(selectedSpanAtom)
+  const selectedSpan = useAtomValue(useTraceAtoms().selectedSpanAtom)
   const items = useMemo(() => {
     if (selectedSpan === undefined) return []
     const total = getTotalSpans(selectedSpan)

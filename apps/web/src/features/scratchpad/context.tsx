@@ -16,6 +16,7 @@ export type ScratchpadSessionContextValue = Pick<
   | "stopRunAtom"
   | "restartRunAtom"
   | "revealPositionAtom"
+  | "traceAtoms"
   | "editorAtom"
   | "treeAtom"
   | "openTabsAtom"

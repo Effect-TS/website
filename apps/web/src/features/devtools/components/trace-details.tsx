@@ -4,8 +4,8 @@ import * as Option from "effect/Option"
 import { ChevronRightIcon } from "lucide-react"
 import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
-import { selectedSpanAtom } from "../../atoms/devtools"
-import { Event, Span } from "../../domain/devtools"
+import { useTraceAtoms } from "./context.ts"
+import { Event, Span } from "../span.ts"
 import { formatDuration } from "./utils"
 
 export function TraceDetails({ span }: { readonly span: Span }) {
@@ -125,7 +125,7 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
 }
 
 function TraceEvent({ node }: { readonly node: Event }) {
-  const selectedSpan = useAtomValue(selectedSpanAtom)
+  const selectedSpan = useAtomValue(useTraceAtoms().selectedSpanAtom)
   const [open, setOpen] = useState(false)
   const eventTimestamp = useMemo(() => {
     if (selectedSpan !== undefined) {

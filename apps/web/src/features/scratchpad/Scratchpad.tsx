@@ -168,6 +168,7 @@ export function Scratchpad({
       stopRunAtom: editorSession.stopRunAtom,
       restartRunAtom: editorSession.restartRunAtom,
       revealPositionAtom: editorSession.revealPositionAtom,
+      traceAtoms: editorSession.traceAtoms,
       editorAtom: editorSession.editorAtom,
       treeAtom: editorSession.treeAtom,
       openTabsAtom: editorSession.openTabsAtom,

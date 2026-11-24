@@ -6,14 +6,13 @@
  * - `workspace/`: the synced Workspace. Every `ContainerBackend` path is
  *   relative to it, and processes start there.
  * - `.scratchpad/`: host scripts that are not part of the Workspace (the
- *   `/dev-tools-proxy`, the types collector and its pack, the Run preload
- *   later). `ContainerBackend`'s host-dir operations work here.
+ *   dev-tools proxy from `traces.ts`, the types collector and its pack, the
+ *   Run preload). `ContainerBackend`'s host-dir operations work here.
  */
 import type { WebContainer } from "@webcontainer/api"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Semaphore from "effect/Semaphore"
-import * as Stream from "effect/Stream"
 import {
   Container,
   ContainerBootFailed,
@@ -27,26 +26,6 @@ export const CONTAINER_WORKDIR_NAME = "scratchpad"
 export const CONTAINER_WORKSPACE_DIR = "workspace"
 /** `CONTAINER_HOST_DIR_FROM_WORKSPACE` is this directory seen from `workspace/`. */
 export const CONTAINER_HOST_DIR = ".scratchpad"
-
-/** The devtools TCP port Effect's `DevTools.layer` connects to. */
-export const DEV_TOOLS_PORT = 34437
-
-/**
- * Accepts devtools connections so programs using `DevTools.layer` don't fail
- * to connect. Output is piped to stdout, which the host drops until the trace
- * viewer lands. Same script as the Playground's.
- */
-export const DEV_TOOLS_PROXY_SCRIPT = `const Net = require("node:net")
-
-const server = Net.createServer((socket) => {
-  socket.on("error", () => {})
-  socket.pipe(process.stdout, { end: false })
-})
-process.stdout.on("error", () => {})
-server.on("error", () => {})
-
-server.listen(${DEV_TOOLS_PORT})
-`
 
 /** WebContainer allows one instance per page. */
 const instanceGuard = Semaphore.makeUnsafe(1)
@@ -155,47 +134,6 @@ const makeBackend = (wc: WebContainer): ContainerBackend => {
   }
 }
 
-/** Starts the devtools proxy for the Container's lifetime and drops its output. */
-const startDevToolsProxy = (wc: WebContainer) =>
-  Effect.gen(function* () {
-    yield* Effect.tryPromise({
-      try: async () => {
-        await wc.fs.mkdir(CONTAINER_HOST_DIR, { recursive: true })
-        await wc.fs.writeFile(
-          `${CONTAINER_HOST_DIR}/dev-tools-proxy.cjs`,
-          DEV_TOOLS_PROXY_SCRIPT,
-        )
-      },
-      catch: (cause) => cause,
-    })
-    yield* Effect.acquireRelease(
-      Effect.tryPromise({
-        try: () =>
-          wc.spawn("node", [`${CONTAINER_HOST_DIR}/dev-tools-proxy.cjs`]),
-        catch: (cause) => cause,
-      }),
-      (process) => Effect.sync(() => process.kill()),
-    ).pipe(
-      Effect.flatMap((process) =>
-        Stream.fromReadableStream({
-          evaluate: () => process.output,
-          onError: (cause) => cause,
-          releaseLockOnEnd: true,
-        }).pipe(
-          Stream.runDrain,
-          Effect.andThen(Effect.promise(() => process.exit)),
-        ),
-      ),
-      Effect.scoped,
-      Effect.ignore,
-      Effect.forkScoped,
-    )
-  }).pipe(
-    Effect.catch((cause) =>
-      Effect.logWarning("Container devtools proxy", errorMessage(cause)),
-    ),
-  )
-
 /** Boots the page's WebContainer and tears it down when the scope closes. */
 export const bootWebContainer = Effect.gen(function* () {
   const reason = unsupportedReason()
@@ -222,7 +160,6 @@ export const bootWebContainer = Effect.gen(function* () {
     try: () => wc.fs.mkdir(CONTAINER_WORKSPACE_DIR, { recursive: true }),
     catch: classifyBootError,
   })
-  yield* startDevToolsProxy(wc)
 
   return makeBackend(wc)
 })

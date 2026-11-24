@@ -22,6 +22,7 @@ import type * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
 import * as Stream from "effect/Stream"
+import { makeTraceAtoms, type TraceAtoms } from "@/features/devtools/traces"
 import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
 import { Container, type ContainerPhase, mirrorWorkspace } from "./container.ts"
 import {
@@ -50,6 +51,7 @@ import {
   type RunsState,
 } from "./runs.ts"
 import { SCRATCHPAD_SEED_FILES } from "./seed.ts"
+import { layerTraces } from "./traces.ts"
 import { isLspDocumentPath, MultiFileLspWorkspace } from "./lsp-workspace.ts"
 import {
   makeScratchpadSession,
@@ -151,6 +153,8 @@ export interface ScratchpadEditorSession {
   readonly restartRunAtom: Atom.AtomResultFn<void, void>
   /** Opens a file and puts the cursor at a position (clickable errors). */
   readonly revealPositionAtom: Atom.AtomResultFn<RevealPositionInput, void>
+  /** The spans the latest Run reported (the Traces tab). */
+  readonly traceAtoms: TraceAtoms
   readonly editorAtom: Atom.Atom<
     AsyncResult.AsyncResult<ScratchpadEditorInstance>
   >
@@ -540,7 +544,9 @@ export const makeScratchpadEditorSession = (
       return runBlockingErrorsOf(byUri, rootUri, sourceLine)
     })
 
-  // The Container, its Dependencies and Runs are optional and looked up with
+  const traceAtoms = makeTraceAtoms({ keepAlive: true })
+
+  // The Container, its Dependencies, Runs and Traces are optional and looked up with
   // `serviceOption`, so they are kept out of the runtime's type.
   const baseLayer = Layer.mergeAll(
     config.transportLayer,
@@ -550,7 +556,8 @@ export const makeScratchpadEditorSession = (
   const runtimeLayer =
     config.containerLayer === undefined
       ? baseLayer
-      : (layerRuns({ blockingErrors: collectRunBlockers }).pipe(
+      : (layerTraces(traceAtoms).pipe(
+          Layer.provideMerge(layerRuns({ blockingErrors: collectRunBlockers })),
           Layer.provideMerge(
             layerDependencies({ typesTimeout: config.typesTimeout }),
           ),
@@ -1293,6 +1300,7 @@ export const makeScratchpadEditorSession = (
     stopRunAtom,
     restartRunAtom,
     revealPositionAtom,
+    traceAtoms,
     editorAtom,
     treeAtom,
     openTabsAtom,

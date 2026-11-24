@@ -18,8 +18,8 @@ import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
 import React, { useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { selectedSpanAtom } from "../../atoms/devtools"
-import { Span } from "../../domain/devtools"
+import { useTraceAtoms } from "./context.ts"
+import { Span } from "../span.ts"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
@@ -70,7 +70,7 @@ const columns: Array<ColumnDef<typeof features, Span>> = [
 ]
 
 export function TraceWaterfall() {
-  const selectedSpan = useAtomValue(selectedSpanAtom)
+  const selectedSpan = useAtomValue(useTraceAtoms().selectedSpanAtom)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
   const data = useMemo(
