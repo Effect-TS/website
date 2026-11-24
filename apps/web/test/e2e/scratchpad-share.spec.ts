@@ -81,12 +81,18 @@ test("edits are autosaved and restored on reload", async ({ page }) => {
   )
 })
 
-test("the download button saves the Workspace as a zip", async ({ page }) => {
+test("the Share popover's download saves the Workspace as a zip", async ({
+  page,
+}) => {
   await openScratchpad(page)
   await replaceDocument(page, EDIT)
 
+  await page.getByTestId("scratchpad-share").click()
   const downloading = page.waitForEvent("download")
-  await page.getByTestId("scratchpad-download").click()
+  await page
+    .getByTestId("scratchpad-share-popover")
+    .getByTestId("scratchpad-download")
+    .click()
   const download = await downloading
   expect(download.suggestedFilename()).toBe("playground-v4.zip")
 

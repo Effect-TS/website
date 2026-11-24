@@ -4,13 +4,15 @@ import * as AsyncResult from "effect/reactivity/AsyncResult"
 import { CheckIcon, CopyIcon, Loader2Icon, Share2Icon } from "lucide-react"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
+import { DownloadRow } from "./DownloadRow.tsx"
 import { shareErrorMessage } from "./share.ts"
 import type { ScratchpadShareResult } from "./share-atoms.ts"
 
 /**
  * Shares the Scratchpad: stores the Workspace with the shortener, copies the
  * `/scratchpad#<hash>` link and shows it in a popover (with the error when
- * sharing fails).
+ * sharing fails). The popover also downloads the files as a zip, as on
+ * `/play`.
  */
 export function ShareButton() {
   const { shareAtom } = useScratchpadSession()
@@ -158,6 +160,7 @@ function PopoverFrame({ children }: { readonly children: React.ReactNode }) {
       className="absolute top-full right-0 z-50 mt-1.5 w-[360px] max-w-[calc(100vw-2rem)] rounded-md border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
     >
       {children}
+      <DownloadRow />
     </div>
   )
 }

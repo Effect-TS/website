@@ -3,7 +3,6 @@ import * as Option from "effect/Option"
 import { FileCode2, X } from "lucide-react"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
-import { DownloadButton } from "./DownloadButton.tsx"
 import { isLibraryPath, libraryTabLabel } from "./library-files.ts"
 import { ShareButton } from "./ShareButton.tsx"
 import { ReadinessIndicator } from "./ReadinessIndicator.tsx"
@@ -123,7 +122,6 @@ export function EditorTabs() {
         <VersionToggle />
         <ResetButton />
         <ShareButton />
-        <DownloadButton />
         <ReadinessIndicator />
       </div>
     </div>
