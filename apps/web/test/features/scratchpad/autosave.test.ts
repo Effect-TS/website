@@ -12,7 +12,10 @@ import {
   PLAYGROUND_AUTOSAVE_KEY,
   SCRATCHPAD_AUTOSAVE_KEY,
 } from "../../../src/features/scratchpad/load.ts"
-import { SCRATCHPAD_SEED } from "../../../src/features/scratchpad/seed.ts"
+import {
+  SCRATCHPAD_SEED,
+  SCRATCHPAD_SEEDS,
+} from "../../../src/features/scratchpad/seed.ts"
 import {
   makeMemoryWorkspace,
   type WorkspaceService,
@@ -153,6 +156,26 @@ describe("runAutosave", () => {
           const original = SCRATCHPAD_SEED.files["src/main.ts"]!
           yield* workspace.writeFile("src/main.ts", EDIT)
           yield* workspace.writeFile("src/main.ts", original)
+          yield* tick(3)
+        }),
+    )
+    assert.deepStrictEqual(storage.writes, [])
+  })
+
+  test("skips a Workspace replaced by the other version's seed", async () => {
+    const storage = makeStorage()
+    const imported = { ...SCRATCHPAD_SEED.files, "src/main.ts": EDIT }
+    await withAutosave(
+      storage,
+      imported,
+      SCRATCHPAD_SEEDS.v3.metadata,
+      ({ workspace, tick }) =>
+        Effect.gen(function* () {
+          // A switch to v3: every file swapped for the v3 seed's.
+          yield* workspace.restoreSnapshot({
+            version: 1,
+            files: SCRATCHPAD_SEEDS.v3.files,
+          })
           yield* tick(3)
         }),
     )

@@ -1,15 +1,28 @@
 # 04: Effect v3 support, version toggle and Reset
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by:
 Spec: ../spec.md
 
 Today the Scratchpad is v4-only: v3 shares show an "Open in Playground" notice (`load.ts`, `LoadNoticeBar.tsx`). `/play` has `components/version-toggle.tsx`, `components/reset-button.tsx` and `confirm-dialog.tsx`; look at how it picks the v3 seed and stores the preference.
 
-- [ ] A v3 seed next to the v4 one in `seed.ts` (same layout: `package.json` with v3 `effect` + `@effect/language-service`, `tsconfig.json` with the plugin, `dprint.json`, `src/main.ts`). Types come from the install, so nothing is bundled
-- [ ] Remove the v3 "Open in Playground" path: v3 shares, `?code=` links and autosaves load directly. Keep any other notices that still apply
-- [ ] A v3/v4 toggle in the editor header. Switching asks for confirmation, then resets to that version's seed; the choice is remembered (same storage approach as `/play`'s preference, separate key is fine) and used for the seed on a fresh visit
-- [ ] A Reset button with a confirmation dialog, next to Share: back to the current version's seed, clear the Scratchpad autosave, remove any share hash from the URL. The Container reinstalls (the `package.json` change does that already)
-- [ ] A shared confirm dialog component (Base UI `AlertDialog` or the existing `/play` one)
-- [ ] Unit tests for version detection and seed selection; worker e2e for reset (edit, reset, confirm, seed content back, autosave cleared) and for a v3 share loading without the notice. Real-Container e2e: v3 seed installs and runs (`Effect.log` output appears)
+- [x] A v3 seed next to the v4 one in `seed.ts` (same layout: `package.json` with v3 `effect` + `@effect/language-service`, `tsconfig.json` with the plugin, `dprint.json`, `src/main.ts`). Types come from the install, so nothing is bundled
+- [x] Remove the v3 "Open in Playground" path: v3 shares, `?code=` links and autosaves load directly. Keep any other notices that still apply
+- [x] A v3/v4 toggle in the editor header. Switching asks for confirmation, then resets to that version's seed; the choice is remembered (same storage approach as `/play`'s preference, separate key is fine) and used for the seed on a fresh visit
+- [x] A Reset button with a confirmation dialog, next to Share: back to the current version's seed, clear the Scratchpad autosave, remove any share hash from the URL. The Container reinstalls (the `package.json` change does that already)
+- [x] A shared confirm dialog component (Base UI `AlertDialog` or the existing `/play` one)
+- [x] Unit tests for version detection and seed selection; worker e2e for reset (edit, reset, confirm, seed content back, autosave cleared) and for a v3 share loading without the notice. Real-Container e2e: v3 seed installs and runs (`Effect.log` output appears)
+
+## Answer
+
+The Scratchpad now opens v3 and v4 workspaces, has a v3/v4 toggle and a Reset button, and remembers the chosen version for fresh visits.
+
+- **Seeds** (`scratchpad/seed.ts`): `SCRATCHPAD_SEEDS.{v3,v4}` and `scratchpadSeed(version)`. The v3 seed is the Playground v3 template with the same patches as v4: the tsconfig plugin plus `verbatimModuleSyntax`, and `@types/node` `^24`. It also adds `@effect/language-service: latest` to `package.json`, and its `src/DevTools.ts` imports `@effect/experimental/DevTools` and `@effect/platform-node/NodeSocket` instead of the package roots. `SCRATCHPAD_SEED` is still the v4 seed. `effectVersionOfFiles(files)` reads the version from `package.json` through `effectVersionOf`, which is now exported from `share/workspace.ts` (`/play`'s rule). A missing or broken `package.json` counts as v4.
+- **Loading** (`load.ts`): the v3 rejection is gone. v3 shares and autosaves load as they are. A v3 `?code=` link (including one with no `version`) swaps `main.ts` into the v3 seed. The limits notice stays, with its "Open in Playground" link. On a fresh visit the seed comes from `?version`, then the stored preference, then v4. `LoadedScratchpadWorkspace` now carries `effectVersion`.
+- **Preference** (`version.ts`): stored under `scratchpad-effect-version`, in the same format as `/play`'s `playground-effect-version` (`toSchemaStore(EffectVersion)`, so the value is the JSON string). It is written only when the visitor switches versions.
+- **Reset and switch** (`reset.ts`): `resetAtom(version)` sets the seed's metadata, replaces every file in place, updates `effectVersionAtom`, removes the hash and query from the URL and clears the autosave. When the version changes, it also stores the preference. The autosave is cleared by storing `None`, not by removing the key, and the loader now skips `/play`'s `workspace-autosave` while the Scratchpad key holds `None`. Without that, a reload after Reset would bring back `/play`'s autosave. The autosave now treats both seeds as unchanged, so a Reset or a switch doesn't save anything.
+- **Editor** (`editor.ts`): `session.replaceWorkspace({ files, entryPath })` is a plain Effect, not an atom. It calls `restoreSnapshot` and then clears cached editor states, diagnostics and tabs, and opens the entry file. The Container mirror and the worker's file system follow from the Workspace events, so the new `package.json` reinstalls. Like the old `/play` behaviour, there is no per-version Container: `node_modules` stays and pnpm reconciles it.
+- **Run gate fix** (`editor.ts`): after a reinstall, the worker re-pulls every document at the same version, so the gate passed on diagnostics computed against the old `node_modules`. The first v3 Run after a switch was skipped with "Cannot find module '@effect/experimental/DevTools'", and nothing ran it again. The gate now also waits, up to the same 5 s timeout, for a push for each document made after the latest types mount. Any reinstall had this problem, `pnpm add` included, but the switch made it visible.
+- **UI**: `components/ui/confirm-dialog.tsx` is a Base UI `AlertDialog` with Cancel focused first, available to `/play` too. `VersionToggle.tsx` and `ResetButton.tsx` sit before `ShareButton` in `EditorTabs.tsx`, and each control is its own component.
+- **Tests**: unit tests for both seeds, version detection, the loader (v3 share, autosave and `?code` loads, preference and `?version` picking the seed, a cleared autosave skipping `/play`'s), autosave skipping the other version's seed, and `replaceWorkspace` (one tab, fresh document, Container files replaced, pnpm reinstalls). In the worker e2e: Reset (cancel, confirm, seed back, hash gone, autosave cleared, reload opens the seed), switching to v3 (cancel, confirm, remembered across reload, v3 share opens as v3 for a fresh visitor with no notice), and the v3 `?code` link. In the Container e2e: switch to v3, reinstall (`effect` `3.x` in the synced `package.json`), the v3 seed's `Effect.log` output appears, and there are no error diagnostics.

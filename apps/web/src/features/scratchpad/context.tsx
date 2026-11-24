@@ -3,6 +3,7 @@ import * as React from "react"
 import type { FlatWorkspaceMetadata } from "@/features/share/flat"
 import type { ScratchpadEditorSession } from "./editor.ts"
 import type { ContainerFailureAtoms } from "./failure.ts"
+import type { ScratchpadResetAtoms } from "./reset.ts"
 import type { ScratchpadShareAtoms } from "./share-atoms.ts"
 
 export type ScratchpadSessionContextValue = Pick<
@@ -32,6 +33,7 @@ export type ScratchpadSessionContextValue = Pick<
   | "clearErrorAtom"
 > &
   ScratchpadShareAtoms &
+  ScratchpadResetAtoms &
   ContainerFailureAtoms & {
     /**
      * Share-format metadata of the loaded Workspace (name, `initialFilePath`,

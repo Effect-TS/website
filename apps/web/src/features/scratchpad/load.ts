@@ -16,7 +16,8 @@ import {
   Workspace,
 } from "@/features/share/workspace"
 import { SCRATCHPAD_ENTRY_PATH } from "./config.ts"
-import { SCRATCHPAD_SEED } from "./seed.ts"
+import { effectVersionOfFiles, scratchpadSeed } from "./seed.ts"
+import { readEffectVersionPreference } from "./version.ts"
 import { makeMemoryWorkspace, type WorkspaceLimits } from "./workspace.ts"
 
 /**
@@ -40,12 +41,12 @@ export type ScratchpadLoadSource =
   | "seed"
 
 /** Why a legacy workspace opens in the Playground instead. */
-export type LoadNoticeReason = "v3" | "limits"
+export type LoadNoticeReason = "limits"
 
 /**
- * A workspace the Scratchpad found but can't open: an Effect v3 workspace or
- * one over the Workspace limits. The Scratchpad loads the seed and links to
- * the same source on `/play`.
+ * A workspace the Scratchpad found but can't open: one over the Workspace
+ * limits. The Scratchpad loads the seed and links to the same source on
+ * `/play`.
  */
 export interface LoadNotice {
   readonly reason: LoadNoticeReason
@@ -65,6 +66,8 @@ export interface LoadedScratchpadWorkspace {
   readonly metadata: FlatWorkspaceMetadata | undefined
   /** The file opened first: the workspace's `initialFilePath` when it exists. */
   readonly initialFilePath: string
+  /** The Effect version the loaded files target, for the version toggle. */
+  readonly effectVersion: EffectVersion
   readonly notice: Option.Option<LoadNotice>
 }
 
@@ -104,19 +107,15 @@ const sourceLabel: Record<LoadNotice["source"], string> = {
   "playground-autosave": "Your autosaved Playground workspace",
 }
 
-const makeNotice = (
+const limitsNotice = (
   source: LoadNotice["source"],
-  reason: LoadNoticeReason,
   playgroundUrl: string,
-  detail?: string,
+  detail: string,
 ): LoadNotice => ({
   source,
-  reason,
+  reason: "limits",
   playgroundUrl,
-  message:
-    reason === "v3"
-      ? `${sourceLabel[source]} uses Effect v3, which the Scratchpad doesn't support yet.`
-      : `${sourceLabel[source]} doesn't fit the Scratchpad's limits${detail === undefined ? "." : `: ${detail}`}`,
+  message: `${sourceLabel[source]} doesn't fit the Scratchpad's limits: ${detail}`,
 })
 
 /**
@@ -134,7 +133,8 @@ const workspaceRejection = (
 
 /**
  * Normalizes a share-format workspace for the Scratchpad and decides whether
- * it can load: v3 workspaces and ones over the limits become notices.
+ * it can load: one over the limits becomes a notice. v3 and v4 both load;
+ * the version comes from its `package.json`.
  */
 const fromShareWorkspace = Effect.fnUntraced(function* (
   workspace: Workspace,
@@ -142,18 +142,12 @@ const fromShareWorkspace = Effect.fnUntraced(function* (
   playgroundUrl: string,
   options: LoadOptions,
 ) {
-  if (workspace.effectVersion === "v3") {
-    return {
-      _tag: "Rejected",
-      notice: makeNotice(source, "v3", playgroundUrl),
-    } satisfies Candidate as Candidate
-  }
   const flat = toFlatWorkspace(normalizeScratchpadWorkspace(workspace))
   const rejection = yield* workspaceRejection(flat.files, options.limits)
   if (Option.isSome(rejection)) {
     return {
       _tag: "Rejected",
-      notice: makeNotice(source, "limits", playgroundUrl, rejection.value),
+      notice: limitsNotice(source, playgroundUrl, rejection.value),
     } satisfies Candidate as Candidate
   }
   return { _tag: "Loaded", flat } satisfies Candidate as Candidate
@@ -185,10 +179,9 @@ const fromHash = Effect.fnUntraced(function* (
 })
 
 /**
- * `?code=<base64url>`: a single `src/main.ts` swapped into the seed. Like
- * `/play`, a link without `?version` is v3 (these links predate the version
- * toggle), so only `?version=v4` loads; v3 links get the notice and open on
- * `/play` with the same query.
+ * `?code=<base64url>`: a single `src/main.ts` swapped into the seed for the
+ * link's `?version`. Like `/play`, a link without one is v3: these links
+ * predate the version toggle.
  */
 const fromCode = Effect.fnUntraced(function* (
   location: ScratchpadLocation,
@@ -204,28 +197,28 @@ const fromCode = Effect.fnUntraced(function* (
     optionalParam(params, "version").pipe(Option.flatMap(decodeVersion)),
   )
   const playgroundUrl = `${PLAYGROUND_PATH}?${search}`
-  if (version === "v3") {
-    return Option.some<Candidate>({
-      _tag: "Rejected",
-      notice: makeNotice("code", "v3", playgroundUrl),
-    })
-  }
+  const seed = scratchpadSeed(version)
   const files = {
-    ...SCRATCHPAD_SEED.files,
+    ...seed.files,
     [SCRATCHPAD_ENTRY_PATH]: code.value,
   }
   const rejection = yield* workspaceRejection(files, options.limits)
   if (Option.isSome(rejection)) {
     return Option.some<Candidate>({
       _tag: "Rejected",
-      notice: makeNotice("code", "limits", playgroundUrl, rejection.value),
+      notice: limitsNotice("code", playgroundUrl, rejection.value),
     })
   }
   return Option.some<Candidate>({
     _tag: "Loaded",
-    flat: { ...SCRATCHPAD_SEED, files },
+    flat: { ...seed, files },
   })
 })
+
+const readAutosave = (key: string) =>
+  Effect.flatMap(KeyValueStore.KeyValueStore, (store) =>
+    KeyValueStore.toSchemaStore(store, AutosaveSchema).get(key),
+  )
 
 /** An `Option<Workspace>` autosave in `/play`'s format, under `key`. */
 const fromAutosave = Effect.fnUntraced(function* (
@@ -233,16 +226,32 @@ const fromAutosave = Effect.fnUntraced(function* (
   source: "autosave" | "playground-autosave",
   options: LoadOptions,
 ) {
-  const store = KeyValueStore.toSchemaStore(
-    yield* KeyValueStore.KeyValueStore,
-    AutosaveSchema,
-  )
-  const saved = Option.flatten(yield* store.get(key))
+  const saved = Option.flatten(yield* readAutosave(key))
   if (Option.isNone(saved)) {
     return Option.none<Candidate>()
   }
   return Option.some(
     yield* fromShareWorkspace(saved.value, source, PLAYGROUND_PATH, options),
+  )
+})
+
+/**
+ * `/play`'s autosave, read only while the Scratchpad has never saved. A
+ * Scratchpad autosave of `None` (a Reset cleared it) means the seed.
+ */
+const fromPlaygroundAutosave = Effect.fnUntraced(function* (
+  options: LoadOptions,
+) {
+  const own = yield* readAutosave(SCRATCHPAD_AUTOSAVE_KEY).pipe(
+    Effect.orElseSucceed(() => Option.none()),
+  )
+  if (Option.isSome(own)) {
+    return Option.none<Candidate>()
+  }
+  return yield* fromAutosave(
+    PLAYGROUND_AUTOSAVE_KEY,
+    "playground-autosave",
+    options,
   )
 })
 
@@ -279,18 +288,37 @@ const loaded = (
   files: flat.files,
   metadata: flat.metadata,
   initialFilePath: initialFilePathOf(flat),
+  effectVersion: effectVersionOfFiles(flat.files),
   notice,
+})
+
+/**
+ * The seed a visit without a workspace opens: the version in `?version`,
+ * else the one the visitor last picked with the toggle, else v4.
+ */
+const seedVersion = Effect.fnUntraced(function* (location: ScratchpadLocation) {
+  const param = optionalParam(
+    new URLSearchParams(stripPrefix(location.search, "?")),
+    "version",
+  ).pipe(Option.flatMap(decodeVersion))
+  if (Option.isSome(param)) {
+    return param.value
+  }
+  const preference = yield* readEffectVersionPreference
+  return Option.getOrElse(preference, (): EffectVersion => "v4")
 })
 
 /**
  * Picks the Workspace the Scratchpad opens with, trying in order: the
  * `#<hash>` Share, a `?code=` link, the Scratchpad autosave, `/play`'s
- * autosave (only while the Scratchpad has none), then the seed.
+ * autosave (only while the Scratchpad has never saved or been reset), then
+ * the seed for
+ * `seedVersion`. Effect v3 and v4 workspaces both load.
  *
  * A source that fails (a corrupt hash, an unreachable shortener, an autosave
  * that doesn't decode) is logged and skipped. A source that is found but
- * can't open here (v3, over the limits) stops the search: the seed loads
- * with a notice linking to the same source on `/play`.
+ * can't open here (over the limits) stops the search: the seed loads with a
+ * notice linking to the same source on `/play`.
  */
 export const loadScratchpadWorkspace = Effect.fnUntraced(function* (
   location: ScratchpadLocation,
@@ -309,10 +337,7 @@ export const loadScratchpadWorkspace = Effect.fnUntraced(function* (
     ["hash", fromHash(location, options)],
     ["code", fromCode(location, options)],
     ["autosave", fromAutosave(SCRATCHPAD_AUTOSAVE_KEY, "autosave", options)],
-    [
-      "playground-autosave",
-      fromAutosave(PLAYGROUND_AUTOSAVE_KEY, "playground-autosave", options),
-    ],
+    ["playground-autosave", fromPlaygroundAutosave(options)],
   ]
   for (const [source, load] of sources) {
     const candidate = yield* orNone(source)(load)
@@ -325,12 +350,16 @@ export const loadScratchpadWorkspace = Effect.fnUntraced(function* (
       )
       return loaded(
         "seed",
-        SCRATCHPAD_SEED,
+        scratchpadSeed(yield* seedVersion(location)),
         Option.some(candidate.value.notice),
       )
     }
     yield* Effect.logInfo(`Scratchpad: loaded the workspace from the ${source}`)
     return loaded(source, candidate.value.flat, Option.none())
   }
-  return loaded("seed", SCRATCHPAD_SEED, Option.none())
+  return loaded(
+    "seed",
+    scratchpadSeed(yield* seedVersion(location)),
+    Option.none(),
+  )
 })

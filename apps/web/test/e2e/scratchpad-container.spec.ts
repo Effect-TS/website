@@ -110,7 +110,9 @@ test("boots the Container, installs the seed's dependencies and loads their type
     .hover()
   await expect(page.locator(".cm-tooltip-hover")).toContainText(
     /platform-node/,
-    { timeout: LSP_TIMEOUT },
+    {
+      timeout: LSP_TIMEOUT,
+    },
   )
   await dismissTooltips(page)
   // Warnings (unstableApiUsage) are expected; errors are not.
@@ -257,7 +259,9 @@ test("pnpm add through the host spawn API syncs package.json and the lockfile ba
   await expect(containerOf(page)).toHaveAttribute(
     "data-container-phase",
     "ready",
-    { timeout: TYPES_TIMEOUT },
+    {
+      timeout: TYPES_TIMEOUT,
+    },
   )
 
   // Import it: the types resolve (no errors) and the Run prints its output.
@@ -374,6 +378,41 @@ test("a legacy v4 share loads, is repaired, and runs", async ({
   await openFile(page, "src/main.ts")
   await expect(lineWith(page, 'from "./Program.js"')).toBeVisible()
   await expectRun(page, 1, "legacy v4 share ran")
+  await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
+})
+
+test("switching to Effect v3 reinstalls, and the v3 seed runs without type errors", async ({
+  page,
+}) => {
+  await openSeedReady(page)
+  await expectRun(page, 1, WELCOME)
+
+  await page
+    .getByTestId("scratchpad-version-toggle")
+    .getByRole("button", { name: "v3" })
+    .click()
+  await page
+    .getByTestId("confirm-dialog")
+    .getByRole("button", { name: "Switch" })
+    .click()
+  await expect(
+    lineWith(page, "Welcome to the Effect Playground!"),
+  ).toBeVisible()
+
+  // The new package.json reinstalls; the v3 seed runs once it lands.
+  await awaitInstalledTypes(page)
+  await expect(runOutputOf(page)).toContainText(
+    "Welcome to the Effect Playground!",
+    {
+      timeout: TYPES_TIMEOUT,
+    },
+  )
+  await expect(runOutputOf(page)).not.toContainText(WELCOME)
+  // The installed v3 types resolve: no errors in either seed file.
+  await page.waitForTimeout(2_000)
+  await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
+  await openFile(page, "src/DevTools.ts")
+  await page.waitForTimeout(1_000)
   await expect(editorOf(page).locator(".cm-lintRange-error")).toHaveCount(0)
 })
 

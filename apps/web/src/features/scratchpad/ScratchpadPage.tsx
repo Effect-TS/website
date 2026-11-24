@@ -39,6 +39,7 @@ function LoadedScratchpad() {
         entryPath={loaded.initialFilePath}
         metadata={loaded.metadata}
         notice={loaded.notice}
+        effectVersion={loaded.effectVersion}
       />
     )
   }

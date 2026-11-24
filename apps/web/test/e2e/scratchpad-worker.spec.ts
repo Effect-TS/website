@@ -119,7 +119,9 @@ const openReady = async (page: Page) => {
   await awaitInstalledTypes(page)
   await expect(
     lineWith(page, 'Effect.succeed("unhandled")').locator(".cm-lintRange"),
-  ).toBeVisible({ timeout: LSP_TIMEOUT })
+  ).toBeVisible({
+    timeout: LSP_TIMEOUT,
+  })
 }
 
 test("loads the in-browser language server on the cross-origin isolated page and shows the floating Effect diagnostic", async ({
@@ -270,7 +272,9 @@ test("updates diagnostics across files when another file changes, is created, re
   await openFile(page, "src/main.ts")
   await expect(lineWith(page, importLine).locator(".cm-lintRange")).toHaveCount(
     0,
-    { timeout: LSP_TIMEOUT },
+    {
+      timeout: LSP_TIMEOUT,
+    },
   )
 
   // Create src/extra.ts and import it from main.ts.
@@ -354,7 +358,9 @@ test("recovers from a document that crashes the language server and works again 
     .hover()
   await expect(page.locator(".cm-tooltip-hover")).toContainText(
     /Effect<number/,
-    { timeout: LSP_TIMEOUT },
+    {
+      timeout: LSP_TIMEOUT,
+    },
   )
   await expect(statusOf(page)).toHaveAttribute(
     "data-lsp-status",
@@ -362,23 +368,26 @@ test("recovers from a document that crashes the language server and works again 
   )
 })
 
-test("a v3 ?code link shows a notice linking to the Playground", async ({
+test("a v3 ?code link opens the v3 seed with the code, without a notice", async ({
   page,
 }) => {
-  const code = Buffer.from('import { Effect } from "effect"\n').toString(
-    "base64url",
+  const code =
+    'import { Effect } from "effect"\n\nEffect.runFork(Effect.log("v3 code link"))\n'
+  await page.goto(
+    `/scratchpad?code=${Buffer.from(code).toString("base64url")}`,
+    {
+      waitUntil: "domcontentloaded",
+    },
   )
-  await page.goto(`/scratchpad?code=${code}`, {
-    waitUntil: "domcontentloaded",
+  await expect(lineWith(page, "v3 code link")).toBeVisible({
+    timeout: READY_TIMEOUT,
   })
-  const notice = page.getByTestId("scratchpad-load-notice")
-  await expect(notice).toHaveAttribute("data-reason", "v3")
+  await expect(page.getByTestId("scratchpad-load-notice")).toHaveCount(0)
   await expect(
-    notice.getByRole("link", { name: "Open in Playground" }),
-  ).toHaveAttribute("href", `/play?code=${code}`)
-  await expect(page.getByTestId("explorer-file-src/DevTools.ts")).toBeVisible()
-  await notice.getByRole("button", { name: "Dismiss notice" }).click()
-  await expect(notice).toHaveCount(0)
+    page
+      .getByTestId("scratchpad-version-toggle")
+      .getByRole("button", { name: "v3" }),
+  ).toHaveAttribute("aria-pressed", "true")
 })
 
 // Serving the page without COOP/COEP is how an unsupported browser looks to
