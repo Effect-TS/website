@@ -22,6 +22,7 @@ import * as Queue from "effect/Queue"
 import type * as AsyncResult from "effect/reactivity/AsyncResult"
 import * as Atom from "effect/reactivity/Atom"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
+import type { EffectVersion } from "@/features/share/workspace"
 import * as Stream from "effect/Stream"
 import { makeTraceAtoms, type TraceAtoms } from "@/features/devtools/traces"
 import { SCRATCHPAD_ENTRY_PATH, SCRATCHPAD_ROOT_URI } from "./config.ts"
@@ -119,6 +120,11 @@ export interface ScratchpadEditorSessionConfig extends Omit<
    */
   readonly shellCommand?: string | undefined
   readonly createEditorView?: EditorViewFactory | undefined
+  /**
+   * The Effect version whose docs the diagnostic card links to. Read when a
+   * card opens. Default `v4`.
+   */
+  readonly effectVersionAtom?: Atom.Atom<EffectVersion> | undefined
 }
 
 export interface ScratchpadEditorInstance {
@@ -468,7 +474,14 @@ export const makeScratchpadEditorSession = (
       // Before `languageServerExtensions()`: it renders the diagnostics
       // pushes with their quick fixes, and adds Ctrl/Cmd+. code actions.
       extensions: [
-        diagnosticsWithCodeActions(),
+        diagnosticsWithCodeActions({
+          docsVersion: () => {
+            const atom = config.effectVersionAtom
+            return atom === undefined || activeRegistry === undefined
+              ? "v4"
+              : activeRegistry.get(atom)
+          },
+        }),
         ...languageServerExtensions(),
         diagnosticCapabilities,
       ],

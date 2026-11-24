@@ -14,7 +14,12 @@
  *   client's workspace: the open editor gets a transaction, and other files go
  *   to the workspace's `updateFile` (in the Scratchpad, the Workspace store).
  */
-import { type Action, type Diagnostic, setDiagnostics } from "@codemirror/lint"
+import {
+  type Action,
+  type Diagnostic,
+  linter,
+  setDiagnostics,
+} from "@codemirror/lint"
 import {
   LSPPlugin,
   type LSPClient,
@@ -32,11 +37,18 @@ import {
 } from "@codemirror/state"
 import {
   EditorView,
+  hoverTooltip,
   keymap,
   showTooltip,
   type Tooltip,
   type TooltipView,
 } from "@codemirror/view"
+import {
+  type CardDiagnostic,
+  codeActionKeyLabel,
+  diagnosticCardTheme,
+  renderDiagnosticCard,
+} from "./diagnostic-card.ts"
 
 export interface LspPosition {
   readonly line: number
@@ -219,6 +231,8 @@ interface PlacedDiagnostic {
   readonly from: number
   readonly to: number
   readonly lsp: LspDiagnostic
+  /** Its quick fixes, once the server has answered. */
+  readonly fixes: ReadonlyArray<ActionRef>
 }
 
 const setPlacedDiagnostics =
@@ -334,20 +348,23 @@ const renderDiagnostics = (
       plugin.fromPosition(lsp.range.end, plugin.syncedDoc),
     ),
     lsp,
-  }))
-  const rendered: Array<Diagnostic> = placed.map(({ from, to, lsp }) => {
-    const actions: Array<Action> = fixes
+    fixes: fixes
       .filter((fix) => fix.diagnostics?.some((d) => sameDiagnostic(d, lsp)))
       .sort(
         (a, b) =>
           Number(b.isPreferred ?? false) - Number(a.isPreferred ?? false),
       )
-      .map((action) => ({
-        name: action.title,
-        apply: (target, actionFrom, actionTo) => {
-          runCodeAction(target, { action, uri, version }, actionFrom, actionTo)
-        },
-      }))
+      .map((action) => ({ action, uri, version })),
+  }))
+  // The lint panel (and its keyboard access) still uses lint actions; the
+  // hover card renders the same fixes itself.
+  const rendered: Array<Diagnostic> = placed.map(({ from, to, lsp, fixes }) => {
+    const actions: Array<Action> = fixes.map((ref) => ({
+      name: ref.action.title,
+      apply: (target, actionFrom, actionTo) => {
+        runCodeAction(target, ref, actionFrom, actionTo)
+      },
+    }))
     return {
       from,
       to,
@@ -365,7 +382,9 @@ const renderDiagnostics = (
  * A replacement for `serverDiagnostics`' push handler that adds the server's
  * quick fixes as lint actions. See the module comment.
  */
-export const diagnosticsWithCodeActions = (): LSPClientExtension => ({
+export const diagnosticsWithCodeActions = (
+  options: DiagnosticsOptions = {},
+): LSPClientExtension => ({
   clientCapabilities: codeActionCapabilities,
   notificationHandlers: {
     "textDocument/publishDiagnostics": (client, raw) => {
@@ -438,7 +457,80 @@ export const diagnosticsWithCodeActions = (): LSPClientExtension => ({
       return true
     },
   },
-  editorExtension: [placedDiagnosticsField, codeActionMenu],
+  editorExtension: [
+    placedDiagnosticsField,
+    codeActionMenu,
+    diagnosticCard(options.docsVersion ?? (() => "v4")),
+  ],
+})
+
+export interface DiagnosticsOptions {
+  /** The Effect docs version to link to from Effect rule explanations. */
+  readonly docsVersion?: (() => string) | undefined
+}
+
+// --- The hover card ----------------------------------------------------------
+
+/** Whether `pos` (approached from `side`) is inside `from`-`to`, as lint decides. */
+const covers = (from: number, to: number, pos: number, side: -1 | 1) =>
+  pos >= from &&
+  pos <= to &&
+  (from === to || ((pos > from || side > 0) && (pos < to || side < 0)))
+
+/**
+ * Replaces lint's hover tooltip with the diagnostic card. Lint's tooltip is
+ * turned off with a `tooltipFilter` that finds nothing: lint skips the
+ * tooltip when the filter returns no list.
+ */
+const diagnosticCard = (docsVersion: () => string): Extension => [
+  linter(null, {
+    tooltipFilter: () => null as unknown as Array<Diagnostic>,
+  }),
+  hoverTooltip(
+    (view, pos, side) => {
+      const found = (
+        view.state.field(placedDiagnosticsField, false) ?? []
+      ).filter((placed) => covers(placed.from, placed.to, pos, side))
+      if (found.length === 0) return null
+      return {
+        pos: Math.min(...found.map((placed) => placed.from)),
+        end: Math.max(...found.map((placed) => placed.to)),
+        above: true,
+        create: (target) => ({
+          dom: renderDiagnosticCard(
+            found.map((placed) => cardDiagnostic(target, placed)),
+            {
+              docsHref: (path) => `/docs/${docsVersion()}/${path}/`,
+              codeActionKey: codeActionKeyLabel(),
+            },
+          ),
+        }),
+      }
+    },
+    { hideOnChange: true },
+  ),
+  diagnosticCardTheme,
+]
+
+const cardDiagnostic = (
+  view: EditorView,
+  placed: PlacedDiagnostic,
+): CardDiagnostic => ({
+  severity: severityOf(placed.lsp.severity),
+  message: placed.lsp.message,
+  code: placed.lsp.code,
+  fixes: placed.fixes.map((ref) => ({
+    title: ref.action.title,
+    preferred: ref.action.isPreferred ?? false,
+    apply: () => {
+      // Where the diagnostic is now: the document may have changed.
+      const current = (
+        view.state.field(placedDiagnosticsField, false) ?? []
+      ).find((candidate) => candidate.lsp === placed.lsp)
+      const at = current ?? placed
+      runCodeAction(view, ref, at.from, at.to)
+    },
+  })),
 })
 
 // --- Running an action -----------------------------------------------------

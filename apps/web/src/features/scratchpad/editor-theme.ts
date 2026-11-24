@@ -47,8 +47,6 @@ const accent = ld("#059669", "#34d399")
 
 const errorColor = ld("#dc2626", "#f87171")
 const warningColor = ld("#d97706", "#fbbf24")
-const infoColor = ld("#0284c7", "#38bdf8")
-const hintColor = ld("#71717a", "#a1a1aa")
 
 const theme = EditorView.theme({
   "&": {
@@ -201,8 +199,8 @@ const theme = EditorView.theme({
     padding: "0",
   },
   ".cm-diagnostic": {
-    padding: "6px 10px 6px 8px",
-    borderLeft: "3px solid transparent",
+    padding: "6px 10px",
+    borderLeft: "none",
     color: text,
     lineHeight: "1.5",
     whiteSpace: "pre-wrap",
@@ -211,10 +209,6 @@ const theme = EditorView.theme({
   ".cm-diagnostic:not(:first-child)": {
     borderTop: `1px solid ${border}`,
   },
-  ".cm-diagnostic-error": { borderLeftColor: errorColor },
-  ".cm-diagnostic-warning": { borderLeftColor: warningColor },
-  ".cm-diagnostic-info": { borderLeftColor: infoColor },
-  ".cm-diagnostic-hint": { borderLeftColor: hintColor },
   ".cm-diagnosticSource": {
     color: textMuted,
     opacity: "1",

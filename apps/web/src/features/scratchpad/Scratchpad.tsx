@@ -135,7 +135,12 @@ export function Scratchpad({
 }: ScratchpadProps) {
   const [{ session, runtime }] = React.useState(() => {
     const transportLayer = layerBrowserWorker()
+    const initialVersion =
+      effectVersion ??
+      effectVersionOfFiles(initialFiles ?? SCRATCHPAD_SEED.files)
+    const effectVersionAtom = Atom.make(initialVersion).pipe(Atom.keepAlive)
     const editorSession = makeScratchpadEditorSession({
+      effectVersionAtom,
       transportLayer,
       containerLayer: layerWebContainer,
       rootUri: SCRATCHPAD_ROOT_URI,
@@ -163,9 +168,8 @@ export function Scratchpad({
     const resetAtoms = makeScratchpadResetAtoms({
       runtime: editorSession.runtime,
       metadataAtom: workspaceMetadataAtom,
-      initialVersion:
-        effectVersion ??
-        effectVersionOfFiles(initialFiles ?? SCRATCHPAD_SEED.files),
+      initialVersion,
+      effectVersionAtom,
       replaceWorkspace: editorSession.replaceWorkspace,
     })
 

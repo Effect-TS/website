@@ -1,0 +1,130 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<style>
+  body{margin:0;font-family:var(--font-sans);color:var(--foreground)}
+  .v{margin-bottom:26px}
+  .h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .h b{font-size:14px}.h span{font-size:12px;color:var(--muted-foreground)}
+  .note{font-size:12px;color:var(--muted-foreground);margin-top:8px;line-height:1.5}
+  /* editor backdrop */
+  .ed{background:#0b0b0d;border:1px solid #232327;border-radius:var(--radius);padding:12px 14px 16px;font:13px/1.6 var(--font-mono);color:#d4d4d8;position:relative}
+  .code .k{color:#c084fc}.code .f{color:#60a5fa}.code .s{color:#86efac}.code .m{color:#71717a}
+  .sq{text-decoration:underline wavy #f87171;text-underline-offset:3px}
+  .sqw{text-decoration:underline wavy #fbbf24;text-underline-offset:3px}
+  .card{margin-top:6px;max-width:520px;background:#141417;border:1px solid #2e2e33;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);font:13px/1.5 var(--font-sans);color:#e4e4e7;overflow:hidden}
+  .mono{font-family:var(--font-mono)}
+  .chip{font:11px var(--font-mono);border-radius:4px;padding:1px 6px;background:#1f1f24;color:#a1a1aa;border:1px solid #2e2e33}
+  .kbd{font:10.5px var(--font-mono);border:1px solid #3a3a40;border-bottom-width:2px;border-radius:4px;padding:0 4px;color:#a1a1aa}
+  .sp{flex:1}
+  .row{display:flex;align-items:center;gap:8px}
+  .btn{font:12px var(--font-sans);border-radius:5px;padding:3px 9px;border:1px solid #3a3a40;background:#1b1b1f;color:#e4e4e7;display:inline-flex;gap:6px;align-items:center}
+  .btn.pri{background:#e4e4e7;color:#09090b;border-color:#e4e4e7;font-weight:600}
+  .ghost{font:12px var(--font-sans);color:#93c5fd;display:inline-flex;gap:5px;align-items:center}
+  .sev-e{color:#f87171}.sev-w{color:#fbbf24}
+  .y{color:#fbbf24}.g{color:#4ade80}.r{color:#f87171}.b{color:#93c5fd}.mu{color:#a1a1aa}.dim{color:#71717a}
+</style></head><body>
+
+<!-- A -->
+<div class="v">
+  <div class="h"><b>A · Header + severity rail</b><span>tidy version of today's card</span></div>
+  <div class="ed">
+    <div class="code"><span class="m">14</span>  <span class="sqw"><span class="f">Effect</span>.log(<span class="s">"hello"</span>)</span></div>
+    <div class="card" style="border-left:3px solid #fbbf24">
+      <div class="row" style="padding:8px 12px 2px">
+        <span class="sev-w">▲</span><b style="font-size:12px;color:#fde68a">Warning</b>
+        <span class="sp"></span><span class="chip">effect · floatingEffect</span>
+      </div>
+      <div style="padding:2px 12px 10px">This Effect value is neither yielded nor used in an assignment.</div>
+      <div class="row" style="padding:7px 12px;border-top:1px solid #26262b;background:#111114">
+        <span class="btn pri">Add <span class="mono">yield*</span></span>
+        <span class="btn">Ignore ▾</span>
+        <span class="sp"></span><span class="dim" style="font-size:11px">All fixes</span><span class="kbd">⌘ .</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">Severity, source and rule get their own header line, so the message is plain prose. The fix you'll want is the primary button, and the two "disable" options fold into one <b>Ignore</b> menu (this line, this file).</div>
+</div>
+
+<!-- B -->
+<div class="v">
+  <div class="h"><b>B · Fix preview</b><span>show the change before you apply it</span></div>
+  <div class="ed">
+    <div class="code"><span class="m">14</span>  <span class="sqw"><span class="f">Effect</span>.log(<span class="s">"hello"</span>)</span></div>
+    <div class="card">
+      <div style="padding:9px 12px 8px"><span class="sev-w">▲</span> This Effect value is neither yielded nor used in an assignment. <span class="chip">floatingEffect</span></div>
+      <div class="mono" style="font-size:12px;background:#0d0d10;border-top:1px solid #26262b;border-bottom:1px solid #26262b">
+        <div style="padding:2px 12px;background:#2a1215;color:#fca5a5">− <span class="dim">14</span>  Effect.log("hello")</div>
+        <div style="padding:2px 12px;background:#0f2a1a;color:#86efac">+ <span class="dim">14</span>  <b>yield*</b> Effect.log("hello")</div>
+      </div>
+      <div class="row" style="padding:7px 12px">
+        <span class="ghost">✓ Add yield*</span><span class="kbd">↵</span>
+        <span class="dim">·</span><span class="ghost" style="color:#a1a1aa">Ignore for line</span>
+        <span class="dim">·</span><span class="ghost" style="color:#a1a1aa">Ignore for file</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">Hovering a fix swaps in its diff, so you can see what "Add yield*" or a disable comment will write. Needs the code action's edit (we already have it from the LSP) rendered as a tiny diff.</div>
+</div>
+
+<!-- C -->
+<div class="v">
+  <div class="h"><b>C · Explain + learn more</b><span>teach the rule, not just name it</span></div>
+  <div class="ed">
+    <div class="code"><span class="m">14</span>  <span class="sqw"><span class="f">Effect</span>.log(<span class="s">"hello"</span>)</span></div>
+    <div class="card">
+      <div style="padding:10px 12px 0" class="row"><span class="sev-w">▲</span><b>Floating Effect</b><span class="sp"></span><span class="dim" style="font-size:11px">Effect language service</span></div>
+      <div style="padding:4px 12px 0">This Effect value is neither yielded nor used in an assignment.</div>
+      <div style="margin:8px 12px;padding:8px 10px;border-radius:6px;background:#1a1a1f;color:#a1a1aa;font-size:12.5px">
+        Effects are lazy descriptions: creating one doesn't run it. Inside <span class="mono b">Effect.gen</span>, <span class="mono b">yield*</span> it to run it, or assign it to use later.
+      </div>
+      <div class="row" style="padding:2px 12px 10px">
+        <span class="btn pri">Add <span class="mono">yield*</span></span><span class="btn">Ignore ▾</span>
+        <span class="sp"></span><span class="ghost">Docs: Running Effects ↗</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">A human title and a one-paragraph "why" per rule, written by us for the common Effect diagnostics (floatingEffect, missingEffectContext…), with a link into the docs. Falls back to A for rules we haven't written up. Best for learners, which is who the Scratchpad is for.</div>
+</div>
+
+<!-- D -->
+<div class="v">
+  <div class="h"><b>D · Compact strip</b><span>one line, keyboard first</span></div>
+  <div class="ed">
+    <div class="code"><span class="m">14</span>  <span class="sqw"><span class="f">Effect</span>.log(<span class="s">"hello"</span>)</span></div>
+    <div class="card" style="border-radius:6px">
+      <div class="row" style="padding:6px 10px;gap:10px">
+        <span class="sev-w">▲</span>
+        <span>Effect isn't yielded or assigned</span>
+        <span class="dim mono" style="font-size:11px">floatingEffect</span>
+        <span style="width:1px;align-self:stretch;background:#2e2e33"></span>
+        <span class="ghost">Add yield*</span><span class="kbd">⌘ .</span>
+        <span class="ghost" style="color:#a1a1aa">⋯</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">The smallest footprint: it covers less code while you read. The message is shortened (full text on hover of the line), one fix inline, everything else behind ⋯ or ⌘. (the quick-fix menu we already have).</div>
+</div>
+
+<!-- E -->
+<div class="v">
+  <div class="h"><b>E · Stacked problems</b><span>when several diagnostics hit the same spot</span></div>
+  <div class="ed">
+    <div class="code"><span class="m">22</span>  <span class="k">const</span> n: <span class="f">number</span> = <span class="sq"><span class="f">Effect</span>.succeed(<span class="s">"1"</span>)</span></div>
+    <div class="card">
+      <div class="row" style="padding:7px 12px;background:#111114;border-bottom:1px solid #26262b;font-size:12px">
+        <span class="r">● 1 error</span><span class="y">▲ 1 warning</span><span class="sp"></span><span class="dim">⌥F8 next problem</span>
+      </div>
+      <div style="padding:8px 12px;border-bottom:1px solid #222226">
+        <div class="row"><span class="sev-e">●</span><span>Type <span class="mono b">Effect&lt;string&gt;</span> is not assignable to type <span class="mono b">number</span>.</span></div>
+        <div class="row" style="margin:4px 0 0 20px"><span class="chip">ts 2322</span><span class="sp"></span><span class="ghost">Copy</span></div>
+      </div>
+      <div style="padding:8px 12px">
+        <div class="row"><span class="sev-w">▲</span><span>Effect value is neither yielded nor assigned.</span></div>
+        <div class="row" style="margin:4px 0 0 20px"><span class="chip">effect · floatingEffect</span><span class="sp"></span><span class="ghost">Add yield*</span><span class="ghost" style="color:#a1a1aa">Ignore ▾</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Errors sort before warnings, each with its own fixes, a count header and next-problem navigation. Types in messages render as code. Pairs well with any of A–D for the single-diagnostic case.</div>
+</div>
+
+</body></html>

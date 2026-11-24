@@ -209,7 +209,7 @@ test("reports a type error and clears it on edit, hovers types and completes Eff
     page,
     'export const broken: number = "oops"',
   )
-  await expect(tooltip).toContainText(/not assignable to type 'number'/)
+  await expect(tooltip).toContainText(/not assignable to type number/)
   await dismissTooltips(page)
 
   // Fix the line: the error goes away, the floating Effect stays.
@@ -264,7 +264,7 @@ test("updates diagnostics across files when another file changes, is created, re
   await replaceDocument(page, GREETER.replace("const greet", "const greetUser"))
   await openFile(page, "src/main.ts")
   const broken = await lintMessages(page, importLine)
-  await expect(broken).toContainText(/has no exported member 'greet'/)
+  await expect(broken).toContainText(/has no exported member greet/)
   await dismissTooltips(page)
 
   // Restore it: the import resolves again.
@@ -309,7 +309,7 @@ test("updates diagnostics across files when another file changes, is created, re
   await expect(page.getByTestId("explorer-file-src/renamed.ts")).toBeVisible()
   await openFile(page, "src/main.ts")
   const missing = await lintMessages(page, extraImport)
-  await expect(missing).toContainText(/Cannot find module '\.\/extra\.ts'/)
+  await expect(missing).toContainText(/Cannot find module \.\/extra\.ts/)
   await dismissTooltips(page)
 
   // Delete greeter.ts, which is not the open tab: main.ts loses it too.
@@ -321,7 +321,7 @@ test("updates diagnostics across files when another file changes, is created, re
   await greeterRow.getByTitle("Confirm delete").click()
   await expect(page.getByTestId("explorer-file-src/greeter.ts")).toHaveCount(0)
   const gone = await lintMessages(page, importLine)
-  await expect(gone).toContainText(/Cannot find module '\.\/greeter\.ts'/)
+  await expect(gone).toContainText(/Cannot find module \.\/greeter\.ts/)
 })
 
 test("recovers from a document that crashes the language server and works again after the fix", async ({
@@ -597,21 +597,30 @@ test("Cmd/Ctrl-click into a library opens its declarations in a read-only tab, a
   )
 })
 
-test("a diagnostic's quick fix is a button in its tooltip, and applying it clears the error", async ({
+test("a diagnostic's card offers its fixes, with the disables under Ignore, and applying one clears the error", async ({
   page,
 }) => {
   await openReady(page)
   const floating = 'Effect.succeed("unhandled")'
-  const fix = page.getByRole("button", {
-    name: "Disable floatingEffect for this line",
-  })
+  const card = page.locator(".cm-diagnosticCard")
+  const ignore = card.getByRole("button", { name: "Ignore" })
   // The fixes are asked for after the diagnostics render.
   await expect(async () => {
     await dismissTooltips(page)
     await lintMessages(page, floating)
-    await expect(fix).toBeVisible({ timeout: 2_000 })
+    await expect(ignore).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: LSP_TIMEOUT })
-  await fix.click()
+  await expect(card.locator(".cm-diagnosticCard-title")).toHaveText(
+    "Floating effect",
+  )
+  await expect(card.getByRole("link", { name: /Docs: / })).toHaveAttribute(
+    "href",
+    "/docs/v4/getting-started/using-generators/",
+  )
+  await ignore.click()
+  await card
+    .getByRole("menuitem", { name: "Disable floatingEffect for this line" })
+    .click()
 
   await expect(
     lineWith(page, "@effect-diagnostics-next-line floatingEffect:off"),

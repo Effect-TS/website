@@ -48,6 +48,8 @@ export const makeScratchpadResetAtoms = <R, ER>(options: {
   readonly runtime: Atom.AtomRuntime<R | Workspace, ER>
   readonly metadataAtom: Atom.Writable<FlatWorkspaceMetadata | undefined>
   readonly initialVersion: EffectVersion
+  /** The atom to keep the version in; one is made when left out. */
+  readonly effectVersionAtom?: Atom.Writable<EffectVersion> | undefined
   readonly replaceWorkspace: (
     input: ReplaceWorkspaceInput,
   ) => Effect.Effect<
@@ -56,9 +58,9 @@ export const makeScratchpadResetAtoms = <R, ER>(options: {
     Workspace | AtomRegistry.AtomRegistry
   >
 }): ScratchpadResetAtoms => {
-  const effectVersionAtom = Atom.make(options.initialVersion).pipe(
-    Atom.keepAlive,
-  )
+  const effectVersionAtom =
+    options.effectVersionAtom ??
+    Atom.make(options.initialVersion).pipe(Atom.keepAlive)
 
   const resetAtom = options.runtime.fn<EffectVersion>()(
     Effect.fnUntraced(
