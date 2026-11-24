@@ -91,6 +91,19 @@ export default defineConfig({
       check: {
         command: ["vp check", "vp -C apps/web exec astro check"],
         dependsOn: ["astro:sync", "icons:generate"],
+        // Runs before every push (.vite-hooks/pre-push). Files read
+        // automatically are the inputs, except ones that change without the
+        // code changing: Playwright's results, and the `.astro/` types that
+        // `astro sync` and `astro check` rewrite on every run (a task that
+        // writes its own input is never cached).
+        cache: {
+          input: [
+            { auto: true },
+            "!**/test-results/**",
+            "!**/playwright-report/**",
+            "!**/.astro/**",
+          ],
+        },
       },
 
       "dev:web": {
