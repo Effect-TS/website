@@ -37,6 +37,10 @@ inputs:
   kv-rest-api-token:
     description: Upstash REST API token
     required: true
+  maple-ingest-key:
+    description: Maple ingest key for server traces; traces are dropped when empty
+    required: false
+    default: ""
   public-posthog-key:
     description: Public PostHog project key
     required: false
@@ -100,6 +104,7 @@ runs:
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
         KV_REST_API_URL: ${{ inputs.kv-rest-api-url }}
         KV_REST_API_TOKEN: ${{ inputs.kv-rest-api-token }}
+        MAPLE_INGEST_KEY: ${{ inputs.maple-ingest-key }}
         PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
         PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
         GITHUB_TOKEN: ${{ github.token }}

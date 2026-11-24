@@ -26,6 +26,10 @@ const Website = (
   // whose search content changed.
   overlayStoreId: Option.Option<Output.Output<string>>,
   searchApiKey: Config.Config<Redacted.Redacted<string>>,
+  // The commit this deploy serves, reported with server traces.
+  revision: string,
+  // Maple ingest key for server traces. None until the account is set up.
+  mapleIngestKey: Option.Option<Redacted.Redacted<string>>,
 ) =>
   Cloudflare.Website.Astro(
     "WebsiteWorker",
@@ -105,6 +109,15 @@ const Website = (
           TURNSTILE_SITE_KEY: turnstile?.sitekey ?? TURNSTILE_TEST_KEYS.siteKey,
           TURNSTILE_SECRET:
             turnstile?.secret ?? Redacted.make(TURNSTILE_TEST_KEYS.secret),
+          // Maple server telemetry (`src/lib/telemetry.ts`). Without a key the
+          // Worker sends nothing. Previews share the key and are told apart by
+          // their environment.
+          ...Option.match(mapleIngestKey, {
+            onNone: () => ({}),
+            onSome: (key) => ({ MAPLE_INGEST_KEY: key }),
+          }),
+          MAPLE_ENVIRONMENT: stage === "prod" ? "production" : "preview",
+          COMMIT_SHA: revision,
           // 20 votes a minute for each client address
           MOTW_VOTE_LIMIT: Cloudflare.RateLimit("MOTW_VOTE_LIMIT", {
             namespaceId: rateLimitNamespaceId(stage),
@@ -133,6 +146,11 @@ export default Alchemy.Stack(
       "MXBAI_PREVIEW_STORE_ENABLED",
     ).pipe(Config.withDefault(false))
     const sha = yield* Config.String("WEBSITE_REVISION")
+    // CI passes an empty string while the repository has no Maple secret.
+    const mapleIngestKey = Option.filter(
+      yield* Config.option(Config.Redacted("MAPLE_INGEST_KEY")),
+      (key) => Redacted.value(key).length > 0,
+    )
     let overlayStoreId = Option.none<Output.Output<string>>()
     let searchApiKey = Config.Redacted("MXBAI_API_KEY")
     // Set when the preview has its own search store, to the synchronization
@@ -191,7 +209,12 @@ export default Alchemy.Stack(
       searchApiKey = Config.Redacted("MXBAI_PREVIEW_SEARCH_API_KEY")
     }
 
-    const website = yield* Website(overlayStoreId, searchApiKey)
+    const website = yield* Website(
+      overlayStoreId,
+      searchApiKey,
+      sha,
+      mapleIngestKey,
+    )
 
     yield* Option.match(pullRequest, {
       onNone: () => Effect.void,

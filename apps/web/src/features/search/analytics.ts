@@ -1,4 +1,5 @@
 import type { SearchResult } from "./domain"
+import { queryShape } from "./query-shape"
 
 type SearchResultKind = SearchResult["kind"]
 
@@ -70,21 +71,10 @@ function capture(
 function queryProperties(
   query: string,
 ): Readonly<Record<string, AnalyticsProperty>> {
-  const trimmed = query.trim()
-  const length = trimmed.length
-  const words = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length
-
+  const shape = queryShape(query)
   return {
-    query_length_bucket:
-      length <= 5
-        ? "1-5"
-        : length <= 10
-          ? "6-10"
-          : length <= 25
-            ? "11-25"
-            : "26+",
-    query_word_count_bucket:
-      words <= 1 ? "1" : words <= 3 ? "2-3" : words <= 6 ? "4-6" : "7+",
+    query_length_bucket: shape.lengthBucket,
+    query_word_count_bucket: shape.wordCountBucket,
   }
 }
 

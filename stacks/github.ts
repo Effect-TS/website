@@ -82,6 +82,21 @@ export default Alchemy.Stack(
       ),
     ])
 
+    // Maple server telemetry. Optional until the Maple account is set up: the
+    // Worker drops its traces without a key.
+    const mapleIngestKey = yield* Config.option(
+      Config.Redacted("MAPLE_INGEST_KEY"),
+    )
+    yield* Option.match(mapleIngestKey, {
+      onNone: () => Effect.void,
+      onSome: (value) =>
+        GitHub.Secret("maple-ingest-key", {
+          ...repository,
+          name: "MAPLE_INGEST_KEY",
+          value,
+        }),
+    })
+
     const publicPosthogKey = yield* Config.option(
       Config.String("PUBLIC_POSTHOG_KEY"),
     )
