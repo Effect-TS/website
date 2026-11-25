@@ -10,7 +10,7 @@ import { describe, expect, it } from "vite-plus/test"
 import { rehypeHeadingLinks } from "../../../src/features/docs/rehype-heading-links.js"
 
 describe("rehypeHeadingLinks", () => {
-  it("adds an accessible permalink without changing the heading ID", () => {
+  it("appends an accessible permalink without changing the heading ID", () => {
     const heading = element("h2", { id: "getting-started" }, [
       text("Getting started"),
     ])
@@ -18,14 +18,14 @@ describe("rehypeHeadingLinks", () => {
 
     rehypeHeadingLinks()(tree)
 
-    const link = requiredElement(heading.children[0])
+    const link = requiredElement(heading.children[1])
     expect(heading.properties.id).toBe("getting-started")
     expect(link.properties).toMatchObject({
       ariaLabel: "Link to Getting started",
       className: ["heading-permalink"],
       href: "#getting-started",
     })
-    expect(heading.children[1]).toEqual(text("Getting started"))
+    expect(heading.children[0]).toEqual(text("Getting started"))
   })
 
   it("uses formatted heading text in the accessible label", () => {
@@ -36,7 +36,7 @@ describe("rehypeHeadingLinks", () => {
 
     rehypeHeadingLinks()(root([heading]))
 
-    const link = requiredElement(heading.children[0])
+    const link = requiredElement(heading.children[2])
     expect(link.properties.ariaLabel).toBe("Link to Using Effect.runPromise")
   })
 
@@ -46,8 +46,8 @@ describe("rehypeHeadingLinks", () => {
 
     rehypeHeadingLinks()(root([first, second]))
 
-    expect(requiredElement(first.children[0]).properties.href).toBe("#example")
-    expect(requiredElement(second.children[0]).properties.href).toBe(
+    expect(requiredElement(first.children[1]).properties.href).toBe("#example")
+    expect(requiredElement(second.children[1]).properties.href).toBe(
       "#example-1",
     )
   })
