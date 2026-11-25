@@ -44,13 +44,20 @@ module.exports = ({ github, context, core }) => {
       .map((deployment) => deployment.id)
   }
 
-  const deactivate = async (ids, description) => {
+  // Marks deployments inactive, by default every one that is not already.
+  // `isStale` receives a deployment's latest state.
+  const deactivate = async (
+    ids,
+    description,
+    isStale = (state) => state !== "inactive",
+  ) => {
     for (const id of ids) {
       const { data: statuses } = await github.rest.repos.listDeploymentStatuses(
         { ...context.repo, deployment_id: id, per_page: 1 },
       )
-      if (statuses[0]?.state === "inactive") continue
-      await setStatus(id, "inactive", description)
+      if (isStale(statuses[0]?.state)) {
+        await setStatus(id, "inactive", description)
+      }
     }
   }
 
@@ -118,10 +125,17 @@ module.exports = ({ github, context, core }) => {
         `Preview deployed for ${shortSha} (requested by @${requester})`,
         previewUrl,
       )
-      const earlier = (await deploymentIds(prNumber)).filter(
+      // A pull request has one preview Worker, so this publish replaced any
+      // other deployment that had succeeded. A newer request can be building
+      // while this one publishes, and it stays in progress.
+      const others = (await deploymentIds(prNumber)).filter(
         (id) => id !== deploymentId,
       )
-      await deactivate(earlier, `Replaced by preview for ${shortSha}`)
+      await deactivate(
+        others,
+        `Replaced by preview for ${shortSha}`,
+        (state) => state === "success",
+      )
       return upsertComment(prNumber, [
         "## Requested Cloudflare Preview",
         "",

@@ -275,10 +275,39 @@ jobs:
       deployments: write
     steps:
       - name: Checkout trusted main
+        id: checkout
         uses: actions/checkout@v6
         with:
           ref: main
           persist-credentials: false
+
+      # "Report result" loads its code from the checkout, so a failed checkout
+      # is reported here with nothing but the workflow's own values.
+      - name: Report checkout failure
+        if: failure() && steps.checkout.outcome == 'failure'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          DEPLOYMENT_ID: ${{ needs.authorize.outputs.deployment_id }}
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const shortSha = process.env.HEAD_SHA.slice(0, 7)
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: Number(process.env.DEPLOYMENT_ID),
+              state: "failure",
+              environment: "Requested Preview",
+              log_url: runUrl,
+              description: `Preview for ${shortSha} was not published: checkout of main failed`,
+              auto_inactive: false,
+            })
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              body: `No preview was published for \`${shortSha}\` because the workflow could not check out \`main\`. See the [workflow run](${runUrl}), then comment \`/preview\` again.`,
+            })
 
       - name: Check PR is still open
         id: pr-check
@@ -319,10 +348,10 @@ jobs:
           PULL_REQUEST: ${{ needs.authorize.outputs.pr_number }}
           PREVIEW_ARTIFACT_DIR: .requested-preview-artifact
 
-      # Runs whether the steps above passed, failed or were skipped, and works
-      # out from their results what to tell the pull request.
+      # Runs whether the steps after the checkout passed, failed or were
+      # skipped, and works out from their results what to tell the pull request.
       - name: Report result
-        if: success() || failure()
+        if: (success() || failure()) && steps.checkout.outcome == 'success'
         uses: actions/github-script@v8
         env:
           PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}

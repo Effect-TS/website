@@ -12,6 +12,7 @@ import * as State from "alchemy/State"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import {
@@ -19,6 +20,10 @@ import {
   writePreviewArtifact,
 } from "../../../../stacks/preview-artifact.ts"
 import EffectWebsitePreview from "../../../../stacks/preview.ts"
+
+const requestedPreview = createRequire(import.meta.url)(
+  "../../../../.github/scripts/requested-preview.cjs",
+)
 
 const tempDirs: Array<string> = []
 
@@ -233,4 +238,56 @@ test("destroying a requested preview stage succeeds cleanly when no preview was 
       ),
     ),
   )
+})
+
+test("a published preview deactivates the deployment it replaced, not a request that is still building", async () => {
+  // Deployment 3 publishes. 1 was published earlier and 2 was requested after 3.
+  const latestState: Record<number, string> = { 1: "success", 2: "in_progress" }
+  const statuses: Array<[number, string]> = []
+  const github = {
+    paginate: async (
+      list: (args: unknown) => Promise<{ data: unknown }>,
+      args: unknown,
+    ) => (await list(args)).data,
+    rest: {
+      repos: {
+        listDeployments: async () => ({
+          data: [1, 2, 3].map((id) => ({ id, payload: { pull_request: 7 } })),
+        }),
+        listDeploymentStatuses: async (args: { deployment_id: number }) => ({
+          data: [{ state: latestState[args.deployment_id] }],
+        }),
+        createDeploymentStatus: async (args: {
+          deployment_id: number
+          state: string
+        }) => {
+          statuses.push([args.deployment_id, args.state])
+        },
+      },
+      issues: {
+        listComments: async () => ({ data: [] }),
+        createComment: async () => {},
+      },
+    },
+  }
+  const context = {
+    serverUrl: "https://github.com",
+    repo: { owner: "Effect-TS", repo: "website" },
+    runId: 1,
+  }
+
+  await requestedPreview({ github, context, core: {} }).reportPublish({
+    prNumber: 7,
+    headSha: "0123456789abcdef0123456789abcdef01234567",
+    requester: "staff",
+    deploymentId: 3,
+    buildResult: "success",
+    prOpen: "true",
+    previewUrl: "https://preview.example.workers.dev",
+  })
+
+  assert.deepEqual(statuses, [
+    [3, "success"],
+    [1, "inactive"],
+  ])
 })
