@@ -2,6 +2,7 @@ import { syntaxTree } from "@codemirror/language"
 import {
   type EditorState,
   type Extension,
+  Prec,
   RangeSetBuilder,
 } from "@codemirror/state"
 import {
@@ -199,21 +200,26 @@ const build = (view: EditorView): DecorationSet => {
   return builder.finish()
 }
 
-export const monacoTokens: Extension = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    constructor(view: EditorView) {
-      this.decorations = build(view)
-    }
-    update(update: ViewUpdate) {
-      if (
-        update.docChanged ||
-        update.viewportChanged ||
-        syntaxTree(update.startState) !== syntaxTree(update.state)
-      ) {
-        this.decorations = build(update.view)
+// High precedence, like the syntax highlighter's: CodeMirror draws
+// higher-precedence marks inside lower ones, so these never split a wider
+// mark, such as a diagnostic's underline, into pieces.
+export const monacoTokens: Extension = Prec.high(
+  ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet
+      constructor(view: EditorView) {
+        this.decorations = build(view)
       }
-    }
-  },
-  { decorations: (plugin) => plugin.decorations },
+      update(update: ViewUpdate) {
+        if (
+          update.docChanged ||
+          update.viewportChanged ||
+          syntaxTree(update.startState) !== syntaxTree(update.state)
+        ) {
+          this.decorations = build(update.view)
+        }
+      }
+    },
+    { decorations: (plugin) => plugin.decorations },
+  ),
 )
