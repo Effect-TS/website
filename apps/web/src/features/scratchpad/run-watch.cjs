@@ -14,7 +14,9 @@
 //   It matches when every listed file on disk has its hash. While the page
 //   installs dependencies it is `{ installing: true }`, and the runner waits. Without a match
 //   within `SCRATCHPAD_RUN_DIAGNOSTICS_TIMEOUT_MS` (5 s) it runs anyway with a
-//   warning, and runs again once a matching one arrives.
+//   warning, and runs again once a matching one arrives. After errors held a
+//   Run back, a new check of the same files with other errors (types that
+//   loaded after a `pnpm add`, say) starts again too.
 // - `.scratchpad/restart` changing (the page's Restart button) re-runs.
 // - OSC markers (`ESC ] 7777 ; scratchpad-run ; <payload> BEL`) tell the page
 //   the state: `watch;start` and `watch;exit` for the runner, `start` and
@@ -192,6 +194,7 @@ const report = (reason, diagnostics) => {
     runProgram()
     return
   }
+  heldBackBy = errorsKey(diagnostics)
   status(`${reason}\r\n`)
   for (const error of errors) out(`${error.text}\r\n`)
   status(
@@ -203,6 +206,11 @@ const report = (reason, diagnostics) => {
 let waiting
 // The last cycle ran without a type check: run again when one matches.
 let ranUnchecked = false
+// The errors that held the last cycle's Run back: run again when a matching
+// check has different ones.
+let heldBackBy
+const errorsKey = (diagnostics) =>
+  JSON.stringify((diagnostics.errors ?? []).map((error) => error.text))
 let changedAt
 let lastRestart = readText(restartPath)
 
@@ -211,6 +219,7 @@ const startCycle = (reason) => {
   clearScreen()
   waiting = { reason, since: Date.now(), started: Date.now(), announced: false }
   ranUnchecked = false
+  heldBackBy = undefined
 }
 
 const tick = () => {
@@ -245,8 +254,15 @@ const tick = () => {
       report(reason, undefined)
       ranUnchecked = true
     }
-  } else if (ranUnchecked && changedAt === undefined && matches(diagnostics)) {
-    startCycle("Type check arrived.")
+  } else if (changedAt === undefined && matches(diagnostics)) {
+    if (ranUnchecked) {
+      startCycle("Type check arrived.")
+    } else if (
+      heldBackBy !== undefined &&
+      heldBackBy !== errorsKey(diagnostics)
+    ) {
+      startCycle("Type check updated.")
+    }
   }
 }
 

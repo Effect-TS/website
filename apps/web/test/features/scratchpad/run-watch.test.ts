@@ -199,6 +199,27 @@ describe("the watch runner", { timeout: 30_000 }, () => {
     assert.include(runner.screen(), "\nran\n")
   })
 
+  test("a held-back Run runs once a new type check of the same files clears the errors", async () => {
+    const runner = startRunner({
+      "src/main.ts": `import kleur from "kleur"\nconsole.log("ran")\n`,
+    })
+    runner.check(
+      ["src/main.ts"],
+      [
+        "src/main.ts:1:19 - error TS2307: Cannot find module 'kleur' or its corresponding type declarations.\r\n",
+      ],
+    )
+    await runner.waitFor(
+      () => runner.screen().includes("Not running."),
+      "the error report",
+    )
+    runner.check(["src/main.ts"])
+    await runner.waitFor(
+      () => runner.screen().includes("Type check updated."),
+      "the new Run",
+    )
+  })
+
   test("an edit kills the running program and runs the new one", async () => {
     const runner = startRunner({
       "src/main.ts": `let n = 0\nsetInterval(() => console.log("tick", ++n), 50)\n`,
