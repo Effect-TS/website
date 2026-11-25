@@ -225,16 +225,19 @@ export function Scratchpad({
         )}
         <section
           aria-label="Effect TypeScript Scratchpad"
-          className="flex h-full min-h-0 w-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+          className="flex h-full min-h-0 w-full flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
         >
-          <FileExplorer />
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <LoadNoticeBar notice={notice} />
-            <EditorTabs />
-            <WorkspaceErrorBanner />
-            <CodeMirrorHost />
-            <OutputPanel banner={<FailureStrip />} />
+          <div className="flex min-h-0 flex-1">
+            <FileExplorer />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <LoadNoticeBar notice={notice} />
+              <EditorTabs />
+              <WorkspaceErrorBanner />
+              <CodeMirrorHost />
+            </div>
           </div>
+          {/* Full width under the explorer and editor, as on /play. */}
+          <OutputPanel banner={<FailureStrip />} />
         </section>
       </ScratchpadSessionContext.Provider>
     </RegistryProvider>
