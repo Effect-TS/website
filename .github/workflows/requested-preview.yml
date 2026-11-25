@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       deployments: write
     outputs:
       allowed: ${{ steps.authorize.outputs.allowed }}
@@ -42,10 +42,10 @@ jobs:
             }
 
             const body = (context.payload.comment?.body ?? "").trim()
-            const match = /^\/preview(?:\s+([0-9a-f]{7,40}))?$/i.exec(body)
+            const match = /^\/preview(?:\s+([0-9a-f]{40}))?$/i.exec(body)
             if (!match) {
               core.info(
-                "Comment body is not a /preview or /preview <sha> command; skipping.",
+                "Comment body is not a /preview or /preview <40-char-sha> command; skipping.",
               )
               core.setOutput("allowed", "false")
               return
@@ -135,10 +135,15 @@ jobs:
             if (!/^[0-9a-f]{40}$/.test(headSha)) {
               throw new Error(`Invalid PR head SHA: ${headSha}`)
             }
-            if (requestedSha !== undefined && !headSha.startsWith(requestedSha)) {
+            if (requestedSha !== undefined && headSha !== requestedSha) {
               core.info(
-                `Requested SHA ${requestedSha} does not match current PR #${prNumber} head ${headSha}; skipping.`,
+                `Requested SHA ${requestedSha} does not match current PR #${prNumber} head ${headSha}; no preview deployed.`,
               )
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body: `No preview deployed for @${requester}: requested SHA \`${requestedSha}\` does not match current PR head \`${headSha}\`.`,
+              })
               core.setOutput("allowed", "false")
               return
             }

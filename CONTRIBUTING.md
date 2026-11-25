@@ -10,15 +10,15 @@ For pull requests from forks (or from authors without repository write access), 
 /preview
 ```
 
-To pin the exact commit you reviewed against pushes landing while the job queues, include a 7–40 character commit SHA:
+To pin the exact commit you reviewed against pushes landing while the job queues, include the full 40-character commit SHA:
 
 ```text
-/preview <sha>
+/preview <40-char-sha>
 ```
 
 ### How `/preview` works
 
-1. **Authorization and SHA pinning:** The workflow verifies that the comment is `/preview` (or `/preview <sha>` matching the PR's current head SHA) on an open PR targeting `main` and that the commenter currently has `write`, `maintain`, or `admin` repository permission. Unauthorized requests are ignored without posting a comment. Workflow reruns do not reauthorize an earlier comment against a newer PR head—post a new `/preview` comment instead.
+1. **Authorization and SHA pinning:** The workflow verifies that the comment is `/preview` (which uses the PR head at authorization time) or `/preview <40-char-sha>` (which requires an exact match against the PR head; if the head has moved, the bot replies with the requested and current SHAs and deploys no preview) on an open PR targeting `main`, and that the commenter currently has `write`, `maintain`, or `admin` repository permission. Unauthorized requests are ignored without posting a comment. Workflow reruns do not reauthorize an earlier comment against a newer PR head—post a new `/preview` comment instead.
 2. **Exact commit deployment:** Once authorized, the workflow records the PR's current head SHA, creates a GitHub Deployment (`Requested Preview`) for that exact SHA, builds the commit in an unprivileged job without secrets and with a read-only Actions cache, and then publishes the validated build artifact from trusted `main` code.
 3. **No inherited approval:** Pushing new commits to the PR does not redeploy or reuse approval. The preview stays on the approved SHA until a maintainer comments `/preview` again.
 4. **Status reporting:** Progress, the preview URL (via **View deployment** and a PR comment naming the SHA and requester), or a failure link are reported on the pull request and its GitHub Deployment.
