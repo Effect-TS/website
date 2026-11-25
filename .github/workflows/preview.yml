@@ -10,9 +10,10 @@ run-name: "Preview PR #${{ github.event.pull_request.number }} at ${{ github.eve
 # deploy secrets, so review the diff first. A new push or closing the pull
 # request cancels this run (see `concurrency`), and the new run needs a new
 # approval.
+# No branch filter, so cleanup also runs when a pull request is closed after
+# being retargeted away from main. Only pull requests to main deploy.
 on:
   pull_request_target:
-    branches: [main]
     types: [opened, synchronize, reopened, closed]
 
 concurrency:
@@ -23,7 +24,7 @@ permissions: {}
 
 jobs:
   authorize:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,8 +87,32 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       pull-requests: write
     steps:
+      # Runs before any pull request code. A rerun reuses the `mode` from
+      # `authorize`, and retargeting or rerunning after close starts no new run,
+      # so check the live pull request and, for `fork`, that a reviewer approved
+      # this run, instead of trusting earlier results.
+      - name: Check pull request state and approval
+        uses: actions/github-script@v8
+        env:
+          MODE: ${{ needs.authorize.outputs.mode }}
+        with:
+          script: |
+            const event = context.payload.pull_request
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: event.number })
+            if (pr.state !== "open" || pr.base.ref !== "main" || pr.head.sha !== event.head.sha) {
+              core.setFailed(`PR #${event.number} is no longer open on main at ${event.head.sha}; not deploying.`)
+              return
+            }
+            if (process.env.MODE !== "fork") return
+            const { data: reviews } = await github.rest.actions.getReviewsForRun({ ...context.repo, run_id: context.runId })
+            const fork = reviews.filter((review) => review.environments.some((environment) => environment.name === "fork"))
+            if (!fork.length || !fork.every((review) => review.state === "approved")) {
+              core.setFailed('This run has no approval for environment "fork"; not deploying.')
+            }
+
       # The event's head SHA, never the live head, so the approved commit is the
       # one that runs. Fork checkout is opt-in under pull_request_target.
       - uses: actions/checkout@v6
