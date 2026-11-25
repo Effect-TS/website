@@ -35,10 +35,10 @@ export function TraceDetails({
     <aside
       aria-label="Span details"
       data-testid="trace-details"
-      className="flex min-h-0 flex-col overflow-auto px-3 py-2.5 text-foreground"
+      className="flex min-h-0 flex-col overflow-auto px-4 py-3 text-foreground"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-mono text-sm font-semibold break-all">
+        <h3 className="font-mono text-base font-semibold break-all">
           {span.label}
         </h3>
         <button
@@ -47,10 +47,10 @@ export function TraceDetails({
           onClick={onClose}
           className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <XIcon className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-xs text-subtle-foreground">
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-sm text-subtle-foreground">
         {Option.isSome(span.duration) ? (
           <span className="text-muted-foreground">
             {formatDuration(span.duration.value)}
@@ -67,7 +67,7 @@ export function TraceDetails({
         <span aria-hidden="true">·</span>
         <span
           className={cn(
-            "rounded-full border px-1.5 leading-4",
+            "rounded-full border px-2 leading-5",
             span.hasError
               ? "border-destructive/60 text-destructive"
               : "border-brand/50 text-brand",
@@ -87,7 +87,7 @@ export function TraceDetails({
       ) : (
         <dl
           data-testid="trace-details-attributes"
-          className="grid grid-cols-[minmax(4rem,max-content)_1fr] gap-x-3 font-mono text-xs"
+          className="grid grid-cols-[minmax(4rem,max-content)_1fr] gap-x-4 font-mono text-sm"
         >
           {attributes.map(([key, value]) => (
             <Entry key={key} name={key} value={value} />
@@ -110,7 +110,7 @@ export function TraceDetails({
               />
             ))}
           </ol>
-          <p className="mt-1.5 text-xs text-subtle-foreground">
+          <p className="mt-2 text-sm text-subtle-foreground">
             Times are from the start of the trace.
           </p>
         </>
@@ -119,7 +119,7 @@ export function TraceDetails({
       {stacktrace !== undefined && (
         <>
           <SectionTitle label="Stack trace" />
-          <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-destructive [overflow-wrap:anywhere]">
+          <pre className="font-mono text-sm leading-relaxed whitespace-pre-wrap text-destructive [overflow-wrap:anywhere]">
             {typeof stacktrace === "string"
               ? stacktrace
               : formatValue(stacktrace).text}
@@ -138,7 +138,7 @@ function SectionTitle({
   readonly count?: number
 }) {
   return (
-    <h4 className="mt-3.5 mb-1 font-mono text-[10.5px] tracking-wider text-muted-foreground uppercase">
+    <h4 className="mt-4 mb-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
       {label}
       {count !== undefined && <span> · {count}</span>}
     </h4>
@@ -146,7 +146,7 @@ function SectionTitle({
 }
 
 function Empty({ children }: { readonly children: React.ReactNode }) {
-  return <p className="text-xs text-subtle-foreground">{children}</p>
+  return <p className="text-sm text-subtle-foreground">{children}</p>
 }
 
 function Entry({
@@ -158,10 +158,10 @@ function Entry({
 }) {
   return (
     <>
-      <dt className="border-b border-border py-1 whitespace-nowrap text-muted-foreground">
+      <dt className="border-b border-border py-1.5 whitespace-nowrap text-muted-foreground">
         {name}
       </dt>
-      <dd className="border-b border-border py-1">
+      <dd className="border-b border-border py-1.5">
         <Value value={value} />
       </dd>
     </>
@@ -232,21 +232,21 @@ function TraceEvent({
     <li
       onMouseEnter={() => onHover?.(event.event.startTime)}
       onMouseLeave={() => onHover?.(undefined)}
-      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-1.5 font-mono text-xs transition-colors last:border-b-0 hover:bg-muted/50"
+      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-2 font-mono text-sm transition-colors last:border-b-0 hover:bg-muted/50"
     >
-      <span className="min-w-14 text-right text-subtle-foreground">
+      <span className="min-w-18 text-right text-subtle-foreground">
         +{sinceTraceStart(event.event.startTime, traceStartTime)}
       </span>
       <span
         aria-hidden="true"
-        className={cn("mt-0.5 h-3.5 w-px", EVENT_LEVEL_COLOR[level])}
+        className={cn("mt-0.5 h-4 w-px", EVENT_LEVEL_COLOR[level])}
       />
       <div className="min-w-0">
         <div className="leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
           {event.name}
         </div>
         {attributes.length > 0 && (
-          <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-2 text-[11px] text-subtle-foreground">
+          <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-2 text-[13px] text-subtle-foreground">
             {attributes.map(([key, value]) => (
               <div key={key} className="contents">
                 <dt>{key}</dt>
