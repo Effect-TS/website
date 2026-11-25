@@ -62,6 +62,22 @@ export default Alchemy.Stack(
       owner: "Effect-TS",
       repository: "website",
     }
+    // Mirrors Effect-TS/effect's `fork` environment required reviewers for
+    // approving requested PR previews via GitHub's Review deployments gate.
+    yield* GitHub.Environment("fork", {
+      ...repository,
+      name: "fork",
+      reviewers: {
+        users: [
+          "tim-smart",
+          "fubhy",
+          "mikearnaldi",
+          "IMax153",
+          "mattiamanzati",
+          "gcanti",
+        ],
+      },
+    })
     yield* Effect.all([
       GitHub.Secret("cloudflare-api-token", {
         ...repository,

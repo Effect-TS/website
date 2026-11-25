@@ -1,7 +1,7 @@
 // Loaded via `require` from a trusted `main` checkout in publish/cleanup jobs,
 // never from pull request code.
 
-// Repeated in the checkout-free authorize job.
+// Repeated in the checkout-free approval-gate job.
 const ENVIRONMENT = "Requested Preview"
 const COMMENT_MARKER = "<!-- effect-website-requested-preview -->"
 
@@ -86,7 +86,6 @@ module.exports = ({ github, context, core }) => {
   const reportPublish = async ({
     prNumber,
     headSha,
-    requester,
     deploymentId,
     buildResult,
     prOpen,
@@ -113,7 +112,7 @@ module.exports = ({ github, context, core }) => {
       await setStatus(
         deploymentId,
         "success",
-        `Preview deployed for ${shortSha} (requested by @${requester})`,
+        `Preview deployed for ${shortSha}`,
         previewUrl,
       )
       // Deactivate only replaced successful previews; leave newer builds in progress.
@@ -130,10 +129,10 @@ module.exports = ({ github, context, core }) => {
         "",
         `**URL:** ${previewUrl}`,
         "",
-        `Built from commit ${commit} (requested by @${requester}).`,
+        `Built from commit ${commit}.`,
         "",
         "> [!NOTE]",
-        "> New commits pushed to this PR do not update this preview automatically. Comment `/preview` again to deploy a newer commit. Search and playground share links are disabled in requested previews.",
+        "> New commits pushed to this PR require a new deployment approval. Search and playground share links are disabled in requested previews.",
       ])
     }
 
@@ -141,7 +140,7 @@ module.exports = ({ github, context, core }) => {
     const phase = built ? "publish" : "build"
     const mergeHint = built
       ? ""
-      : " If this PR was branched before requested previews were added, merge `main` into the branch and comment `/preview` again."
+      : " If this PR was branched before requested previews were added, merge `main` into the branch and approve the new deployment."
     await setStatus(
       deploymentId,
       "failure",
@@ -150,7 +149,7 @@ module.exports = ({ github, context, core }) => {
     await upsertComment(prNumber, [
       "## Requested Cloudflare Preview Failed",
       "",
-      `Could not ${phase} commit ${commit} requested by @${requester}.`,
+      `Could not ${phase} commit ${commit}.`,
       "",
       `See the [workflow run](${runUrl}) for details.${mergeHint}`,
     ])

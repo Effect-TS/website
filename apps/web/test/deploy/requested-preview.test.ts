@@ -274,7 +274,6 @@ test("a published preview deactivates the deployment it replaced, not a request 
   await requestedPreview({ github, context, core: {} }).reportPublish({
     prNumber: 7,
     headSha: "0123456789abcdef0123456789abcdef01234567",
-    requester: "staff",
     deploymentId: 3,
     buildResult: "success",
     prOpen: "true",
