@@ -23,6 +23,7 @@ import { Span } from "../span.ts"
 import { DetailsColumn } from "./details-column"
 import { HoveredEventContext } from "./event-guide.ts"
 import { TraceDetails } from "./trace-details"
+import { type Timeline, TimelineContext, useTimeline } from "./timeline"
 import { TraceTree } from "./trace-tree"
 import { type EventLevel, eventLevel, formatDuration } from "./utils"
 
@@ -109,6 +110,7 @@ export function TraceWaterfall() {
   }, [selectedRowId])
   const traceStartTime =
     selectedSpan === undefined ? Option.none() : selectedSpan.startTime
+  const timeline = useTimeline(selectedSpan)
 
   const columnSizeVars = React.useMemo(() => {
     const headers = table.getFlatHeaders()
@@ -126,102 +128,104 @@ export function TraceWaterfall() {
     <div className="@container flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col @2xl:flex-row">
         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-          <HoveredEventContext.Provider value={hoveredEvent}>
-            <table
-              style={columnSizeVars as any}
-              className="w-full border-collapse border-spacing-0"
-            >
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr
-                    key={headerGroup.id}
-                    className="sticky top-0 z-10 flex border-b border-border bg-background"
-                  >
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        style={{
-                          width: `calc(var(--header-${header?.id}-size) * 1px)`,
-                        }}
-                        className={cn(
-                          "grid h-8 grid-cols-[minmax(150px,1fr)_8px] items-center p-0 text-left font-normal",
-                          header.column.columnDef.meta?.grow && "grow",
-                        )}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                        {header.column.getCanResize() && (
-                          <div
-                            role="separator"
-                            aria-label="drag to resize"
-                            onDoubleClick={() => header.column.resetSize()}
-                            onMouseDown={header.getResizeHandler()}
-                            onTouchStart={header.getResizeHandler()}
-                            className="h-full w-px cursor-ew-resize border-l border-border px-0.75 transition-colors hover:border-brand"
-                          />
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => {
-                    const span = row.getValue<Span>("span")
-                    return (
-                      <tr
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                        className={cn(
-                          "flex border-b border-border transition-colors hover:bg-muted/40 data-[state=selected]:bg-card",
-                          span.hasError &&
-                            "bg-destructive/10 hover:bg-destructive/15 data-[state=selected]:bg-destructive/10",
-                        )}
-                      >
-                        {row.getAllCells().map((cell) => (
-                          <td
-                            key={cell.id}
-                            style={{
-                              width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                            }}
-                            className={cn(
-                              "grid min-h-8 grid-cols-[minmax(150px,1fr)_8px] items-center p-0",
-                              cell.column.columnDef.meta?.grow && "grow",
-                            )}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                            {cell.column.getCanResize() && (
-                              <div
-                                role="separator"
-                                className="h-full w-px border-l border-border px-0.75"
-                              />
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="h-24 w-auto text-center text-sm text-muted-foreground"
+          <TimelineContext.Provider value={timeline}>
+            <HoveredEventContext.Provider value={hoveredEvent}>
+              <table
+                style={columnSizeVars as any}
+                className="w-full border-collapse border-spacing-0"
+              >
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr
+                      key={headerGroup.id}
+                      className="sticky top-0 z-10 flex border-b border-border bg-background"
                     >
-                      No spans yet. Run your code to see a trace.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </HoveredEventContext.Provider>
+                      {headerGroup.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          style={{
+                            width: `calc(var(--header-${header?.id}-size) * 1px)`,
+                          }}
+                          className={cn(
+                            "grid h-8 grid-cols-[minmax(150px,1fr)_8px] items-center p-0 text-left font-normal",
+                            header.column.columnDef.meta?.grow && "grow",
+                          )}
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                          {header.column.getCanResize() && (
+                            <div
+                              role="separator"
+                              aria-label="drag to resize"
+                              onDoubleClick={() => header.column.resetSize()}
+                              onMouseDown={header.getResizeHandler()}
+                              onTouchStart={header.getResizeHandler()}
+                              className="h-full w-px cursor-ew-resize border-l border-border px-0.75 transition-colors hover:border-brand"
+                            />
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => {
+                      const span = row.getValue<Span>("span")
+                      return (
+                        <tr
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                          className={cn(
+                            "flex border-b border-border transition-colors hover:bg-muted/40 data-[state=selected]:bg-card",
+                            span.hasError &&
+                              "bg-destructive/10 hover:bg-destructive/15 data-[state=selected]:bg-destructive/10",
+                          )}
+                        >
+                          {row.getAllCells().map((cell) => (
+                            <td
+                              key={cell.id}
+                              style={{
+                                width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                              }}
+                              className={cn(
+                                "grid min-h-8 grid-cols-[minmax(150px,1fr)_8px] items-center p-0",
+                                cell.column.columnDef.meta?.grow && "grow",
+                              )}
+                            >
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                              {cell.column.getCanResize() && (
+                                <div
+                                  role="separator"
+                                  className="h-full w-px border-l border-border px-0.75"
+                                />
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={columns.length}
+                        className="h-24 w-auto text-center text-sm text-muted-foreground"
+                      >
+                        No spans yet. Run your code to see a trace.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </HoveredEventContext.Provider>
+          </TimelineContext.Provider>
         </div>
         {selectedRow !== undefined && Option.isSome(traceStartTime) && (
           <DetailsColumn>
@@ -265,11 +269,9 @@ function NameCell({ getValue, row }: SpanCellContext) {
 
 function DurationCell({ getValue, row }: SpanCellContext) {
   const currentSpan = getValue<Span>()
-  const root = currentSpan.isRoot
-    ? currentSpan
-    : row.getParentRows()[0]?.original
+  const timeline = React.useContext(TimelineContext)
 
-  if (root === undefined) {
+  if (timeline === undefined) {
     return null
   }
 
@@ -281,53 +283,19 @@ function DurationCell({ getValue, row }: SpanCellContext) {
     )
   }
 
-  const traceStartTime = Option.getOrThrow(root.startTime)
-
+  const traceStartTime = timeline.start
   const pillColors = getPillColors(currentSpan)
-
-  if (
-    Option.isSome(currentSpan.startTime) &&
-    Option.isNone(currentSpan.endTime)
-  ) {
-    const spanStartTime = currentSpan.startTime.value
-    const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
-    return (
-      <div
-        className={cn(
-          "flex h-6 w-full items-center justify-start px-2",
-          currentSpan.isRoot &&
-            "my-1 rounded-sm border border-dashed border-border-strong",
-        )}
-      >
-        {currentSpan.isRoot ? (
-          <div className={cn("rounded-sm px-2 leading-5", pillColors)}>
-            <span className="font-mono text-xs">In-Progress</span>
-          </div>
-        ) : (
-          <div>
-            <span className="font-mono text-xs text-foreground">
-              In-Progress
-            </span>
-            <span className="mx-2 text-subtle-foreground">...</span>
-            <span className="font-mono text-xs text-muted-foreground">
-              Started: {formatDuration(relativeStartTime)} after trace start
-            </span>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const rootNanos = Option.match(root.duration, {
-    onNone: () => {
-      const now = processOrPerformanceNow()
-      return Number(now - traceStartTime)
-    },
-    onSome: (duration) => Number(Duration.toNanosUnsafe(duration)),
-  })
   const spanStartTime = Option.getOrThrow(currentSpan.startTime)
-  const spanDuration = Option.getOrThrow(currentSpan.duration)
-  const spanNanos = Number(Duration.toNanosUnsafe(spanDuration))
+  // A running span reaches the present; one left running after its trace
+  // ended reaches the end of the axis.
+  const running = Option.isNone(currentSpan.endTime)
+  const spanEndTime = Option.getOrElse(
+    currentSpan.endTime,
+    () => timeline.now ?? timeline.start + BigInt(timeline.length),
+  )
+  const spanNanos = Math.max(0, Number(spanEndTime - spanStartTime))
+  const spanDuration = Duration.nanos(BigInt(spanNanos))
+  const rootNanos = timeline.length
 
   const startNanos = Number(spanStartTime - traceStartTime)
   const left = `${(startNanos / rootNanos) * 100}%`
@@ -336,20 +304,26 @@ function DurationCell({ getValue, row }: SpanCellContext) {
   return (
     <div className="relative h-8 w-full">
       <EventGuide traceStartTime={traceStartTime} rootNanos={rootNanos} />
+      <NowLine timeline={timeline} />
       <button
         type="button"
         aria-label={`Show details of ${currentSpan.label}`}
         aria-pressed={row.getIsSelected()}
-        style={{ left, width }}
+        data-running={running || undefined}
+        style={{ left, width, ...(running ? RUNNING_STRIPES : {}) }}
         className={cn(
           "absolute top-1 flex h-6 min-w-1 cursor-pointer items-center rounded-sm border bg-transparent transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-          currentSpan.hasError
-            ? "border-destructive/60 bg-destructive/20 hover:bg-destructive/30"
-            : "border-brand/50 bg-brand/15 hover:bg-brand/25",
+          running
+            ? "border-r-0 border-amber-500/70 hover:border-amber-500"
+            : currentSpan.hasError
+              ? "border-destructive/60 bg-destructive/20 hover:bg-destructive/30"
+              : "border-brand/50 bg-brand/15 hover:bg-brand/25",
           row.getIsSelected() &&
-            (currentSpan.hasError
-              ? "border-destructive bg-destructive/30"
-              : "border-brand bg-brand/30"),
+            (running
+              ? "border-amber-500"
+              : currentSpan.hasError
+                ? "border-destructive bg-destructive/30"
+                : "border-brand bg-brand/30"),
         )}
         onClick={row.getToggleSelectedHandler()}
       >
@@ -357,6 +331,7 @@ function DurationCell({ getValue, row }: SpanCellContext) {
           className={cn("ml-2 font-mono text-xs whitespace-nowrap", pillColors)}
         >
           {formatDuration(spanDuration)}
+          {running && "…"}
         </span>
         <EventMarkers
           span={currentSpan}
@@ -408,6 +383,29 @@ function EventMarkers({
   })
 }
 
+/** Diagonal amber stripes: a span that hasn't ended yet. */
+const RUNNING_STRIPES: React.CSSProperties = {
+  backgroundImage:
+    "repeating-linear-gradient(-45deg, color-mix(in oklab, var(--color-amber-400) 24%, transparent) 0 6px, color-mix(in oklab, var(--color-amber-400) 8%, transparent) 6px 12px)",
+}
+
+/**
+ * The present, while the trace runs: a dashed line down this row, which the
+ * rows above and below continue.
+ */
+function NowLine({ timeline }: { readonly timeline: Timeline }) {
+  if (timeline.now === undefined || timeline.length <= 0) return null
+  const fraction = Number(timeline.now - timeline.start) / timeline.length
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="trace-now-line"
+      style={{ left: `${Math.min(1, Math.max(0, fraction)) * 100}%` }}
+      className="pointer-events-none absolute -top-px -bottom-px z-10 w-0 border-l border-dashed border-amber-500"
+    />
+  )
+}
+
 const TICK_COLOR: Record<EventLevel, string> = {
   info: "before:bg-foreground/50",
   warn: "before:bg-amber-400",
@@ -438,23 +436,24 @@ function EventGuide({
   )
 }
 
-/** The Duration header, which labels the hovered event's time. */
+/**
+ * The Duration header. It labels the hovered event's time and, while the
+ * trace runs, the present and the length of the axis.
+ */
 function DurationHeader() {
-  const root = useAtomValue(useTraceAtoms().selectedSpanAtom)
+  const timeline = React.useContext(TimelineContext)
   const hovered = React.useContext(HoveredEventContext)
-  const label =
-    hovered === undefined || root === undefined
-      ? undefined
-      : Option.flatMap(root.startTime, (start) =>
-          Option.map(root.duration, (duration) => {
-            const nanos = Number(Duration.toNanosUnsafe(duration))
-            const fraction = nanos <= 0 ? 0 : Number(hovered - start) / nanos
-            return {
-              left: `${Math.min(1, Math.max(0, fraction)) * 100}%`,
-              text: `+${formatDuration(Duration.nanos(hovered - start))}`,
-            }
-          }),
-        ).pipe(Option.getOrUndefined)
+  const at = (time: bigint) => {
+    if (timeline === undefined) return undefined
+    const fraction =
+      timeline.length <= 0 ? 0 : Number(time - timeline.start) / timeline.length
+    return {
+      left: `${Math.min(1, Math.max(0, fraction)) * 100}%`,
+      text: `+${formatDuration(Duration.nanos(time - timeline.start))}`,
+    }
+  }
+  const label = hovered === undefined ? undefined : at(hovered)
+  const now = timeline?.now === undefined ? undefined : at(timeline.now)
   return (
     <div className="relative flex h-full grow items-center">
       <h5
@@ -463,11 +462,25 @@ function DurationHeader() {
       >
         Duration
       </h5>
+      {now !== undefined && timeline !== undefined && (
+        <>
+          <span
+            data-testid="trace-now-label"
+            style={{ left: now.left }}
+            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-sm bg-amber-400 px-1 font-mono text-[11px] whitespace-nowrap text-zinc-950"
+          >
+            now {now.text}
+          </span>
+          <span className="pointer-events-none absolute right-2 font-mono text-[11px] text-subtle-foreground">
+            {formatDuration(Duration.nanos(BigInt(timeline.length)))}
+          </span>
+        </>
+      )}
       {label !== undefined && (
         <span
           data-testid="trace-event-guide-label"
           style={{ left: label.left }}
-          className="pointer-events-none absolute -translate-x-1/2 bg-background px-1 font-mono text-[11px] text-brand"
+          className="pointer-events-none absolute z-20 -translate-x-1/2 bg-background px-1 font-mono text-[11px] text-brand"
         >
           {label.text}
         </span>
@@ -475,30 +488,6 @@ function DurationHeader() {
     </div>
   )
 }
-
-const performanceNowNanos = (function () {
-  const bigint1e6 = BigInt(1_000_000)
-  if (typeof performance === "undefined") {
-    return () => BigInt(Date.now()) * bigint1e6
-  }
-  const origin =
-    BigInt(Date.now()) * bigint1e6 -
-    BigInt(Math.round(performance.now() * 1_000_000))
-  return () => origin + BigInt(Math.round(performance.now() * 1_000_000))
-})()
-const processOrPerformanceNow = (function () {
-  const processHrtime =
-    typeof process === "object" &&
-    "hrtime" in process &&
-    typeof process.hrtime.bigint === "function"
-      ? process.hrtime
-      : undefined
-  if (!processHrtime) {
-    return performanceNowNanos
-  }
-  const origin = performanceNowNanos() - processHrtime.bigint()
-  return () => origin + processHrtime.bigint()
-})()
 
 function getPillColors(span: Span) {
   if (span.hasError) {

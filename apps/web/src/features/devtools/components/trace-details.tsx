@@ -70,7 +70,9 @@ export function TraceDetails({
             "rounded-full border px-2 leading-5",
             span.hasError
               ? "border-destructive/60 text-destructive"
-              : "border-brand/50 text-brand",
+              : Option.isSome(span.endTime)
+                ? "border-brand/50 text-brand"
+                : "border-amber-500/60 text-amber-600 dark:text-amber-400",
           )}
         >
           {span.hasError
