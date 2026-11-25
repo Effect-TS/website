@@ -98,9 +98,16 @@ export const applyDevToolsRequest = (
 export interface TraceAtoms {
   /** Root spans, one per trace, newest first. */
   readonly rootSpansAtom: Atom.Writable<ReadonlyArray<Span>>
-  readonly selectedSpanIndexAtom: Atom.Writable<number>
-  /** The selected trace's root span. Writing it selects by index. */
-  readonly selectedSpanAtom: Atom.Writable<Span | undefined, number>
+  /**
+   * The trace the person picked, by id. `undefined` until they pick one, and
+   * after a reset; the viewer then follows the newest trace.
+   */
+  readonly selectedTraceIdAtom: Atom.Writable<string | undefined>
+  /**
+   * The shown trace's root span: the picked trace while it exists, otherwise
+   * the newest. Writing a trace id picks that trace.
+   */
+  readonly selectedSpanAtom: Atom.Writable<Span | undefined, string>
 }
 
 export const makeTraceAtoms = (
@@ -109,12 +116,20 @@ export const makeTraceAtoms = (
   const keep = <A extends Atom.Atom<any>>(atom: A): A =>
     options.keepAlive === true ? Atom.keepAlive(atom) : atom
   const rootSpansAtom = keep(Atom.make<ReadonlyArray<Span>>([]))
-  const selectedSpanIndexAtom = keep(Atom.make(0))
+  const selectedTraceIdAtom = keep(Atom.make<string | undefined>(undefined))
   const selectedSpanAtom = Atom.writable(
-    (get): Span | undefined => get(rootSpansAtom)[get(selectedSpanIndexAtom)],
-    (ctx, index: number) => ctx.set(selectedSpanIndexAtom, index),
+    (get): Span | undefined => {
+      const roots = get(rootSpansAtom)
+      const picked = get(selectedTraceIdAtom)
+      return (
+        (picked === undefined
+          ? undefined
+          : roots.find((root) => root.traceId === picked)) ?? roots[0]
+      )
+    },
+    (ctx, traceId: string) => ctx.set(selectedTraceIdAtom, traceId),
   )
-  return { rootSpansAtom, selectedSpanIndexAtom, selectedSpanAtom }
+  return { rootSpansAtom, selectedTraceIdAtom, selectedSpanAtom }
 }
 
 /** Records one request from the program. */
@@ -128,11 +143,11 @@ export const recordDevToolsRequest = (
   )
 }
 
-/** Forgets every trace and selects the first one again. */
+/** Forgets every trace and the pick, so the next trace is shown. */
 export const resetTraces = (
   registry: AtomRegistry.AtomRegistry,
   atoms: TraceAtoms,
 ): void => {
   registry.set(atoms.rootSpansAtom, [])
-  registry.set(atoms.selectedSpanIndexAtom, 0)
+  registry.set(atoms.selectedTraceIdAtom, undefined)
 }

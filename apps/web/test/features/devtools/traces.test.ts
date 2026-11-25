@@ -70,6 +70,30 @@ describe("trace store", () => {
     assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-b")
   })
 
+  test("a span that ended in failure is marked failed, through the wire", () => {
+    const failed: DevToolsSchema.Span = {
+      ...span("trace-a", "1", "upload"),
+      status: {
+        _tag: "Ended",
+        startTime: 1_000n,
+        endTime: 2_000n,
+        exit: Exit.fail("rejected"),
+      },
+    }
+    const { registry, atoms } = storeWith([
+      encodeLine(failed),
+      encodeLine(span("trace-b", "2", "fine")),
+    ])
+    const roots = registry.get(atoms.rootSpansAtom)
+    assert.deepStrictEqual(
+      roots.map((root) => [root.label, root.hasError]),
+      [
+        ["fine", false],
+        ["upload", true],
+      ],
+    )
+  })
+
   test("pings, blank lines and torn writes are skipped", () => {
     const { registry, atoms } = storeWith([
       encodeLine({ _tag: "Ping" }),
@@ -81,19 +105,29 @@ describe("trace store", () => {
     assert.equal(registry.get(atoms.rootSpansAtom).length, 1)
   })
 
-  test("reset forgets every trace and selects the first trace again", () => {
+  test("a picked trace stays shown when a newer trace arrives", () => {
+    const { registry, atoms } = storeWith([
+      encodeLine(span("trace-a", "1", "program")),
+    ])
+    registry.set(atoms.selectedSpanAtom, "trace-a")
+    recordDevToolsRequest(registry, atoms, span("trace-b", "2", "later"))
+    assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-a")
+  })
+
+  test("reset forgets every trace and the pick", () => {
     const { registry, atoms } = storeWith([
       encodeLine(span("trace-a", "1", "first run")),
       encodeLine(span("trace-b", "2", "first run, second trace")),
     ])
-    registry.set(atoms.selectedSpanAtom, 1)
+    registry.set(atoms.selectedSpanAtom, "trace-a")
     assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-a")
 
     resetTraces(registry, atoms)
     assert.deepStrictEqual(registry.get(atoms.rootSpansAtom), [])
     assert.isUndefined(registry.get(atoms.selectedSpanAtom))
+    assert.isUndefined(registry.get(atoms.selectedTraceIdAtom))
 
-    // The next Run's first trace is selected, not whatever sat at index 1.
+    // The next Run's newest trace is shown.
     recordDevToolsRequest(registry, atoms, span("trace-c", "3", "second run"))
     assert.equal(registry.get(atoms.selectedSpanAtom)?.label, "second run")
   })

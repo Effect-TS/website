@@ -56,3 +56,14 @@ export function eventLevel(event: Event): EventLevel {
       return "info"
   }
 }
+
+/** Whether any span in the trace failed. */
+export function traceHasError(root: Span): boolean {
+  const stack = [root]
+  while (stack.length > 0) {
+    const node = stack.pop()!
+    if (node.hasError) return true
+    stack.push(...node.children)
+  }
+  return false
+}

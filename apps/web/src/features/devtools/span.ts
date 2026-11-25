@@ -64,9 +64,15 @@ export class Span {
     return this.span._tag === "ExternalSpan"
   }
 
+  /**
+   * Whether the span failed: it ended with a failure, or (from programs that
+   * record one) carries a stack trace.
+   */
   get hasError(): boolean {
+    if (this.span._tag === "ExternalSpan") return false
+    const status = this.span.status
     return (
-      this.span._tag !== "ExternalSpan" &&
+      (status._tag === "Ended" && status.exit._tag === "Failure") ||
       this.span.attributes.get("code.stacktrace") !== undefined
     )
   }
