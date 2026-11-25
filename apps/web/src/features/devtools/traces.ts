@@ -100,12 +100,13 @@ export interface TraceAtoms {
   readonly rootSpansAtom: Atom.Writable<ReadonlyArray<Span>>
   /**
    * The trace the person picked, by id. `undefined` until they pick one, and
-   * after a reset; the viewer then follows the newest trace.
+   * after a reset; the viewer then shows the earliest trace, so traces
+   * arriving later never take the view away from it.
    */
   readonly selectedTraceIdAtom: Atom.Writable<string | undefined>
   /**
    * The shown trace's root span: the picked trace while it exists, otherwise
-   * the newest. Writing a trace id picks that trace.
+   * the earliest. Writing a trace id picks that trace.
    */
   readonly selectedSpanAtom: Atom.Writable<Span | undefined, string>
 }
@@ -124,7 +125,7 @@ export const makeTraceAtoms = (
       return (
         (picked === undefined
           ? undefined
-          : roots.find((root) => root.traceId === picked)) ?? roots[0]
+          : roots.find((root) => root.traceId === picked)) ?? roots.at(-1)
       )
     },
     (ctx, traceId: string) => ctx.set(selectedTraceIdAtom, traceId),

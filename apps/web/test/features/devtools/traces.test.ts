@@ -66,7 +66,6 @@ describe("trace store", () => {
       traceA.children.map((child) => child.label),
       ["child"],
     )
-    assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-b")
   })
 
   test("a span that ended in failure is marked failed, through the wire", () => {
@@ -94,12 +93,15 @@ describe("trace store", () => {
     assert.equal(registry.get(atoms.rootSpansAtom).length, 1)
   })
 
-  test("a picked trace stays shown when a newer trace arrives", () => {
+  test("the earliest trace stays shown as others arrive, until another is picked", () => {
     const { registry, atoms } = storeWith([
       encodeLine(span("trace-a", "1", "program")),
+      encodeLine(span("trace-b", "2", "later")),
     ])
-    registry.set(atoms.selectedSpanAtom, "trace-a")
-    recordDevToolsRequest(registry, atoms, span("trace-b", "2", "later"))
-    assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-a")
+    const shown = [registry.get(atoms.selectedSpanAtom)?.label]
+    registry.set(atoms.selectedSpanAtom, "trace-b")
+    recordDevToolsRequest(registry, atoms, span("trace-c", "3", "latest"))
+    shown.push(registry.get(atoms.selectedSpanAtom)?.label)
+    assert.deepStrictEqual(shown, ["program", "later"])
   })
 })
