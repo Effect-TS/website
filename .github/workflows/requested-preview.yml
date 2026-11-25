@@ -1,0 +1,665 @@
+name: Requested Preview Deployment
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    branches: [main]
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  authorize:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '/preview')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
+    outputs:
+      allowed: ${{ steps.authorize.outputs.allowed }}
+      pr_number: ${{ steps.authorize.outputs.pr_number }}
+      head_sha: ${{ steps.authorize.outputs.head_sha }}
+      requester: ${{ steps.authorize.outputs.requester }}
+      deployment_id: ${{ steps.authorize.outputs.deployment_id }}
+    steps:
+      - name: Authorize request and record approved SHA
+        id: authorize
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = (context.payload.comment?.body ?? "").trim()
+            if (body !== "/preview") {
+              core.info("Comment body is not an exact /preview command; skipping.")
+              core.setOutput("allowed", "false")
+              return
+            }
+
+            const requester = context.payload.comment?.user?.login
+            if (!requester) {
+              core.info("Missing comment author; skipping.")
+              core.setOutput("allowed", "false")
+              return
+            }
+
+            let permission = "none"
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                ...context.repo,
+                username: requester,
+              })
+              permission = data.permission
+            } catch (error) {
+              if (error.status !== 404) throw error
+            }
+
+            if (!["write", "maintain", "admin"].includes(permission)) {
+              core.info(
+                `Requester @${requester} has repository permission "${permission}"; requested preview denied.`,
+              )
+              core.setOutput("allowed", "false")
+              return
+            }
+
+            const prNumber = context.payload.issue.number
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: prNumber,
+            })
+
+            const baseRepo = `${context.repo.owner}/${context.repo.repo}`
+            if (pr.state !== "open") {
+              core.info(`PR #${prNumber} is ${pr.state}, not open; skipping.`)
+              core.setOutput("allowed", "false")
+              return
+            }
+            if (pr.base.ref !== "main" || pr.base.repo.full_name !== baseRepo) {
+              core.info(
+                `PR #${prNumber} targets ${pr.base.repo.full_name}:${pr.base.ref}, not ${baseRepo}:main; skipping.`,
+              )
+              core.setOutput("allowed", "false")
+              return
+            }
+
+            const headSha = pr.head.sha
+            if (!/^[0-9a-f]{40}$/.test(headSha)) {
+              throw new Error(`Invalid PR head SHA: ${headSha}`)
+            }
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              ...context.repo,
+              ref: headSha,
+              environment: "Requested Preview",
+              description: `Requested preview for PR #${prNumber} by @${requester}`,
+              auto_merge: false,
+              required_contexts: [],
+              transient_environment: true,
+              production_environment: false,
+              payload: {
+                pull_request: prNumber,
+                head_sha: headSha,
+                requested_by: requester,
+                stage: `pr-${prNumber}`,
+              },
+            })
+
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: deployment.id,
+              state: "in_progress",
+              environment: "Requested Preview",
+              log_url: runUrl,
+              description: `Building preview for ${headSha.slice(0, 7)} (requested by @${requester})`,
+              auto_inactive: false,
+            })
+
+            core.setOutput("allowed", "true")
+            core.setOutput("pr_number", String(prNumber))
+            core.setOutput("head_sha", headSha)
+            core.setOutput("requester", requester)
+            core.setOutput("deployment_id", String(deployment.id))
+            core.info(
+              `Authorized requested preview for PR #${prNumber} at ${headSha} by @${requester} (deployment ${deployment.id}).`,
+            )
+
+  build:
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    cache-mode: read
+    concurrency:
+      group: requested-preview-build-${{ needs.authorize.outputs.pr_number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout approved commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.authorize.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify checked-out commit
+        env:
+          EXPECTED_SHA: ${{ needs.authorize.outputs.head_sha }}
+        run: |
+          actual=$(git rev-parse HEAD)
+          if [[ "$actual" != "$EXPECTED_SHA" ]]; then
+            echo "::error::Checked-out commit $actual does not match approved SHA $EXPECTED_SHA."
+            exit 1
+          fi
+          if [[ ! -f apps/web/scripts/build-preview.ts ]]; then
+            echo "::error::apps/web/scripts/build-preview.ts is missing on this branch. Merge main into the PR branch and comment /preview again."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+
+      - name: Restore API reference snapshot
+        id: api-reference-snapshot
+        uses: ./.github/actions/restore-api-reference-snapshot
+        with:
+          match-generator: true
+
+      - name: Prepare API reference
+        if: steps.api-reference-snapshot.outputs.restored != 'true'
+        uses: ./.github/actions/prepare-api-reference
+        with:
+          cache: true
+
+      - name: Name Astro incremental build cache
+        id: astro-cache
+        env:
+          SNAPSHOT: ${{ steps.api-reference-snapshot.outputs.restored == 'true' && steps.api-reference-snapshot.outputs.tag || 'generated' }}
+        run: echo "prefix=astro-incremental-$RUNNER_OS-$SNAPSHOT" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Astro incremental build cache
+        uses: actions/cache/restore@v5
+        with:
+          path: apps/web/.astro-cache
+          key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ needs.authorize.outputs.pr_number }}-${{ needs.authorize.outputs.head_sha }}
+          restore-keys: |
+            ${{ steps.astro-cache.outputs.prefix }}-pr-${{ needs.authorize.outputs.pr_number }}-
+            ${{ steps.astro-cache.outputs.prefix }}-main-
+            astro-incremental-${{ runner.os }}-
+
+      - name: Build preview artifact
+        run: node apps/web/scripts/build-preview.ts .requested-preview-artifact
+
+      - name: Verify generated API reference links
+        run: |
+          if [[ -d .requested-preview-artifact/client/docs ]]; then
+            node apps/web/scripts/verify-api-reference-links.mjs .requested-preview-artifact/client
+          fi
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: requested-preview-pr-${{ needs.authorize.outputs.pr_number }}-${{ needs.authorize.outputs.head_sha }}
+          path: .requested-preview-artifact
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [authorize, build]
+    if: always() && needs.authorize.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: requested-preview-deploy-${{ needs.authorize.outputs.pr_number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
+    steps:
+      - name: Report superseded build
+        if: needs.build.result == 'cancelled'
+        uses: actions/github-script@v8
+        env:
+          DEPLOYMENT_ID: ${{ needs.authorize.outputs.deployment_id }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: Number(process.env.DEPLOYMENT_ID),
+              state: "inactive",
+              environment: "Requested Preview",
+              log_url: runUrl,
+              description: `Preview build for ${process.env.HEAD_SHA.slice(0, 7)} was superseded`,
+              auto_inactive: false,
+            })
+
+      - name: Report build failure
+        if: needs.build.result != 'success' && needs.build.result != 'cancelled'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          REQUESTER: ${{ needs.authorize.outputs.requester }}
+          DEPLOYMENT_ID: ${{ needs.authorize.outputs.deployment_id }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER)
+            const headSha = process.env.HEAD_SHA
+            const shortSha = headSha.slice(0, 7)
+            const requester = process.env.REQUESTER
+            const deploymentId = Number(process.env.DEPLOYMENT_ID)
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${headSha}`
+
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: deploymentId,
+              state: "failure",
+              environment: "Requested Preview",
+              log_url: runUrl,
+              description: `Preview build failed for ${shortSha}`,
+              auto_inactive: false,
+            })
+
+            const marker = "<!-- effect-website-requested-preview -->"
+            const body = [
+              marker,
+              "## Requested Cloudflare Preview Failed",
+              "",
+              `Could not build commit [\`${shortSha}\`](${commitUrl}) requested by @${requester}.`,
+              "",
+              `See the [workflow run](${runUrl}) for details. If this PR was branched before requested previews were added, merge \`main\` into the branch and comment \`/preview\` again.`,
+            ].join("\n")
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                ...context.repo,
+                issue_number: prNumber,
+                per_page: 100,
+              },
+            )
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.login === "github-actions[bot]" &&
+                typeof comment.body === "string" &&
+                comment.body.startsWith(marker),
+            )
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body,
+              })
+            }
+
+            core.setFailed(`Preview build failed for ${headSha}.`)
+
+      - name: Check PR is still open
+        id: pr-check
+        if: needs.build.result == 'success'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          DEPLOYMENT_ID: ${{ needs.authorize.outputs.deployment_id }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER)
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: prNumber,
+            })
+            if (pr.state !== "open") {
+              const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              await github.rest.repos.createDeploymentStatus({
+                ...context.repo,
+                deployment_id: Number(process.env.DEPLOYMENT_ID),
+                state: "inactive",
+                environment: "Requested Preview",
+                log_url: runUrl,
+                description: "PR was closed before preview could be published",
+                auto_inactive: false,
+              })
+              core.setOutput("open", "false")
+              core.info(`PR #${prNumber} is now ${pr.state}; skipping publish.`)
+              return
+            }
+            core.setOutput("open", "true")
+
+      - name: Checkout trusted main
+        if: needs.build.result == 'success' && steps.pr-check.outputs.open == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Download preview artifact
+        if: needs.build.result == 'success' && steps.pr-check.outputs.open == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: requested-preview-pr-${{ needs.authorize.outputs.pr_number }}-${{ needs.authorize.outputs.head_sha }}
+          path: .requested-preview-artifact
+
+      - name: Install dependencies
+        if: needs.build.result == 'success' && steps.pr-check.outputs.open == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Validate preview artifact
+        if: needs.build.result == 'success' && steps.pr-check.outputs.open == 'true'
+        run: node stacks/validate-preview-artifact.ts .requested-preview-artifact
+
+      - name: Deploy Cloudflare requested preview
+        id: deploy
+        if: needs.build.result == 'success' && steps.pr-check.outputs.open == 'true'
+        run: |
+          stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
+          node stacks/deploy-preview.ts "$stage" .requested-preview-output.json
+          preview_url=$(node -e 'const fs = require("node:fs"); const out = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if (typeof out?.websiteUrl !== "string" || !out.websiteUrl.startsWith("https://")) throw new Error("Missing websiteUrl in stack output"); console.log(out.websiteUrl)' .requested-preview-output.json)
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PULL_REQUEST: ${{ needs.authorize.outputs.pr_number }}
+          PREVIEW_ARTIFACT_DIR: .requested-preview-artifact
+
+      - name: Report deployment success
+        if: success() && needs.build.result == 'success' && steps.pr-check.outputs.open == 'true'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          REQUESTER: ${{ needs.authorize.outputs.requester }}
+          DEPLOYMENT_ID: ${{ needs.authorize.outputs.deployment_id }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER)
+            const headSha = process.env.HEAD_SHA
+            const shortSha = headSha.slice(0, 7)
+            const requester = process.env.REQUESTER
+            const deploymentId = Number(process.env.DEPLOYMENT_ID)
+            const previewUrl = process.env.PREVIEW_URL
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${headSha}`
+            const parsePayload = (raw) => {
+              if (typeof raw === "string") {
+                try {
+                  return JSON.parse(raw)
+                } catch {
+                  return null
+                }
+              }
+              return raw && typeof raw === "object" ? raw : null
+            }
+
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: deploymentId,
+              state: "success",
+              environment: "Requested Preview",
+              environment_url: previewUrl,
+              log_url: runUrl,
+              description: `Preview deployed for ${shortSha} (requested by @${requester})`,
+              auto_inactive: false,
+            })
+
+            // Deactivate earlier requested-preview deployments for this same PR only.
+            const deployments = await github.paginate(
+              github.rest.repos.listDeployments,
+              {
+                ...context.repo,
+                environment: "Requested Preview",
+                per_page: 100,
+              },
+            )
+            for (const dep of deployments) {
+              if (dep.id === deploymentId) continue
+              if (parsePayload(dep.payload)?.pull_request !== prNumber) continue
+              const { data: statuses } =
+                await github.rest.repos.listDeploymentStatuses({
+                  ...context.repo,
+                  deployment_id: dep.id,
+                  per_page: 1,
+                })
+              if (statuses[0]?.state === "inactive") continue
+              await github.rest.repos.createDeploymentStatus({
+                ...context.repo,
+                deployment_id: dep.id,
+                state: "inactive",
+                environment: "Requested Preview",
+                description: `Replaced by preview for ${shortSha}`,
+                auto_inactive: false,
+              })
+            }
+
+            const marker = "<!-- effect-website-requested-preview -->"
+            const body = [
+              marker,
+              "## Requested Cloudflare Preview",
+              "",
+              `**URL:** ${previewUrl}`,
+              "",
+              `Built from commit [\`${shortSha}\`](${commitUrl}) (requested by @${requester}).`,
+              "",
+              "> [!NOTE]",
+              "> New commits pushed to this PR do not update this preview automatically. Comment `/preview` again to deploy a newer commit. Search and playground share links are disabled in requested previews.",
+            ].join("\n")
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                ...context.repo,
+                issue_number: prNumber,
+                per_page: 100,
+              },
+            )
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.login === "github-actions[bot]" &&
+                typeof comment.body === "string" &&
+                comment.body.startsWith(marker),
+            )
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body,
+              })
+            }
+
+      - name: Report publish failure
+        if: failure() && needs.build.result == 'success' && steps.pr-check.outputs.open != 'false'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          REQUESTER: ${{ needs.authorize.outputs.requester }}
+          DEPLOYMENT_ID: ${{ needs.authorize.outputs.deployment_id }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER)
+            const headSha = process.env.HEAD_SHA
+            const shortSha = headSha.slice(0, 7)
+            const requester = process.env.REQUESTER
+            const deploymentId = Number(process.env.DEPLOYMENT_ID)
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${headSha}`
+
+            await github.rest.repos.createDeploymentStatus({
+              ...context.repo,
+              deployment_id: deploymentId,
+              state: "failure",
+              environment: "Requested Preview",
+              log_url: runUrl,
+              description: `Preview publish failed for ${shortSha}`,
+              auto_inactive: false,
+            })
+
+            const marker = "<!-- effect-website-requested-preview -->"
+            const body = [
+              marker,
+              "## Requested Cloudflare Preview Failed",
+              "",
+              `Could not publish commit [\`${shortSha}\`](${commitUrl}) requested by @${requester}.`,
+              "",
+              `See the [workflow run](${runUrl}) for details.`,
+            ].join("\n")
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                ...context.repo,
+                issue_number: prNumber,
+                per_page: 100,
+              },
+            )
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.login === "github-actions[bot]" &&
+                typeof comment.body === "string" &&
+                comment.body.startsWith(marker),
+            )
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body,
+              })
+            }
+
+  cleanup:
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: requested-preview-deploy-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Check for requested preview deployments
+        id: check-deployments
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER)
+            const parsePayload = (raw) => {
+              if (typeof raw === "string") {
+                try {
+                  return JSON.parse(raw)
+                } catch {
+                  return null
+                }
+              }
+              return raw && typeof raw === "object" ? raw : null
+            }
+            const deployments = await github.paginate(
+              github.rest.repos.listDeployments,
+              {
+                ...context.repo,
+                environment: "Requested Preview",
+                per_page: 100,
+              },
+            )
+            const matching = deployments.filter(
+              (dep) => parsePayload(dep.payload)?.pull_request === prNumber,
+            )
+            core.setOutput("has_deployments", String(matching.length > 0))
+            core.info(
+              `Found ${matching.length} requested preview deployment(s) for PR #${prNumber}.`,
+            )
+
+      - name: Checkout trusted main
+        if: steps.check-deployments.outputs.has_deployments == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Install dependencies
+        if: steps.check-deployments.outputs.has_deployments == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Destroy Cloudflare requested preview
+        if: steps.check-deployments.outputs.has_deployments == 'true'
+        run: |
+          stage=$(vp exec mixedbread preview-stage --pr "$PR_NUMBER")
+          vp exec alchemy destroy stacks/preview.ts --stage "$stage" --yes
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deactivate GitHub deployments
+        if: steps.check-deployments.outputs.has_deployments == 'true'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER)
+            const parsePayload = (raw) => {
+              if (typeof raw === "string") {
+                try {
+                  return JSON.parse(raw)
+                } catch {
+                  return null
+                }
+              }
+              return raw && typeof raw === "object" ? raw : null
+            }
+            const deployments = await github.paginate(
+              github.rest.repos.listDeployments,
+              {
+                ...context.repo,
+                environment: "Requested Preview",
+                per_page: 100,
+              },
+            )
+            for (const dep of deployments) {
+              if (parsePayload(dep.payload)?.pull_request !== prNumber) continue
+              const { data: statuses } =
+                await github.rest.repos.listDeploymentStatuses({
+                  ...context.repo,
+                  deployment_id: dep.id,
+                  per_page: 1,
+                })
+              if (statuses[0]?.state === "inactive") continue
+              await github.rest.repos.createDeploymentStatus({
+                ...context.repo,
+                deployment_id: dep.id,
+                state: "inactive",
+                environment: "Requested Preview",
+                description: "Requested preview destroyed on PR close",
+                auto_inactive: false,
+              })
+            }
