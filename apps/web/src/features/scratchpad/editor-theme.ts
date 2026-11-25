@@ -2,6 +2,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language"
 import type { Extension } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { tags as t } from "@lezer/highlight"
+import { monacoTokens } from "./monaco-tokens.ts"
 
 /**
  * CodeMirror picks its built-in light or dark styles from a flag on the theme,
@@ -35,6 +36,14 @@ const playground = {
   regexp: ld("#800000", "#b46695"),
   delimiter: ld("#000000", "#dcdcdc"),
   invalid: ld("#ff0000", "#f8f8f0"),
+  // Monaco's default bracket pair colors (`editorBracketHighlight.*`), which
+  // neither Playground theme overrides.
+  brackets: [
+    ld("#0431fa", "#ffd700"),
+    ld("#319331", "#da70d6"),
+    ld("#7b3814", "#179fff"),
+  ],
+  unexpectedBracket: "rgba(255, 18, 18, 0.8)",
 }
 
 const surface = ld("#ffffff", "#18181b")
@@ -57,6 +66,8 @@ const theme = EditorView.theme({
       "var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
     backgroundColor: "transparent",
     color: text,
+    // Monaco leaves ligatures off, so `>=` stays two characters.
+    fontVariantLigatures: "none",
   },
   ".cm-scroller": {
     overflow: "auto",
@@ -116,6 +127,23 @@ const theme = EditorView.theme({
   },
   "&.cm-focused": {
     outline: "none",
+  },
+
+  // Tokens from `monaco-tokens.ts`. Each is scoped under the editor, so it
+  // outranks the single-class rules of the syntax highlight style.
+  ".cm-monaco-type, .cm-monaco-type *": { color: playground.type },
+  ".cm-monaco-keyword, .cm-monaco-keyword *": { color: playground.keyword },
+  ".cm-monaco-delimiter, .cm-monaco-delimiter *": {
+    color: playground.delimiter,
+  },
+  ...Object.fromEntries(
+    playground.brackets.map((color, i) => [
+      `.cm-monaco-bracket-${i}, .cm-monaco-bracket-${i} *`,
+      { color },
+    ]),
+  ),
+  ".cm-monaco-bracket-unexpected, .cm-monaco-bracket-unexpected *": {
+    color: playground.unexpectedBracket,
   },
 
   // Tooltips: hover, diagnostics, completion and signature help.
@@ -336,10 +364,9 @@ const highlightStyle = HighlightStyle.define([
   { tag: [t.string, t.special(t.string)], color: playground.string },
   { tag: [t.regexp, t.escape], color: playground.regexp },
   { tag: t.number, color: playground.number },
-  {
-    tag: [t.typeName, t.className, t.namespace, t.standard(t.typeName)],
-    color: playground.type,
-  },
+  // Type names get the plain foreground: Monaco colors an identifier as a type
+  // by its leading capital, not by where it appears, and `monaco-tokens.ts`
+  // does the same.
   {
     tag: [t.operator, t.punctuation, t.separator, t.bracket],
     color: playground.delimiter,
@@ -366,4 +393,5 @@ const highlightStyle = HighlightStyle.define([
 export const scratchpadEditorTheme: Extension = [
   theme,
   syntaxHighlighting(highlightStyle),
+  monacoTokens,
 ]
