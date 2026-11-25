@@ -127,12 +127,28 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),
   )
   assert.include(traversalError.message, "Invalid preview manifest entry")
-
-  // Unexpected top-level entry
   await writeFile(
     path.join(fixture.rootDir, "manifest.json"),
     JSON.stringify({ version: 1, entry: "entry.mjs" }),
   )
+
+  // Backslash in ordinary POSIX filename (Alchemy normalizes "\" to "/" before joining)
+  await writeFile(path.join(fixture.serverDir, "..\\escape.js"), "evil")
+  const serverBackslashError = await Effect.runPromise(
+    Effect.flip(validatePreviewArtifact(fixture.rootDir)),
+  )
+  assert.include(serverBackslashError.message, "Illegal path entry")
+  await rm(path.join(fixture.serverDir, "..\\escape.js"))
+
+  // Backslash in directory name
+  await mkdir(path.join(fixture.clientDir, "sub\\dir"))
+  const dirBackslashError = await Effect.runPromise(
+    Effect.flip(validatePreviewArtifact(fixture.rootDir)),
+  )
+  assert.include(dirBackslashError.message, "Illegal path entry")
+  await rm(path.join(fixture.clientDir, "sub\\dir"), { recursive: true })
+
+  // Unexpected top-level entry
   await writeFile(path.join(fixture.rootDir, "extra.txt"), "unexpected")
   const extraError = await Effect.runPromise(
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),

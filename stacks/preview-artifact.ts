@@ -163,10 +163,19 @@ const walkStrictDirectory = (
           `Failed to read directory "${currentDir}"`,
         )
         for (const name of [...entries].sort()) {
-          if (name.includes("\0") || name === "." || name === "..") {
+          if (
+            name.includes("\0") ||
+            name.includes("/") ||
+            name.includes("\\") ||
+            name === "." ||
+            name === ".."
+          ) {
             return yield* failArtifact(`Illegal path entry "${name}"`)
           }
           const relPath = relativeDir === "" ? name : `${relativeDir}/${name}`
+          if (!isSafeRelativePosixPath(relPath)) {
+            return yield* failArtifact(`Unsafe relative path "${relPath}"`)
+          }
           const fullPath = path.join(currentDir, name)
           const stats = yield* fsTry(
             () => lstat(fullPath),

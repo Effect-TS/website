@@ -4,7 +4,6 @@ on:
   issue_comment:
     types: [created]
   pull_request_target:
-    branches: [main]
     types: [closed]
 
 permissions: {}
@@ -30,14 +29,28 @@ jobs:
       - name: Authorize request and record approved SHA
         id: authorize
         uses: actions/github-script@v8
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
           script: |
-            const body = (context.payload.comment?.body ?? "").trim()
-            if (body !== "/preview") {
-              core.info("Comment body is not an exact /preview command; skipping.")
+            if (Number(process.env.RUN_ATTEMPT) > 1) {
+              core.info(
+                `Skipping reauthorization on workflow rerun (attempt ${process.env.RUN_ATTEMPT}); post a new /preview comment to request a preview.`,
+              )
               core.setOutput("allowed", "false")
               return
             }
+
+            const body = (context.payload.comment?.body ?? "").trim()
+            const match = /^\/preview(?:\s+([0-9a-f]{7,40}))?$/i.exec(body)
+            if (!match) {
+              core.info(
+                "Comment body is not a /preview or /preview <sha> command; skipping.",
+              )
+              core.setOutput("allowed", "false")
+              return
+            }
+            const requestedSha = match[1]?.toLowerCase()
 
             const requester = context.payload.comment?.user?.login
             if (!requester) {
@@ -65,7 +78,40 @@ jobs:
               return
             }
 
+            const commentId = context.payload.comment?.id
             const prNumber = context.payload.issue.number
+            const parsePayload = (raw) => {
+              if (typeof raw === "string") {
+                try {
+                  return JSON.parse(raw)
+                } catch {
+                  return null
+                }
+              }
+              return raw && typeof raw === "object" ? raw : null
+            }
+            if (commentId != null) {
+              const existingDeployments = await github.paginate(
+                github.rest.repos.listDeployments,
+                {
+                  ...context.repo,
+                  environment: "Requested Preview",
+                  per_page: 100,
+                },
+              )
+              if (
+                existingDeployments.some(
+                  (dep) => parsePayload(dep.payload)?.comment_id === commentId,
+                )
+              ) {
+                core.info(
+                  `Comment ${commentId} already authorized a deployment; skipping duplicate authorization.`,
+                )
+                core.setOutput("allowed", "false")
+                return
+              }
+            }
+
             const { data: pr } = await github.rest.pulls.get({
               ...context.repo,
               pull_number: prNumber,
@@ -89,6 +135,13 @@ jobs:
             if (!/^[0-9a-f]{40}$/.test(headSha)) {
               throw new Error(`Invalid PR head SHA: ${headSha}`)
             }
+            if (requestedSha !== undefined && !headSha.startsWith(requestedSha)) {
+              core.info(
+                `Requested SHA ${requestedSha} does not match current PR #${prNumber} head ${headSha}; skipping.`,
+              )
+              core.setOutput("allowed", "false")
+              return
+            }
 
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             const { data: deployment } = await github.rest.repos.createDeployment({
@@ -101,6 +154,7 @@ jobs:
               transient_environment: true,
               production_environment: false,
               payload: {
+                comment_id: commentId,
                 pull_request: prNumber,
                 head_sha: headSha,
                 requested_by: requester,
@@ -217,6 +271,7 @@ jobs:
     concurrency:
       group: requested-preview-deploy-${{ needs.authorize.outputs.pr_number }}
       cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       pull-requests: write
@@ -560,6 +615,7 @@ jobs:
     concurrency:
       group: requested-preview-deploy-${{ github.event.pull_request.number }}
       cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       deployments: write
