@@ -1,4 +1,5 @@
 name: Requested Preview Deployment
+run-name: "Requested Preview for PR #${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }})"
 
 on:
   pull_request_target:
@@ -91,6 +92,7 @@ jobs:
             core.info(`PR #${pr.number} at ${headSha} is awaiting deployment approval on environment "fork".`)
 
   approval-gate:
+    name: "Approve preview for PR #${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }})"
     needs: check-gate
     if: needs.check-gate.outputs.eligible == 'true'
     runs-on: ubuntu-latest
@@ -149,6 +151,12 @@ jobs:
               )
               return
             }
+            if (pr.head.sha !== headSha) {
+              core.warning(
+                `PR #${prNumber} head moved from approved commit ${headSha} to ${pr.head.sha}; skipping stale approval.`,
+              )
+              return
+            }
 
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             const { data: deployment } = await github.rest.repos.createDeployment({
@@ -197,12 +205,15 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Isolated build job: no secrets, no environment, read-only cache, read-only token.
+      # Requires opt-in because actions/checkout@v6 blocks fork PR SHAs under pull_request_target.
       - name: Checkout approved commit
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.approval-gate.outputs.head_sha }}
           fetch-depth: 1
           persist-credentials: false
+          allow-unsafe-pr-checkout: true
 
       - name: Verify checked-out commit
         env:
