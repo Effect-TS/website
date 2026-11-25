@@ -284,7 +284,6 @@ function DurationCell({ getValue, row }: SpanCellContext) {
   }
 
   const traceStartTime = timeline.start
-  const pillColors = getPillColors(currentSpan)
   const spanStartTime = Option.getOrThrow(currentSpan.startTime)
   // A running span reaches the present; one left running after its trace
   // ended reaches the end of the axis.
@@ -328,7 +327,8 @@ function DurationCell({ getValue, row }: SpanCellContext) {
         onClick={row.getToggleSelectedHandler()}
       >
         <span
-          className={cn("ml-2 font-mono text-xs whitespace-nowrap", pillColors)}
+          // The bar's colour says it failed; the text stays readable.
+          className="ml-2 font-mono text-xs whitespace-nowrap text-foreground"
         >
           {formatDuration(spanDuration)}
           {running && "…"}
@@ -487,11 +487,4 @@ function DurationHeader() {
       )}
     </div>
   )
-}
-
-function getPillColors(span: Span) {
-  if (span.hasError) {
-    return "text-destructive"
-  }
-  return "text-foreground"
 }
