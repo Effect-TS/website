@@ -1,8 +1,19 @@
 name: Preview Deployment
+# The commit a reviewer approves, shown in the run list and the approval dialog.
+run-name: "Preview PR #${{ github.event.pull_request.number }} at ${{ github.event.pull_request.head.sha }}"
 
+# Runs from main's copy of this file, so a pull request cannot change it.
+# Same-repo pull requests from authors with write access deploy automatically.
+# Any other pull request (forks included) waits for a reviewer of the `fork`
+# environment to approve its exact head commit under "Review deployments".
+# Approved code, including its local actions and alchemy.run.ts, runs with the
+# deploy secrets, so review the diff first. A new push or closing the pull
+# request cancels this run (see `concurrency`), and the new run needs a new
+# approval.
+# No branch filter, so cleanup also runs when a pull request is closed after
+# being retargeted away from main. Only pull requests to main deploy.
 on:
-  pull_request:
-    branches: [main]
+  pull_request_target:
     types: [opened, synchronize, reopened, closed]
 
 concurrency:
@@ -13,49 +24,106 @@ permissions: {}
 
 jobs:
   authorize:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.action != 'closed' && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
+    # `trusted` deploys now, `fork` waits for approval, empty skips the deploy.
     outputs:
-      allowed: ${{ steps.permission.outputs.allowed }}
+      mode: ${{ steps.permission.outputs.mode }}
     steps:
       - name: Check PR author repository permission
         id: permission
         uses: actions/github-script@v8
         with:
           script: |
-            // Preserve the existing trust exception for the Janitor app's immutable ID.
-            if (context.payload.pull_request.user.id === 349016676) {
-              core.setOutput("allowed", "true")
+            const pr = context.payload.pull_request
+            const trusted = async () => {
+              if (pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`) return false
+              // Preserve the existing trust exception for the Janitor app's immutable ID.
+              if (pr.user.id === 349016676) return true
+              let permission = "none"
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  ...context.repo,
+                  username: pr.user.login,
+                })
+                permission = data.permission
+              } catch (error) {
+                if (error.status !== 404) throw error
+              }
+              core.info(`PR author repository permission: ${permission}`)
+              return ["write", "maintain", "admin"].includes(permission)
+            }
+            if (await trusted()) {
+              core.setOutput("mode", "trusted")
               return
             }
-            let permission = "none"
+            // GitHub creates a missing environment without reviewers, and an
+            // environment without reviewers does not pause the job, so only
+            // wait on `fork` while it has required reviewers.
+            let environment
             try {
-              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              ;({ data: environment } = await github.rest.repos.getEnvironment({
                 ...context.repo,
-                username: context.payload.pull_request.user.login,
-              })
-              permission = data.permission
+                environment_name: "fork",
+              }))
             } catch (error) {
               if (error.status !== 404) throw error
             }
-            const allowed = ["write", "maintain", "admin"].includes(permission)
-            core.setOutput("allowed", String(allowed))
-            core.info(`PR author repository permission: ${permission}; preview allowed: ${allowed}`)
+            if (!environment?.protection_rules?.some((rule) => rule.type === "required_reviewers" && rule.reviewers?.length)) {
+              core.warning('Environment "fork" is missing or has no required reviewers; skipping the preview.')
+              return
+            }
+            core.setOutput("mode", "fork")
+            core.info(`PR #${pr.number} at ${pr.head.sha} is waiting for approval on environment "fork".`)
 
   deploy:
+    name: "Deploy PR #${{ github.event.pull_request.number }} at ${{ github.event.pull_request.head.sha }}"
     needs: authorize
-    if: github.event.action != 'closed' && needs.authorize.outputs.allowed == 'true'
+    if: github.event.action != 'closed' && needs.authorize.outputs.mode != ''
+    environment: ${{ needs.authorize.outputs.mode == 'fork' && 'fork' || '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       pull-requests: write
     steps:
+      # Runs before any pull request code. A rerun reuses the `mode` from
+      # `authorize`, and retargeting or rerunning after close starts no new run,
+      # so check the live pull request and, for `fork`, that a reviewer approved
+      # this run, instead of trusting earlier results.
+      - name: Check pull request state and approval
+        id: precheck
+        uses: actions/github-script@v8
+        env:
+          MODE: ${{ needs.authorize.outputs.mode }}
+        with:
+          script: |
+            const event = context.payload.pull_request
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: event.number })
+            if (pr.state !== "open" || pr.base.ref !== "main" || pr.head.sha !== event.head.sha) {
+              core.setFailed(`PR #${event.number} is no longer open on main at ${event.head.sha}; not deploying.`)
+              return
+            }
+            if (process.env.MODE === "fork") {
+              const { data: reviews } = await github.rest.actions.getReviewsForRun({ ...context.repo, run_id: context.runId })
+              const fork = reviews.filter((review) => review.environments.some((environment) => environment.name === "fork"))
+              if (!fork.length || !fork.every((review) => review.state === "approved")) {
+                core.setFailed('This run has no approval for environment "fork"; not deploying.')
+                return
+              }
+            }
+            core.setOutput("passed", "true")
+
+      # The event's head SHA, never the live head, so the approved commit is the
+      # one that runs. Fork checkout is opt-in under pull_request_target.
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          allow-unsafe-pr-checkout: true
 
       - name: Install dependencies
         uses: ./.github/actions/setup
@@ -138,24 +206,41 @@ jobs:
           fi
 
       # Without a build, the cache directory is still the one restored above,
-      # which may belong to another snapshot.
+      # which may belong to another snapshot. Caches saved here land in main's
+      # scope, where production can restore them, so approved fork code skips it.
       - name: Save Astro incremental build cache
-        if: success() && steps.verify-links.outputs.built == 'true' && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+        if: success() && needs.authorize.outputs.mode == 'trusted' && steps.verify-links.outputs.built == 'true' && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
         uses: actions/cache/save@v5
         with:
           path: apps/web/.astro-cache
           key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
+      # alchemy.run.ts only comments on success. Skipped and denied runs never
+      # start this job, and refused ones fail the pre-check, so they stay silent.
+      - name: Report failed preview
+        if: failure() && steps.precheck.outputs.passed == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { number, head } = context.payload.pull_request
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: number,
+              body: `## Cloudflare Preview\n\n**Failed** for commit \`${head.sha}\`. See the [workflow run](${run}).`,
+            })
+
+  # Checks out main, never the pull request, so it needs no approval.
   cleanup:
-    needs: authorize
-    if: github.event.action == 'closed' && needs.authorize.outputs.allowed == 'true'
+    if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
+      # By branch name: the guard in actions/checkout refuses a fork's merge SHA.
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.merged && github.event.pull_request.merge_commit_sha || github.event.pull_request.base.sha }}
+          ref: main
 
       - name: Install dependencies
         uses: ./.github/actions/setup
@@ -173,5 +258,5 @@ jobs:
           MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          WEBSITE_REVISION: ${{ github.event.pull_request.merged && github.event.pull_request.merge_commit_sha || github.event.pull_request.base.sha }}
+          WEBSITE_REVISION: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
