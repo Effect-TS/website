@@ -1,5 +1,5 @@
-import * as Exit from "effect/Exit"
 import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as Queue from "effect/Queue"
 import * as Schema from "effect/Schema"
@@ -10,101 +10,125 @@ import { assert, describe, test } from "vite-plus/test"
 import {
   DevToolsRequest,
   makeTraceAtoms,
-  recordDevToolsRequest,
 } from "../../../src/features/devtools/traces.ts"
 import { makeContainer } from "../../../src/features/scratchpad/container.ts"
-import { followTraces } from "../../../src/features/scratchpad/traces.ts"
+import {
+  devToolsRequests,
+  followTraces,
+} from "../../../src/features/scratchpad/traces.ts"
 import { makeFakeContainerBackend } from "./fake-container.ts"
 
 const line = (request: DevToolsSchema.Request) =>
   `${JSON.stringify(Schema.encodeSync(DevToolsRequest)(request))}\n`
 
-const programSpan: DevToolsSchema.Span = {
+const span = (
+  traceId: string,
+  name: string,
+  ended = true,
+): DevToolsSchema.Span => ({
   _tag: "Span",
-  traceId: "trace-1",
-  spanId: "span-1",
-  name: "program",
+  traceId,
+  spanId: `${traceId}-root`,
+  name,
   sampled: true,
-  attributes: new Map([["source", "Playground"]]),
-  status: {
-    _tag: "Ended",
-    startTime: 1_000n,
-    endTime: 2_000n,
-    exit: Exit.void,
-  },
+  attributes: new Map(),
+  status: ended
+    ? { _tag: "Ended", startTime: 1_000n, endTime: 2_000n, exit: Exit.void }
+    : { _tag: "Started", startTime: 1_000n },
   parent: Option.none(),
-}
+})
 
-/** Lets promises and forked fibers run. */
-const settle = Effect.promise(
-  () => new Promise<void>((resolve) => setTimeout(resolve, 20)),
-)
+/** Lets forked fibers and short timers run. */
+const wait = (ms: number) =>
+  Effect.promise(() => new Promise<void>((resolve) => setTimeout(resolve, ms)))
 
 /**
- * Follows traces from a fake Container whose proxy prints `output` and
- * stays up. Returns the store and a way to announce a Run.
+ * Follows traces from a stream of requests, holding a new Run's traces for
+ * 50ms at most. Returns the shown trace names, and ways to receive a span
+ * and to start a Run.
  */
-const follow = (output: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    const backend = makeFakeContainerBackend({
-      spawn: () => ({ output, hang: true }),
-    })
-    const container = yield* makeContainer(Effect.succeed(backend))
-    const registry = AtomRegistry.make()
-    const atoms = makeTraceAtoms({ keepAlive: true })
-    const runIds = yield* Queue.unbounded<number | undefined>()
-    yield* followTraces({
-      container,
-      registry,
-      atoms,
-      runIds: Stream.fromQueue(runIds),
-    })
-    yield* settle
-    return {
-      roots: () => registry.get(atoms.rootSpansAtom),
-      /** As if the proxy printed `span` now. */
-      receive: (span: DevToolsSchema.Span) =>
-        recordDevToolsRequest(registry, atoms, span),
-      startRun: (id: number) =>
-        Queue.offer(runIds, id).pipe(Effect.andThen(settle)),
-    }
+const follow = Effect.gen(function* () {
+  const registry = AtomRegistry.make()
+  const atoms = makeTraceAtoms({ keepAlive: true })
+  const requests = yield* Queue.unbounded<DevToolsSchema.Span>()
+  const runIds = yield* Queue.unbounded<number | undefined>()
+  yield* followTraces({
+    requests: Stream.fromQueue(requests),
+    runIds: Stream.fromQueue(runIds),
+    registry,
+    atoms,
+    holdFor: "50 millis",
   })
+  return {
+    shown: () => registry.get(atoms.rootSpansAtom).map((root) => root.label),
+    receive: (request: DevToolsSchema.Span) =>
+      Queue.offer(requests, request).pipe(Effect.andThen(wait(5))),
+    startRun: (id: number) =>
+      Queue.offer(runIds, id).pipe(Effect.andThen(wait(5))),
+  }
+})
 
 describe("Scratchpad traces", () => {
-  test("the program's spans reach the store through the proxy, even when a line arrives in pieces", async () => {
-    const ping = line({ _tag: "Ping" })
-    const span = line(programSpan)
-    const cut = Math.floor(span.length / 2)
+  test("the proxy's output decodes to the program's spans, even when a line arrives in pieces", async () => {
+    const whole = line(span("trace-1", "program"))
+    const cut = Math.floor(whole.length / 2)
+    const backend = makeFakeContainerBackend({
+      spawn: () => ({
+        output: [
+          line({ _tag: "Ping" }) + whole.slice(0, cut),
+          whole.slice(cut),
+        ],
+        hang: true,
+      }),
+    })
+    const received = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const container = yield* makeContainer(Effect.succeed(backend))
+          return yield* devToolsRequests(container).pipe(
+            Stream.take(1),
+            Stream.runCollect,
+          )
+        }),
+      ),
+    )
+    assert.deepStrictEqual(
+      received.map((request) =>
+        request._tag === "Span" ? request.name : request._tag,
+      ),
+      ["program"],
+    )
+  })
+
+  test("a new Run's traces replace the previous Run's once its first trace ends", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
-          const { roots } = yield* follow([
-            ping + span.slice(0, cut),
-            span.slice(cut),
-          ])
+          const { shown, receive, startRun } = yield* follow
+          yield* receive(span("trace-1", "previous"))
+          yield* startRun(1)
+          yield* receive(span("trace-2", "next", false))
+          const whileRunning = shown()
+          yield* receive(span("trace-2", "next"))
           assert.deepStrictEqual(
-            roots().map((root) => root.label),
-            ["program"],
+            [whileRunning, shown()],
+            [["previous"], ["next"]],
           )
         }),
       ),
     )
   })
 
-  test("the previous Run's spans stay until the new Run's first span replaces them", async () => {
+  test("a new Run's long-running first trace is shown live once the hold time passes", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
-          const { roots, receive, startRun } = yield* follow([
-            line(programSpan),
-          ])
-          const shown = () => roots().map((root) => root.label)
-          const seen = [shown()]
+          const { shown, receive, startRun } = yield* follow
+          yield* receive(span("trace-1", "previous"))
           yield* startRun(1)
-          seen.push(shown())
-          receive({ ...programSpan, traceId: "trace-2", name: "next" })
-          seen.push(shown())
-          assert.deepStrictEqual(seen, [["program"], ["program"], ["next"]])
+          yield* receive(span("trace-2", "slow", false))
+          yield* wait(100)
+          assert.deepStrictEqual(shown(), ["slow"])
         }),
       ),
     )

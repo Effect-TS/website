@@ -6,9 +6,10 @@
  * `DEV_TOOLS_PORT`, so its spans need no setup. A proxy in the Container
  * accepts that connection and prints what the program sends, one JSON
  * request per line, and this module decodes the lines into the shared trace
- * store (`features/devtools/traces.ts`). When a new Run starts, its first
- * span replaces the previous Run's traces.
+ * store (`features/devtools/traces.ts`). A new Run's traces replace the
+ * previous Run's (see `followTraces`).
  */
+import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
@@ -16,10 +17,13 @@ import * as Schedule from "effect/Schedule"
 import type * as Scope from "effect/Scope"
 import * as Stream from "effect/Stream"
 import * as AtomRegistry from "effect/reactivity/AtomRegistry"
+import type { Span } from "@/features/devtools/span"
 import {
+  applyDevToolsRequest,
   type DevToolsRequest,
   parseDevToolsLine,
   recordDevToolsRequest,
+  replaceTraces,
   supersedeTraces,
   type TraceAtoms,
 } from "@/features/devtools/traces"
@@ -94,33 +98,76 @@ export const devToolsRequests = (
   )
 
 export interface FollowTracesOptions {
-  readonly container: ContainerService
+  /** The program's devtools requests. */
+  readonly requests: Stream.Stream<DevToolsRequest>
   /** The latest Run's id, then every change. A new id supersedes the traces. */
   readonly runIds: Stream.Stream<number | undefined>
   readonly registry: AtomRegistry.AtomRegistry
   readonly atoms: TraceAtoms
+  /** How long a new Run's first trace may run before it is shown live. */
+  readonly holdFor?: Duration.Input | undefined
+}
+
+/** A new Run's traces, gathered before they are shown. */
+interface Held {
+  roots: ReadonlyArray<Span>
+  timing: boolean
 }
 
 /**
- * Fills `atoms` from the program's spans until the scope closes. A new
- * Run's first span replaces the previous Run's. A proxy that exits is started again.
+ * Fills `atoms` from the program's spans until the scope closes.
+ *
+ * A new Run's traces replace the previous Run's (shown dimmed meanwhile)
+ * once its first trace has ended, or has run for `holdFor` (a second): a
+ * quick trace then appears once, complete, instead of rescaling through
+ * several shapes as its spans arrive in the first milliseconds.
  */
 export const followTraces = (
   options: FollowTracesOptions,
 ): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function* () {
     const { atoms, registry } = options
+    const holdFor = options.holdFor ?? "1 second"
+    let held: Held | undefined
+
+    const show = (hold: Held) => {
+      if (held !== hold) return
+      held = undefined
+      replaceTraces(registry, atoms, hold.roots)
+    }
+
     yield* options.runIds.pipe(
       Stream.filter((id): id is number => id !== undefined),
       Stream.changes,
       Stream.runForEach(() =>
-        Effect.sync(() => supersedeTraces(registry, atoms)),
+        Effect.sync(() => {
+          held = { roots: [], timing: false }
+          supersedeTraces(registry, atoms)
+        }),
       ),
       Effect.forkScoped,
     )
-    yield* devToolsRequests(options.container).pipe(
+    yield* options.requests.pipe(
       Stream.runForEach((request) =>
-        Effect.sync(() => recordDevToolsRequest(registry, atoms, request)),
+        Effect.suspend(() => {
+          const hold = held
+          if (hold === undefined) {
+            recordDevToolsRequest(registry, atoms, request)
+            return Effect.void
+          }
+          hold.roots = applyDevToolsRequest(hold.roots, request)
+          if (hold.roots.some((root) => Option.isSome(root.endTime))) {
+            show(hold)
+            return Effect.void
+          }
+          if (hold.timing || hold.roots.length === 0) return Effect.void
+          hold.timing = true
+          return Effect.sleep(holdFor).pipe(
+            Effect.andThen(Effect.sync(() => show(hold))),
+            Effect.forkScoped,
+            Effect.asVoid,
+          )
+        }),
       ),
       Effect.repeat(Schedule.spaced("1 second")),
       Effect.forkScoped,
@@ -141,7 +188,7 @@ export const layerTraces = (
       if (Option.isNone(container)) return
       const terminal = yield* Effect.serviceOption(Terminal)
       yield* followTraces({
-        container: container.value,
+        requests: devToolsRequests(container.value),
         registry: yield* AtomRegistry.AtomRegistry,
         atoms,
         runIds: Option.match(terminal, {
