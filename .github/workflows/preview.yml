@@ -95,6 +95,7 @@ jobs:
       # so check the live pull request and, for `fork`, that a reviewer approved
       # this run, instead of trusting earlier results.
       - name: Check pull request state and approval
+        id: precheck
         uses: actions/github-script@v8
         env:
           MODE: ${{ needs.authorize.outputs.mode }}
@@ -106,12 +107,15 @@ jobs:
               core.setFailed(`PR #${event.number} is no longer open on main at ${event.head.sha}; not deploying.`)
               return
             }
-            if (process.env.MODE !== "fork") return
-            const { data: reviews } = await github.rest.actions.getReviewsForRun({ ...context.repo, run_id: context.runId })
-            const fork = reviews.filter((review) => review.environments.some((environment) => environment.name === "fork"))
-            if (!fork.length || !fork.every((review) => review.state === "approved")) {
-              core.setFailed('This run has no approval for environment "fork"; not deploying.')
+            if (process.env.MODE === "fork") {
+              const { data: reviews } = await github.rest.actions.getReviewsForRun({ ...context.repo, run_id: context.runId })
+              const fork = reviews.filter((review) => review.environments.some((environment) => environment.name === "fork"))
+              if (!fork.length || !fork.every((review) => review.state === "approved")) {
+                core.setFailed('This run has no approval for environment "fork"; not deploying.')
+                return
+              }
             }
+            core.setOutput("passed", "true")
 
       # The event's head SHA, never the live head, so the approved commit is the
       # one that runs. Fork checkout is opt-in under pull_request_target.
@@ -210,6 +214,21 @@ jobs:
         with:
           path: apps/web/.astro-cache
           key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+
+      # alchemy.run.ts only comments on success. Skipped and denied runs never
+      # start this job, and refused ones fail the pre-check, so they stay silent.
+      - name: Report failed preview
+        if: failure() && steps.precheck.outputs.passed == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { number, head } = context.payload.pull_request
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: number,
+              body: `## Cloudflare Preview\n\n**Failed** for commit \`${head.sha}\`. See the [workflow run](${run}).`,
+            })
 
   # Checks out main, never the pull request, so it needs no approval.
   cleanup:
