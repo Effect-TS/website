@@ -73,6 +73,11 @@ export const PRIMARY_NAVIGATION: ReadonlyArray<NavigationEntry> = [
         href: "/module-of-the-week",
       },
       {
+        label: "Effect UI",
+        description: "The new frontend library, in preview",
+        href: "https://ui.effect.website",
+      },
+      {
         label: "Workshops",
         description: "Recorded sessions on YouTube",
         href: "https://www.youtube.com/playlist?list=PLDf3uQLaK2B9vHzUNyvOSvoMv61LW7792",
