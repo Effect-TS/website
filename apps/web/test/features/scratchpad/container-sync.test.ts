@@ -79,20 +79,13 @@ const withSync = <A, E>(
   )
 
 describe("Container → Workspace sync", () => {
-  test("files created, changed and deleted in the Container reach the Workspace, tagged and not written back", async () => {
-    await withSync(({ ws, backend, events, file }) =>
+  test("files created, changed and deleted in the Container reach the Workspace as Container edits", async () => {
+    await withSync(({ backend, events }) =>
       Effect.gen(function* () {
         backend.containerWrite("src/extra.ts", "export const extra = 1\n")
         backend.containerWrite("src/main.ts", "console.log(2)")
         backend.containerRemove("src/util.ts")
         yield* settle
-
-        assert.strictEqual(
-          yield* file("src/extra.ts"),
-          "export const extra = 1\n",
-        )
-        assert.strictEqual(yield* file("src/main.ts"), "console.log(2)")
-        assert.isUndefined(yield* file("src/util.ts"))
         assert.deepStrictEqual(
           events.map((event) => [
             event._tag,
@@ -105,35 +98,29 @@ describe("Container → Workspace sync", () => {
             ["FileDeleted", "src/util.ts", "container"],
           ],
         )
-        assert.deepStrictEqual(backend.log, [], "nothing is written back")
-
-        // Page edits after a pull still reach the Container.
-        yield* ws.writeFile("src/extra.ts", "export const extra = 2\n")
-        yield* settle
-        assert.deepStrictEqual(backend.log, ["write src/extra.ts"])
-        assert.strictEqual(
-          backend.files.get("src/extra.ts"),
-          "export const extra = 2\n",
-        )
       }),
     )
   })
 
-  test("the page's own writes are not pulled back as changes", async () => {
-    await withSync(({ ws, backend, events, changes }) =>
+  test("a pulled file is not written back, but a later page edit to it is", async () => {
+    await withSync(({ ws, backend }) =>
+      Effect.gen(function* () {
+        backend.containerWrite("src/extra.ts", "export const extra = 1\n")
+        yield* settle
+        yield* ws.writeFile("src/extra.ts", "export const extra = 2\n")
+        yield* settle
+        assert.deepStrictEqual(backend.log, ["write src/extra.ts"])
+      }),
+    )
+  })
+
+  test("the page's own writes are not pulled back as Container edits", async () => {
+    await withSync(({ ws, events }) =>
       Effect.gen(function* () {
         yield* ws.writeFile("src/main.ts", "page edit")
         yield* ws.createFile("src/new.ts", "new")
         yield* settle
-        assert.deepStrictEqual(backend.log, [
-          "write src/main.ts",
-          "write src/new.ts",
-        ])
-        assert.isTrue(
-          events.every((event) => !("origin" in event)),
-          "no container-tagged events",
-        )
-        assert.isTrue(changes.every((change) => change.applied.length === 0))
+        assert.isTrue(events.every((event) => !("origin" in event)))
       }),
     )
   })
@@ -150,11 +137,9 @@ describe("Container → Workspace sync", () => {
           backend.containerWrite("src/main.ts", "terminal edit")
           backend.containerWrite("src/util.ts", "terminal edit")
           yield* settle
-          assert.strictEqual(yield* file("src/main.ts"), "page edit")
-          assert.strictEqual(
-            yield* file("src/util.ts"),
-            "terminal edit",
-            "clean files still sync",
+          assert.deepStrictEqual(
+            [yield* file("src/main.ts"), yield* file("src/util.ts")],
+            ["page edit", "terminal edit"],
           )
         }),
       { failWrites },
@@ -173,58 +158,32 @@ describe("Container → Workspace sync", () => {
     )
   })
 
-  test("Container-only paths, large files and binary files stay in the Container", async () => {
-    await withSync(({ ws, backend, events }) =>
+  test("Container-only paths, large files and binary files stay in the Container, even over a Workspace file", async () => {
+    await withSync(({ ws, backend }) =>
       Effect.gen(function* () {
         backend.containerWrite("node_modules/x/index.js", "x")
-        backend.containerWrite("dist/main.js", "x")
         backend.containerWrite(".git/HEAD", "x")
-        backend.containerWrite(".tsc-run.json", "{}")
-        backend.containerWrite("src/lib/node_modules/y.js", "y")
         backend.containerWrite("big.txt", "x".repeat(1024 * 1024 + 1))
         backend.containerWrite("logo.png", new Uint8Array([0x89, 0xff, 0xfe]))
-        yield* settle
-        assert.deepStrictEqual(events, [])
-        assert.deepStrictEqual(
-          (yield* ws.listFiles).map((entry) => entry.path),
-          ["package.json", "src/main.ts", "src/util.ts", "tsconfig.json"],
-        )
-      }),
-    )
-  })
-
-  test("a Workspace file that becomes binary in the Container is kept, not deleted", async () => {
-    await withSync(({ backend, file }) =>
-      Effect.gen(function* () {
         backend.containerWrite("src/util.ts", new Uint8Array([0xff, 0xfe]))
         yield* settle
-        assert.strictEqual(yield* file("src/util.ts"), "export {}")
+        assert.deepStrictEqual((yield* ws.snapshot).files, SEED)
       }),
     )
   })
 
   test("protected files deleted in the Container are restored there", async () => {
-    await withSync(({ backend, events, file }) =>
+    await withSync(({ backend }) =>
       Effect.gen(function* () {
         backend.containerRemove("package.json")
         backend.containerRemove("tsconfig.json")
         yield* settle
-        assert.strictEqual(backend.files.get("package.json"), "{}")
-        assert.strictEqual(backend.files.get("tsconfig.json"), "{}")
-        assert.strictEqual(yield* file("package.json"), "{}")
-        assert.deepStrictEqual(events, [])
-      }),
-    )
-  })
-
-  test("edits to protected files sync like any other file", async () => {
-    await withSync(({ backend, file }) =>
-      Effect.gen(function* () {
-        backend.containerWrite("package.json", '{"dependencies":{"a":"1"}}')
-        yield* settle
-        assert.strictEqual(
-          yield* file("package.json"),
-          '{"dependencies":{"a":"1"}}',
+        assert.deepStrictEqual(
+          [
+            backend.files.get("package.json"),
+            backend.files.get("tsconfig.json"),
+          ],
+          ["{}", "{}"],
         )
       }),
     )

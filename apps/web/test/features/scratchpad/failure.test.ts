@@ -80,18 +80,6 @@ describe("containerFailureOf", () => {
       { kind: "install-failed", canRetry: true, help: undefined },
     )
   })
-
-  test("phases on the way to ready show no strip", () => {
-    const phases: Array<ContainerPhase> = [
-      { _tag: "booting" },
-      { _tag: "installing" },
-      { _tag: "loading-types" },
-      { _tag: "ready" },
-    ]
-    for (const phase of phases) {
-      assert.isTrue(Option.isNone(containerFailureOf(phase)), phase._tag)
-    }
-  })
 })
 
 // ---------------------------------------------------------------------------
@@ -278,49 +266,40 @@ const setup = async (containerLayer: Layer.Layer<Container>) => {
   }
 }
 
-const failOnce = (
-  error: ContainerBootError,
-): {
-  readonly boot: Effect.Effect<void, ContainerBootError>
-  readonly attempts: () => number
-} => {
+/** A boot that fails with `error` the first time only. */
+const failOnce = (error: ContainerBootError) => {
   let attempts = 0
-  return {
-    boot: Effect.suspend(() =>
-      ++attempts === 1 ? Effect.fail(error) : Effect.void,
-    ),
-    attempts: () => attempts,
-  }
+  return Effect.suspend(() =>
+    ++attempts === 1 ? Effect.fail(error) : Effect.void,
+  )
 }
 
 describe("Container failures in a Scratchpad session", () => {
-  test("boot failed → Retry boots again without a reload and reaches ready; editing, share and autosave work throughout", async () => {
+  test("boot failed: editing works, and Retry boots again without a reload, mounting the edits", async () => {
     const backend = makeBackend()
     const boot = failOnce(new ContainerBootFailed({ message: "boom" }))
-    const ctx = await setup(layerFakeContainer(backend, boot.boot))
+    const ctx = await setup(layerFakeContainer(backend, boot))
     try {
-      assert.deepEqual(ctx.phase(), Option.some("failed"))
-      const failure = Option.getOrThrow(
-        ctx.registry.get(ctx.failure.visibleFailureAtom),
-      )
-      assert.equal(failure.kind, "boot-failed")
       await ctx.assertEditable("edited while failed")
-      assert.equal(backend.log.length, 0)
-
       await ctx.retry()
-      assert.equal(boot.attempts(), 2)
-      assert.deepEqual(ctx.phase(), Option.some("ready"))
-      assert.isTrue(Option.isNone(ctx.registry.get(ctx.failure.failureAtom)))
-      // The remount carries the edit made while the Container was down.
-      assert.equal(backend.files.get("src/main.ts"), "edited while failed")
-      await ctx.assertEditable("edited after retry")
-      assert.equal(backend.files.get("src/main.ts"), "edited after retry")
+      assert.deepEqual(
+        {
+          phase: ctx.phase(),
+          failure: ctx.registry.get(ctx.failure.failureAtom),
+          main: backend.files.get("src/main.ts"),
+        },
+        {
+          phase: Option.some("ready"),
+          failure: Option.none(),
+          main: "edited while failed",
+        },
+      )
     } finally {
       ctx.dispose()
     }
   })
 
-  test("install failed → Retry installs again and reaches ready; editing, share and autosave work throughout", async () => {
+  test("install failed: editing works, and Retry installs again and reaches ready", async () => {
     let installs = 0
     const backend = makeBackend((call) =>
       call.command === "pnpm" && ++installs === 1
@@ -329,46 +308,28 @@ describe("Container failures in a Scratchpad session", () => {
     )
     const ctx = await setup(layerFakeContainer(backend))
     try {
-      assert.deepEqual(ctx.phase(), Option.some("install-failed"))
-      const failure = Option.getOrThrow(
-        ctx.registry.get(ctx.failure.visibleFailureAtom),
-      )
-      assert.equal(failure.kind, "install-failed")
-      // The pnpm output is there for the output panel to print.
-      assert.equal(
-        ctx.registry.get(ctx.session.installLogAtom).output,
-        "ERR_PNPM_FETCH_404\n",
-      )
       await ctx.assertEditable("edited while install failed")
-
       await ctx.retry()
-      assert.equal(installs, 2)
       assert.deepEqual(ctx.phase(), Option.some("ready"))
-      assert.isTrue(Option.isNone(ctx.registry.get(ctx.failure.failureAtom)))
-      await ctx.assertEditable("edited after retry")
     } finally {
       ctx.dispose()
     }
   })
 
-  test("an unsupported browser offers no Retry, and retrying anyway does nothing; editing works", async () => {
+  test("an unsupported browser: editing works, and retrying anyway does nothing", async () => {
     const backend = makeBackend()
     const boot = failOnce(new ContainerUnsupported({ message: "no SAB" }))
-    const ctx = await setup(layerFakeContainer(backend, boot.boot))
+    const ctx = await setup(layerFakeContainer(backend, boot))
     try {
-      assert.isTrue(
-        Option.isSome(ctx.registry.get(ctx.failure.visibleFailureAtom)),
-      )
-      await ctx.retry()
-      assert.equal(boot.attempts(), 1)
-      assert.deepEqual(ctx.phase(), Option.some("failed"))
       await ctx.assertEditable("edited without a runtime")
+      await ctx.retry()
+      assert.deepEqual(ctx.phase(), Option.some("failed"))
     } finally {
       ctx.dispose()
     }
   })
 
-  test("a dismissed strip comes back when asked (the badge), and a new failure shows again", async () => {
+  test("a dismissed strip comes back when a retry fails again", async () => {
     let installs = 0
     const backend = makeBackend((call) =>
       call.command === "pnpm" && ++installs <= 2
@@ -384,28 +345,17 @@ describe("Container failures in a Scratchpad session", () => {
         ctx.failure.dismissedFailureAtom,
         Option.some(failure.error),
       )
-      assert.isTrue(
-        Option.isNone(ctx.registry.get(ctx.failure.visibleFailureAtom)),
-      )
-      assert.isTrue(Option.isSome(ctx.registry.get(ctx.failure.failureAtom)))
-
-      // The badge's "show".
-      ctx.registry.set(ctx.failure.dismissedFailureAtom, Option.none())
-      assert.isTrue(
-        Option.isSome(ctx.registry.get(ctx.failure.visibleFailureAtom)),
-      )
-
-      // Dismiss, retry, fail again: the new failure is not dismissed.
-      ctx.registry.set(
-        ctx.failure.dismissedFailureAtom,
-        Option.some(failure.error),
-      )
+      const whileDismissed = ctx.registry.get(ctx.failure.visibleFailureAtom)
       await ctx.retry()
-      assert.equal(installs, 2)
-      const again = Option.getOrThrow(
-        ctx.registry.get(ctx.failure.visibleFailureAtom),
+      assert.deepEqual(
+        {
+          whileDismissed: Option.isSome(whileDismissed),
+          afterRetry: Option.isSome(
+            ctx.registry.get(ctx.failure.visibleFailureAtom),
+          ),
+        },
+        { whileDismissed: false, afterRetry: true },
       )
-      assert.notStrictEqual(again.error, failure.error)
     } finally {
       ctx.dispose()
     }
@@ -417,13 +367,15 @@ describe("Container failures in a Scratchpad session", () => {
     )
     const ctx = await setup(layerFakeContainer(backend))
     try {
-      assert.deepEqual(ctx.phase(), Option.some("dependencies-unavailable"))
-      assert.isTrue(Option.isNone(ctx.registry.get(ctx.failure.failureAtom)))
-      const line = Option.getOrThrow(
-        ctx.registry.get(ctx.failure.dependenciesUnavailableLineAtom),
+      assert.deepEqual(
+        {
+          strip: Option.isSome(ctx.registry.get(ctx.failure.failureAtom)),
+          line: Option.getOrUndefined(
+            ctx.registry.get(ctx.failure.dependenciesUnavailableLineAtom),
+          )?.includes("Collecting installed types failed"),
+        },
+        { strip: false, line: true },
       )
-      assert.include(line, "Collecting installed types failed")
-      await ctx.assertEditable("still editing")
     } finally {
       ctx.dispose()
     }

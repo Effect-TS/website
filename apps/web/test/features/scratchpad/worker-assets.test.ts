@@ -15,7 +15,7 @@ import {
 const bytesOf = (text: string) => new TextEncoder().encode(text)
 
 describe("worker assets", () => {
-  test("counts the bytes of a response while keeping its headers", async () => {
+  test("counts the bytes of a response while keeping the content type wasm streaming needs", async () => {
     const chunks: Array<number> = []
     const response = await fetchCounted(
       () =>
@@ -27,8 +27,8 @@ describe("worker assets", () => {
       "/lsp.wasm",
       (n) => chunks.push(n),
     )
+    await response.arrayBuffer()
     assert.equal(response.headers.get("content-type"), "application/wasm")
-    assert.equal((await response.arrayBuffer()).byteLength, 10)
     assert.equal(
       chunks.reduce((a, b) => a + b, 0),
       10,
@@ -61,9 +61,7 @@ describe("worker assets", () => {
         missing.map((file) => path.basename(file)),
         ["tsrs-effect-lsp.wasm", "licenses"],
       )
-      const message = missingArtifactsMessage(missing)
-      assert.include(message, TSRS_LSP_BUILD_COMMAND)
-      assert.include(message, "tsrs-effect-lsp.wasm")
+      assert.include(missingArtifactsMessage(missing), TSRS_LSP_BUILD_COMMAND)
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }

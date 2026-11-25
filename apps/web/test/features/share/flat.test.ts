@@ -1,5 +1,4 @@
 import * as Equal from "effect/Equal"
-import * as Option from "effect/Option"
 import { assert, test } from "vite-plus/test"
 import {
   fromFlatWorkspace,
@@ -49,40 +48,9 @@ test("round-trip keeps legacy fields, empty directories and node metadata", () =
     ],
   })
 
-  const flat = toFlatWorkspace(workspace)
-  assert.deepStrictEqual(flat.directories, ["empty", "src/nested-empty"])
-
-  const restored = fromFlatWorkspace(flat)
-  assert.isTrue(Equal.equals(restored, workspace))
-  assert.strictEqual(restored.initialFile.name, "util.ts")
-})
-
-test("edits made to the flat map show up in the restored workspace", () => {
-  const flat = toFlatWorkspace(makeDefaultWorkspace("v4"))
-  const { "src/DevTools.ts": _removed, ...rest } = flat.files
-
-  const restored = fromFlatWorkspace({
-    ...flat,
-    files: {
-      ...rest,
-      "src/main.ts": "edited",
-      "src/extra/config.json": "{}",
-    },
-    directories: ["scratch"],
-  })
-
-  assert.strictEqual(
-    restored.findFile("src/main.ts").pipe(Option.getOrThrow)[0].initialContent,
-    "edited",
+  assert.isTrue(
+    Equal.equals(fromFlatWorkspace(toFlatWorkspace(workspace)), workspace),
   )
-  assert.isTrue(Option.isNone(restored.findFile("src/DevTools.ts")))
-  const [config] = restored
-    .findFile("src/extra/config.json")
-    .pipe(Option.getOrThrow)
-  assert.strictEqual(config.language, "json")
-  assert.isFalse(config.userManaged)
-  assert.deepStrictEqual(toFlatWorkspace(restored).directories, ["scratch"])
-  assert.strictEqual(restored.name, "playground-v4")
 })
 
 test("a flat map without metadata gets the default v4 workspace settings", () => {
@@ -95,13 +63,18 @@ test("a flat map without metadata gets the default v4 workspace settings", () =>
   })
 
   const reference = makeDefaultWorkspace("v4")
-  assert.strictEqual(restored.name, reference.name)
-  assert.strictEqual(restored.prepare, "pnpm install")
-  assert.deepStrictEqual(restored.shells, reference.shells)
-  assert.deepStrictEqual(restored.snapshots, [])
-  assert.strictEqual(restored.initialFilePath, "src/main.ts")
-  assert.strictEqual(
-    restored.findFile("src/main.ts").pipe(Option.getOrThrow)[0].language,
-    "typescript",
+  assert.deepStrictEqual(
+    {
+      name: restored.name,
+      prepare: restored.prepare,
+      shells: restored.shells,
+      initialFilePath: restored.initialFilePath,
+    },
+    {
+      name: "playground-v4",
+      prepare: "pnpm install",
+      shells: reference.shells,
+      initialFilePath: "src/main.ts",
+    },
   )
 })

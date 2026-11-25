@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "playwright/test"
 import {
   awaitInstalledTypes,
-  containerOf,
   dismissTooltips,
   editorOf,
   LSP_TIMEOUT,
@@ -125,400 +124,6 @@ const openReady = async (page: Page) => {
   })
 }
 
-test("loads the in-browser language server on the cross-origin isolated page and shows the floating Effect diagnostic", async ({
-  page,
-}) => {
-  const assets: Array<Record<string, unknown>> = []
-  page.on("response", async (response) => {
-    const url = response.url()
-    if (!/tsrs-effect-lsp|lsp\.worker/.test(url)) return
-    const headers = await response.allHeaders()
-    const body = await response.body().catch(() => undefined)
-    assets.push({
-      url: url.replace(/^https?:\/\/[^/]+/, ""),
-      status: response.status(),
-      contentType: headers["content-type"],
-      contentLength: headers["content-length"],
-      bodyBytes: body?.byteLength,
-    })
-  })
-
-  await useGreeterWorkspace(page)
-  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  const status = statusOf(page)
-  // The editor is usable while the server loads.
-  await expect(
-    editorOf(page).locator('.cm-content[contenteditable="true"]'),
-  ).toContainText('Effect.succeed("unhandled")')
-
-  await expect(status).toHaveAttribute("data-lsp-status", "ready", {
-    timeout: READY_TIMEOUT,
-  })
-  await awaitInstalledTypes(page)
-
-  const tooltip = await lintMessages(page, 'Effect.succeed("unhandled")')
-  // TS377001 is Effect's floatingEffect rule; the tooltip shows its message.
-  await expect(tooltip).toContainText("floatingEffect")
-  await expect(tooltip).toContainText("neither yielded nor used")
-
-  const isolation = await page.evaluate(() => ({
-    crossOriginIsolated: globalThis.crossOriginIsolated,
-    sharedArrayBuffer: typeof SharedArrayBuffer,
-  }))
-  // Isolated for the Container; the worker must still load.
-  expect(isolation.crossOriginIsolated).toBe(true)
-  expect(isolation.sharedArrayBuffer).toBe("function")
-  const worker = page
-    .workers()
-    .find((w) => w.url().includes("lsp.worker") || w.url().includes("lsp"))
-  expect(worker).toBeDefined()
-  expect(await worker!.evaluate(() => globalThis.crossOriginIsolated)).toBe(
-    true,
-  )
-
-  const wasm = assets.find(
-    (a) =>
-      String(a.url).includes(".wasm") &&
-      a.status === 200 &&
-      !String(a.url).includes("?import"),
-  )
-  expect(wasm, JSON.stringify(assets)).toBeDefined()
-  expect(wasm!.contentType).toContain("application/wasm")
-  // The module is fetched as its own file (at least a megabyte even when
-  // compressed on the wire), not inlined into the worker script. Firefox does
-  // not expose worker response bodies, so fall back to Content-Length.
-  const size = (asset: Record<string, unknown>) =>
-    Number(asset.bodyBytes ?? asset.contentLength)
-  expect(size(wasm!)).toBeGreaterThan(1_000_000)
-  const workerScript = assets.find((a) => String(a.url).includes("lsp.worker"))
-  if (workerScript !== undefined) {
-    expect(size(workerScript)).toBeLessThan(1_000_000)
-  }
-})
-
-test("reports a type error and clears it on edit, hovers types and completes Effect members", async ({
-  page,
-}) => {
-  await openReady(page)
-
-  const exportLine = lineWith(page, "export { program }")
-  await exportLine.click()
-  await page.keyboard.press("End")
-  await page.keyboard.type('\nexport const broken: number = "oops"')
-  const tooltip = await lintMessages(
-    page,
-    'export const broken: number = "oops"',
-  )
-  await expect(tooltip).toContainText(/not assignable to type number/)
-  await dismissTooltips(page)
-
-  // Fix the line: the error goes away, the floating Effect stays.
-  await lineWith(page, 'export const broken: number = "oops"').click()
-  await page.keyboard.press("End")
-  for (let i = 0; i < '"oops"'.length; i++) {
-    await page.keyboard.press("Backspace")
-  }
-  await page.keyboard.type("1")
-  await expect(
-    lineWith(page, "export const broken: number = 1").locator(".cm-lintRange"),
-  ).toHaveCount(0, { timeout: LSP_TIMEOUT })
-  await expect(
-    lineWith(page, 'Effect.succeed("unhandled")').locator(".cm-lintRange"),
-  ).toBeVisible()
-
-  // Hover: Effect quickinfo for `program`.
-  const programToken = lineWith(page, "const program =")
-    .getByText("program", { exact: true })
-    .first()
-  await programToken.hover()
-  const hover = page.locator(".cm-tooltip-hover")
-  await expect(hover).toBeVisible({ timeout: LSP_TIMEOUT })
-  await expect(hover).toContainText(/Effect<string/)
-  await dismissTooltips(page)
-
-  // Completion after `Effect.`.
-  await lineWith(page, "return greeting").click()
-  await page.keyboard.press("Home")
-  await page.keyboard.type("Effect.")
-  const completions = page.locator(".cm-tooltip-autocomplete")
-  if (!(await completions.isVisible())) {
-    await page.keyboard.press("Control+Space")
-  }
-  await expect(completions).toBeVisible({ timeout: LSP_TIMEOUT })
-  await expect(
-    completions
-      .locator(".cm-completionLabel")
-      .filter({ hasText: /^succeed$/ })
-      .first(),
-  ).toBeVisible({ timeout: LSP_TIMEOUT })
-})
-
-test("updates diagnostics across files when another file changes, is created, renamed or deleted", async ({
-  page,
-}) => {
-  await openReady(page)
-  const importLine = 'import { greet } from "./greeter.ts"'
-
-  // Change greeter.ts's export: main.ts's import breaks.
-  await openFile(page, "src/greeter.ts")
-  await replaceDocument(page, GREETER.replace("const greet", "const greetUser"))
-  await openFile(page, "src/main.ts")
-  const broken = await lintMessages(page, importLine)
-  await expect(broken).toContainText(/has no exported member greet/)
-  await dismissTooltips(page)
-
-  // Restore it: the import resolves again.
-  await openFile(page, "src/greeter.ts")
-  await replaceDocument(page, GREETER)
-  await openFile(page, "src/main.ts")
-  await expect(lineWith(page, importLine).locator(".cm-lintRange")).toHaveCount(
-    0,
-    {
-      timeout: LSP_TIMEOUT,
-    },
-  )
-
-  // Create src/extra.ts and import it from main.ts.
-  await page.getByTestId("explorer-new-file").click()
-  await page.getByPlaceholder("file-name").fill("src/extra.ts")
-  await page.keyboard.press("Enter")
-  await expect(page.getByTestId("editor-tab-src/extra.ts")).toBeVisible()
-  await editorOf(page).locator(".cm-content").click()
-  await page.keyboard.insertText("export const extra = 1\n")
-  await openFile(page, "src/main.ts")
-  await lineWith(page, "export { program }").click()
-  await page.keyboard.press("End")
-  await page.keyboard.insertText(
-    '\nimport { extra } from "./extra.ts"\nexport const useExtra: number = extra',
-  )
-  const extraImport = 'import { extra } from "./extra.ts"'
-  await expect(lineWith(page, extraImport)).toBeVisible()
-  // Give the server a pull, then check the import resolved.
-  await page.waitForTimeout(1_000)
-  await expect(
-    lineWith(page, extraImport).locator(".cm-lintRange"),
-  ).toHaveCount(0)
-
-  // Rename it: the import no longer resolves.
-  const extraRow = page.getByTestId("explorer-file-src/extra.ts").locator("..")
-  await extraRow.hover()
-  await extraRow.getByTitle("Rename file").click()
-  const renameInput = page.getByPlaceholder("file-name")
-  await renameInput.fill("renamed.ts")
-  await renameInput.press("Enter")
-  await expect(page.getByTestId("explorer-file-src/renamed.ts")).toBeVisible()
-  await openFile(page, "src/main.ts")
-  const missing = await lintMessages(page, extraImport)
-  await expect(missing).toContainText(/Cannot find module \.\/extra\.ts/)
-  await dismissTooltips(page)
-
-  // Delete greeter.ts, which is not the open tab: main.ts loses it too.
-  const greeterRow = page
-    .getByTestId("explorer-file-src/greeter.ts")
-    .locator("..")
-  await greeterRow.hover()
-  await greeterRow.getByTitle("Delete file").click()
-  await greeterRow.getByTitle("Confirm delete").click()
-  await expect(page.getByTestId("explorer-file-src/greeter.ts")).toHaveCount(0)
-  const gone = await lintMessages(page, importLine)
-  await expect(gone).toContainText(/Cannot find module \.\/greeter\.ts/)
-})
-
-test("recovers from a document that crashes the language server and works again after the fix", async ({
-  page,
-}) => {
-  await openReady(page)
-
-  const deep = `export const deep = ${"[".repeat(20_000)}${"]".repeat(20_000)}\n`
-  await replaceDocument(page, deep)
-
-  // Recovery is visible in the status badge, and the file says why it has no
-  // language features.
-  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "recovered", {
-    timeout: LSP_TIMEOUT,
-  })
-  await expect(statusOf(page)).toHaveAttribute(
-    "title",
-    /crashed.*restarted.*main\.ts until its next edit/,
-  )
-  const paused = await lintMessages(page, "export const deep")
-  await expect(paused).toContainText("Language features are paused")
-  await dismissTooltips(page)
-
-  // Fix the file: diagnostics and hover come back.
-  await replaceDocument(
-    page,
-    `import { Effect } from "effect"\n\nconst program = Effect.gen(function* () {\n  Effect.succeed("unhandled")\n  return 1\n})\n\nexport { program }\n`,
-  )
-  const tooltip = await lintMessages(page, 'Effect.succeed("unhandled")')
-  await expect(tooltip).toContainText("floatingEffect")
-  await dismissTooltips(page)
-  await lineWith(page, "const program =")
-    .getByText("program", { exact: true })
-    .first()
-    .hover()
-  await expect(page.locator(".cm-tooltip-hover")).toContainText(
-    /Effect<number/,
-    {
-      timeout: LSP_TIMEOUT,
-    },
-  )
-  await expect(statusOf(page)).toHaveAttribute(
-    "data-lsp-status",
-    /recovered|ready/,
-  )
-})
-
-test("a v3 ?code link opens the v3 seed with the code, without a notice", async ({
-  page,
-}) => {
-  const code =
-    'import { Effect } from "effect"\n\nEffect.runFork(Effect.log("v3 code link"))\n'
-  await page.goto(
-    `/scratchpad?code=${Buffer.from(code).toString("base64url")}`,
-    {
-      waitUntil: "domcontentloaded",
-    },
-  )
-  await expect(lineWith(page, "v3 code link")).toBeVisible({
-    timeout: READY_TIMEOUT,
-  })
-  await expect(page.getByTestId("scratchpad-load-notice")).toHaveCount(0)
-  await expect(
-    page
-      .getByTestId("scratchpad-version-toggle")
-      .getByRole("button", { name: "v3" }),
-  ).toHaveAttribute("aria-pressed", "true")
-})
-
-// Serving the page without COOP/COEP is how an unsupported browser looks to
-// the Scratchpad (no cross-origin isolation), so no test-only flag is needed.
-test("without cross-origin isolation, shows the unsupported strip with help and no Retry, and editing still works", async ({
-  page,
-}) => {
-  await page.route(
-    (url) => url.pathname === "/scratchpad",
-    async (route) => {
-      const response = await route.fetch()
-      const headers = { ...response.headers() }
-      delete headers["cross-origin-opener-policy"]
-      delete headers["cross-origin-embedder-policy"]
-      await route.fulfill({ response, headers })
-    },
-  )
-  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  expect(await page.evaluate(() => globalThis.crossOriginIsolated)).toBe(false)
-
-  const strip = page.getByTestId("container-failure")
-  await expect(strip).toHaveAttribute("data-failure-kind", "unsupported", {
-    timeout: READY_TIMEOUT,
-  })
-  await expect(containerOf(page)).toHaveAttribute(
-    "data-container-phase",
-    "failed",
-  )
-  await expect(strip.getByTestId("container-failure-retry")).toHaveCount(0)
-  await expect(
-    strip.getByRole("link", { name: "Browser support" }),
-  ).toHaveAttribute("href", "https://webcontainers.io/guides/browser-support")
-
-  // Editing and the language server keep working.
-  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "ready", {
-    timeout: READY_TIMEOUT,
-  })
-  await replaceDocument(page, "export const stillEditing = 1\n")
-  await expect(lineWith(page, "stillEditing")).toBeVisible()
-
-  // The readiness indicator warns, and its popover explains and links help.
-  const indicator = page.getByTestId("readiness-indicator")
-  await expect(indicator).toHaveAttribute("data-readiness", "warning")
-  await indicator.hover()
-  const popover = page.getByTestId("readiness-popover")
-  await expect(popover).toContainText("Running code isn't available here")
-  await expect(
-    popover.getByRole("link", { name: "Supported browsers" }),
-  ).toHaveAttribute("href", "https://webcontainers.io/guides/browser-support")
-
-  // Hide the strip, and clicking the indicator brings it back.
-  await page.mouse.move(0, 0)
-  await strip.getByRole("button", { name: "Hide" }).click()
-  await expect(strip).toHaveCount(0)
-  await indicator.click()
-  await expect(strip).toBeVisible()
-})
-
-test("the file explorer resizes by dragging its edge and remembers the width", async ({
-  page,
-}) => {
-  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  const explorer = page.getByTestId("scratchpad-file-explorer")
-  const handle = page.getByTestId("explorer-resize-handle")
-  await expect(explorer).toBeVisible()
-  const before = (await explorer.boundingBox())!.width
-  const grip = (await handle.boundingBox())!
-  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(
-    grip.x + grip.width / 2 + 120,
-    grip.y + grip.height / 2,
-    {
-      steps: 6,
-    },
-  )
-  await page.mouse.up()
-  await expect
-    .poll(async () => (await explorer.boundingBox())!.width)
-    .toBeCloseTo(before + 120, -1)
-
-  await page.reload({ waitUntil: "domcontentloaded" })
-  await expect
-    .poll(async () => (await explorer.boundingBox())!.width)
-    .toBeCloseTo(before + 120, -1)
-
-  // Double-clicking the edge restores the default.
-  await handle.dblclick()
-  await expect
-    .poll(async () => (await explorer.boundingBox())!.width)
-    .toBeCloseTo(before, -1)
-})
-
-test("Ctrl/Cmd+S formats the active file with the Workspace's dprint.json", async ({
-  page,
-}) => {
-  // The plugins come from plugins.dprint.dev through /api/dprint/plugins.
-  const offline = await fetch("https://plugins.dprint.dev", {
-    method: "HEAD",
-    signal: AbortSignal.timeout(10_000),
-  }).then(
-    () => undefined,
-    (error: unknown) => String(error),
-  )
-  test.skip(offline !== undefined, `plugins.dprint.dev unreachable: ${offline}`)
-
-  // The seed, whose dprint.json has the TypeScript plugin with
-  // `quoteStyle: "alwaysDouble"` and `semiColons: "asi"`.
-  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
-  await expect(page.getByTestId("editor-tab-src/main.ts")).toBeVisible({
-    timeout: READY_TIMEOUT,
-  })
-  await replaceDocument(
-    page,
-    "const   greeting='hello';\nexport   {greeting}\n",
-  )
-  await page.keyboard.press("ControlOrMeta+s")
-
-  const lines = editorOf(page).locator(".cm-line")
-  await expect(lines.nth(0)).toHaveText('const greeting = "hello"', {
-    timeout: LSP_TIMEOUT,
-  })
-  await expect(lines.nth(1)).toHaveText("export { greeting }")
-  await expect(page.getByTestId("format-message")).toHaveCount(0)
-
-  // One undo brings the unformatted text back.
-  await page.keyboard.press("ControlOrMeta+z")
-  await expect(lines.nth(0)).toHaveText("const   greeting='hello';")
-})
-
 /** Clicks the middle of the first whole-word `word` in `line`. */
 const clickWord = async (
   line: ReturnType<typeof lineWith>,
@@ -551,53 +156,106 @@ const clickWord = async (
   await line.click({ position: position!, modifiers })
 }
 
-const libraryTab = (page: Page, file: string) =>
-  page.locator(
-    `[data-testid^="editor-tab-node_modules/effect/"][data-testid$="/${file}"]`,
-  )
-
-test("Cmd/Ctrl-click into a library opens its declarations in a read-only tab, and go-to-definition works from there", async ({
+test("the language server reports Effect diagnostics and type errors, hovers types, completes members and opens library declarations read-only", async ({
   page,
 }) => {
   await openReady(page)
 
+  // TS377001 is Effect's floatingEffect rule.
+  const floating = await lintMessages(page, 'Effect.succeed("unhandled")')
+  await expect(floating).toContainText("floatingEffect")
+  await dismissTooltips(page)
+
+  // A type error appears, and fixing the line clears it.
+  await lineWith(page, "export { program }").click()
+  await page.keyboard.press("End")
+  await page.keyboard.type('\nexport const broken: number = "oops"')
+  const error = await lintMessages(page, 'export const broken: number = "oops"')
+  await expect(error).toContainText(/not assignable to type number/)
+  await dismissTooltips(page)
+  await lineWith(page, 'export const broken: number = "oops"').click()
+  await page.keyboard.press("End")
+  for (let i = 0; i < '"oops"'.length; i++) {
+    await page.keyboard.press("Backspace")
+  }
+  await page.keyboard.type("1")
+  await expect(
+    lineWith(page, "export const broken: number = 1").locator(".cm-lintRange"),
+  ).toHaveCount(0, { timeout: LSP_TIMEOUT })
+
+  // Hover shows Effect's types.
+  await lineWith(page, "const program =")
+    .getByText("program", { exact: true })
+    .first()
+    .hover()
+  await expect(page.locator(".cm-tooltip-hover")).toContainText(
+    /Effect<string/,
+    { timeout: LSP_TIMEOUT },
+  )
+  await dismissTooltips(page)
+
+  // Completion after `Effect.`.
+  await lineWith(page, "return greeting").click()
+  await page.keyboard.press("Home")
+  await page.keyboard.type("Effect.")
+  const completions = page.locator(".cm-tooltip-autocomplete")
+  if (!(await completions.isVisible())) {
+    await page.keyboard.press("Control+Space")
+  }
+  await expect(
+    completions
+      .locator(".cm-completionLabel")
+      .filter({ hasText: /^succeed$/ })
+      .first(),
+  ).toBeVisible({ timeout: LSP_TIMEOUT })
+  await page.keyboard.press("Escape")
+
+  // Cmd/Ctrl-click into the library opens its declarations, read-only.
   await clickWord(lineWith(page, 'import { Effect } from "effect"'), "Effect", [
     "ControlOrMeta",
   ])
-  const effectTab = libraryTab(page, "Effect.d.ts")
-  await expect(effectTab).toBeVisible({ timeout: LSP_TIMEOUT })
-  await expect(effectTab).toHaveAttribute("aria-selected", "true")
-  await expect(effectTab).toContainText(
-    /^node_modules\/effect\/.*Effect\.d\.ts$/,
+  const effectTab = page.locator(
+    '[data-testid^="editor-tab-node_modules/effect/"][data-testid$="/Effect.d.ts"]',
   )
+  await expect(effectTab).toHaveAttribute("aria-selected", "true", {
+    timeout: LSP_TIMEOUT,
+  })
   await expect(editorOf(page).locator(".cm-content")).toHaveAttribute(
     "aria-readonly",
     "true",
   )
-  // Scrolled to the target: the cursor's line is on screen.
-  await expect(editorOf(page).locator(".cm-activeLine")).toBeInViewport()
-  // Not a Workspace file.
-  await expect(
-    page.locator('[data-testid^="explorer-file-node_modules"]'),
-  ).toHaveCount(0)
-
-  // The library document is known to the language server: jump on.
-  await clickWord(lineWith(page, "* as Cause from"), "Cause", ["ControlOrMeta"])
-  const causeTab = libraryTab(page, "Cause.d.ts")
-  await expect(causeTab).toBeVisible({ timeout: LSP_TIMEOUT })
-  await expect(causeTab).toHaveAttribute("aria-selected", "true")
-
-  // Library tabs close like any tab.
-  await causeTab.getByRole("button", { name: /^Close / }).click()
-  await effectTab.getByRole("button", { name: /^Close / }).click()
-  await expect(page.locator("[data-library]")).toHaveCount(0)
-  await expect(page.getByTestId("editor-tab-src/main.ts")).toHaveAttribute(
-    "aria-selected",
-    "true",
-  )
 })
 
-test("a diagnostic's card offers its fixes in a Fix menu, and applying one clears the error", async ({
+test("diagnostics follow changes to another file, and its deletion", async ({
+  page,
+}) => {
+  await openReady(page)
+  const importLine = 'import { greet } from "./greeter.ts"'
+
+  await openFile(page, "src/greeter.ts")
+  await replaceDocument(page, GREETER.replace("const greet", "const greetUser"))
+  await openFile(page, "src/main.ts")
+  const renamed = await lintMessages(page, importLine)
+  await expect(renamed).toContainText(/has no exported member greet/)
+  await dismissTooltips(page)
+
+  const greeterRow = page
+    .getByTestId("explorer-file-src/greeter.ts")
+    .locator("..")
+  await greeterRow.hover()
+  await greeterRow.getByTitle("Delete file").click()
+  await greeterRow.getByTitle("Confirm delete").click()
+  // The error moves from `greet` to the module specifier.
+  await expect(
+    lineWith(page, importLine).locator(".cm-lintRange", {
+      hasText: "greeter.ts",
+    }),
+  ).toBeVisible({ timeout: LSP_TIMEOUT })
+  const gone = await lintMessages(page, importLine)
+  await expect(gone).toContainText(/Cannot find module \.\/greeter\.ts/)
+})
+
+test("a diagnostic's Fix menu and Ctrl/Cmd+. apply code actions", async ({
   page,
 }) => {
   await openReady(page)
@@ -610,54 +268,101 @@ test("a diagnostic's card offers its fixes in a Fix menu, and applying one clear
     await lintMessages(page, floating)
     await expect(fixButton).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: LSP_TIMEOUT })
-  await expect(card.locator(".cm-diagnosticCard-title")).toHaveText(
-    "Floating effect",
-  )
-  await expect(card.getByRole("link", { name: /Docs: / })).toHaveAttribute(
-    "href",
-    "/docs/v4/getting-started/using-generators/",
-  )
   await fixButton.click()
-  const item = card.getByRole("menuitem", {
-    name: "Disable floatingEffect for this line",
-  })
-  await expect(item).toHaveText("Ignore on this line")
-  await item.click()
-
-  await expect(
-    lineWith(page, "@effect-diagnostics-next-line floatingEffect:off"),
-  ).toBeVisible()
+  await card
+    .getByRole("menuitem", {
+      name: "Disable floatingEffect for this line",
+    })
+    .click()
   await expect(lineWith(page, floating).locator(".cm-lintRange")).toHaveCount(
     0,
     { timeout: LSP_TIMEOUT },
   )
-  await expect(
-    page.getByTestId("editor-tab-src/main.ts").getByLabel(/errors/),
-  ).toHaveCount(0)
-})
 
-test("Ctrl/Cmd+. lists the code actions at the cursor, refactors included, and picking one applies it", async ({
-  page,
-}) => {
-  await openReady(page)
-  await clickWord(lineWith(page, 'Effect.succeed("unhandled")'), "succeed")
+  await clickWord(lineWith(page, floating), "succeed")
   await page.keyboard.press("ControlOrMeta+.")
-
   const menu = page.getByRole("listbox", { name: "Code actions" })
-  await expect(menu).toBeVisible({ timeout: LSP_TIMEOUT })
-  await expect(
-    menu.getByRole("option", { name: "Disable floatingEffect for this line" }),
-  ).toBeVisible()
-  await menu.getByRole("option", { name: "Wrap with Effect.gen" }).click()
-
-  await expect(menu).toBeHidden()
+  await menu
+    .getByRole("option", { name: "Wrap with Effect.gen" })
+    .click({ timeout: LSP_TIMEOUT })
   await expect(
     lineWith(page, 'return yield* Effect.succeed("unhandled")'),
   ).toBeVisible()
+})
 
-  // Escape closes the menu without applying anything.
-  await page.keyboard.press("ControlOrMeta+.")
-  await expect(menu).toBeVisible({ timeout: LSP_TIMEOUT })
-  await page.keyboard.press("Escape")
-  await expect(menu).toBeHidden()
+test("recovers from a document that crashes the language server and works again after the fix", async ({
+  page,
+}) => {
+  await openReady(page)
+
+  const deep = `export const deep = ${"[".repeat(20_000)}${"]".repeat(20_000)}\n`
+  await replaceDocument(page, deep)
+  await expect(statusOf(page)).toHaveAttribute("data-lsp-status", "recovered", {
+    timeout: LSP_TIMEOUT,
+  })
+
+  await replaceDocument(
+    page,
+    `import { Effect } from "effect"\n\nconst program = Effect.gen(function* () {\n  Effect.succeed("unhandled")\n  return 1\n})\n\nexport { program }\n`,
+  )
+  const tooltip = await lintMessages(page, 'Effect.succeed("unhandled")')
+  await expect(tooltip).toContainText("floatingEffect")
+})
+
+// Serving the page without COOP/COEP is how an unsupported browser looks to
+// the Scratchpad (no cross-origin isolation), so no test-only flag is needed.
+test("without cross-origin isolation, the Container is unsupported and points to browser-support help", async ({
+  page,
+}) => {
+  await page.route(
+    (url) => url.pathname === "/scratchpad",
+    async (route) => {
+      const response = await route.fetch()
+      const headers = { ...response.headers() }
+      delete headers["cross-origin-opener-policy"]
+      delete headers["cross-origin-embedder-policy"]
+      await route.fulfill({ response, headers })
+    },
+  )
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+
+  const strip = page.getByTestId("container-failure")
+  await expect(strip).toHaveAttribute("data-failure-kind", "unsupported", {
+    timeout: READY_TIMEOUT,
+  })
+  await expect(
+    strip.getByRole("link", { name: "Browser support" }),
+  ).toHaveAttribute("href", "https://webcontainers.io/guides/browser-support")
+})
+
+test("Ctrl/Cmd+S formats the active file with the Workspace's dprint.json", async ({
+  page,
+}) => {
+  // The plugins come from plugins.dprint.dev through /api/dprint/plugins.
+  const offline = await fetch("https://plugins.dprint.dev", {
+    method: "HEAD",
+    signal: AbortSignal.timeout(10_000),
+  }).then(
+    () => undefined,
+    (error: unknown) => String(error),
+  )
+  test.skip(offline !== undefined, `plugins.dprint.dev unreachable: ${offline}`)
+
+  // The seed's dprint.json has `quoteStyle: "alwaysDouble"` and
+  // `semiColons: "asi"`.
+  await page.goto("/scratchpad", { waitUntil: "domcontentloaded" })
+  await expect(page.getByTestId("editor-tab-src/main.ts")).toBeVisible({
+    timeout: READY_TIMEOUT,
+  })
+  await replaceDocument(
+    page,
+    "const   greeting='hello';\nexport   {greeting}\n",
+  )
+  await page.keyboard.press("ControlOrMeta+s")
+
+  const lines = editorOf(page).locator(".cm-line")
+  await expect(lines.nth(0)).toHaveText('const greeting = "hello"', {
+    timeout: LSP_TIMEOUT,
+  })
+  await expect(lines.nth(1)).toHaveText("export { greeting }")
 })

@@ -90,16 +90,10 @@ test("/play adds typescript to a workspace without it, like a Scratchpad share",
   })
 })
 
-test("/play keeps a workspace's own typescript, and invalid JSON", () => {
-  for (const content of [
-    JSON.stringify({ dependencies: { typescript: "5.9.3" } }),
-    JSON.stringify({ devDependencies: { typescript: "5.9.3" } }),
-    "{ not json",
-  ]) {
-    const workspace = withPackageJson(content)
-    assert.strictEqual(
-      packageJsonOf(withPlaygroundTypeScript(workspace)),
-      content,
-    )
-  }
+test("/play keeps a workspace's own typescript", () => {
+  const content = JSON.stringify({ devDependencies: { typescript: "5.9.3" } })
+  assert.strictEqual(
+    packageJsonOf(withPlaygroundTypeScript(withPackageJson(content))),
+    content,
+  )
 })

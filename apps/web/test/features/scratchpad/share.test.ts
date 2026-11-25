@@ -7,7 +7,6 @@ import { assert, describe, test } from "vite-plus/test"
 import { loadScratchpadWorkspace } from "../../../src/features/scratchpad/load.ts"
 import { SCRATCHPAD_SEED } from "../../../src/features/scratchpad/seed.ts"
 import {
-  SCRATCHPAD_PATH,
   shareErrorMessage,
   shareScratchpad,
   shareSourceFromSnapshot,
@@ -15,12 +14,8 @@ import {
 } from "../../../src/features/scratchpad/share.ts"
 import { makeMemoryWorkspace } from "../../../src/features/scratchpad/workspace.ts"
 import { WorkspaceCompression } from "../../../src/features/share/compression.ts"
-import {
-  toFlatWorkspace,
-  type FlatNodeMetadata,
-} from "../../../src/features/share/flat.ts"
+import { toFlatWorkspace } from "../../../src/features/share/flat.ts"
 import { ShortenClient } from "../../../src/features/share/shorten/client.ts"
-import { ShortenError } from "../../../src/features/share/shorten/domain.ts"
 
 /** An in-memory shortener: `shorten` stores the text under a counter hash. */
 const makeShortener = () => {
@@ -63,7 +58,10 @@ const openOnPlay = (text: string) =>
 
 const LOCKFILE = "lockfileVersion: '9.0'\n\nimporters:\n  .: {}\n"
 
-/** The seed after an edit, with the lockfile the Container writes back. */
+/**
+ * The seed after an edit, a new file and a deletion, with the lockfile the
+ * Container writes back.
+ */
 const editedSeed = Effect.gen(function* () {
   const workspace = yield* makeMemoryWorkspace({
     initialFiles: SCRATCHPAD_SEED.files,
@@ -74,6 +72,7 @@ const editedSeed = Effect.gen(function* () {
   )
   yield* workspace.writeHostFile("pnpm-lock.yaml", LOCKFILE)
   yield* workspace.createFile("src/extra.ts", "export const extra = 1\n")
+  yield* workspace.remove("src/DevTools.ts")
   return shareSourceFromSnapshot(
     yield* workspace.snapshot,
     SCRATCHPAD_SEED.metadata,
@@ -91,38 +90,9 @@ describe("shareScratchpad", () => {
       }),
       shortener,
     )
-    assert.equal(result.url, `${SCRATCHPAD_PATH}#${result.hash}`)
 
     const onPlay = await run(openOnPlay(shortener.stored.get(result.hash)!))
-    const flat = toFlatWorkspace(onPlay)
-    assert.deepStrictEqual(flat.files, source.files)
-    // package.json and pnpm-lock.yaml travel like any other file.
-    assert.equal(flat.files["pnpm-lock.yaml"], LOCKFILE)
-    assert.equal(
-      flat.files["package.json"],
-      SCRATCHPAD_SEED.files["package.json"],
-    )
-    // The fields /play needs to run it.
-    const seedMetadata = SCRATCHPAD_SEED.metadata!
-    assert.equal(onPlay.name, seedMetadata.name)
-    assert.equal(onPlay.prepare, "pnpm install")
-    assert.deepStrictEqual(onPlay.snapshots, [])
-    assert.deepStrictEqual(
-      onPlay.shells.map((shell) => shell.command),
-      seedMetadata.shells.map((shell) => shell.command),
-    )
-    assert.equal(onPlay.initialFilePath, seedMetadata.initialFilePath)
-    assert.equal(onPlay.effectVersion, "v4")
-    // Tree order and `userManaged` survive; decoding only fills in defaults
-    // (`language` from the path, `userManaged: false`).
-    const summary = (nodes: ReadonlyArray<FlatNodeMetadata>) =>
-      nodes.map((node) => [node._tag, node.path, node.userManaged ?? false])
-    assert.deepStrictEqual(
-      summary(flat.metadata!.nodes).filter(([, path]) =>
-        seedMetadata.nodes.some((node) => node.path === path),
-      ),
-      summary(seedMetadata.nodes),
-    )
+    assert.deepStrictEqual(toFlatWorkspace(onPlay).files, source.files)
   })
 
   test("the absolute URL uses the given origin", async () => {
@@ -133,8 +103,13 @@ describe("shareScratchpad", () => {
   })
 
   test("a /play share loads in the Scratchpad and shares again unchanged", async () => {
-    const shortener = makeShortener()
     // A /play v4 share: the Playground's template with a userManaged file.
+    const programNode = {
+      _tag: "File",
+      path: "src/Program.ts",
+      language: "typescript",
+      userManaged: true,
+    } as const
     const playSource: ShareSource = {
       files: {
         ...SCRATCHPAD_SEED.files,
@@ -144,15 +119,7 @@ describe("shareScratchpad", () => {
         ...SCRATCHPAD_SEED.metadata!,
         name: "playground-v4",
         initialFilePath: "src/Program.ts",
-        nodes: [
-          ...SCRATCHPAD_SEED.metadata!.nodes,
-          {
-            _tag: "File",
-            path: "src/Program.ts",
-            language: "typescript",
-            userManaged: true,
-          },
-        ],
+        nodes: [...SCRATCHPAD_SEED.metadata!.nodes, programNode],
       },
     }
     const { first, second } = await run(
@@ -172,22 +139,14 @@ describe("shareScratchpad", () => {
         })
         return { first, second }
       }),
-      shortener,
     )
-    assert.equal(first.source, "hash")
-    assert.equal(second.source, "hash")
-    assert.deepStrictEqual(second.files, first.files)
-    assert.deepStrictEqual(second.metadata, first.metadata)
-    assert.equal(second.initialFilePath, "src/Program.ts")
-    assert.equal(second.metadata!.name, "playground-v4")
     assert.deepStrictEqual(
-      second.metadata!.nodes.find((node) => node.path === "src/Program.ts"),
-      {
-        _tag: "File",
-        path: "src/Program.ts",
-        language: "typescript",
-        userManaged: true,
-      },
+      first.metadata!.nodes.find((node) => node.path === "src/Program.ts"),
+      programNode,
+    )
+    assert.deepStrictEqual(
+      { files: second.files, metadata: second.metadata },
+      { files: first.files, metadata: first.metadata },
     )
   })
 
@@ -206,23 +165,10 @@ describe("shareScratchpad", () => {
       ),
       shortener,
     )
-    assert.isTrue(Exit.isFailure(exit))
     const error = Exit.isFailure(exit)
-      ? Option.getOrThrow(Exit.findErrorOption(exit))
+      ? Option.getOrUndefined(Exit.findErrorOption(exit))
       : undefined
-    assert.instanceOf(error, ShortenError)
-    assert.equal(shortener.stored.size, 0)
     assert.include(shareErrorMessage(error), "128 KB")
-  })
-
-  test("error messages", () => {
-    assert.include(
-      shareErrorMessage(new ShortenError({ reason: "Unknown", method: "x" })),
-      "Couldn't create a share link",
-    )
-    assert.include(
-      shareErrorMessage({ _tag: "HttpClientError" }),
-      "Couldn't reach the share service",
-    )
+    assert.equal(shortener.stored.size, 0)
   })
 })

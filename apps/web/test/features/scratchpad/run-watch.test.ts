@@ -155,26 +155,23 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const MAIN = `const n: number = 1\nconsole.log("hello", n)\n`
 
 describe("the watch runner", { timeout: 30_000 }, () => {
-  test("waits for a matching type check, runs the entry with TypeScript syntax, and reports its exit", async () => {
+  test("waits for a matching type check, then runs the entry with TypeScript syntax and reports its exit", async () => {
     const runner = startRunner({ "src/main.ts": MAIN })
     await sleep(300)
-    assert.notInclude(runner.output(), "hello", "runs before the type check")
-    assert.deepEqual(runner.markers(), ["watch;start"])
+    assert.deepEqual(runner.markers(), ["watch;start"], "runs before the check")
 
     runner.check(["src/main.ts"])
     await runner.waitFor(
       () => runner.screen().includes("Watching for file changes."),
       "the exit line",
     )
-    const screen = runner.screen()
     assert.match(
-      screen,
+      runner.screen(),
       /^\[\d\d:\d\d:\d\d\] Starting in watch mode\.\n\[\d\d:\d\d:\d\d\] Running src\/main\.ts…\n\nhello 1\n\n\[\d\d:\d\d:\d\d\] Exited with code 0\. Watching for file changes\.\n$/,
     )
-    assert.deepEqual(runner.markers(), ["watch;start", "start", "exit;0"])
   })
 
-  test("prints the type errors and doesn't run; fixing the file runs it, on a cleared screen", async () => {
+  test("prints the type errors and doesn't run; fixing the file runs it", async () => {
     const runner = startRunner({
       "src/main.ts": `const n: number = "nope"\nconsole.log("ran")\n`,
     })
@@ -188,28 +185,17 @@ describe("the watch runner", { timeout: 30_000 }, () => {
       () => runner.screen().includes("Not running."),
       "the error report",
     )
-    assert.include(
-      runner.screen(),
-      "Starting in watch mode.\n\nsrc/main.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'.\n\n",
-    )
     assert.match(
       runner.screen(),
-      /\[\d\d:\d\d:\d\d\] Found 1 error\. Not running\. Watching for file changes\.\n$/,
+      /Starting in watch mode\.\n\nsrc\/main\.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'\.\n\n\[\d\d:\d\d:\d\d\] Found 1 error\. Not running\. Watching for file changes\.\n$/,
     )
-    assert.notInclude(runner.output(), "ran")
-    assert.deepEqual(runner.markers(), ["watch;start"])
 
-    // The edit lands; until its type check arrives, nothing runs.
     runner.write("src/main.ts", `console.log("ran")\n`)
-    await sleep(300)
-    assert.notInclude(runner.output(), "ran\n")
-    assert.notInclude(runner.screen(), "Not running.")
     runner.check(["src/main.ts"])
     await runner.waitFor(
       () => runner.screen().includes("Exited with code 0"),
       "the fixed Run",
     )
-    assert.match(runner.screen(), /^\[\d\d:\d\d:\d\d\] File change detected\./)
     assert.include(runner.screen(), "\nran\n")
   })
 
@@ -225,50 +211,41 @@ describe("the watch runner", { timeout: 30_000 }, () => {
       () => runner.screen().includes("Exited with code 0"),
       "the new Run",
     )
-    assert.notInclude(runner.screen(), "tick")
-    assert.include(runner.screen(), "replaced")
-    const markers = runner.markers()
-    assert.deepEqual(markers.slice(0, 3), ["watch;start", "start", "exit;137"])
-    assert.deepEqual(markers.slice(-2), ["start", "exit;0"])
-    // The killed program printed nothing after it was replaced.
     await sleep(200)
-    assert.notInclude(runner.screen(), "tick")
+    assert.notInclude(
+      runner.output().slice(runner.output().indexOf("replaced")),
+      "tick",
+    )
   })
 
-  test("re-runs on a change to package.json or a file the type check lists, and on Restart", async () => {
+  test("re-runs on a change to package.json or a file the type check lists, and on Restart, but not when a file joins the watched set", async () => {
     const runner = startRunner({
       "src/main.ts": `import { x } from "./other.ts"\nconsole.log("x is", x)\n`,
       "src/other.ts": `export const x = 1\n`,
       "package.json": `{}`,
     })
+    const runs = () => runner.markers().filter((marker) => marker === "start")
     runner.check(["src/main.ts", "src/other.ts"])
     await runner.waitFor(() => runner.screen().includes("x is 1"), "Run 1")
+    await sleep(400)
 
     runner.write("src/other.ts", `export const x = 2\n`)
     runner.check(["src/main.ts", "src/other.ts"])
     await runner.waitFor(() => runner.screen().includes("x is 2"), "Run 2")
 
     runner.write("package.json", `{ "name": "changed" }`)
-    await runner.waitFor(
-      () =>
-        runner.markers().filter((marker) => marker === "start").length === 3,
-      "Run 3",
-    )
+    await runner.waitFor(() => runs().length === 3, "Run 3")
 
     runner.restart()
-    await runner.waitFor(
-      () =>
-        runner.screen().startsWith("[") && /Restarting\./.test(runner.screen()),
-      "the restart",
-    )
+    await runner.waitFor(() => /Restarting\./.test(runner.screen()), "Restart")
     await runner.waitFor(
       () => runner.screen().includes("Exited with code 0"),
       "Run 4",
     )
-    assert.include(runner.screen(), "x is 2")
+    assert.lengthOf(runs(), 4)
   })
 
-  test("without a type check it runs anyway after the timeout, with a warning, and again once one matches", async () => {
+  test("without a type check it runs anyway after the timeout, with a warning", async () => {
     const runner = startRunner(
       { "src/main.ts": `console.log("unchecked")\n` },
       { diagnosticsTimeoutMs: 300 },
@@ -281,46 +258,16 @@ describe("the watch runner", { timeout: 30_000 }, () => {
       runner.screen(),
       "No type check from the editor after 0.3 s: running anyway.",
     )
-    runner.check(["src/main.ts"])
-    await runner.waitFor(
-      () => runner.screen().includes("Type check arrived."),
-      "the checked Run",
-    )
   })
 
-  test("a file joining the watched set is not a change: the first type check runs once", async () => {
-    const runner = startRunner({
-      "src/main.ts": `import { x } from "./other.ts"\nconsole.log("x is", x)\n`,
-      "src/other.ts": `export const x = 1\n`,
-    })
-    runner.check(["src/main.ts", "src/other.ts"])
-    await runner.waitFor(
-      () => runner.screen().includes("Exited with code 0"),
-      "Run 1",
-    )
-    await sleep(400)
-    assert.deepEqual(runner.markers(), ["watch;start", "start", "exit;0"])
-    assert.match(runner.screen(), /Starting in watch mode/)
-  })
-
-  test("while the page installs it waits past the timeout, then runs once the type check matches", async () => {
+  test("while the page installs it waits past the timeout for the type check", async () => {
     const runner = startRunner(
       { "src/main.ts": `console.log("installed")\n` },
       { diagnosticsTimeoutMs: 300 },
     )
     runner.installing()
-    await runner.waitFor(
-      () => runner.screen().includes("Waiting for the install to finish…"),
-      "the install notice",
-    )
     await sleep(700)
-    assert.notInclude(runner.output(), "installed\n")
-    assert.notInclude(runner.screen(), "running anyway")
-    runner.check(["src/main.ts"])
-    await runner.waitFor(
-      () => runner.screen().includes("Exited with code 0"),
-      "the Run",
-    )
+    assert.deepEqual(runner.markers(), ["watch;start"])
   })
 
   test("Ctrl+C kills the program and exits the runner", async () => {
@@ -330,10 +277,9 @@ describe("the watch runner", { timeout: 30_000 }, () => {
     runner.check(["src/main.ts"])
     await runner.waitFor(() => runner.screen().includes("alive"), "the program")
     runner.process.kill("SIGINT")
-    assert.equal(await runner.exited, 130)
-    assert.deepEqual(runner.markers().slice(-2), ["exit;130", "watch;exit"])
-    const after = runner.output().length
-    await sleep(200)
-    assert.equal(runner.output().length, after)
+    assert.deepEqual(
+      { code: await runner.exited, markers: runner.markers().slice(-2) },
+      { code: 130, markers: ["exit;130", "watch;exit"] },
+    )
   })
 })

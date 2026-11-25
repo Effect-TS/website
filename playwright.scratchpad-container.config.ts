@@ -1,10 +1,9 @@
 import { defineConfig, devices } from "playwright/test"
 
 // The Scratchpad against a real WebContainer (Chromium only): boot, install,
-// installed types, Runs, `pnpm add`, legacy shares, Stop and Restart.
-// `astro dev` only: the spec's `pnpm add` goes through the dev-only
-// `window.__scratchpadTest` hook (src/features/scratchpad/test-hook.tsx), and
-// the legacy-share test stores its share in the dev shortener's memory.
+// installed types, Runs, `pnpm add`, legacy shares, Ctrl+C and Restart.
+// `astro dev` only: the legacy-share test stores its share in the dev
+// shortener's memory.
 //
 // Needs packages/tsrs-lsp-wasm/dist (nix develop -c pnpm --filter
 // @website/tsrs-lsp-wasm build), and network access to StackBlitz and the npm

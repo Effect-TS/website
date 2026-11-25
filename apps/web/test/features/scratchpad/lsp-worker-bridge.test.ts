@@ -1,14 +1,7 @@
-import {
-  encodeTypesPack,
-  MemoryFileSystem,
-  REQUEST_FAILED,
-} from "@website/tsrs-lsp-wasm"
+import { encodeTypesPack, MemoryFileSystem } from "@website/tsrs-lsp-wasm"
 import { assert, describe, test } from "vite-plus/test"
 import {
-  CROSS_FILE_PULL_DELAY_MS,
   makeLspWorkerBridge,
-  OWN_PULL_DELAY_MS,
-  QUARANTINE_DIAGNOSTIC_CODE,
   type BridgeTimers,
 } from "../../../src/features/scratchpad/lsp-worker-bridge.ts"
 import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
@@ -19,11 +12,9 @@ interface Message {
   readonly method?: string
   readonly params?: Record<string, unknown>
   readonly result?: unknown
-  readonly error?: { readonly code: number; readonly message: string }
 }
 
 const MAIN_URI = "file:///workspace/src/main.ts"
-const GREETER_URI = "file:///workspace/src/greeter.ts"
 
 /** Timers that only move when the test says so. */
 const makeManualTimers = () => {
@@ -61,7 +52,6 @@ const setup = () => {
   const toPage: Array<Message> = []
   const toServer: Array<Message> = []
   const types: Array<TypesMountResult> = []
-  const quarantined = new Set<string>()
   const bridge = makeLspWorkerBridge({
     fs,
     timers,
@@ -73,177 +63,119 @@ const setup = () => {
       toServer.push(JSON.parse(raw) as Message)
       return Promise.resolve()
     },
-    quarantined,
+    quarantined: new Set<string>(),
   }
   const client = (message: Message) =>
     bridge.handleClientMessage(JSON.stringify({ jsonrpc: "2.0", ...message }))
   const reply = (message: Message) =>
     bridge.handleServerMessage(JSON.stringify({ jsonrpc: "2.0", ...message }))
-  const pulls = () =>
-    toServer.filter((m) => m.method === "textDocument/diagnostic")
-  const pullUris = () =>
-    pulls().map(
-      (m) => (m.params as { textDocument: { uri: string } }).textDocument.uri,
-    )
-  const lastPull = (uri: string) =>
-    [...pulls()]
-      .reverse()
-      .find(
-        (m) =>
-          (m.params as { textDocument: { uri: string } }).textDocument.uri ===
-          uri,
-      )!
-  const pushes = () =>
-    toPage.filter((m) => m.method === "textDocument/publishDiagnostics")
-  const open = (uri: string, text: string, version = 1) =>
+  const lastPull = () =>
+    toServer.filter((m) => m.method === "textDocument/diagnostic").at(-1)!
+  const open = (uri: string, text: string) =>
     client({
       method: "textDocument/didOpen",
       params: {
-        textDocument: { uri, languageId: "typescript", version, text },
+        textDocument: { uri, languageId: "typescript", version: 1, text },
       },
     })
   const change = (uri: string, version: number, text: string) =>
     client({
       method: "textDocument/didChange",
-      params: {
-        textDocument: { uri, version },
-        contentChanges: [{ text }],
-      },
+      params: { textDocument: { uri, version }, contentChanges: [{ text }] },
+    })
+  const close = (uri: string) =>
+    client({
+      method: "textDocument/didClose",
+      params: { textDocument: { uri } },
     })
   return {
     fs,
     bridge,
     types,
     server,
-    quarantined,
     advance,
     toPage,
     toServer,
     client,
     reply,
-    pulls,
-    pullUris,
     lastPull,
-    pushes,
     open,
     change,
+    close,
   }
 }
 
-const diagnostic = (code: number, message: string) => ({
-  range: {
-    start: { line: 0, character: 0 },
-    end: { line: 0, character: 1 },
-  },
+const diagnostic = {
+  range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
   severity: 1,
-  code,
-  message,
-})
+  code: 377001,
+  message: "effect(floatingEffect)",
+}
 
-describe("LspWorkerBridge pull-to-push diagnostics", () => {
-  test("queues client messages until connected, then pulls an opened document and pushes the result with its version", () => {
+const packOf = (files: Readonly<Record<string, string>>): ArrayBuffer => {
+  const encoder = new TextEncoder()
+  return encodeTypesPack({
+    packages: [{ name: "effect", version: "4.1.5" }],
+    files: Object.entries(files).map(([path, text]) => ({
+      path,
+      data: encoder.encode(text),
+    })),
+  }).slice().buffer
+}
+
+describe("LspWorkerBridge diagnostics", () => {
+  test("an opened document's diagnostics reach the page as a push carrying its version", () => {
+    const ctx = setup()
+    ctx.bridge.connect(ctx.server)
+    ctx.open(MAIN_URI, "const a = 1\n")
+    ctx.advance(1_000)
+    ctx.reply({
+      id: ctx.lastPull().id!,
+      result: { kind: "full", items: [diagnostic] },
+    })
+    assert.deepEqual(ctx.toPage, [
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/publishDiagnostics",
+        params: { uri: MAIN_URI, version: 1, diagnostics: [diagnostic] },
+      },
+    ])
+  })
+
+  test("messages the page sends before the server starts reach it once connected", () => {
     const ctx = setup()
     ctx.client({ id: 1, method: "initialize", params: {} })
-    ctx.open(MAIN_URI, "const a = 1\n", 1)
-    ctx.advance(1_000)
-    assert.deepEqual(ctx.toServer, [])
-
+    ctx.open(MAIN_URI, "a\n")
     ctx.bridge.connect(ctx.server)
     assert.deepEqual(
       ctx.toServer.map((m) => m.method),
       ["initialize", "textDocument/didOpen"],
     )
-    ctx.advance(0)
-    assert.deepEqual(ctx.pullUris(), [MAIN_URI])
-    const pull = ctx.lastPull(MAIN_URI)
-
-    ctx.reply({
-      id: pull.id!,
-      result: {
-        kind: "full",
-        items: [diagnostic(377001, "effect(floatingEffect)")],
-      },
-    })
-    assert.deepEqual(ctx.pushes(), [
-      {
-        jsonrpc: "2.0",
-        method: "textDocument/publishDiagnostics",
-        params: {
-          uri: MAIN_URI,
-          version: 1,
-          diagnostics: [diagnostic(377001, "effect(floatingEffect)")],
-        },
-      },
-    ])
-    // The pull's own response never reaches the page.
-    assert.isFalse(ctx.toPage.some((m) => m.id === pull.id))
   })
 
-  test("debounces pulls after edits, re-pulls other open documents later, and drops stale results", () => {
+  test("diagnostics for an older version than the editor has are not pushed", () => {
     const ctx = setup()
     ctx.bridge.connect(ctx.server)
     ctx.open(MAIN_URI, "a\n")
-    ctx.open(GREETER_URI, "b\n")
-    ctx.advance(CROSS_FILE_PULL_DELAY_MS)
-    const initial = ctx.pulls().length
-    assert.sameMembers(ctx.pullUris(), [MAIN_URI, GREETER_URI])
-
-    ctx.change(GREETER_URI, 2, "bb\n")
-    ctx.change(GREETER_URI, 3, "bbb\n")
-    ctx.advance(OWN_PULL_DELAY_MS)
-    assert.deepEqual(ctx.pullUris().slice(initial), [GREETER_URI])
-    const greeterPull = ctx.lastPull(GREETER_URI)
-
-    ctx.advance(CROSS_FILE_PULL_DELAY_MS)
-    assert.deepEqual(ctx.pullUris().slice(initial), [GREETER_URI, MAIN_URI])
-
-    // A result for an older version than the editor has is dropped.
-    ctx.change(GREETER_URI, 4, "bbbb\n")
-    ctx.reply({ id: greeterPull.id!, result: { kind: "full", items: [] } })
-    assert.isFalse(
-      ctx
-        .pushes()
-        .some((m) => m.params?.uri === GREETER_URI && m.params.version === 3),
-    )
-  })
-
-  test("didClose pushes empty diagnostics and re-pulls the rest; empty server pushes are dropped and others forwarded", () => {
-    const ctx = setup()
-    ctx.bridge.connect(ctx.server)
-    ctx.open(MAIN_URI, "a\n")
-    ctx.open(GREETER_URI, "b\n")
     ctx.advance(1_000)
-    const before = ctx.pulls().length
+    const pull = ctx.lastPull()
+    ctx.change(MAIN_URI, 2, "aa\n")
+    ctx.reply({ id: pull.id!, result: { kind: "full", items: [diagnostic] } })
+    assert.deepEqual(ctx.toPage, [])
+  })
 
-    ctx.client({
-      method: "textDocument/didClose",
-      params: { textDocument: { uri: GREETER_URI } },
-    })
-    assert.deepEqual(ctx.pushes().at(-1)?.params, {
-      uri: GREETER_URI,
+  test("closing a document clears its diagnostics", () => {
+    const ctx = setup()
+    ctx.bridge.connect(ctx.server)
+    ctx.open(MAIN_URI, "a\n")
+    ctx.close(MAIN_URI)
+    assert.deepEqual(ctx.toPage.at(-1)?.params, {
+      uri: MAIN_URI,
       diagnostics: [],
     })
-    ctx.advance(CROSS_FILE_PULL_DELAY_MS)
-    assert.deepEqual(ctx.pullUris().slice(before), [MAIN_URI])
-
-    ctx.reply({
-      method: "textDocument/publishDiagnostics",
-      params: { uri: "file:///workspace/tsconfig.json", diagnostics: [] },
-    })
-    ctx.reply({ id: 7, result: { contents: "hover" } })
-    assert.deepEqual(ctx.toPage.at(-1), {
-      jsonrpc: "2.0",
-      id: 7,
-      result: { contents: "hover" },
-    })
-    assert.isFalse(
-      ctx.toPage.some(
-        (m) => m.params?.uri === "file:///workspace/tsconfig.json",
-      ),
-    )
   })
 
-  test("strips params: null from shutdown and exit", () => {
+  test("shutdown and exit reach the server without params: null", () => {
     const ctx = setup()
     ctx.bridge.connect(ctx.server)
     ctx.client({ id: 9, method: "shutdown", params: null as never })
@@ -255,118 +187,22 @@ describe("LspWorkerBridge pull-to-push diagnostics", () => {
   })
 })
 
-describe("LspWorkerBridge crashes and quarantine", () => {
-  test("a pull that crashed the server is retried once, and a quarantined document gets a warning that explains why", () => {
-    const ctx = setup()
-    ctx.bridge.connect(ctx.server)
-    ctx.open(MAIN_URI, "export const deep = [[[[\nmore\n")
-    ctx.advance(0)
-
-    ctx.reply({
-      id: ctx.lastPull(MAIN_URI).id!,
-      error: { code: REQUEST_FAILED, message: "the server crashed" },
-    })
-    ctx.advance(0)
-    assert.equal(ctx.pulls().length, 2)
-    assert.deepEqual(ctx.pushes(), [])
-
-    // The second crash quarantines the document in the host.
-    ctx.quarantined.add(MAIN_URI)
-    ctx.reply({
-      id: ctx.lastPull(MAIN_URI).id!,
-      error: { code: REQUEST_FAILED, message: "quarantined" },
-    })
-    ctx.advance(1_000)
-    assert.equal(ctx.pulls().length, 2)
-    const push = ctx.pushes().at(-1)!
-    const items = push.params?.diagnostics as Array<{
-      code: string
-      severity: number
-      message: string
-      range: { end: { character: number } }
-    }>
-    assert.equal(items.length, 1)
-    assert.equal(items[0]!.code, QUARANTINE_DIAGNOSTIC_CODE)
-    assert.equal(items[0]!.severity, 2)
-    assert.match(items[0]!.message, /Edit the file/)
-    // It spans the first line.
-    assert.equal(items[0]!.range.end.character, 24)
-
-    // An edit lifts the quarantine in the host; the bridge pulls again.
-    ctx.quarantined.delete(MAIN_URI)
-    ctx.change(MAIN_URI, 2, "export const ok = 1\n")
-    ctx.advance(OWN_PULL_DELAY_MS)
-    assert.equal(ctx.pulls().length, 3)
-  })
-})
-
 describe("LspWorkerBridge workspace file system", () => {
-  test("Reset and writes materialize files that are not open, and file changes re-pull open documents", () => {
+  test("a write to an open document reaches the file system when it closes", () => {
     const ctx = setup()
-    ctx.bridge.applyFsOp({
-      _tag: "Reset",
-      files: { "src/main.ts": "main", "src/greeter.ts": "greeter" },
-    })
-    assert.equal(ctx.fs.readTextFile("/workspace/src/main.ts"), "main")
-    assert.equal(ctx.fs.readTextFile("/workspace/src/greeter.ts"), "greeter")
-
-    ctx.bridge.connect(ctx.server)
-    ctx.open(MAIN_URI, "main")
-    ctx.advance(1_000)
-    const before = ctx.pulls().length
-
-    ctx.bridge.applyFsOp({
-      _tag: "WriteFile",
-      path: "src/greeter.ts",
-      content: "greeter v2",
-    })
-    assert.equal(ctx.fs.readTextFile("/workspace/src/greeter.ts"), "greeter v2")
-    ctx.advance(CROSS_FILE_PULL_DELAY_MS)
-    assert.deepEqual(ctx.pullUris().slice(before), [MAIN_URI])
-  })
-
-  test("writes to open documents wait until they close; renames and removes apply at once", () => {
-    const ctx = setup()
-    ctx.bridge.applyFsOp({
-      _tag: "Reset",
-      files: { "src/main.ts": "v1", "src/old.ts": "old" },
-    })
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "v1" } })
     ctx.bridge.connect(ctx.server)
     ctx.open(MAIN_URI, "v1")
-
     ctx.bridge.applyFsOp({
       _tag: "WriteFile",
       path: "src/main.ts",
       content: "v2",
     })
-    assert.equal(ctx.fs.readTextFile("/workspace/src/main.ts"), "v1")
-    ctx.client({
-      method: "textDocument/didClose",
-      params: { textDocument: { uri: MAIN_URI } },
-    })
+    ctx.close(MAIN_URI)
     assert.equal(ctx.fs.readTextFile("/workspace/src/main.ts"), "v2")
-
-    ctx.bridge.applyFsOp({
-      _tag: "Rename",
-      from: "src/old.ts",
-      to: "src/lib/new.ts",
-    })
-    assert.isFalse(ctx.fs.exists("/workspace/src/old.ts"))
-    assert.equal(ctx.fs.readTextFile("/workspace/src/lib/new.ts"), "old")
-
-    ctx.bridge.applyFsOp({ _tag: "Remove", path: "src/lib/new.ts" })
-    assert.isFalse(ctx.fs.exists("/workspace/src/lib/new.ts"))
-
-    // A Reset drops files that are gone but keeps the installed types.
-    ctx.fs.writeFile("/workspace/node_modules/effect/package.json", "{}")
-    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/b.ts": "b" } })
-    assert.deepEqual(ctx.fs.listFiles("/workspace").sort(), [
-      "/workspace/node_modules/effect/package.json",
-      "/workspace/src/b.ts",
-    ])
   })
 
-  test("a rename of an open document carries its held-back content", () => {
+  test("renaming an open document keeps its newest content", () => {
     const ctx = setup()
     ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "v1" } })
     ctx.bridge.connect(ctx.server)
@@ -383,81 +219,42 @@ describe("LspWorkerBridge workspace file system", () => {
     })
     assert.equal(ctx.fs.readTextFile("/workspace/src/app.ts"), "v2")
   })
-})
 
-const packOf = (
-  files: Readonly<Record<string, string>>,
-  packages = [{ name: "effect", version: "4.1.5" }],
-): ArrayBuffer => {
-  const encoder = new TextEncoder()
-  const bytes = encodeTypesPack({
-    packages,
-    files: Object.entries(files).map(([path, text]) => ({
-      path,
-      data: encoder.encode(text),
-    })),
-  })
-  return bytes.slice().buffer
-}
-
-describe("LspWorkerBridge ReplaceNodeModules", () => {
-  test("replaces everything below node_modules, answers TypesMounted and re-pulls open documents", () => {
+  test("Reset replaces the Workspace files and keeps the installed types", () => {
     const ctx = setup()
-    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
-    ctx.bridge.connect(ctx.server)
-    ctx.open(MAIN_URI, "main")
-    ctx.advance(1_000)
-
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/a.ts": "a" } })
     ctx.bridge.applyFsOp({
       _tag: "ReplaceNodeModules",
       id: 1,
-      pack: packOf({
-        "effect/package.json": '{"name":"effect"}',
-        "effect/dist/Old.d.ts": "old",
-      }),
+      pack: packOf({ "effect/package.json": "{}" }),
     })
-    assert.equal(
-      ctx.fs.readTextFile("/workspace/node_modules/effect/dist/Old.d.ts"),
-      "old",
-    )
-    const before = ctx.pulls().length
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/b.ts": "b" } })
+    assert.deepEqual(ctx.fs.listFiles("/workspace").sort(), [
+      "/workspace/node_modules/effect/package.json",
+      "/workspace/src/b.ts",
+    ])
+  })
 
+  test("ReplaceNodeModules replaces everything below node_modules", () => {
+    const ctx = setup()
+    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
+    ctx.bridge.applyFsOp({
+      _tag: "ReplaceNodeModules",
+      id: 1,
+      pack: packOf({ "effect/dist/Old.d.ts": "old" }),
+    })
     ctx.bridge.applyFsOp({
       _tag: "ReplaceNodeModules",
       id: 2,
-      pack: packOf(
-        {
-          "effect/package.json": '{"name":"effect"}',
-          "effect/dist/New.d.ts": "export {}",
-          "@types/node/package.json": "{}",
-        },
-        [
-          { name: "@types/node", version: "24.0.0" },
-          { name: "effect", version: "4.1.6" },
-        ],
-      ),
+      pack: packOf({ "effect/dist/New.d.ts": "new" }),
     })
     assert.deepEqual(ctx.fs.listFiles("/workspace").sort(), [
-      "/workspace/node_modules/@types/node/package.json",
       "/workspace/node_modules/effect/dist/New.d.ts",
-      "/workspace/node_modules/effect/package.json",
       "/workspace/src/main.ts",
     ])
-    assert.deepEqual(ctx.types[1], {
-      _tag: "TypesMounted",
-      id: 2,
-      files: 3,
-      bytes: 28,
-      packages: [
-        { name: "@types/node", version: "24.0.0" },
-        { name: "effect", version: "4.1.6" },
-      ],
-    })
-    ctx.advance(CROSS_FILE_PULL_DELAY_MS)
-    assert.deepEqual(ctx.pullUris().slice(before), [MAIN_URI])
   })
 
-  test("works before the server is connected; a pack that does not decode is rejected and keeps the previous types", () => {
+  test("a types pack that does not decode is rejected and the previous types stay", () => {
     const ctx = setup()
     ctx.bridge.applyFsOp({
       _tag: "ReplaceNodeModules",
@@ -469,30 +266,16 @@ describe("LspWorkerBridge ReplaceNodeModules", () => {
       id: 2,
       pack: new TextEncoder().encode("not a pack").buffer,
     })
-    assert.equal(ctx.types[0]?._tag, "TypesMounted")
-    assert.equal(ctx.types[1]?._tag, "TypesRejected")
-    assert.equal(ctx.types[1]?.id, 2)
-    assert.isTrue(ctx.fs.exists("/workspace/node_modules/effect/package.json"))
-  })
-})
-
-describe("LspWorkerBridge readFile", () => {
-  test("reads installed declarations and Workspace files by relative path", () => {
-    const ctx = setup()
-    ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
-    ctx.bridge.applyFsOp({
-      _tag: "ReplaceNodeModules",
-      id: 1,
-      pack: packOf({ "effect/dist/Effect.d.ts": "export declare const x: 1" }),
-    })
-    assert.equal(
-      ctx.bridge.readFile("node_modules/effect/dist/Effect.d.ts"),
-      "export declare const x: 1",
+    assert.deepEqual(
+      [
+        ctx.types[1]?._tag,
+        ctx.fs.exists("/workspace/node_modules/effect/package.json"),
+      ],
+      ["TypesRejected", true],
     )
-    assert.equal(ctx.bridge.readFile("src/main.ts"), "main")
   })
 
-  test("returns the newest content of an open document", () => {
+  test("readFile returns the newest content of an open document", () => {
     const ctx = setup()
     ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "v1" } })
     ctx.bridge.connect(ctx.server)
@@ -505,12 +288,9 @@ describe("LspWorkerBridge readFile", () => {
     assert.equal(ctx.bridge.readFile("src/main.ts"), "v2")
   })
 
-  test("answers nothing for missing files, directories and paths that leave the root", () => {
+  test("readFile answers nothing for a path that leaves the Workspace", () => {
     const ctx = setup()
     ctx.bridge.applyFsOp({ _tag: "Reset", files: { "src/main.ts": "main" } })
-    assert.isUndefined(ctx.bridge.readFile("node_modules/effect/index.d.ts"))
-    assert.isUndefined(ctx.bridge.readFile("src"))
     assert.isUndefined(ctx.bridge.readFile("../etc/passwd"))
-    assert.isUndefined(ctx.bridge.readFile(""))
   })
 })

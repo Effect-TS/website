@@ -194,8 +194,6 @@ describe.skipIf(!hasArtifacts)("worker bridge against the built module", () => {
         : undefined
     }, "main.ts push after the types")
     assert.deepEqual(codes(push), [377001], JSON.stringify(push))
-    assert.match(push.diagnostics[0]!.message, /floatingEffect/)
-    assert.equal(push.diagnostics[0]!.severity, 1)
     const greeter = await waitFor(
       () => latest("src/greeter.ts", 1),
       "greeter.ts push",

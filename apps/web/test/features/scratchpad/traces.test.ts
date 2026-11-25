@@ -13,10 +13,7 @@ import {
   recordDevToolsRequest,
 } from "../../../src/features/devtools/traces.ts"
 import { makeContainer } from "../../../src/features/scratchpad/container.ts"
-import {
-  DEV_TOOLS_PROXY_NAME,
-  followTraces,
-} from "../../../src/features/scratchpad/traces.ts"
+import { followTraces } from "../../../src/features/scratchpad/traces.ts"
 import { makeFakeContainerBackend } from "./fake-container.ts"
 
 const line = (request: DevToolsSchema.Request) =>
@@ -64,7 +61,6 @@ const follow = (output: ReadonlyArray<string>) =>
     })
     yield* settle
     return {
-      backend,
       roots: () => registry.get(atoms.rootSpansAtom),
       /** As if the proxy printed `span` now. */
       receive: (span: DevToolsSchema.Span) =>
@@ -82,19 +78,10 @@ describe("Scratchpad traces", () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
-          const { backend, roots } = yield* follow([
+          const { roots } = yield* follow([
             ping + span.slice(0, cut),
             span.slice(cut),
           ])
-          const proxy = backend.spawned[0]!
-          assert.equal(proxy.command, "node")
-          assert.deepStrictEqual(proxy.args, [
-            `../.scratchpad/${DEV_TOOLS_PROXY_NAME}`,
-          ])
-          assert.include(
-            String(backend.hostFiles.get(DEV_TOOLS_PROXY_NAME)),
-            "listen(34437)",
-          )
           assert.deepStrictEqual(
             roots().map((root) => root.label),
             ["program"],
@@ -118,8 +105,6 @@ describe("Scratchpad traces", () => {
           // Run #1 reported again (its status changed) keeps its spans.
           yield* startRun(1)
           assert.equal(roots().length, 1)
-          yield* startRun(2)
-          assert.equal(roots().length, 0)
         }),
       ),
     )

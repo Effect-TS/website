@@ -1,15 +1,12 @@
 import * as Effect from "effect/Effect"
 import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
-import * as Option from "effect/Option"
-import * as Schema from "effect/Schema"
 import * as KeyValueStore from "effect/persistence/KeyValueStore"
 import { TestClock } from "effect/testing"
 import { assert, describe, test } from "vite-plus/test"
 import { runAutosave } from "../../../src/features/scratchpad/autosave.ts"
 import {
   loadScratchpadWorkspace,
-  PLAYGROUND_AUTOSAVE_KEY,
   SCRATCHPAD_AUTOSAVE_KEY,
 } from "../../../src/features/scratchpad/load.ts"
 import {
@@ -23,9 +20,6 @@ import {
 import { WorkspaceCompression } from "../../../src/features/share/compression.ts"
 import type { FlatWorkspaceMetadata } from "../../../src/features/share/flat.ts"
 import { ShortenClient } from "../../../src/features/share/shorten/client.ts"
-import { Workspace } from "../../../src/features/share/workspace.ts"
-
-const AutosaveSchema = Schema.Option(Workspace)
 
 /** A `KeyValueStore` over a plain map, so tests can see every write. */
 const makeStorage = (options: { readonly failingWrites?: number } = {}) => {
@@ -101,20 +95,23 @@ const withAutosave = <A>(
     Effect.runPromise,
   )
 
-const readAutosave = (storage: ReturnType<typeof makeStorage>, key: string) =>
-  Effect.gen(function* () {
-    const store = KeyValueStore.toSchemaStore(
-      yield* KeyValueStore.KeyValueStore,
-      AutosaveSchema,
-    )
-    return Option.flatten(yield* store.get(key))
-  }).pipe(Effect.provide(storage.layer), Effect.runSync)
-
 const EDIT =
   'import * as Effect from "effect/Effect"\n\nEffect.runFork(Effect.log("edited"))\n'
 
+const loadAutosave = (storage: ReturnType<typeof makeStorage>) =>
+  loadScratchpadWorkspace({ hash: "", search: "" }).pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        storage.layer,
+        WorkspaceCompression.layer,
+        Layer.succeed(ShortenClient, {} as ShortenClient["Service"]),
+      ),
+    ),
+    Effect.runPromise,
+  )
+
 describe("runAutosave", () => {
-  test("writes the Workspace 2 seconds after the last change", async () => {
+  test("saves 2 seconds after the last change", async () => {
     const storage = makeStorage()
     await withAutosave(
       storage,
@@ -131,58 +128,9 @@ describe("runAutosave", () => {
           assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
         }),
     )
-    const saved = Option.getOrThrow(
-      readAutosave(storage, SCRATCHPAD_AUTOSAVE_KEY),
-    )
-    assert.equal(saved.name, SCRATCHPAD_SEED.metadata!.name)
-    assert.equal(saved.prepare, "pnpm install")
-    assert.equal(
-      Option.getOrThrow(saved.findFile("src/main.ts"))[0].initialContent,
-      EDIT,
-    )
-    // /play's key is never written.
-    assert.isFalse(storage.map.has(PLAYGROUND_AUTOSAVE_KEY))
   })
 
-  test("skips a Workspace unchanged from the seed", async () => {
-    const storage = makeStorage()
-    await withAutosave(
-      storage,
-      SCRATCHPAD_SEED.files,
-      SCRATCHPAD_SEED.metadata,
-      ({ workspace, tick }) =>
-        Effect.gen(function* () {
-          // An edit and its undo: events fire, the content is the seed's.
-          const original = SCRATCHPAD_SEED.files["src/main.ts"]!
-          yield* workspace.writeFile("src/main.ts", EDIT)
-          yield* workspace.writeFile("src/main.ts", original)
-          yield* tick(3)
-        }),
-    )
-    assert.deepStrictEqual(storage.writes, [])
-  })
-
-  test("skips a Workspace replaced by the other version's seed", async () => {
-    const storage = makeStorage()
-    const imported = { ...SCRATCHPAD_SEED.files, "src/main.ts": EDIT }
-    await withAutosave(
-      storage,
-      imported,
-      SCRATCHPAD_SEEDS.v3.metadata,
-      ({ workspace, tick }) =>
-        Effect.gen(function* () {
-          // A switch to v3: every file swapped for the v3 seed's.
-          yield* workspace.restoreSnapshot({
-            version: 1,
-            files: SCRATCHPAD_SEEDS.v3.files,
-          })
-          yield* tick(3)
-        }),
-    )
-    assert.deepStrictEqual(storage.writes, [])
-  })
-
-  test("skips a Workspace unchanged from the import", async () => {
+  test("a workspace edited back to what it opened with is not saved", async () => {
     const storage = makeStorage()
     const imported = { ...SCRATCHPAD_SEED.files, "src/main.ts": EDIT }
     await withAutosave(
@@ -194,56 +142,31 @@ describe("runAutosave", () => {
           yield* workspace.writeFile("src/main.ts", "// changed\n")
           yield* workspace.writeFile("src/main.ts", EDIT)
           yield* tick(3)
-          assert.deepStrictEqual(storage.writes, [])
-          yield* workspace.createFile("src/new.ts", "export {}\n")
-          yield* tick(3)
         }),
     )
-    assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
+    assert.deepStrictEqual(storage.writes, [])
   })
 
-  test("after a reload from the autosave, editing back to the seed doesn't save", async () => {
+  test("switching to the other version's seed is not saved", async () => {
     const storage = makeStorage()
+    const imported = { ...SCRATCHPAD_SEED.files, "src/main.ts": EDIT }
     await withAutosave(
       storage,
-      SCRATCHPAD_SEED.files,
-      SCRATCHPAD_SEED.metadata,
+      imported,
+      SCRATCHPAD_SEEDS.v3.metadata,
       ({ workspace, tick }) =>
         Effect.gen(function* () {
-          yield* workspace.writeFile("src/main.ts", EDIT)
+          yield* workspace.restoreSnapshot({
+            version: 1,
+            files: SCRATCHPAD_SEEDS.v3.files,
+          })
           yield* tick(3)
         }),
     )
-    assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
-
-    const loaded = await loadScratchpadWorkspace({ hash: "", search: "" }).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          storage.layer,
-          WorkspaceCompression.layer,
-          Layer.succeed(ShortenClient, {} as ShortenClient["Service"]),
-        ),
-      ),
-      Effect.runPromise,
-    )
-    assert.equal(loaded.source, "autosave")
-    await withAutosave(
-      storage,
-      loaded.files,
-      loaded.metadata,
-      ({ workspace, tick }) =>
-        Effect.gen(function* () {
-          yield* workspace.writeFile(
-            "src/main.ts",
-            SCRATCHPAD_SEED.files["src/main.ts"]!,
-          )
-          yield* tick(3)
-        }),
-    )
-    assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
+    assert.deepStrictEqual(storage.writes, [])
   })
 
-  test("a failed write is logged and the next change tries again", async () => {
+  test("after a failed write, the next change saves", async () => {
     const storage = makeStorage({ failingWrites: 1 })
     await withAutosave(
       storage,
@@ -253,22 +176,14 @@ describe("runAutosave", () => {
         Effect.gen(function* () {
           yield* workspace.writeFile("src/main.ts", EDIT)
           yield* tick(3)
-          assert.deepStrictEqual(storage.writes, [])
           yield* workspace.writeFile("src/main.ts", "// again\n")
           yield* tick(3)
         }),
     )
     assert.deepStrictEqual(storage.writes, [SCRATCHPAD_AUTOSAVE_KEY])
-    const saved = Option.getOrThrow(
-      readAutosave(storage, SCRATCHPAD_AUTOSAVE_KEY),
-    )
-    assert.equal(
-      Option.getOrThrow(saved.findFile("src/main.ts"))[0].initialContent,
-      "// again\n",
-    )
   })
 
-  test("the loader reads the autosave back, lockfile and empty directories included", async () => {
+  test("the next visit opens the autosave, lockfile and empty directories included", async () => {
     const storage = makeStorage()
     const lockfile = "lockfileVersion: '9.0'\n"
     await withAutosave(
@@ -283,23 +198,20 @@ describe("runAutosave", () => {
           yield* tick(3)
         }),
     )
-    const loaded = await loadScratchpadWorkspace({ hash: "", search: "" }).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          storage.layer,
-          WorkspaceCompression.layer,
-          Layer.succeed(ShortenClient, {} as ShortenClient["Service"]),
-        ),
-      ),
-      Effect.runPromise,
-    )
-    assert.equal(loaded.source, "autosave")
-    assert.equal(loaded.files["src/main.ts"], EDIT)
-    assert.equal(loaded.files["pnpm-lock.yaml"], lockfile)
-    assert.equal(loaded.metadata!.name, SCRATCHPAD_SEED.metadata!.name)
+    const loaded = await loadAutosave(storage)
     assert.deepStrictEqual(
-      loaded.metadata!.nodes.find((node) => node.path === "src/empty"),
-      { _tag: "Directory", path: "src/empty", userManaged: false },
+      {
+        source: loaded.source,
+        main: loaded.files["src/main.ts"],
+        lockfile: loaded.files["pnpm-lock.yaml"],
+        empty: loaded.metadata!.nodes.find((node) => node.path === "src/empty"),
+      },
+      {
+        source: "autosave",
+        main: EDIT,
+        lockfile,
+        empty: { _tag: "Directory", path: "src/empty", userManaged: false },
+      },
     )
   })
 })

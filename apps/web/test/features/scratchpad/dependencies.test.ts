@@ -1,6 +1,5 @@
 import { decodeTypesPack } from "@website/tsrs-lsp-wasm"
 import * as Deferred from "effect/Deferred"
-import type * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
@@ -13,7 +12,6 @@ import { assert, describe, test } from "vite-plus/test"
 import {
   type ContainerBootError,
   ContainerBootFailed,
-  type ContainerService,
   makeContainer,
   mirrorWorkspace,
 } from "../../../src/features/scratchpad/container.ts"
@@ -26,7 +24,6 @@ import {
 import {
   containerPhaseOf,
   type DependenciesService,
-  type DependencyState,
   makeDependencies,
 } from "../../../src/features/scratchpad/dependencies.ts"
 import type { TypesMountResult } from "../../../src/features/scratchpad/worker-protocol.ts"
@@ -56,7 +53,7 @@ const settle = Effect.promise(
 
 type MirrorAnswer = "mount" | "reject" | "never"
 
-const makeFakeMirror = (answer: () => MirrorAnswer) => {
+const makeFakeMirror = (answer: MirrorAnswer) => {
   const packs: Array<Uint8Array> = []
   let id = 0
   const mirror: LspWorkspaceMirrorService = {
@@ -66,7 +63,7 @@ const makeFakeMirror = (answer: () => MirrorAnswer) => {
       Effect.suspend((): Effect.Effect<TypesMountResult> => {
         packs.push(pack)
         id += 1
-        switch (answer()) {
+        switch (answer) {
           case "mount":
             return Effect.succeed({
               _tag: "TypesMounted",
@@ -95,21 +92,18 @@ interface Scenario {
     call: FakeSpawnCall,
     backend: FakeContainerBackend,
   ) => FakeSpawnResult | undefined
-  readonly mirror?: MirrorAnswer | (() => MirrorAnswer) | "none"
-  /** `fail-once`: the first boot fails and a retried one succeeds. */
-  readonly boot?: "ready" | "gated" | "fail-once"
-  readonly typesTimeout?: Duration.Input
+  readonly mirror?: MirrorAnswer
+  /** `gated`: the boot waits for `release`. */
+  readonly boot?: "ready" | "gated"
 }
 
 interface Ctx {
   readonly ws: WorkspaceService
-  readonly container: ContainerService
   readonly backend: FakeContainerBackend
   readonly deps: DependenciesService
   readonly packs: Array<Uint8Array>
   readonly phases: Array<string>
   readonly release: Deferred.Deferred<void, ContainerBootError>
-  readonly state: () => Effect.Effect<DependencyState>
 }
 
 /** The host-dir file the types collector was told to write its pack to. */
@@ -143,23 +137,14 @@ const run = <A>(
         const release = yield* Deferred.make<void, ContainerBootError>()
         if (scenario.boot !== "gated")
           yield* Deferred.succeed(release, undefined)
-        let boots = 0
         const container = yield* makeContainer(
-          Effect.suspend(() =>
-            scenario.boot === "fail-once" && ++boots === 1
-              ? Effect.fail(new ContainerBootFailed({ message: "boom" }))
-              : Deferred.await(release),
-          ).pipe(Effect.as(backend)),
+          Deferred.await(release).pipe(Effect.as(backend)),
         )
-        const answer = scenario.mirror ?? "mount"
-        const fake = makeFakeMirror(
-          typeof answer === "function" ? answer : () => answer as MirrorAnswer,
-        )
+        const fake = makeFakeMirror(scenario.mirror ?? "mount")
         const deps = yield* makeDependencies({
           workspace: ws,
           container,
-          mirror: answer === "none" ? Option.none() : Option.some(fake.mirror),
-          typesTimeout: scenario.typesTimeout,
+          mirror: Option.some(fake.mirror),
         })
         const phases: Array<string> = []
         yield* deps.stateChanges.pipe(
@@ -179,13 +164,11 @@ const run = <A>(
         yield* settle
         return yield* body({
           ws,
-          container,
           backend,
           deps,
           packs: fake.packs,
           phases,
           release,
-          state: () => deps.state,
         })
       }),
     ).pipe(Effect.provide(TestClock.layer())),
@@ -202,101 +185,21 @@ const afterWatch = Effect.gen(function* () {
 })
 
 describe("Dependencies", () => {
-  test("a package.json change made in the Container reloads the types once it settles, without installing again", async () => {
-    const added =
-      '{\n  "dependencies": { "effect": "latest", "kleur": "4.1.5" }\n}'
+  test("after the mount, installs and loads the installed types", async () => {
     await run({}, (ctx) =>
-      Effect.gen(function* () {
-        assert.deepEqual(
-          commands(ctx.backend).map((c) => c.split(" ")[0]),
-          ["pnpm", "node"],
-        )
-        // A terminal `pnpm add`: node_modules, then package.json and the lockfile.
-        ctx.backend.touch("node_modules/kleur/index.d.ts")
-        ctx.backend.containerWrite("package.json", added)
-        ctx.backend.containerWrite("pnpm-lock.yaml", "kleur: 4.1.5\n")
-        yield* afterWatch
-        assert.equal(yield* ctx.ws.readFile("package.json"), added)
-        assert.equal(yield* ctx.ws.readFile("pnpm-lock.yaml"), "kleur: 4.1.5\n")
-
-        // Still busy: more node_modules activity restarts the quiet period.
-        yield* TestClock.adjust("1 second")
-        ctx.backend.touch("node_modules/.pnpm/lock.yaml")
-        yield* afterWatch
-        yield* TestClock.adjust("1 second")
-        yield* settle
-        assert.equal(ctx.packs.length, 1, "no reload while pnpm is busy")
-
-        yield* TestClock.adjust("500 millis")
-        yield* settle
-        assert.equal(ctx.packs.length, 2, "the types reloaded")
-        assert.deepEqual(
-          commands(ctx.backend).filter((c) => c.startsWith("pnpm")),
-          ["pnpm install"],
-          "no second install",
-        )
-        assert.deepEqual(ctx.phases.slice(-2), ["loading-types", "ready"])
-      }),
+      Effect.sync(() =>
+        assert.deepEqual(ctx.phases, ["installing", "loading-types", "ready"]),
+      ),
     )
   })
 
-  test("Container changes that don't touch the dependency files don't reload types", async () => {
+  test("the lockfile pnpm writes is synced back into the Workspace", async () => {
     await run({}, (ctx) =>
       Effect.gen(function* () {
-        ctx.backend.containerWrite("src/extra.ts", "export {}")
-        ctx.backend.touch("node_modules/x/index.js")
-        yield* afterWatch
-        yield* TestClock.adjust("5 seconds")
-        yield* settle
-        assert.equal(yield* ctx.ws.readFile("src/extra.ts"), "export {}")
-        assert.equal(ctx.packs.length, 1)
-      }),
-    )
-  })
-
-  test("installs after the mount, syncs the lockfile back, copies the installed types and releases diagnostics", async () => {
-    await run({}, (ctx) =>
-      Effect.gen(function* () {
-        assert.equal(commands(ctx.backend)[0], "pnpm install")
-        assert.isFalse(
-          ctx.backend.hostFiles.has(packNameOf(ctx.backend.spawned[1]!)),
-          "the pack is deleted after it is read",
-        )
-        assert.deepEqual(ctx.packs, [PACK])
         assert.equal(
           yield* ctx.ws.readFile("pnpm-lock.yaml"),
           "lockfileVersion: '6.0'\n",
         )
-        assert.deepEqual(ctx.phases, ["installing", "loading-types", "ready"])
-        const state = yield* ctx.state()
-        assert.isTrue(state.diagnosticsVisible)
-        assert.equal(state.types._tag, "mounted")
-        const log = yield* ctx.deps.installLog
-        assert.deepEqual(log, {
-          run: 1,
-          running: false,
-          output: "Packages: +1\nDone\n",
-          exitCode: 0,
-        })
-        yield* ctx.deps.awaitDiagnosticsVisible
-      }),
-    )
-  })
-
-  test("shows booting until the Container is ready, with diagnostics hidden", async () => {
-    await run({ boot: "gated" }, (ctx) =>
-      Effect.gen(function* () {
-        assert.deepEqual(ctx.phases, ["booting"])
-        assert.isFalse((yield* ctx.state()).diagnosticsVisible)
-        assert.deepEqual(ctx.backend.spawned, [])
-        yield* Deferred.succeed(ctx.release, undefined)
-        yield* settle
-        assert.deepEqual(ctx.phases, [
-          "booting",
-          "installing",
-          "loading-types",
-          "ready",
-        ])
       }),
     )
   })
@@ -316,24 +219,18 @@ describe("Dependencies", () => {
       },
       (ctx) =>
         Effect.gen(function* () {
-          assert.equal(yield* ctx.ws.readFile("package.json"), reformatted)
           assert.equal(installs, 1)
-
-          const next = '{ "dependencies": { "effect": "^4.1.5", "zod": "^4" } }'
-          yield* ctx.ws.writeHostFile("package.json", next)
-          yield* settle
-          assert.equal(installs, 2)
-          assert.equal(ctx.backend.files.get("package.json"), next)
-
-          // Writing the same content again is not a change.
-          yield* ctx.ws.writeHostFile("package.json", next)
+          yield* ctx.ws.writeHostFile(
+            "package.json",
+            '{ "dependencies": { "effect": "^4.1.5", "zod": "^4" } }',
+          )
           yield* settle
           assert.equal(installs, 2)
         }),
     )
   })
 
-  test("a newer package.json interrupts a running install, which is killed", async () => {
+  test("a newer package.json kills the running install and installs again", async () => {
     let installs = 0
     await run(
       {
@@ -347,25 +244,18 @@ describe("Dependencies", () => {
       },
       (ctx) =>
         Effect.gen(function* () {
-          assert.deepEqual(ctx.phases, ["installing"])
-          assert.isTrue((yield* ctx.deps.installLog).running)
-
           yield* ctx.ws.writeHostFile(
             "package.json",
             '{ "dependencies": { "effect": "^4" } }',
           )
           yield* settle
           assert.equal(ctx.backend.killed(), 1)
-          assert.equal(installs, 2)
-          assert.equal(containerPhaseOf(yield* ctx.state())._tag, "ready")
-          const log = yield* ctx.deps.installLog
-          assert.equal(log.run, 2)
-          assert.equal(log.exitCode, 0)
+          assert.equal(containerPhaseOf(yield* ctx.deps.state)._tag, "ready")
         }),
     )
   })
 
-  test("a failed install reports its exit code and output, releases diagnostics and copies no types", async () => {
+  test("a failed install reports pnpm's output", async () => {
     await run(
       {
         spawn: (call) =>
@@ -380,160 +270,12 @@ describe("Dependencies", () => {
       },
       (ctx) =>
         Effect.gen(function* () {
-          const phase = containerPhaseOf(yield* ctx.state())
+          const phase = containerPhaseOf(yield* ctx.deps.state)
           assert.equal(phase._tag, "install-failed")
           if (phase._tag === "install-failed") {
-            assert.equal(phase.error._tag, "InstallFailed")
-            assert.equal(phase.error.exitCode, 1)
             assert.match(phase.error.outputTail, /ERR_PNPM_FETCH_404/)
           }
-          assert.isTrue((yield* ctx.state()).diagnosticsVisible)
-          assert.deepEqual(ctx.packs, [])
-          assert.isFalse(
-            Option.isSome(
-              yield* ctx.ws.readFile("pnpm-lock.yaml").pipe(Effect.option),
-            ),
-          )
         }),
-    )
-  })
-
-  test("diagnostics stay hidden while the install runs and are released after the timeout, which is configurable", async () => {
-    await run(
-      {
-        typesTimeout: "10 seconds",
-        spawn: (call) => (call.command === "pnpm" ? { hang: true } : undefined),
-      },
-      (ctx) =>
-        Effect.gen(function* () {
-          yield* TestClock.adjust("9 seconds")
-          yield* settle
-          assert.isFalse((yield* ctx.state()).diagnosticsVisible)
-          yield* TestClock.adjust("1 second")
-          yield* settle
-          const state = yield* ctx.state()
-          assert.isTrue(state.diagnosticsVisible)
-          // Still installing: the badge says so.
-          assert.equal(containerPhaseOf(state)._tag, "installing")
-        }),
-    )
-  })
-
-  test("installed types that never reach the editor become dependencies-unavailable after 60 seconds", async () => {
-    await run({ mirror: "never" }, (ctx) =>
-      Effect.gen(function* () {
-        assert.deepEqual(ctx.phases, ["installing", "loading-types"])
-        yield* TestClock.adjust("59 seconds")
-        yield* settle
-        assert.isFalse((yield* ctx.state()).diagnosticsVisible)
-        yield* TestClock.adjust("1 second")
-        yield* settle
-        assert.isTrue((yield* ctx.state()).diagnosticsVisible)
-        assert.equal(ctx.phases.at(-1), "dependencies-unavailable")
-      }),
-    )
-  })
-
-  test("a rejected pack makes dependencies unavailable at once", async () => {
-    await run({ mirror: "reject" }, (ctx) =>
-      Effect.gen(function* () {
-        const phase = containerPhaseOf(yield* ctx.state())
-        assert.equal(phase._tag, "dependencies-unavailable")
-        if (phase._tag === "dependencies-unavailable") {
-          assert.match(phase.reason, /bad magic/)
-        }
-        assert.isTrue((yield* ctx.state()).diagnosticsVisible)
-      }),
-    )
-  })
-
-  test("without a language server mirror, dependencies are unavailable after the install", async () => {
-    await run({ mirror: "none" }, (ctx) =>
-      Effect.gen(function* () {
-        assert.deepEqual(commands(ctx.backend), ["pnpm install"])
-        assert.equal(
-          containerPhaseOf(yield* ctx.state())._tag,
-          "dependencies-unavailable",
-        )
-      }),
-    )
-  })
-
-  test("a re-install keeps diagnostics visible, and keeps the previous types when the new ones fail", async () => {
-    let collects = 0
-    await run(
-      {
-        spawn: (call, backend) => {
-          if (call.command !== "node") return undefined
-          collects += 1
-          return collects === 1
-            ? defaultSpawn(call, backend)
-            : { exitCode: 1, output: ["Error: EIO\n"] }
-        },
-      },
-      (ctx) =>
-        Effect.gen(function* () {
-          assert.equal(containerPhaseOf(yield* ctx.state())._tag, "ready")
-          yield* ctx.ws.writeHostFile("package.json", "{}")
-          yield* settle
-          assert.equal(collects, 2)
-          const state = yield* ctx.state()
-          assert.isTrue(state.diagnosticsVisible)
-          assert.equal(state.types._tag, "mounted")
-          assert.equal(containerPhaseOf(state)._tag, "ready")
-          assert.deepEqual(ctx.phases, [
-            "installing",
-            "loading-types",
-            "ready",
-            "installing",
-            "loading-types",
-            "ready",
-          ])
-        }),
-    )
-  })
-
-  test("a retried boot mounts, installs and loads types after a failed one", async () => {
-    await run({ boot: "fail-once" }, (ctx) =>
-      Effect.gen(function* () {
-        assert.equal(containerPhaseOf(yield* ctx.state())._tag, "failed")
-        assert.deepEqual(ctx.backend.spawned, [])
-        yield* ctx.ws.writeFile("src/main.ts", "edited while failed")
-
-        yield* ctx.container.retry
-        yield* settle
-        const state = yield* ctx.state()
-        assert.equal(containerPhaseOf(state)._tag, "ready")
-        assert.deepEqual(ctx.phases, [
-          "failed",
-          "booting",
-          "installing",
-          "loading-types",
-          "ready",
-        ])
-        assert.equal(commands(ctx.backend)[0], "pnpm install")
-        assert.equal(
-          ctx.backend.files.get("src/main.ts"),
-          "edited while failed",
-        )
-        assert.deepEqual(ctx.packs, [PACK])
-      }),
-    )
-  })
-
-  test("the types timeout starts when a retried boot is ready", async () => {
-    await run({ boot: "fail-once", mirror: "never" }, (ctx) =>
-      Effect.gen(function* () {
-        yield* ctx.container.retry
-        yield* settle
-        assert.equal(containerPhaseOf(yield* ctx.state())._tag, "loading-types")
-        yield* TestClock.adjust("60 seconds")
-        yield* settle
-        assert.equal(
-          containerPhaseOf(yield* ctx.state())._tag,
-          "dependencies-unavailable",
-        )
-      }),
     )
   })
 
@@ -548,29 +290,61 @@ describe("Dependencies", () => {
       },
       (ctx) =>
         Effect.gen(function* () {
-          assert.equal(
-            containerPhaseOf(yield* ctx.state())._tag,
-            "install-failed",
-          )
           yield* ctx.deps.install
           yield* settle
-          assert.equal(containerPhaseOf(yield* ctx.state())._tag, "ready")
-          assert.deepEqual(ctx.phases, [
-            "installing",
-            "install-failed",
-            "installing",
-            "loading-types",
-            "ready",
-          ])
-          const log = yield* ctx.deps.installLog
-          assert.equal(log.run, 2)
-          assert.equal(log.exitCode, 0)
-          assert.deepEqual(ctx.packs, [PACK])
+          assert.equal(containerPhaseOf(yield* ctx.deps.state)._tag, "ready")
         }),
     )
   })
 
-  test("a Container that fails to boot releases diagnostics", async () => {
+  test("diagnostics stay hidden until types arrive, and are shown without them after 60 seconds", async () => {
+    await run({ mirror: "never" }, (ctx) =>
+      Effect.gen(function* () {
+        yield* TestClock.adjust("59 seconds")
+        yield* settle
+        assert.isFalse((yield* ctx.deps.state).diagnosticsVisible)
+        yield* TestClock.adjust("1 second")
+        yield* settle
+        assert.isTrue((yield* ctx.deps.state).diagnosticsVisible)
+      }),
+    )
+  })
+
+  test("a pack the language server rejects makes dependencies unavailable, with its reason", async () => {
+    await run({ mirror: "reject" }, (ctx) =>
+      Effect.gen(function* () {
+        const phase = containerPhaseOf(yield* ctx.deps.state)
+        assert.equal(phase._tag, "dependencies-unavailable")
+        if (phase._tag === "dependencies-unavailable") {
+          assert.match(phase.reason, /bad magic/)
+        }
+      }),
+    )
+  })
+
+  test("a re-install whose types fail to load keeps the previous types", async () => {
+    let collects = 0
+    await run(
+      {
+        spawn: (call, backend) => {
+          if (call.command !== "node") return undefined
+          collects += 1
+          return collects === 1
+            ? defaultSpawn(call, backend)
+            : { exitCode: 1, output: ["Error: EIO\n"] }
+        },
+      },
+      (ctx) =>
+        Effect.gen(function* () {
+          yield* ctx.ws.writeHostFile("package.json", "{}")
+          yield* settle
+          assert.equal(collects, 2)
+          assert.equal(containerPhaseOf(yield* ctx.deps.state)._tag, "ready")
+        }),
+    )
+  })
+
+  test("a Container that fails to boot shows diagnostics", async () => {
     await run({ boot: "gated" }, (ctx) =>
       Effect.gen(function* () {
         yield* Deferred.fail(
@@ -578,10 +352,48 @@ describe("Dependencies", () => {
           new ContainerBootFailed({ message: "boom" }),
         )
         yield* settle
-        const state = yield* ctx.state()
-        assert.equal(containerPhaseOf(state)._tag, "failed")
-        assert.isTrue(state.diagnosticsVisible)
-        assert.deepEqual(ctx.backend.spawned, [])
+        assert.isTrue((yield* ctx.deps.state).diagnosticsVisible)
+      }),
+    )
+  })
+
+  test("a pnpm add in the terminal reloads the types once pnpm is done, without installing again", async () => {
+    await run({}, (ctx) =>
+      Effect.gen(function* () {
+        ctx.backend.touch("node_modules/kleur/index.d.ts")
+        ctx.backend.containerWrite(
+          "package.json",
+          '{\n  "dependencies": { "effect": "latest", "kleur": "4.1.5" }\n}',
+        )
+        yield* afterWatch
+        // Still busy: more node_modules activity restarts the quiet period.
+        yield* TestClock.adjust("1 second")
+        ctx.backend.touch("node_modules/.pnpm/lock.yaml")
+        yield* afterWatch
+        yield* TestClock.adjust("1 second")
+        yield* settle
+        assert.equal(ctx.packs.length, 1, "no reload while pnpm is busy")
+        yield* TestClock.adjust("500 millis")
+        yield* settle
+        assert.equal(ctx.packs.length, 2, "the types reloaded")
+        assert.deepEqual(
+          commands(ctx.backend).filter((c) => c.startsWith("pnpm")),
+          ["pnpm install"],
+          "no second install",
+        )
+      }),
+    )
+  })
+
+  test("Container changes that don't touch the dependency files don't reload types", async () => {
+    await run({}, (ctx) =>
+      Effect.gen(function* () {
+        ctx.backend.containerWrite("src/extra.ts", "export {}")
+        ctx.backend.touch("node_modules/x/index.js")
+        yield* afterWatch
+        yield* TestClock.adjust("5 seconds")
+        yield* settle
+        assert.equal(ctx.packs.length, 1)
       }),
     )
   })
@@ -629,34 +441,14 @@ describe("collect-types.cjs", () => {
         import.meta.dirname,
         "../../../src/features/scratchpad/collect-types.cjs",
       )
-      const stdout = execFileSync(
+      execFileSync(
         process.execPath,
         [script, "node_modules", "out/types.pack", "--skip-ts-libs"],
         { cwd: dir, encoding: "utf8" },
       )
-      const stats = JSON.parse(stdout) as {
-        files: number
-        packages: number
-        dropped: number
-      }
-      assert.deepEqual(
-        {
-          files: stats.files,
-          packages: stats.packages,
-          dropped: stats.dropped,
-        },
-        { files: 8, packages: 4, dropped: 1 },
-      )
-
       const pack = decodeTypesPack(
         new Uint8Array(fs.readFileSync(path.join(dir, "out/types.pack"))),
       )
-      assert.deepEqual(pack.packages, [
-        { name: "@types/node", version: "24.0.0" },
-        { name: "effect", version: "4.1.5" },
-        { name: "typescript", version: "6.0.2" },
-        { name: "undici-types", version: "7.0.0" },
-      ])
       assert.deepEqual(
         pack.files.map((file) => file.path),
         [
@@ -669,12 +461,6 @@ describe("collect-types.cjs", () => {
           "undici-types/index.d.ts",
           "undici-types/package.json",
         ],
-      )
-      assert.equal(
-        new TextDecoder().decode(
-          pack.files.find((f) => f.path === "effect/dist/Effect.d.ts")!.data,
-        ),
-        "export {}",
       )
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })

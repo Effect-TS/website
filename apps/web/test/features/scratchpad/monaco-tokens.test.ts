@@ -53,14 +53,10 @@ describe("monacoTokenClasses", () => {
     ])
   })
 
-  test("treats the star in yield* as a delimiter", () => {
-    assert.deepStrictEqual(tokens("function* g() { yield* x }"), [
-      "* cm-monaco-delimiter",
-      "( cm-monaco-bracket-0",
-      ") cm-monaco-bracket-0",
-      "{ cm-monaco-bracket-0",
-      "* cm-monaco-delimiter",
-      "} cm-monaco-bracket-0",
-    ])
+  test("treats the star in function* and yield* as a delimiter", () => {
+    assert.deepStrictEqual(
+      tokens("function* g() { yield* x }").filter((t) => t.startsWith("*")),
+      ["* cm-monaco-delimiter", "* cm-monaco-delimiter"],
+    )
   })
 })

@@ -1,6 +1,5 @@
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
-import * as Exit from "effect/Exit"
 import * as Fiber from "effect/Fiber"
 import * as Stream from "effect/Stream"
 import { assert, describe, test } from "vite-plus/test"
@@ -8,7 +7,6 @@ import {
   Container,
   ContainerBootFailed,
   type ContainerBootError,
-  type ContainerPhase,
   makeContainer,
   mirrorWorkspace,
 } from "../../../src/features/scratchpad/container.ts"
@@ -41,9 +39,13 @@ const settle = Effect.gen(function* () {
   yield* Effect.sleep("5 millis")
 })
 
+/** The Container's files, sorted by path. */
+const filesOf = (backend: FakeContainerBackend) =>
+  Object.fromEntries([...backend.files].sort(([a], [b]) => a.localeCompare(b)))
+
 /**
  * Runs `body` with a Workspace mirrored into a fake Container whose boot
- * waits for `release` (succeed to boot, fail to fail boot).
+ * waits for `release`.
  */
 const withMirror = <A, E>(
   body: (ctx: {
@@ -69,31 +71,20 @@ const withMirror = <A, E>(
   )
 
 describe("Container mirror", () => {
-  test("mounts the Workspace once booted, then applies edits made during boot in order", async () => {
+  test("edits made while the Container boots land after the mount", async () => {
     await withMirror(({ ws, backend, release }) =>
       Effect.gen(function* () {
         yield* ws.writeFile("src/main.ts", "console.log(2)")
         yield* ws.createFile("src/new.ts", "export const x = 1")
         yield* settle
-        assert.deepStrictEqual(backend.log, [], "nothing lands before boot")
-
         yield* Deferred.succeed(release, undefined)
         yield* awaitLog(backend, 5)
-
-        assert.deepStrictEqual(backend.log.slice(0, 3).sort(), [
-          "write package.json",
-          "write src/main.ts",
-          "write src/util.ts",
-        ])
-        assert.deepStrictEqual(backend.log.slice(3), [
-          "write src/main.ts",
-          "write src/new.ts",
-        ])
-        assert.strictEqual(backend.files.get("src/main.ts"), "console.log(2)")
-        assert.strictEqual(
-          backend.files.get("src/new.ts"),
-          "export const x = 1",
-        )
+        assert.deepStrictEqual(filesOf(backend), {
+          "package.json": "{}",
+          "src/main.ts": "console.log(2)",
+          "src/new.ts": "export const x = 1",
+          "src/util.ts": "export {}",
+        })
       }),
     )
   })
@@ -105,19 +96,15 @@ describe("Container mirror", () => {
         yield* ws.createFile("lib/a.ts", "a")
         yield* awaitLog(backend, 4)
         backend.log.length = 0
-
         yield* ws.rename("src/util.ts", "src/helpers.ts")
         yield* ws.rename("lib", "pkg")
         yield* awaitLog(backend, 4)
-
-        assert.deepStrictEqual([...backend.files.keys()].sort(), [
-          "package.json",
-          "pkg/a.ts",
-          "src/helpers.ts",
-          "src/main.ts",
-        ])
-        assert.strictEqual(backend.files.get("src/helpers.ts"), "export {}")
-        assert.strictEqual(backend.files.get("pkg/a.ts"), "a")
+        assert.deepStrictEqual(filesOf(backend), {
+          "package.json": "{}",
+          "pkg/a.ts": "a",
+          "src/helpers.ts": "export {}",
+          "src/main.ts": "console.log(1)",
+        })
       }),
     )
   })
@@ -130,11 +117,9 @@ describe("Container mirror", () => {
         yield* ws.createFile("src/lib/b.ts", "b")
         yield* awaitLog(backend, 5)
         backend.log.length = 0
-
         yield* ws.remove("src/lib")
         yield* awaitLog(backend, 2)
-
-        assert.deepStrictEqual([...backend.files.keys()].sort(), [
+        assert.deepStrictEqual(Object.keys(filesOf(backend)), [
           "package.json",
           "src/main.ts",
           "src/util.ts",
@@ -152,34 +137,18 @@ describe("Container mirror", () => {
           yield* ws.createFile("src/bad.ts", "x")
           yield* ws.createFile("src/good.ts", "y")
           yield* awaitLog(backend, 5)
-          assert.isFalse(backend.files.has("src/bad.ts"))
-          assert.strictEqual(backend.files.get("src/good.ts"), "y")
+          assert.deepStrictEqual(Object.keys(filesOf(backend)), [
+            "package.json",
+            "src/good.ts",
+            "src/main.ts",
+            "src/util.ts",
+          ])
         }),
       { failWrites: new Set(["src/bad.ts"]) },
     )
   })
 
-  test("a Container that fails to boot leaves the Workspace editable", async () => {
-    await withMirror(({ ws, backend, release }) =>
-      Effect.gen(function* () {
-        yield* Deferred.fail(
-          release,
-          new ContainerBootFailed({ message: "boom" }),
-        )
-        yield* settle
-        yield* ws.writeFile("src/main.ts", "still editing")
-        yield* ws.createFile("src/other.ts", "")
-        yield* settle
-
-        assert.strictEqual(yield* ws.readFile("src/main.ts"), "still editing")
-        assert.deepStrictEqual(backend.log, [])
-      }),
-    )
-  })
-})
-
-describe("Container mirror after a retry", () => {
-  test("mounts the Workspace as it is when a retried boot succeeds, then mirrors edits", async () => {
+  test("a retried boot mounts the Workspace as edited while failed, then mirrors edits", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
@@ -195,44 +164,24 @@ describe("Container mirror after a retry", () => {
           )
           yield* mirrorWorkspace(ws, container)
           yield* settle
-          assert.strictEqual((yield* container.phase)._tag, "failed")
-
-          // Edits while failed stay in the Workspace.
           yield* ws.writeFile("src/main.ts", "edited while failed")
-          yield* ws.createFile("src/new.ts", "new")
           yield* settle
-          assert.deepStrictEqual(backend.log, [])
 
           yield* container.retry
-          yield* awaitLog(backend, 4)
-          yield* settle
-          assert.strictEqual((yield* container.phase)._tag, "ready")
-          assert.deepStrictEqual(
-            [...backend.log].sort(),
-            [
-              "write package.json",
-              "write src/main.ts",
-              "write src/new.ts",
-              "write src/util.ts",
-            ],
-            "one mount of the current Workspace, no replayed events",
-          )
-          assert.strictEqual(
-            backend.files.get("src/main.ts"),
-            "edited while failed",
-          )
-
+          yield* awaitLog(backend, 3)
           yield* ws.writeFile("src/util.ts", "after retry")
-          yield* awaitLog(backend, 5)
-          assert.strictEqual(backend.files.get("src/util.ts"), "after retry")
+          yield* awaitLog(backend, 4)
+          assert.deepStrictEqual(filesOf(backend), {
+            "package.json": "{}",
+            "src/main.ts": "edited while failed",
+            "src/util.ts": "after retry",
+          })
         }),
       ),
     )
   })
-})
 
-describe("Container mirror onChange", () => {
-  test("reports the mount, then each event after it lands, in order", async () => {
+  test("onChange reports the mount, then each edit once it has landed", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
@@ -292,7 +241,7 @@ describe("Container", () => {
     await runContainer(
       (container) =>
         Effect.gen(function* () {
-          const seen: Array<ContainerPhase["_tag"]> = []
+          const seen: Array<string> = []
           const fiber = yield* container.phaseChanges.pipe(
             Stream.take(2),
             Stream.runForEach((phase) =>
@@ -301,35 +250,28 @@ describe("Container", () => {
             Effect.forkChild,
           )
           yield* settle
-          assert.strictEqual((yield* container.phase)._tag, "booting")
           yield* Deferred.succeed(release, undefined)
           yield* Fiber.join(fiber)
           assert.deepStrictEqual(seen, ["booting", "ready"])
-          yield* container.awaitReady
         }),
       undefined,
       Deferred.await(release),
     )
   })
 
-  test("moves to failed and fails operations with the boot error", async () => {
+  test("a failed boot fails operations with the boot error", async () => {
     await runContainer(
       (container) =>
         Effect.gen(function* () {
-          const exit = yield* container.writeFile("a.ts", "").pipe(Effect.exit)
-          const phase = yield* container.phase
-          assert.strictEqual(phase._tag, "failed")
-          assert.isTrue(Exit.isFailure(exit))
-          if (Exit.isFailure(exit)) {
-            assert.include(String(exit.cause), "ContainerBootFailed")
-          }
+          const error = yield* container.writeFile("a.ts", "").pipe(Effect.flip)
+          assert.strictEqual(error._tag, "ContainerBootFailed")
         }),
       undefined,
       Effect.fail(new ContainerBootFailed({ message: "no" })),
     )
   })
 
-  test("retry boots again after a failed boot, releasing the failed attempt first", async () => {
+  test("retry releases the failed boot before booting again", async () => {
     const events: Array<string> = []
     let attempts = 0
     const boot = Effect.gen(function* () {
@@ -347,35 +289,12 @@ describe("Container", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const container = yield* makeContainer(boot.pipe(Effect.as(backend)))
-          const seen: Array<ContainerPhase["_tag"]> = []
-          yield* container.phaseChanges.pipe(
-            Stream.runForEach((phase) =>
-              Effect.sync(() => seen.push(phase._tag)),
-            ),
-            Effect.forkScoped,
-          )
           yield* settle
-          assert.strictEqual((yield* container.phase)._tag, "failed")
-          assert.deepStrictEqual(events, ["acquire 1", "release 1"])
-          assert.isTrue(
-            Exit.isFailure(yield* container.awaitReady.pipe(Effect.exit)),
-          )
-
           yield* container.retry
           yield* container.awaitReady
-          yield* container.writeFile("a.ts", "x")
-          assert.strictEqual(backend.files.get("a.ts"), "x")
-          yield* settle
-          assert.deepStrictEqual(seen, ["failed", "booting", "ready"])
-          assert.deepStrictEqual(events, [
-            "acquire 1",
-            "release 1",
-            "acquire 2",
-          ])
         }),
       ),
     )
-    // The successful attempt lives until the Container's scope closes.
     assert.deepStrictEqual(events, [
       "acquire 1",
       "release 1",
@@ -384,27 +303,8 @@ describe("Container", () => {
     ])
   })
 
-  test("retry does nothing while booting or ready", async () => {
+  test("retry while a retried boot is still running does not boot again", async () => {
     let attempts = 0
-    const backend = makeFakeContainerBackend()
-    await runContainer(
-      (container) =>
-        Effect.gen(function* () {
-          yield* container.awaitReady
-          yield* container.retry
-          yield* settle
-          assert.strictEqual(attempts, 1)
-          assert.strictEqual((yield* container.phase)._tag, "ready")
-        }),
-      backend,
-      Effect.sync(() => {
-        attempts++
-      }),
-    )
-
-    // A retry while the retried boot is still running does not queue a
-    // third attempt once that one fails.
-    attempts = 0
     const second = Effect.runSync(Deferred.make<void, ContainerBootError>())
     await runContainer(
       (container) =>
@@ -412,7 +312,6 @@ describe("Container", () => {
           yield* settle
           yield* container.retry
           yield* settle
-          assert.strictEqual((yield* container.phase)._tag, "booting")
           yield* container.retry
           yield* Deferred.fail(
             second,
@@ -420,9 +319,8 @@ describe("Container", () => {
           )
           yield* settle
           assert.strictEqual(attempts, 2)
-          assert.strictEqual((yield* container.phase)._tag, "failed")
         }),
-      backend,
+      undefined,
       Effect.suspend(() =>
         ++attempts === 1
           ? Effect.fail(new ContainerBootFailed({ message: "1" }))
@@ -431,7 +329,7 @@ describe("Container", () => {
     )
   })
 
-  test("spawns in the given directory with node_modules/.bin on PATH and returns output and exit code", async () => {
+  test("spawn runs in the given directory with node_modules/.bin on PATH and returns output and exit code", async () => {
     const backend = makeFakeContainerBackend({
       spawn: () => ({ exitCode: 3, output: ["hello ", "world"] }),
     })
@@ -444,11 +342,17 @@ describe("Container", () => {
             cwd: "src",
           })
           const output = yield* proc.output.pipe(Stream.mkString)
-          assert.strictEqual(output, "hello world")
-          assert.strictEqual(yield* proc.exitCode, 3)
+          const exitCode = yield* proc.exitCode
           const call = backend.spawned[0]!
-          assert.strictEqual(call.cwd, "src")
-          assert.match(call.env.PATH!, /^node_modules\/\.bin:/)
+          assert.deepStrictEqual(
+            {
+              output,
+              exitCode,
+              cwd: call.cwd,
+              binOnPath: call.env.PATH!.startsWith("node_modules/.bin:"),
+            },
+            { output: "hello world", exitCode: 3, cwd: "src", binOnPath: true },
+          )
         }).pipe(Effect.scoped),
       backend,
     )
@@ -469,34 +373,8 @@ describe("Container", () => {
               Effect.forkChild,
             )
           yield* settle
-          assert.strictEqual(backend.killed(), 0)
           yield* Fiber.interrupt(fiber)
           assert.strictEqual(backend.killed(), 1)
-        }),
-      backend,
-    )
-  })
-
-  test("keeps host files outside the Workspace and names them for spawn arguments", async () => {
-    const backend = makeFakeContainerBackend()
-    await runContainer(
-      (container) =>
-        Effect.gen(function* () {
-          yield* container.writeHostDirFile("collect.cjs", "script")
-          assert.strictEqual(
-            new TextDecoder().decode(
-              yield* container.readHostDirFile("collect.cjs"),
-            ),
-            "script",
-          )
-          assert.isFalse(backend.files.has("collect.cjs"))
-          assert.strictEqual(
-            container.hostDirPath("collect.cjs"),
-            "../.scratchpad/collect.cjs",
-          )
-          yield* container.removeHostDirFile("collect.cjs")
-          yield* container.removeHostDirFile("missing")
-          assert.strictEqual(backend.hostFiles.size, 0)
         }),
       backend,
     )

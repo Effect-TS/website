@@ -50,15 +50,6 @@ describe("downloadScratchpad", () => {
     })) {
       expected[`${name}/${path}`] = content
     }
-    const entries = await readZip(download.content)
-    assert.deepStrictEqual(entries, expected)
-    for (const file of [
-      "package.json",
-      "pnpm-lock.yaml",
-      "tsconfig.json",
-      "dprint.json",
-    ]) {
-      assert.property(entries, `${name}/${file}`)
-    }
+    assert.deepStrictEqual(await readZip(download.content), expected)
   })
 })

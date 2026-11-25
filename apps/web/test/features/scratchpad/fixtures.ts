@@ -3,7 +3,7 @@
  * Effect diagnostic. This was the Scratchpad seed before it moved to the
  * Playground v4 template.
  */
-export const GREETER_SNIPPET = `import { Effect } from "effect"
+const GREETER_SNIPPET = `import { Effect } from "effect"
 
 export const greet = (name: string) =>
   Effect.succeed(\`Hello, \${name}!\`)

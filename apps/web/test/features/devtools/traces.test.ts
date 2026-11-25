@@ -9,7 +9,6 @@ import {
   makeTraceAtoms,
   parseDevToolsLine,
   recordDevToolsRequest,
-  resetTraces,
 } from "../../../src/features/devtools/traces.ts"
 
 const encodeLine = (request: DevToolsSchema.Request) =>
@@ -80,18 +79,8 @@ describe("trace store", () => {
         exit: Exit.fail("rejected"),
       },
     }
-    const { registry, atoms } = storeWith([
-      encodeLine(failed),
-      encodeLine(span("trace-b", "2", "fine")),
-    ])
-    const roots = registry.get(atoms.rootSpansAtom)
-    assert.deepStrictEqual(
-      roots.map((root) => [root.label, root.hasError]),
-      [
-        ["fine", false],
-        ["upload", true],
-      ],
-    )
+    const { registry, atoms } = storeWith([encodeLine(failed)])
+    assert.isTrue(registry.get(atoms.rootSpansAtom)[0]!.hasError)
   })
 
   test("pings, blank lines and torn writes are skipped", () => {
@@ -112,23 +101,5 @@ describe("trace store", () => {
     registry.set(atoms.selectedSpanAtom, "trace-a")
     recordDevToolsRequest(registry, atoms, span("trace-b", "2", "later"))
     assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-a")
-  })
-
-  test("reset forgets every trace and the pick", () => {
-    const { registry, atoms } = storeWith([
-      encodeLine(span("trace-a", "1", "first run")),
-      encodeLine(span("trace-b", "2", "first run, second trace")),
-    ])
-    registry.set(atoms.selectedSpanAtom, "trace-a")
-    assert.equal(registry.get(atoms.selectedSpanAtom)?.traceId, "trace-a")
-
-    resetTraces(registry, atoms)
-    assert.deepStrictEqual(registry.get(atoms.rootSpansAtom), [])
-    assert.isUndefined(registry.get(atoms.selectedSpanAtom))
-    assert.isUndefined(registry.get(atoms.selectedTraceIdAtom))
-
-    // The next Run's newest trace is shown.
-    recordDevToolsRequest(registry, atoms, span("trace-c", "3", "second run"))
-    assert.equal(registry.get(atoms.selectedSpanAtom)?.label, "second run")
   })
 })

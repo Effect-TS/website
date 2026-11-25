@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "playwright/test"
 
-// Shared by the Scratchpad e2e specs (scratchpad-worker, scratchpad-container).
+// Shared by the Scratchpad e2e specs (scratchpad-worker, scratchpad-container,
+// scratchpad-share).
 
 export const READY_TIMEOUT = 60_000
 export const LSP_TIMEOUT = 20_000
@@ -72,7 +73,7 @@ let reachability: Promise<string | undefined> | undefined
  * answer. Any HTTP response counts: only network errors and timeouts mean
  * offline. Checked once per test worker.
  */
-export const containerUnreachable = (): Promise<string | undefined> =>
+const containerUnreachable = (): Promise<string | undefined> =>
   (reachability ??= Promise.all(
     CONTAINER_HOSTS.map((url) =>
       fetch(url, { method: "HEAD", signal: AbortSignal.timeout(10_000) }).then(
@@ -114,7 +115,3 @@ export const awaitInstalledTypes = async (page: Page) => {
     `The Container did not install (offline?): ${phase}: ${await badge.getAttribute("title")}`,
   )
 }
-
-/** The latest Run's number (`data-run-id`, 0 before the first Run). */
-export const runIdOf = async (page: Page) =>
-  Number((await runOutputOf(page).getAttribute("data-run-id")) ?? "0")

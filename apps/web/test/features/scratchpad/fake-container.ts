@@ -28,7 +28,7 @@ export interface FakeSpawnCall {
 }
 
 /** What a command typed into the fake `jsh` does. */
-export interface FakeJshCommand {
+interface FakeJshCommand {
   readonly output?: ReadonlyArray<string> | undefined
   /** The exit code, once done. Ignored with `hang`. */
   readonly exitCode?: number | undefined
@@ -37,11 +37,10 @@ export interface FakeJshCommand {
 }
 
 /** The fake `jsh`'s prompt, colored like the real one. */
-export const FAKE_PROMPT =
-  "\u001b[32m~/workspace\u001b[0m \u001b[34m❯\u001b[0m "
+const FAKE_PROMPT = "\u001b[32m~/workspace\u001b[0m \u001b[34m❯\u001b[0m "
 
 /** One interactive shell started on the fake backend. */
-export interface FakeShell {
+interface FakeShell {
   /** Every write to its input, in order. */
   readonly input: Array<string>
   /** Every line entered at its prompt, in order. */

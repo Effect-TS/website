@@ -17,7 +17,7 @@ import {
  * deterministic tests of the session and editor.
  */
 
-export interface JsonRpcMessage {
+interface JsonRpcMessage {
   readonly jsonrpc?: string
   readonly id?: number | string
   readonly method?: string
@@ -30,7 +30,7 @@ export interface JsonRpcMessage {
   }
 }
 
-export interface JsonRpcRequest extends JsonRpcMessage {
+interface JsonRpcRequest extends JsonRpcMessage {
   readonly id: number | string
   readonly method: string
 }
@@ -43,7 +43,7 @@ export interface FakeLspTransportOptions {
   readonly autoHandshake?: boolean
 }
 
-export interface FakeLspController {
+interface FakeLspController {
   readonly isConnected: Effect.Effect<boolean>
   readonly openCount: Effect.Effect<number>
   readonly sentMessages: Effect.Effect<ReadonlyArray<JsonRpcMessage>>
@@ -72,7 +72,7 @@ export interface FakeLspController {
   readonly crash: (message?: string) => Effect.Effect<void>
 }
 
-export interface FakeLspTransportHandle {
+interface FakeLspTransportHandle {
   readonly layer: Layer.Layer<LspTransport>
   readonly controller: FakeLspController
 }

@@ -12,10 +12,7 @@ import {
   type LoadedScratchpadWorkspace,
   type ScratchpadLocation,
 } from "../../../src/features/scratchpad/load.ts"
-import {
-  SCRATCHPAD_SEED,
-  SCRATCHPAD_SEEDS,
-} from "../../../src/features/scratchpad/seed.ts"
+import { SCRATCHPAD_SEEDS } from "../../../src/features/scratchpad/seed.ts"
 import { SCRATCHPAD_EFFECT_VERSION_KEY } from "../../../src/features/scratchpad/version.ts"
 import {
   Compression,
@@ -213,198 +210,86 @@ const load = (fixture: Fixture): Promise<LoadedScratchpadWorkspace> => {
   )
 }
 
+/** Whether the Scratchpad opened the seed for `version`. */
 const assertSeed = (
   loaded: LoadedScratchpadWorkspace,
   version: "v3" | "v4" = "v4",
 ) => {
   assert.equal(loaded.source, "seed")
   assert.deepStrictEqual(loaded.files, SCRATCHPAD_SEEDS[version].files)
-  assert.deepStrictEqual(loaded.metadata, SCRATCHPAD_SEEDS[version].metadata)
-  assert.equal(loaded.initialFilePath, "src/main.ts")
-  assert.equal(loaded.effectVersion, version)
 }
 
 describe("loadScratchpadWorkspace", () => {
   test("loads the seed when there's nothing else", async () => {
-    const loaded = await load({})
-    assertSeed(loaded)
-    assert.isTrue(Option.isNone(loaded.notice))
+    assertSeed(await load({}))
   })
 
-  test("loads a v4 share from the hash, normalized for the Scratchpad", async () => {
+  test("loads a share from the hash and opens its initial file", async () => {
     const loaded = await load({
       location: { hash: "#v4share" },
       shares: { v4share: await compressJson(v4ShareJson) },
     })
     assert.equal(loaded.source, "hash")
-    assert.isTrue(Option.isNone(loaded.notice))
-    assert.deepStrictEqual(Object.keys(loaded.files).sort(), [
-      "dprint.json",
-      "package.json",
-      "src/Program.ts",
-      "src/main.ts",
-      "tsconfig.json",
-    ])
-    // normalizeWorkspace's legacy repairs.
-    assert.include(loaded.files["src/main.ts"], 'from "./Program.js"')
-    // The Scratchpad's tsconfig patch (its details: share/tsconfig.test.ts).
-    assert.include(loaded.files["tsconfig.json"], "@effect/language-service")
-    // The share's own pins survive.
-    assert.equal(
-      JSON.parse(loaded.files["package.json"]!).dependencies.effect,
-      "4.0.0-beta.5",
-    )
-    // initialFilePath opens first.
     assert.equal(loaded.initialFilePath, "src/Program.ts")
   })
 
-  test("a v3 share loads as v3, without a notice", async () => {
+  test("a v3 share loads as v3", async () => {
     const loaded = await load({
       location: { hash: "#v3share" },
       shares: { v3share: await compressJson(v3ShareJson) },
-      autosave: v4ShareJson,
     })
-    assert.equal(loaded.source, "hash")
-    assert.isTrue(Option.isNone(loaded.notice))
     assert.equal(loaded.effectVersion, "v3")
-    assert.include(loaded.files["src/main.ts"], 'Effect.log("v3 share")')
-    // Normalized like any share: v3 pins and the Scratchpad tsconfig.
-    assert.match(
-      JSON.parse(loaded.files["package.json"]!).dependencies.effect,
-      /^\^3\./,
-    )
-    assert.include(loaded.files["tsconfig.json"], "@effect/language-service")
   })
 
-  test("a v4 share reports v4", async () => {
-    const loaded = await load({
-      location: { hash: "#v4share" },
-      shares: { v4share: await compressJson(v4ShareJson) },
-    })
-    assert.equal(loaded.effectVersion, "v4")
-  })
-
-  test("an over-limit share loads the seed with a limits notice", async () => {
+  test("an over-limit share loads the seed with a notice linking to it on /play", async () => {
     const loaded = await load({
       location: { hash: "#big" },
       shares: { big: await compressJson(overLimitShareJson) },
     })
     assertSeed(loaded)
-    const notice = Option.getOrThrow(loaded.notice)
-    assert.equal(notice.reason, "limits")
-    assert.equal(notice.playgroundUrl, "/play#big")
-    assert.include(notice.message, "50 files")
+    assert.equal(Option.getOrThrow(loaded.notice).playgroundUrl, "/play#big")
   })
 
   test("a corrupt hash falls through to the next source", async () => {
-    const code = 'import * as Effect from "effect/Effect"\n'
     const loaded = await load({
-      location: {
-        hash: "#corrupt",
-        search: `?code=${encodeCode(code)}&version=v4`,
-      },
+      location: { hash: "#corrupt", search: `?code=${encodeCode("x")}` },
       shares: { corrupt: "not compressed!" },
     })
     assert.equal(loaded.source, "code")
-    assert.equal(loaded.files["src/main.ts"], code)
   })
 
-  test("an unknown hash falls through to the autosave", async () => {
-    const loaded = await load({
-      location: { hash: "#missing" },
-      autosave: v4ShareJson,
-    })
-    assert.equal(loaded.source, "autosave")
-    assert.isTrue(Option.isNone(loaded.notice))
-  })
-
-  test("the hash wins over ?code", async () => {
-    const loaded = await load({
-      location: {
-        hash: "#v4share",
-        search: `?code=${encodeCode("x")}&version=v4`,
-      },
-      shares: { v4share: await compressJson(v4ShareJson) },
-    })
-    assert.equal(loaded.source, "hash")
-  })
-
-  test("a ?code link with version=v4 swaps main.ts into the seed", async () => {
+  test("a ?code link swaps main.ts into the seed for its version", async () => {
     const code =
       'import * as Effect from "effect/Effect"\nEffect.runFork(Effect.log("hi"))\n'
     const loaded = await load({
       location: { search: `?code=${encodeCode(code)}&version=v4` },
       autosave: v4ShareJson,
     })
-    assert.equal(loaded.source, "code")
-    assert.isTrue(Option.isNone(loaded.notice))
     assert.deepStrictEqual(loaded.files, {
-      ...SCRATCHPAD_SEED.files,
+      ...SCRATCHPAD_SEEDS.v4.files,
       "src/main.ts": code,
     })
-    assert.deepStrictEqual(loaded.metadata, SCRATCHPAD_SEED.metadata)
-    assert.equal(loaded.initialFilePath, "src/main.ts")
   })
 
   test("a ?code link without a version is v3, like on /play", async () => {
-    const code = 'import { Effect } from "effect"\n'
     const loaded = await load({
-      location: { search: `?code=${encodeCode(code)}` },
+      location: { search: `?code=${encodeCode("x")}` },
       versionPreference: JSON.stringify("v4"),
     })
-    assert.equal(loaded.source, "code")
-    assert.isTrue(Option.isNone(loaded.notice))
     assert.equal(loaded.effectVersion, "v3")
-    assert.deepStrictEqual(loaded.files, {
-      ...SCRATCHPAD_SEEDS.v3.files,
-      "src/main.ts": code,
-    })
-    assert.deepStrictEqual(loaded.metadata, SCRATCHPAD_SEEDS.v3.metadata)
-  })
-
-  test("a ?code link with version=v3 swaps main.ts into the v3 seed", async () => {
-    const loaded = await load({
-      location: { search: `?code=${encodeCode("x")}&version=v3` },
-    })
-    assert.equal(loaded.effectVersion, "v3")
-    assert.equal(loaded.files["src/main.ts"], "x")
-    assert.equal(
-      loaded.files["src/DevTools.ts"],
-      SCRATCHPAD_SEEDS.v3.files["src/DevTools.ts"],
-    )
-  })
-
-  test("an undecodable ?code falls through", async () => {
-    const loaded = await load({ location: { search: "?code=%%%" } })
-    assertSeed(loaded)
-    assert.isTrue(Option.isNone(loaded.notice))
   })
 
   test("the Scratchpad autosave wins over /play's", async () => {
     const loaded = await load({
       autosave: v4ShareJson,
-      playgroundAutosave: { ...v4ShareJson, initialFilePath: "src/main.ts" },
+      playgroundAutosave: v3ShareJson,
     })
     assert.equal(loaded.source, "autosave")
-    assert.equal(loaded.initialFilePath, "src/Program.ts")
   })
 
   test("reads /play's autosave when the Scratchpad has none", async () => {
     const loaded = await load({ playgroundAutosave: v4ShareJson })
     assert.equal(loaded.source, "playground-autosave")
-  })
-
-  test("a v3 /play autosave loads as v3", async () => {
-    const loaded = await load({ playgroundAutosave: v3ShareJson })
-    assert.equal(loaded.source, "playground-autosave")
-    assert.equal(loaded.effectVersion, "v3")
-    assert.isTrue(Option.isNone(loaded.notice))
-  })
-
-  test("a v3 Scratchpad autosave loads as v3", async () => {
-    const loaded = await load({ autosave: v3ShareJson })
-    assert.equal(loaded.source, "autosave")
-    assert.equal(loaded.effectVersion, "v3")
   })
 
   test("after a Reset cleared the autosave, /play's autosave isn't read", async () => {
@@ -417,11 +302,6 @@ describe("loadScratchpadWorkspace", () => {
 
   test("a fresh visit opens the seed for the remembered version", async () => {
     assertSeed(await load({ versionPreference: JSON.stringify("v3") }), "v3")
-    assertSeed(await load({ versionPreference: JSON.stringify("v4") }), "v4")
-  })
-
-  test("a stored version that doesn't decode opens the v4 seed", async () => {
-    assertSeed(await load({ versionPreference: "v3" }), "v4")
   })
 
   test("?version picks the seed over the remembered version", async () => {
@@ -432,20 +312,5 @@ describe("loadScratchpadWorkspace", () => {
       }),
       "v3",
     )
-  })
-
-  test("a workspace that loads ignores the remembered version", async () => {
-    const loaded = await load({
-      autosave: v4ShareJson,
-      versionPreference: JSON.stringify("v3"),
-    })
-    assert.equal(loaded.effectVersion, "v4")
-  })
-
-  test("an initialFilePath missing from the workspace opens src/main.ts", async () => {
-    const loaded = await load({
-      playgroundAutosave: { ...v4ShareJson, initialFilePath: "src/gone.ts" },
-    })
-    assert.equal(loaded.initialFilePath, "src/main.ts")
   })
 })

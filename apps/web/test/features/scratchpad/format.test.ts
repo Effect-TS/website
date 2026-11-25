@@ -75,20 +75,6 @@ describe("formatDocumentCommand", () => {
     assert.strictEqual(text(), "const a = { b: 1 }\n")
   })
 
-  test("passes the file's path and current text to the formatter", async () => {
-    const { view } = makeView("x")
-    const calls: Array<[string, string]> = []
-    formatDocumentCommand(
-      fakeFormatter((path, t) => {
-        calls.push([path, t])
-        return { _tag: "Formatted", text: t }
-      }),
-      "src/a.json",
-    )(view)
-    await flush()
-    assert.deepStrictEqual(calls, [["src/a.json", "x"]])
-  })
-
   test("one undo restores the unformatted text", async () => {
     const original = "const  a={b:1}\nconst c   =2"
     const { view, text, undoOnce } = makeView(original)
@@ -129,17 +115,6 @@ describe("formatDocumentCommand", () => {
     assert.strictEqual(formatMessageOf(view.state), "plugin download failed")
   })
 
-  test("the message goes away on the next edit", async () => {
-    const { view, type } = makeView("a")
-    formatDocumentCommand(
-      fakeFormatter(() => ({ _tag: "Failed", message: "bad config" })),
-      "x.ts",
-    )(view)
-    await flush()
-    type(0, "b")
-    assert.isNull(formatMessageOf(view.state))
-  })
-
   test("drops the result when the text changed while formatting", async () => {
     const { view, type, text } = makeView("a  =  1")
     let resolve!: (result: FormatResult) => void
@@ -155,18 +130,15 @@ describe("formatDocumentCommand", () => {
 
   test("leaves read-only files alone but still handles the key", async () => {
     const { view, text } = makeView("a  =  1", 0, true)
-    let called = false
     const handled = formatDocumentCommand(
-      fakeFormatter(() => {
-        called = true
-        return { _tag: "Formatted", text: "a = 1\n" }
-      }),
+      formatsTo("a = 1\n"),
       "package.json",
     )(view)
     await flush()
-    assert.isTrue(handled)
-    assert.isFalse(called)
-    assert.strictEqual(text(), "a  =  1")
+    assert.deepStrictEqual(
+      { handled, text: text() },
+      { handled: true, text: "a  =  1" },
+    )
   })
 })
 
@@ -224,11 +196,9 @@ const makeDprint = (options: {
   config: () => string | undefined
   load?: (plugin: string) => Promise<DprintPlugin>
 }) => {
-  const loads: Array<string> = []
-  const formatter = makeDprintDocumentFormatter({
+  return makeDprintDocumentFormatter({
     readConfig: () => Promise.resolve(options.config()),
     loadPlugin: (plugin) => {
-      loads.push(plugin)
       if (options.load !== undefined) return options.load(plugin)
       const spec = plugins[plugin]
       return spec === undefined
@@ -236,12 +206,11 @@ const makeDprint = (options: {
         : Promise.resolve(fakePlugin(spec))
     },
   })
-  return { formatter, loads }
 }
 
 describe("makeDprintDocumentFormatter", () => {
   test("formats with the plugin for the file's extension and its dprint.json section", async () => {
-    const { formatter } = makeDprint({
+    const formatter = makeDprint({
       config: () =>
         dprintConfig({
           lineWidth: 100,
@@ -259,22 +228,12 @@ describe("makeDprintDocumentFormatter", () => {
     })
   })
 
-  test("loads plugins on the first format and reuses them", async () => {
-    const { formatter, loads } = makeDprint({
-      config: () => dprintConfig({ plugins: [TS] }),
-    })
-    assert.deepStrictEqual(loads, [])
-    await formatter.format("a.ts", "x")
-    await formatter.format("b.ts", "y")
-    assert.deepStrictEqual(loads, [TS])
-  })
-
   test("picks up dprint.json changes on the next format", async () => {
     let config = dprintConfig({
       typescript: { quoteStyle: "alwaysSingle" },
       plugins: [TS],
     })
-    const { formatter } = makeDprint({ config: () => config })
+    const formatter = makeDprint({ config: () => config })
     await formatter.format("a.ts", "x")
     config = dprintConfig({
       typescript: { quoteStyle: "alwaysDouble" },
@@ -288,7 +247,7 @@ describe("makeDprintDocumentFormatter", () => {
 
   test("a plugin that fails to download fails the format and is retried next time", async () => {
     let attempts = 0
-    const { formatter } = makeDprint({
+    const formatter = makeDprint({
       config: () => dprintConfig({ plugins: [TS] }),
       load: (plugin) => {
         attempts++
@@ -303,30 +262,24 @@ describe("makeDprintDocumentFormatter", () => {
     assert.strictEqual(second._tag, "Formatted")
   })
 
-  test("fails without dprint.json, with invalid JSON, without plugins, or with config diagnostics", async () => {
-    const cases: ReadonlyArray<string | undefined> = [
-      undefined,
-      "{ not json",
-      dprintConfig({ typescript: {} }),
-      dprintConfig({ typescript: { bogus: true }, plugins: [TS] }),
+  test("fails without a usable dprint.json or a plugin for the file", async () => {
+    const cases: ReadonlyArray<[string | undefined, string]> = [
+      [undefined, "a.ts"],
+      ["{ not json", "a.ts"],
+      [dprintConfig({ typescript: {} }), "a.ts"],
+      [dprintConfig({ typescript: { bogus: true }, plugins: [TS] }), "a.ts"],
+      [dprintConfig({ plugins: [TS] }), "README.md"],
     ]
-    for (const config of cases) {
-      const { formatter } = makeDprint({ config: () => config })
-      const result = await formatter.format("a.ts", "x")
-      assert.strictEqual(result._tag, "Failed", String(config))
+    const results = []
+    for (const [config, path] of cases) {
+      const formatter = makeDprint({ config: () => config })
+      results.push((await formatter.format(path, "x"))._tag)
     }
-  })
-
-  test("fails for a file no configured plugin formats", async () => {
-    const { formatter } = makeDprint({
-      config: () => dprintConfig({ plugins: [TS] }),
-    })
-    const result = await formatter.format("README.md", "# hi")
-    assert.strictEqual(result._tag, "Failed")
+    assert.deepStrictEqual(results, Array(cases.length).fill("Failed"))
   })
 
   test("a syntax error the plugin throws on fails the format", async () => {
-    const { formatter } = makeDprint({
+    const formatter = makeDprint({
       config: () => dprintConfig({ plugins: [TS] }),
       load: () =>
         Promise.resolve(

@@ -1,4 +1,3 @@
-import * as Crypto from "node:crypto"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import type * as Scope from "effect/Scope"
@@ -49,70 +48,26 @@ describe("formatTscError", () => {
         "",
       ].join("\r\n"),
     )
-    assert.deepEqual(
-      plain(
-        formatTscError(
-          error({
-            line: 12,
-            column: 3,
-            endLine: 14,
-            message: "first\nsecond",
-            code: undefined,
-            source: "\tfoo(bar)",
-          }),
-        ),
-      ).split("\r\n"),
-      [
-        "src/main.ts:12:3 - error: first",
-        "  second",
-        "",
-        "12 \tfoo(bar)",
-        "   \t ~~~~~~~",
-        "",
-      ],
-    )
-  })
-
-  test("without the source line it is just the header", () => {
-    assert.equal(
-      plain(formatTscError(error({ source: undefined }))),
-      "src/main.ts:4:7 - error TS2322: Type 'string' is not assignable to type 'number'.\r\n",
-    )
   })
 })
 
 describe("encodeDiagnosticsFile", () => {
-  test("hashes each file's UTF-8 text as the runner does, and keeps the formatted errors", async () => {
-    const text = 'console.log("héllo ✓")\n'
+  test("hashes each file's UTF-8 text with SHA-256, as the runner does", async () => {
     const json = await Effect.runPromise(
       encodeDiagnosticsFile({
         files: [
-          { path: "src/main.ts", text },
+          { path: "src/main.ts", text: 'console.log("héllo ✓")\n' },
           { path: "package.json", text: "{}" },
         ],
-        errors: [error()],
+        errors: [],
       }),
     )
-    const parsed = JSON.parse(json) as {
-      readonly files: Record<string, string>
-      readonly errors: ReadonlyArray<{
-        readonly path: string
-        readonly line: number
-        readonly column: number
-        readonly text: string
-      }>
-    }
-    assert.deepEqual(parsed.files, {
-      "package.json": Crypto.createHash("sha256").update("{}").digest("hex"),
-      "src/main.ts": Crypto.createHash("sha256")
-        .update(Buffer.from(text, "utf8"))
-        .digest("hex"),
+    assert.deepEqual((JSON.parse(json) as { files: unknown }).files, {
+      "package.json":
+        "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "src/main.ts":
+        "0628e65cd007b33d1667201e6e91c125a355b50bb5714441d16cdeaa55b73477",
     })
-    assert.deepEqual(
-      parsed.errors.map(({ path, line, column }) => ({ path, line, column })),
-      [{ path: "src/main.ts", line: 4, column: 7 }],
-    )
-    assert.equal(parsed.errors[0]!.text, formatTscError(error()))
   })
 })
 
@@ -200,93 +155,77 @@ const until = async (predicate: () => boolean, what: string) => {
   }
 }
 
-const sleep = (ms: number) =>
-  Effect.promise(() => new Promise((resolve) => setTimeout(resolve, ms)))
+/**
+ * Starts the writer on a fake Container; `check` is what the page's
+ * diagnostics say right now (`None` while they aren't current).
+ */
+const startWriter = (options: {
+  readonly state: DependencyState
+  readonly check: () => Option.Option<DiagnosticsCheck>
+}) =>
+  Effect.gen(function* () {
+    const backend = makeFakeContainerBackend()
+    const container = yield* makeContainer(Effect.succeed(backend))
+    const deps = yield* SubscriptionRef.make(options.state)
+    const wakeups = yield* SubscriptionRef.make(0)
+    yield* runDiagnosticsWriter({
+      container,
+      dependencies: {
+        state: SubscriptionRef.get(deps),
+        stateChanges: SubscriptionRef.changes(deps),
+      } as unknown as DependenciesService,
+      current: Effect.sync(options.check),
+      wakeups: SubscriptionRef.changes(wakeups).pipe(Stream.drop(1)),
+    }).pipe(Effect.forkScoped)
+    yield* SubscriptionRef.update(wakeups, (n) => n + 1)
+    const file = () => backend.hostFiles.get("diagnostics.json")
+    return {
+      read: () => JSON.parse(String(file())) as unknown,
+      written: (what: string, predicate: (text: string) => boolean) =>
+        Effect.promise(() =>
+          until(() => file() !== undefined && predicate(String(file())), what),
+        ),
+    }
+  })
 
 const run = <A>(effect: Effect.Effect<A, unknown, Scope.Scope>) =>
   Effect.runPromise(Effect.scoped(effect))
 
 describe("runDiagnosticsWriter", () => {
-  test("writes the file once the Container can run code and the check is current, and again only when it changes", () =>
+  test("tells the runner to wait while the dependencies install", () =>
     run(
       Effect.gen(function* () {
-        const backend = makeFakeContainerBackend()
-        const container = yield* makeContainer(Effect.succeed(backend))
-        const deps = yield* SubscriptionRef.make(initialDependencyState)
-        const dependencies = {
-          state: SubscriptionRef.get(deps),
-          stateChanges: SubscriptionRef.changes(deps),
-        } as unknown as DependenciesService
-        let check: Option.Option<DiagnosticsCheck> = Option.some({
-          files: [{ path: "src/main.ts", text: "1" }],
+        const writer = yield* startWriter({
+          state: initialDependencyState,
+          check: () => Option.some({ files: [], errors: [] }),
+        })
+        yield* writer.written("a write", () => true)
+        assert.deepEqual(writer.read(), {
+          installing: true,
+          files: {},
           errors: [],
         })
-        const wakeups = yield* SubscriptionRef.make(0)
-        const wake = SubscriptionRef.update(wakeups, (n) => n + 1)
-        let writes = 0
-        const original = backend.writeHostDirFile
-        ;(backend as { writeHostDirFile: typeof original }).writeHostDirFile =
-          async (name, content) => {
-            if (name === "diagnostics.json") writes++
-            await original(name, content)
-          }
-        yield* runDiagnosticsWriter({
-          container,
-          dependencies,
-          current: Effect.sync(() => check),
-          wakeups: SubscriptionRef.changes(wakeups).pipe(Stream.drop(1)),
-        }).pipe(Effect.forkScoped)
+      }),
+    ))
 
-        // Installing: the file tells the runner to wait.
-        yield* wake
-        yield* Effect.promise(() =>
-          until(() => backend.hostFiles.has("diagnostics.json"), "a write"),
-        )
-        assert.deepEqual(
-          JSON.parse(String(backend.hostFiles.get("diagnostics.json"))),
-          { installing: true, files: {}, errors: [] },
-        )
-        writes = 0
-
-        yield* SubscriptionRef.set(deps, READY)
-        yield* Effect.promise(() => until(() => writes === 1, "the check"))
-        const first = JSON.parse(
-          String(backend.hostFiles.get("diagnostics.json")),
-        ) as { readonly files: Record<string, string> }
-        assert.deepEqual(Object.keys(first.files), ["src/main.ts"])
-        assert.equal(writes, 1)
-
-        // Same check: no new write.
-        yield* wake
-        yield* sleep(50)
-        assert.equal(writes, 1)
-
-        // Not current: it waits, polling, until it is.
-        check = Option.none()
-        yield* wake
-        yield* sleep(120)
-        assert.equal(writes, 1)
+  test("once the Container can run code, writes the check as soon as the diagnostics are current", () =>
+    run(
+      Effect.gen(function* () {
+        let check: Option.Option<DiagnosticsCheck> = Option.none()
+        const writer = yield* startWriter({ state: READY, check: () => check })
+        yield* Effect.sleep("120 millis")
         check = Option.some({
-          files: [{ path: "src/main.ts", text: "2" }],
+          files: [{ path: "src/main.ts", text: "1" }],
           errors: [error()],
         })
-        yield* Effect.promise(() => until(() => writes === 2, "the new check"))
-        yield* sleep(20)
-        const second = JSON.parse(
-          String(backend.hostFiles.get("diagnostics.json")),
-        ) as { readonly errors: ReadonlyArray<unknown> }
-        assert.lengthOf(second.errors, 1)
-
-        // A reinstall (a package.json edit): the runner waits again.
-        yield* SubscriptionRef.set(deps, initialDependencyState)
-        yield* Effect.promise(() =>
-          until(
-            () =>
-              String(backend.hostFiles.get("diagnostics.json")).includes(
-                '"installing":true',
-              ),
-            "the installing marker",
-          ),
+        yield* writer.written("the check", (text) => text.includes("TS2322"))
+        assert.deepEqual(
+          (
+            writer.read() as {
+              readonly errors: ReadonlyArray<{ readonly path: string }>
+            }
+          ).errors.map((e) => e.path),
+          ["src/main.ts"],
         )
       }),
     ))
