@@ -3,8 +3,6 @@ import * as Effect from "effect/Effect"
 import { appendFile } from "node:fs/promises"
 import PreviewStack from "./preview.ts"
 
-// Deploys the requested preview and hands its URL to the workflow as the
-// step output `url`.
 const stage = process.argv[2]
 if (!stage) {
   throw new Error("Usage: node stacks/deploy-preview.ts <stage>")

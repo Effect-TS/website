@@ -115,7 +115,6 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
   )
   await writeFile(outsideFile, "TOP_SECRET")
 
-  // Symlink inside client assets (would exfiltrate secrets when Alchemy reads files)
   await symlink(outsideFile, path.join(fixture.clientDir, "leak.txt"))
   const symlinkError = await Effect.runPromise(
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),
@@ -123,7 +122,6 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
   assert.include(symlinkError.message, "Symlinks are forbidden")
   await rm(path.join(fixture.clientDir, "leak.txt"))
 
-  // Symlinked directory (its contents must not be walked or uploaded either)
   await symlink(path.dirname(outsideFile), path.join(fixture.serverDir, "dir"))
   const symlinkDirError = await Effect.runPromise(
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),
@@ -131,7 +129,6 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
   assert.include(symlinkDirError.message, "Symlinks are forbidden")
   await rm(path.join(fixture.serverDir, "dir"))
 
-  // Path traversal in manifest entry
   await writeFile(
     path.join(fixture.rootDir, "manifest.json"),
     JSON.stringify({ version: 1, entry: "../escape.mjs" }),
@@ -145,7 +142,7 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
     JSON.stringify({ version: 1, entry: "entry.mjs" }),
   )
 
-  // Backslash in ordinary POSIX filename (Alchemy normalizes "\" to "/" before joining)
+  // Alchemy normalizes "\" to "/" before joining module paths.
   await writeFile(path.join(fixture.serverDir, "..\\escape.js"), "evil")
   const serverBackslashError = await Effect.runPromise(
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),
@@ -153,7 +150,6 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
   assert.include(serverBackslashError.message, "Illegal path entry")
   await rm(path.join(fixture.serverDir, "..\\escape.js"))
 
-  // Backslash in directory name
   await mkdir(path.join(fixture.clientDir, "sub\\dir"))
   const dirBackslashError = await Effect.runPromise(
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),
@@ -161,7 +157,6 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
   assert.include(dirBackslashError.message, "Illegal path entry")
   await rm(path.join(fixture.clientDir, "sub\\dir"), { recursive: true })
 
-  // Unexpected top-level entry
   await writeFile(path.join(fixture.rootDir, "extra.txt"), "unexpected")
   const extraError = await Effect.runPromise(
     Effect.flip(validatePreviewArtifact(fixture.rootDir)),

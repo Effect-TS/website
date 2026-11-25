@@ -281,8 +281,7 @@ jobs:
           ref: main
           persist-credentials: false
 
-      # "Report result" loads its code from the checkout, so a failed checkout
-      # is reported here with nothing but the workflow's own values.
+      # Inline fallback because "Report result" loads its script from the checkout.
       - name: Report checkout failure
         if: failure() && steps.checkout.outcome == 'failure'
         uses: actions/github-script@v8
@@ -348,8 +347,6 @@ jobs:
           PULL_REQUEST: ${{ needs.authorize.outputs.pr_number }}
           PREVIEW_ARTIFACT_DIR: .requested-preview-artifact
 
-      # Runs whether the steps after the checkout passed, failed or were
-      # skipped, and works out from their results what to tell the pull request.
       - name: Report result
         if: (success() || failure()) && steps.checkout.outcome == 'success'
         uses: actions/github-script@v8

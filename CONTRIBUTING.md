@@ -2,15 +2,15 @@
 
 ## Requesting a Preview Deployment
 
-Pull requests opened from branches inside `Effect-TS/website` by repository collaborators with `write`, `maintain`, or `admin` access receive automatic previews from `.github/workflows/preview.yml`.
+Same-repo pull requests from collaborators with `write`, `maintain`, or `admin` access get automatic previews from `.github/workflows/preview.yml`.
 
-For pull requests from forks (or from authors without repository write access), any maintainer with current `write`, `maintain`, or `admin` permission on `Effect-TS/website` can request a preview by commenting on the open pull request (targeting `main`):
+For fork PRs (or PRs from authors without write access), any maintainer with current `write`, `maintain`, or `admin` permission on `Effect-TS/website` can request a preview on an open PR targeting `main`:
 
 ```text
 /preview
 ```
 
-To pin the exact commit you reviewed against pushes landing while the job queues, include the full 40-character commit SHA:
+To pin the exact commit you reviewed against pushes landing while the job queues, include the full 40-character SHA:
 
 ```text
 /preview <40-char-sha>
@@ -18,17 +18,16 @@ To pin the exact commit you reviewed against pushes landing while the job queues
 
 ### How `/preview` works
 
-1. **Authorization and SHA pinning:** The workflow verifies that the comment is `/preview` (which uses the PR head at authorization time) or `/preview <40-char-sha>` (which requires an exact match against the PR head; if the head has moved, the bot replies with the requested and current SHAs and deploys no preview) on an open PR targeting `main`, and that the commenter currently has `write`, `maintain`, or `admin` repository permission. Unauthorized requests are ignored without posting a comment. Workflow reruns do not reauthorize an earlier comment against a newer PR head—post a new `/preview` comment instead.
-2. **Exact commit deployment:** Once authorized, the workflow records the PR's current head SHA, creates a GitHub Deployment (`Requested Preview`) for that exact SHA, builds the commit in an unprivileged job without secrets and with a read-only Actions cache, and then publishes the validated build artifact from trusted `main` code.
-3. **No inherited approval:** Pushing new commits to the PR does not redeploy or reuse approval. The preview stays on the approved SHA until a maintainer comments `/preview` again.
-4. **Status reporting:** Progress, the preview URL (via **View deployment** and a PR comment naming the SHA and requester), or a failure link are reported on the pull request and its GitHub Deployment.
-5. **Cleanup:** When the pull request is closed, the requested preview Worker, its preview D1 database, and its GitHub Deployment status are cleaned up automatically.
+1. **Authorization and SHA pinning:** Checks that the commenter has current `write`, `maintain`, or `admin` permission on an open PR targeting `main`. Bare `/preview` uses the PR head at authorization time; `/preview <40-char-sha>` requires an exact match (otherwise the bot replies with both SHAs and deploys nothing). Unauthorized requests are ignored silently. Workflow reruns do not reauthorize earlier comments—post a new `/preview` comment instead.
+2. **Isolated build and publish:** Creates a `Requested Preview` GitHub Deployment for the approved SHA, builds the commit without secrets and with a read-only cache, validates the artifact, and publishes from trusted `main` code.
+3. **No inherited approval:** Later pushes do not redeploy automatically; comment `/preview` again to deploy a newer commit.
+4. **Status and cleanup:** Reports progress, the preview URL (via **View deployment** and a PR comment), or failure links on the PR. Closing the PR destroys the preview Worker and D1 database and marks its deployments inactive.
 
-### Limitations of requested previews
+### Limitations
 
-Requested previews run contributor code on Cloudflare Workers without access to production credentials:
+Requested previews run contributor code without production credentials:
 
-- **Search and playground share links are disabled** and will return errors, because they require credentials shared with production.
-- **PostHog analytics are disabled**, and no Mixedbread search overlay store is built.
-- **Branches predating this workflow** must merge `main` first so `apps/web/scripts/build-preview.ts` is present on the PR branch.
-- **Review the diff before commenting `/preview`:** A `/preview` comment selects a commit to deploy on Effect's `workers.dev` subdomain; it does not make contributor code trusted.
+- **Search and playground share links** return errors (they require production credentials).
+- **PostHog analytics and search overlay stores** are disabled.
+- **Older PR branches** must merge `main` first so `apps/web/scripts/build-preview.ts` exists on the branch.
+- **Review the diff before commenting `/preview`:** requesting a preview deploys contributor code on Effect's `workers.dev` subdomain without making it trusted.

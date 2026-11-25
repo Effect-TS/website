@@ -26,12 +26,9 @@ const program = Effect.gen(function* () {
   const rootDir = path.resolve(repoRoot, WEBSITE_ASTRO_OPTIONS.rootDir)
   const migrationsDir = path.resolve(repoRoot, WEBSITE_MIGRATIONS_DIR)
 
-  // Match Alchemy's BuildChildRunner, which runs the Astro build with
-  // cwd === project root so relative config/content paths resolve identically.
+  // Match Alchemy's BuildChildRunner so relative paths resolve from apps/web.
   process.chdir(rootDir)
 
-  // The compatibility settings Alchemy gives the Worker that
-  // stacks/preview.ts deploys this build to.
   const compatibility = getToolingCompatibility(
     getCompatibility({ bundle: false }),
     undefined,

@@ -48,8 +48,7 @@ const RequestedPreviewWebsite = Cloudflare.Worker(
         MOTW_VOTE_SECRET: votesSecret.text,
         TURNSTILE_SITE_KEY: TURNSTILE_TEST_KEYS.siteKey,
         TURNSTILE_SECRET: Redacted.make(TURNSTILE_TEST_KEYS.secret),
-        // 20 votes a minute for each client address, isolated from automatic
-        // previews and production.
+        // Isolated from automatic previews and production.
         MOTW_VOTE_LIMIT: Cloudflare.RateLimit("MOTW_VOTE_LIMIT", {
           namespaceId: rateLimitNamespaceId(`requested-${stage}`),
           simple: { limit: 20, period: 60 },

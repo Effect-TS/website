@@ -14,8 +14,7 @@ import path from "node:path"
 
 export const DEFAULT_PREVIEW_ARTIFACT_DIR = ".requested-preview-artifact"
 
-// The build job runs the PR branch's writer and the publish job runs main's
-// validator, so the two can disagree about the layout. Bump this when it changes.
+// Bump when the artifact layout changes; build runs the PR's writer while publish runs main's validator.
 const ARTIFACT_VERSION = 1
 const MANIFEST_FILE = "manifest.json"
 const SERVER_DIR = "server"
@@ -28,7 +27,6 @@ const TOP_LEVEL_ENTRIES = new Set([
   MIGRATIONS_DIR,
 ])
 
-// The entry module sits directly inside `server/`.
 const ENTRY_NAME = /^[^/\\\0]+\.m?js$/
 const MIGRATION_FILE = /^migrations\/[^/]+\.sql$/
 
@@ -53,10 +51,10 @@ export interface ValidatedPreviewArtifact {
 
 export interface WritePreviewArtifactOptions {
   readonly outputDir: string
-  // Entry module first, as Alchemy's framework builds return them.
+  // Entry module first, matching Alchemy's framework builds.
   readonly serverModules: ReadonlyArray<PreviewServerModule>
   readonly clientDir: string
-  // Skipped when the directory does not exist.
+  // Skipped if missing.
   readonly migrationsDir: string
 }
 
@@ -75,9 +73,7 @@ const fsTry = <A>(
       }),
   })
 
-// Runs in the build job, next to contributor code. Nothing here is a security
-// check: the publish job trusts only `validatePreviewArtifact`. Validating at
-// the end makes a bad artifact fail the build instead of the publish.
+// Runs in the untrusted build job; publish trusts only `validatePreviewArtifact`.
 export const writePreviewArtifact = (
   options: WritePreviewArtifactOptions,
 ): Effect.Effect<ValidatedPreviewArtifact, PreviewArtifactError> =>
@@ -88,10 +84,8 @@ export const writePreviewArtifact = (
         "Astro build produced no server modules to package",
       )
     }
-    // Framework builds name server modules relative to `dist/`, for example
-    // `server/entry.mjs` and `server/chunks/...`. Strip the entry's directory
-    // so the entry sits directly inside `server/`, where Alchemy's prebuilt
-    // source walks its sibling modules.
+    // Strip the collector's `server/` prefix so the entry sits directly inside
+    // `server/` where Alchemy's prebuilt source walks sibling modules.
     const entryDir = path.posix.dirname(entry.name)
     const prefix = entryDir === "." ? "" : `${entryDir}/`
     const outputDir = path.resolve(options.outputDir)
@@ -129,10 +123,8 @@ export const writePreviewArtifact = (
     return yield* validatePreviewArtifact(outputDir)
   })
 
-// The publish job's only check on what the build job produced. Alchemy reads
-// every path below from a process that holds the Cloudflare token, so the
-// artifact may contain nothing but regular files and directories, in the
-// expected places, under names Alchemy resolves the same way this does.
+// Security boundary in the credentialed publish job: allow only regular files
+// and directories in the expected layout before Alchemy reads any path.
 export const validatePreviewArtifact = (
   artifactDir: string,
 ): Effect.Effect<ValidatedPreviewArtifact, PreviewArtifactError> =>
@@ -141,8 +133,7 @@ export const validatePreviewArtifact = (
       () => realpath(artifactDir),
       `Missing preview artifact directory "${artifactDir}"`,
     )
-    // A recursive listing reports symlinks as symlinks and does not descend
-    // into them, so every path it returns is really inside `rootDir`.
+    // Recursive readdir does not follow symlinks, keeping every entry under `rootDir`.
     const entries = yield* fsTry(
       () => readdir(rootDir, { recursive: true, withFileTypes: true }),
       `Failed to read preview artifact directory "${rootDir}"`,
@@ -155,8 +146,7 @@ export const validatePreviewArtifact = (
         .relative(rootDir, path.join(entry.parentPath, entry.name))
         .split(path.sep)
       const relPath = segments.join("/")
-      // Alchemy turns "\\" into "/" before joining module names to the bundle
-      // root, so a backslash would make it read a path this did not check.
+      // Alchemy normalizes "\\" to "/" before joining module paths, so reject backslashes.
       if (entry.name.includes("\\")) {
         return yield* failArtifact(`Illegal path entry "${relPath}"`)
       }
@@ -174,7 +164,6 @@ export const validatePreviewArtifact = (
         hasMigrations ||= relPath === MIGRATIONS_DIR
         continue
       }
-      // The manifest is the only file allowed at the top level.
       if (
         !entry.isFile() ||
         (segments.length === 1 && relPath !== MANIFEST_FILE)

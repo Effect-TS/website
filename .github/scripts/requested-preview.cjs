@@ -1,9 +1,7 @@
-// GitHub API calls shared by the publish and cleanup jobs of
-// .github/workflows/requested-preview.yml. Those jobs load it with `require`
-// from a checkout of `main`, never from pull request code.
+// Loaded via `require` from a trusted `main` checkout in publish/cleanup jobs,
+// never from pull request code.
 
-// The authorize job creates the deployments this reads. It runs without a
-// checkout, so it repeats this name and the payload shape.
+// Repeated in the checkout-free authorize job.
 const ENVIRONMENT = "Requested Preview"
 const COMMENT_MARKER = "<!-- effect-website-requested-preview -->"
 
@@ -33,7 +31,6 @@ module.exports = ({ github, context, core }) => {
     }
   }
 
-  // Ids of the requested preview deployments made for one pull request.
   const deploymentIds = async (prNumber) => {
     const deployments = await github.paginate(
       github.rest.repos.listDeployments,
@@ -44,8 +41,6 @@ module.exports = ({ github, context, core }) => {
       .map((deployment) => deployment.id)
   }
 
-  // Marks deployments inactive, by default every one that is not already.
-  // `isStale` receives a deployment's latest state.
   const deactivate = async (
     ids,
     description,
@@ -61,7 +56,6 @@ module.exports = ({ github, context, core }) => {
     }
   }
 
-  // One comment per pull request, rewritten on every request.
   const upsertComment = async (prNumber, lines) => {
     const body = [COMMENT_MARKER, ...lines].join("\n")
     const comments = await github.paginate(github.rest.issues.listComments, {
@@ -89,9 +83,6 @@ module.exports = ({ github, context, core }) => {
     }
   }
 
-  // The last step of the publish job. `buildResult` is the build job's result,
-  // `prOpen` is "true" or "false" once the build succeeded, and `previewUrl`
-  // is set once the deploy succeeded.
   const reportPublish = async ({
     prNumber,
     headSha,
@@ -125,9 +116,7 @@ module.exports = ({ github, context, core }) => {
         `Preview deployed for ${shortSha} (requested by @${requester})`,
         previewUrl,
       )
-      // A pull request has one preview Worker, so this publish replaced any
-      // other deployment that had succeeded. A newer request can be building
-      // while this one publishes, and it stays in progress.
+      // Deactivate only replaced successful previews; leave newer builds in progress.
       const others = (await deploymentIds(prNumber)).filter(
         (id) => id !== deploymentId,
       )
