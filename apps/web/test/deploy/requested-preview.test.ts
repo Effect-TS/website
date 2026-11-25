@@ -118,6 +118,14 @@ test("preview artifact validation rejects symlinks, path traversal, and unexpect
   assert.include(symlinkError.message, "Symlinks are forbidden")
   await rm(path.join(fixture.clientDir, "leak.txt"))
 
+  // Symlinked directory (its contents must not be walked or uploaded either)
+  await symlink(path.dirname(outsideFile), path.join(fixture.serverDir, "dir"))
+  const symlinkDirError = await Effect.runPromise(
+    Effect.flip(validatePreviewArtifact(fixture.rootDir)),
+  )
+  assert.include(symlinkDirError.message, "Symlinks are forbidden")
+  await rm(path.join(fixture.serverDir, "dir"))
+
   // Path traversal in manifest entry
   await writeFile(
     path.join(fixture.rootDir, "manifest.json"),

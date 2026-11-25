@@ -1,13 +1,13 @@
 import * as Alchemist from "alchemy/Alchemist"
 import * as Effect from "effect/Effect"
-import { writeFile } from "node:fs/promises"
+import { appendFile } from "node:fs/promises"
 import PreviewStack from "./preview.ts"
 
+// Deploys the requested preview and hands its URL to the workflow as the
+// step output `url`.
 const stage = process.argv[2]
-const outputFile = process.argv[3]
-
 if (!stage) {
-  throw new Error("Usage: node stacks/deploy-preview.ts <stage> [outputFile]")
+  throw new Error("Usage: node stacks/deploy-preview.ts <stage>")
 }
 
 const program = Effect.gen(function* () {
@@ -18,23 +18,19 @@ const program = Effect.gen(function* () {
     updateStateStore: true,
   })
   const output = yield* Alchemist.apply(plan)
-  if (
-    typeof output?.websiteUrl !== "string" ||
-    !output.websiteUrl.startsWith("https://")
-  ) {
+  const url = output?.websiteUrl
+  if (typeof url !== "string" || !url.startsWith("https://")) {
     return yield* Effect.fail(
       new Error(
         `Missing valid websiteUrl in stack output: ${JSON.stringify(output)}`,
       ),
     )
   }
-  if (outputFile !== undefined) {
-    yield* Effect.promise(() =>
-      writeFile(outputFile, `${JSON.stringify(output, null, 2)}\n`),
-    )
+  const githubOutput = process.env.GITHUB_OUTPUT
+  if (githubOutput !== undefined) {
+    yield* Effect.promise(() => appendFile(githubOutput, `url=${url}\n`))
   }
-  console.log(`Deployed requested preview: ${output.websiteUrl}`)
-  return output
+  console.log(`Deployed requested preview: ${url}`)
 }).pipe(Effect.provide(Alchemist.layer()), Effect.scoped)
 
 await Effect.runPromise(program)

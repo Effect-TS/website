@@ -1,8 +1,8 @@
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import { existsSync } from "node:fs"
 import {
-  copyFile,
-  lstat,
+  cp,
   mkdir,
   readdir,
   readFile,
@@ -12,30 +12,31 @@ import {
 } from "node:fs/promises"
 import path from "node:path"
 
-export const PREVIEW_ARTIFACT_VERSION = 1
-export const PREVIEW_MANIFEST_FILE = "manifest.json"
-export const PREVIEW_SERVER_DIR = "server"
-export const PREVIEW_CLIENT_DIR = "client"
-export const PREVIEW_MIGRATIONS_DIR = "migrations"
 export const DEFAULT_PREVIEW_ARTIFACT_DIR = ".requested-preview-artifact"
 
-const ALLOWED_TOP_LEVEL_ENTRIES = new Set([
-  PREVIEW_MANIFEST_FILE,
-  PREVIEW_SERVER_DIR,
-  PREVIEW_CLIENT_DIR,
-  PREVIEW_MIGRATIONS_DIR,
+// The build job runs the PR branch's writer and the publish job runs main's
+// validator, so the two can disagree about the layout. Bump this when it changes.
+const ARTIFACT_VERSION = 1
+const MANIFEST_FILE = "manifest.json"
+const SERVER_DIR = "server"
+const CLIENT_DIR = "client"
+const MIGRATIONS_DIR = "migrations"
+const TOP_LEVEL_ENTRIES = new Set([
+  MANIFEST_FILE,
+  SERVER_DIR,
+  CLIENT_DIR,
+  MIGRATIONS_DIR,
 ])
+
+// The entry module sits directly inside `server/`.
+const ENTRY_NAME = /^[^/\\\0]+\.m?js$/
+const MIGRATION_FILE = /^migrations\/[^/]+\.sql$/
 
 export class PreviewArtifactError extends Data.TaggedError(
   "PreviewArtifactError",
 )<{
   readonly message: string
 }> {}
-
-export interface PreviewArtifactManifest {
-  readonly version: typeof PREVIEW_ARTIFACT_VERSION
-  readonly entry: string
-}
 
 export interface PreviewServerModule {
   readonly name: string
@@ -46,67 +47,21 @@ export interface ValidatedPreviewArtifact {
   readonly rootDir: string
   readonly serverDir: string
   readonly entryFile: string
-  readonly entryName: string
   readonly clientDir: string
   readonly migrationsDir: string | undefined
-  readonly serverModules: ReadonlyArray<string>
-  readonly clientFiles: ReadonlyArray<string>
-  readonly migrationFiles: ReadonlyArray<string>
 }
 
 export interface WritePreviewArtifactOptions {
   readonly outputDir: string
+  // Entry module first, as Alchemy's framework builds return them.
   readonly serverModules: ReadonlyArray<PreviewServerModule>
   readonly clientDir: string
-  readonly migrationsDir?: string | undefined
+  // Skipped when the directory does not exist.
+  readonly migrationsDir: string
 }
 
 const failArtifact = (message: string) =>
   Effect.fail(new PreviewArtifactError({ message }))
-
-const isWithin = (root: string, candidate: string): boolean => {
-  const relative = path.relative(root, candidate)
-  return (
-    relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative)
-  )
-}
-
-const isSafeRelativePosixPath = (value: string): boolean => {
-  if (
-    value.length === 0 ||
-    value.includes("\0") ||
-    value.includes("\\") ||
-    value.startsWith("/") ||
-    value.endsWith("/")
-  ) {
-    return false
-  }
-  const segments = value.split("/")
-  return segments.every(
-    (segment) => segment.length > 0 && segment !== "." && segment !== "..",
-  )
-}
-
-const validateEntryName = (
-  entry: unknown,
-): Effect.Effect<string, PreviewArtifactError> => {
-  if (typeof entry !== "string" || !isSafeRelativePosixPath(entry)) {
-    return failArtifact(
-      `Invalid preview manifest entry: expected a safe relative POSIX path, received ${JSON.stringify(entry)}`,
-    )
-  }
-  if (entry.includes("/")) {
-    return failArtifact(
-      `Invalid preview manifest entry "${entry}": entry module must be a top-level file in ${PREVIEW_SERVER_DIR}/`,
-    )
-  }
-  if (!/\.m?js$/.test(entry)) {
-    return failArtifact(
-      `Invalid preview manifest entry "${entry}": entry module must end with .js or .mjs`,
-    )
-  }
-  return Effect.succeed(entry)
-}
 
 const fsTry = <A>(
   operation: () => Promise<A>,
@@ -120,372 +75,174 @@ const fsTry = <A>(
       }),
   })
 
-const assertRegularDirectory = (
-  dirPath: string,
-  expectedRoot?: string,
-): Effect.Effect<string, PreviewArtifactError> =>
-  Effect.gen(function* () {
-    const stats = yield* fsTry(
-      () => lstat(dirPath),
-      `Missing required directory "${dirPath}"`,
-    )
-    if (stats.isSymbolicLink() || !stats.isDirectory()) {
-      return yield* failArtifact(
-        `Expected "${dirPath}" to be a regular directory (symlinks are forbidden)`,
-      )
-    }
-    const real = yield* fsTry(
-      () => realpath(dirPath),
-      `Failed to resolve directory "${dirPath}"`,
-    )
-    if (expectedRoot !== undefined && !isWithin(expectedRoot, real)) {
-      return yield* failArtifact(
-        `Directory "${dirPath}" resolves outside "${expectedRoot}"`,
-      )
-    }
-    return real
-  })
-
-const walkStrictDirectory = (
-  rootRealDir: string,
-  dirRealPath: string,
-): Effect.Effect<ReadonlyArray<string>, PreviewArtifactError> =>
-  Effect.gen(function* () {
-    const files: Array<string> = []
-    const walk = (
-      relativeDir: string,
-    ): Effect.Effect<void, PreviewArtifactError> =>
-      Effect.gen(function* () {
-        const currentDir =
-          relativeDir === "" ? dirRealPath : path.join(dirRealPath, relativeDir)
-        const entries = yield* fsTry(
-          () => readdir(currentDir),
-          `Failed to read directory "${currentDir}"`,
-        )
-        for (const name of [...entries].sort()) {
-          if (
-            name.includes("\0") ||
-            name.includes("/") ||
-            name.includes("\\") ||
-            name === "." ||
-            name === ".."
-          ) {
-            return yield* failArtifact(`Illegal path entry "${name}"`)
-          }
-          const relPath = relativeDir === "" ? name : `${relativeDir}/${name}`
-          if (!isSafeRelativePosixPath(relPath)) {
-            return yield* failArtifact(`Unsafe relative path "${relPath}"`)
-          }
-          const fullPath = path.join(currentDir, name)
-          const stats = yield* fsTry(
-            () => lstat(fullPath),
-            `Failed to stat "${relPath}"`,
-          )
-          if (stats.isSymbolicLink()) {
-            return yield* failArtifact(
-              `Symlinks are forbidden in preview artifacts: "${relPath}"`,
-            )
-          }
-          const resolved = yield* fsTry(
-            () => realpath(fullPath),
-            `Failed to resolve "${relPath}"`,
-          )
-          if (!isWithin(rootRealDir, resolved)) {
-            return yield* failArtifact(
-              `Path "${relPath}" resolves outside artifact root`,
-            )
-          }
-          if (stats.isDirectory()) {
-            yield* walk(relPath)
-            continue
-          }
-          if (!stats.isFile()) {
-            return yield* failArtifact(
-              `Unsupported non-regular file in preview artifact: "${relPath}"`,
-            )
-          }
-          files.push(relPath)
-        }
-      })
-    yield* walk("")
-    return files.sort()
-  })
-
-const copyRegularTree = (
-  sourceDir: string,
-  targetDir: string,
-): Effect.Effect<void, PreviewArtifactError> =>
-  Effect.gen(function* () {
-    const sourceReal = yield* assertRegularDirectory(sourceDir)
-    const files = yield* walkStrictDirectory(sourceReal, sourceReal)
-    yield* fsTry(
-      () => mkdir(targetDir, { recursive: true }),
-      `Failed to create directory "${targetDir}"`,
-    )
-    for (const relPath of files) {
-      const destination = path.join(targetDir, ...relPath.split("/"))
-      yield* fsTry(
-        () => mkdir(path.dirname(destination), { recursive: true }),
-        `Failed to create parent directory for "${relPath}"`,
-      )
-      yield* fsTry(
-        () =>
-          copyFile(path.join(sourceReal, ...relPath.split("/")), destination),
-        `Failed to copy "${relPath}"`,
-      )
-    }
-  })
-
+// Runs in the build job, next to contributor code. Nothing here is a security
+// check: the publish job trusts only `validatePreviewArtifact`. Validating at
+// the end makes a bad artifact fail the build instead of the publish.
 export const writePreviewArtifact = (
   options: WritePreviewArtifactOptions,
 ): Effect.Effect<ValidatedPreviewArtifact, PreviewArtifactError> =>
   Effect.gen(function* () {
-    if (options.serverModules.length === 0) {
+    const entry = options.serverModules[0]
+    if (entry === undefined) {
       return yield* failArtifact(
         "Astro build produced no server modules to package",
       )
     }
-
-    const entryModule = options.serverModules[0]
-    if (entryModule === undefined) {
-      return yield* failArtifact("Missing server entry module")
-    }
-    if (!isSafeRelativePosixPath(entryModule.name)) {
-      return yield* failArtifact(
-        `Unsafe server entry module path "${entryModule.name}"`,
-      )
-    }
-    // Framework collectors emit server modules relative to `dist/` (e.g.
-    // `server/entry.mjs` + `server/chunks/...`). Strip the shared entry
-    // directory prefix so the entry sits directly inside `server/` where
-    // Alchemy's Prebuilt source provider walks all sibling modules.
-    const entryDir = path.posix.dirname(entryModule.name)
-    const stripPrefix = entryDir === "." ? "" : `${entryDir}/`
-    const normalizedModules: Array<PreviewServerModule> = []
-    for (const module of options.serverModules) {
-      if (!isSafeRelativePosixPath(module.name)) {
-        return yield* failArtifact(`Unsafe server module path "${module.name}"`)
-      }
-      if (stripPrefix !== "" && !module.name.startsWith(stripPrefix)) {
-        return yield* failArtifact(
-          `Server module "${module.name}" lies outside entry directory "${entryDir}/"`,
-        )
-      }
-      normalizedModules.push({
-        name:
-          stripPrefix === ""
-            ? module.name
-            : module.name.slice(stripPrefix.length),
-        content: module.content,
-      })
-    }
-
-    const entryName = yield* validateEntryName(normalizedModules[0]?.name)
-
+    // Framework builds name server modules relative to `dist/`, for example
+    // `server/entry.mjs` and `server/chunks/...`. Strip the entry's directory
+    // so the entry sits directly inside `server/`, where Alchemy's prebuilt
+    // source walks its sibling modules.
+    const entryDir = path.posix.dirname(entry.name)
+    const prefix = entryDir === "." ? "" : `${entryDir}/`
     const outputDir = path.resolve(options.outputDir)
-    yield* fsTry(
-      () => rm(outputDir, { recursive: true, force: true }),
-      `Failed to clean artifact directory "${outputDir}"`,
-    )
-    const serverDir = path.join(outputDir, PREVIEW_SERVER_DIR)
-    const clientDir = path.join(outputDir, PREVIEW_CLIENT_DIR)
-    yield* fsTry(
-      () => mkdir(serverDir, { recursive: true }),
-      `Failed to create server output directory "${serverDir}"`,
-    )
 
-    const seenModules = new Set<string>()
-    for (const module of normalizedModules) {
-      if (!isSafeRelativePosixPath(module.name)) {
-        return yield* failArtifact(`Unsafe server module path "${module.name}"`)
-      }
-      if (seenModules.has(module.name)) {
-        return yield* failArtifact(
-          `Duplicate server module path "${module.name}"`,
-        )
-      }
-      seenModules.add(module.name)
-      const destination = path.join(serverDir, ...module.name.split("/"))
-      if (!isWithin(serverDir, destination)) {
-        return yield* failArtifact(
-          `Server module path "${module.name}" escapes server directory`,
-        )
-      }
-      yield* fsTry(
-        () => mkdir(path.dirname(destination), { recursive: true }),
-        `Failed to create directory for module "${module.name}"`,
-      )
-      yield* fsTry(
-        () => writeFile(destination, module.content),
-        `Failed to write server module "${module.name}"`,
-      )
-    }
-
-    yield* copyRegularTree(options.clientDir, clientDir)
-
-    if (options.migrationsDir !== undefined) {
-      const migrationsSource = path.resolve(options.migrationsDir)
-      const migrationsStat = yield* Effect.tryPromise({
-        try: () => lstat(migrationsSource),
-        catch: () => undefined,
-      }).pipe(Effect.orElseSucceed(() => undefined))
-      if (migrationsStat !== undefined) {
-        const migrationsReal = yield* assertRegularDirectory(migrationsSource)
-        const migrationFiles = yield* walkStrictDirectory(
-          migrationsReal,
-          migrationsReal,
-        )
-        const targetMigrationsDir = path.join(outputDir, PREVIEW_MIGRATIONS_DIR)
-        yield* fsTry(
-          () => mkdir(targetMigrationsDir, { recursive: true }),
-          `Failed to create migrations directory "${targetMigrationsDir}"`,
-        )
-        for (const relPath of migrationFiles) {
-          if (relPath.includes("/") || !relPath.endsWith(".sql")) {
-            return yield* failArtifact(
-              `Unexpected file in migrations directory: "${relPath}"`,
-            )
-          }
-          yield* fsTry(
-            () =>
-              copyFile(
-                path.join(migrationsReal, relPath),
-                path.join(targetMigrationsDir, relPath),
-              ),
-            `Failed to copy migration "${relPath}"`,
+    yield* fsTry(async () => {
+      await rm(outputDir, { recursive: true, force: true })
+      for (const module of options.serverModules) {
+        if (!module.name.startsWith(prefix)) {
+          throw new Error(
+            `Server module "${module.name}" lies outside entry directory "${entryDir}/"`,
           )
         }
+        const destination = path.join(
+          outputDir,
+          SERVER_DIR,
+          module.name.slice(prefix.length),
+        )
+        await mkdir(path.dirname(destination), { recursive: true })
+        await writeFile(destination, module.content)
       }
-    }
-
-    const manifest: PreviewArtifactManifest = {
-      version: PREVIEW_ARTIFACT_VERSION,
-      entry: entryName,
-    }
-    yield* fsTry(
-      () =>
-        writeFile(
-          path.join(outputDir, PREVIEW_MANIFEST_FILE),
-          `${JSON.stringify(manifest, null, 2)}\n`,
-        ),
-      "Failed to write preview manifest",
-    )
+      await cp(options.clientDir, path.join(outputDir, CLIENT_DIR), {
+        recursive: true,
+      })
+      if (existsSync(options.migrationsDir)) {
+        await cp(options.migrationsDir, path.join(outputDir, MIGRATIONS_DIR), {
+          recursive: true,
+        })
+      }
+      await writeFile(
+        path.join(outputDir, MANIFEST_FILE),
+        `${JSON.stringify({ version: ARTIFACT_VERSION, entry: entry.name.slice(prefix.length) })}\n`,
+      )
+    }, `Failed to write preview artifact "${outputDir}"`)
 
     return yield* validatePreviewArtifact(outputDir)
   })
 
+// The publish job's only check on what the build job produced. Alchemy reads
+// every path below from a process that holds the Cloudflare token, so the
+// artifact may contain nothing but regular files and directories, in the
+// expected places, under names Alchemy resolves the same way this does.
 export const validatePreviewArtifact = (
   artifactDir: string,
 ): Effect.Effect<ValidatedPreviewArtifact, PreviewArtifactError> =>
   Effect.gen(function* () {
-    const rootDir = yield* assertRegularDirectory(path.resolve(artifactDir))
-    const topLevelEntries = yield* fsTry(
-      () => readdir(rootDir),
-      `Failed to list artifact directory "${rootDir}"`,
+    const rootDir = yield* fsTry(
+      () => realpath(artifactDir),
+      `Missing preview artifact directory "${artifactDir}"`,
+    )
+    // A recursive listing reports symlinks as symlinks and does not descend
+    // into them, so every path it returns is really inside `rootDir`.
+    const entries = yield* fsTry(
+      () => readdir(rootDir, { recursive: true, withFileTypes: true }),
+      `Failed to read preview artifact directory "${rootDir}"`,
     )
 
-    for (const entry of topLevelEntries) {
-      if (!ALLOWED_TOP_LEVEL_ENTRIES.has(entry)) {
+    const files = new Set<string>()
+    let hasMigrations = false
+    for (const entry of entries) {
+      const segments = path
+        .relative(rootDir, path.join(entry.parentPath, entry.name))
+        .split(path.sep)
+      const relPath = segments.join("/")
+      // Alchemy turns "\\" into "/" before joining module names to the bundle
+      // root, so a backslash would make it read a path this did not check.
+      if (entry.name.includes("\\")) {
+        return yield* failArtifact(`Illegal path entry "${relPath}"`)
+      }
+      if (entry.isSymbolicLink()) {
         return yield* failArtifact(
-          `Unexpected top-level entry in preview artifact: "${entry}"`,
+          `Symlinks are forbidden in preview artifacts: "${relPath}"`,
         )
       }
+      if (!TOP_LEVEL_ENTRIES.has(segments[0] ?? "")) {
+        return yield* failArtifact(
+          `Unexpected top-level entry in preview artifact: "${segments[0]}"`,
+        )
+      }
+      if (entry.isDirectory()) {
+        hasMigrations ||= relPath === MIGRATIONS_DIR
+        continue
+      }
+      // The manifest is the only file allowed at the top level.
+      if (
+        !entry.isFile() ||
+        (segments.length === 1 && relPath !== MANIFEST_FILE)
+      ) {
+        return yield* failArtifact(
+          `Unsupported entry in preview artifact: "${relPath}"`,
+        )
+      }
+      files.add(relPath)
     }
 
-    const manifestPath = path.join(rootDir, PREVIEW_MANIFEST_FILE)
-    const manifestStat = yield* fsTry(
-      () => lstat(manifestPath),
-      `Missing ${PREVIEW_MANIFEST_FILE} in preview artifact`,
-    )
-    if (manifestStat.isSymbolicLink() || !manifestStat.isFile()) {
-      return yield* failArtifact(
-        `${PREVIEW_MANIFEST_FILE} must be a regular file`,
-      )
-    }
-    const manifestReal = yield* fsTry(
-      () => realpath(manifestPath),
-      `Failed to resolve ${PREVIEW_MANIFEST_FILE}`,
-    )
-    if (!isWithin(rootDir, manifestReal)) {
-      return yield* failArtifact(
-        `${PREVIEW_MANIFEST_FILE} resolves outside artifact root`,
-      )
+    if (!files.has(MANIFEST_FILE)) {
+      return yield* failArtifact(`Missing ${MANIFEST_FILE} in preview artifact`)
     }
     const manifestRaw = yield* fsTry(
-      () => readFile(manifestReal, "utf8"),
-      `Failed to read ${PREVIEW_MANIFEST_FILE}`,
+      () => readFile(path.join(rootDir, MANIFEST_FILE), "utf8"),
+      `Failed to read ${MANIFEST_FILE}`,
     )
-    let parsedManifest: unknown
-    try {
-      parsedManifest = JSON.parse(manifestRaw)
-    } catch (cause) {
+    const manifest = yield* Effect.try({
+      try: () => JSON.parse(manifestRaw) as unknown,
+      catch: () =>
+        new PreviewArtifactError({
+          message: `Invalid JSON in ${MANIFEST_FILE}`,
+        }),
+    })
+    const { version, entry: entryName } = (
+      typeof manifest === "object" && manifest !== null ? manifest : {}
+    ) as { readonly version?: unknown; readonly entry?: unknown }
+    if (version !== ARTIFACT_VERSION) {
       return yield* failArtifact(
-        `Invalid JSON in ${PREVIEW_MANIFEST_FILE}: ${cause instanceof Error ? cause.message : String(cause)}`,
+        `Unsupported preview manifest version: ${JSON.stringify(version)}`,
       )
     }
-    if (
-      typeof parsedManifest !== "object" ||
-      parsedManifest === null ||
-      Array.isArray(parsedManifest)
-    ) {
-      return yield* failArtifact(`${PREVIEW_MANIFEST_FILE} must be an object`)
-    }
-    const manifestRecord = parsedManifest as Record<string, unknown>
-    if (manifestRecord.version !== PREVIEW_ARTIFACT_VERSION) {
+    if (typeof entryName !== "string" || !ENTRY_NAME.test(entryName)) {
       return yield* failArtifact(
-        `Unsupported preview manifest version: ${JSON.stringify(manifestRecord.version)}`,
+        `Invalid preview manifest entry: expected a .js or .mjs file name inside ${SERVER_DIR}/, received ${JSON.stringify(entryName)}`,
       )
     }
-    const entryName = yield* validateEntryName(manifestRecord.entry)
+    if (!files.has(`${SERVER_DIR}/${entryName}`)) {
+      return yield* failArtifact(
+        `Preview entry module "${SERVER_DIR}/${entryName}" is missing`,
+      )
+    }
 
-    const serverDir = yield* assertRegularDirectory(
-      path.join(rootDir, PREVIEW_SERVER_DIR),
-      rootDir,
+    const paths = [...files]
+    if (!paths.some((file) => file.startsWith(`${CLIENT_DIR}/`))) {
+      return yield* failArtifact(
+        `Preview artifact "${CLIENT_DIR}/" directory is empty`,
+      )
+    }
+    const strayMigration = paths.find(
+      (file) =>
+        file.startsWith(`${MIGRATIONS_DIR}/`) && !MIGRATION_FILE.test(file),
     )
-    const serverModules = yield* walkStrictDirectory(rootDir, serverDir)
-    if (!serverModules.includes(entryName)) {
+    if (strayMigration !== undefined) {
       return yield* failArtifact(
-        `Preview entry module "${PREVIEW_SERVER_DIR}/${entryName}" is missing`,
+        `Migrations directory may only contain top-level .sql files, found "${strayMigration}"`,
       )
     }
 
-    const clientDir = yield* assertRegularDirectory(
-      path.join(rootDir, PREVIEW_CLIENT_DIR),
-      rootDir,
-    )
-    const clientFiles = yield* walkStrictDirectory(rootDir, clientDir)
-    if (clientFiles.length === 0) {
-      return yield* failArtifact(
-        `Preview artifact "${PREVIEW_CLIENT_DIR}/" directory is empty`,
-      )
-    }
-
-    let migrationsDir: string | undefined
-    let migrationFiles: ReadonlyArray<string> = []
-    if (topLevelEntries.includes(PREVIEW_MIGRATIONS_DIR)) {
-      migrationsDir = yield* assertRegularDirectory(
-        path.join(rootDir, PREVIEW_MIGRATIONS_DIR),
-        rootDir,
-      )
-      migrationFiles = yield* walkStrictDirectory(rootDir, migrationsDir)
-      for (const file of migrationFiles) {
-        if (file.includes("/") || !file.endsWith(".sql")) {
-          return yield* failArtifact(
-            `Migrations directory may only contain top-level .sql files, found "${file}"`,
-          )
-        }
-      }
-    }
-
+    const serverDir = path.join(rootDir, SERVER_DIR)
     return {
       rootDir,
       serverDir,
       entryFile: path.join(serverDir, entryName),
-      entryName,
-      clientDir,
-      migrationsDir,
-      serverModules,
-      clientFiles,
-      migrationFiles,
+      clientDir: path.join(rootDir, CLIENT_DIR),
+      migrationsDir: hasMigrations
+        ? path.join(rootDir, MIGRATIONS_DIR)
+        : undefined,
     }
   })
