@@ -20,6 +20,7 @@ import React, { useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { useTraceAtoms } from "./context.ts"
 import { Span } from "../span.ts"
+import { DetailsColumn } from "./details-column"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { EVENT_LEVEL_COLOR, eventLevel, formatDuration } from "./utils"
@@ -221,13 +222,13 @@ export function TraceWaterfall() {
           </table>
         </div>
         {selectedRow !== undefined && Option.isSome(traceStartTime) && (
-          <div className="flex max-h-[55%] min-h-0 shrink-0 flex-col border-t border-border bg-card/40 @2xl:max-h-none @2xl:w-[min(420px,42%)] @2xl:border-t-0 @2xl:border-l">
+          <DetailsColumn>
             <TraceDetails
               span={selectedRow.original}
               traceStartTime={traceStartTime.value}
               onClose={() => setRowSelection({})}
             />
-          </div>
+          </DetailsColumn>
         )}
       </div>
     </div>
