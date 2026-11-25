@@ -1,5 +1,5 @@
 import * as Duration from "effect/Duration"
-import { Span } from "../span.ts"
+import { Event, Span } from "../span.ts"
 
 export function getTotalSpans(span: Span): number {
   let total = 1
@@ -27,5 +27,32 @@ export function formatDuration(duration: Duration.Duration) {
     return `${(nanos / 1_000_000).toFixed(2)}ms`
   } else {
     return `${(nanos / 1_000_000_000).toFixed(2)}s`
+  }
+}
+
+export type EventLevel = "info" | "warn" | "error"
+
+/** Background class of an event's diamond, by level. */
+export const EVENT_LEVEL_COLOR: Record<EventLevel, string> = {
+  info: "bg-blue-400",
+  warn: "bg-amber-400",
+  error: "bg-destructive",
+}
+
+/**
+ * How loud an event is, from the log level Effect records on log events
+ * (`effect.logLevel`). Events that aren't logs count as info.
+ */
+export function eventLevel(event: Event): EventLevel {
+  const level = event.event.attributes?.["effect.logLevel"]
+  switch (level) {
+    case "WARN":
+    case "WARNING":
+      return "warn"
+    case "ERROR":
+    case "FATAL":
+      return "error"
+    default:
+      return "info"
   }
 }
