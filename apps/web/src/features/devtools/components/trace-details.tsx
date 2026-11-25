@@ -14,11 +14,14 @@ export function TraceDetails({
   span,
   traceStartTime,
   onClose,
+  onHoverEvent,
 }: {
   readonly span: Span
   /** Start of the whole trace, in nanoseconds: times are relative to it. */
   readonly traceStartTime: bigint
   readonly onClose: () => void
+  /** Reports the time of the event under the pointer, or `undefined`. */
+  readonly onHoverEvent?: (time: bigint | undefined) => void
 }) {
   const attributes = Array.from(span.attributes).filter(
     ([key]) => key !== "code.stacktrace",
@@ -103,6 +106,7 @@ export function TraceDetails({
                 key={index}
                 event={event}
                 traceStartTime={traceStartTime}
+                onHover={onHoverEvent}
               />
             ))}
           </ol>
@@ -216,20 +220,26 @@ export function formatValue(value: unknown): {
 function TraceEvent({
   event,
   traceStartTime,
+  onHover,
 }: {
   readonly event: Event
   readonly traceStartTime: bigint
+  readonly onHover: ((time: bigint | undefined) => void) | undefined
 }) {
   const attributes = Object.entries(event.event.attributes ?? {})
   const level = eventLevel(event)
   return (
-    <li className="grid grid-cols-[auto_8px_1fr] items-start gap-x-2 border-b border-border py-1.5 font-mono text-xs last:border-b-0">
+    <li
+      onMouseEnter={() => onHover?.(event.event.startTime)}
+      onMouseLeave={() => onHover?.(undefined)}
+      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-1.5 font-mono text-xs transition-colors last:border-b-0 hover:bg-muted/50"
+    >
       <span className="min-w-14 text-right text-subtle-foreground">
         +{sinceTraceStart(event.event.startTime, traceStartTime)}
       </span>
       <span
         aria-hidden="true"
-        className={cn("mt-1.5 h-2 w-2 rotate-45", EVENT_LEVEL_COLOR[level])}
+        className={cn("mt-0.5 h-3.5 w-px", EVENT_LEVEL_COLOR[level])}
       />
       <div className="min-w-0">
         <div className="leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">

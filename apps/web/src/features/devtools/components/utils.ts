@@ -32,9 +32,9 @@ export function formatDuration(duration: Duration.Duration) {
 
 export type EventLevel = "info" | "warn" | "error"
 
-/** Background class of an event's diamond, by level. */
+/** Background class of an event's tick, by level. */
 export const EVENT_LEVEL_COLOR: Record<EventLevel, string> = {
-  info: "bg-blue-400",
+  info: "bg-foreground/50",
   warn: "bg-amber-400",
   error: "bg-destructive",
 }
