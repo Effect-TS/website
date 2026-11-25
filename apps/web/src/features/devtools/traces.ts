@@ -109,6 +109,11 @@ export interface TraceAtoms {
    * the earliest. Writing a trace id picks that trace.
    */
   readonly selectedSpanAtom: Atom.Writable<Span | undefined, string>
+  /**
+   * Whether the traces are from a Run that has since been replaced. They stay
+   * shown until the new Run's first span replaces them.
+   */
+  readonly supersededAtom: Atom.Writable<boolean>
 }
 
 export const makeTraceAtoms = (
@@ -130,25 +135,43 @@ export const makeTraceAtoms = (
     },
     (ctx, traceId: string) => ctx.set(selectedTraceIdAtom, traceId),
   )
-  return { rootSpansAtom, selectedTraceIdAtom, selectedSpanAtom }
+  const supersededAtom = keep(Atom.make(false))
+  return {
+    rootSpansAtom,
+    selectedTraceIdAtom,
+    selectedSpanAtom,
+    supersededAtom,
+  }
 }
 
-/** Records one request from the program. */
+/**
+ * Records one request from the program. The first span after the traces were
+ * superseded replaces them, and the pick, all at once.
+ */
 export const recordDevToolsRequest = (
   registry: AtomRegistry.AtomRegistry,
   atoms: TraceAtoms,
   request: DevToolsRequest,
 ): void => {
+  if (request._tag === "Span" && registry.get(atoms.supersededAtom)) {
+    registry.set(atoms.supersededAtom, false)
+    registry.set(atoms.rootSpansAtom, [])
+    registry.set(atoms.selectedTraceIdAtom, undefined)
+  }
   registry.update(atoms.rootSpansAtom, (roots) =>
     applyDevToolsRequest(roots, request),
   )
 }
 
-/** Forgets every trace and the pick, so the next trace is shown. */
-export const resetTraces = (
+/**
+ * Marks the traces as a previous Run's. They stay shown, so the viewer never
+ * goes blank between Runs, until the next span replaces them.
+ */
+export const supersedeTraces = (
   registry: AtomRegistry.AtomRegistry,
   atoms: TraceAtoms,
 ): void => {
-  registry.set(atoms.rootSpansAtom, [])
-  registry.set(atoms.selectedTraceIdAtom, undefined)
+  if (registry.get(atoms.rootSpansAtom).length > 0) {
+    registry.set(atoms.supersededAtom, true)
+  }
 }

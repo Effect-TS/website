@@ -5,16 +5,24 @@ import { useScratchpadSession } from "./context.tsx"
 /**
  * The bottom panel's "Traces" tab: the spans the latest Run reported through
  * `DevTools.layer` (the seed's `src/DevTools.ts`), in `/play`'s trace viewer.
- * A new Run clears them.
+ * They stay, dimmed, when a new Run starts, until its first span replaces
+ * them.
  */
 export function TracesPanel() {
   const { traceAtoms } = useScratchpadSession()
   const roots = useAtomValue(traceAtoms.rootSpansAtom)
+  const superseded = useAtomValue(traceAtoms.supersededAtom)
   return (
     <div
       data-testid="traces-panel"
       data-trace-count={roots.length}
-      className="min-h-0 flex-1 overflow-auto"
+      data-superseded={superseded || undefined}
+      title={
+        superseded
+          ? "From the previous Run: this Run's first span replaces them"
+          : undefined
+      }
+      className={`min-h-0 flex-1 overflow-auto transition-opacity ${superseded ? "opacity-50" : ""}`}
     >
       {roots.length === 0 ? (
         <div

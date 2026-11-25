@@ -91,20 +91,20 @@ describe("Scratchpad traces", () => {
     )
   })
 
-  test("a new Run clears the previous Run's spans", async () => {
+  test("the previous Run's spans stay until the new Run's first span replaces them", async () => {
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
           const { roots, receive, startRun } = yield* follow([
             line(programSpan),
           ])
-          assert.equal(roots().length, 1)
+          const shown = () => roots().map((root) => root.label)
+          const seen = [shown()]
           yield* startRun(1)
-          assert.equal(roots().length, 0, "Run #1 replaced the earlier spans")
-          receive(programSpan)
-          // Run #1 reported again (its status changed) keeps its spans.
-          yield* startRun(1)
-          assert.equal(roots().length, 1)
+          seen.push(shown())
+          receive({ ...programSpan, traceId: "trace-2", name: "next" })
+          seen.push(shown())
+          assert.deepStrictEqual(seen, [["program"], ["program"], ["next"]])
         }),
       ),
     )

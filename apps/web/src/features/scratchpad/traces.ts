@@ -6,8 +6,8 @@
  * `DEV_TOOLS_PORT`, so its spans need no setup. A proxy in the Container
  * accepts that connection and prints what the program sends, one JSON
  * request per line, and this module decodes the lines into the shared trace
- * store (`features/devtools/traces.ts`). The store resets when a new Run
- * starts.
+ * store (`features/devtools/traces.ts`). When a new Run starts, its first
+ * span replaces the previous Run's traces.
  */
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -20,7 +20,7 @@ import {
   type DevToolsRequest,
   parseDevToolsLine,
   recordDevToolsRequest,
-  resetTraces,
+  supersedeTraces,
   type TraceAtoms,
 } from "@/features/devtools/traces"
 import { Container, type ContainerService } from "./container.ts"
@@ -95,15 +95,15 @@ export const devToolsRequests = (
 
 export interface FollowTracesOptions {
   readonly container: ContainerService
-  /** The latest Run's id, then every change. A new id resets the traces. */
+  /** The latest Run's id, then every change. A new id supersedes the traces. */
   readonly runIds: Stream.Stream<number | undefined>
   readonly registry: AtomRegistry.AtomRegistry
   readonly atoms: TraceAtoms
 }
 
 /**
- * Fills `atoms` from the program's spans until the scope closes, and resets
- * them when a new Run starts. A proxy that exits is started again.
+ * Fills `atoms` from the program's spans until the scope closes. A new
+ * Run's first span replaces the previous Run's. A proxy that exits is started again.
  */
 export const followTraces = (
   options: FollowTracesOptions,
@@ -113,7 +113,9 @@ export const followTraces = (
     yield* options.runIds.pipe(
       Stream.filter((id): id is number => id !== undefined),
       Stream.changes,
-      Stream.runForEach(() => Effect.sync(() => resetTraces(registry, atoms))),
+      Stream.runForEach(() =>
+        Effect.sync(() => supersedeTraces(registry, atoms)),
+      ),
       Effect.forkScoped,
     )
     yield* devToolsRequests(options.container).pipe(
@@ -128,7 +130,7 @@ export const followTraces = (
 /**
  * Follows the Container's traces into `atoms` for the layer's lifetime.
  * Without a Container it does nothing; without a Terminal (whose runner
- * reports each Run) the traces never reset.
+ * reports each Run) the traces are never replaced.
  */
 export const layerTraces = (
   atoms: TraceAtoms,
