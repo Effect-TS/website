@@ -52,7 +52,7 @@ export function MOTWScrollRail({
       titleHref={viewAllHref}
     >
       {posts.map((post, i) => (
-        <MOTWCard key={post.id} post={post} entry={posts.length - i} />
+        <MOTWCard key={post.id} post={post} entry={posts.length - 1 - i} />
       ))}
     </ScrollRail>
   )
