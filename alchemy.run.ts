@@ -5,13 +5,6 @@ import * as GitHub from "@alchemy.run/github"
 import * as Output from "alchemy/Output"
 import * as Mixedbread from "@website/alchemy-mixedbread"
 import { TURNSTILE_TEST_KEYS } from "./apps/web/src/features/motw-vote/turnstile-test-keys.ts"
-import {
-  rateLimitNamespaceId,
-  WEBSITE_ASSETS_CONFIG,
-  WEBSITE_ASTRO_OPTIONS,
-  WEBSITE_CACHE_CONFIG,
-  WEBSITE_MIGRATIONS_DIR,
-} from "./stacks/website-config.ts"
 import * as Config from "effect/Config"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -19,6 +12,14 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
 const productionStoreId = Config.Redacted("MXBAI_VECTOR_STORE_ID")
+
+// Each stage counts in its own rate-limit namespace, so a preview cannot use up
+// the production limit. Namespaces are numbers.
+const rateLimitNamespaceId = (stage: string): number => {
+  let hash = 0
+  for (const char of stage) hash = (hash * 31 + char.charCodeAt(0)) % 90_000
+  return 1_000 + hash
+}
 
 const Website = (
   // The store a preview searches next to production. None outside previews
@@ -35,7 +36,7 @@ const Website = (
       // goes away with the preview. Production keeps its votes if the stack is
       // ever destroyed.
       const motwVote = yield* Cloudflare.D1.Database("MotwVote", {
-        migrations: WEBSITE_MIGRATIONS_DIR,
+        migrations: "./apps/web/migrations",
       }).pipe(Alchemy.RemovalPolicy.retain(stage === "prod"))
 
       // Signs the cookie that tells voters apart. It is made once per stage and
@@ -54,7 +55,7 @@ const Website = (
           : undefined
 
       return {
-        ...WEBSITE_ASTRO_OPTIONS,
+        rootDir: "./apps/web",
         memo: {
           include: [
             ".alchemy-build-input.json",
@@ -69,7 +70,12 @@ const Website = (
           lockfile: true,
           workspaces: "auto" as const,
         },
-        assets: WEBSITE_ASSETS_CONFIG,
+        astro: { output: "static" as const },
+        assets: {
+          htmlHandling: "drop-trailing-slash" as const,
+          // Route the PostHog proxy through the Worker before the asset layer.
+          runWorkerFirst: ["/_ingest/*"],
+        },
         ...(stage === "prod"
           ? {
               domain: {
@@ -81,7 +87,10 @@ const Website = (
           : {}),
         workersDev: true,
         dev: { port: 14337, strictPort: true },
-        cache: WEBSITE_CACHE_CONFIG,
+        cache: {
+          enabled: true,
+          crossVersionCache: true,
+        },
         env: {
           MXBAI_API_KEY: searchApiKey,
           MXBAI_VECTOR_STORE_ID: productionStoreId,
@@ -102,6 +111,8 @@ const Website = (
             simple: { limit: 20, period: 60 },
           }),
         },
+        sessionKVBindingName: false,
+        prerenderEnvironment: "node" as const,
       }
     }),
   )

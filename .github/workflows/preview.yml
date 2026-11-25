@@ -1,7 +1,13 @@
 name: Preview Deployment
 
+# Runs from main's copy of this file, so a pull request cannot change it.
+# Same-repo pull requests from authors with write access deploy automatically.
+# Any other pull request (forks included) waits for a reviewer of the `fork`
+# environment to approve its exact head commit under "Review deployments".
+# Approved code builds with the deploy secrets, so review the diff first. A new
+# push starts a new run that needs a new approval.
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, closed]
 
@@ -13,7 +19,6 @@ permissions: {}
 
 jobs:
   authorize:
-    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,8 +30,13 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const pr = context.payload.pull_request
+            if (pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+              core.setOutput("allowed", "false")
+              return
+            }
             // Preserve the existing trust exception for the Janitor app's immutable ID.
-            if (context.payload.pull_request.user.id === 349016676) {
+            if (pr.user.id === 349016676) {
               core.setOutput("allowed", "true")
               return
             }
@@ -34,7 +44,7 @@ jobs:
             try {
               const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
                 ...context.repo,
-                username: context.payload.pull_request.user.login,
+                username: pr.user.login,
               })
               permission = data.permission
             } catch (error) {
@@ -46,7 +56,8 @@ jobs:
 
   deploy:
     needs: authorize
-    if: github.event.action != 'closed' && needs.authorize.outputs.allowed == 'true'
+    if: github.event.action != 'closed'
+    environment: ${{ needs.authorize.outputs.allowed != 'true' && 'fork' || '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -138,17 +149,18 @@ jobs:
           fi
 
       # Without a build, the cache directory is still the one restored above,
-      # which may belong to another snapshot.
+      # which may belong to another snapshot. Caches saved here land in main's
+      # scope, where production can restore them, so approved fork code skips it.
       - name: Save Astro incremental build cache
-        if: success() && steps.verify-links.outputs.built == 'true' && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
+        if: success() && needs.authorize.outputs.allowed == 'true' && steps.verify-links.outputs.built == 'true' && hashFiles('apps/web/.astro-cache/incremental-build.json') != ''
         uses: actions/cache/save@v5
         with:
           path: apps/web/.astro-cache
           key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
+  # Checks out main, never the pull request, so it needs no approval.
   cleanup:
-    needs: authorize
-    if: github.event.action == 'closed' && needs.authorize.outputs.allowed == 'true'
+    if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: read
