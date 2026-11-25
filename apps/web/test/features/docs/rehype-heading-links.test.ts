@@ -18,7 +18,7 @@ describe("rehypeHeadingLinks", () => {
 
     rehypeHeadingLinks()(tree)
 
-    const link = requiredElement(heading.children[1])
+    const link = requiredElement(heading.children.at(-1))
     expect(heading.properties.id).toBe("getting-started")
     expect(link.properties).toMatchObject({
       ariaLabel: "Link to Getting started",
@@ -36,7 +36,7 @@ describe("rehypeHeadingLinks", () => {
 
     rehypeHeadingLinks()(root([heading]))
 
-    const link = requiredElement(heading.children[2])
+    const link = requiredElement(heading.children.at(-1))
     expect(link.properties.ariaLabel).toBe("Link to Using Effect.runPromise")
   })
 
@@ -46,8 +46,10 @@ describe("rehypeHeadingLinks", () => {
 
     rehypeHeadingLinks()(root([first, second]))
 
-    expect(requiredElement(first.children[1]).properties.href).toBe("#example")
-    expect(requiredElement(second.children[1]).properties.href).toBe(
+    expect(requiredElement(first.children.at(-1)).properties.href).toBe(
+      "#example",
+    )
+    expect(requiredElement(second.children.at(-1)).properties.href).toBe(
       "#example-1",
     )
   })
