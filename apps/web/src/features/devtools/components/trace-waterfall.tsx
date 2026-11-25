@@ -43,7 +43,7 @@ const columns: Array<ColumnDef<typeof features, Span>> = [
     header: () => (
       <h5
         role="columnheader"
-        className="ml-4 font-mono text-xs tracking-wider text-subtle-foreground uppercase"
+        className="ml-4 font-mono text-xs tracking-wider text-muted-foreground uppercase"
       >
         Name
       </h5>
@@ -57,7 +57,7 @@ const columns: Array<ColumnDef<typeof features, Span>> = [
     header: () => (
       <h5
         role="columnheader"
-        className="ml-2 grow font-mono text-xs tracking-wider text-subtle-foreground uppercase"
+        className="ml-2 grow font-mono text-xs tracking-wider text-muted-foreground uppercase"
       >
         Duration
       </h5>

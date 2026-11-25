@@ -134,7 +134,7 @@ function SectionTitle({
   readonly count?: number
 }) {
   return (
-    <h4 className="mt-3.5 mb-1 font-mono text-[10.5px] tracking-wider text-subtle-foreground uppercase">
+    <h4 className="mt-3.5 mb-1 font-mono text-[10.5px] tracking-wider text-muted-foreground uppercase">
       {label}
       {count !== undefined && <span> · {count}</span>}
     </h4>
