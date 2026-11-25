@@ -7,6 +7,12 @@ on:
 
 permissions: {}
 
+# The event's values, the same in every job and on every rerun. The head SHA is
+# the commit a reviewer approves, and nothing below resolves a newer one.
+env:
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
 jobs:
   # Keeps the gate closed unless this PR lacks an automatic preview AND the
   # `fork` environment already has required reviewers configured (preventing
@@ -26,31 +32,25 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request
-            const baseRepo = `${context.repo.owner}/${context.repo.repo}`
-            if (pr.state !== "open" || pr.base.repo.full_name !== baseRepo) {
-              core.info(`PR #${pr.number} is not an open PR targeting ${baseRepo}:main; skipping.`)
-              return
-            }
 
-            if (pr.head.repo?.full_name === baseRepo) {
-              let hasAutomaticPreview = pr.user?.id === 349016676
-              if (!hasAutomaticPreview && pr.user?.login) {
-                let permission = "none"
-                try {
-                  const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
-                    ...context.repo,
-                    username: pr.user.login,
-                  })
-                  permission = data.permission
-                } catch (error) {
-                  if (error.status !== 404) throw error
-                }
-                hasAutomaticPreview = ["write", "maintain", "admin"].includes(permission)
+            // The rule preview.yml uses to give a PR an automatic preview.
+            const hasAutomaticPreview = async () => {
+              if (pr.head.repo?.full_name !== pr.base.repo.full_name) return false
+              if (pr.user.id === 349016676) return true
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  ...context.repo,
+                  username: pr.user.login,
+                })
+                return ["write", "maintain", "admin"].includes(data.permission)
+              } catch (error) {
+                if (error.status !== 404) throw error
+                return false
               }
-              if (hasAutomaticPreview) {
-                core.info(`PR #${pr.number} is handled by automatic Preview Deployment; skipping.`)
-                return
-              }
+            }
+            if (await hasAutomaticPreview()) {
+              core.info(`PR #${pr.number} is handled by automatic Preview Deployment; skipping.`)
+              return
             }
 
             let env
@@ -61,35 +61,17 @@ jobs:
               })
               env = data
             } catch (error) {
-              if (error.status === 404) {
-                core.warning(
-                  'Environment "fork" does not exist; keeping requested preview approval gate closed until required reviewers are configured.',
-                )
-                return
-              }
-              throw error
+              if (error.status !== 404) throw error
             }
-
-            const hasRequiredReviewers = (env.protection_rules ?? []).some(
-              (rule) =>
-                rule.type === "required_reviewers" &&
-                Array.isArray(rule.reviewers) &&
-                rule.reviewers.length > 0,
-            )
-            if (!hasRequiredReviewers) {
+            if (!env?.protection_rules?.some((rule) => rule.type === "required_reviewers" && rule.reviewers?.length)) {
               core.warning(
-                'Environment "fork" has no required reviewers; keeping requested preview approval gate closed.',
+                'Environment "fork" is missing or has no required reviewers; keeping the requested preview approval gate closed.',
               )
               return
             }
 
-            const headSha = pr.head.sha
-            if (!/^[0-9a-f]{40}$/.test(headSha)) {
-              throw new Error(`Invalid PR head SHA: ${headSha}`)
-            }
-
             core.setOutput("eligible", "true")
-            core.info(`PR #${pr.number} at ${headSha} is awaiting deployment approval on environment "fork".`)
+            core.info(`PR #${pr.number} at ${pr.head.sha} is awaiting deployment approval on environment "fork".`)
 
   approval-gate:
     name: "Approve preview for PR #${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }})"
@@ -106,9 +88,7 @@ jobs:
       pull-requests: read
       deployments: write
     outputs:
-      approved: ${{ steps.approve.outputs.approved }}
-      pr_number: ${{ steps.approve.outputs.pr_number }}
-      head_sha: ${{ steps.approve.outputs.head_sha }}
+      # Set only once the approval is recorded, so later jobs run on it alone.
       deployment_id: ${{ steps.approve.outputs.deployment_id }}
     steps:
       - name: Record approved commit and start preview deployment
@@ -116,39 +96,23 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            // check-gate ran before the approval, and a rerun of this job reuses its result.
             const { data: env } = await github.rest.repos.getEnvironment({
               ...context.repo,
               environment_name: "fork",
             })
-            const hasRequiredReviewers = (env.protection_rules ?? []).some(
-              (rule) =>
-                rule.type === "required_reviewers" &&
-                Array.isArray(rule.reviewers) &&
-                rule.reviewers.length > 0,
-            )
-            if (!hasRequiredReviewers) {
-              core.setFailed(
-                'Environment "fork" lost its required reviewers protection rule; aborting preview.',
-              )
-              return
+            if (!env.protection_rules?.some((rule) => rule.type === "required_reviewers" && rule.reviewers?.length)) {
+              throw new Error('Environment "fork" lost its required reviewers; aborting preview.')
             }
 
-            const eventPr = context.payload.pull_request
-            const prNumber = eventPr.number
-            const headSha = eventPr.head.sha
-            if (!/^[0-9a-f]{40}$/.test(headSha)) {
-              throw new Error(`Invalid PR head SHA: ${headSha}`)
-            }
-
+            const prNumber = context.payload.pull_request.number
+            const headSha = context.payload.pull_request.head.sha
             const { data: pr } = await github.rest.pulls.get({
               ...context.repo,
               pull_number: prNumber,
             })
-            const baseRepo = `${context.repo.owner}/${context.repo.repo}`
-            if (pr.state !== "open" || pr.base.ref !== "main" || pr.base.repo.full_name !== baseRepo) {
-              core.info(
-                `PR #${prNumber} is now ${pr.state} targeting ${pr.base.repo.full_name}:${pr.base.ref}; skipping preview.`,
-              )
+            if (pr.state !== "open" || pr.base.ref !== "main") {
+              core.info(`PR #${prNumber} is now ${pr.state} targeting ${pr.base.ref}; skipping preview.`)
               return
             }
             if (pr.head.sha !== headSha) {
@@ -168,11 +132,7 @@ jobs:
               required_contexts: [],
               transient_environment: true,
               production_environment: false,
-              payload: {
-                pull_request: prNumber,
-                head_sha: headSha,
-                stage: `pr-${prNumber}`,
-              },
+              payload: { pull_request: prNumber },
             })
 
             await github.rest.repos.createDeploymentStatus({
@@ -185,9 +145,6 @@ jobs:
               auto_inactive: false,
             })
 
-            core.setOutput("approved", "true")
-            core.setOutput("pr_number", String(prNumber))
-            core.setOutput("head_sha", headSha)
             core.setOutput("deployment_id", String(deployment.id))
             core.info(
               `Approved requested preview for PR #${prNumber} at ${headSha} (deployment ${deployment.id}).`,
@@ -195,12 +152,12 @@ jobs:
 
   build:
     needs: approval-gate
-    if: needs.approval-gate.outputs.approved == 'true'
+    if: needs.approval-gate.outputs.deployment_id != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     cache-mode: read
     concurrency:
-      group: requested-preview-build-${{ needs.approval-gate.outputs.pr_number }}
+      group: requested-preview-build-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     permissions:
       contents: read
@@ -210,18 +167,16 @@ jobs:
       - name: Checkout approved commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.approval-gate.outputs.head_sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
           allow-unsafe-pr-checkout: true
 
       - name: Verify checked-out commit
-        env:
-          EXPECTED_SHA: ${{ needs.approval-gate.outputs.head_sha }}
         run: |
           actual=$(git rev-parse HEAD)
-          if [[ "$actual" != "$EXPECTED_SHA" ]]; then
-            echo "::error::Checked-out commit $actual does not match approved SHA $EXPECTED_SHA."
+          if [[ "$actual" != "$HEAD_SHA" ]]; then
+            echo "::error::Checked-out commit $actual does not match approved SHA $HEAD_SHA."
             exit 1
           fi
           if [[ ! -f apps/web/scripts/build-preview.ts ]]; then
@@ -254,9 +209,8 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: apps/web/.astro-cache
-          key: ${{ steps.astro-cache.outputs.prefix }}-pr-${{ needs.approval-gate.outputs.pr_number }}-${{ needs.approval-gate.outputs.head_sha }}
+          key: ${{ steps.astro-cache.outputs.prefix }}-main-${{ github.event.pull_request.base.sha }}
           restore-keys: |
-            ${{ steps.astro-cache.outputs.prefix }}-pr-${{ needs.approval-gate.outputs.pr_number }}-
             ${{ steps.astro-cache.outputs.prefix }}-main-
             astro-incremental-${{ runner.os }}-
 
@@ -272,7 +226,7 @@ jobs:
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
         with:
-          name: requested-preview-pr-${{ needs.approval-gate.outputs.pr_number }}-${{ needs.approval-gate.outputs.head_sha }}
+          name: requested-preview-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
           path: .requested-preview-artifact
           include-hidden-files: true
           if-no-files-found: error
@@ -280,11 +234,11 @@ jobs:
 
   publish:
     needs: [approval-gate, build]
-    if: always() && needs.approval-gate.outputs.approved == 'true'
+    if: always() && needs.approval-gate.outputs.deployment_id != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
-      group: requested-preview-deploy-${{ needs.approval-gate.outputs.pr_number }}
+      group: requested-preview-deploy-${{ github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     permissions:
@@ -304,8 +258,6 @@ jobs:
         if: failure() && steps.checkout.outcome == 'failure'
         uses: actions/github-script@v8
         env:
-          PR_NUMBER: ${{ needs.approval-gate.outputs.pr_number }}
-          HEAD_SHA: ${{ needs.approval-gate.outputs.head_sha }}
           DEPLOYMENT_ID: ${{ needs.approval-gate.outputs.deployment_id }}
         with:
           script: |
@@ -330,8 +282,6 @@ jobs:
         id: pr-check
         if: needs.build.result == 'success'
         uses: actions/github-script@v8
-        env:
-          PR_NUMBER: ${{ needs.approval-gate.outputs.pr_number }}
         with:
           script: |
             const { data: pr } = await github.rest.pulls.get({
@@ -345,7 +295,7 @@ jobs:
         if: steps.pr-check.outputs.open == 'true'
         uses: actions/download-artifact@v8
         with:
-          name: requested-preview-pr-${{ needs.approval-gate.outputs.pr_number }}-${{ needs.approval-gate.outputs.head_sha }}
+          name: requested-preview-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
           path: .requested-preview-artifact
 
       - name: Install dependencies
@@ -357,20 +307,17 @@ jobs:
         id: deploy
         if: steps.pr-check.outputs.open == 'true'
         run: |
-          stage=$(vp exec mixedbread preview-stage --pr "$PULL_REQUEST")
+          stage=$(vp exec mixedbread preview-stage --pr "$PR_NUMBER")
           node stacks/deploy-preview.ts "$stage"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PULL_REQUEST: ${{ needs.approval-gate.outputs.pr_number }}
           PREVIEW_ARTIFACT_DIR: .requested-preview-artifact
 
       - name: Report result
         if: (success() || failure()) && steps.checkout.outcome == 'success'
         uses: actions/github-script@v8
         env:
-          PR_NUMBER: ${{ needs.approval-gate.outputs.pr_number }}
-          HEAD_SHA: ${{ needs.approval-gate.outputs.head_sha }}
           DEPLOYMENT_ID: ${{ needs.approval-gate.outputs.deployment_id }}
           BUILD_RESULT: ${{ needs.build.result }}
           PR_OPEN: ${{ steps.pr-check.outputs.open }}
@@ -398,8 +345,6 @@ jobs:
     permissions:
       contents: read
       deployments: write
-    env:
-      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Checkout trusted main
         uses: actions/checkout@v6
