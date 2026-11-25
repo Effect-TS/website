@@ -199,8 +199,6 @@ export interface TerminalService {
   readonly restart: Effect.Effect<void>
   /** Prints host text (install output) on a line of its own. */
   readonly print: (text: string) => Effect.Effect<void>
-  /** Clears the terminal, keeping the current line (the prompt). */
-  readonly clear: Effect.Effect<void>
 }
 
 export class Terminal extends Context.Service<Terminal, TerminalService>()(
@@ -415,14 +413,6 @@ export const makeTerminal = (
       input: send,
       restart,
       print: appendLine,
-      clear: SubscriptionRef.update(outputRef, (output) => {
-        const line = output.text.slice(output.text.lastIndexOf("\n") + 1)
-        return {
-          generation: output.generation + 1,
-          text: line,
-          total: line.length,
-        }
-      }),
     }
   })
 

@@ -1,5 +1,5 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { ChevronDown, ChevronUp, Eraser, RotateCw } from "lucide-react"
+import { ChevronDown, ChevronUp, RotateCw } from "lucide-react"
 import * as Option from "effect/Option"
 import * as React from "react"
 import { useScratchpadSession } from "./context.tsx"
@@ -68,7 +68,8 @@ export interface OutputPanelProps {
 /**
  * The bottom panel, full width under the explorer and editor: a resizable, collapsible panel whose
  * "Terminal" tab is the Container's interactive shell, where the watch runner
- * runs the program. The header has Restart and Clear.
+ * runs the program. The header's Restart, shown on every tab, runs it again;
+ * to clear the terminal, type `clear` in it.
  */
 export function OutputPanel({ banner }: OutputPanelProps) {
   const {
@@ -77,7 +78,6 @@ export function OutputPanel({ banner }: OutputPanelProps) {
     openTerminalAtom,
     resizeTerminalAtom,
     terminalInputAtom,
-    clearTerminalAtom,
     restartRunAtom,
     dependenciesUnavailableLineAtom,
     revealPositionAtom,
@@ -89,7 +89,6 @@ export function OutputPanel({ banner }: OutputPanelProps) {
   const openTerminal = useAtomSet(openTerminalAtom)
   const resizeTerminal = useAtomSet(resizeTerminalAtom)
   const terminalInput = useAtomSet(terminalInputAtom)
-  const clearTerminal = useAtomSet(clearTerminalAtom)
   const [tab, setTab] = React.useState<PanelTabId>("terminal")
   const restart = useAtomSet(restartRunAtom)
   const [layout, setLayout] = React.useState(readLayout)
@@ -177,35 +176,21 @@ export function OutputPanel({ banner }: OutputPanelProps) {
           ))}
         </div>
         <div className="flex items-center gap-1 text-xs">
-          {tab === "terminal" && (
-            <button
-              type="button"
-              data-testid="run-restart"
-              title={
-                terminal.runner
-                  ? "Run the program again"
-                  : "Restart works while ../run is running in the terminal"
-              }
-              disabled={!terminal.runner}
-              onClick={() => restart()}
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              <RotateCw className="h-3 w-3" aria-hidden="true" />
-              Restart
-            </button>
-          )}
-          {tab === "terminal" && (
-            <button
-              type="button"
-              data-testid="terminal-clear"
-              title="Clear the terminal"
-              onClick={() => clearTerminal()}
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              <Eraser className="h-3 w-3" aria-hidden="true" />
-              Clear
-            </button>
-          )}
+          <button
+            type="button"
+            data-testid="run-restart"
+            title={
+              terminal.runner
+                ? "Run the program again"
+                : "Restart works while ../run is running in the terminal"
+            }
+            disabled={!terminal.runner}
+            onClick={() => restart()}
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <RotateCw className="h-3 w-3" aria-hidden="true" />
+            Restart
+          </button>
           <button
             type="button"
             data-testid="output-panel-toggle"

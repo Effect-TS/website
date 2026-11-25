@@ -182,7 +182,6 @@ export interface ScratchpadEditorSession {
   readonly resizeTerminalAtom: Atom.AtomResultFn<TerminalSize, void>
   /** The visitor's keystrokes in the terminal. */
   readonly terminalInputAtom: Atom.AtomResultFn<string, void>
-  readonly clearTerminalAtom: Atom.AtomResultFn<void, void>
   /** Tells the watch runner to run again (Restart). */
   readonly restartRunAtom: Atom.AtomResultFn<void, void>
   /** Opens a file and puts the cursor at a position (clickable errors). */
@@ -777,7 +776,6 @@ export const makeScratchpadEditorSession = (
   const terminalInputAtom = terminalFn<string>((terminal, data) =>
     terminal.input(data),
   )
-  const clearTerminalAtom = terminalFn<void>((terminal) => terminal.clear)
   const restartRunAtom = terminalFn<void>((terminal) => terminal.restart)
 
   const elementAtom = Atom.make(Option.none<HTMLElement>())
@@ -1414,7 +1412,6 @@ export const makeScratchpadEditorSession = (
     openTerminalAtom,
     resizeTerminalAtom,
     terminalInputAtom,
-    clearTerminalAtom,
     restartRunAtom,
     revealPositionAtom,
     traceAtoms,

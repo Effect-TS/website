@@ -234,29 +234,4 @@ describe("Terminal", () => {
         )
       }),
     ))
-
-  test("Clear keeps only the current line, the prompt", () =>
-    run(
-      Effect.gen(function* () {
-        const backend = makeFakeContainerBackend({
-          command: () => ({ output: ["one\r\ntwo\r\n"] }),
-        })
-        const container = yield* makeContainer(Effect.succeed(backend))
-        const terminal = yield* makeTerminal({ container })
-        yield* terminal.open({ cols: 80, rows: 24 })
-        yield* settle
-        yield* terminal.input("ls\r")
-        yield* settle
-        const before = yield* terminal.output
-        yield* terminal.clear
-        const after = yield* terminal.output
-        assert.deepEqual(
-          {
-            replaced: after.generation !== before.generation,
-            text: plain(after.text),
-          },
-          { replaced: true, text: "~/workspace ❯ " },
-        )
-      }),
-    ))
 })
