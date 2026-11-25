@@ -15,7 +15,12 @@ export default defineConfig({
   lint: {
     plugins: ["typescript", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    ignorePatterns: [".direnv", "dist"],
+    ignorePatterns: [
+      ".direnv",
+      "dist",
+      // Lesson goal tests import the in-browser `tutorial-test` module.
+      "apps/web/src/content/tutorial/**/main.test.ts",
+    ],
     options: {
       typeAware: true,
       typeCheck: true,
@@ -33,6 +38,12 @@ export default defineConfig({
         resolve: {
           alias: {
             "@/": fileURLToPath(new URL("./apps/web/src/", import.meta.url)),
+            "tutorial-test": fileURLToPath(
+              new URL(
+                "./apps/web/src/features/tutorial/runner/test-api.ts",
+                import.meta.url,
+              ),
+            ),
             "astro:assets": fileURLToPath(
               new URL("./apps/web/test/stubs/astro-assets.ts", import.meta.url),
             ),

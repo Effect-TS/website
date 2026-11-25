@@ -1,0 +1,119 @@
+---
+import { getEntry, render } from "astro:content"
+import DocsNavigation from "@/components/navigation/DocsNavigation.astro"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import { cacheKey, digest } from "@/lib/cache-key"
+import { LoaderCard } from "@/features/tutorial/components/LessonLoader"
+import { TutorialHeader, TutorialHeaderShell } from "@/features/tutorial/components/TutorialHeader"
+import { TutorialWorkbench } from "@/features/tutorial/components/TutorialWorkbench"
+import { getLessons } from "@/features/tutorial/lessons"
+import { buildOutline, lessonCode } from "@/features/tutorial/model"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  const lessons = await getLessons()
+  const outline = buildOutline(lessons)
+  return lessons.map((lesson) => ({
+    params: { slug: lesson.slug },
+    props: { lesson, outline },
+    cacheKey: cacheKey(digest({ lessons })),
+  }))
+}
+
+const { lesson, outline } = Astro.props
+const entry = await getEntry("tutorial", lesson.id.replace(/\/index$/, ""))
+if (entry === undefined) throw new Error(`Missing tutorial entry ${lesson.id}`)
+const { Content } = await render(entry)
+const order = outline.flatMap((chapter) => chapter.lessons.map((item) => item.slug))
+---
+
+<BaseLayout
+  title={`${lesson.title} | Effect Tutorial`}
+  description={`Interactive Effect tutorial: ${lesson.title}`}
+>
+  <script is:inline define:vars={{ order, slug: lesson.slug }}>
+    // A lesson opens when every lesson before it is done.
+    try {
+      const done = JSON.parse(localStorage.getItem("effect-website:tutorial:completed") ?? "[]")
+      const first = order.find((item) => !done.includes(item))
+      if (first !== undefined && order.indexOf(slug) > order.indexOf(first)) {
+        location.replace("/tutorial/" + first)
+      }
+    } catch {}
+  </script>
+
+  <div class="flex h-dvh flex-col overflow-hidden">
+    <DocsNavigation section="guides" />
+
+    <main id={PAGE_TITLE_ID} class="flex min-h-0 flex-1 flex-col">
+      <TutorialHeader client:only="react" outline={outline}>
+        <TutorialHeaderShell slot="fallback" outline={outline} slug={lesson.slug} />
+      </TutorialHeader>
+
+      <div data-tutorial-split class="flex min-h-0 flex-1 flex-col [--prose-width:40%] lg:flex-row">
+        <script is:inline>
+          // Apply the saved column width before first paint.
+          try {
+            const width = Number(localStorage.getItem("effect-website:tutorial:prose-width"))
+            if (width > 0) {
+              document.currentScript.parentElement.style.setProperty("--prose-width", width + "%")
+            }
+          } catch {}
+        </script>
+
+        <div
+          data-tutorial-prose
+          class="max-h-[45vh] shrink-0 overflow-y-auto px-6 py-8 lg:max-h-none lg:w-(--prose-width) lg:px-8"
+        >
+          <a
+            data-testid="tutorial-article"
+            href={`/tutorial/${lesson.chapter}`}
+            class="mb-6 block text-sm text-muted-foreground no-underline hover:text-foreground"
+          >
+            Prefer reading? Read this tutorial as an article →
+          </a>
+          <article data-testid="tutorial-prose" class="prose prose-effect max-w-none">
+            <h1 class="mt-0!">{lesson.title}</h1>
+            <Content />
+          </article>
+        </div>
+
+        <div
+          data-tutorial-handle
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the lesson text"
+          aria-valuemin="20"
+          aria-valuemax="70"
+          aria-valuenow="40"
+          tabindex="0"
+          class="relative z-20 hidden w-px shrink-0 cursor-col-resize bg-zinc-200 outline-none after:absolute after:inset-y-0 after:-inset-x-1 hover:bg-zinc-400 focus-visible:bg-zinc-400 lg:block dark:bg-zinc-700 dark:hover:bg-zinc-500 dark:focus-visible:bg-zinc-500"
+        >
+        </div>
+
+        <section class="min-h-0 min-w-0 flex-1 border-t border-border lg:border-t-0">
+          <TutorialWorkbench
+            client:only="react"
+            outline={outline}
+            initialSlug={lesson.slug}
+            initialCode={lessonCode(lesson)}
+          >
+            <div
+              slot="fallback"
+              class="flex h-full items-center justify-center bg-zinc-50 p-4 dark:bg-zinc-950"
+            >
+              <LoaderCard done={0} />
+            </div>
+          </TutorialWorkbench>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    import { initSplit } from "@/features/tutorial/split"
+    initSplit()
+  </script>
+</BaseLayout>
