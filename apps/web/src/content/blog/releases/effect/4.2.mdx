@@ -97,16 +97,16 @@ text.
 ## More highlights
 
 - **Pattern matching:** `Match.whenFilter` runs a filter once and passes the
-  extracted value to the handler. If it fails, the next case sees the original
-  input. Use `Filter.map` to transform passing values without changing
+  extracted value to the handler, or falls through with the original input if
+  the filter fails. `Filter.map` transforms passing values without changing
   failures.
 - **HTTP:** A sub-app built with `HttpRouter.toHttpEffect` gets its own
   router, so its routes and middleware no longer register on the outer server.
   Cookies with the same name but different domains or paths now coexist
   instead of overwriting one another.
 - **AI and MCP:** A tool can declare `failure: McpSchema.InputRequired` to
-  request input from the client rather than report a tool error. Handlers can
-  also set the model-facing output via `Toolkit.HandlerContext.modelOutput`.
+  request input from the client rather than report a tool error, and handlers
+  can set the model-facing output via `Toolkit.HandlerContext.modelOutput`.
   Anthropic batch result endpoints now return the JSON Lines response as
   bytes, with streaming variants for large batches.
 - **Processes and stdio:** Child processes accept numeric file descriptors,
@@ -128,11 +128,11 @@ before upgrading.
 <details>
 <summary>OpenTelemetry</summary>
 
-- `@effect/opentelemetry` now targets JS SDK 3.x. Stay on the 4.1.x package
-  if you need SDK 2.x. The peers are now `@opentelemetry/api` 1.10 or later
-  and 3.x of `resources`, `sdk-logs`, `sdk-metrics` and `sdk-trace`.
-  `@opentelemetry/sdk-trace` replaces `sdk-trace-base`, `sdk-trace-node` and
-  `sdk-trace-web`, and `@opentelemetry/api-logs` is no longer a peer. See the
+- `@effect/opentelemetry` now targets JS SDK 3.x (stay on 4.1.x for SDK 2.x),
+  with peers `@opentelemetry/api` 1.10 or later and 3.x of `resources`,
+  `sdk-logs`, `sdk-metrics` and `sdk-trace`, which replaces `sdk-trace-base`,
+  `sdk-trace-node` and `sdk-trace-web`. `@opentelemetry/api-logs` is no
+  longer a peer; see the
   [SDK migration notes](https://github.com/Effect-TS/effect/pull/10339) for
   details.
 - Import span processors, exporters and samplers from
@@ -146,10 +146,10 @@ before upgrading.
 - `BatchSpanProcessor` no longer reads `OTEL_BSP_*`, so pass those settings as
   options.
 - `NodeSdk` no longer reads `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`
-  or the `OTEL_SPAN_*` / `OTEL_ATTRIBUTE_*` span limits. Set
+  or the `OTEL_SPAN_*` / `OTEL_ATTRIBUTE_*` span limits, so set
   `tracerConfig.sampler` and `tracerConfig.spanLimits` in code instead. The
-  built-in `OtlpTracer.layerFromConfig`, by contrast, now reads
-  `OTEL_TRACES_SAMPLER` and `OTEL_TRACES_SAMPLER_ARG`.
+  built-in `OtlpTracer.layerFromConfig`, by contrast, now reads both sampler
+  variables.
 - Metric descriptors from `OtelMetrics` no longer include the `type` and
   `advice` fields.
 
@@ -190,7 +190,8 @@ before upgrading.
 - Input the parser used to accept now fails: unsupported tags and key
   properties, invalid or ambiguous collection syntax, any directive other
   than `%YAML 1.2`, a directive without a following `---`, plain scalars
-  starting with `%`, and nesting or merge expansion beyond the new limits. Non-YAML whitespace is preserved.
+  starting with `%`, and nesting or merge expansion beyond the new limits.
+  Non-YAML whitespace is preserved.
 
 </details>
 
@@ -207,7 +208,7 @@ before upgrading.
 - `RpcServer.layerProtocolStdio` and `RpcServer.makeProtocolStdio` are now
   functions. Call `RpcServer.layerProtocolStdio()` and
   `RpcServer.makeProtocolStdio()`.
-- `@effect/atom-solid` requires Solid 2. Replace `useAtomResource` with
+- `@effect/atom-solid` requires Solid 2: replace `useAtomResource` with
   `useAtomValue` and match on the `AsyncResult`. Use
   `<RegistryContext value={registry}>` or `<RegistryProvider>` instead of
   `RegistryContext.Provider`.
