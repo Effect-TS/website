@@ -1,7 +1,7 @@
 ---
 pagefind: false
 title: Effect 4.2 (Release)
-excerpt: The next Effect minor release brings SQL batching, fiber supervision, reusable path filters, YAML output, and more!
+excerpt: Upcoming Effect release featuring SQL batching, fiber supervision, reusable path filters, YAML output, and more!
 date: 2026-11-26
 authors:
   - tim_smart
@@ -117,8 +117,8 @@ text.
 - **PostgreSQL:** Supply a `connectRetrySchedule` to `PgClient` or `PgPool`
   to retry a failed connection checkout before any statement is sent.
 - **Configuration:** `Toml.parse` supports TOML 1.1 syntax, including
-  multiline inline tables and times without seconds. `String.hasNonWhitespace`
-  tests for a nonblank string.
+  multiline inline tables and times without seconds, so `13:37` parses as
+  `"13:37:00"`. `String.hasNonWhitespace` tests for a nonblank string.
 
 ## Upgrade notes
 
@@ -150,12 +150,11 @@ before upgrading.
 <details>
 <summary>HTTP and cookies</summary>
 
-- `Cookies.cookies` and the `Schema.Cookies` encoding are now arrays. Replace
-  `cookies.cookies[name]` with `Cookies.get` or `Cookies.getValue`.
-- On `cookies.cookies`, `in` and `Object.hasOwn` check array properties, and
-  `Object.keys` and `Object.entries` list array indices, not cookie names.
-  Use `Cookies.get` for membership, or `Cookies.toRecord` for names and
-  values.
+- `Cookies.cookies` and the `Schema.Cookies` encoding are now arrays, so
+  `cookies.cookies[name]`, `in`, `Object.hasOwn`, `Object.keys` and
+  `Object.entries` no longer go by cookie name. Use `Cookies.get` or
+  `Cookies.getValue` to read or test for a cookie, and `Cookies.toRecord`
+  for names and values.
 - To replace or expire a cookie, pass its original `domain` and `path`.
 - `HttpRouter.serve` always builds its own router instead of reusing an
   `HttpRouter.layer` built outside it, so its `routerConfig` option always
@@ -168,7 +167,7 @@ before upgrading.
 </details>
 
 <details>
-<summary>File systems, YAML and TOML</summary>
+<summary>File systems and YAML</summary>
 
 - `FileSystem.glob` takes a single `PathFilter.Input` instead of a pattern
   and options. Its `exclude` and `dot` options are gone: replace
@@ -180,14 +179,10 @@ before upgrading.
   `Yaml.parseAll`.
 - `Yaml.parse` and `Yaml.parseAll` use YAML 1.2 core scalar, tag and key
   resolution. Quote values and keys to keep them as literal text.
-- Input the parser used to misread or drop now fails: unsupported tags and
-  key properties, invalid or ambiguous collection syntax, `%YAML` versions
-  other than 1.2, `%TAG` and other directives, and plain scalars starting
-  with `%`.
-- Non-YAML whitespace is preserved, and parsing enforces nesting and
-  merge-expansion limits.
-- `Toml.parse` normalizes times without seconds, so `13:37` parses as
-  `"13:37:00"`.
+- Input the parser used to accept now fails: unsupported tags and key
+  properties, invalid or ambiguous collection syntax, any directive other
+  than `%YAML 1.2`, plain scalars starting with `%`, and nesting or merge
+  expansion beyond the new limits. Non-YAML whitespace is preserved.
 
 </details>
 
