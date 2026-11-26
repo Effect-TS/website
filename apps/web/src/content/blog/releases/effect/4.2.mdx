@@ -129,19 +129,27 @@ before upgrading.
 <summary>OpenTelemetry</summary>
 
 - `@effect/opentelemetry` now targets JS SDK 3.x. Stay on the 4.1.x package
-  if you need SDK 2.x. `@opentelemetry/sdk-trace` replaces the
-  `sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` packages; see the
+  if you need SDK 2.x. The peers are now `@opentelemetry/api` 1.10 or later
+  and 3.x of `resources`, `sdk-logs`, `sdk-metrics` and `sdk-trace`.
+  `@opentelemetry/sdk-trace` replaces `sdk-trace-base`, `sdk-trace-node` and
+  `sdk-trace-web`, and `@opentelemetry/api-logs` is no longer a peer. See the
   [SDK migration notes](https://github.com/Effect-TS/effect/pull/10339) for
-  the other peer versions.
+  details.
 - Import span processors, exporters and samplers from
   `@opentelemetry/sdk-trace`, and `SeverityNumber` from `@opentelemetry/api`.
   Pass the exporter as `new BatchSpanProcessor({ exporter })`.
+- In both `NodeSdk` and `WebSdk`, `tracerConfig` takes `TracerProviderOptions`
+  from `@opentelemetry/sdk-trace` instead of `TracerConfig`, and
+  `loggerProviderConfig` takes `LoggerProviderOptions` from
+  `@opentelemetry/sdk-logs` instead of `LoggerProviderConfig`.
+  `OtelLogger.layerLoggerProvider` takes `LoggerProviderOptions` too.
 - `BatchSpanProcessor` no longer reads `OTEL_BSP_*`, so pass those settings as
   options.
 - `NodeSdk` no longer reads `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`
-  or the `OTEL_SPAN_*` / `OTEL_ATTRIBUTE_*` span limits. Configure them in
-  code through `tracerConfig`, which now takes `TracerProviderOptions`. The
-  built-in OTLP tracer, by contrast, now honors `OTEL_TRACES_SAMPLER`.
+  or the `OTEL_SPAN_*` / `OTEL_ATTRIBUTE_*` span limits. Set
+  `tracerConfig.sampler` and `tracerConfig.spanLimits` in code instead. The
+  built-in `OtlpTracer.layerFromConfig`, by contrast, now reads
+  `OTEL_TRACES_SAMPLER` and `OTEL_TRACES_SAMPLER_ARG`.
 - Metric descriptors from `OtelMetrics` no longer include the `type` and
   `advice` fields.
 
@@ -181,8 +189,8 @@ before upgrading.
   resolution. Quote values and keys to keep them as literal text.
 - Input the parser used to accept now fails: unsupported tags and key
   properties, invalid or ambiguous collection syntax, any directive other
-  than `%YAML 1.2`, plain scalars starting with `%`, and nesting or merge
-  expansion beyond the new limits. Non-YAML whitespace is preserved.
+  than `%YAML 1.2`, a directive without a following `---`, plain scalars
+  starting with `%`, and nesting or merge expansion beyond the new limits. Non-YAML whitespace is preserved.
 
 </details>
 
