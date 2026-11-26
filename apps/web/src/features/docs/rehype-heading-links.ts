@@ -19,7 +19,8 @@ function addHeadingLinks(parent: Root | Element): void {
       id.length > 0
     ) {
       const title = textContent(child.children)
-      child.children.unshift(headingLink(id, title))
+      // Trailing so an inline link never indents the heading text
+      child.children.push(headingLink(id, title))
       continue
     }
 
