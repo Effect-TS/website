@@ -50,7 +50,7 @@ export function TraceDetails({
           <XIcon className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-sm text-subtle-foreground">
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-xs text-subtle-foreground">
         {Option.isSome(span.duration) ? (
           <span className="text-muted-foreground">
             {formatDuration(span.duration.value)}
@@ -67,7 +67,7 @@ export function TraceDetails({
         <span aria-hidden="true">·</span>
         <span
           className={cn(
-            "rounded-full border px-2 leading-5",
+            "rounded-full border px-1.5 text-[11px] leading-4",
             span.hasError
               ? "border-destructive/60 text-destructive"
               : Option.isSome(span.endTime)
