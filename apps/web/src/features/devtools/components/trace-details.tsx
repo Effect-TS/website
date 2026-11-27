@@ -112,7 +112,7 @@ export function TraceDetails({
               />
             ))}
           </ol>
-          <p className="mt-2 text-sm text-subtle-foreground">
+          <p className="mt-2 text-xs text-subtle-foreground">
             Times are from the start of the trace.
           </p>
         </>
