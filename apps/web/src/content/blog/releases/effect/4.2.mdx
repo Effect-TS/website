@@ -1,0 +1,235 @@
+---
+pagefind: false
+title: Effect 4.2 (Release)
+excerpt: Upcoming Effect release featuring SQL batching, fiber supervision, reusable path filters, and MCP tools that can ask for missing input!
+date: 2026-11-26
+authors:
+  - tim_smart
+  - sebastian_lorenz
+tags:
+  - releases
+  - effect
+---
+
+On Postgres, setting the current tenant and fetching its rows can take more
+time going back and forth than running the queries. In the upcoming Effect
+4.2 release, the PostgreSQL driver lets you send both statements in one round
+trip. When the wait is inside your program instead, a supervisor can tell
+you what a blocked fiber is waiting for.
+
+## SQL batching
+
+On PostgreSQL, setting transaction-local context and then querying with it
+normally means four round trips: begin, set, query, commit. With
+`SqlClient.batch`, you can do all four in one. For example, if your row-level
+security policy reads the current organization from a setting:
+
+```ts
+import { Effect } from "effect"
+import { SqlClient } from "effect/sql"
+
+const itemsFor = (org: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    const [, items] = yield* sql.batch([
+      sql`SELECT set_config('app.organization_id', ${org}, true)`,
+      sql`SELECT * FROM item`,
+    ])
+    return items
+  })
+```
+
+The statements run in order on the same connection. The result is a typed
+tuple, so `items` has the row type of the second statement. PostgreSQL and
+libSQL execute the batch atomically in one round trip. Drivers without native
+batching execute one statement at a time; use `withTransaction` if those
+statements need to succeed or fail together.
+
+## See what a fiber is waiting for
+
+The experimental `Supervisor` module lets you observe when a fiber starts,
+blocks, unblocks and ends, and what a blocked fiber is waiting on. Install a
+supervisor around one effect with `Effect.withSupervisor`, or add one to a
+runtime with `Supervisor.layer`. If you build your own synchronization
+primitive on `Effect.callback`, its new `blockedOn` option tells the
+supervisor what the fiber is waiting on.
+
+Two smaller additions help distinguish waiting from working.
+`Semaphore.withPermitsTraced` creates a span for the time spent waiting to
+acquire permits, not for the work that holds them. And `Pool.stats` and
+`PgClient.poolStats` now report `acquiring` separately from waiting
+borrowers, so you can see how many acquisitions are already in flight.
+
+## Reusable path filters
+
+In 4.1, `FileSystem.glob` took a glob pattern and a separate set of options.
+In 4.2, it takes a single `PathFilter.Input`: a pattern, a list of patterns
+and rules, or a `PathFilter`. The new unstable `PathFilter` module lets you
+write ordered rules and test them without walking the file system. For
+example, you can ignore build output but keep a published declaration file:
+
+```ts
+import { PathFilter } from "effect"
+
+const filter = PathFilter.make([
+  PathFilter.exclude("dist", { subtree: "inherit" }),
+  PathFilter.include("dist/index.d.ts"),
+])
+
+PathFilter.excludes(filter, "dist/index.js") // => true
+PathFilter.excludes(filter, "dist/index.d.ts") // => false
+```
+
+Later rules take precedence. If the project already defines its exclusions,
+the experimental `IgnoreFile` parsers can build filters from `.gitignore` and
+`.dockerignore` sources.
+
+## Reading and writing YAML
+
+`Yaml.parse` from `effect/encoding` returns a `Result` instead of throwing.
+Handle an `EncodingError` on failure, or use the parsed value on success. For
+files containing multiple documents separated by `---`, use `Yaml.parseAll`;
+anchors are scoped to each document. Going the other direction,
+`Yaml.stringify` and `Yaml.stringifyAll` write block-style YAML.
+
+Parsing now resolves plain scalars and keys using YAML 1.2 core rules. Quote
+text such as `"true"` if you need a string rather than a boolean. Unsupported
+tags and ambiguous collection syntax now fail instead of silently becoming
+text.
+
+## More highlights
+
+- **Pattern matching:** `Match.whenFilter` runs a filter once and passes the
+  extracted value to the handler, or falls through with the original input if
+  the filter fails. `Filter.map` transforms passing values without changing
+  failures.
+- **HTTP:** A sub-app built with `HttpRouter.toHttpEffect` gets its own
+  router, so its routes and middleware no longer register on the outer server.
+  Cookies with the same name but different domains or paths now coexist
+  instead of overwriting one another.
+- **AI and MCP:** A tool can declare `failure: McpSchema.InputRequired` to
+  request input from the client rather than report a tool error, and handlers
+  can set the model-facing output via `Toolkit.HandlerContext.modelOutput`.
+  Anthropic batch result endpoints now return the JSON Lines response as
+  bytes, with streaming variants for large batches.
+- **Processes and stdio:** Child processes accept numeric file descriptors,
+  and `ChildProcessHandle.exitStatus` distinguishes an exit code from a
+  terminating signal. RPC and MCP stdio servers can opt into
+  `onStdinEnd: "interrupt"` to stop active requests when the client closes
+  stdin.
+- **PostgreSQL:** Supply a `connectRetrySchedule` to `PgClient` or `PgPool`
+  to retry a failed connection checkout before any statement is sent.
+- **Configuration:** `Toml.parse` supports TOML 1.1 syntax, including
+  multiline inline tables and times without seconds, so `13:37` parses as
+  `"13:37:00"`. `String.hasNonWhitespace` tests for a nonblank string.
+
+## Upgrade notes
+
+This release includes breaking changes. Expand the notes for the APIs you use
+before upgrading.
+
+<details>
+<summary>OpenTelemetry</summary>
+
+- `@effect/opentelemetry` now targets JS SDK 3.x (stay on 4.1.x for SDK 2.x),
+  with peers `@opentelemetry/api` 1.10 or later and 3.x of `resources`,
+  `sdk-logs`, `sdk-metrics` and `sdk-trace`, which replaces `sdk-trace-base`,
+  `sdk-trace-node` and `sdk-trace-web`. `@opentelemetry/api-logs` is no
+  longer a peer; see the
+  [SDK migration notes](https://github.com/Effect-TS/effect/pull/10339) for
+  details.
+- Import span processors, exporters and samplers from
+  `@opentelemetry/sdk-trace`, and `SeverityNumber` from `@opentelemetry/api`.
+  Pass the exporter as `new BatchSpanProcessor({ exporter })`.
+- In both `NodeSdk` and `WebSdk`, `tracerConfig` takes `TracerProviderOptions`
+  from `@opentelemetry/sdk-trace` instead of `TracerConfig`, and
+  `loggerProviderConfig` takes `LoggerProviderOptions` from
+  `@opentelemetry/sdk-logs` instead of `LoggerProviderConfig`.
+  `OtelLogger.layerLoggerProvider` takes `LoggerProviderOptions` too.
+- `BatchSpanProcessor` no longer reads `OTEL_BSP_*`, so pass those settings as
+  options.
+- `NodeSdk` no longer reads `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`
+  or the `OTEL_SPAN_*` / `OTEL_ATTRIBUTE_*` span limits, so set
+  `tracerConfig.sampler` and `tracerConfig.spanLimits` in code instead. The
+  built-in `OtlpTracer.layerFromConfig`, by contrast, now reads both sampler
+  variables.
+- Metric descriptors from `OtelMetrics` no longer include the `type` and
+  `advice` fields.
+
+</details>
+
+<details>
+<summary>HTTP and cookies</summary>
+
+- `Cookies.cookies` and the `Schema.Cookies` encoding are now arrays, so
+  `cookies.cookies[name]`, `in`, `Object.hasOwn`, `Object.keys` and
+  `Object.entries` no longer go by cookie name. Use `Cookies.get` or
+  `Cookies.getValue` to read or test for a cookie, and `Cookies.toRecord`
+  for names and values.
+- To replace or expire a cookie, pass its original `domain` and `path`.
+- `HttpRouter.serve` always builds its own router instead of reusing an
+  `HttpRouter.layer` built outside it, so its `routerConfig` option always
+  applies.
+- `HttpClient.withRateLimiter` now infers both `RateLimiterError` and
+  `HttpClientError` unless you pass `failsWith`. Pass
+  `failsWith: "RateLimiterError"` to keep the previous error type, or
+  `"HttpClientError"` to receive HTTP transport errors instead.
+
+</details>
+
+<details>
+<summary>File systems and YAML</summary>
+
+- `FileSystem.glob` takes a single `PathFilter.Input` instead of a pattern
+  and options. Its `exclude` and `dot` options are gone: replace
+  `fs.glob("src/**/*.ts", { exclude: ["**/*.test.ts"] })` with
+  `fs.glob(["src/**/*.ts", "!**/*.test.ts"])`, or pass `PathFilter` rules,
+  which take a `dot` option.
+- `Yaml.parse` returns a `Result` and fails with an `EncodingError` instead
+  of throwing. Input with more than one document still fails; use
+  `Yaml.parseAll`.
+- `Yaml.parse` and `Yaml.parseAll` use YAML 1.2 core scalar, tag and key
+  resolution. Quote values and keys to keep them as literal text.
+- Input the parser used to accept now fails: unsupported tags and key
+  properties, invalid or ambiguous collection syntax, any directive other
+  than `%YAML 1.2`, a directive without a following `---`, plain scalars
+  starting with `%`, and nesting or merge expansion beyond the new limits.
+  Non-YAML whitespace is preserved.
+
+</details>
+
+<details>
+<summary>AI, MCP, RPC and Solid</summary>
+
+- The `McpSchema.InputRequired` constructor validates its fields and throws
+  when they are invalid. Declare `failure: McpSchema.InputRequired` rather
+  than `Schema.instanceOf(McpSchema.InputRequired)`, which has no JSON codec.
+- `messageBatchesResults` and `betaMessageBatchesResults` in
+  `@effect/ai-anthropic` return the raw JSON Lines bytes. Decode each line
+  with `MessageBatchIndividualResponse` or
+  `BetaMessageBatchIndividualResponse`.
+- `RpcServer.layerProtocolStdio` and `RpcServer.makeProtocolStdio` are now
+  functions. Call `RpcServer.layerProtocolStdio()` and
+  `RpcServer.makeProtocolStdio()`.
+- `@effect/atom-solid` requires Solid 2: replace `useAtomResource` with
+  `useAtomValue` and match on the `AsyncResult`. Use
+  `<RegistryContext value={registry}>` or `<RegistryProvider>` instead of
+  `RegistryContext.Provider`.
+
+</details>
+
+<details>
+<summary>Custom implementations and test doubles</summary>
+
+- Custom `ChildProcessSpawner.makeHandle` implementations must provide
+  `exitStatus`.
+- Manually constructed `Pool.Stats` snapshots must include `acquiring` (use
+  `0` when no acquisition is running).
+- Manually constructed `Toolkit.HandlerContext` values must include
+  `modelOutput`, for example `() => Effect.void`.
+
+</details>
+
+For all additions and fixes, see the [4.2 release queue](https://github.com/Effect-TS/effect/pull/10149).
+
+Join our [Discord Community](https://discord.gg/effect-ts) to follow the latest updates and discuss the release!
