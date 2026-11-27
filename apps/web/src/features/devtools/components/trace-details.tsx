@@ -89,7 +89,7 @@ export function TraceDetails({
       ) : (
         <dl
           data-testid="trace-details-attributes"
-          className="grid grid-cols-[minmax(4rem,max-content)_1fr] gap-x-4 font-mono text-sm"
+          className="grid grid-cols-[minmax(4rem,max-content)_1fr] gap-x-4 font-mono text-[13px] leading-5"
         >
           {attributes.map(([key, value]) => (
             <Entry key={key} name={key} value={value} />
@@ -160,10 +160,10 @@ function Entry({
 }) {
   return (
     <>
-      <dt className="border-b border-border py-1.5 whitespace-nowrap text-muted-foreground">
+      <dt className="border-b border-border py-1 whitespace-nowrap text-muted-foreground">
         {name}
       </dt>
-      <dd className="border-b border-border py-1.5">
+      <dd className="border-b border-border py-1">
         <Value value={value} />
       </dd>
     </>
@@ -234,9 +234,9 @@ function TraceEvent({
     <li
       onMouseEnter={() => onHover?.(event.event.startTime)}
       onMouseLeave={() => onHover?.(undefined)}
-      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-2 font-mono text-sm transition-colors last:border-b-0 hover:bg-muted/50"
+      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-1.5 font-mono text-[13px] leading-5 transition-colors last:border-b-0 hover:bg-muted/50"
     >
-      <span className="min-w-18 text-right text-subtle-foreground">
+      <span className="min-w-16 text-right text-subtle-foreground">
         +{sinceTraceStart(event.event.startTime, traceStartTime)}
       </span>
       <span
@@ -244,11 +244,11 @@ function TraceEvent({
         className={cn("mt-0.5 h-4 w-px", EVENT_LEVEL_COLOR[level])}
       />
       <div className="min-w-0">
-        <div className="leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+        <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">
           {event.name}
         </div>
         {attributes.length > 0 && (
-          <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-2 text-[13px] text-subtle-foreground">
+          <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-2 text-xs leading-[1.125rem] text-subtle-foreground">
             {attributes.map(([key, value]) => (
               <div key={key} className="contents">
                 <dt>{key}</dt>
