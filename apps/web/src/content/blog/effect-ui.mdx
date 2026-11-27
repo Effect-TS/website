@@ -19,25 +19,23 @@ If your backend is in Effect, moving to the frontend has always felt like steppi
 
 On the server you have all the benefits of Effect: typed errors, `Schema`, `Layer`s, structured concurrency, and `TestClock`. In the browser you had to go back to hooks, hidden side effects, separate libraries for state and fetching, and component tests built on module mocks and fake timers.
 
-You shouldn't have to leave Effect behind the moment you touch the UI. That's why we opened the public preview of [**Effect UI**](https://github.com/Effect-TS/ui), a frontend library built on Effect and the Elm Architecture. Every **Component** is a self-contained program with Schema-typed state, pure updates, and side effects as values. Each one also carries its own services and error boundary.
+You shouldn't have to leave Effect behind the moment you touch the UI. That's why we opened the public preview of [Effect UI](https://github.com/Effect-TS/ui), a frontend library built on Effect and the Elm Architecture where apps are built by composing self-contained **Components**.
 
-Like Effect itself, Effect UI has zero third-party runtime dependencies. Everything you need comes built in: a typed router, a query cache, shared state, server rendering, DevTools, testing harnesses, and over 45 headless UI components. You don't have to assemble a frontend stack out of half a dozen packages.
+Like Effect itself, Effect UI's core and web packages have zero third-party runtime dependencies. Everything you need comes built in: a typed router, a query cache, shared state, server rendering, DevTools, testing harnesses, and over 45 headless UI components. You don't have to assemble a frontend stack out of half a dozen packages.
 
 Effect UI continues the work of [Foldkit](https://foldkit.dev/), following our [Foldkit Joins Effect](https://foldkit.dev/blog/foldkit-joins-effect) announcement. There is an interactive overview built with Effect UI at [ui.effect.website](https://ui.effect.website/).
 
 ## Why we're building Effect UI
 
-Most Effect apps still stop at the API boundary. Once data reaches the UI, you switch mental models for state, async work, errors, and dependency injection.
+With Effect UI, a button click, a debounced search query, and a background job all use Effect's runtime and programming model. They fail with the same typed errors, pull services from `Layer`s, and cancel the same way.
 
-With Effect UI, a button click, a debounced search query, and a background job all run on the same runtime. They share the same typed errors, `Layer`s, and cancellation rules.
+Coding agents are the other reason we're building this now. With agents writing more frontend code, implicit render cycles and hidden side effects get in their way.
 
-Coding agents are the other reason we're building this now. With agents writing more frontend code, implicit render cycles and hidden side effects get in their way fast.
-
-A constrained, explicit architecture changes both what agents can build and how fast they get it right. When state changes go through pure functions, every event is a typed `Schema`, and the runtime logs every transition, agents have less room to guess and a clear trace whenever something breaks. It's also easier to test, verify, and review, whether a human or an agent is checking the work.
+A constrained, explicit architecture gives agents concrete structure to work with. State changes run through pure functions, inputs are typed with `Schema`, optional message logging records every transition for the DevTools MCP server, and tests run deterministically with `TestClock`. That makes the code easier to verify and review, whether a human or an agent is checking the work.
 
 ## What an Effect UI Component looks like
 
-A Component is a self-contained program that renders a piece of UI. It holds its own state, declares the events it can handle, and updates that state through pure functions.
+A Component is a self-contained program that renders a piece of UI. It holds its own state, called its **Model**, declares the **messages** it can handle, and updates that Model through pure functions.
 
 Here is a small counter with buttons to decrement, increment, and reset after a delay:
 
@@ -90,26 +88,33 @@ export const Counter = Html.component({
 })
 ```
 
-Everything you write in a Component is pure. Your state and events are Effect `Schema`s, `update` maps old state and an event to new state, and `view` renders that state. Nothing mutates in place, and `view` itself never runs side effects.
+A Component's `init`, `update`, and `view` are pure. Your Model and messages are Effect `Schema`s, `update` maps the current Model and a message to the next Model, and `view` renders that Model without running side effects.
 
-Side effects are values, not imperative calls. In the counter above, the delayed reset doesn't start a timer inside a click handler. The Component returns a `Command`, the Effect runtime runs it, and the result comes back into `update` as another event. Every side effect in an Effect UI app follows that rule: you declare what should happen, and the runtime runs it, whether it's a one-off `Command`, a `Query`, a `Stream` subscription, or a `Mount` tied to a rendered element.
+Side effects are values, not imperative calls. In the counter above, the delayed reset doesn't start a timer inside a click handler. The Component returns a `Command`, the Effect runtime runs it, and the result comes back into `update` as another message. Every side effect in an Effect UI app follows that rule. You declare what should happen and the runtime runs it, whether it's a `Command`, a `Query`, a `Subscription`, or a `Mount` tied to a rendered element.
 
-You build an app by composing Components like this into a tree. When a user interacts with a Component, only that Component updates and re-renders. You can write, test, and lazy-load any Component on its own, and if one fails, the rest of the app keeps running.
+You build an app by composing Components like this into a tree. Messages go straight to the Component that handles them without forwarding through parents, and a Component re-renders only when its own Model, props, or subscribed state change. You can write, test, and lazy-load any Component on its own, and if one fails, the rest of the app keeps running.
 
 <EffectUiComponentTree />
 
 ## What else Effect UI ships
 
-Here is what else comes built in:
-
-- **Multiple hosts.** The same runtime drives the web with HTML, SSR, hydration, and custom elements, the terminal through OpenTUI, and native iOS and Android views through React Native's Fabric renderer without React.
-- **Queries, shared state, and routing.** Cached and stream-backed queries with debouncing and auto-cancellation, shared state providers, typed routes, per-Component `Layer`s, and lazy code splitting.
+- **Multiple hosts and gradual adoption.** Components render through a public host interface with host-specific views: HTML with SSR and hydration for the web, OpenTUI for the terminal, and React Native's Fabric renderer directly with no React components for iOS and Android. You can also publish any Component as a standard custom element to adopt Effect UI inside an existing app piece by piece.
+- **Queries, shared state, and routing.** Cached and stream-backed queries with debouncing and auto-cancellation, shared state providers without prop drilling, and typed routes.
+- **Services and code splitting.** Provide Effect `Layer`s per Component subtree with compile-time checking, and lazy-load any Component in its own chunk.
 - **Over 45 headless UI components.** Dialogs, comboboxes, menus, tabs, drawers, calendars, date pickers, sortable lists, and virtual lists with keyboard, focus, and ARIA built in.
-- **Deterministic testing with `TestClock`.** Unit test updates, run generative property tests over message orders, or test full multi-step flows with real commands and test `Layer`s in milliseconds.
-- **DevTools for humans and agents.** One `Layer` adds a message timeline, causal chains, an element picker, time travel, a component workbench, and an MCP server for coding agents.
-- **Fast by default.** Effect UI scored 4.12x vanilla JavaScript in [js-framework-benchmark](https://github.com/krausest/js-framework-benchmark), ahead of React's 6.44x, with lower memory and faster first paint.
+- **Deterministic testing with `TestClock`.** Unit test updates, run generative property tests over message orders, or run full multi-step flows with real commands and test `Layer`s without real timers or a DOM.
+- **DevTools for humans and agents.** One `Layer` mounts an in-page inspector with a message timeline, causal chains, an element picker, time travel, and a component workbench. A companion MCP server lets coding agents inspect the log and drive a running app.
+- **Competitive performance.** In our [js-framework-benchmark](https://github.com/krausest/js-framework-benchmark) run, Effect UI's script time was 4.12x vanilla JavaScript, where lower is better. That puts it ahead of React at 6.44x, behind Solid, Svelte, and Vue, and faster to first paint than React at 381 ms versus 419 ms.
 
 See [ui.effect.website](https://ui.effect.website/) for live examples and the full benchmark tables.
+
+## Toward full-stack Effect
+
+Effect has long felt more like a toolkit than an application framework. You get strong building blocks for servers, databases, queues, and APIs, but wiring them into a product is still up to you.
+
+Effect UI starts to change that. Our goal is a full-stack Effect framework built on the same zero-dependency core, where your database, HTTP and RPC APIs, auth, background work, observability, and UI share one programming model. Parts of that already work today, including server rendering and prerendering with a shared `HttpApi`.
+
+Right now Effect UI lives in [its own repository](https://github.com/Effect-TS/ui) so we can iterate quickly while the APIs settle. Once it's ready, we plan to bring it into the main [Effect monorepo](https://github.com/Effect-TS/effect), versioning and releasing it in lockstep with the rest of Effect.
 
 ## What people are saying on X
 
@@ -148,18 +153,10 @@ Since the public preview went live, developers have been porting apps, testing i
   </div>
 </div>
 
-## Toward full-stack Effect
-
-Effect has long felt more like a toolkit than an application framework. You get strong building blocks for servers, databases, queues, and APIs, but wiring them into a product is still up to you.
-
-Effect UI starts to change that. Our goal is a full-stack Effect framework built on the same zero-dependency core, where your database, HTTP and RPC APIs, auth, background work, observability, and UI share one programming model from day one.
-
-Right now Effect UI lives in [its own repository](https://github.com/Effect-TS/ui) so we can iterate quickly while the APIs settle. Once it's ready, we plan to bring it into the main [Effect monorepo](https://github.com/Effect-TS/effect), versioning and releasing it in lockstep with the rest of Effect.
-
 ## Try it today
 
-Start with the interactive overview at [ui.effect.website](https://ui.effect.website/). Click through the examples and open the DevTools button in the corner to watch messages and commands flow through the page.
+Start with the interactive overview at [ui.effect.website](https://ui.effect.website/). Click through the examples and open the Effect UI button in the bottom-right corner to watch messages and commands flow through the page.
 
-Effect UI isn't on npm yet. Every commit to `main` publishes snapshot builds to [pkg.pr.new](https://pkg.pr.new/~/Effect-TS/ui). Follow the [setup guide](https://github.com/Effect-TS/ui#start-a-new-app) to try a snapshot, or browse runnable apps in [`Effect-TS/ui/examples`](https://github.com/Effect-TS/ui/tree/main/examples), including auth, SSR with `HttpApi`, a terminal Snake game, and an Expo native app.
+Effect UI is experimental and not on npm yet, so expect breaking changes before the first release. Every commit to `main` publishes snapshot builds to [pkg.pr.new](https://pkg.pr.new/~/Effect-TS/ui). Follow the [setup guide](https://github.com/Effect-TS/ui#start-a-new-app) to try a snapshot, or browse runnable apps in [`Effect-TS/ui/examples`](https://github.com/Effect-TS/ui/tree/main/examples), including auth, SSR with `HttpApi`, a terminal Snake game, and an Expo native app.
 
-Effect UI also ships an `AGENTS.md` guide you can point your coding agent at. Try it out, open an issue or PR in [Effect-TS/ui](https://github.com/Effect-TS/ui), and tell us what you build in the [Effect Discord](https://discord.gg/effect-ts).
+Effect UI also ships an `AGENTS.md` guide inside the package that you can point your coding agent at. Try it out, open an issue or PR in [Effect-TS/ui](https://github.com/Effect-TS/ui), and tell us what you build in the [Effect Discord](https://discord.gg/effect-ts).
