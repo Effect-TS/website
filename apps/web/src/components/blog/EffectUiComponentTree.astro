@@ -1,0 +1,81 @@
+---
+import ChartCard from "@/components/blog/ChartCard.astro"
+
+const parts = ["Model", "update", "view"] as const
+const leaves = ["Search", "Results"] as const
+
+const nodeClass =
+  "flex flex-col items-center gap-1.5 rounded-lg border border-border-strong bg-background px-2.5 py-2.5 shadow-2xs"
+const labelClass = "font-mono text-xs font-semibold text-foreground sm:text-[0.8125rem]"
+const chipClass =
+  "rounded-sm bg-brand/8 px-1.5 py-px font-mono text-[0.625rem]/[1.5] font-medium text-emerald-700 ring-1 ring-inset ring-brand/25 dark:text-emerald-400"
+const flowClass =
+  "absolute top-1/2 -translate-y-1/2 font-mono text-[0.6875rem]/[1] whitespace-nowrap text-muted-foreground"
+---
+
+<ChartCard
+  title="How Effect UI apps compose"
+  note="Every Component owns its Model, update, and view. Parents pass props down, children emit events up, and an interaction inside one Component re-renders only that Component."
+>
+  <div class="border-t border-border px-4 py-8 sm:px-6">
+    <div
+      role="group"
+      aria-label="Effect UI component tree: App renders Page, and Page renders Search and Results. Each Component has its own Model, update, and view."
+      class="mx-auto flex w-full max-w-[380px] flex-col"
+    >
+      <div class="mx-auto w-[11.5rem] max-w-full">
+        <div class={nodeClass}>
+          <span class={labelClass}>App</span>
+          <span class="flex flex-wrap justify-center gap-1">
+            {parts.map((part) => <span class={chipClass}>{part}</span>)}
+          </span>
+        </div>
+      </div>
+
+      <span class="relative mx-auto block h-8 w-px bg-border-strong" aria-hidden="true">
+        <span class:list={[flowClass, "right-full mr-2.5"]}>props ↓</span>
+        <span class:list={[flowClass, "left-full ml-2.5"]}>events ↑</span>
+      </span>
+
+      <div class="mx-auto w-[11.5rem] max-w-full">
+        <div class={nodeClass}>
+          <span class={labelClass}>Page</span>
+          <span class="flex flex-wrap justify-center gap-1">
+            {parts.map((part) => <span class={chipClass}>{part}</span>)}
+          </span>
+        </div>
+      </div>
+
+      <span class="relative block h-10" aria-hidden="true">
+        <span class="absolute top-0 bottom-2.5 left-1/2 w-px bg-border-strong">
+          <span class:list={[flowClass, "right-full mr-2.5"]}>props ↓</span>
+          <span class:list={[flowClass, "left-full ml-2.5"]}>events ↑</span>
+        </span>
+        <span
+          class="absolute right-[calc((100%-0.75rem)/4)] bottom-2.5 left-[calc((100%-0.75rem)/4)] h-px bg-border-strong sm:right-[calc((100%-1rem)/4)] sm:left-[calc((100%-1rem)/4)]"
+        ></span>
+        <span
+          class="absolute bottom-0 left-[calc((100%-0.75rem)/4)] h-2.5 w-px bg-border-strong sm:left-[calc((100%-1rem)/4)]"
+        ></span>
+        <span
+          class="absolute right-[calc((100%-0.75rem)/4)] bottom-0 h-2.5 w-px bg-border-strong sm:right-[calc((100%-1rem)/4)]"
+        ></span>
+      </span>
+
+      <div class="grid grid-cols-2 gap-3 sm:gap-4">
+        {
+          leaves.map((leaf) => (
+            <div class={nodeClass}>
+              <span class={labelClass}>{leaf}</span>
+              <span class="flex flex-wrap justify-center gap-1">
+                {parts.map((part) => (
+                  <span class={chipClass}>{part}</span>
+                ))}
+              </span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</ChartCard>

@@ -10,6 +10,7 @@ tags:
 ---
 
 import Tweet from "astro-tweet"
+import EffectUiComponentTree from "@/components/blog/EffectUiComponentTree.astro"
 import TweetImage from "@/components/blog/TweetImage.astro"
 
 export const tweetComponents = { MediaImg: TweetImage }
@@ -18,7 +19,7 @@ If you write your backend in Effect, moving to the frontend feels like stepping 
 
 On the server you have typed errors, `Schema`, `Layer`s, structured concurrency, and `TestClock`. In the browser you go back to hooks, hidden side effects, separate libraries for state and fetching, and component tests built on module mocks and fake timers.
 
-We recently opened the public preview of **Effect UI**, a frontend library built on Effect and the Elm Architecture. Every **Component** is a self-contained program with Schema-typed state, pure state transitions, and side effects as values. Each one owns its own state, services, and error boundary.
+You shouldn't have to leave Effect behind the moment you touch the UI. That's why we opened the public preview of **Effect UI**, a frontend library built on Effect and the Elm Architecture. Every **Component** is a self-contained program with Schema-typed state, pure state transitions, and side effects as values. Each one owns its own state, services, and error boundary.
 
 Like Effect itself, Effect UI has zero third-party runtime dependencies. Everything you need to ship a real app is built in: a typed router, a query cache, shared state, server rendering, DevTools, testing harnesses, and over 45 headless UI components. You don't have to stitch together half a dozen libraries just to get started.
 
@@ -39,6 +40,8 @@ A constrained, explicit architecture changes both what agents can build and how 
 A Component is a self-contained program that renders a piece of UI. It holds its own state, declares the events it can handle, and updates that state through pure functions.
 
 When a user interacts with a Component, only that Component updates and re-renders. You can write, test, and lazy-load any Component on its own, and if one fails, the rest of the app keeps running.
+
+<EffectUiComponentTree />
 
 Here is a small counter with a delayed reset:
 
@@ -151,7 +154,7 @@ Effect has long felt more like a toolkit than an application framework. You get 
 
 Effect UI is the first big step toward changing that. We're building toward a full-stack Effect framework where your database, HTTP and RPC APIs, auth, background work, observability, and UI share one programming model from day one.
 
-Errors stay typed from the server straight to the button a user clicks. Every layer is testable on its own, and the same architecture holds up as the app grows.
+When a server call fails, your UI handles a typed error instead of an unknown exception. Every layer is testable on its own, and the same architecture holds up as the app grows.
 
 ## Try it today
 
