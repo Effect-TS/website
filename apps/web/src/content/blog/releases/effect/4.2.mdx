@@ -54,10 +54,6 @@ runtime with `Supervisor.layer`. If you build your own synchronization
 primitive on `Effect.callback`, its new `blockedOn` option tells the
 supervisor what the fiber is waiting on.
 
-Imagine a test that never finishes. A test runner could use a supervisor to
-report which fiber is still blocked and what it’s waiting for, instead of
-just telling you the test timed out.
-
 Two smaller additions help distinguish waiting from working.
 `Semaphore.withPermitsTraced` creates a span for the time spent waiting to
 acquire permits, not for the work that holds them. And `Pool.stats` and
@@ -87,9 +83,6 @@ PathFilter.excludes(filter, "dist/index.d.ts") // => false
 Later rules take precedence. If the project already defines its exclusions,
 the experimental `IgnoreFile` parsers can build filters from `.gitignore` and
 `.dockerignore` sources.
-
-The same rules would work for test discovery: include the test files, skip
-the fixtures directory, then opt one fixture back in by name.
 
 ## Reading and writing YAML
 
