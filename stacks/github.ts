@@ -82,24 +82,17 @@ export default Alchemy.Stack(
       ),
     ])
 
-    const publicPosthogKey = yield* Config.option(
-      Config.String("PUBLIC_POSTHOG_KEY"),
+    // Maple server telemetry. Optional until the Maple account is set up: the
+    // Worker drops its traces without a key.
+    const mapleIngestKey = yield* Config.option(
+      Config.Redacted("MAPLE_INGEST_KEY"),
     )
-    const publicPosthogApiHost = yield* Config.String(
-      "PUBLIC_POSTHOG_API_HOST",
-    ).pipe(Config.withDefault("https://us.i.posthog.com"))
-
-    yield* GitHub.Variable("public-posthog-api-host", {
-      ...repository,
-      name: "PUBLIC_POSTHOG_API_HOST",
-      value: publicPosthogApiHost,
-    })
-    yield* Option.match(publicPosthogKey, {
+    yield* Option.match(mapleIngestKey, {
       onNone: () => Effect.void,
       onSome: (value) =>
-        GitHub.Variable("public-posthog-key", {
+        GitHub.Secret("maple-ingest-key", {
           ...repository,
-          name: "PUBLIC_POSTHOG_KEY",
+          name: "MAPLE_INGEST_KEY",
           value,
         }),
     })

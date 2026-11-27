@@ -19,6 +19,15 @@ import {
   StoreSearchResponse,
 } from "./domain"
 import { cacheScope, previewScope, productionScope } from "./scope"
+import {
+  failureAttributes,
+  requestAttributes,
+  resultAttributes,
+  scopeAttributes,
+  type SearchFailureStage,
+} from "./telemetry"
+
+const SEARCH_TOP_K = 20
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
@@ -218,26 +227,49 @@ export class Search extends Context.Service<Search>()("app/Search", {
     )
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const storeScope = yield* scope
+      yield* Effect.annotateCurrentSpan(requestAttributes(query))
+
+      // Tags this span with where the search failed and why, so failures in
+      // Maple group by stage and provider status.
+      const failedAt =
+        (stage: SearchFailureStage) =>
+        <A, R>(effect: Effect.Effect<A, SearchError, R>) =>
+          Effect.tapError(effect, (error) =>
+            Effect.annotateCurrentSpan(
+              failureAttributes(stage, error.cause, query),
+            ),
+          )
+
+      const storeScope = yield* scope.pipe(failedAt("store_scope"))
+      yield* Effect.annotateCurrentSpan(scopeAttributes(storeScope))
+
       const rawResponse = yield* Effect.tryPromise({
         try: (signal) =>
           mxbai.stores.search(
             {
               query,
-              top_k: 20,
+              top_k: SEARCH_TOP_K,
               search_options: { rerank: true, return_metadata: true },
               ...storeScope,
             },
             { signal },
           ),
         catch: (cause) => new SearchError({ cause }),
-      })
+      }).pipe(
+        Effect.withSpan("Mixedbread.stores.search", {
+          attributes: { "search.top_k": SEARCH_TOP_K, "search.rerank": true },
+        }),
+        failedAt("provider"),
+      )
 
       const response = yield* decodeSearchResponse(rawResponse).pipe(
         Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
+        failedAt("response_decode"),
       )
 
-      return groupSearchResults(response)
+      const results = groupSearchResults(response)
+      yield* Effect.annotateCurrentSpan(resultAttributes(results))
+      return results
     })
 
     return {

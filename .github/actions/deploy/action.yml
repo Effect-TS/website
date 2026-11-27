@@ -37,14 +37,10 @@ inputs:
   kv-rest-api-token:
     description: Upstash REST API token
     required: true
-  public-posthog-key:
-    description: Public PostHog project key
+  maple-ingest-key:
+    description: Maple ingest key for server traces; traces are dropped when empty
     required: false
     default: ""
-  public-posthog-api-host:
-    description: Public PostHog API host
-    required: false
-    default: https://us.i.posthog.com
 
 runs:
   using: composite
@@ -78,13 +74,6 @@ runs:
       shell: bash
       run: rm -rf apps/web/.astro-cache
 
-    - name: Write public build inputs
-      shell: bash
-      run: node apps/web/scripts/write-alchemy-build-input.mjs
-      env:
-        PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
-        PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
-
     - name: Deploy website to Cloudflare
       shell: bash
       run: |
@@ -100,8 +89,7 @@ runs:
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}
         KV_REST_API_URL: ${{ inputs.kv-rest-api-url }}
         KV_REST_API_TOKEN: ${{ inputs.kv-rest-api-token }}
-        PUBLIC_POSTHOG_KEY: ${{ inputs.public-posthog-key }}
-        PUBLIC_POSTHOG_API_HOST: ${{ inputs.public-posthog-api-host }}
+        MAPLE_INGEST_KEY: ${{ inputs.maple-ingest-key }}
         GITHUB_TOKEN: ${{ github.token }}
         WEBSITE_REVISION: ${{ inputs.website-ref }}
         FORCE_FULL_BUILD: ${{ inputs.force-full-build }}

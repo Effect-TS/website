@@ -1,4 +1,6 @@
+import { MapleBrowser } from "@maple-dev/browser"
 import type { SearchResult } from "./domain"
+import { queryShape } from "./query-shape"
 
 type SearchResultKind = SearchResult["kind"]
 
@@ -16,23 +18,6 @@ type SearchResultsView = "grouped" | "section"
 
 type AnalyticsProperty = boolean | number | string
 
-interface PostHogClient {
-  readonly capture: (
-    event: string,
-    properties?: Readonly<Record<string, AnalyticsProperty>>,
-    options?: {
-      readonly send_instantly?: boolean
-      readonly transport?: "sendBeacon"
-    },
-  ) => void
-}
-
-declare global {
-  interface Window {
-    readonly posthog?: PostHogClient
-  }
-}
-
 interface SearchSession {
   readonly id: string
   readonly openedAt: number
@@ -45,23 +30,14 @@ let session: SearchSession | undefined
 function capture(
   event: string,
   properties: Readonly<Record<string, AnalyticsProperty>>,
-  options?: {
-    readonly send_instantly?: boolean
-    readonly transport?: "sendBeacon"
-  },
 ): void {
   if (typeof window === "undefined") return
 
   try {
-    window.posthog?.capture(
-      event,
-      {
-        ...properties,
-        ...(session === undefined ? {} : { search_session_id: session.id }),
-        $process_person_profile: false,
-      },
-      options,
-    )
+    MapleBrowser.track(event, {
+      ...properties,
+      ...(session === undefined ? {} : { search_session_id: session.id }),
+    })
   } catch {
     // Analytics must never affect search behavior.
   }
@@ -70,21 +46,10 @@ function capture(
 function queryProperties(
   query: string,
 ): Readonly<Record<string, AnalyticsProperty>> {
-  const trimmed = query.trim()
-  const length = trimmed.length
-  const words = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length
-
+  const shape = queryShape(query)
   return {
-    query_length_bucket:
-      length <= 5
-        ? "1-5"
-        : length <= 10
-          ? "6-10"
-          : length <= 25
-            ? "11-25"
-            : "26+",
-    query_word_count_bucket:
-      words <= 1 ? "1" : words <= 3 ? "2-3" : words <= 6 ? "4-6" : "7+",
+    query_length_bucket: shape.lengthBucket,
+    query_word_count_bucket: shape.wordCountBucket,
   }
 }
 
@@ -174,20 +139,16 @@ export const SearchAnalytics = {
     readonly destinationPath: string
   }): void {
     if (session !== undefined) session.didSelectResult = true
-    capture(
-      "search:result_click",
-      {
-        result_kind: properties.kind,
-        result_level: properties.level,
-        result_rank: properties.rank,
-        ...(properties.chunkRank === undefined
-          ? {}
-          : { chunk_rank: properties.chunkRank }),
-        results_view: properties.view,
-        destination_path: properties.destinationPath,
-      },
-      { transport: "sendBeacon", send_instantly: true },
-    )
+    capture("search:result_click", {
+      result_kind: properties.kind,
+      result_level: properties.level,
+      result_rank: properties.rank,
+      ...(properties.chunkRank === undefined
+        ? {}
+        : { chunk_rank: properties.chunkRank }),
+      results_view: properties.view,
+      destination_path: properties.destinationPath,
+    })
   },
 
   versionChange(previousVersion: string, nextVersion: string): void {
