@@ -89,7 +89,7 @@ export function TraceDetails({
       ) : (
         <dl
           data-testid="trace-details-attributes"
-          className="grid grid-cols-[minmax(4rem,max-content)_1fr] gap-x-4 font-mono text-[13px] leading-5"
+          className="grid grid-cols-[minmax(4rem,max-content)_1fr] gap-x-4 font-mono text-xs leading-5"
         >
           {attributes.map(([key, value]) => (
             <Entry key={key} name={key} value={value} />
@@ -234,7 +234,7 @@ function TraceEvent({
     <li
       onMouseEnter={() => onHover?.(event.event.startTime)}
       onMouseLeave={() => onHover?.(undefined)}
-      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-1.5 font-mono text-[13px] leading-5 transition-colors last:border-b-0 hover:bg-muted/50"
+      className="-mx-1.5 grid grid-cols-[auto_1px_1fr] items-start gap-x-2 rounded-sm border-b border-border px-1.5 py-1.5 font-mono text-xs leading-5 transition-colors last:border-b-0 hover:bg-muted/50"
     >
       <span className="min-w-16 text-right text-subtle-foreground">
         +{sinceTraceStart(event.event.startTime, traceStartTime)}
