@@ -17,7 +17,7 @@ export const tweetComponents = { MediaImg: TweetImage }
 
 Frontend apps get hard for the same reasons everywhere: tangled state, async race conditions, and side effects scattered across callbacks.
 
-That's why we're making [Effect UI](https://github.com/Effect-TS/ui), now in public preview. It's a frontend library that pairs the [Elm Architecture](https://guide.elm-lang.org/architecture/) with Effect so state transitions, cancellation, and dependencies stay explicit. Every **Component** is a self-contained program with Schema-typed state, pure updates, its own services, and side effects as values.
+That's why we're making [Effect UI](https://github.com/Effect-TS/ui), now in public preview. It's a frontend library built on Effect, where every component is a self-contained program with Schema-typed state, pure updates, its own services, and side effects as values.
 
 Like Effect itself, Effect UI's core and web packages have zero third-party runtime dependencies. A typed router, query cache, shared state, server rendering, DevTools, testing harnesses, and over 45 headless UI components all come built in. You don't have to assemble a frontend stack out of half a dozen packages.
 
@@ -86,7 +86,7 @@ export const Counter = Html.component({
 })
 ```
 
-A Component's `init`, `update`, and `view` are pure. Your Model and messages are Effect `Schema`s, `update` takes the current Model and a message and returns the next Model, and `view` renders that Model without running side effects.
+As in the [Elm Architecture](https://guide.elm-lang.org/architecture/), a Component's `init`, `update`, and `view` are pure. Your Model and messages are Effect `Schema`s, `update` takes the current Model and a message and returns the next Model, and `view` renders that Model without running side effects.
 
 Side effects are values, not imperative calls. When you click reset in the counter above, `update` doesn't start a timer. It returns a `Command`, the Effect runtime runs it, and the result comes back into `update` as another message. Every side effect in an Effect UI app follows that rule. You declare what should happen and the runtime runs it.
 
