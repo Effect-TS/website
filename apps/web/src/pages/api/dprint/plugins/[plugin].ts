@@ -22,6 +22,21 @@ const PluginPathParams = Schema.Struct({
 })
 type PluginPathParams = typeof PluginPathParams.Type
 
+/**
+ * Headers for a plugin response. plugins.dprint.dev sends its plugins (2-4 MB
+ * each) uncompressed as `application/octet-stream`, which Cloudflare does not
+ * compress. We send them as `application/wasm`, which lets the browser compile
+ * them while they download (`WebAssembly.compileStreaming`), and ask for gzip:
+ * a Worker that sets `Content-Encoding` has the runtime compress the body to
+ * match, which cuts a plugin to about a quarter of its size. Plugin URLs are
+ * versioned, so the browser can keep them for good.
+ */
+const pluginHeaders = (acceptEncoding: string): Record<string, string> => ({
+  "cache-control": "public, max-age=31536000, immutable",
+  vary: "accept-encoding",
+  ...(/\bgzip\b/i.test(acceptEncoding) ? { "content-encoding": "gzip" } : {}),
+})
+
 const invalidPluginResponse = HttpServerResponse.text(
   "Invalid dprint plugin name",
   { status: 400 },
@@ -42,8 +57,12 @@ const DprintPluginRoute = Layer.unwrap(
       Effect.fnUntraced(
         function* () {
           const params = yield* HttpRouter.schemaPathParams(PluginPathParams)
+          const request = yield* HttpServerRequest.HttpServerRequest
           const response = yield* httpClient.get(params.plugin)
-          return HttpServerResponse.fromClientResponse(response)
+          return HttpServerResponse.stream(response.stream, {
+            contentType: "application/wasm",
+            headers: pluginHeaders(request.headers["accept-encoding"] ?? ""),
+          })
         },
         Effect.catchTag("SchemaError", () =>
           Effect.succeed(invalidPluginResponse),

@@ -19,7 +19,8 @@ import { FileEditor } from "./components/file-editor"
 import { FileExplorer } from "./components/file-explorer"
 import { PlaygroundLoader } from "./components/loader"
 import { Terminal } from "./components/terminal"
-import { TraceViewer } from "./components/trace-viewer"
+import { TraceViewer } from "@/features/devtools/components/trace-viewer"
+import { playgroundTraceAtoms } from "./services/devtools"
 import {
   WorkspaceProvider,
   useWorkspaceHandle,
@@ -151,7 +152,7 @@ function CodeEditorPanels() {
               className="m-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-zinc-100 data-[state=inactive]:hidden dark:bg-zinc-900"
               keepMounted
             >
-              <TraceViewer />
+              <TraceViewer atoms={playgroundTraceAtoms} />
             </TabsContent>
           </Tabs>
         </div>

@@ -3,7 +3,7 @@ import * as Data from "effect/Data"
 import * as Atom from "effect/reactivity/Atom"
 import { useCallback } from "react"
 import { useWorkspaceHandle, useWorkspaceTree } from "../context/workspace"
-import { Directory, File, Workspace } from "../domain/workspace"
+import { Directory, File, Workspace } from "@/features/share/workspace"
 import { FileTree } from "./file-explorer/file-tree"
 
 export declare namespace FileExplorer {

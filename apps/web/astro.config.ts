@@ -14,6 +14,7 @@ import svgr from "vite-plugin-svgr"
 import { cloudflareWorkersFallback } from "./src/features/motw-vote/dev-fallback-plugin"
 import { openGraphMetadataPlugin } from "./src/features/open-graph/plugin"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
+import { tsrsLspAssets } from "./src/features/scratchpad/tsrs-lsp-assets-plugin"
 import { apiUnstableRedirectList } from "./src/generated/api-unstable-redirects"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
@@ -134,6 +135,7 @@ const config = defineConfig({
     react(),
     mdx(),
     incrementalBuildReport(),
+    tsrsLspAssets(),
     {
       name: "posthog-ingest-proxy",
       hooks: {

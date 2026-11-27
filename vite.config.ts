@@ -15,7 +15,7 @@ export default defineConfig({
   lint: {
     plugins: ["typescript", "import"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    ignorePatterns: [".direnv", "dist"],
+    ignorePatterns: [".direnv", ".scratch", "dist"],
     options: {
       typeAware: true,
       typeCheck: true,
@@ -91,6 +91,19 @@ export default defineConfig({
       check: {
         command: ["vp check", "vp -C apps/web exec astro check"],
         dependsOn: ["astro:sync", "icons:generate"],
+        // Runs before every push (.vite-hooks/pre-push). Files read
+        // automatically are the inputs, except ones that change without the
+        // code changing: Playwright's results, and the `.astro/` types that
+        // `astro sync` and `astro check` rewrite on every run (a task that
+        // writes its own input is never cached).
+        cache: {
+          input: [
+            { auto: true },
+            "!**/test-results/**",
+            "!**/playwright-report/**",
+            "!**/.astro/**",
+          ],
+        },
       },
 
       "dev:web": {
@@ -118,6 +131,16 @@ export default defineConfig({
       test: "vp test",
       "test:e2e": {
         command: "vp exec playwright test",
+        cache: false,
+      },
+      "test:e2e:scratchpad-worker": {
+        command:
+          "vp exec playwright test --config playwright.scratchpad-worker.config.ts",
+        cache: false,
+      },
+      "test:e2e:scratchpad-container": {
+        command:
+          "vp exec playwright test --config playwright.scratchpad-container.config.ts",
         cache: false,
       },
     },

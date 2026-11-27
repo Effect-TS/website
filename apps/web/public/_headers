@@ -17,3 +17,15 @@
 /_astro/html.worker-*
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Opener-Policy: same-origin
+
+# Scratchpad language server worker. /scratchpad is cross-origin isolated for
+# its Container, and a COEP page's dedicated worker must send COEP too.
+/_astro/lsp.worker-*
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+
+# Scratchpad in-browser language server (@website/tsrs-lsp-wasm). The names are
+# content-hashed by Vite, so they can be cached for good. They are same-origin
+# fetches from the worker, so they need no CORP header under COEP.
+/_astro/tsrs-effect-lsp.*
+  Cache-Control: public, max-age=31536000, immutable

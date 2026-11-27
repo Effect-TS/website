@@ -1,0 +1,37 @@
+---
+import Navigation from "@/components/navigation/Navigation.astro"
+import { ScratchpadPage } from "@/features/scratchpad/index"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+
+// The Container (WebContainer) needs cross-origin isolation. Set per request,
+// like /play, so `astro dev` sends them too (`_headers` only applies to
+// deployed static files). `credentialless` is not used: Safari lacks it.
+export const prerender = false
+
+Astro.response.headers.set("Cross-Origin-Embedder-Policy", "require-corp")
+Astro.response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
+---
+
+<BaseLayout
+  title="Scratchpad | Effect"
+  description="Effect TypeScript Scratchpad with live Effect diagnostics and quickinfo."
+  noindex
+>
+  <div
+    class="relative flex h-screen flex-col overflow-hidden bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-white"
+  >
+    <Navigation showThemeToggle />
+
+    <main id={PAGE_TITLE_ID} tabindex="-1" class="flex min-h-0 flex-1 overflow-hidden">
+      <ScratchpadPage client:only="react">
+        <div
+          slot="fallback"
+          class="flex h-full w-full items-center justify-center bg-white font-mono text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400"
+        >
+          Loading Scratchpad…
+        </div>
+      </ScratchpadPage>
+    </main>
+  </div>
+</BaseLayout>

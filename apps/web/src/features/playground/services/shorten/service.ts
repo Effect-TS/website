@@ -4,7 +4,7 @@ import * as Layer from "effect/Layer"
 import * as KeyValueStore from "effect/persistence/KeyValueStore"
 import * as Crypto from "node:crypto"
 import { ShortenKVS } from "../kvs"
-import { ShortenError } from "./domain"
+import { ShortenError } from "@/features/share/shorten/domain"
 
 const constMaxSize = 128 * 1024
 

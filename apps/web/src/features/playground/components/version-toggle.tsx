@@ -3,7 +3,7 @@ import { useState } from "react"
 import { DOCS_VERSIONS } from "@/lib/versions"
 import { switchVersionAtom } from "../atoms/import"
 import { useWorkspaceAtom } from "../context/workspace"
-import type { EffectVersion } from "../domain/workspace"
+import type { EffectVersion } from "@/features/share/workspace"
 import { ConfirmDialog } from "./confirm-dialog"
 
 export function VersionToggle() {

@@ -7,7 +7,6 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as PubSub from "effect/PubSub"
 import * as Queue from "effect/Queue"
-import * as Schema from "effect/Schema"
 import * as Semaphore from "effect/Semaphore"
 import * as Stream from "effect/Stream"
 import * as DevToolsSchema from "effect/devtools/DevToolsSchema"
@@ -25,8 +24,9 @@ import {
   File,
   Directory,
   Workspace,
-} from "../domain/workspace"
-import * as DevToolsSchemaCompat from "./devtools/schema"
+} from "@/features/share/workspace"
+import { languageFromPath } from "@/features/share/flat"
+import { DevToolsRequest } from "@/features/devtools/traces"
 import {
   FileSync,
   type FileSync as FileSyncState,
@@ -36,14 +36,6 @@ import {
 import { Loader } from "./loader"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
-
-// v4 programs use the native devtools wire encoding, v3 programs the legacy
-// one (compat schema). Span shapes decode under either, but metrics snapshots
-// differ; native comes first so the default (v4) workspace decodes in one
-// attempt and never falls back to the lossier compat member.
-const DevToolsRequest = Schema.toCodecJson(
-  Schema.Union([DevToolsSchema.Request, DevToolsSchemaCompat.Request]),
-)
 
 const semaphore = Semaphore.makeUnsafe(1)
 
@@ -945,15 +937,6 @@ const ignoredWorkspacePaths = new Set([".tsc-run.json", "dist", "node_modules"])
 function isIgnoredWorkspacePath(path: string) {
   const [root] = path.replace(/^\.\//, "").split("/")
   return root !== undefined && ignoredWorkspacePaths.has(root)
-}
-
-function languageFromPath(path: string) {
-  if (path.endsWith(".json")) return "json"
-  if (path.endsWith(".tsx")) return "typescriptreact"
-  if (path.endsWith(".jsx")) return "javascriptreact"
-  if (/\.(?:c|m)?js$/.test(path)) return "javascript"
-  if (/\.(?:c|m)?ts$/.test(path)) return "typescript"
-  return "plaintext"
 }
 
 function scanWorkspace(container: WC, workspace: Workspace) {

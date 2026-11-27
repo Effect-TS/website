@@ -1,6 +1,6 @@
 import { FileIcon, FolderIcon } from "lucide-react"
 import React, { useCallback, useEffect, useRef, useState } from "react"
-import { Workspace } from "../../domain/workspace"
+import { Workspace } from "@/features/share/workspace"
 import { State, useExplorerDispatch } from "../file-explorer"
 
 export function FileInput({

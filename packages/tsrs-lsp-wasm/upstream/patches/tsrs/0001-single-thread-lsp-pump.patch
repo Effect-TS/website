@@ -1,0 +1,676 @@
+Single-threaded language server pump for tsrs on wasm32-wasip1 (no threads, no shared memory).
+
+This file modifies tsrs (https://github.com/oxc-project/tsrs, Apache-2.0). It was written for the Effect website's
+Scratchpad and is not part of tsrs. Base: tsrs fd57202 (7.1.0-beta.tsrs4) with Effect-TS/tsgo 0e87d44's
+_patches/tsrs/*.patch applied in bytewise filename order (see ../../pins.json).
+
+Under `NO_THREADS` it adds a process-wide run queue and timer table (crates/tsrs_core/src/pump.rs), routes background
+tasks, timers, after-funcs and the LSP worker pool through it, makes server-to-client requests fire-and-forget, and
+adds `Server::pump_start`, `pump_message`, `pump_tick` and `pump_take_outgoing` plus the `PumpStatus` re-export.
+The module crate that drives it is ../../crates/ets_wasm_lsp. Native builds are unchanged.
+
+Text before the first `diff --git` line is ignored by `git apply`; keep it when regenerating this patch.
+
+diff --git a/crates/tsrs_core/src/context.rs b/crates/tsrs_core/src/context.rs
+index 9c86cb3..a307229 100644
+--- a/crates/tsrs_core/src/context.rs
++++ b/crates/tsrs_core/src/context.rs
+@@ -65,6 +65,11 @@ struct CancelInner {
+ }
+ 
+ fn spawn_after_func(f: AfterFunc) {
++    // NO_THREADS: the callback runs on the embedder's next pump (`crate::pump`).
++    if crate::NO_THREADS {
++        crate::pump::spawn(f);
++        return;
++    }
+     std::thread::Builder::new()
+         .name("context-afterfunc".to_string())
+         .spawn(f)
+@@ -280,6 +285,12 @@ impl Context {
+     }
+ 
+     fn wait_timeout_unslotted(&self, timeout: Duration) -> bool {
++        // NO_THREADS: nothing could cancel the context while this thread waits, so a wait is never worth taking;
++        // the timeout counts as elapsed at once (debounce windows collapse to zero).
++        if crate::NO_THREADS {
++            let _ = timeout;
++            return self.is_canceled();
++        }
+         let Some(state) = nearest_cancel(self) else {
+             std::thread::sleep(timeout);
+             return false;
+diff --git a/crates/tsrs_core/src/lib.rs b/crates/tsrs_core/src/lib.rs
+index b77ce33..319f98d 100644
+--- a/crates/tsrs_core/src/lib.rs
++++ b/crates/tsrs_core/src/lib.rs
+@@ -38,6 +38,7 @@ pub mod json;
+ pub mod lazymembers;
+ pub mod memsplit;
+ pub mod phases;
++pub mod pump;
+ pub mod runslots;
+ pub mod semver;
+ pub mod sharedgraph;
+diff --git a/crates/tsrs_core/src/pump.rs b/crates/tsrs_core/src/pump.rs
+new file mode 100644
+index 0000000..792aad0
+--- /dev/null
++++ b/crates/tsrs_core/src/pump.rs
+@@ -0,0 +1,134 @@
++//! The run queue that stands in for threads on `NO_THREADS` targets (wasm32-wasip1).
++//!
++//! Where a native build starts a thread or hands work to a pool (the language server's request workers, the
++//! project background queue, timer callbacks, `Context::after_func`), a `NO_THREADS` build pushes the work here.
++//! The embedder (the single-threaded language server module, `tsrs_wasm_lsp`) drains the queue after it has
++//! dispatched an incoming message, so every task runs to completion on the calling thread before the host gets
++//! control back. Nothing here is used on native targets.
++//!
++//! Timers (`tsrs_project::background::after_func`) keep their deadlines in `TIMERS`; `fire_due_timers` moves the
++//! due callbacks onto the queue. The embedder calls it on every pump and from an explicit tick export, so a timer
++//! fires on the first pump after its deadline, never on its own.
++
++use std::cmp::Reverse;
++use std::collections::{BinaryHeap, VecDeque};
++use std::sync::{Arc, Mutex};
++use std::time::{Duration, Instant};
++
++type Task = Box<dyn FnOnce() + Send>;
++
++static QUEUE: Mutex<VecDeque<Task>> = Mutex::new(VecDeque::new());
++
++/// Queues `f` to run on the next `run_one` / `drain`.
++pub fn spawn(f: impl FnOnce() + Send + 'static) {
++    QUEUE.lock().unwrap().push_back(Box::new(f));
++}
++
++/// Runs the oldest queued task; false when the queue is empty.
++pub fn run_one() -> bool {
++    let task = QUEUE.lock().unwrap().pop_front();
++    match task {
++        Some(task) => {
++            task();
++            true
++        }
++        None => false,
++    }
++}
++
++/// Runs queued tasks (including the ones they queue) until none is left.
++pub fn drain() -> usize {
++    let mut n = 0;
++    while run_one() {
++        n += 1;
++    }
++    n
++}
++
++pub fn pending() -> usize {
++    QUEUE.lock().unwrap().len()
++}
++
++pub type TimerCallback = Arc<dyn Fn() + Send + Sync>;
++
++struct Timers {
++    heap: BinaryHeap<Reverse<(Instant, u64, u64)>>,
++    // timer id -> (generation of its pending deadline, callback)
++    pending: Vec<(u64, u64, TimerCallback)>,
++    next_id: u64,
++    next_generation: u64,
++}
++
++static TIMERS: Mutex<Timers> = Mutex::new(Timers {
++    heap: BinaryHeap::new(),
++    pending: Vec::new(),
++    next_id: 0,
++    next_generation: 0,
++});
++
++pub fn timer_new_id() -> u64 {
++    let mut t = TIMERS.lock().unwrap();
++    t.next_id += 1;
++    t.next_id
++}
++
++/// Arms (or re-arms) timer `id`; reports whether it was pending.
++pub fn timer_schedule(id: u64, d: Duration, f: TimerCallback) -> bool {
++    let mut t = TIMERS.lock().unwrap();
++    let was = timer_remove(&mut t, id);
++    t.next_generation += 1;
++    let generation = t.next_generation;
++    t.pending.push((id, generation, f));
++    t.heap.push(Reverse((Instant::now() + d, id, generation)));
++    was
++}
++
++fn timer_remove(t: &mut Timers, id: u64) -> bool {
++    match t.pending.iter().position(|(i, _, _)| *i == id) {
++        Some(i) => {
++            t.pending.swap_remove(i);
++            true
++        }
++        None => false,
++    }
++}
++
++/// Stops timer `id`; reports whether it was pending.
++pub fn timer_stop(id: u64) -> bool {
++    timer_remove(&mut TIMERS.lock().unwrap(), id)
++}
++
++/// Queues the callbacks of the timers whose deadline has passed; returns how many.
++pub fn fire_due_timers() -> usize {
++    let now = Instant::now();
++    let mut fired = Vec::new();
++    {
++        let mut t = TIMERS.lock().unwrap();
++        while let Some(Reverse((deadline, id, generation))) = t.heap.peek().copied() {
++            if deadline > now {
++                break;
++            }
++            t.heap.pop();
++            if let Some(i) = t.pending.iter().position(|(i, g, _)| *i == id && *g == generation) {
++                let (_, _, f) = t.pending.swap_remove(i);
++                fired.push(f);
++            }
++        }
++    }
++    let n = fired.len();
++    for f in fired {
++        spawn(move || f());
++    }
++    n
++}
++
++/// The time until the next pending timer, if any (lets the host schedule an `lsp_tick`).
++pub fn next_timer_in() -> Option<Duration> {
++    let t = TIMERS.lock().unwrap();
++    let now = Instant::now();
++    t.heap
++        .iter()
++        .filter(|Reverse((_, id, g))| t.pending.iter().any(|(i, pg, _)| i == id && pg == g))
++        .map(|Reverse((deadline, _, _))| deadline.saturating_duration_since(now))
++        .min()
++}
+diff --git a/crates/tsrs_lsp/src/dynamic_queue.rs b/crates/tsrs_lsp/src/dynamic_queue.rs
+index 7e301ca..ba5ca69 100644
+--- a/crates/tsrs_lsp/src/dynamic_queue.rs
++++ b/crates/tsrs_lsp/src/dynamic_queue.rs
+@@ -101,6 +101,11 @@ impl<T: Send + 'static> DynamicQueue<T> {
+         )
+     }
+ 
++    // The non-blocking get of the single-threaded pump (`Server::pump_*`): None when the queue is empty.
++    pub fn try_get(&self) -> Option<T> {
++        self.inner.state.lock().unwrap().items.pop_front()
++    }
++
+     #[expect(clippy::len_without_is_empty, reason = "Public for the integration tests.")]
+     pub fn len(&self) -> usize {
+         self.inner.state.lock().unwrap().items.len()
+diff --git a/crates/tsrs_lsp/src/lib.rs b/crates/tsrs_lsp/src/lib.rs
+index 5726959..f4f195f 100644
+--- a/crates/tsrs_lsp/src/lib.rs
++++ b/crates/tsrs_lsp/src/lib.rs
+@@ -19,6 +19,6 @@ extern crate self as tsrs_lsp;
+ pub mod lsptestutil;
+ 
+ pub use server::{
+-    NpmInstallFunc, Reader, Server, ServerOptions, SpawnFunc, Writer, new_server, to_reader,
++    NpmInstallFunc, PumpStatus, Reader, Server, ServerOptions, SpawnFunc, Writer, new_server, to_reader,
+     to_writer,
+ };
+diff --git a/crates/tsrs_lsp/src/server.rs b/crates/tsrs_lsp/src/server.rs
+index 225aab7..38b0a80 100644
+--- a/crates/tsrs_lsp/src/server.rs
++++ b/crates/tsrs_lsp/src/server.rs
+@@ -111,6 +111,8 @@ pub fn new_server(opts: ServerOptions) -> Arc<Server> {
+         start_watchdog: opts.set_parent_process_id,
+         flake_logging: OnceLock::new(),
+         api_sessions: Mutex::new(FxHashMap::default()),
++        pump_dispatch: OnceLock::new(),
++        pump_configuration_request: Mutex::new(None),
+     })
+ }
+ 
+@@ -301,6 +303,11 @@ pub struct Server {
+ 
+     // apiSessions holds active API sessions keyed by their ID
+     pub api_sessions: Mutex<FxHashMap<String, Arc<ApiSessionState>>>,
++
++    // tsrs-only, NO_THREADS pump (`pump_*`): the dispatch context and its exit, and the id of the
++    // workspace/configuration request whose answer is applied when it arrives.
++    pump_dispatch: OnceLock<(Context, CancelCauseFunc)>,
++    pump_configuration_request: Mutex<Option<ID>>,
+ }
+ 
+ // server.go:256
+@@ -411,6 +418,17 @@ impl ResponseChan {
+     }
+ }
+ 
++// The single-threaded pump's state after a call (`Server::pump_message`, `Server::pump_tick`).
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub enum PumpStatus {
++    // Nothing is queued.
++    Idle,
++    // Background tasks are queued: call `pump_tick`.
++    Pending,
++    // The server has exited (`exit`, or the dispatch context was canceled).
++    Exited,
++}
++
+ static DEFAULT_CLIENT_CAPABILITIES: LazyLock<Arc<lsproto::ResolvedClientCapabilities>> =
+     LazyLock::new(|| Arc::new(lsproto::ResolvedClientCapabilities::default()));
+ 
+@@ -1261,7 +1279,30 @@ impl Server {
+     // server.go:801
+     fn request_configuration(&self, ctx: &Context) -> Result<lsutil::UserPreferences, Error> {
+         let caps = lsproto::get_client_capabilities(ctx);
+-        if !caps.workspace.configuration {
++        // NO_THREADS: the server cannot wait for the client's answer. It asks anyway, starts with the
++        // initialization options' preferences (as for a client without workspace/configuration), and applies the
++        // answer when it arrives (`pump_response`).
++        if caps.workspace.configuration && tsrs_core::NO_THREADS {
++            let id = jsonrpc::new_id_string(&format!(
++                "ts{}",
++                self.client_seq.fetch_add(1, Ordering::SeqCst) + 1
++            ));
++            let req = lsproto::WORKSPACE_CONFIGURATION_INFO.new_request_message(
++                Some(id.clone()),
++                lsproto::ConfigurationParams {
++                    items: ["js/ts", "typescript", "javascript", "editor"]
++                        .into_iter()
++                        .map(|section| lsproto::ConfigurationItem {
++                            section: Some(section.to_string()),
++                            ..Default::default()
++                        })
++                        .collect(),
++                },
++            );
++            *self.pump_configuration_request.lock().unwrap() = Some(id);
++            self.send(req.message())?;
++        }
++        if !caps.workspace.configuration || tsrs_core::NO_THREADS {
+             let opts = self.initialization_options();
+             if let Some(user_prefs) = &opts.user_preferences {
+                 self.logger.logf(format_args!(
+@@ -1371,6 +1412,18 @@ impl Server {
+                 return Err(err.into());
+             }
+             let (msg, err) = reader.read();
++            self.read_one(ctx, msg, err)?;
++        }
++    }
++
++    // One iteration of `read_loop` (split out for the single-threaded pump, `pump_message`).
++    fn read_one(
++        self: &Arc<Self>,
++        ctx: &Context,
++        msg: Option<Message>,
++        err: Option<Error>,
++    ) -> Result<(), Error> {
++        {
+             if let Some(err) = err {
+                 if err.is_code(ErrorCode::INVALID_REQUEST) || err.is_code(ErrorCode::INVALID_PARAMS)
+                 {
+@@ -1382,7 +1435,7 @@ impl Server {
+                         id.clone_from(&msg.as_request().id);
+                     }
+                     self.send_error(id.as_ref(), err)?;
+-                    continue;
++                    return Ok(());
+                 }
+                 return Err(err);
+             }
+@@ -1395,7 +1448,7 @@ impl Server {
+                         Ok(params) => params,
+                         Err(err) => {
+                             self.send_error(req.id.as_ref(), err)?;
+-                            continue;
++                            return Ok(());
+                         }
+                     };
+                     let resp = self.handle_initialize(ctx, params, &req)?;
+@@ -1403,11 +1456,14 @@ impl Server {
+                 } else {
+                     self.send_error(req.id.as_ref(), ErrorCode::SERVER_NOT_INITIALIZED.into())?;
+                 }
+-                continue;
++                return Ok(());
+             }
+ 
+             if msg.kind == MessageKind::Response {
+                 let resp = msg.into_response();
++                if tsrs_core::NO_THREADS {
++                    self.pump_response(&resp);
++                }
+                 let mut pending = self.pending_server_requests.lock().unwrap();
+                 let id = resp.id.clone().expect("response without id");
+                 if let Some(resp_chan) = pending.remove(&id) {
+@@ -1425,6 +1481,7 @@ impl Server {
+                 }
+             }
+         }
++        Ok(())
+     }
+ 
+     // server.go:954
+@@ -1445,9 +1502,20 @@ impl Server {
+         }));
+         loop {
+             let req = self.request_queue.get(&ctx)?;
++            self.dispatch_one(&ctx, &lsp_exit, req);
++        }
++    }
+ 
++    // One iteration of `dispatch_loop` (split out for the single-threaded pump, `pump_message`).
++    fn dispatch_one(
++        self: &Arc<Self>,
++        ctx: &Context,
++        lsp_exit: &CancelCauseFunc,
++        req: Arc<RequestMessage>,
++    ) {
++        {
+             self.last_request_time_ms.store(unix_millis_now(), Ordering::SeqCst);
+-            let mut request_ctx = context::with_locale(&ctx, self.get_locale());
++            let mut request_ctx = context::with_locale(ctx, self.get_locale());
+             // tsrs-only: the checkers this message's handler holds keep their data until it is done (`checkerDataLease`).
+             request_ctx = project::with_checker_data_lease(&request_ctx);
+             let mut cancel = None;
+@@ -1467,7 +1535,7 @@ impl Server {
+             drop(lease);
+             match result {
+                 Err(err) => {
+-                    self.handle_error(req.id.as_ref(), err, &lsp_exit);
++                    self.handle_error(req.id.as_ref(), err, lsp_exit);
+                     self.remove_request(req.id.as_ref(), cancel.as_ref());
+                 }
+                 Ok(Some(do_async_work)) => {
+@@ -1538,6 +1606,126 @@ impl Server {
+         }
+     }
+ 
++    // tsrs-only: the single-threaded message pump for `tsrs_core::NO_THREADS` targets (crates/tsrs_wasm_lsp).
++    // Instead of `run`'s read, dispatch and write threads, the host calls `pump_message` once per incoming
++    // message: it is read and dispatched as on the read and dispatch threads, and a request's async work runs
++    // right after its synchronous part (`workerpool::go`). Background tasks it queued (snapshot adoption,
++    // auto-import warming, `Context::after_func` callbacks) are left for `pump_tick`, so the response is not
++    // held up by them; the host calls `pump_tick` when `pump_message` reports pending work (and when a timer is
++    // due). Outgoing messages wait in the outgoing queue until `pump_take_outgoing`.
++    pub fn pump_start(self: &Arc<Self>, ctx: &Context) {
++        let _ = self.background_ctx.set(ctx.clone());
++        let _ = self.pump_dispatch.set(ctx.with_cancel_cause());
++    }
++
++    // Handles one JSON-RPC message (no Content-Length header).
++    pub fn pump_message(self: &Arc<Self>, data: &[u8]) -> Result<PumpStatus, Error> {
++        let (ctx, lsp_exit) = self.pump_dispatch.get().expect("pump_start was not called").clone();
++        if ctx.err().is_some() {
++            return Ok(PumpStatus::Exited);
++        }
++        let (msg, err) = match lsproto::unmarshal::<Message>(data) {
++            Ok(msg) => (Some(msg), None),
++            Err(err) => {
++                let err = Error::from(err);
++                if err.is_code(ErrorCode::INVALID_PARAMS) {
++                    (None, Some(Error::wrap_code(ErrorCode::INVALID_PARAMS, err)))
++                } else {
++                    (None, Some(Error::wrap_code(ErrorCode::INVALID_REQUEST, err)))
++                }
++            }
++        };
++        self.read_one(&ctx, msg, err)?;
++        while let Some(req) = self.request_queue.try_get() {
++            self.dispatch_one(&ctx, &lsp_exit, req);
++        }
++        Ok(self.pump_status(&ctx))
++    }
++
++    // Runs the background tasks that are queued, the timers that are due and what they queue.
++    pub fn pump_tick(self: &Arc<Self>) -> PumpStatus {
++        let Some((ctx, lsp_exit)) = self.pump_dispatch.get().cloned() else {
++            return PumpStatus::Exited;
++        };
++        loop {
++            let mut ran = 0;
++            while let Some(req) = self.request_queue.try_get() {
++                self.dispatch_one(&ctx, &lsp_exit, req);
++                ran += 1;
++            }
++            tsrs_core::pump::fire_due_timers();
++            ran += tsrs_core::pump::drain();
++            if ran == 0 {
++                break;
++            }
++        }
++        self.pump_status(&ctx)
++    }
++
++    fn pump_status(&self, ctx: &Context) -> PumpStatus {
++        if ctx.err().is_some() {
++            PumpStatus::Exited
++        } else if tsrs_core::pump::pending() > 0 || self.request_queue.len() > 0 {
++            PumpStatus::Pending
++        } else {
++            PumpStatus::Idle
++        }
++    }
++
++    // Appends the queued outgoing messages to `out`, each as its JSON text followed by '\n'; returns how many.
++    pub fn pump_take_outgoing(&self, out: &mut Vec<u8>) -> usize {
++        let mut n = 0;
++        while let Some(msg) = self.outgoing_queue.try_get() {
++            let value = msg.to_json();
++            let data = if exceeds_max_depth(&value) {
++                Err(message_marshal_error("jsontext: exceeded max depth").message)
++            } else {
++                tsrs_core::json::marshal(&value)
++            };
++            match data {
++                Ok(data) => {
++                    out.extend_from_slice(data.as_bytes());
++                    out.push(b'\n');
++                    n += 1;
++                }
++                Err(err) => {
++                    self.logger.errorf(format_args!("failed to marshal message: {err}"));
++                    if msg.kind == MessageKind::Response
++                        && let Some(id) = msg.as_response().id.as_ref()
++                    {
++                        let _ = self.send_error(Some(id), message_marshal_error(&err));
++                    }
++                }
++            }
++        }
++        n
++    }
++
++    // A response to a server->client request under the pump: the deferred workspace/configuration answer.
++    fn pump_response(&self, resp: &ResponseMessage) {
++        let mut pending = self.pump_configuration_request.lock().unwrap();
++        if pending.is_none() || pending.as_ref() != resp.id.as_ref() {
++            return;
++        }
++        *pending = None;
++        drop(pending);
++        if resp.error.is_some() {
++            return;
++        }
++        let Ok(configs) = lsproto::WORKSPACE_CONFIGURATION_INFO.unmarshal_result(resp.result.as_ref())
++        else {
++            return;
++        };
++        let mut config_map = JsonMap::new();
++        for (key, config) in ["js/ts", "typescript", "javascript", "editor"].into_iter().zip(configs)
++        {
++            config_map.insert(key.to_string(), config);
++        }
++        if let Some(session) = self.session.get() {
++            session.configure(&lsutil::parse_user_preferences(&config_map));
++        }
++    }
++
+     // server.go:1053
+     // WARNING: this should only be called in the async portion of a request handler,
+     // otherwise a deadlock can occur.
+@@ -1565,6 +1753,14 @@ impl Server {
+ 
+         self.send(req.message())?;
+ 
++        // NO_THREADS: the response can only arrive in a later host call, after this one returns, so the request
++        // is fire-and-forget and its result is taken to be `null` (what registerCapability and
++        // unregisterCapability answer). Requests whose answer matters are handled by their callers
++        // (`request_configuration`).
++        if tsrs_core::NO_THREADS {
++            return info.unmarshal_result(Some(&lsproto::Value::Null)).map_err(Error::from);
++        }
++
+         match response_chan.recv(ctx) {
+             Err(err) => Err(err.into()),
+             Ok(resp) => {
+@@ -1844,7 +2040,8 @@ impl Server {
+             let _ = self.flake_logging.set(level);
+         }
+         let _ = self.client_capabilities.set(Arc::new(params.capabilities.resolve()));
+-        if self.client_capabilities().window.work_done_progress {
++        // NO_THREADS: the progress reporter is a thread of its own; no project loading progress is shown.
++        if self.client_capabilities().window.work_done_progress && !tsrs_core::NO_THREADS {
+             let _ = self
+                 .project_progress
+                 .set(new_project_loading_progress(Arc::downgrade(self), self.progress_delay));
+diff --git a/crates/tsrs_lsp/src/workerpool.rs b/crates/tsrs_lsp/src/workerpool.rs
+index 0bd48ae..7f2aaed 100644
+--- a/crates/tsrs_lsp/src/workerpool.rs
++++ b/crates/tsrs_lsp/src/workerpool.rs
+@@ -41,6 +41,12 @@ fn get_pool() -> &'static WorkerPool {
+ 
+ // Go `go f()` for request work.
+ pub fn go(f: impl FnOnce() + Send + 'static) {
++    // NO_THREADS: the request's work runs right away on the dispatching thread, ahead of the background tasks
++    // its synchronous part queued (snapshot adoption, auto-import warming), which the pump runs afterwards.
++    if tsrs_core::NO_THREADS {
++        f();
++        return;
++    }
+     let pool = get_pool();
+     let mut state = pool.state.lock().unwrap();
+     state.jobs.push_back(Box::new(f));
+diff --git a/crates/tsrs_project/src/background/queue.rs b/crates/tsrs_project/src/background/queue.rs
+index ea24e7f..7e2b15e 100644
+--- a/crates/tsrs_project/src/background/queue.rs
++++ b/crates/tsrs_project/src/background/queue.rs
+@@ -69,6 +69,10 @@ fn worker_pool() -> &'static WorkerPool {
+ 
+ // Go `go f()` for work that is not tracked by a Queue (timer callbacks): runs `f` on the shared workers.
+ pub(crate) fn go(f: impl FnOnce() + Send + 'static) {
++    if tsrs_core::NO_THREADS {
++        tsrs_core::pump::spawn(f);
++        return;
++    }
+     let pool = worker_pool();
+     pool.tasks.lock().unwrap().push_back(Box::new(f));
+     pool.available.notify_one();
+@@ -109,6 +113,11 @@ impl Queue {
+             f(&ctx);
+             drop(done);
+         });
++        // NO_THREADS: the task runs on the embedder's pump (`tsrs_core::pump`), after the current message.
++        if tsrs_core::NO_THREADS {
++            tsrs_core::pump::spawn(task);
++            return;
++        }
+         let pool = worker_pool();
+         pool.tasks.lock().unwrap().push_back(task);
+         pool.available.notify_one();
+@@ -118,6 +127,16 @@ impl Queue {
+     // Wait waits for all active tasks to complete.
+     // It does not prevent new tasks from being enqueued while waiting.
+     pub fn wait(&self) {
++        // NO_THREADS: run queued tasks until this queue's are done. A task that waits for its own queue (or one
++        // whose task is further up this stack) cannot finish here; stop when nothing is left to run.
++        if tsrs_core::NO_THREADS {
++            while *self.pending.count.lock().unwrap() > 0 {
++                if !tsrs_core::pump::run_one() {
++                    break;
++                }
++            }
++            return;
++        }
+         // Waits for background workers, without holding a run slot (`tsrs_core::runslots`).
+         tsrs_core::runslots::blocking(|| {
+             let mut count = self.pending.count.lock().unwrap();
+diff --git a/crates/tsrs_project/src/background/timer.rs b/crates/tsrs_project/src/background/timer.rs
+index 70b3dcb..2bcb783 100644
+--- a/crates/tsrs_project/src/background/timer.rs
++++ b/crates/tsrs_project/src/background/timer.rs
+@@ -81,6 +81,13 @@ pub struct Timer {
+ 
+ // Go `time.AfterFunc(d, f)`.
+ pub fn after_func(d: Duration, f: impl Fn() + Send + Sync + 'static) -> Timer {
++    // NO_THREADS: no timer thread; the deadline is kept by `tsrs_core::pump`, which fires it on a later pump.
++    if tsrs_core::NO_THREADS {
++        let f: Callback = Arc::new(f);
++        let id = tsrs_core::pump::timer_new_id();
++        tsrs_core::pump::timer_schedule(id, d, Arc::clone(&f));
++        return Timer { id, f };
++    }
+     let t = timer_thread();
+     let f: Callback = Arc::new(f);
+     let mut st = t.st.lock().unwrap();
+@@ -102,12 +109,18 @@ fn schedule(st: &mut TimerState, id: u64, d: Duration, f: Callback) {
+ impl Timer {
+     // Go `t.Stop()`: reports whether the call stopped the timer (false if it already fired or was stopped).
+     pub fn stop(&self) -> bool {
++        if tsrs_core::NO_THREADS {
++            return tsrs_core::pump::timer_stop(self.id);
++        }
+         let t = timer_thread();
+         t.st.lock().unwrap().pending.remove(&self.id).is_some()
+     }
+ 
+     // Go `t.Reset(d)`: re-arms the timer (also after it fired); reports whether it was pending.
+     pub(crate) fn reset(&self, d: Duration) -> bool {
++        if tsrs_core::NO_THREADS {
++            return tsrs_core::pump::timer_schedule(self.id, d, Arc::clone(&self.f));
++        }
+         let t = timer_thread();
+         let mut st = t.st.lock().unwrap();
+         let was_pending = st.pending.contains_key(&self.id);
+diff --git a/crates/tsrs_project/src/checkerpool.rs b/crates/tsrs_project/src/checkerpool.rs
+index 1162e71..d8a940e 100644
+--- a/crates/tsrs_project/src/checkerpool.rs
++++ b/crates/tsrs_project/src/checkerpool.rs
+@@ -51,6 +51,12 @@ impl Semaphore {
+ 
+     fn acquire(&self) {
+         let mut state = self.state.lock().unwrap();
++        // NO_THREADS: nothing else runs to release a checker, so waiting would never end.
++        assert!(
++            !(tsrs_core::NO_THREADS && state.used >= self.capacity),
++            "checker pool exhausted on a single thread ({} in use)",
++            state.used
++        );
+         if state.used >= self.capacity {
+             // Waits for another request's checker without holding a run slot (`runslots`).
+             drop(state);
+diff --git a/crates/tsrs_project/src/session.rs b/crates/tsrs_project/src/session.rs
+index 80943ae..4f3accf 100644
+--- a/crates/tsrs_project/src/session.rs
++++ b/crates/tsrs_project/src/session.rs
+@@ -868,6 +868,15 @@ impl Session {
+             state.pending -= 1;
+         }
+         while state.pending != 0 {
++            // NO_THREADS: a fired callback is queued on the pump; run it instead of waiting for a thread.
++            if tsrs_core::NO_THREADS {
++                drop(state);
++                if !tsrs_core::pump::run_one() {
++                    return;
++                }
++                state = self.idle_cache_clean.lock().unwrap();
++                continue;
++            }
+             state = self.idle_cache_clean_done.wait(state).unwrap();
+         }
+     }

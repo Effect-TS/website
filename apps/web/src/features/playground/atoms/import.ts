@@ -4,7 +4,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Atom from "effect/reactivity/Atom"
-import { ShortenClient } from "@/features/playground/services/shorten/client"
+import { ShortenClient } from "@/features/share/shorten/client"
 import type { AtomWorkspaceHandle } from "./workspace"
 import {
   defaultVersion,
@@ -14,9 +14,10 @@ import {
   makeDefaultWorkspace,
   makeFile,
   normalizeWorkspace,
+  withPlaygroundTypeScript,
   Workspace,
-} from "../domain/workspace"
-import { WorkspaceCompression } from "../services/compression"
+} from "@/features/share/workspace"
+import { WorkspaceCompression } from "@/features/share/compression"
 import { WebContainer } from "../services/webcontainer"
 import { hashAtom } from "./location"
 
@@ -186,7 +187,10 @@ const fromHash = Effect.fnUntraced(
       .retrieve({ params: { hash: hash.value } })
       .pipe(Effect.flatMap(Effect.fromOption))
     const compression = yield* WorkspaceCompression
-    return Option.some(yield* compression.decompress(compressed))
+    // A Scratchpad share has no `typescript`, which /play's runner needs.
+    return Option.some(
+      withPlaygroundTypeScript(yield* compression.decompress(compressed)),
+    )
   },
   Effect.catch((error) =>
     Effect.logWarning(
@@ -239,7 +243,7 @@ export const importAtom = runtime.atom(
       yield* Effect.logInfo(
         "Playground: loaded workspace from the localStorage autosave",
       )
-      return normalizeWorkspace(autoSaved.value)
+      return withPlaygroundTypeScript(normalizeWorkspace(autoSaved.value))
     }
 
     const version = Option.getOrElse(get(versionParamAtom), () =>

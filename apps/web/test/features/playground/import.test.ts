@@ -26,8 +26,8 @@ import {
   defaultMainFile,
   makeDefaultWorkspace,
   makeFile,
-} from "../../../src/features/playground/domain/workspace.ts"
-import { WorkspaceCompression } from "../../../src/features/playground/services/compression.ts"
+} from "../../../src/features/share/workspace.ts"
+import { WorkspaceCompression } from "../../../src/features/share/compression.ts"
 import { WebContainer } from "../../../src/features/playground/services/webcontainer.ts"
 
 test("legacy unversioned code links import a v3 workspace", async () => {
