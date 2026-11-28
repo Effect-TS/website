@@ -1,12 +1,13 @@
 ---
 interface Props {
+  readonly verticalOnly?: boolean
   readonly class?: string | undefined
 }
 
-const { class: className } = Astro.props
+const { class: className, verticalOnly } = Astro.props
 ---
 
-<div aria-hidden="true" class:list={["pointer-events-none absolute inset-0", className]}>
+<div aria-hidden="true" class:list={["pointer-events-none absolute inset-0", className, { "vertical-only": verticalOnly }]}>
   <div class="grid-bg grid-bg--light absolute inset-0"></div>
   <div class="grid-bg grid-bg--dark absolute inset-0"></div>
 </div>
@@ -16,6 +17,10 @@ const { class: className } = Astro.props
     background-size: calc(73.75rem / 6) 194px;
     background-position: calc(50% + 73.75rem / 12) 0;
     transition: opacity 0.25s ease-out;
+  }
+
+  .vertical-only .grid-bg {
+    background-size: calc(73.75rem / 6) 194px, 0 0;
   }
 
   .grid-bg--light {
