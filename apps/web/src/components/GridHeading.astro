@@ -1,0 +1,31 @@
+---
+interface Props {
+  class: string
+}
+---
+
+<h1 class={Astro.props.class}><slot /><span aria-hidden="true" class="baseline"></span></h1>
+
+<style>
+  /* The empty inline box sits on the last line's text baseline, even after wrapping.
+     The hero clips the grid and its content wrapper keeps it behind the text. */
+  .baseline {
+    display: inline-block;
+    position: relative;
+    vertical-align: baseline;
+  }
+
+  .baseline::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    z-index: -1;
+    inset: 0 -100vw auto;
+    height: 100vh;
+    background: repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--border) 70%, transparent) 0 1px,
+      transparent 1px 194px
+    );
+  }
+</style>
