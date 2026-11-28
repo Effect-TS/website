@@ -1,0 +1,156 @@
+---
+pagefind: false
+title: This Week in Effect - 146
+excerpt: "Introducing Effect UI 🔥, the next chapter of Foldkit. Plus, Effect 4.1.6, a closer look at EventLog, and Effect Days speakers Kyle Mistele and Joel Hooks."
+date: 2026-11-30
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters! Welcome back to This Week in Effect, your weekly roundup of news from the Effect community and ecosystem.
+
+**Recent major announcements:**
+
+- [Effect v4 Stable Release](https://effect.website/blog/releases/effect/40) 🚀
+- [Effect UI Release](https://ui.effect.website/)🔥
+- [Effect Days 2026](https://www.effect.website/effect-days) ✨
+
+## Technology
+
+- We're excited to introduce [Effect UI](https://ui.effect.website/), our frontend library built on Effect and the Elm Architecture that continues the work of **Foldkit**. For Foldkit users: migration guide coming soon!
+
+<Tweet id="2125825604272451629" />
+
+- New [Module of the Week](https://effect.website/blog/module-of-the-week/event-log) post by [Maxwell Brown](https://x.com/maxwellbrown), focusing on **EventLog**.
+
+Learn how `effect/eventlog` keeps offline-first devices in sync with typed event journals, encrypted remotes, and per-event or per-field conflict resolution.
+
+<Tweet id="2125227951570452743" />
+
+<YouTube
+  id="https://www.youtube.com/embed/mZENB_CjK5M?si=StMWKDw1vJST-Vlf"
+  title="EventLog | Module of the Week 9"
+/>
+
+### Effect v4 updates.
+
+Effect 4.1.6 went out on Thursday, and the week brought new MCP client capabilities, more control over exporters and workers, and a broad round of fixes across cluster, workflow and SQL.
+
+- **Additions**: Added `Worker.CloseTimeout` to configure how long workers may take to close, `Statement.SpanNameGenerator` to override SQL statement span names, `queryTextValues` on `PgClient` and `PgConnection`, and `requestTimeout` in `MssqlClientConfig`. `sql-pg` now decodes and encodes built-in PostgreSQL ranges and multiranges, `NodeChildProcessSpawner.layerProxyProcess` was added, and `Xml.elements` supports namespaces. The OTLP export queue is now bounded with configurable `maxQueueSize`, `onDrop`, `maxBatchSize` and `concurrency`, batched HTTP RPC requests are linked to caller spans in a root batch span, and `HttpApi` redacts `Redacted` values in client and server spans. The minimal Effect runtime bundle also got smaller.
+
+- **Behavior changes**: `Match.fn` matchers are now accepted by `Match.tags`, `Match.discriminator` and the related helpers and pass their arguments to the handlers, while `Match.type` no longer passes the matched input twice to case and `orElse` handlers. `Order.clamp` returns the input instead of the bound when they compare equal, `Stream.merge` and `Channel.merge` start both input sides immediately, and the HTTP server no longer reports built-in 400 and 404 client errors to `ErrorReporter`s. The code that generates TypeScript for built-in schemas moved into `Codegen`, which makes bundles smaller for apps that use `Schema` without generating code, but code that read `annotations.toCode` from a built-in needs to use `Codegen.Module.addSchemas` instead.
+
+- **MCP & AI**: `McpClient` can now connect with the 2025-03-26 and 2025-06-18 revisions, continue `2026-07-28` tool calls that pause for client input, and read a tool list's cache hint. `McpServer` finds tool registrations by name through an index, speeds up toolkit registration, caches `tools/list` projections and explains HTTP transport rejections in the response body. A toolkit handler's `InvalidParams` is now reported as invalid input. Anthropic refusal stop details and text documents from base64 data URLs now decode correctly, OpenRouter stream metadata keeps the serving provider, and `Chat` fixes cover replay after OpenAI image generation and history placing the answer between an approved tool call and its result.
+
+- **Cluster & workflow**: `ClusterCron` no longer retries failed runs, and workflow activity waits are handed off promptly during shard rebalance. Fixed `Activity.retry` under `Workflow.SuspendOnFailure`, sibling child workflows not being dispatched before a durable wait suspends, parents awaiting a shared child execution not all waking, and compensation defects not being captured in terminal results. On Cloudflare, cluster Durable Objects now stay in their jurisdiction and workflow alarms are reconciled after suspension and completion. Also fixed replies stored for requests that `deleteProcessed` already removed and cluster reply handler entries lingering when their last waiter is interrupted.
+
+- **HTTP, RPC & platform**: Fixed `HttpApiClient` crashing on non-JSON error bodies with `layerNodeHttp`, generated multipart payloads rejecting files in open object schemas, `FetchHttpClient` not resolving `globalThis.fetch` on each request, and `HttpMiddleware.cors` not sending `Access-Control-Max-Age` when `maxAge` is 0. Bun `fileWeb` responses now infer their `Content-Type` from the file name, file reads and writes support pipes and FIFOs on Node, and `NodeStdio` pauses `process.stdin` when its last consumer stops. On the OpenAPI side, endpoint names and parameter schemas are now group-local in generated `HttpApi`s.
+
+- **SQL & persistence**: Fixed `Migrator` skipping migration id `0` on a fresh database, typed `SqlError`s when `sql-d1` prepare throws, retiring pinned `sql-pg` sessions released with an open transaction, pool slots being freed before a retired transport closes, and a leading U+FEFF in `KeyValueStore` file and SQL string values. Also compacted consumed pipeline entries in multiplexed `PgConnection`s and avoided redundant service-map merges in SQL transactions.
+
+- **Core & performance**: The audit continued with fixes for `Pool.get` hanging after a failed acquisition, `Cron.next` and `Cron.prev` drifting by an hour across host DST changes, `Stream` async iterators dropping values during overlapping reads, `Effect.catchTag` losing tagged errors for an inline self, `ScopedCache` evicting a reloaded entry next, and `LayerRef` not rebuilding on invalidation while still borrowed. Also fixed `Atom.subscriptionRef` setters throwing while the ref is being updated, stream atoms reporting the previous run's value when a run completes empty, `String` line iterators restarting, and `Effect.catchReasons` error-channel inference. `Equal.equals` avoids uncached structural hashing, `Schema.toEquivalence` memoizes nested schemas, and `DateTime` no longer pulls in `Intl` in AOT-compiled bundles.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+## Community Highlights
+
+- Happy Thanksgiving! 🍁
+
+<Tweet id="2125995197297479690" />
+
+- Effect UI is already making waves! 🌊
+
+<Tweet id="2126065786804740435" />
+
+<Tweet id="2126392481482956972" />
+
+<Tweet id="2126156733219553623" />
+
+- 👀
+
+<Tweet id="2124978765289955342" />
+
+- [Chad](https://github.com/tim-smart/chad) - a Discord assistant that writes its own missing features in TypeScript, as plugins it hot-swaps on the next turn. Runs as one Docker image and is built on `effect/chat`.
+
+<Tweet id="2125536797413556397" />
+
+- [invoices](https://invoices.vicente.fyi/) by Vicente Sanchez
+
+- [EffectViz v4.0.0](https://github.com/topheman/effect-viz/releases/tag/v4.0.0) - the Effect runtime visualizer now runs on Effect 4. By topheman.
+
+- [sszvis MCP server](https://github.com/StatistikStadtZuerich/sszvis/tree/master/apps/mcp-server) - a prototype MCP server built on Effect's `McpServer`. By StatistikStadtZuerich.
+
+- [Qadi](https://github.com/leaderiop/qadi) - Effect-native authorization for TypeScript. By leaderiop.
+
+- [swapmy.space](https://swapmy.space/) - a community platform for swapping apartments.
+
+
+## Community Events
+
+- Thank you to the **Warp** team for sponsoring Effect Days!
+
+<Tweet id="2125197746483433529" />
+
+- [Effect Days](https://effect.website/effect-days) speakers announced: Kyle Mistele & Joel Hooks.
+
+<Tweet id="2125930072595157223" />
+
+<Tweet id="2125570724702060856" />
+
+- [Effect Berlin 🇩🇪](https://luma.com/wk09nldi) is happening on Dec 16th.
+
+Effect Office Hours 🔥 every Wednesday at 10:00 AM ET / 16:00 CET on our [YouTube channel](https://www.youtube.com/@effect-ts).
+
+Visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates on upcoming Effect events.
+
+## Effect Team Content
+
+<YouTube
+  id="https://www.youtube.com/embed/EbrjgWnOfX4?si=RzKRIHL86M7Qky0z"
+  title="Effect Office Hours 56 🔥"
+/>
+<br>
+<YouTube
+  id="https://www.youtube.com/embed/BA1lV8JgUqM?si=SI_tAcGSTY9WPZ61"
+  title="Frontend for Agents & Humans | Devin Jameson | Effect Miami 3"
+/>
+<br>
+<YouTube
+  id="https://www.youtube.com/embed/_tSGby_q890?si=9xjfE3foY5GKWMEB"
+  title="Advanced Effect Design Patterns | Harry Solovay | Effect Miami 3"
+/>
+<br>
+<YouTube
+  id="https://www.youtube.com/embed/0CXrSeK20Jg?si=7tgtpz_ncKgukqUt"
+  title="Harnessing AI Models with Effect TS | John A. De Goes | Effect Miami 3"
+/>
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2085682364315783506), and audio platforms like [Spotify](https://open.spotify.com/episode/12L2neeIte6LUYQpzTh9n6) and [Apple Podcast](https://podcasts.apple.com/us/podcast/software-engineering-in-the-age-of-ai-10/id1781879869?i=1000780438320).
+
+John A. De Goes, the creator of [ZIO](https://zio.dev/), as well as CEO of [Ziverge](https://www.ziverge.com/) and [Golem Cloud](https://golem.cloud/), joins Johannes Schickling and Michael Arnaldi to discuss how AI is reshaping software engineering, what developers should still learn, and why Effect’s primitives are especially valuable for coding agents.
+
+<YouTube
+  id="https://www.youtube.com/embed/irmz5X3c7Do?si=qhdWaobFA3fPWyrX"
+  title="Software Engineering in the Age of AI || John De Goes || Cause & Effect 10"
+/>
+
+## Effect Adoption Partner
+
+We’re thrilled to announce Ziverge as the first Effect Adoption Partner!
+
+<Tweet id="2082073993096417680" />
+
+## New to Effect?
+
+Effect is a TypeScript library for building reliable applications, with built-in concurrency, cancellation, and safe resource management. Explore the [documentation](/docs/getting-started/introduction/) and [installation](/docs/getting-started/installation/) guide below to get started.
+
+_Effect Community Team_
